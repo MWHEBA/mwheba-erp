@@ -1,0 +1,147 @@
+name: 🔒 Security Scan
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run security scan daily at 2 AM UTC
+    - cron: '0 2 * * *'
+
+jobs:
+  security-scan:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🐍 Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+
+    - name: 🔧 Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety semgrep pip-audit
+
+    - name: 🔒 Run Bandit security scan
+      run: |
+        echo "🔒 Running Bandit security scan..."
+        bandit -r . -f json -o bandit-report.json -ll
+        bandit -r . -f txt -o bandit-report.txt -ll
+      continue-on-error: true
+
+    - name: 🛡️ Check dependencies for vulnerabilities
+      run: |
+        echo "🛡️ Checking dependencies for known vulnerabilities..."
+        safety check --json --output safety-report.json
+        safety check --output safety-report.txt
+      continue-on-error: true
+
+    - name: 🔍 Advanced security scan with Semgrep
+      run: |
+        echo "🔍 Running advanced security scan..."
+        semgrep --config=auto --json --output=semgrep-report.json . || true
+        semgrep --config=auto --output=semgrep-report.txt . || true
+      continue-on-error: true
+
+    - name: 📦 Audit pip packages
+      run: |
+        echo "📦 Auditing pip packages..."
+        pip-audit --format=json --output=pip-audit-report.json || true
+        pip-audit --format=text --output=pip-audit-report.txt || true
+      continue-on-error: true
+
+    - name: 🔐 Check for secrets
+      uses: trufflesecurity/trufflehog@main
+      with:
+        path: ./
+        base: main
+        head: HEAD
+        extra_args: --debug --only-verified
+
+    - name: 📊 Upload security reports
+      uses: actions/upload-artifact@v3
+      if: always()
+      with:
+        name: security-reports-${{ github.sha }}
+        path: |
+          bandit-report.json
+          bandit-report.txt
+          safety-report.json
+          safety-report.txt
+          semgrep-report.json
+          semgrep-report.txt
+          pip-audit-report.json
+          pip-audit-report.txt
+
+    - name: 📈 Security summary
+      if: always()
+      run: |
+        echo "## 🔒 Security Scan Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        if [ -f bandit-report.txt ]; then
+          echo "### 🔒 Bandit Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tail -10 bandit-report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+        
+        if [ -f safety-report.txt ]; then
+          echo "### 🛡️ Safety Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          head -20 safety-report.txt >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+        fi
+
+  codeql-analysis:
+    name: 🔍 CodeQL Analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'python', 'javascript' ]
+
+    steps:
+    - name: 📥 Checkout repository
+      uses: actions/checkout@v4
+
+    - name: 🔍 Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        queries: security-extended,security-and-quality
+
+    - name: 🏗️ Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    - name: 🔍 Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
+      with:
+        category: "/language:${{matrix.language}}"
+
+  dependency-review:
+    name: 📦 Dependency Review
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+      
+    - name: 📦 Dependency Review
+      uses: actions/dependency-review-action@v3
+      with:
+        fail-on-severity: moderate
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC

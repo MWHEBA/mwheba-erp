@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📚 التوثيق والدليل
+    url: https://github.com/mwheba-erp/mwheba_erp/wiki
+    about: راجع الوثائق الشاملة والأدلة التفصيلية
+  - name: 💬 مجتمع المطورين
+    url: https://github.com/mwheba-erp/mwheba_erp/discussions
+    about: انضم للنقاشات مع المطورين والمستخدمين الآخرين
+  - name: 🔒 الإبلاغ عن ثغرة أمنية
+    url: https://github.com/mwheba-erp/mwheba_erp/security/advisories/new
+    about: أبلغ عن الثغرات الأمنية بشكل خاص وآمن
+  - name: 📧 الدعم التجاري
+    url: mailto:support@mwheba-erp.com
+    about: للدعم التجاري والاستشارات المتخصصة

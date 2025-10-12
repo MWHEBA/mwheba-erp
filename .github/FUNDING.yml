@@ -1,0 +1,35 @@
+# 💖 GitHub Sponsors configuration for MWHEBA ERP
+
+github: # Replace with up to 4 GitHub Sponsors-enabled usernames e.g., [user1, user2]
+  - mwheba-erp
+
+patreon: # Replace with a single Patreon username
+  # - mwheba_erp
+
+open_collective: # Replace with a single Open Collective username
+  # - mwheba-erp
+
+ko_fi: # Replace with a single Ko-fi username
+  # - mwheba_erp
+
+tidelift: # Replace with a single Tidelift package-name e.g., npm/babel
+  # - pypi/mwheba-erp
+
+community_bridge: # Replace with a single Community Bridge project-name e.g., cloud-foundry
+  # - mwheba-erp
+
+liberapay: # Replace with a single Liberapay username
+  # - mwheba_erp
+
+issuehunt: # Replace with a single IssueHunt username
+  # - mwheba-erp
+
+otechie: # Replace with a single Otechie username
+  # - mwheba-erp
+
+lfx_crowdfunding: # Replace with a single LFX Crowdfunding project-name e.g., cloud-foundry
+  # - mwheba-erp
+
+custom: # Replace with up to 4 custom sponsorship URLs e.g., ['link1', 'link2']
+  - 'https://www.paypal.com/donate/?hosted_button_id=MWHEBA_ERP_DONATE'
+  - 'https://buy.stripe.com/mwheba-erp-support'
