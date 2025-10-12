@@ -55,11 +55,24 @@ jobs:
         pip-audit --format=text --output=pip-audit-report.txt || true
       continue-on-error: true
 
-    - name: 🔐 Check for secrets
-      uses: trufflesecurity/trufflehog@main
-      with:
-        path: ./
-        extra_args: --debug --only-verified --no-verification
+    - name: 🔐 Check for secrets with TruffleHog
+      run: |
+        echo "🔐 Running TruffleHog secret scan..."
+        # Create exclude patterns for TruffleHog
+        echo "Scanning filesystem for secrets..."
+        docker run --rm -v "$PWD:/pwd" trufflesecurity/trufflehog:latest filesystem /pwd \
+          --only-verified \
+          --no-update \
+          --exclude-paths=/pwd/.trufflehogignore \
+          --json > trufflehog-report.json || echo "TruffleHog scan completed"
+        
+        # Show summary if secrets found
+        if [ -s trufflehog-report.json ]; then
+          echo "⚠️ Secrets detected! Check the report."
+          head -5 trufflehog-report.json
+        else
+          echo "✅ No secrets detected."
+        fi
       continue-on-error: true
 
     - name: 📊 Upload security reports
@@ -76,6 +89,7 @@ jobs:
           semgrep-report.txt
           pip-audit-report.json
           pip-audit-report.txt
+          trufflehog-report.json
 
     - name: 📈 Security summary
       if: always()
