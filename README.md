@@ -8,6 +8,9 @@
 ![Bootstrap](https://img.shields.io/badge/Bootstrap-5.0+-7952B3?style=for-the-badge&logo=bootstrap&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
+[![Sponsor](https://img.shields.io/badge/💖_Sponsor-MWHEBA-ff69b4?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/MWHEBA)
+[![Donate](https://img.shields.io/badge/☕_Buy_me_a_coffee-Support-orange?style=for-the-badge&logo=buy-me-a-coffee&logoColor=white)](https://github.com/sponsors/MWHEBA)
+
 **نظام إدارة موارد مؤسسية شامل ومتطور مبني بـ Django**
 
 [📖 الدليل](#-الدليل-السريع) • [🚀 التثبيت](#-التثبيت-والإعداد) • [💡 الميزات](#-الميزات-الرئيسية) • [📊 لوحة التحكم](#-لوحة-التحكم) • [🤝 المساهمة](#-المساهمة)
@@ -331,6 +334,24 @@ python manage.py migrate
 ---
 
 <div align="center">
+
+## 💖 دعم المشروع
+
+**MWHEBA ERP** مشروع مفتوح المصدر مجاني، ودعمكم يساعدنا في الاستمرار والتطوير!
+
+### 🌟 طرق الدعم
+[![💖 GitHub Sponsors](https://img.shields.io/badge/💖_GitHub_Sponsors-Support_Us-ff69b4?style=for-the-badge&logo=github-sponsors&logoColor=white)](https://github.com/sponsors/MWHEBA)
+
+- **⭐ نجمة على GitHub** - أسهل طريقة للدعم
+- **💰 GitHub Sponsors** - دعم مالي شهري أو لمرة واحدة  
+- **🐛 الإبلاغ عن الأخطاء** - ساعدنا في تحسين النظام
+- **💡 اقتراح الميزات** - شاركنا أفكارك الرائعة
+- **📝 المساهمة في الكود** - انضم لفريق التطوير
+
+### 🏆 شكر خاص للداعمين
+*كن أول داعم واحصل على مكان مميز هنا!*
+
+---
 
 **⭐ إذا أعجبك المشروع، لا تنس إعطاؤه نجمة على GitHub! ⭐**
 
