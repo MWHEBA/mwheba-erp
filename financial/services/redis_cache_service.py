@@ -82,9 +82,9 @@ class RedisFinancialCache:
         
         key = ':'.join(key_parts)
         
-        # تشفير المفتاح إذا كان طويلاً
+        # تشفير المفتاح إذا كان طويلاً باستخدام SHA-256 (آمن)
         if len(key) > 200:
-            key = f"{self.key_prefix}hash:{hashlib.md5(key.encode()).hexdigest()}"
+            key = f"{self.key_prefix}hash:{hashlib.sha256(key.encode()).hexdigest()}"
         
         return key
     

@@ -432,9 +432,9 @@ class EnhancedBalanceService:
         
         key = '_'.join(key_parts)
         
-        # تشفير المفتاح إذا كان طويلاً
+        # تشفير المفتاح إذا كان طويلاً باستخدام SHA-256 (آمن)
         if len(key) > 200:
-            key = hashlib.md5(key.encode()).hexdigest()
+            key = hashlib.sha256(key.encode()).hexdigest()
         
         return key
     

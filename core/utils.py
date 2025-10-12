@@ -459,33 +459,22 @@ def generate_report(model, report_type, start_date=None, end_date=None, filters=
 
 def clean_html(html_content):
     """
-    تنظيف محتوى HTML من النصوص البرمجية الضارة
+    تنظيف محتوى HTML من العناصر الضارة
     
     المعلمات:
     html_content (str): محتوى HTML
     
     تُرجع: محتوى HTML نظيف
     """
-    # هذه تنفيذ بسيط، يمكن استخدام مكتبات مثل bleach للتنفيذ الحقيقي
-    if not html_content:
-        return ""
-    
-    # إزالة النصوص البرمجية
-    clean_content = re.sub(r'<script.*?>.*?</script>', '', html_content, flags=re.DOTALL)
-    
-    # إزالة الأحداث المضمنة
-    clean_content = re.sub(r' on\w+=".*?"', '', clean_content, flags=re.IGNORECASE)
-    
-    # إزالة إطارات iframe
-    clean_content = re.sub(r'<iframe.*?>.*?</iframe>', '', clean_content, flags=re.DOTALL)
-    
-    return clean_content
+    # استخدام الأدوات الآمنة الجديدة
+    from .security_utils import safe_html_clean
+    return safe_html_clean(html_content)
 
 
 def paginate_queryset(queryset, page_size, page_number):
     """
     تقسيم استعلام إلى صفحات
-    
+{{ ... }}
     المعلمات:
     queryset (QuerySet): الاستعلام للتقسيم
     page_size (int): حجم الصفحة

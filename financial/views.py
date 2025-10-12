@@ -5596,7 +5596,10 @@ def payment_sync_reset_all_api(request):
             'message': 'نماذج التزامن غير متاحة'
         })
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'خطأ في مسح البيانات: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في مسح البيانات: {str(e)}'
+            'message': 'حدث خطأ أثناء مسح البيانات'
         })
