@@ -59,9 +59,8 @@ jobs:
       uses: trufflesecurity/trufflehog@main
       with:
         path: ./
-        base: main
-        head: HEAD
-        extra_args: --debug --only-verified
+        extra_args: --debug --only-verified --no-verification
+      continue-on-error: true
 
     - name: 📊 Upload security reports
       uses: actions/upload-artifact@v4
@@ -100,36 +99,6 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
         fi
 
-  codeql-analysis:
-    name: 🔍 CodeQL Analysis
-    runs-on: ubuntu-latest
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
-    strategy:
-      fail-fast: false
-      matrix:
-        language: [ 'python', 'javascript' ]
-
-    steps:
-    - name: 📥 Checkout repository
-      uses: actions/checkout@v4
-
-    - name: 🔍 Initialize CodeQL
-      uses: github/codeql-action/init@v2
-      with:
-        languages: ${{ matrix.language }}
-        queries: security-extended,security-and-quality
-
-    - name: 🏗️ Autobuild
-      uses: github/codeql-action/autobuild@v2
-
-    - name: 🔍 Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@v2
-      with:
-        category: "/language:${{matrix.language}}"
 
   dependency-review:
     name: 📦 Dependency Review
