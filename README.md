@@ -358,6 +358,3 @@ python manage.py migrate
 **صُنع بـ ❤️ في مصر | Made with ❤️ in Egypt**
 
 </div>
-
- #   G i t H u b   A c t i o n s   F i x e d   -   A l l   d e p r e c a t e d   v e r s i o n s   u p d a t e d  
- 
