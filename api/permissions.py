@@ -4,6 +4,7 @@ from rest_framework.permissions import BasePermission
 
 User = get_user_model()
 
+
 class IsOwnerOrReadOnly(permissions.BasePermission):
     """
     صلاحية مخصصة تسمح فقط لمالك الكائن بتعديله أو حذفه.
@@ -76,11 +77,11 @@ class IsAdminOrReadOnly(permissions.BasePermission):
     """
     صلاحية مخصصة تسمح للمدير بالوصول الكامل ولغيره بالقراءة فقط.
     """
-    
+
     def has_permission(self, request, view):
         # السماح بطلبات القراءة لأي مستخدم
         if request.method in permissions.SAFE_METHODS:
             return True
-        
+
         # السماح بالكتابة فقط للمديرين
-        return request.user and request.user.is_staff 
+        return request.user and request.user.is_staff

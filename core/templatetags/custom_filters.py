@@ -8,6 +8,7 @@ from django.contrib.auth.models import Permission
 
 register = template.Library()
 
+
 @register.filter
 def custom_number_format(value, decimals=2):
     """
@@ -18,18 +19,19 @@ def custom_number_format(value, decimals=2):
     """
     if value is None:
         return "0"
-    
+
     try:
         value = float(value)
         formatted = "{:,.{prec}f}".format(value, prec=decimals)
-        
+
         # إذا كانت القيمة عدد صحيح، نعرضها بدون علامة عشرية
         if value == int(value):
             formatted = "{:,}".format(int(value))
-            
+
         return formatted
     except (ValueError, TypeError):
         return value
+
 
 @register.filter
 def custom_load_json(json_string):
@@ -42,7 +44,8 @@ def custom_load_json(json_string):
             return json.loads(json_string)
         return json_string
     except json.JSONDecodeError:
-        return [] 
+        return []
+
 
 @register.filter
 def format_phone(value):
@@ -50,17 +53,17 @@ def format_phone(value):
     تنسيق رقم الهاتف بطريقة صحيحة دون معاملته كرقم عُملة
     مع ضبط الاتجاه من اليسار إلى اليمين
     """
-    if value is None or value == '':
+    if value is None or value == "":
         return "-"
-    
+
     # إزالة أي علامات تنسيق أضيفت بالخطأ
-    phone = str(value).replace(',', '').replace('.', '').strip()
-    
+    phone = str(value).replace(",", "").replace(".", "").strip()
+
     # تنسيق الرقم حسب الطول
-    if len(phone) == 11 and phone.startswith('01'):  # أرقام مصرية
+    if len(phone) == 11 and phone.startswith("01"):  # أرقام مصرية
         formatted = f"{phone[:3]} {phone[3:7]} {phone[7:]}"
     elif len(phone) > 10:  # أرقام دولية طويلة
-        if phone.startswith('+'):
+        if phone.startswith("+"):
             country_code = phone[:3]  # رمز الدولة مع +
             rest = phone[3:]
             formatted = f"{country_code} {rest}"
@@ -68,11 +71,15 @@ def format_phone(value):
             formatted = phone
     else:
         formatted = phone
-    
+
     # إضافة وسم direction لضبط اتجاه النص من اليسار إلى اليمين وجعله آمن
-    return mark_safe(f'<span dir="ltr" style="display:inline-block; text-align:left;">{formatted}</span>')
+    return mark_safe(
+        f'<span dir="ltr" style="display:inline-block; text-align:left;">{formatted}</span>'
+    )
+
 
 # الفلاتر المضافة من تطبيق product
+
 
 @register.filter
 def divide(value, arg):
@@ -82,10 +89,12 @@ def divide(value, arg):
     except (ValueError, ZeroDivisionError):
         return 0
 
+
 @register.filter
 def div(value, arg):
     """مرادف لفلتر divide للتوافق"""
     return divide(value, arg)
+
 
 @register.filter
 def multiply(value, arg):
@@ -95,10 +104,12 @@ def multiply(value, arg):
     except ValueError:
         return 0
 
+
 @register.filter
 def mul(value, arg):
     """مرادف لفلتر multiply للتوافق"""
     return multiply(value, arg)
+
 
 @register.filter
 def subtract(value, arg):
@@ -108,6 +119,7 @@ def subtract(value, arg):
     except ValueError:
         return 0
 
+
 @register.filter
 def add_float(value, arg):
     """جمع القيمة الأولى مع القيمة الثانية"""
@@ -116,6 +128,7 @@ def add_float(value, arg):
     except ValueError:
         return 0
 
+
 @register.filter
 def percentage(value, arg):
     """حساب النسبة المئوية للقيمة الأولى من القيمة الثانية"""
@@ -123,6 +136,7 @@ def percentage(value, arg):
         return (float(value) / float(arg)) * 100
     except (ValueError, ZeroDivisionError):
         return 0
+
 
 @register.filter
 def get_attr(obj, attr):
@@ -133,11 +147,11 @@ def get_attr(obj, attr):
     """
     if obj is None:
         return ""
-    
+
     # التعامل مع dictionaries
     if isinstance(obj, dict):
         return obj.get(attr, "")
-    
+
     if "." in attr:
         # تقسيم السمة بالنقط للوصول إلى السمات المتداخلة
         parts = attr.split(".")
@@ -145,7 +159,7 @@ def get_attr(obj, attr):
         for part in parts:
             if result is None:
                 return ""
-            
+
             # التعامل مع dictionaries في المستويات المتداخلة
             if isinstance(result, dict):
                 result = result.get(part, "")
@@ -155,28 +169,32 @@ def get_attr(obj, attr):
                     result = getattr(result, part)()
                 else:
                     result = getattr(result, part, "")
-        
+
         return result
     else:
         # التعامل مع dictionaries
         if isinstance(obj, dict):
             return obj.get(attr, "")
-        
+
         # محاولة تنفيذ تابع بدون وسيطات إذا كان
         attr_value = getattr(obj, attr, "")
         if callable(attr_value):
             try:
                 # تجنب استدعاء RelatedManager والدوال التي تحتاج معاملات
                 attr_type_str = str(type(attr_value))
-                if 'RelatedManager' in attr_type_str or 'ManyRelatedManager' in attr_type_str:
+                if (
+                    "RelatedManager" in attr_type_str
+                    or "ManyRelatedManager" in attr_type_str
+                ):
                     return attr_value
-                
+
                 # محاولة استدعاء الدالة
                 return attr_value()
             except (TypeError, AttributeError):
                 # إذا فشل الاستدعاء، أرجع الكائن نفسه
                 return attr_value
         return attr_value
+
 
 @register.filter
 def call(obj, method_name):
@@ -186,11 +204,12 @@ def call(obj, method_name):
     """
     if obj is None:
         return ""
-    
+
     method = getattr(obj, method_name, None)
     if callable(method):
         return method()
     return ""
+
 
 @register.filter
 def replace_id(url, obj_id):
@@ -200,8 +219,9 @@ def replace_id(url, obj_id):
     """
     if url is None or obj_id is None:
         return ""
-    
-    return str(url).replace('{id}', str(obj_id)).replace('{pk}', str(obj_id))
+
+    return str(url).replace("{id}", str(obj_id)).replace("{pk}", str(obj_id))
+
 
 @register.filter
 def split(value, sep):
@@ -212,6 +232,7 @@ def split(value, sep):
     if value is None:
         return []
     return str(value).split(sep)
+
 
 @register.filter
 def to_int(value, default=0):
@@ -224,6 +245,7 @@ def to_int(value, default=0):
     except (ValueError, TypeError):
         return default
 
+
 @register.filter
 def to_float(value, default=0.0):
     """
@@ -235,6 +257,7 @@ def to_float(value, default=0.0):
     except (ValueError, TypeError):
         return default
 
+
 @register.filter
 def format_table_cell(value, format_type):
     """
@@ -243,19 +266,20 @@ def format_table_cell(value, format_type):
     """
     if value is None:
         return "-"
-    
-    if format_type == 'currency':
+
+    if format_type == "currency":
         return f"{custom_number_format(value)} ج.م"
-    elif format_type == 'date':
-        return value.strftime('%Y-%m-%d') if value else "-"
-    elif format_type == 'datetime':
-        return value.strftime('%Y-%m-%d %H:%M') if value else "-"
-    elif format_type == 'boolean':
+    elif format_type == "date":
+        return value.strftime("%Y-%m-%d") if value else "-"
+    elif format_type == "datetime":
+        return value.strftime("%Y-%m-%d %H:%M") if value else "-"
+    elif format_type == "boolean":
         return "نعم" if value else "لا"
-    elif format_type == 'percentage':
+    elif format_type == "percentage":
         return f"{custom_number_format(value, 1)}%"
     else:
         return value
+
 
 @register.filter
 def safe_datetime_format(value, format_str):
@@ -264,64 +288,71 @@ def safe_datetime_format(value, format_str):
     """
     if value is None:
         return ""
-    
+
     try:
         # إذا كان datetime، استخدم التنسيق المطلوب
-        if hasattr(value, 'hour'):
+        if hasattr(value, "hour"):
             return value.strftime(format_str)
         # إذا كان date فقط، لا تستخدم تنسيقات الوقت
-        elif 'h' in format_str.lower() or 'i' in format_str or 'a' in format_str.lower():
+        elif (
+            "h" in format_str.lower() or "i" in format_str or "a" in format_str.lower()
+        ):
             return ""
         else:
             return value.strftime(format_str)
     except (AttributeError, ValueError):
         return ""
 
+
 # Template tags للصلاحيات والقائمة الجانبية
 @register.simple_tag(takes_context=True)
 def has_sidebar_permission(context, permission_name):
     """التحقق من صلاحية المستخدم لعرض عنصر في القائمة الجانبية"""
-    user = context['request'].user
-    
+    user = context["request"].user
+
     if not user.is_authenticated:
         return False
-    
+
     if user.is_superuser:
         return True
-    
+
     return user.has_perm(permission_name)
+
 
 @register.simple_tag(takes_context=True)
 def has_module_access(context, module_name):
     """التحقق من صلاحية الوصول لوحدة كاملة"""
-    user = context['request'].user
-    
+    user = context["request"].user
+
     if not user.is_authenticated:
         return False
-    
+
     if user.is_superuser:
         return True
-    
+
     # قائمة الصلاحيات المطلوبة لكل وحدة
     module_permissions = {
-        'financial': ['financial.view_account', 'financial.view_transaction'],
-        'advanced_accounting': ['financial.view_chartofaccounts', 'financial.view_journalentry'],
-        'enhanced_financial': ['financial.view_account', 'financial.view_transaction'],
-        'advanced_reports': ['financial.view_account', 'financial.view_transaction'],
-        'sales': ['sale.view_sale'],
-        'purchases': ['purchase.view_purchase'],
-        'clients': ['client.view_customer'],
-        'suppliers': ['supplier.view_supplier'],
-        'inventory': ['product.view_product'],
-        'users': ['auth.view_user'],
-        'settings': True,  # الإعدادات متاحة للجميع
+        "financial": ["financial.view_account", "financial.view_transaction"],
+        "advanced_accounting": [
+            "financial.view_chartofaccounts",
+            "financial.view_journalentry",
+        ],
+        "enhanced_financial": ["financial.view_account", "financial.view_transaction"],
+        "advanced_reports": ["financial.view_account", "financial.view_transaction"],
+        "sales": ["sale.view_sale"],
+        "purchases": ["purchase.view_purchase"],
+        "clients": ["client.view_customer"],
+        "suppliers": ["supplier.view_supplier"],
+        "inventory": ["product.view_product"],
+        "users": ["auth.view_user"],
+        "settings": True,  # الإعدادات متاحة للجميع
     }
-    
+
     permissions = module_permissions.get(module_name, [])
     if permissions is True:
         return True
     if not permissions:
         return False
-    
+
     # يكفي وجود صلاحية واحدة للوصول للوحدة
-    return any(user.has_perm(perm) for perm in permissions) 
+    return any(user.has_perm(perm) for perm in permissions)

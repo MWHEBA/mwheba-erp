@@ -6,16 +6,16 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0017_add_offset_printing_fields'),
+        ("supplier", "0017_add_offset_printing_fields"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='digitalprintingdetails',
-            name='max_height_cm',
+            model_name="digitalprintingdetails",
+            name="max_height_cm",
         ),
         migrations.RemoveField(
-            model_name='digitalprintingdetails',
-            name='max_width_cm',
+            model_name="digitalprintingdetails",
+            name="max_width_cm",
         ),
     ]

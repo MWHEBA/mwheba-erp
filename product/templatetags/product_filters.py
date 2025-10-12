@@ -2,6 +2,7 @@ from django import template
 
 register = template.Library()
 
+
 @register.filter
 def product_mul(value, arg):
     """
@@ -11,6 +12,7 @@ def product_mul(value, arg):
         return float(value) * float(arg)
     except (ValueError, TypeError):
         return value
+
 
 @register.filter
 def product_div(value, arg):
@@ -22,7 +24,8 @@ def product_div(value, arg):
     except (ValueError, TypeError, ZeroDivisionError):
         return value
 
-@register.filter(name='product_add')
+
+@register.filter(name="product_add")
 def add_float(value, arg):
     """
     فلتر لإضافة القيمة الأولى والثانية كأرقام عشرية
@@ -32,7 +35,8 @@ def add_float(value, arg):
     except (ValueError, TypeError):
         return value
 
-@register.filter(name='product_sub')
+
+@register.filter(name="product_sub")
 def sub(value, arg):
     """
     فلتر لطرح القيمة الثانية من القيمة الأولى
@@ -40,4 +44,4 @@ def sub(value, arg):
     try:
         return float(value) - float(arg)
     except (ValueError, TypeError):
-        return value 
+        return value

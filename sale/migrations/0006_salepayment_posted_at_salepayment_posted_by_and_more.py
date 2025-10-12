@@ -9,23 +9,38 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('sale', '0005_add_financial_integration_fields'),
+        ("sale", "0005_add_financial_integration_fields"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='salepayment',
-            name='posted_at',
-            field=models.DateTimeField(blank=True, null=True, verbose_name='تاريخ الترحيل'),
+            model_name="salepayment",
+            name="posted_at",
+            field=models.DateTimeField(
+                blank=True, null=True, verbose_name="تاريخ الترحيل"
+            ),
         ),
         migrations.AddField(
-            model_name='salepayment',
-            name='posted_by',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='sale_payments_posted', to=settings.AUTH_USER_MODEL, verbose_name='رحّلها'),
+            model_name="salepayment",
+            name="posted_by",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sale_payments_posted",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="رحّلها",
+            ),
         ),
         migrations.AddField(
-            model_name='salepayment',
-            name='status',
-            field=models.CharField(choices=[('draft', 'مسودة'), ('posted', 'مرحّلة')], default='draft', help_text='المسودات يمكن تعديلها، المرحّلة لا يمكن تعديلها', max_length=20, verbose_name='الحالة'),
+            model_name="salepayment",
+            name="status",
+            field=models.CharField(
+                choices=[("draft", "مسودة"), ("posted", "مرحّلة")],
+                default="draft",
+                help_text="المسودات يمكن تعديلها، المرحّلة لا يمكن تعديلها",
+                max_length=20,
+                verbose_name="الحالة",
+            ),
         ),
     ]

@@ -5,8 +5,8 @@ from .print_calculator import PrintCalculatorService
 from .finishing_calculator import FinishingCalculatorService
 
 __all__ = [
-    'PricingCalculatorService',
-    'PaperCalculatorService', 
-    'PrintCalculatorService',
-    'FinishingCalculatorService'
+    "PricingCalculatorService",
+    "PaperCalculatorService",
+    "PrintCalculatorService",
+    "FinishingCalculatorService",
 ]

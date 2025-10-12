@@ -3,6 +3,7 @@ from django.template.defaultfilters import floatformat
 
 register = template.Library()
 
+
 @register.filter
 def sub(value, arg):
     """
@@ -16,6 +17,7 @@ def sub(value, arg):
         except (ValueError, TypeError):
             return 0
 
+
 @register.filter
 def multiply(value, arg):
     """
@@ -28,6 +30,7 @@ def multiply(value, arg):
             return float(value) * float(arg)
         except (ValueError, TypeError):
             return 0
+
 
 @register.filter
 def divide(value, arg):
@@ -46,6 +49,7 @@ def divide(value, arg):
         except (ValueError, TypeError):
             return 0
 
+
 @register.filter
 def percentage(value, arg):
     """
@@ -61,4 +65,4 @@ def percentage(value, arg):
                 return 0
             return floatformat((float(value) / float(arg)) * 100, 2)
         except (ValueError, TypeError):
-            return 0 
+            return 0

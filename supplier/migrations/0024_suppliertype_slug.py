@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0023_add_supplier_rating'),
+        ("supplier", "0023_add_supplier_rating"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='suppliertype',
-            name='slug',
-            field=models.SlugField(blank=True, max_length=100, verbose_name='الرابط'),
+            model_name="suppliertype",
+            name="slug",
+            field=models.SlugField(blank=True, max_length=100, verbose_name="الرابط"),
         ),
     ]

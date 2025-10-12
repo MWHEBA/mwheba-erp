@@ -11,19 +11,29 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 # إضافة مسار المشروع
-project_path = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+project_path = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 if project_path not in sys.path:
     sys.path.insert(0, project_path)
 
 # إعداد Django
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mwheba_erp.settings')
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mwheba_erp.settings")
 
 import django
+
 django.setup()
 
 from product.models import (
-    Product, Category, Brand, Unit, Warehouse, ProductStock,
-    StockReservation, ProductBatch, SupplierProductPrice
+    Product,
+    Category,
+    Brand,
+    Unit,
+    Warehouse,
+    ProductStock,
+    StockReservation,
+    ProductBatch,
+    SupplierProductPrice,
 )
 from supplier.models import Supplier
 from product.tests.test_utils import TestDataFactory
@@ -36,29 +46,29 @@ def pytest_configure(config):
     """إعداد pytest"""
     import django
     from django.conf import settings
-    
+
     # إعداد قاعدة بيانات الاختبار
-    settings.DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': ':memory:',
-        'TEST': {
-            'NAME': ':memory:',
+    settings.DATABASES["default"] = {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": ":memory:",
+        "TEST": {
+            "NAME": ":memory:",
         },
     }
-    
+
     # تعطيل الـ migrations للسرعة
     settings.MIGRATION_MODULES = {
-        'product': None,
-        'supplier': None,
-        'financial': None,
-        'purchase': None,
-        'sale': None,
-        'client': None,
-        'users': None,
-        'core': None,
-        'utils': None,
+        "product": None,
+        "supplier": None,
+        "financial": None,
+        "purchase": None,
+        "sale": None,
+        "client": None,
+        "users": None,
+        "core": None,
+        "utils": None,
     }
-    
+
     django.setup()
 
 
@@ -73,9 +83,7 @@ def user():
 def admin_user():
     """مستخدم إداري للاختبار"""
     return TestDataFactory.create_user(
-        username='admin',
-        is_staff=True,
-        is_superuser=True
+        username="admin", is_staff=True, is_superuser=True
     )
 
 
@@ -107,10 +115,7 @@ def warehouse(user):
 def product(category, brand, unit, user):
     """منتج للاختبار"""
     return TestDataFactory.create_product(
-        category=category,
-        brand=brand,
-        unit=unit,
-        created_by=user
+        category=category, brand=brand, unit=unit, created_by=user
     )
 
 
@@ -124,37 +129,28 @@ def supplier():
 @pytest.fixture
 def product_stock(product, warehouse):
     """مخزون منتج للاختبار"""
-    return TestDataFactory.create_product_stock(
-        product=product,
-        warehouse=warehouse
-    )
+    return TestDataFactory.create_product_stock(product=product, warehouse=warehouse)
 
 
 @pytest.fixture
 def stock_reservation(product, warehouse, user):
     """حجز مخزون للاختبار"""
     return TestDataFactory.create_stock_reservation(
-        product=product,
-        warehouse=warehouse,
-        created_by=user
+        product=product, warehouse=warehouse, created_by=user
     )
 
 
 @pytest.fixture
 def product_batch(product, warehouse):
     """دفعة منتج للاختبار"""
-    return TestDataFactory.create_product_batch(
-        product=product,
-        warehouse=warehouse
-    )
+    return TestDataFactory.create_product_batch(product=product, warehouse=warehouse)
 
 
 @pytest.fixture
 def supplier_product_price(product, supplier):
     """سعر مورد للاختبار"""
     return TestDataFactory.create_supplier_product_price(
-        product=product,
-        supplier=supplier
+        product=product, supplier=supplier
     )
 
 
@@ -163,6 +159,7 @@ def supplier_product_price(product, supplier):
 def basic_inventory_setup(user):
     """إعداد مخزون أساسي"""
     from product.tests.test_utils import TestScenarios
+
     return TestScenarios.setup_basic_inventory_scenario()
 
 
@@ -170,6 +167,7 @@ def basic_inventory_setup(user):
 def supplier_pricing_setup(user):
     """إعداد تسعير الموردين"""
     from product.tests.test_utils import TestScenarios
+
     return TestScenarios.setup_supplier_pricing_scenario()
 
 
@@ -177,6 +175,7 @@ def supplier_pricing_setup(user):
 def expiry_tracking_setup(user):
     """إعداد تتبع انتهاء الصلاحية"""
     from product.tests.test_utils import TestScenarios
+
     return TestScenarios.setup_expiry_tracking_scenario()
 
 
@@ -184,6 +183,7 @@ def expiry_tracking_setup(user):
 def reservation_setup(user):
     """إعداد الحجوزات"""
     from product.tests.test_utils import TestScenarios
+
     return TestScenarios.setup_reservation_scenario()
 
 
@@ -192,6 +192,7 @@ def reservation_setup(user):
 def mock_notification_service():
     """خدمة إشعارات وهمية"""
     from product.tests.test_utils import MockServices
+
     return MockServices.mock_notification_service()
 
 
@@ -199,6 +200,7 @@ def mock_notification_service():
 def mock_email_service():
     """خدمة بريد إلكتروني وهمية"""
     from product.tests.test_utils import MockServices
+
     return MockServices.mock_email_service()
 
 
@@ -207,6 +209,7 @@ def mock_email_service():
 def client():
     """عميل Django للاختبار"""
     from django.test import Client
+
     return Client()
 
 
@@ -231,14 +234,14 @@ def multiple_products(category, brand, unit, user):
     products = []
     for i in range(5):
         product = TestDataFactory.create_product(
-            name=f'منتج {i+1}',
-            sku=f'MULTI{i+1:03d}',
+            name=f"منتج {i+1}",
+            sku=f"MULTI{i+1:03d}",
             category=category,
             brand=brand,
             unit=unit,
             created_by=user,
-            cost_price=Decimal(f'{100 + i*10}.00'),
-            selling_price=Decimal(f'{150 + i*15}.00')
+            cost_price=Decimal(f"{100 + i*10}.00"),
+            selling_price=Decimal(f"{150 + i*15}.00"),
         )
         products.append(product)
     return products
@@ -248,14 +251,14 @@ def multiple_products(category, brand, unit, user):
 def multiple_warehouses(user):
     """عدة مستودعات للاختبار"""
     warehouses = []
-    locations = ['الرياض', 'جدة', 'الدمام', 'المدينة', 'مكة']
-    
+    locations = ["الرياض", "جدة", "الدمام", "المدينة", "مكة"]
+
     for i, location in enumerate(locations):
         warehouse = TestDataFactory.create_warehouse(
-            name=f'مستودع {location}',
-            code=f'WH{i+1:02d}',
+            name=f"مستودع {location}",
+            code=f"WH{i+1:02d}",
             location=location,
-            manager=user
+            manager=user,
         )
         warehouses.append(warehouse)
     return warehouses
@@ -267,8 +270,7 @@ def multiple_suppliers():
     suppliers = []
     for i in range(3):
         supplier = TestDataFactory.create_supplier(
-            name=f'مورد {i+1}',
-            email=f'supplier{i+1}@example.com'
+            name=f"مورد {i+1}", email=f"supplier{i+1}@example.com"
         )
         suppliers.append(supplier)
     return suppliers
@@ -340,19 +342,19 @@ def day_later():
 @pytest.fixture
 def decimal_100():
     """رقم عشري 100"""
-    return Decimal('100.00')
+    return Decimal("100.00")
 
 
 @pytest.fixture
 def decimal_150():
     """رقم عشري 150"""
-    return Decimal('150.00')
+    return Decimal("150.00")
 
 
 @pytest.fixture
 def decimal_95():
     """رقم عشري 95"""
-    return Decimal('95.00')
+    return Decimal("95.00")
 
 
 # Hooks للاختبارات
@@ -360,6 +362,7 @@ def pytest_runtest_setup(item):
     """إعداد قبل كل اختبار"""
     # تنظيف الكاش
     from django.core.cache import cache
+
     cache.clear()
 
 
@@ -367,36 +370,23 @@ def pytest_runtest_teardown(item, nextitem):
     """تنظيف بعد كل اختبار"""
     # تنظيف الكاش
     from django.core.cache import cache
+
     cache.clear()
 
 
 # Markers مخصصة
 def pytest_configure(config):
     """تسجيل markers مخصصة"""
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as integration test"
-    )
-    config.addinivalue_line(
-        "markers", "unit: mark test as unit test"
-    )
-    config.addinivalue_line(
-        "markers", "api: mark test as API test"
-    )
-    config.addinivalue_line(
-        "markers", "view: mark test as view test"
-    )
-    config.addinivalue_line(
-        "markers", "service: mark test as service test"
-    )
-    config.addinivalue_line(
-        "markers", "model: mark test as model test"
-    )
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "integration: mark test as integration test")
+    config.addinivalue_line("markers", "unit: mark test as unit test")
+    config.addinivalue_line("markers", "api: mark test as API test")
+    config.addinivalue_line("markers", "view: mark test as view test")
+    config.addinivalue_line("markers", "service: mark test as service test")
+    config.addinivalue_line("markers", "model: mark test as model test")
 
 
 # إعدادات إضافية
 pytest_plugins = [
-    'django',
+    "django",
 ]

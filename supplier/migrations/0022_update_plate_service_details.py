@@ -6,37 +6,43 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0021_remove_price_per_kg'),
+        ("supplier", "0021_remove_price_per_kg"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='digital_proof_cost',
+            model_name="plateservicedetails",
+            name="digital_proof_cost",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='includes_proofing',
+            model_name="plateservicedetails",
+            name="includes_proofing",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='min_plates_count',
+            model_name="plateservicedetails",
+            name="min_plates_count",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='plate_type',
+            model_name="plateservicedetails",
+            name="plate_type",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='transportation_cost',
+            model_name="plateservicedetails",
+            name="transportation_cost",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='turnaround_time_hours',
+            model_name="plateservicedetails",
+            name="turnaround_time_hours",
         ),
         migrations.AddField(
-            model_name='plateservicedetails',
-            name='set_price',
-            field=models.DecimalField(blank=True, decimal_places=2, max_digits=10, null=True, verbose_name='سعر الطقم (4 زنكات)'),
+            model_name="plateservicedetails",
+            name="set_price",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                max_digits=10,
+                null=True,
+                verbose_name="سعر الطقم (4 زنكات)",
+            ),
         ),
     ]

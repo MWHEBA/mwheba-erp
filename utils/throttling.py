@@ -8,45 +8,51 @@ class BurstRateThrottle(UserRateThrottle):
     """
     # تحديد معدل طلبات مرتفع للأوقات القصيرة للمستخدمين المسجلين
     """
-    scope = 'burst'
-    rate = '60/min'
+
+    scope = "burst"
+    rate = "60/min"
 
 
 class SustainedRateThrottle(UserRateThrottle):
     """
     # تحديد معدل طلبات منخفض للأوقات الطويلة للمستخدمين المسجلين
     """
-    scope = 'sustained'
-    rate = '1000/day'
+
+    scope = "sustained"
+    rate = "1000/day"
 
 
 class LoginRateThrottle(AnonRateThrottle):
     """
     # تحديد معدل طلبات تسجيل الدخول للمستخدمين غير المسجلين لمنع هجمات القوة الغاشمة
     """
-    scope = 'login'
-    rate = '5/min'
+
+    scope = "login"
+    rate = "5/min"
 
 
 class RegisterRateThrottle(AnonRateThrottle):
     """
     # تحديد معدل طلبات التسجيل للمستخدمين غير المسجلين
     """
-    scope = 'register'
-    rate = '3/hour'
+
+    scope = "register"
+    rate = "3/hour"
 
 
 class ImportExportRateThrottle(UserRateThrottle):
     """
     # تحديد معدل طلبات الاستيراد والتصدير للمستخدمين المسجلين
     """
-    scope = 'import_export'
-    rate = '10/hour'
+
+    scope = "import_export"
+    rate = "10/hour"
 
 
 class ReportRateThrottle(UserRateThrottle):
     """
     # تحديد معدل طلبات التقارير للمستخدمين المسجلين
     """
-    scope = 'report'
-    rate = '30/hour' 
+
+    scope = "report"
+    rate = "30/hour"

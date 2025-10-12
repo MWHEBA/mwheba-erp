@@ -15,14 +15,14 @@ class PerformanceOptimizer:
     """
     محسن الأداء للاستعلامات المالية
     """
-    
+
     @classmethod
     def get_account_running_balances(
         cls,
         account_id: int,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
-        limit: int = 1000
+        limit: int = 1000,
     ) -> List[Dict]:
         """
         الحصول على الأرصدة الجارية للحساب باستخدام Window Functions
@@ -49,17 +49,17 @@ class PerformanceOptimizer:
             WHERE jel.account_id = %s 
                 AND je.status = 'posted'
         """
-        
+
         params = [account_id]
-        
+
         if date_from:
             query += " AND je.date >= %s"
             params.append(date_from)
-        
+
         if date_to:
             query += " AND je.date <= %s"
             params.append(date_to)
-        
+
         query += """
         )
         SELECT 
@@ -75,38 +75,36 @@ class PerformanceOptimizer:
         FROM account_transactions
         ORDER BY date, entry_id
         """
-        
+
         if limit:
             query += f" LIMIT {limit}"
-        
+
         with connection.cursor() as cursor:
             cursor.execute(query, params)
             columns = [col[0] for col in cursor.description]
-            
+
             results = []
             for row in cursor.fetchall():
                 row_dict = dict(zip(columns, row))
-                
+
                 # تحويل القيم المالية إلى Decimal
-                for key in ['debit', 'credit', 'running_balance']:
+                for key in ["debit", "credit", "running_balance"]:
                     row_dict[key] = Decimal(str(row_dict[key] or 0))
-                
+
                 results.append(row_dict)
-        
+
         return results
-    
+
     @classmethod
     def get_monthly_balances_summary(
-        cls,
-        account_ids: List[int] = None,
-        year: int = None
+        cls, account_ids: List[int] = None, year: int = None
     ) -> List[Dict]:
         """
         ملخص الأرصدة الشهرية باستخدام Window Functions
         """
         if not year:
             year = timezone.now().year
-        
+
         query = """
         WITH monthly_movements AS (
             SELECT 
@@ -125,14 +123,14 @@ class PerformanceOptimizer:
                 AND EXTRACT(YEAR FROM je.date) = %s
             WHERE coa.is_leaf = true AND coa.is_active = true
         """
-        
+
         params = [year]
-        
+
         if account_ids:
-            placeholders = ','.join(['%s'] * len(account_ids))
+            placeholders = ",".join(["%s"] * len(account_ids))
             query += f" AND coa.id IN ({placeholders})"
             params.extend(account_ids)
-        
+
         query += """
             GROUP BY coa.id, coa.code, coa.name, EXTRACT(MONTH FROM je.date), EXTRACT(YEAR FROM je.date)
         ),
@@ -190,30 +188,36 @@ class PerformanceOptimizer:
         FROM cumulative_balances
         ORDER BY code, year, month
         """
-        
+
         with connection.cursor() as cursor:
             cursor.execute(query, params)
             columns = [col[0] for col in cursor.description]
-            
+
             results = []
             for row in cursor.fetchall():
                 row_dict = dict(zip(columns, row))
-                
+
                 # تحويل القيم المالية إلى Decimal
-                for key in ['monthly_debit', 'monthly_credit', 'monthly_net', 
-                           'cumulative_balance', 'previous_month_net', 'change_percentage']:
+                for key in [
+                    "monthly_debit",
+                    "monthly_credit",
+                    "monthly_net",
+                    "cumulative_balance",
+                    "previous_month_net",
+                    "change_percentage",
+                ]:
                     row_dict[key] = Decimal(str(row_dict[key] or 0))
-                
+
                 results.append(row_dict)
-        
+
         return results
-    
+
     @classmethod
     def get_top_accounts_by_activity(
         cls,
         date_from: Optional[date] = None,
         date_to: Optional[date] = None,
-        limit: int = 20
+        limit: int = 20,
     ) -> List[Dict]:
         """
         أكثر الحسابات نشاطاً باستخدام Window Functions
@@ -242,17 +246,17 @@ class PerformanceOptimizer:
                 AND coa.is_active = true 
                 AND je.status = 'posted'
         """
-        
+
         params = []
-        
+
         if date_from:
             query += " AND je.date >= %s"
             params.append(date_from)
-        
+
         if date_to:
             query += " AND je.date <= %s"
             params.append(date_to)
-        
+
         query += """
             GROUP BY coa.id, coa.code, coa.name
             HAVING COUNT(jel.id) > 0
@@ -272,38 +276,40 @@ class PerformanceOptimizer:
         FROM account_activity
         ORDER BY transactions_count DESC
         """
-        
+
         if limit:
             query += f" LIMIT {limit}"
-        
+
         with connection.cursor() as cursor:
             cursor.execute(query, params)
             columns = [col[0] for col in cursor.description]
-            
+
             results = []
             for row in cursor.fetchall():
                 row_dict = dict(zip(columns, row))
-                
+
                 # تحويل القيم المالية إلى Decimal
-                for key in ['total_activity', 'avg_transaction_size', 'activity_percentage']:
+                for key in [
+                    "total_activity",
+                    "avg_transaction_size",
+                    "activity_percentage",
+                ]:
                     row_dict[key] = Decimal(str(row_dict[key] or 0))
-                
+
                 results.append(row_dict)
-        
+
         return results
-    
+
     @classmethod
     def get_balance_trends_analysis(
-        cls,
-        account_ids: List[int],
-        days_back: int = 30
+        cls, account_ids: List[int], days_back: int = 30
     ) -> Dict:
         """
         تحليل اتجاهات الأرصدة باستخدام Window Functions
         """
         end_date = timezone.now().date()
         start_date = end_date - timezone.timedelta(days=days_back)
-        
+
         query = """
         WITH daily_balances AS (
             SELECT 
@@ -382,58 +388,64 @@ class PerformanceOptimizer:
         FROM trend_analysis
         ORDER BY ABS(trend_direction) DESC
         """
-        
+
         with connection.cursor() as cursor:
             cursor.execute(query, [account_ids, start_date, end_date])
             columns = [col[0] for col in cursor.description]
-            
+
             results = []
             for row in cursor.fetchall():
                 row_dict = dict(zip(columns, row))
-                
+
                 # تحويل القيم المالية إلى Decimal
-                for key in ['min_balance', 'max_balance', 'avg_balance', 
-                           'balance_volatility', 'trend_direction', 'daily_change_rate']:
+                for key in [
+                    "min_balance",
+                    "max_balance",
+                    "avg_balance",
+                    "balance_volatility",
+                    "trend_direction",
+                    "daily_change_rate",
+                ]:
                     row_dict[key] = Decimal(str(row_dict[key] or 0))
-                
+
                 results.append(row_dict)
-        
+
         return {
-            'analysis_period': f"{start_date} إلى {end_date}",
-            'accounts_analyzed': len(results),
-            'trends': results
+            "analysis_period": f"{start_date} إلى {end_date}",
+            "accounts_analyzed": len(results),
+            "trends": results,
         }
-    
+
     @classmethod
     def optimize_journal_entry_queries(cls) -> Dict:
         """
         تحسين استعلامات القيود المحاسبية
         """
         optimizations = []
-        
+
         # إنشاء فهارس محسنة
         indexes_to_create = [
             {
-                'table': 'financial_journalentry',
-                'columns': ['date', 'status', 'id'],
-                'name': 'idx_je_date_status_id'
+                "table": "financial_journalentry",
+                "columns": ["date", "status", "id"],
+                "name": "idx_je_date_status_id",
             },
             {
-                'table': 'financial_journalentryline',
-                'columns': ['account_id', 'journal_entry_id'],
-                'name': 'idx_jel_account_entry'
+                "table": "financial_journalentryline",
+                "columns": ["account_id", "journal_entry_id"],
+                "name": "idx_jel_account_entry",
             },
             {
-                'table': 'financial_journalentryline',
-                'columns': ['debit', 'credit'],
-                'name': 'idx_jel_amounts'
-            }
+                "table": "financial_journalentryline",
+                "columns": ["debit", "credit"],
+                "name": "idx_jel_amounts",
+            },
         ]
-        
+
         with connection.cursor() as cursor:
             for index in indexes_to_create:
                 try:
-                    columns_str = ', '.join(index['columns'])
+                    columns_str = ", ".join(index["columns"])
                     query = f"""
                     CREATE INDEX IF NOT EXISTS {index['name']} 
                     ON {index['table']} ({columns_str})
@@ -441,13 +453,12 @@ class PerformanceOptimizer:
                     cursor.execute(query)
                     optimizations.append(f"تم إنشاء الفهرس {index['name']}")
                 except Exception as e:
-                    optimizations.append(f"خطأ في إنشاء الفهرس {index['name']}: {str(e)}")
-        
-        return {
-            'optimizations_applied': optimizations,
-            'status': 'completed'
-        }
-    
+                    optimizations.append(
+                        f"خطأ في إنشاء الفهرس {index['name']}: {str(e)}"
+                    )
+
+        return {"optimizations_applied": optimizations, "status": "completed"}
+
     @classmethod
     def analyze_query_performance(cls, query: str, params: List = None) -> Dict:
         """
@@ -456,17 +467,17 @@ class PerformanceOptimizer:
         with connection.cursor() as cursor:
             # تشغيل EXPLAIN ANALYZE
             explain_query = f"EXPLAIN ANALYZE {query}"
-            
+
             start_time = timezone.now()
             cursor.execute(explain_query, params or [])
             end_time = timezone.now()
-            
+
             execution_plan = cursor.fetchall()
             execution_time = (end_time - start_time).total_seconds()
-            
+
             return {
-                'execution_time_seconds': execution_time,
-                'execution_plan': execution_plan,
-                'query': query,
-                'params': params
+                "execution_time_seconds": execution_time,
+                "execution_plan": execution_plan,
+                "query": query,
+                "params": params,
             }

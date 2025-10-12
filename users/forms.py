@@ -9,12 +9,15 @@ class UserCreationForm(forms.ModelForm):
     """
     نموذج إنشاء مستخدم جديد يتضمن كافة الحقول المطلوبة، بالإضافة إلى كلمة مرور مكررة للتحقق
     """
-    password1 = forms.CharField(label=_('كلمة المرور'), widget=forms.PasswordInput)
-    password2 = forms.CharField(label=_('تأكيد كلمة المرور'), widget=forms.PasswordInput)
+
+    password1 = forms.CharField(label=_("كلمة المرور"), widget=forms.PasswordInput)
+    password2 = forms.CharField(
+        label=_("تأكيد كلمة المرور"), widget=forms.PasswordInput
+    )
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'first_name', 'last_name')
+        fields = ("username", "email", "first_name", "last_name")
 
     def clean_password2(self):
         # التحقق من تطابق كلمتي المرور
@@ -37,34 +40,51 @@ class UserChangeForm(forms.ModelForm):
     """
     نموذج لتحديث معلومات المستخدم، يستخدم ReadOnlyPasswordHashField لعرض كلمة المرور المشفرة فقط
     """
+
     password = ReadOnlyPasswordHashField(
         label=_("كلمة المرور"),
         help_text=_(
             "كلمات المرور مشفرة، ولا يمكن رؤية كلمة المرور الحالية لهذا المستخدم، "
-            "ولكن يمكنك تغييرها باستخدام <a href=\"../password/\">هذا النموذج</a>."
+            'ولكن يمكنك تغييرها باستخدام <a href="../password/">هذا النموذج</a>.'
         ),
     )
 
     class Meta:
         model = User
-        fields = ('username', 'email', 'password', 'first_name', 'last_name', 'is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')
+        fields = (
+            "username",
+            "email",
+            "password",
+            "first_name",
+            "last_name",
+            "is_active",
+            "is_staff",
+            "is_superuser",
+            "groups",
+            "user_permissions",
+        )
 
 
 class UserProfileForm(forms.ModelForm):
     """
     نموذج تحديث بيانات الملف الشخصي للمستخدم
     """
+
     class Meta:
         model = User
         fields = [
-            'first_name', 'last_name', 'email', 'phone', 
-            'address', 'profile_image'
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "address",
+            "profile_image",
         ]
         widgets = {
-            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'dir': 'ltr'}),
-            'phone': forms.TextInput(attrs={'class': 'form-control', 'dir': 'ltr'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
-            'profile_image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
-        } 
+            "first_name": forms.TextInput(attrs={"class": "form-control"}),
+            "last_name": forms.TextInput(attrs={"class": "form-control"}),
+            "email": forms.EmailInput(attrs={"class": "form-control", "dir": "ltr"}),
+            "phone": forms.TextInput(attrs={"class": "form-control", "dir": "ltr"}),
+            "address": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
+            "profile_image": forms.ClearableFileInput(attrs={"class": "form-control"}),
+        }

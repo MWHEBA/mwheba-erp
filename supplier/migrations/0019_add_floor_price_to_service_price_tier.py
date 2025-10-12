@@ -6,13 +6,20 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0018_remove_digital_max_dimensions'),
+        ("supplier", "0018_remove_digital_max_dimensions"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='servicepricetier',
-            name='floor_price',
-            field=models.DecimalField(blank=True, decimal_places=2, help_text='السعر الخاص للأرضيات (اختياري)', max_digits=10, null=True, verbose_name='السعر للأرضيات'),
+            model_name="servicepricetier",
+            name="floor_price",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                help_text="السعر الخاص للأرضيات (اختياري)",
+                max_digits=10,
+                null=True,
+                verbose_name="السعر للأرضيات",
+            ),
         ),
     ]

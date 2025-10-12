@@ -6,38 +6,38 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('product', '0005_add_supplier_pricing_models'),
+        ("product", "0005_add_supplier_pricing_models"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='pricehistory',
-            new_name='product_pri_supplie_3c9874_idx',
-            old_name='product_pri_supplie_a2c5e8_idx',
+            model_name="pricehistory",
+            new_name="product_pri_supplie_3c9874_idx",
+            old_name="product_pri_supplie_a2c5e8_idx",
         ),
         migrations.RenameIndex(
-            model_name='pricehistory',
-            new_name='product_pri_change__95417a_idx',
-            old_name='product_pri_change__d7f9b3_idx',
+            model_name="pricehistory",
+            new_name="product_pri_change__95417a_idx",
+            old_name="product_pri_change__d7f9b3_idx",
         ),
         migrations.RenameIndex(
-            model_name='pricehistory',
-            new_name='product_pri_change__c67f53_idx',
-            old_name='product_pri_change__e8a4c6_idx',
+            model_name="pricehistory",
+            new_name="product_pri_change__c67f53_idx",
+            old_name="product_pri_change__e8a4c6_idx",
         ),
         migrations.RenameIndex(
-            model_name='supplierproductprice',
-            new_name='product_sup_product_eb4bee_idx',
-            old_name='product_sup_product_b7a8a6_idx',
+            model_name="supplierproductprice",
+            new_name="product_sup_product_eb4bee_idx",
+            old_name="product_sup_product_b7a8a6_idx",
         ),
         migrations.RenameIndex(
-            model_name='supplierproductprice',
-            new_name='product_sup_product_651301_idx',
-            old_name='product_sup_product_f8c9d2_idx',
+            model_name="supplierproductprice",
+            new_name="product_sup_product_651301_idx",
+            old_name="product_sup_product_f8c9d2_idx",
         ),
         migrations.RenameIndex(
-            model_name='supplierproductprice',
-            new_name='product_sup_is_acti_7c4221_idx',
-            old_name='product_sup_is_acti_e3b4f1_idx',
+            model_name="supplierproductprice",
+            new_name="product_sup_is_acti_7c4221_idx",
+            old_name="product_sup_is_acti_e3b4f1_idx",
         ),
     ]

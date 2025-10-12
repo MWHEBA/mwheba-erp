@@ -6,27 +6,78 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pricing', '0014_paperweight'),
+        ("pricing", "0014_paperweight"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PaperOrigin',
+            name="PaperOrigin",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(help_text='مثال: مصر، الصين، ألمانيا', max_length=100, verbose_name='اسم المنشأ')),
-                ('code', models.CharField(help_text='رمز مختصر للمنشأ مثل EG, CN, DE', max_length=10, unique=True, verbose_name='رمز المنشأ')),
-                ('description', models.TextField(blank=True, help_text='وصف اختياري لمنشأ الورق', null=True, verbose_name='الوصف')),
-                ('is_active', models.BooleanField(default=True, help_text='هل هذا المنشأ نشط؟', verbose_name='نشط')),
-                ('is_default', models.BooleanField(default=False, help_text='هل هذا هو المنشأ الافتراضي؟', verbose_name='افتراضي')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="مثال: مصر، الصين، ألمانيا",
+                        max_length=100,
+                        verbose_name="اسم المنشأ",
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        help_text="رمز مختصر للمنشأ مثل EG, CN, DE",
+                        max_length=10,
+                        unique=True,
+                        verbose_name="رمز المنشأ",
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(
+                        blank=True,
+                        help_text="وصف اختياري لمنشأ الورق",
+                        null=True,
+                        verbose_name="الوصف",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True, help_text="هل هذا المنشأ نشط؟", verbose_name="نشط"
+                    ),
+                ),
+                (
+                    "is_default",
+                    models.BooleanField(
+                        default=False,
+                        help_text="هل هذا هو المنشأ الافتراضي؟",
+                        verbose_name="افتراضي",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'منشأ الورق',
-                'verbose_name_plural': 'منشأ الورق',
-                'db_table': 'pricing_paper_origin',
-                'ordering': ['name'],
+                "verbose_name": "منشأ الورق",
+                "verbose_name_plural": "منشأ الورق",
+                "db_table": "pricing_paper_origin",
+                "ordering": ["name"],
             },
         ),
     ]

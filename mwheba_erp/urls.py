@@ -25,67 +25,81 @@ from django.contrib.auth.decorators import login_required
 from users.views import CustomLoginView
 
 urlpatterns = [
-    path('admin/', admin.site.urls),
-    
+    path("admin/", admin.site.urls),
     # روابط المصادقة
-    path('login/', CustomLoginView.as_view(), name='login'),
-    path('logout/', LogoutView.as_view(), name='logout'),
-    
+    path("login/", CustomLoginView.as_view(), name="login"),
+    path("logout/", LogoutView.as_view(), name="logout"),
     # تطبيقات النظام
-    path('', include('core.urls')),  # تم تفعيله لحل مشكلة NoReverseMatch
-    path('users/', include('users.urls')),
-    path('client/', include('client.urls')),
-    path('supplier/', include('supplier.urls')),
-    path('services/', include('services.urls')),  # الخدمات المتخصصة الجديدة
-    path('products/', include('product.urls')),
-    path('pricing/', include('pricing.urls')),  # نظام التسعير المتكامل
-    path('sales/', include('sale.urls')),
-    path('purchases/', include('purchase.urls')),
-    path('financial/', include('financial.urls')),
-    path('utils/', include('utils.urls')),
-    
+    path("", include("core.urls")),  # تم تفعيله لحل مشكلة NoReverseMatch
+    path("users/", include("users.urls")),
+    path("client/", include("client.urls")),
+    path("supplier/", include("supplier.urls")),
+    path("services/", include("services.urls")),  # الخدمات المتخصصة الجديدة
+    path("products/", include("product.urls")),
+    path("pricing/", include("pricing.urls")),  # نظام التسعير المتكامل
+    path("sales/", include("sale.urls")),
+    path("purchases/", include("purchase.urls")),
+    path("financial/", include("financial.urls")),
+    path("utils/", include("utils.urls")),
     # مكتبات الجهات الخارجية
-    path('select2/', include('django_select2.urls')),
-    
+    path("select2/", include("django_select2.urls")),
     # مسارات إعادة تعيين كلمة المرور
-    path('password-change/', auth_views.PasswordChangeView.as_view(
-        template_name='users/password_change.html'), name='password_change'),
-    path('password-change/done/', auth_views.PasswordChangeDoneView.as_view(
-        template_name='users/password_change_done.html'), name='password_change_done'),
-    
+    path(
+        "password-change/",
+        auth_views.PasswordChangeView.as_view(
+            template_name="users/password_change.html"
+        ),
+        name="password_change",
+    ),
+    path(
+        "password-change/done/",
+        auth_views.PasswordChangeDoneView.as_view(
+            template_name="users/password_change_done.html"
+        ),
+        name="password_change_done",
+    ),
     # مسارات إعادة تعيين كلمة المرور
-    path('password-reset/', 
-         auth_views.PasswordResetView.as_view(
-             template_name='users/password_reset.html',
-             email_template_name='users/password_reset_email.html',
-             subject_template_name='users/password_reset_subject.txt'
-         ),
-         name='password_reset'),
-    path('password-reset/done/',
-         auth_views.PasswordResetDoneView.as_view(
-             template_name='users/password_reset_done.html'
-         ),
-         name='password_reset_done'),
-    path('password-reset-confirm/<uidb64>/<token>/',
-         auth_views.PasswordResetConfirmView.as_view(
-             template_name='users/password_reset_confirm.html'
-         ),
-         name='password_reset_confirm'),
-    path('password-reset-complete/',
-         auth_views.PasswordResetCompleteView.as_view(
-             template_name='users/password_reset_complete.html'
-         ),
-         name='password_reset_complete'),
+    path(
+        "password-reset/",
+        auth_views.PasswordResetView.as_view(
+            template_name="users/password_reset.html",
+            email_template_name="users/password_reset_email.html",
+            subject_template_name="users/password_reset_subject.txt",
+        ),
+        name="password_reset",
+    ),
+    path(
+        "password-reset/done/",
+        auth_views.PasswordResetDoneView.as_view(
+            template_name="users/password_reset_done.html"
+        ),
+        name="password_reset_done",
+    ),
+    path(
+        "password-reset-confirm/<uidb64>/<token>/",
+        auth_views.PasswordResetConfirmView.as_view(
+            template_name="users/password_reset_confirm.html"
+        ),
+        name="password_reset_confirm",
+    ),
+    path(
+        "password-reset-complete/",
+        auth_views.PasswordResetCompleteView.as_view(
+            template_name="users/password_reset_complete.html"
+        ),
+        name="password_reset_complete",
+    ),
 ]
 
 # إضافة مسارات الملفات الثابتة والوسائط في بيئة التطوير
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    
+
     # إضافة شريط التصحيح للتطوير
-    if 'debug_toolbar' in settings.INSTALLED_APPS:
+    if "debug_toolbar" in settings.INSTALLED_APPS:
         import debug_toolbar
+
         urlpatterns += [
-            path('__debug__/', include(debug_toolbar.urls)),
+            path("__debug__/", include(debug_toolbar.urls)),
         ]

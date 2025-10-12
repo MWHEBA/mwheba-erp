@@ -3,10 +3,10 @@ from django.utils.translation import gettext_lazy as _
 
 
 class PurchaseConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'purchase'
-    verbose_name = _('المشتريات')
-    
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "purchase"
+    verbose_name = _("المشتريات")
+
     def ready(self):
         """
         تحميل ملف الإشارات (signals) عند بدء التطبيق

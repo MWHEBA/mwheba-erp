@@ -6,29 +6,35 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('purchase', '0003_purchasepayment_financial_transaction'),
+        ("purchase", "0003_purchasepayment_financial_transaction"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='purchasereturn',
-            name='date',
-            field=models.DateField(verbose_name='تاريخ المرتجع'),
+            model_name="purchasereturn",
+            name="date",
+            field=models.DateField(verbose_name="تاريخ المرتجع"),
         ),
         migrations.AlterField(
-            model_name='purchasereturn',
-            name='number',
-            field=models.CharField(default=0, max_length=20, unique=True, verbose_name='رقم المرتجع'),
+            model_name="purchasereturn",
+            name="number",
+            field=models.CharField(
+                default=0, max_length=20, unique=True, verbose_name="رقم المرتجع"
+            ),
             preserve_default=False,
         ),
         migrations.AlterField(
-            model_name='purchasereturn',
-            name='subtotal',
-            field=models.DecimalField(decimal_places=2, max_digits=12, verbose_name='المجموع الفرعي'),
+            model_name="purchasereturn",
+            name="subtotal",
+            field=models.DecimalField(
+                decimal_places=2, max_digits=12, verbose_name="المجموع الفرعي"
+            ),
         ),
         migrations.AlterField(
-            model_name='purchasereturn',
-            name='total',
-            field=models.DecimalField(decimal_places=2, max_digits=12, verbose_name='الإجمالي'),
+            model_name="purchasereturn",
+            name="total",
+            field=models.DecimalField(
+                decimal_places=2, max_digits=12, verbose_name="الإجمالي"
+            ),
         ),
     ]

@@ -9,44 +9,230 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('supplier', '0008_add_supplier_service_tags'),
-        ('pricing', '0009_enhance_pricing_models'),
+        ("supplier", "0008_add_supplier_service_tags"),
+        ("pricing", "0009_enhance_pricing_models"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='PricingSupplierSelection',
+            name="PricingSupplierSelection",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quoted_price', models.DecimalField(decimal_places=2, default=0.0, help_text='السعر المعروض من المورد', max_digits=12, verbose_name='السعر المعروض')),
-                ('estimated_cost', models.DecimalField(decimal_places=2, default=0.0, help_text='التكلفة المقدرة للخدمة', max_digits=12, verbose_name='التكلفة المقدرة')),
-                ('final_price', models.DecimalField(blank=True, decimal_places=2, help_text='السعر النهائي المتفق عليه', max_digits=12, null=True, verbose_name='السعر النهائي')),
-                ('status', models.CharField(choices=[('pending', 'قيد الانتظار'), ('quoted', 'تم تقديم عرض'), ('selected', 'مختار'), ('rejected', 'مرفوض'), ('cancelled', 'ملغي')], default='pending', max_length=20, verbose_name='حالة الاختيار')),
-                ('is_selected', models.BooleanField(default=False, help_text='هل تم اختيار هذا المورد للخدمة', verbose_name='مختار')),
-                ('priority', models.CharField(choices=[('low', 'منخفضة'), ('medium', 'متوسطة'), ('high', 'عالية'), ('urgent', 'عاجل')], default='medium', max_length=10, verbose_name='الأولوية')),
-                ('selection_reason', models.TextField(blank=True, help_text='سبب اختيار أو رفض هذا المورد', verbose_name='سبب الاختيار')),
-                ('notes', models.TextField(blank=True, help_text='ملاحظات إضافية حول التعامل مع المورد', verbose_name='ملاحظات')),
-                ('contact_person', models.CharField(blank=True, help_text='الشخص المسؤول في المورد لهذا الطلب', max_length=255, verbose_name='الشخص المسؤول')),
-                ('contact_phone', models.CharField(blank=True, max_length=20, verbose_name='هاتف التواصل')),
-                ('contact_email', models.EmailField(blank=True, max_length=254, verbose_name='بريد التواصل')),
-                ('quote_requested_at', models.DateTimeField(blank=True, null=True, verbose_name='تاريخ طلب العرض')),
-                ('quote_received_at', models.DateTimeField(blank=True, null=True, verbose_name='تاريخ استلام العرض')),
-                ('selected_at', models.DateTimeField(blank=True, null=True, verbose_name='تاريخ الاختيار')),
-                ('expected_delivery', models.DateField(blank=True, null=True, verbose_name='تاريخ التسليم المتوقع')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
-                ('created_by', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='created_supplier_selections', to=settings.AUTH_USER_MODEL, verbose_name='تم الإنشاء بواسطة')),
-                ('order', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='supplier_selections', to='pricing.pricingorder', verbose_name='طلب التسعير')),
-                ('selected_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='selected_supplier_selections', to=settings.AUTH_USER_MODEL, verbose_name='تم الاختيار بواسطة')),
-                ('service_tag', models.ForeignKey(help_text='نوع الخدمة المطلوبة من المورد', on_delete=django.db.models.deletion.CASCADE, related_name='pricing_selections', to='supplier.supplierservicetag', verbose_name='نوع الخدمة')),
-                ('supplier', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='pricing_selections', to='supplier.supplier', verbose_name='المورد')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "quoted_price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.0,
+                        help_text="السعر المعروض من المورد",
+                        max_digits=12,
+                        verbose_name="السعر المعروض",
+                    ),
+                ),
+                (
+                    "estimated_cost",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0.0,
+                        help_text="التكلفة المقدرة للخدمة",
+                        max_digits=12,
+                        verbose_name="التكلفة المقدرة",
+                    ),
+                ),
+                (
+                    "final_price",
+                    models.DecimalField(
+                        blank=True,
+                        decimal_places=2,
+                        help_text="السعر النهائي المتفق عليه",
+                        max_digits=12,
+                        null=True,
+                        verbose_name="السعر النهائي",
+                    ),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("pending", "قيد الانتظار"),
+                            ("quoted", "تم تقديم عرض"),
+                            ("selected", "مختار"),
+                            ("rejected", "مرفوض"),
+                            ("cancelled", "ملغي"),
+                        ],
+                        default="pending",
+                        max_length=20,
+                        verbose_name="حالة الاختيار",
+                    ),
+                ),
+                (
+                    "is_selected",
+                    models.BooleanField(
+                        default=False,
+                        help_text="هل تم اختيار هذا المورد للخدمة",
+                        verbose_name="مختار",
+                    ),
+                ),
+                (
+                    "priority",
+                    models.CharField(
+                        choices=[
+                            ("low", "منخفضة"),
+                            ("medium", "متوسطة"),
+                            ("high", "عالية"),
+                            ("urgent", "عاجل"),
+                        ],
+                        default="medium",
+                        max_length=10,
+                        verbose_name="الأولوية",
+                    ),
+                ),
+                (
+                    "selection_reason",
+                    models.TextField(
+                        blank=True,
+                        help_text="سبب اختيار أو رفض هذا المورد",
+                        verbose_name="سبب الاختيار",
+                    ),
+                ),
+                (
+                    "notes",
+                    models.TextField(
+                        blank=True,
+                        help_text="ملاحظات إضافية حول التعامل مع المورد",
+                        verbose_name="ملاحظات",
+                    ),
+                ),
+                (
+                    "contact_person",
+                    models.CharField(
+                        blank=True,
+                        help_text="الشخص المسؤول في المورد لهذا الطلب",
+                        max_length=255,
+                        verbose_name="الشخص المسؤول",
+                    ),
+                ),
+                (
+                    "contact_phone",
+                    models.CharField(
+                        blank=True, max_length=20, verbose_name="هاتف التواصل"
+                    ),
+                ),
+                (
+                    "contact_email",
+                    models.EmailField(
+                        blank=True, max_length=254, verbose_name="بريد التواصل"
+                    ),
+                ),
+                (
+                    "quote_requested_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="تاريخ طلب العرض"
+                    ),
+                ),
+                (
+                    "quote_received_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="تاريخ استلام العرض"
+                    ),
+                ),
+                (
+                    "selected_at",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="تاريخ الاختيار"
+                    ),
+                ),
+                (
+                    "expected_delivery",
+                    models.DateField(
+                        blank=True, null=True, verbose_name="تاريخ التسليم المتوقع"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="created_supplier_selections",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="تم الإنشاء بواسطة",
+                    ),
+                ),
+                (
+                    "order",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="supplier_selections",
+                        to="pricing.pricingorder",
+                        verbose_name="طلب التسعير",
+                    ),
+                ),
+                (
+                    "selected_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="selected_supplier_selections",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="تم الاختيار بواسطة",
+                    ),
+                ),
+                (
+                    "service_tag",
+                    models.ForeignKey(
+                        help_text="نوع الخدمة المطلوبة من المورد",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="pricing_selections",
+                        to="supplier.supplierservicetag",
+                        verbose_name="نوع الخدمة",
+                    ),
+                ),
+                (
+                    "supplier",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="pricing_selections",
+                        to="supplier.supplier",
+                        verbose_name="المورد",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'اختيار مورد للتسعير',
-                'verbose_name_plural': 'اختيارات الموردين للتسعير',
-                'ordering': ['-created_at', 'priority'],
-                'indexes': [models.Index(fields=['order', 'status'], name='pricing_pri_order_i_3fefff_idx'), models.Index(fields=['supplier', 'is_selected'], name='pricing_pri_supplie_94e143_idx'), models.Index(fields=['service_tag', 'status'], name='pricing_pri_service_c91be9_idx')],
-                'unique_together': {('order', 'supplier', 'service_tag')},
+                "verbose_name": "اختيار مورد للتسعير",
+                "verbose_name_plural": "اختيارات الموردين للتسعير",
+                "ordering": ["-created_at", "priority"],
+                "indexes": [
+                    models.Index(
+                        fields=["order", "status"],
+                        name="pricing_pri_order_i_3fefff_idx",
+                    ),
+                    models.Index(
+                        fields=["supplier", "is_selected"],
+                        name="pricing_pri_supplie_94e143_idx",
+                    ),
+                    models.Index(
+                        fields=["service_tag", "status"],
+                        name="pricing_pri_service_c91be9_idx",
+                    ),
+                ],
+                "unique_together": {("order", "supplier", "service_tag")},
             },
         ),
     ]

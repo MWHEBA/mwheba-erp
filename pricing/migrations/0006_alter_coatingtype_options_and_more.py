@@ -175,7 +175,9 @@ class Migration(migrations.Migration):
             model_name="coatingtype",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -213,7 +215,9 @@ class Migration(migrations.Migration):
             model_name="papersize",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -247,7 +251,9 @@ class Migration(migrations.Migration):
             model_name="papertype",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -270,7 +276,9 @@ class Migration(migrations.Migration):
             model_name="plateservicedetails",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -349,7 +357,9 @@ class Migration(migrations.Migration):
             model_name="platesize",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -480,7 +490,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="pricingkpi",
             name="date",
-            field=models.DateField(default=django.utils.timezone.now, unique=True, verbose_name="التاريخ"),
+            field=models.DateField(
+                default=django.utils.timezone.now, unique=True, verbose_name="التاريخ"
+            ),
             preserve_default=False,
         ),
         migrations.AddField(
@@ -571,7 +583,9 @@ class Migration(migrations.Migration):
             model_name="printdirection",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -594,7 +608,9 @@ class Migration(migrations.Migration):
             model_name="printside",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),
@@ -617,7 +633,9 @@ class Migration(migrations.Migration):
             model_name="supplierservice",
             name="created_at",
             field=models.DateTimeField(
-                auto_now_add=True, default=django.utils.timezone.now, verbose_name="تاريخ الإنشاء"
+                auto_now_add=True,
+                default=django.utils.timezone.now,
+                verbose_name="تاريخ الإنشاء",
             ),
             preserve_default=False,
         ),

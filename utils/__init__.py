@@ -1,16 +1,17 @@
-# حزمة الأدوات المساعدة 
-default_app_config = 'utils.apps.UtilsConfig'
+# حزمة الأدوات المساعدة
+default_app_config = "utils.apps.UtilsConfig"
 
-def create_breadcrumb_item(title, url='', icon=None, active=False):
+
+def create_breadcrumb_item(title, url="", icon=None, active=False):
     """
     دالة مساعدة لإنشاء عنصر في شريط التنقل التسلسلي
-    
+
     المعلمات:
     - title: عنوان العنصر (مطلوب)
     - url: رابط العنصر (اختياري، فارغ للعنصر النشط)
     - icon: أيقونة من Font Awesome (اختياري)
     - active: هل العنصر نشط (اختياري، افتراضي False)
-    
+
     مثال الاستخدام:
     ```
     context['breadcrumb_items'] = [
@@ -20,9 +21,4 @@ def create_breadcrumb_item(title, url='', icon=None, active=False):
     ]
     ```
     """
-    return {
-        'title': title,
-        'url': url,
-        'icon': icon,
-        'active': active
-    } 
+    return {"title": title, "url": url, "icon": icon, "active": active}

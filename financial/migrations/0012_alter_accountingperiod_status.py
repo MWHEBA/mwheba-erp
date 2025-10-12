@@ -5,14 +5,14 @@ from django.db import migrations, models
 
 def convert_locked_to_closed(apps, schema_editor):
     """تحويل جميع الفترات المقفلة إلى مغلقة"""
-    AccountingPeriod = apps.get_model('financial', 'AccountingPeriod')
-    AccountingPeriod.objects.filter(status='locked').update(status='closed')
+    AccountingPeriod = apps.get_model("financial", "AccountingPeriod")
+    AccountingPeriod.objects.filter(status="locked").update(status="closed")
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financial', '0011_rename_transaction_table'),
+        ("financial", "0011_rename_transaction_table"),
     ]
 
     operations = [
@@ -20,8 +20,13 @@ class Migration(migrations.Migration):
         migrations.RunPython(convert_locked_to_closed, migrations.RunPython.noop),
         # ثم تعديل الحقل
         migrations.AlterField(
-            model_name='accountingperiod',
-            name='status',
-            field=models.CharField(choices=[('open', 'مفتوحة'), ('closed', 'مغلقة')], default='open', max_length=10, verbose_name='الحالة'),
+            model_name="accountingperiod",
+            name="status",
+            field=models.CharField(
+                choices=[("open", "مفتوحة"), ("closed", "مغلقة")],
+                default="open",
+                max_length=10,
+                verbose_name="الحالة",
+            ),
         ),
     ]

@@ -12,124 +12,420 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('financial', '0008_financialcategory_financialtransaction_and_more'),
+        ("financial", "0008_financialcategory_financialtransaction_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CashMovement',
+            name="CashMovement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('reference_number', models.CharField(max_length=50, unique=True, verbose_name='رقم المرجع')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=15, validators=[django.core.validators.MinValueValidator(Decimal('0.01'))], verbose_name='المبلغ')),
-                ('movement_date', models.DateField(default=datetime.date.today, verbose_name='تاريخ الحركة')),
-                ('execution_date', models.DateTimeField(blank=True, null=True, verbose_name='تاريخ التنفيذ')),
-                ('description', models.CharField(max_length=255, verbose_name='الوصف')),
-                ('notes', models.TextField(blank=True, null=True, verbose_name='ملاحظات')),
-                ('status', models.CharField(choices=[('draft', 'مسودة'), ('pending', 'معلق'), ('approved', 'معتمد'), ('executed', 'منفذ'), ('cancelled', 'ملغي'), ('rejected', 'مرفوض')], default='draft', max_length=20, verbose_name='الحالة')),
-                ('beneficiary', models.CharField(blank=True, max_length=200, null=True, verbose_name='المستفيد/الدافع')),
-                ('receipt_number', models.CharField(blank=True, max_length=50, null=True, verbose_name='رقم الإيصال')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='cash_movements', to='financial.chartofaccounts', verbose_name='الحساب')),
-                ('approved_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='cash_movements_approved', to=settings.AUTH_USER_MODEL, verbose_name='اعتمد بواسطة')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='cash_movements_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة')),
-                ('executed_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='cash_movements_executed', to=settings.AUTH_USER_MODEL, verbose_name='نفذ بواسطة')),
-                ('journal_entry', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, to='financial.journalentry', verbose_name='القيد المحاسبي')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "reference_number",
+                    models.CharField(
+                        max_length=50, unique=True, verbose_name="رقم المرجع"
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2,
+                        max_digits=15,
+                        validators=[
+                            django.core.validators.MinValueValidator(Decimal("0.01"))
+                        ],
+                        verbose_name="المبلغ",
+                    ),
+                ),
+                (
+                    "movement_date",
+                    models.DateField(
+                        default=datetime.date.today, verbose_name="تاريخ الحركة"
+                    ),
+                ),
+                (
+                    "execution_date",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="تاريخ التنفيذ"
+                    ),
+                ),
+                ("description", models.CharField(max_length=255, verbose_name="الوصف")),
+                (
+                    "notes",
+                    models.TextField(blank=True, null=True, verbose_name="ملاحظات"),
+                ),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("draft", "مسودة"),
+                            ("pending", "معلق"),
+                            ("approved", "معتمد"),
+                            ("executed", "منفذ"),
+                            ("cancelled", "ملغي"),
+                            ("rejected", "مرفوض"),
+                        ],
+                        default="draft",
+                        max_length=20,
+                        verbose_name="الحالة",
+                    ),
+                ),
+                (
+                    "beneficiary",
+                    models.CharField(
+                        blank=True,
+                        max_length=200,
+                        null=True,
+                        verbose_name="المستفيد/الدافع",
+                    ),
+                ),
+                (
+                    "receipt_number",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="رقم الإيصال"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.PROTECT,
+                        related_name="cash_movements",
+                        to="financial.chartofaccounts",
+                        verbose_name="الحساب",
+                    ),
+                ),
+                (
+                    "approved_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="cash_movements_approved",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="اعتمد بواسطة",
+                    ),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="cash_movements_created",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="أنشئ بواسطة",
+                    ),
+                ),
+                (
+                    "executed_by",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="cash_movements_executed",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="نفذ بواسطة",
+                    ),
+                ),
+                (
+                    "journal_entry",
+                    models.ForeignKey(
+                        blank=True,
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to="financial.journalentry",
+                        verbose_name="القيد المحاسبي",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'حركة الخزن',
-                'verbose_name_plural': 'حركات الخزن',
-                'ordering': ['-movement_date', '-created_at'],
+                "verbose_name": "حركة الخزن",
+                "verbose_name_plural": "حركات الخزن",
+                "ordering": ["-movement_date", "-created_at"],
             },
         ),
         migrations.CreateModel(
-            name='CashMovementType',
+            name="CashMovementType",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.CharField(max_length=20, unique=True, verbose_name='كود النوع')),
-                ('name', models.CharField(max_length=100, verbose_name='اسم النوع')),
-                ('category', models.CharField(choices=[('income', 'إيراد'), ('expense', 'مصروف'), ('transfer', 'تحويل'), ('adjustment', 'تسوية'), ('opening', 'رصيد افتتاحي'), ('closing', 'رصيد ختامي')], max_length=20, verbose_name='التصنيف')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='الوصف')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('requires_approval', models.BooleanField(default=False, verbose_name='يتطلب موافقة')),
-                ('auto_generate_reference', models.BooleanField(default=True, verbose_name='إنشاء مرجع تلقائي')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
-                ('created_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='cash_movement_types_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=20, unique=True, verbose_name="كود النوع"
+                    ),
+                ),
+                ("name", models.CharField(max_length=100, verbose_name="اسم النوع")),
+                (
+                    "category",
+                    models.CharField(
+                        choices=[
+                            ("income", "إيراد"),
+                            ("expense", "مصروف"),
+                            ("transfer", "تحويل"),
+                            ("adjustment", "تسوية"),
+                            ("opening", "رصيد افتتاحي"),
+                            ("closing", "رصيد ختامي"),
+                        ],
+                        max_length=20,
+                        verbose_name="التصنيف",
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, null=True, verbose_name="الوصف"),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "requires_approval",
+                    models.BooleanField(default=False, verbose_name="يتطلب موافقة"),
+                ),
+                (
+                    "auto_generate_reference",
+                    models.BooleanField(default=True, verbose_name="إنشاء مرجع تلقائي"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
+                (
+                    "created_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        related_name="cash_movement_types_created",
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="أنشئ بواسطة",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'نوع حركة الخزن',
-                'verbose_name_plural': 'أنواع حركات الخزن',
-                'ordering': ['category', 'name'],
+                "verbose_name": "نوع حركة الخزن",
+                "verbose_name_plural": "أنواع حركات الخزن",
+                "ordering": ["category", "name"],
             },
         ),
         migrations.CreateModel(
-            name='CashMovementAttachment',
+            name="CashMovementAttachment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(upload_to='cash_movements/attachments/%Y/%m/', verbose_name='الملف')),
-                ('file_name', models.CharField(max_length=255, verbose_name='اسم الملف')),
-                ('file_size', models.PositiveIntegerField(help_text='بالبايت', verbose_name='حجم الملف')),
-                ('description', models.CharField(blank=True, max_length=255, null=True, verbose_name='الوصف')),
-                ('uploaded_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الرفع')),
-                ('movement', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='attachments', to='financial.cashmovement', verbose_name='حركة الخزن')),
-                ('uploaded_by', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL, verbose_name='رفع بواسطة')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "file",
+                    models.FileField(
+                        upload_to="cash_movements/attachments/%Y/%m/",
+                        verbose_name="الملف",
+                    ),
+                ),
+                (
+                    "file_name",
+                    models.CharField(max_length=255, verbose_name="اسم الملف"),
+                ),
+                (
+                    "file_size",
+                    models.PositiveIntegerField(
+                        help_text="بالبايت", verbose_name="حجم الملف"
+                    ),
+                ),
+                (
+                    "description",
+                    models.CharField(
+                        blank=True, max_length=255, null=True, verbose_name="الوصف"
+                    ),
+                ),
+                (
+                    "uploaded_at",
+                    models.DateTimeField(auto_now_add=True, verbose_name="تاريخ الرفع"),
+                ),
+                (
+                    "movement",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="attachments",
+                        to="financial.cashmovement",
+                        verbose_name="حركة الخزن",
+                    ),
+                ),
+                (
+                    "uploaded_by",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="رفع بواسطة",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'مرفق حركة الخزن',
-                'verbose_name_plural': 'مرفقات حركات الخزن',
-                'ordering': ['-uploaded_at'],
+                "verbose_name": "مرفق حركة الخزن",
+                "verbose_name_plural": "مرفقات حركات الخزن",
+                "ordering": ["-uploaded_at"],
             },
         ),
         migrations.AddField(
-            model_name='cashmovement',
-            name='movement_type',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='movements', to='financial.cashmovementtype', verbose_name='نوع الحركة'),
+            model_name="cashmovement",
+            name="movement_type",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="movements",
+                to="financial.cashmovementtype",
+                verbose_name="نوع الحركة",
+            ),
         ),
         migrations.CreateModel(
-            name='CashBalance',
+            name="CashBalance",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('balance_date', models.DateField(verbose_name='تاريخ الرصيد')),
-                ('opening_balance', models.DecimalField(decimal_places=2, default=0, max_digits=15, verbose_name='الرصيد الافتتاحي')),
-                ('total_income', models.DecimalField(decimal_places=2, default=0, max_digits=15, verbose_name='إجمالي الإيرادات')),
-                ('total_expense', models.DecimalField(decimal_places=2, default=0, max_digits=15, verbose_name='إجمالي المصروفات')),
-                ('closing_balance', models.DecimalField(decimal_places=2, default=0, max_digits=15, verbose_name='الرصيد الختامي')),
-                ('movements_count', models.PositiveIntegerField(default=0, verbose_name='عدد الحركات')),
-                ('is_reconciled', models.BooleanField(default=False, verbose_name='مطابق')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
-                ('account', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='daily_balances', to='financial.chartofaccounts', verbose_name='الحساب')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("balance_date", models.DateField(verbose_name="تاريخ الرصيد")),
+                (
+                    "opening_balance",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=15,
+                        verbose_name="الرصيد الافتتاحي",
+                    ),
+                ),
+                (
+                    "total_income",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=15,
+                        verbose_name="إجمالي الإيرادات",
+                    ),
+                ),
+                (
+                    "total_expense",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=15,
+                        verbose_name="إجمالي المصروفات",
+                    ),
+                ),
+                (
+                    "closing_balance",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=15,
+                        verbose_name="الرصيد الختامي",
+                    ),
+                ),
+                (
+                    "movements_count",
+                    models.PositiveIntegerField(default=0, verbose_name="عدد الحركات"),
+                ),
+                (
+                    "is_reconciled",
+                    models.BooleanField(default=False, verbose_name="مطابق"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
+                (
+                    "account",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="daily_balances",
+                        to="financial.chartofaccounts",
+                        verbose_name="الحساب",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'رصيد الخزن اليومي',
-                'verbose_name_plural': 'أرصدة الخزن اليومية',
-                'ordering': ['-balance_date'],
+                "verbose_name": "رصيد الخزن اليومي",
+                "verbose_name_plural": "أرصدة الخزن اليومية",
+                "ordering": ["-balance_date"],
             },
         ),
         migrations.AddIndex(
-            model_name='cashmovement',
-            index=models.Index(fields=['account', 'movement_date'], name='financial_c_account_8bf697_idx'),
+            model_name="cashmovement",
+            index=models.Index(
+                fields=["account", "movement_date"],
+                name="financial_c_account_8bf697_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='cashmovement',
-            index=models.Index(fields=['status', 'movement_date'], name='financial_c_status_26c00d_idx'),
+            model_name="cashmovement",
+            index=models.Index(
+                fields=["status", "movement_date"], name="financial_c_status_26c00d_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='cashmovement',
-            index=models.Index(fields=['reference_number'], name='financial_c_referen_7a9d30_idx'),
+            model_name="cashmovement",
+            index=models.Index(
+                fields=["reference_number"], name="financial_c_referen_7a9d30_idx"
+            ),
         ),
         migrations.AddIndex(
-            model_name='cashbalance',
-            index=models.Index(fields=['account', 'balance_date'], name='financial_c_account_eb4363_idx'),
+            model_name="cashbalance",
+            index=models.Index(
+                fields=["account", "balance_date"],
+                name="financial_c_account_eb4363_idx",
+            ),
         ),
         migrations.AddIndex(
-            model_name='cashbalance',
-            index=models.Index(fields=['balance_date'], name='financial_c_balance_5dae73_idx'),
+            model_name="cashbalance",
+            index=models.Index(
+                fields=["balance_date"], name="financial_c_balance_5dae73_idx"
+            ),
         ),
         migrations.AlterUniqueTogether(
-            name='cashbalance',
-            unique_together={('account', 'balance_date')},
+            name="cashbalance",
+            unique_together={("account", "balance_date")},
         ),
     ]

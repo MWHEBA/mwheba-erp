@@ -13,4 +13,4 @@ try:
 except ImportError:
     pass
 
-# تم نقل جميع التعريفات الفعلية إلى مجلد purchase/models/ 
+# تم نقل جميع التعريفات الفعلية إلى مجلد purchase/models/

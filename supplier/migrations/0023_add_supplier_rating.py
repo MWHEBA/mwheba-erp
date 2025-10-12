@@ -6,13 +6,19 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0022_update_plate_service_details'),
+        ("supplier", "0022_update_plate_service_details"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='supplier',
-            name='supplier_rating',
-            field=models.DecimalField(decimal_places=1, default=0, help_text='تقييم من 0 إلى 5', max_digits=3, verbose_name='تقييم المورد'),
+            model_name="supplier",
+            name="supplier_rating",
+            field=models.DecimalField(
+                decimal_places=1,
+                default=0,
+                help_text="تقييم من 0 إلى 5",
+                max_digits=3,
+                verbose_name="تقييم المورد",
+            ),
         ),
     ]

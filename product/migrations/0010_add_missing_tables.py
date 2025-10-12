@@ -11,7 +11,7 @@ from django.utils import timezone
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('product', '0009_add_enhanced_inventory_models'),
+        ("product", "0009_add_enhanced_inventory_models"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
@@ -37,9 +37,8 @@ class Migration(migrations.Migration):
                 "warehouse_id" bigint NOT NULL REFERENCES "product_warehouse" ("id") DEFERRABLE INITIALLY DEFERRED
             );
             """,
-            reverse_sql="DROP TABLE IF EXISTS product_productbatch;"
+            reverse_sql="DROP TABLE IF EXISTS product_productbatch;",
         ),
-        
         # إنشاء جدول StockReservation
         migrations.RunSQL(
             """
@@ -58,9 +57,8 @@ class Migration(migrations.Migration):
                 "created_by_id" bigint NOT NULL REFERENCES "users_user" ("id") DEFERRABLE INITIALLY DEFERRED
             );
             """,
-            reverse_sql="DROP TABLE IF EXISTS product_stockreservation;"
+            reverse_sql="DROP TABLE IF EXISTS product_stockreservation;",
         ),
-        
         # إنشاء جدول LocationZone
         migrations.RunSQL(
             """
@@ -75,6 +73,6 @@ class Migration(migrations.Migration):
                 "warehouse_id" bigint NOT NULL REFERENCES "product_warehouse" ("id") DEFERRABLE INITIALLY DEFERRED
             );
             """,
-            reverse_sql="DROP TABLE IF EXISTS product_locationzone;"
+            reverse_sql="DROP TABLE IF EXISTS product_locationzone;",
         ),
     ]

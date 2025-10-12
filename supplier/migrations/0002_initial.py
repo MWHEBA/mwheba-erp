@@ -10,24 +10,41 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('supplier', '0001_initial'),
+        ("supplier", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='supplierpayment',
-            name='created_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='supplier_payments_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="supplierpayment",
+            name="created_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="supplier_payments_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
         migrations.AddField(
-            model_name='supplierpayment',
-            name='supplier',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='payments', to='supplier.supplier', verbose_name='المورد'),
+            model_name="supplierpayment",
+            name="supplier",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="payments",
+                to="supplier.supplier",
+                verbose_name="المورد",
+            ),
         ),
         migrations.AddField(
-            model_name='supplier',
-            name='created_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='suppliers_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="supplier",
+            name="created_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="suppliers_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
     ]

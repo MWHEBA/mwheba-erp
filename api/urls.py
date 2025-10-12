@@ -7,7 +7,7 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-app_name = 'api'
+app_name = "api"
 
 # إنشاء راوتر لواجهة API
 router = DefaultRouter()
@@ -16,14 +16,12 @@ router = DefaultRouter()
 
 urlpatterns = [
     # تسجيل الدخول والمصادقة
-    path('token/', obtain_auth_token, name='token_obtain'),
-    path('token/jwt/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/jwt/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-    path('token/jwt/verify/', TokenVerifyView.as_view(), name='token_verify'),
-    
+    path("token/", obtain_auth_token, name="token_obtain"),
+    path("token/jwt/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("token/jwt/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
+    path("token/jwt/verify/", TokenVerifyView.as_view(), name="token_verify"),
     # توجيه المسارات إلى الراوتر
-    path('', include(router.urls)),
-    
+    path("", include(router.urls)),
     # توجيه المسارات إلى واجهة API للمصادقة
-    path('auth/', include('rest_framework.urls')),
-] 
+    path("auth/", include("rest_framework.urls")),
+]

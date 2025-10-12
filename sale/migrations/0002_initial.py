@@ -10,61 +10,110 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('sale', '0001_initial'),
-        ('product', '0002_initial'),
+        ("sale", "0001_initial"),
+        ("product", "0002_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('client', '0002_initial'),
+        ("client", "0002_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='salereturn',
-            name='created_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sale_returns_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="salereturn",
+            name="created_by",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sale_returns_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
         migrations.AddField(
-            model_name='salereturn',
-            name='sale',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='returns', to='sale.sale', verbose_name='فاتورة المبيعات'),
+            model_name="salereturn",
+            name="sale",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="returns",
+                to="sale.sale",
+                verbose_name="فاتورة المبيعات",
+            ),
         ),
         migrations.AddField(
-            model_name='salereturn',
-            name='warehouse',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sale_returns', to='product.warehouse', verbose_name='المستودع'),
+            model_name="salereturn",
+            name="warehouse",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sale_returns",
+                to="product.warehouse",
+                verbose_name="المستودع",
+            ),
         ),
         migrations.AddField(
-            model_name='salepayment',
-            name='created_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sale_payments_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="salepayment",
+            name="created_by",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sale_payments_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
         migrations.AddField(
-            model_name='salepayment',
-            name='sale',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='payments', to='sale.sale', verbose_name='الفاتورة'),
+            model_name="salepayment",
+            name="sale",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="payments",
+                to="sale.sale",
+                verbose_name="الفاتورة",
+            ),
         ),
         migrations.AddField(
-            model_name='saleitem',
-            name='product',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='product.product', verbose_name='المنتج'),
+            model_name="saleitem",
+            name="product",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                to="product.product",
+                verbose_name="المنتج",
+            ),
         ),
         migrations.AddField(
-            model_name='saleitem',
-            name='sale',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='sale.sale', verbose_name='الفاتورة'),
+            model_name="saleitem",
+            name="sale",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="items",
+                to="sale.sale",
+                verbose_name="الفاتورة",
+            ),
         ),
         migrations.AddField(
-            model_name='sale',
-            name='created_by',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sales_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="sale",
+            name="created_by",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sales_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
         migrations.AddField(
-            model_name='sale',
-            name='customer',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sales', to='client.customer', verbose_name='العميل'),
+            model_name="sale",
+            name="customer",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sales",
+                to="client.customer",
+                verbose_name="العميل",
+            ),
         ),
         migrations.AddField(
-            model_name='sale',
-            name='warehouse',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='sales', to='product.warehouse', verbose_name='المستودع'),
+            model_name="sale",
+            name="warehouse",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="sales",
+                to="product.warehouse",
+                verbose_name="المستودع",
+            ),
         ),
     ]

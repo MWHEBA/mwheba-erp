@@ -6,18 +6,30 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0016_remove_supplier_quality_rating_and_more'),
+        ("supplier", "0016_remove_supplier_quality_rating_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='offsetprintingdetails',
-            name='break_impression_cost',
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=10, verbose_name='سعر كسر التراج'),
+            model_name="offsetprintingdetails",
+            name="break_impression_cost",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                default=0,
+                max_digits=10,
+                verbose_name="سعر كسر التراج",
+            ),
         ),
         migrations.AddField(
-            model_name='offsetprintingdetails',
-            name='special_impression_cost',
-            field=models.DecimalField(blank=True, decimal_places=2, default=0, max_digits=10, verbose_name='سعر التراج مخصوص'),
+            model_name="offsetprintingdetails",
+            name="special_impression_cost",
+            field=models.DecimalField(
+                blank=True,
+                decimal_places=2,
+                default=0,
+                max_digits=10,
+                verbose_name="سعر التراج مخصوص",
+            ),
         ),
     ]

@@ -6,9 +6,9 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financial', '0013_add_notes_to_journal_entry'),
-        ('purchase', '0008_remove_purchasepayment_cash_movement'),
-        ('sale', '0007_remove_salepayment_cash_movement_and_more'),
+        ("financial", "0013_add_notes_to_journal_entry"),
+        ("purchase", "0008_remove_purchasepayment_cash_movement"),
+        ("sale", "0007_remove_salepayment_cash_movement_and_more"),
     ]
 
     operations = [
@@ -17,53 +17,53 @@ class Migration(migrations.Migration):
             state_operations=[
                 # حذف الحقول المرتبطة من الـ state
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='account',
+                    model_name="cashmovement",
+                    name="account",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='approved_by',
+                    model_name="cashmovement",
+                    name="approved_by",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='created_by',
+                    model_name="cashmovement",
+                    name="created_by",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='executed_by',
+                    model_name="cashmovement",
+                    name="executed_by",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='journal_entry',
+                    model_name="cashmovement",
+                    name="journal_entry",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovement',
-                    name='movement_type',
+                    model_name="cashmovement",
+                    name="movement_type",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovementattachment',
-                    name='movement',
+                    model_name="cashmovementattachment",
+                    name="movement",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovementattachment',
-                    name='uploaded_by',
+                    model_name="cashmovementattachment",
+                    name="uploaded_by",
                 ),
                 migrations.RemoveField(
-                    model_name='cashmovementtype',
-                    name='created_by',
+                    model_name="cashmovementtype",
+                    name="created_by",
                 ),
                 # حذف النماذج من الـ state
                 migrations.DeleteModel(
-                    name='CashBalance',
+                    name="CashBalance",
                 ),
                 migrations.DeleteModel(
-                    name='CashMovement',
+                    name="CashMovement",
                 ),
                 migrations.DeleteModel(
-                    name='CashMovementAttachment',
+                    name="CashMovementAttachment",
                 ),
                 migrations.DeleteModel(
-                    name='CashMovementType',
+                    name="CashMovementType",
                 ),
             ],
             database_operations=[

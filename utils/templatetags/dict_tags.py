@@ -2,6 +2,7 @@ from django import template
 
 register = template.Library()
 
+
 @register.filter
 def get(dictionary, key):
     """
@@ -9,11 +10,12 @@ def get(dictionary, key):
     """
     if not dictionary:
         return None
-    
+
     if not isinstance(dictionary, dict):
         return None
-    
+
     return dictionary.get(key)
+
 
 @register.filter
 def get_item(dictionary, key):
@@ -22,6 +24,7 @@ def get_item(dictionary, key):
     """
     return get(dictionary, key)
 
+
 @register.filter
 def items(dictionary):
     """
@@ -29,11 +32,12 @@ def items(dictionary):
     """
     if not dictionary:
         return []
-    
+
     if not isinstance(dictionary, dict):
         return []
-    
+
     return dictionary.items()
+
 
 @register.filter
 def keys(dictionary):
@@ -42,11 +46,12 @@ def keys(dictionary):
     """
     if not dictionary:
         return []
-    
+
     if not isinstance(dictionary, dict):
         return []
-    
+
     return dictionary.keys()
+
 
 @register.filter
 def values(dictionary):
@@ -55,11 +60,12 @@ def values(dictionary):
     """
     if not dictionary:
         return []
-    
+
     if not isinstance(dictionary, dict):
         return []
-    
+
     return dictionary.values()
+
 
 @register.filter
 def dict_contains(dictionary, key):
@@ -68,8 +74,8 @@ def dict_contains(dictionary, key):
     """
     if not dictionary:
         return False
-    
+
     if not isinstance(dictionary, dict):
         return False
-    
-    return key in dictionary 
+
+    return key in dictionary

@@ -7,63 +7,77 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0009_remove_duplicate_category'),
-        ('pricing', '0010_add_supplier_selection_system'),
+        ("supplier", "0009_remove_duplicate_category"),
+        ("pricing", "0010_add_supplier_selection_system"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='paperservicedetails',
+            name="paperservicedetails",
             unique_together=None,
         ),
         migrations.RemoveField(
-            model_name='paperservicedetails',
-            name='paper_size',
+            model_name="paperservicedetails",
+            name="paper_size",
         ),
         migrations.RemoveField(
-            model_name='paperservicedetails',
-            name='paper_type',
+            model_name="paperservicedetails",
+            name="paper_type",
         ),
         migrations.RemoveField(
-            model_name='paperservicedetails',
-            name='supplier',
+            model_name="paperservicedetails",
+            name="supplier",
         ),
         migrations.AlterUniqueTogether(
-            name='plateservicedetails',
+            name="plateservicedetails",
             unique_together=None,
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='plate_size',
+            model_name="plateservicedetails",
+            name="plate_size",
         ),
         migrations.RemoveField(
-            model_name='plateservicedetails',
-            name='supplier',
+            model_name="plateservicedetails",
+            name="supplier",
         ),
         migrations.RemoveField(
-            model_name='supplierservice',
-            name='supplier',
+            model_name="supplierservice",
+            name="supplier",
         ),
         migrations.AlterField(
-            model_name='orderfinishing',
-            name='supplier_service',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='order_services', to='supplier.specializedservice', verbose_name='خدمة المورد'),
+            model_name="orderfinishing",
+            name="supplier_service",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="order_services",
+                to="supplier.specializedservice",
+                verbose_name="خدمة المورد",
+            ),
         ),
         migrations.AlterField(
-            model_name='pricingorder',
-            name='coating_service',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='coating_orders', to='supplier.specializedservice', verbose_name='خدمة التغليف'),
+            model_name="pricingorder",
+            name="coating_service",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="coating_orders",
+                to="supplier.specializedservice",
+                verbose_name="خدمة التغليف",
+            ),
         ),
         migrations.DeleteModel(
-            name='DigitalPrintingDetails',
+            name="DigitalPrintingDetails",
         ),
         migrations.DeleteModel(
-            name='PaperServiceDetails',
+            name="PaperServiceDetails",
         ),
         migrations.DeleteModel(
-            name='PlateServiceDetails',
+            name="PlateServiceDetails",
         ),
         migrations.DeleteModel(
-            name='SupplierService',
+            name="SupplierService",
         ),
     ]

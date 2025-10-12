@@ -5,6 +5,7 @@ from decimal import Decimal, InvalidOperation
 
 register = template.Library()
 
+
 @register.filter
 def getattr(obj, attr):
     """
@@ -14,11 +15,11 @@ def getattr(obj, attr):
     """
     if not obj:
         return None
-    
+
     # دعم الخصائص المتداخلة (مثل user.profile.name)
-    attrs = attr.split('.')
+    attrs = attr.split(".")
     value = obj
-    
+
     for a in attrs:
         # دعم الـ attributes والـ methods والـ dict keys
         if hasattr(value, a):
@@ -29,8 +30,9 @@ def getattr(obj, attr):
             value = value[a]
         else:
             return None
-    
+
     return value
+
 
 @register.filter
 def replace_id(url, id_value):
@@ -40,23 +42,25 @@ def replace_id(url, id_value):
     """
     if not url or not id_value:
         return url
-    
-    return url.replace('{id}', str(id_value))
+
+    return url.replace("{id}", str(id_value))
+
 
 @register.filter
-def currency(value, currency_symbol='ج.م'):
+def currency(value, currency_symbol="ج.م"):
     """
     تنسيق قيمة كعملة
     """
     if value is None:
         return None
-    
+
     try:
         value = Decimal(value)
         formatted = "{:,.2f}".format(value)
         return f"{formatted} {currency_symbol}"
     except (ValueError, TypeError, InvalidOperation):
         return value
+
 
 @register.filter
 def subtract(value, arg):
@@ -68,6 +72,7 @@ def subtract(value, arg):
     except (TypeError, ValueError):
         return value
 
+
 @register.filter
 def add(value, arg):
     """
@@ -78,6 +83,7 @@ def add(value, arg):
     except (TypeError, ValueError):
         return value
 
+
 @register.filter
 def multiply(value, arg):
     """
@@ -87,6 +93,7 @@ def multiply(value, arg):
         return value * arg
     except (TypeError, ValueError):
         return value
+
 
 @register.filter
 def divide(value, arg):
@@ -100,6 +107,7 @@ def divide(value, arg):
     except (TypeError, ValueError, ZeroDivisionError):
         return 0
 
+
 @register.filter
 def percentage(value, total):
     """
@@ -112,6 +120,7 @@ def percentage(value, total):
     except (TypeError, ValueError, ZeroDivisionError):
         return 0
 
+
 @register.simple_tag
 def url_replace(request, field, value):
     """
@@ -121,6 +130,7 @@ def url_replace(request, field, value):
     dict_[field] = value
     return dict_.urlencode()
 
+
 @register.simple_tag
 def active_url(request, urls):
     """
@@ -128,14 +138,15 @@ def active_url(request, urls):
     """
     if not request:
         return ""
-    
+
     for url in urls.split():
-        if url == '/':
-            if request.path == '/':
+        if url == "/":
+            if request.path == "/":
                 return "active"
         elif request.path.startswith(url):
             return "active"
     return ""
+
 
 @register.filter
 def custom_number_format(value, decimals=2):
@@ -145,11 +156,11 @@ def custom_number_format(value, decimals=2):
     """
     if value is None:
         return "-"
-    
+
     try:
         # تحويل القيمة إلى Decimal للتعامل مع الأرقام العشرية بدقة
         value = float(value)
         # تنسيق الرقم مع إضافة فواصل الآلاف
         return "{:,.{prec}f}".format(value, prec=decimals)
     except (ValueError, TypeError):
-        return value 
+        return value

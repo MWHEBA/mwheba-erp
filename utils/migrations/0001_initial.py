@@ -15,21 +15,66 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='SystemLog',
+            name="SystemLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('action', models.CharField(max_length=100, verbose_name='الإجراء')),
-                ('model_name', models.CharField(blank=True, max_length=100, null=True, verbose_name='اسم النموذج')),
-                ('object_id', models.CharField(blank=True, max_length=100, null=True, verbose_name='معرف الكائن')),
-                ('details', models.TextField(blank=True, null=True, verbose_name='التفاصيل')),
-                ('ip_address', models.GenericIPAddressField(blank=True, null=True, verbose_name='عنوان IP')),
-                ('timestamp', models.DateTimeField(auto_now_add=True, verbose_name='التاريخ والوقت')),
-                ('user', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL, verbose_name='المستخدم')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("action", models.CharField(max_length=100, verbose_name="الإجراء")),
+                (
+                    "model_name",
+                    models.CharField(
+                        blank=True,
+                        max_length=100,
+                        null=True,
+                        verbose_name="اسم النموذج",
+                    ),
+                ),
+                (
+                    "object_id",
+                    models.CharField(
+                        blank=True,
+                        max_length=100,
+                        null=True,
+                        verbose_name="معرف الكائن",
+                    ),
+                ),
+                (
+                    "details",
+                    models.TextField(blank=True, null=True, verbose_name="التفاصيل"),
+                ),
+                (
+                    "ip_address",
+                    models.GenericIPAddressField(
+                        blank=True, null=True, verbose_name="عنوان IP"
+                    ),
+                ),
+                (
+                    "timestamp",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="التاريخ والوقت"
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        null=True,
+                        on_delete=django.db.models.deletion.SET_NULL,
+                        to=settings.AUTH_USER_MODEL,
+                        verbose_name="المستخدم",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'سجل النظام',
-                'verbose_name_plural': 'سجلات النظام',
-                'ordering': ['-timestamp'],
+                "verbose_name": "سجل النظام",
+                "verbose_name_plural": "سجلات النظام",
+                "ordering": ["-timestamp"],
             },
         ),
     ]

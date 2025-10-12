@@ -17,18 +17,22 @@ def create_customer_account_signal(sender, instance, created, **kwargs):
     إنشاء حساب محاسبي تلقائياً عند إضافة عميل جديد
     """
     # التحقق من تفعيل الميزة في الإعدادات
-    if not getattr(settings, 'AUTO_CREATE_CUSTOMER_ACCOUNTS', True):
+    if not getattr(settings, "AUTO_CREATE_CUSTOMER_ACCOUNTS", True):
         return
-    
+
     # فقط للعملاء الجدد الذين ليس لديهم حساب
     if created and not instance.financial_account:
         try:
-            from financial.services.supplier_customer_account_service import SupplierCustomerAccountService
-            account = SupplierCustomerAccountService.create_customer_account(
-                instance,
-                user=instance.created_by
+            from financial.services.supplier_customer_account_service import (
+                SupplierCustomerAccountService,
             )
-            logger.info(f"✅ تم إنشاء حساب محاسبي {account.code} للعميل {instance.name} تلقائياً")
+
+            account = SupplierCustomerAccountService.create_customer_account(
+                instance, user=instance.created_by
+            )
+            logger.info(
+                f"✅ تم إنشاء حساب محاسبي {account.code} للعميل {instance.name} تلقائياً"
+            )
         except Exception as e:
             # نسجل الخطأ لكن لا نوقف العملية
             logger.error(f"❌ فشل إنشاء حساب تلقائي للعميل {instance.name}: {e}")

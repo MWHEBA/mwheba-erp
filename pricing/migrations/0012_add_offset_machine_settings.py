@@ -6,48 +6,124 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pricing', '0011_remove_duplicate_models'),
+        ("pricing", "0011_remove_duplicate_models"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='OffsetMachineType',
+            name="OffsetMachineType",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True, verbose_name='اسم نوع الماكينة')),
-                ('code', models.CharField(max_length=30, unique=True, verbose_name='كود النوع')),
-                ('description', models.TextField(blank=True, verbose_name='الوصف')),
-                ('manufacturer', models.CharField(blank=True, max_length=100, verbose_name='الشركة المصنعة')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('is_default', models.BooleanField(default=False, verbose_name='افتراضي')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=100, unique=True, verbose_name="اسم نوع الماكينة"
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=30, unique=True, verbose_name="كود النوع"
+                    ),
+                ),
+                ("description", models.TextField(blank=True, verbose_name="الوصف")),
+                (
+                    "manufacturer",
+                    models.CharField(
+                        blank=True, max_length=100, verbose_name="الشركة المصنعة"
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "is_default",
+                    models.BooleanField(default=False, verbose_name="افتراضي"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'نوع ماكينة أوفست',
-                'verbose_name_plural': 'أنواع ماكينات الأوفست',
-                'ordering': ['manufacturer', 'name'],
+                "verbose_name": "نوع ماكينة أوفست",
+                "verbose_name_plural": "أنواع ماكينات الأوفست",
+                "ordering": ["manufacturer", "name"],
             },
         ),
         migrations.CreateModel(
-            name='OffsetSheetSize',
+            name="OffsetSheetSize",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=100, unique=True, verbose_name='اسم المقاس')),
-                ('code', models.CharField(max_length=30, unique=True, verbose_name='كود المقاس')),
-                ('width_cm', models.DecimalField(decimal_places=2, max_digits=8, verbose_name='العرض (سم)')),
-                ('height_cm', models.DecimalField(decimal_places=2, max_digits=8, verbose_name='الطول (سم)')),
-                ('description', models.TextField(blank=True, verbose_name='الوصف')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('is_default', models.BooleanField(default=False, verbose_name='افتراضي')),
-                ('is_custom_size', models.BooleanField(default=False, verbose_name='مقاس مخصص')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        max_length=100, unique=True, verbose_name="اسم المقاس"
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=30, unique=True, verbose_name="كود المقاس"
+                    ),
+                ),
+                (
+                    "width_cm",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=8, verbose_name="العرض (سم)"
+                    ),
+                ),
+                (
+                    "height_cm",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=8, verbose_name="الطول (سم)"
+                    ),
+                ),
+                ("description", models.TextField(blank=True, verbose_name="الوصف")),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "is_default",
+                    models.BooleanField(default=False, verbose_name="افتراضي"),
+                ),
+                (
+                    "is_custom_size",
+                    models.BooleanField(default=False, verbose_name="مقاس مخصص"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'مقاس ماكينة أوفست',
-                'verbose_name_plural': 'مقاسات ماكينات الأوفست',
-                'ordering': ['width_cm', 'height_cm'],
+                "verbose_name": "مقاس ماكينة أوفست",
+                "verbose_name_plural": "مقاسات ماكينات الأوفست",
+                "ordering": ["width_cm", "height_cm"],
             },
         ),
     ]

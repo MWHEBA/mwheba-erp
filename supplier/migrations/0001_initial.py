@@ -8,48 +8,156 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Supplier',
+            name="Supplier",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم المورد')),
-                ('phone', models.CharField(blank=True, max_length=17, validators=[django.core.validators.RegexValidator(message="يجب أن يكون رقم الهاتف بالصيغة: '+999999999'. يسمح بـ 15 رقم كحد أقصى.", regex='^\\+?1?\\d{9,15}$')], verbose_name='رقم الهاتف')),
-                ('address', models.TextField(blank=True, null=True, verbose_name='العنوان')),
-                ('email', models.EmailField(blank=True, max_length=254, null=True, verbose_name='البريد الإلكتروني')),
-                ('code', models.CharField(max_length=20, unique=True, verbose_name='كود المورد')),
-                ('contact_person', models.CharField(blank=True, max_length=255, null=True, verbose_name='الشخص المسؤول')),
-                ('balance', models.DecimalField(decimal_places=2, default=0, max_digits=12, verbose_name='الرصيد الحالي')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('tax_number', models.CharField(blank=True, max_length=50, null=True, verbose_name='الرقم الضريبي')),
-                ('notes', models.TextField(blank=True, null=True, verbose_name='ملاحظات')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم المورد")),
+                (
+                    "phone",
+                    models.CharField(
+                        blank=True,
+                        max_length=17,
+                        validators=[
+                            django.core.validators.RegexValidator(
+                                message="يجب أن يكون رقم الهاتف بالصيغة: '+999999999'. يسمح بـ 15 رقم كحد أقصى.",
+                                regex="^\\+?1?\\d{9,15}$",
+                            )
+                        ],
+                        verbose_name="رقم الهاتف",
+                    ),
+                ),
+                (
+                    "address",
+                    models.TextField(blank=True, null=True, verbose_name="العنوان"),
+                ),
+                (
+                    "email",
+                    models.EmailField(
+                        blank=True,
+                        max_length=254,
+                        null=True,
+                        verbose_name="البريد الإلكتروني",
+                    ),
+                ),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=20, unique=True, verbose_name="كود المورد"
+                    ),
+                ),
+                (
+                    "contact_person",
+                    models.CharField(
+                        blank=True,
+                        max_length=255,
+                        null=True,
+                        verbose_name="الشخص المسؤول",
+                    ),
+                ),
+                (
+                    "balance",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=12,
+                        verbose_name="الرصيد الحالي",
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "tax_number",
+                    models.CharField(
+                        blank=True,
+                        max_length=50,
+                        null=True,
+                        verbose_name="الرقم الضريبي",
+                    ),
+                ),
+                (
+                    "notes",
+                    models.TextField(blank=True, null=True, verbose_name="ملاحظات"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'مورد',
-                'verbose_name_plural': 'الموردين',
-                'ordering': ['name'],
+                "verbose_name": "مورد",
+                "verbose_name_plural": "الموردين",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='SupplierPayment',
+            name="SupplierPayment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('amount', models.DecimalField(decimal_places=2, max_digits=12, verbose_name='المبلغ')),
-                ('payment_date', models.DateField(verbose_name='تاريخ الدفع')),
-                ('payment_method', models.CharField(choices=[('cash', 'نقدي'), ('bank_transfer', 'تحويل بنكي'), ('check', 'شيك')], max_length=20, verbose_name='طريقة الدفع')),
-                ('reference_number', models.CharField(blank=True, max_length=50, null=True, verbose_name='رقم المرجع')),
-                ('notes', models.TextField(blank=True, null=True, verbose_name='ملاحظات')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "amount",
+                    models.DecimalField(
+                        decimal_places=2, max_digits=12, verbose_name="المبلغ"
+                    ),
+                ),
+                ("payment_date", models.DateField(verbose_name="تاريخ الدفع")),
+                (
+                    "payment_method",
+                    models.CharField(
+                        choices=[
+                            ("cash", "نقدي"),
+                            ("bank_transfer", "تحويل بنكي"),
+                            ("check", "شيك"),
+                        ],
+                        max_length=20,
+                        verbose_name="طريقة الدفع",
+                    ),
+                ),
+                (
+                    "reference_number",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="رقم المرجع"
+                    ),
+                ),
+                (
+                    "notes",
+                    models.TextField(blank=True, null=True, verbose_name="ملاحظات"),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'مدفوعات المورد',
-                'verbose_name_plural': 'مدفوعات الموردين',
-                'ordering': ['-payment_date'],
+                "verbose_name": "مدفوعات المورد",
+                "verbose_name_plural": "مدفوعات الموردين",
+                "ordering": ["-payment_date"],
             },
         ),
     ]

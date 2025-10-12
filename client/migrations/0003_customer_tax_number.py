@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('client', '0002_initial'),
+        ("client", "0002_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customer',
-            name='tax_number',
-            field=models.CharField(blank=True, max_length=50, null=True, verbose_name='الرقم الضريبي'),
+            model_name="customer",
+            name="tax_number",
+            field=models.CharField(
+                blank=True, max_length=50, null=True, verbose_name="الرقم الضريبي"
+            ),
         ),
     ]

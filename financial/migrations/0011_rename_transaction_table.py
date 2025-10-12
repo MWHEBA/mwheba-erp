@@ -6,12 +6,15 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('financial', '0010_remove_financialtransaction_financial_f_transac_317ef6_idx_and_more'),
+        (
+            "financial",
+            "0010_remove_financialtransaction_financial_f_transac_317ef6_idx_and_more",
+        ),
     ]
 
     operations = [
         migrations.AlterModelTable(
-            name='financialtransaction',
-            table='financial_transaction',
+            name="financialtransaction",
+            table="financial_transaction",
         ),
     ]

@@ -7,16 +7,20 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0008_add_supplier_service_tags'),
+        ("supplier", "0008_add_supplier_service_tags"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='specializedservice',
-            name='category',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='supplier.suppliertype', verbose_name='فئة الخدمة'),
+            model_name="specializedservice",
+            name="category",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                to="supplier.suppliertype",
+                verbose_name="فئة الخدمة",
+            ),
         ),
         migrations.DeleteModel(
-            name='SupplierServiceCategory',
+            name="SupplierServiceCategory",
         ),
     ]

@@ -1,3 +1,3 @@
-# حزمة templatetags 
+# حزمة templatetags
 
-# تهيئة حزمة templatetags 
+# تهيئة حزمة templatetags

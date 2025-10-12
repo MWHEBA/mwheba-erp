@@ -2,10 +2,11 @@
 
 from django.db import migrations
 
+
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pricing', '0018_update_paper_size_to_product_size'),
+        ("pricing", "0018_update_paper_size_to_product_size"),
     ]
 
     operations = [
@@ -16,7 +17,6 @@ class Migration(migrations.Migration):
         # 3. templates - النصوص العربية
         # 4. JavaScript - التعليقات العربية
         # 5. supplier/models.py - خيارات الخدمات
-        
         # لا توجد تغييرات في بنية قاعدة البيانات
         # جميع التغييرات في النصوص والواجهات فقط
     ]

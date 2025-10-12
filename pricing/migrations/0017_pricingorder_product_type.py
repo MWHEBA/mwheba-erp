@@ -7,13 +7,20 @@ import django.db.models.deletion
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('pricing', '0016_add_product_types_and_sizes'),
+        ("pricing", "0016_add_product_types_and_sizes"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='pricingorder',
-            name='product_type',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.PROTECT, related_name='orders', to='pricing.producttype', verbose_name='نوع المنتج'),
+            model_name="pricingorder",
+            name="product_type",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="orders",
+                to="pricing.producttype",
+                verbose_name="نوع المنتج",
+            ),
         ),
     ]

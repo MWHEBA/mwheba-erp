@@ -1,2 +1,2 @@
 # API application
-# Initialize the app 
+# Initialize the app

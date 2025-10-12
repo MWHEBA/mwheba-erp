@@ -6,21 +6,37 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('supplier', '0015_remove_offset_fields'),
+        ("supplier", "0015_remove_offset_fields"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='supplier',
-            name='quality_rating',
+            model_name="supplier",
+            name="quality_rating",
         ),
         migrations.RemoveField(
-            model_name='supplier',
-            name='supplier_rating',
+            model_name="supplier",
+            name="supplier_rating",
         ),
         migrations.AlterField(
-            model_name='suppliertype',
-            name='code',
-            field=models.CharField(choices=[('paper', 'مخزن ورق'), ('offset_printing', 'مطبعة أوفست'), ('digital_printing', 'مطبعة ديجيتال'), ('finishing', 'خدمات الطباعة'), ('plates', 'مكتب فصل'), ('packaging', 'تغطية'), ('outdoor', 'أوت دور'), ('laser', 'ليزر'), ('vip_gifts', 'هدايا VIP'), ('other', 'أخرى')], max_length=20, unique=True, verbose_name='الرمز'),
+            model_name="suppliertype",
+            name="code",
+            field=models.CharField(
+                choices=[
+                    ("paper", "مخزن ورق"),
+                    ("offset_printing", "مطبعة أوفست"),
+                    ("digital_printing", "مطبعة ديجيتال"),
+                    ("finishing", "خدمات الطباعة"),
+                    ("plates", "مكتب فصل"),
+                    ("packaging", "تغطية"),
+                    ("outdoor", "أوت دور"),
+                    ("laser", "ليزر"),
+                    ("vip_gifts", "هدايا VIP"),
+                    ("other", "أخرى"),
+                ],
+                max_length=20,
+                unique=True,
+                verbose_name="الرمز",
+            ),
         ),
     ]

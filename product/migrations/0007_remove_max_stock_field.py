@@ -6,12 +6,15 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('product', '0006_rename_product_pri_supplie_a2c5e8_idx_product_pri_supplie_3c9874_idx_and_more'),
+        (
+            "product",
+            "0006_rename_product_pri_supplie_a2c5e8_idx_product_pri_supplie_3c9874_idx_and_more",
+        ),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='product',
-            name='max_stock',
+            model_name="product",
+            name="max_stock",
         ),
     ]

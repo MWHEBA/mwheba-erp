@@ -8,182 +8,532 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='Brand',
+            name="Brand",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم النوع')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='الوصف')),
-                ('logo', models.ImageField(blank=True, null=True, upload_to='brands', verbose_name='الشعار')),
-                ('website', models.URLField(blank=True, null=True, verbose_name='الموقع الإلكتروني')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم النوع")),
+                (
+                    "description",
+                    models.TextField(blank=True, null=True, verbose_name="الوصف"),
+                ),
+                (
+                    "logo",
+                    models.ImageField(
+                        blank=True, null=True, upload_to="brands", verbose_name="الشعار"
+                    ),
+                ),
+                (
+                    "website",
+                    models.URLField(
+                        blank=True, null=True, verbose_name="الموقع الإلكتروني"
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'علامة تجارية',
-                'verbose_name_plural': 'الأنواع',
-                'ordering': ['name'],
+                "verbose_name": "علامة تجارية",
+                "verbose_name_plural": "الأنواع",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Category',
+            name="Category",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم التصنيف')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='الوصف')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم التصنيف")),
+                (
+                    "description",
+                    models.TextField(blank=True, null=True, verbose_name="الوصف"),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'فئة',
-                'verbose_name_plural': 'التصنيفات',
-                'ordering': ['name'],
+                "verbose_name": "فئة",
+                "verbose_name_plural": "التصنيفات",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Product',
+            name="Product",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم المنتج')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='الوصف')),
-                ('sku', models.CharField(max_length=50, unique=True, verbose_name='كود المنتج')),
-                ('barcode', models.CharField(blank=True, max_length=50, null=True, verbose_name='الباركود')),
-                ('cost_price', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(0)], verbose_name='سعر التكلفة')),
-                ('selling_price', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(0)], verbose_name='سعر البيع')),
-                ('min_stock', models.PositiveIntegerField(default=0, verbose_name='الحد الأدنى للمخزون')),
-                ('max_stock', models.PositiveIntegerField(default=0, verbose_name='الحد الأقصى للمخزون')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('is_featured', models.BooleanField(default=False, verbose_name='مميز')),
-                ('tax_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5, validators=[django.core.validators.MinValueValidator(0)], verbose_name='نسبة الضريبة')),
-                ('discount_rate', models.DecimalField(decimal_places=2, default=0, max_digits=5, validators=[django.core.validators.MinValueValidator(0)], verbose_name='نسبة الخصم')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم المنتج")),
+                (
+                    "description",
+                    models.TextField(blank=True, null=True, verbose_name="الوصف"),
+                ),
+                (
+                    "sku",
+                    models.CharField(
+                        max_length=50, unique=True, verbose_name="كود المنتج"
+                    ),
+                ),
+                (
+                    "barcode",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="الباركود"
+                    ),
+                ),
+                (
+                    "cost_price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        max_digits=12,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="سعر التكلفة",
+                    ),
+                ),
+                (
+                    "selling_price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        max_digits=12,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="سعر البيع",
+                    ),
+                ),
+                (
+                    "min_stock",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="الحد الأدنى للمخزون"
+                    ),
+                ),
+                (
+                    "max_stock",
+                    models.PositiveIntegerField(
+                        default=0, verbose_name="الحد الأقصى للمخزون"
+                    ),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "is_featured",
+                    models.BooleanField(default=False, verbose_name="مميز"),
+                ),
+                (
+                    "tax_rate",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=5,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="نسبة الضريبة",
+                    ),
+                ),
+                (
+                    "discount_rate",
+                    models.DecimalField(
+                        decimal_places=2,
+                        default=0,
+                        max_digits=5,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="نسبة الخصم",
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'منتج',
-                'verbose_name_plural': 'المنتجات',
-                'ordering': ['name'],
+                "verbose_name": "منتج",
+                "verbose_name_plural": "المنتجات",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='ProductImage',
+            name="ProductImage",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('image', models.ImageField(upload_to='products', verbose_name='الصورة')),
-                ('is_primary', models.BooleanField(default=False, verbose_name='صورة رئيسية')),
-                ('alt_text', models.CharField(blank=True, max_length=255, null=True, verbose_name='نص بديل')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "image",
+                    models.ImageField(upload_to="products", verbose_name="الصورة"),
+                ),
+                (
+                    "is_primary",
+                    models.BooleanField(default=False, verbose_name="صورة رئيسية"),
+                ),
+                (
+                    "alt_text",
+                    models.CharField(
+                        blank=True, max_length=255, null=True, verbose_name="نص بديل"
+                    ),
+                ),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'صورة منتج',
-                'verbose_name_plural': 'صور المنتجات',
-                'ordering': ['-is_primary', 'created_at'],
+                "verbose_name": "صورة منتج",
+                "verbose_name_plural": "صور المنتجات",
+                "ordering": ["-is_primary", "created_at"],
             },
         ),
         migrations.CreateModel(
-            name='ProductVariant',
+            name="ProductVariant",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم المتغير')),
-                ('sku', models.CharField(max_length=50, unique=True, verbose_name='رمز المتغير')),
-                ('barcode', models.CharField(blank=True, max_length=50, null=True, verbose_name='الباركود')),
-                ('cost_price', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(0)], verbose_name='سعر التكلفة')),
-                ('selling_price', models.DecimalField(decimal_places=2, max_digits=12, validators=[django.core.validators.MinValueValidator(0)], verbose_name='سعر البيع')),
-                ('stock', models.PositiveIntegerField(default=0, verbose_name='المخزون')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم المتغير")),
+                (
+                    "sku",
+                    models.CharField(
+                        max_length=50, unique=True, verbose_name="رمز المتغير"
+                    ),
+                ),
+                (
+                    "barcode",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="الباركود"
+                    ),
+                ),
+                (
+                    "cost_price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        max_digits=12,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="سعر التكلفة",
+                    ),
+                ),
+                (
+                    "selling_price",
+                    models.DecimalField(
+                        decimal_places=2,
+                        max_digits=12,
+                        validators=[django.core.validators.MinValueValidator(0)],
+                        verbose_name="سعر البيع",
+                    ),
+                ),
+                (
+                    "stock",
+                    models.PositiveIntegerField(default=0, verbose_name="المخزون"),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'متغير منتج',
-                'verbose_name_plural': 'متغيرات المنتجات',
-                'ordering': ['product', 'name'],
+                "verbose_name": "متغير منتج",
+                "verbose_name_plural": "متغيرات المنتجات",
+                "ordering": ["product", "name"],
             },
         ),
         migrations.CreateModel(
-            name='SerialNumber',
+            name="SerialNumber",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('document_type', models.CharField(choices=[('sale', 'فاتورة مبيعات'), ('purchase', 'فاتورة مشتريات'), ('stock_movement', 'حركة مخزون')], max_length=20, verbose_name='نوع المستند')),
-                ('last_number', models.PositiveIntegerField(default=0, verbose_name='آخر رقم')),
-                ('prefix', models.CharField(blank=True, max_length=10, verbose_name='بادئة')),
-                ('year', models.PositiveIntegerField(blank=True, null=True, verbose_name='السنة')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "document_type",
+                    models.CharField(
+                        choices=[
+                            ("sale", "فاتورة مبيعات"),
+                            ("purchase", "فاتورة مشتريات"),
+                            ("stock_movement", "حركة مخزون"),
+                        ],
+                        max_length=20,
+                        verbose_name="نوع المستند",
+                    ),
+                ),
+                (
+                    "last_number",
+                    models.PositiveIntegerField(default=0, verbose_name="آخر رقم"),
+                ),
+                (
+                    "prefix",
+                    models.CharField(blank=True, max_length=10, verbose_name="بادئة"),
+                ),
+                (
+                    "year",
+                    models.PositiveIntegerField(
+                        blank=True, null=True, verbose_name="السنة"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'رقم تسلسلي',
-                'verbose_name_plural': 'الأرقام التسلسلية',
+                "verbose_name": "رقم تسلسلي",
+                "verbose_name_plural": "الأرقام التسلسلية",
             },
         ),
         migrations.CreateModel(
-            name='Stock',
+            name="Stock",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('quantity', models.PositiveIntegerField(default=0, verbose_name='الكمية')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "quantity",
+                    models.PositiveIntegerField(default=0, verbose_name="الكمية"),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'مخزون',
-                'verbose_name_plural': 'المخزون',
+                "verbose_name": "مخزون",
+                "verbose_name_plural": "المخزون",
             },
         ),
         migrations.CreateModel(
-            name='StockMovement',
+            name="StockMovement",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('movement_type', models.CharField(choices=[('in', 'وارد'), ('out', 'صادر'), ('transfer', 'تحويل'), ('adjustment', 'تسوية'), ('return_in', 'مرتجع وارد'), ('return_out', 'مرتجع صادر')], max_length=20, verbose_name='نوع الحركة')),
-                ('quantity', models.PositiveIntegerField(verbose_name='الكمية')),
-                ('reference_number', models.CharField(blank=True, max_length=50, null=True, verbose_name='رقم المرجع')),
-                ('document_type', models.CharField(choices=[('purchase', 'شراء'), ('purchase_return', 'مرتجع مشتريات'), ('sale', 'بيع'), ('sale_return', 'مرتجع مبيعات'), ('transfer', 'تحويل'), ('adjustment', 'جرد'), ('opening', 'رصيد'), ('other', 'أخرى')], default='other', max_length=20, verbose_name='نوع المستند')),
-                ('document_number', models.CharField(blank=True, max_length=50, null=True, verbose_name='رقم المستند')),
-                ('notes', models.TextField(blank=True, null=True, verbose_name='ملاحظات')),
-                ('timestamp', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الحركة')),
-                ('quantity_before', models.PositiveIntegerField(default=0, verbose_name='الكمية قبل')),
-                ('quantity_after', models.PositiveIntegerField(default=0, verbose_name='الكمية بعد')),
-                ('number', models.CharField(blank=True, max_length=50, null=True, unique=True, verbose_name='رقم الحركة')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "movement_type",
+                    models.CharField(
+                        choices=[
+                            ("in", "وارد"),
+                            ("out", "صادر"),
+                            ("transfer", "تحويل"),
+                            ("adjustment", "تسوية"),
+                            ("return_in", "مرتجع وارد"),
+                            ("return_out", "مرتجع صادر"),
+                        ],
+                        max_length=20,
+                        verbose_name="نوع الحركة",
+                    ),
+                ),
+                ("quantity", models.PositiveIntegerField(verbose_name="الكمية")),
+                (
+                    "reference_number",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="رقم المرجع"
+                    ),
+                ),
+                (
+                    "document_type",
+                    models.CharField(
+                        choices=[
+                            ("purchase", "شراء"),
+                            ("purchase_return", "مرتجع مشتريات"),
+                            ("sale", "بيع"),
+                            ("sale_return", "مرتجع مبيعات"),
+                            ("transfer", "تحويل"),
+                            ("adjustment", "جرد"),
+                            ("opening", "رصيد"),
+                            ("other", "أخرى"),
+                        ],
+                        default="other",
+                        max_length=20,
+                        verbose_name="نوع المستند",
+                    ),
+                ),
+                (
+                    "document_number",
+                    models.CharField(
+                        blank=True, max_length=50, null=True, verbose_name="رقم المستند"
+                    ),
+                ),
+                (
+                    "notes",
+                    models.TextField(blank=True, null=True, verbose_name="ملاحظات"),
+                ),
+                (
+                    "timestamp",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الحركة"
+                    ),
+                ),
+                (
+                    "quantity_before",
+                    models.PositiveIntegerField(default=0, verbose_name="الكمية قبل"),
+                ),
+                (
+                    "quantity_after",
+                    models.PositiveIntegerField(default=0, verbose_name="الكمية بعد"),
+                ),
+                (
+                    "number",
+                    models.CharField(
+                        blank=True,
+                        max_length=50,
+                        null=True,
+                        unique=True,
+                        verbose_name="رقم الحركة",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'حركة المخزون',
-                'verbose_name_plural': 'حركات المخزون',
-                'ordering': ['-timestamp'],
+                "verbose_name": "حركة المخزون",
+                "verbose_name_plural": "حركات المخزون",
+                "ordering": ["-timestamp"],
             },
         ),
         migrations.CreateModel(
-            name='Unit',
+            name="Unit",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=50, verbose_name='اسم الوحدة')),
-                ('symbol', models.CharField(max_length=10, verbose_name='الرمز')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
-                ('updated_at', models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=50, verbose_name="اسم الوحدة")),
+                ("symbol", models.CharField(max_length=10, verbose_name="الرمز")),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
+                (
+                    "updated_at",
+                    models.DateTimeField(auto_now=True, verbose_name="تاريخ التحديث"),
+                ),
             ],
             options={
-                'verbose_name': 'وحدة قياس',
-                'verbose_name_plural': 'وحدات القياس',
-                'ordering': ['name'],
+                "verbose_name": "وحدة قياس",
+                "verbose_name_plural": "وحدات القياس",
+                "ordering": ["name"],
             },
         ),
         migrations.CreateModel(
-            name='Warehouse',
+            name="Warehouse",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255, verbose_name='اسم المخزن')),
-                ('code', models.CharField(max_length=20, unique=True, verbose_name='كود المخزن')),
-                ('location', models.CharField(blank=True, max_length=255, null=True, verbose_name='الموقع')),
-                ('description', models.TextField(blank=True, null=True, verbose_name='الوصف')),
-                ('is_active', models.BooleanField(default=True, verbose_name='نشط')),
-                ('created_at', models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255, verbose_name="اسم المخزن")),
+                (
+                    "code",
+                    models.CharField(
+                        max_length=20, unique=True, verbose_name="كود المخزن"
+                    ),
+                ),
+                (
+                    "location",
+                    models.CharField(
+                        blank=True, max_length=255, null=True, verbose_name="الموقع"
+                    ),
+                ),
+                (
+                    "description",
+                    models.TextField(blank=True, null=True, verbose_name="الوصف"),
+                ),
+                ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
+                (
+                    "created_at",
+                    models.DateTimeField(
+                        auto_now_add=True, verbose_name="تاريخ الإنشاء"
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'مخزن',
-                'verbose_name_plural': 'المخازن',
-                'ordering': ['name'],
+                "verbose_name": "مخزن",
+                "verbose_name_plural": "المخازن",
+                "ordering": ["name"],
             },
         ),
     ]

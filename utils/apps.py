@@ -2,5 +2,5 @@ from django.apps import AppConfig
 
 
 class UtilsConfig(AppConfig):
-    name = 'utils'
-    verbose_name = 'الأدوات المساعدة'
+    name = "utils"
+    verbose_name = "الأدوات المساعدة"

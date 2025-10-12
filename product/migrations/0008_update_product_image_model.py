@@ -6,17 +6,21 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('product', '0007_remove_max_stock_field'),
+        ("product", "0007_remove_max_stock_field"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='productimage',
-            name='image',
-            field=models.ImageField(upload_to='products/%Y/%m/', verbose_name='الصورة'),
+            model_name="productimage",
+            name="image",
+            field=models.ImageField(upload_to="products/%Y/%m/", verbose_name="الصورة"),
         ),
         migrations.AddConstraint(
-            model_name='productimage',
-            constraint=models.UniqueConstraint(condition=models.Q(('is_primary', True)), fields=('product',), name='unique_primary_image_per_product'),
+            model_name="productimage",
+            constraint=models.UniqueConstraint(
+                condition=models.Q(("is_primary", True)),
+                fields=("product",),
+                name="unique_primary_image_per_product",
+            ),
         ),
     ]

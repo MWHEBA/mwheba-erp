@@ -10,24 +10,41 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('client', '0001_initial'),
+        ("client", "0001_initial"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='customerpayment',
-            name='created_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='customer_payments_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="customerpayment",
+            name="created_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="customer_payments_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
         migrations.AddField(
-            model_name='customerpayment',
-            name='customer',
-            field=models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='payments', to='client.customer', verbose_name='العميل'),
+            model_name="customerpayment",
+            name="customer",
+            field=models.ForeignKey(
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="payments",
+                to="client.customer",
+                verbose_name="العميل",
+            ),
         ),
         migrations.AddField(
-            model_name='customer',
-            name='created_by',
-            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.PROTECT, related_name='customers_created', to=settings.AUTH_USER_MODEL, verbose_name='أنشئ بواسطة'),
+            model_name="customer",
+            name="created_by",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.PROTECT,
+                related_name="customers_created",
+                to=settings.AUTH_USER_MODEL,
+                verbose_name="أنشئ بواسطة",
+            ),
         ),
     ]
