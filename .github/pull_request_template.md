@@ -117,9 +117,8 @@ Fixes #(issue number)
 
 ## 📞 معلومات الاتصال
 
-**المطور:** @your-username
+**المطور:** MWHEBA Agency
 **البريد الإلكتروني:** your-email@example.com
-**Discord:** your-discord-username
 
 ---
 

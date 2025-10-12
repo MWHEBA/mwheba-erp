@@ -46,7 +46,7 @@
 ```bash
 # انقر على زر Fork في GitHub
 # ثم استنسخ المشروع محلياً
-git clone https://github.com/YOUR_USERNAME/mwheba_erp.git
+git clone https://github.com/MWHEBA/mwheba_erp.git
 cd mwheba_erp
 ```
 
