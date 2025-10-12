@@ -112,7 +112,7 @@
 #### 🔧 للتطوير والاختبار
 ```bash
 # 1. استنساخ المشروع
-git clone https://github.com/username/mwheba_erp.git
+git clone https://github.com/MWHEBA/mwheba_erp.git
 cd mwheba_erp
 
 # 2. إنشاء البيئة الافتراضية
@@ -248,7 +248,7 @@ mwheba_erp/
 ### 🎯 البدء السريع
 ```bash
 # استنساخ وتشغيل في 3 خطوات
-git clone https://github.com/username/mwheba_erp.git
+git clone https://github.com/MWHEBA/mwheba_erp.git
 cd mwheba_erp && python -m venv venv && venv\Scripts\activate
 pip install -r requirements.txt && python setup_development.py
 ```
@@ -274,7 +274,7 @@ pip install -r requirements.txt && python setup_development.py
 ### 🔧 للمطورين
 ```bash
 # إعداد بيئة التطوير
-git clone https://github.com/username/mwheba_erp.git
+git clone https://github.com/MWHEBA/mwheba_erp.git
 cd mwheba_erp
 python -m venv venv
 source venv/bin/activate  # Linux/Mac
@@ -308,10 +308,10 @@ python manage.py migrate
 ## 📞 الدعم والمساعدة
 
 ### 🆘 الحصول على المساعدة
-- **📧 البريد الإلكتروني**: support@mwheba.com
-- **💬 المناقشات**: [GitHub Discussions](https://github.com/username/mwheba_erp/discussions)
-- **🐛 الأخطاء**: [GitHub Issues](https://github.com/username/mwheba_erp/issues)
-- **📖 الوثائق**: [Wiki](https://github.com/username/mwheba_erp/wiki)
+- **📧 البريد الإلكتروني**: info@mwheba.com
+- **💬 المناقشات**: [GitHub Discussions](https://github.com/MWHEBA/mwheba_erp/discussions)
+- **🐛 الأخطاء**: [GitHub Issues](https://github.com/MWHEBA/mwheba_erp/issues)
+- **📖 الوثائق**: [Wiki](https://github.com/MWHEBA/mwheba_erp/wiki)
 
 ### 🔍 استكشاف الأخطاء
 | المشكلة | الحل |
