@@ -100,7 +100,7 @@ jobs:
     - name: ✅ Django system check
       env:
         DEBUG: 'False'
-        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        SECRET_KEY: 'ci-test-key-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6'
         DB_ENGINE: 'sqlite'
         DB_NAME: 'test_db'
       run: |
@@ -110,7 +110,7 @@ jobs:
     - name: 🔍 Check for missing migrations
       env:
         DEBUG: 'False'
-        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        SECRET_KEY: 'ci-test-key-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6'
         DB_ENGINE: 'sqlite'
         DB_NAME: 'test_db'
       run: |
@@ -120,7 +120,7 @@ jobs:
     - name: 🛡️ Security check
       env:
         DEBUG: 'False'
-        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        SECRET_KEY: 'ci-test-key-a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0u1v2w3x4y5z6'
         DB_ENGINE: 'sqlite'
         DB_NAME: 'test_db'
       run: |
