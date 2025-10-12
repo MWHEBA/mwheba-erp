@@ -80,24 +80,18 @@ def validate_image_extension(value):
 
 def validate_arabic_text(value):
     """
-    التحقق من أن النص عربي
+    التحقق من أن النص عربي - استخدام الـ validator الآمن
     """
-    # نطاق الحروف العربية في يونيكود
-    arabic_pattern = re.compile(r'^[\u0600-\u06FF\s.,!?()-_]*$')
-    
-    if not arabic_pattern.match(value):
-        raise ValidationError(_('الرجاء إدخال نص باللغة العربية فقط'))
+    from core.secure_validators import validate_arabic_text_secure
+    validate_arabic_text_secure(value)
 
 
 def validate_english_text(value):
     """
-    التحقق من أن النص إنجليزي
+    التحقق من أن النص إنجليزي - استخدام الـ validator الآمن
     """
-    # نطاق الحروف الإنجليزية والأرقام والرموز الشائعة
-    english_pattern = re.compile(r'^[a-zA-Z0-9\s.,!?()-_]*$')
-    
-    if not english_pattern.match(value):
-        raise ValidationError(_('الرجاء إدخال نص باللغة الإنجليزية فقط'))
+    from core.secure_validators import validate_english_text_secure
+    validate_english_text_secure(value)
 
 
 def validate_alphanumeric(value):

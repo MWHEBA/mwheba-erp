@@ -127,13 +127,10 @@ def validate_arabic_text(value):
 
 def validate_english_text(value):
     """
-    متحقق من أن النص إنجليزي
+    متحقق من أن النص إنجليزي - استخدام الـ validator الآمن
     """
-    # نطاق الحروف الإنجليزية والأرقام والرموز الشائعة
-    english_pattern = re.compile(r'^[a-zA-Z0-9\s.,!?()-_]*$')
-    
-    if not english_pattern.match(value):
-        raise ValidationError(_('الرجاء إدخال نص باللغة الإنجليزية فقط'))
+    from .secure_validators import validate_english_text_secure
+    validate_english_text_secure(value)
 
 
 def validate_alphanumeric(value):
