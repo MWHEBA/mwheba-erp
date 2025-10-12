@@ -71,7 +71,7 @@ jobs:
       continue-on-error: true
 
     - name: 📈 Upload quality reports
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: quality-reports
@@ -94,6 +94,13 @@ jobs:
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
+
+    - name: 🔧 Setup environment variables
+      run: |
+        echo "DEBUG=False" >> .env
+        echo "SECRET_KEY=django-insecure-test-key-for-ci-only" >> .env
+        echo "DB_ENGINE=sqlite" >> .env
+        echo "DB_NAME=test_db" >> .env
 
     - name: ✅ Django system check
       run: |
