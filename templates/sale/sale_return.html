@@ -1,0 +1,251 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "مرتجع مبيعات" %} - {{ sale.number }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
+<style>
+    .return-form label {
+        font-weight: 600;
+    }
+    .return-items {
+        margin-top: 20px;
+    }
+    .return-items thead th {
+        background-color: #f8f9fa;
+    }
+    .max-quantity {
+        color: #6c757d;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'sale:sale_list' %}">
+                            <i class="fas fa-shopping-cart me-1"></i>{% trans "المبيعات" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'sale:sale_detail' sale.pk %}">
+                            <i class="fas fa-file-invoice me-1"></i>{{ sale.number }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-undo-alt me-1"></i>{% trans "إنشاء مرتجع" %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-undo-alt fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{% trans "إنشاء مرتجع مبيعات" %}</h1>
+                    <p class="text-muted mb-0">{% trans "فاتورة رقم" %} {{ sale.number }}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للفاتورة" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات الفاتورة -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات الفاتورة" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "رقم الفاتورة" %}:</strong> <code>{{ sale.number }}</code></p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "التاريخ" %}:</strong> {{ sale.date|date:"d-m-Y" }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "العميل" %}:</strong> {{ sale.customer.name }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "المستودع" %}:</strong> {{ sale.warehouse.name }}</p>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "المجموع" %}:</strong> {{ sale.total|custom_number_format }} {% trans "ج.م" %}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "المدفوع" %}:</strong> {{ sale.amount_paid|custom_number_format }} {% trans "ج.م" %}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "المتبقي" %}:</strong> {{ sale.amount_due|custom_number_format }} {% trans "ج.م" %}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p class="mb-0"><strong>{% trans "الحالة" %}:</strong> 
+                                <span class="badge {% if sale.status == 'completed' %}bg-success{% elif sale.status == 'pending' %}bg-warning{% else %}bg-danger{% endif %}">
+                                    {{ sale.get_status_display }}
+                                </span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نموذج المرتجع -->
+    <form method="post">
+        {% csrf_token %}
+        <div class="row">
+            <!-- معلومات المرتجع -->
+            <div class="col-md-12 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "معلومات المرتجع" %}</h5>
+                    </div>
+                    <div class="card-body return-form">
+                        <div class="row">
+                            <div class="col-md-4">
+                                {{ form.date|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.warehouse|as_crispy_field }}
+                            </div>
+                            <div class="col-md-4">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- بنود المرتجع -->
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "البنود المراد إرجاعها" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% trans "حدد الكمية المراد إرجاعها من كل بند. يجب أن تكون الكمية المرتجعة أقل من أو تساوي الكمية المباعة." %}
+                        </div>
+                        
+                        <div class="return-items">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>{% trans "المنتج" %}</th>
+                                        <th>{% trans "الكمية المباعة" %}</th>
+                                        <th>{% trans "سعر الوحدة" %}</th>
+                                        <th>{% trans "الكمية المرتجعة" %}</th>
+                                        <th>{% trans "سبب الإرجاع" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>
+                                            {{ item.product.name }}
+                                            <br>
+                                            <small class="text-muted">{{ item.product.sku }}</small>
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                        </td>
+                                        <td>{{ item.quantity }}</td>
+                                        <td>{{ item.unit_price|custom_number_format }} {% trans "ج.م" %}</td>
+                                        <td>
+                                            <input type="number" name="return_quantity" class="form-control form-control-sm" 
+                                                   min="0" max="{{ item.quantity }}" value="0">
+                                            <small class="max-quantity">{% trans "الحد الأقصى:" %} {{ item.quantity }}</small>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="return_reason" class="form-control form-control-sm" 
+                                                   placeholder="{% trans 'سبب الإرجاع' %}">
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div class="card-footer text-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> {% trans "حفظ المرتجع" %}
+                        </button>
+                        <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // التحقق من الكميات عند الإدخال
+        $('input[name="return_quantity"]').change(function() {
+            let input = $(this);
+            let value = parseInt(input.val());
+            let max = parseInt(input.attr('max'));
+            
+            if (value < 0) {
+                input.val(0);
+            } else if (value > max) {
+                input.val(max);
+                alert('الكمية المرتجعة لا يمكن أن تتجاوز الكمية المباعة');
+            }
+        });
+        
+        // التحقق من صحة النموذج قبل الإرسال
+        $('form').submit(function(e) {
+            let hasItems = false;
+            
+            $('input[name="return_quantity"]').each(function() {
+                let value = parseInt($(this).val());
+                if (value > 0) {
+                    hasItems = true;
+                    return false; // الخروج من الحلقة
+                }
+            });
+            
+            if (!hasItems) {
+                e.preventDefault();
+                alert('يجب إدخال كمية مرتجعة لمنتج واحد على الأقل');
+            }
+        });
+    });
+</script>
+{% endblock %} 

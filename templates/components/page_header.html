@@ -1,0 +1,115 @@
+{% comment %}
+مكون عنوان الصفحة مع شريط التنقل (Breadcrumb)
+
+الاستخدام:
+{% include "components/page_header.html" with title="عنوان الصفحة" subtitle="وصف فرعي" %}
+
+خيارات:
+- title: عنوان الصفحة (مطلوب)
+- subtitle: نص فرعي للشرح (اختياري)
+- icon: أيقونة لعنوان الصفحة (اختياري)
+- action_buttons: أزرار الإجراءات مثل الإضافة أو التعديل، وهي قائمة تحتوي على:
+  [{'url': '/url', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-primary'}]
+{% endcomment %}
+
+{% load custom_filters %}
+
+<div class="page-header-container">
+    <!-- Breadcrumbs Section -->
+    <div class="page-breadcrumb">
+        {% if breadcrumb_items or generated_breadcrumb_items %}
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% if breadcrumb_items %}
+                        {% for item in breadcrumb_items %}
+                            {% if forloop.last or item.active %}
+                                <li class="breadcrumb-item active" aria-current="page">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </li>
+                            {% else %}
+                                <li class="breadcrumb-item">
+                                    <a href="{{ item.url }}">
+                                        {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                        {{ item.title }}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    {% elif generated_breadcrumb_items %}
+                        {% for item in generated_breadcrumb_items %}
+                            {% if forloop.last or item.active %}
+                                <li class="breadcrumb-item active" aria-current="page">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </li>
+                            {% else %}
+                                <li class="breadcrumb-item">
+                                    <a href="{{ item.url }}">
+                                        {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                        {{ item.title }}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </ol>
+            </nav>
+        {% endif %}
+    </div>
+    
+    <!-- Main Header Section -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <div class="page-header-title">
+                {% if icon or page_icon %}
+                    <div class="header-icon">
+                        <i class="{{ icon|default:page_icon }}"></i>
+                    </div>
+                {% endif %}
+                <div class="header-text">
+                    <h1 class="header-title">{{ title|default:page_title }}</h1>
+                    {% if subtitle %}
+                        <p class="header-subtitle">{{ subtitle }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if action_buttons %}
+                <div class="page-header-actions">
+                    {% if action_buttons|first == "[" %}
+                        {% with json_buttons=action_buttons|custom_load_json %}
+                            {% for button in json_buttons %}
+                                {% if button.form_id %}
+                                    <button type="submit" form="{{ button.form_id }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </button>
+                                {% else %}
+                                    <a href="{{ button.url }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endwith %}
+                    {% else %}
+                        {% for button in action_buttons %}
+                            {% if button.form_id %}
+                                <button type="submit" form="{{ button.form_id }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                    {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                    {{ button.text }}
+                                </button>
+                            {% else %}
+                                <a href="{{ button.url }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                    {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                    {{ button.text }}
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div> 

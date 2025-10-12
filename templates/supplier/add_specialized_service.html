@@ -1,0 +1,552 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.form-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.section-title {
+    color: #5a5c69;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+}
+
+.section-title i {
+    margin-left: 0.5rem;
+    color: #4e73df;
+}
+
+.supplier-type-badge {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    color: white;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.type-specific-fields {
+    background: #f8f9fc;
+    border-radius: 0.35rem;
+    padding: 1.5rem;
+    margin-top: 1rem;
+    border-left: 4px solid #4e73df;
+}
+
+.field-group {
+    background: white;
+    border-radius: 0.35rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border: 1px solid #e3e6f0;
+}
+
+.field-group h6 {
+    color: #5a5c69;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+}
+
+.help-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.conditional-field {
+    display: none;
+}
+
+.conditional-field.active {
+    display: block;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="{{ page_icon }} fa-fw"></i> 
+            {% if supplier.primary_type.code == 'paper' %}
+                إضافة نوع ورق جديد
+            {% elif supplier.primary_type.code == 'digital_printing' %}
+                إضافة خدمة طباعة ديجيتال
+            {% elif supplier.primary_type.code == 'offset_printing' %}
+                إضافة خدمة طباعة أوفست
+            {% elif supplier.primary_type.code == 'finishing' %}
+                إضافة خدمة تشطيب
+            {% elif supplier.primary_type.code == 'laser' %}
+                إضافة خدمة ليزر
+            {% elif supplier.primary_type.code == 'vip_gifts' %}
+                إضافة نوع هدية مميزة
+            {% elif supplier.primary_type.code == 'packaging' %}
+                إضافة خدمة تغطية
+            {% elif supplier.primary_type.code == 'design' %}
+                إضافة خدمة تصميم
+            {% elif supplier.primary_type.code == 'outdoor' %}
+                إضافة خدمة أوت دور
+            {% else %}
+                إضافة خدمة متخصصة
+            {% endif %}
+        </h1>
+        <div>
+            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right fa-sm"></i> العودة للمورد
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="form-container">
+                
+                <!-- Supplier Info -->
+                <div class="alert alert-info">
+                    <h6><i class="fas fa-info-circle"></i> معلومات المورد</h6>
+                    <div class="d-flex align-items-center">
+                        <div>
+                            <p class="mb-1"><strong>{{ supplier.name }}</strong></p>
+                            {% if supplier.primary_type %}
+                            <span class="supplier-type-badge" style="background-color: {{ supplier.primary_type.color }};">
+                                {% if supplier.primary_type.icon %}<i class="{{ supplier.primary_type.icon }}"></i>{% endif %}
+                                {{ supplier.primary_type.name }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" id="serviceForm">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-info-circle"></i>
+                            {% if supplier.primary_type.code == 'paper' %}
+                                معلومات نوع الورق
+                            {% elif supplier.primary_type.code == 'digital_printing' %}
+                                معلومات خدمة الطباعة
+                            {% elif supplier.primary_type.code == 'finishing' %}
+                                معلومات خدمة التشطيب
+                            {% elif supplier.primary_type.code == 'laser' %}
+                                معلومات خدمة الليزر
+                            {% elif supplier.primary_type.code == 'vip_gifts' %}
+                                معلومات نوع الهدية
+                            {% else %}
+                                المعلومات الأساسية
+                            {% endif %}
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                                        {% if supplier.primary_type.code == 'paper' %}
+                                            اسم نوع الورق *
+                                        {% elif supplier.primary_type.code == 'digital_printing' %}
+                                            اسم خدمة الطباعة *
+                                        {% elif supplier.primary_type.code == 'finishing' %}
+                                            اسم خدمة التشطيب *
+                                        {% elif supplier.primary_type.code == 'laser' %}
+                                            اسم خدمة الليزر *
+                                        {% elif supplier.primary_type.code == 'vip_gifts' %}
+                                            اسم نوع الهدية *
+                                        {% else %}
+                                            اسم الخدمة *
+                                        {% endif %}
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.category.id_for_label }}" class="form-label">فئة الخدمة *</label>
+                                    {{ form.category }}
+                                    {% if form.category.errors %}
+                                        <div class="text-danger small">{{ form.category.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">اختر التصنيف المناسبة لنوع المورد</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">وصف الخدمة</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-dollar-sign"></i>
+                            معلومات التسعير
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.base_price.id_for_label }}" class="form-label">السعر الأساسي (ج.م) *</label>
+                                    {{ form.base_price }}
+                                    {% if form.base_price.errors %}
+                                        <div class="text-danger small">{{ form.base_price.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">السعر لكل وحدة أو حسب نوع الخدمة</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.setup_cost.id_for_label }}" class="form-label">تكلفة الإعداد (ج.م)</label>
+                                    {{ form.setup_cost }}
+                                    {% if form.setup_cost.errors %}
+                                        <div class="text-danger small">{{ form.setup_cost.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">تكلفة إعداد أو تجهيز الخدمة (اختيارية)</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Type-Specific Fields -->
+                    {% if supplier.primary_type %}
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="{{ supplier.primary_type.icon|default:'fas fa-cogs' }}"></i>
+                            تفاصيل متخصصة - {{ supplier.primary_type.name }}
+                        </h5>
+                        
+                        <div class="type-specific-fields">
+                            
+                            <!-- Paper Supplier Fields -->
+                            {% if supplier.primary_type.code == 'paper' %}
+                            <div class="field-group">
+                                <h6><i class="fas fa-file-alt"></i> مواصفات نوع الورق</h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">نوع الورق</label>
+                                            <select class="form-control" name="paper_type">
+                                                <option value="">اختر نوع الورق</option>
+                                                <option value="offset">أوفست</option>
+                                                <option value="coated">كوشيه</option>
+                                                <option value="art">آرت</option>
+                                                <option value="cardboard">كرتون</option>
+                                                <option value="other">أخرى</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">الوزن (جرام)</label>
+                                            <input type="number" class="form-control" name="paper_weight" placeholder="80">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label class="form-label">بلد المنشأ</label>
+                                            <input type="text" class="form-control" name="origin_country" placeholder="مصر">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Digital Printing Fields -->
+                            {% if supplier.primary_type.code == 'digital_printing' %}
+                            <div class="field-group">
+                                <h6><i class="fas fa-print"></i> مواصفات الطباعة الديجيتال</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">نوع الماكينة</label>
+                                            <select class="form-control" name="machine_type">
+                                                <option value="">اختر نوع الماكينة</option>
+                                                <option value="laser_bw">ليزر أبيض وأسود</option>
+                                                <option value="laser_color">ليزر ملون</option>
+                                                <option value="inkjet">نفث حبر</option>
+                                                <option value="other">أخرى</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">أقصى مقاس</label>
+                                            <select class="form-control" name="max_size">
+                                                <option value="">اختر المقاس</option>
+                                                <option value="a4">A4</option>
+                                                <option value="a3">A3</option>
+                                                <option value="a2">A2</option>
+                                                <option value="a1">A1</option>
+                                                <option value="a0">A0</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="duplex_printing" id="duplex">
+                                            <label class="form-check-label" for="duplex">
+                                                طباعة على الوجهين
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" name="variable_data" id="variable">
+                                            <label class="form-check-label" for="variable">
+                                                طباعة بيانات متغيرة
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Finishing Services Fields -->
+                            {% if supplier.primary_type.code == 'finishing' %}
+                            <div class="field-group">
+                                <h6><i class="fas fa-cut"></i> تفاصيل خدمات التشطيب</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">نوع الخدمة</label>
+                                            <select class="form-control" name="finishing_type">
+                                                <option value="">اختر نوع الخدمة</option>
+                                                <option value="binding">تجليد</option>
+                                                <option value="cutting">قص</option>
+                                                <option value="folding">طي</option>
+                                                <option value="lamination">تغطية</option>
+                                                <option value="perforation">تثقيب</option>
+                                                <option value="other">أخرى</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">طريقة الحساب</label>
+                                            <select class="form-control" name="calculation_method">
+                                                <option value="">اختر طريقة الحساب</option>
+                                                <option value="per_piece">لكل قطعة</option>
+                                                <option value="per_sheet">لكل ورقة</option>
+                                                <option value="per_job">لكل عمل</option>
+                                                <option value="per_hour">لكل ساعة</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- Laser Services Fields -->
+                            {% if supplier.primary_type.code == 'laser' %}
+                            <div class="field-group">
+                                <h6><i class="fas fa-laser-pointer"></i> تفاصيل خدمات الليزر</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">نوع الخدمة</label>
+                                            <select class="form-control" name="laser_service_type">
+                                                <option value="">اختر نوع الخدمة</option>
+                                                <option value="cutting">قص بالليزر</option>
+                                                <option value="engraving">حفر بالليزر</option>
+                                                <option value="marking">وسم بالليزر</option>
+                                                <option value="other">أخرى</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">المواد المدعومة</label>
+                                            <input type="text" class="form-control" name="supported_materials" placeholder="خشب، أكريليك، معدن...">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                            <!-- VIP Gifts Fields -->
+                            {% if supplier.primary_type.code == 'vip_gifts' %}
+                            <div class="field-group">
+                                <h6><i class="fas fa-gift"></i> تفاصيل الهدايا المميزة</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">نوع الهدية</label>
+                                            <select class="form-control" name="gift_type">
+                                                <option value="">اختر نوع الهدية</option>
+                                                <option value="corporate">هدايا شركات</option>
+                                                <option value="promotional">هدايا دعائية</option>
+                                                <option value="luxury">هدايا فاخرة</option>
+                                                <option value="custom">هدايا مخصصة</option>
+                                                <option value="other">أخرى</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">إمكانية التخصيص</label>
+                                            <select class="form-control" name="customization_level">
+                                                <option value="">مستوى التخصيص</option>
+                                                <option value="basic">أساسي</option>
+                                                <option value="advanced">متقدم</option>
+                                                <option value="full">كامل</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Quantity Limits -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-sort-numeric-up"></i>
+                            حدود الكمية والتوقيت
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label for="{{ form.min_quantity.id_for_label }}" class="form-label">الحد الأدنى للكمية</label>
+                                    {{ form.min_quantity }}
+                                    {% if form.min_quantity.errors %}
+                                        <div class="text-danger small">{{ form.min_quantity.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">مدة التنفيذ (أيام)</label>
+                                    <input type="number" class="form-control" name="delivery_days" placeholder="3" min="1">
+                                    <div class="help-text">المدة المتوقعة لإنجاز الخدمة</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <label class="form-label">أولوية الخدمة</label>
+                                    <select class="form-control" name="priority">
+                                        <option value="normal">عادية</option>
+                                        <option value="high">عالية</option>
+                                        <option value="urgent">عاجلة</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-toggle-on"></i>
+                            الحالة والملاحظات
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        الخدمة نشطة ومتاحة
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="featured_service" id="featured">
+                                    <label class="form-check-label" for="featured">
+                                        خدمة مميزة (تظهر في المقدمة)
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ملاحظات إضافية</label>
+                            <textarea class="form-control" name="additional_notes" rows="3" placeholder="أي ملاحظات أو تفاصيل إضافية..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إلغاء
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            {% if supplier.primary_type.code == 'paper' %}
+                                حفظ نوع الورق
+                            {% elif supplier.primary_type.code == 'digital_printing' %}
+                                حفظ خدمة الطباعة
+                            {% elif supplier.primary_type.code == 'finishing' %}
+                                حفظ خدمة التشطيب
+                            {% elif supplier.primary_type.code == 'laser' %}
+                                حفظ خدمة الليزر
+                            {% elif supplier.primary_type.code == 'vip_gifts' %}
+                                حفظ نوع الهدية
+                            {% else %}
+                                حفظ الخدمة
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديث التصنيفات حسب نوع المورد
+    const supplierType = '{{ supplier.primary_type.code|default:"" }}';
+    const categorySelect = document.getElementById('{{ form.category.id_for_label }}');
+    
+    if (supplierType && categorySelect) {
+        // يمكن إضافة منطق لفلترة التصنيفات حسب نوع المورد
+        console.log('نوع المورد:', supplierType);
+    }
+    
+    // إضافة تفاعل للحقول المشروطة
+    const conditionalFields = document.querySelectorAll('.conditional-field');
+    
+    // يمكن إضافة المزيد من التفاعل هنا
+});
+</script>
+{% endblock %}

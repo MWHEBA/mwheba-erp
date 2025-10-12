@@ -1,0 +1,20 @@
+{% comment %}
+Template لأزرار إجراءات الخدمات المتخصصة - التصميم الموحد
+يحتاج supplier_id من context
+يستخدم item بدلاً من object في context الجدول
+تعديل وحذف فقط
+{% endcomment %}
+
+<div class="d-flex justify-content-center">
+    <a href="{% url 'supplier:edit_specialized_service' supplier.pk item.id %}" 
+       class="action-button btn-warning action-edit me-1" 
+       title="تعديل الخدمة">
+        <i class="fas fa-edit"></i>
+    </a>
+    <a href="{% url 'supplier:delete_specialized_service' supplier.pk item.id %}" 
+       class="action-button btn-danger action-delete" 
+       onclick="return confirm('هل أنت متأكد من حذف الخدمة {{ item.name }}؟\n\nهذا الإجراء لا يمكن التراجع عنه.')" 
+       title="حذف الخدمة">
+        <i class="fas fa-trash"></i>
+    </a>
+</div>

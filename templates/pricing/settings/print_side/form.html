@@ -1,0 +1,833 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% if is_add %}{% translate "إضافة جانب طباعة" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% if is_add %}{% translate "إضافة جانب طباعة جديد" %}{% else %}{% translate "تعديل جانب طباعة" %}{% endif %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% translate "معلومات جانب الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.name %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.sides_count %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.is_active %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% translate "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

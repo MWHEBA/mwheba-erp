@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="{{ page_icon }}"></i> {{ page_title }}
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle"></i>
+                {% translate "تنبيه: عملية النسخ الاحتياطي ستقوم بإنشاء نسخة من قاعدة البيانات الحالية. تأكد من حفظها في مكان آمن." %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card border-primary">
+                        <div class="card-header bg-primary text-white">
+                            <i class="fas fa-database"></i> {% translate "إنشاء نسخة احتياطية" %}
+                        </div>
+                        <div class="card-body">
+                            <p>{% translate "انقر على الزر أدناه لإنشاء نسخة احتياطية من قاعدة البيانات الحالية." %}</p>
+                            <p>{% translate "سيتم تنزيل ملف مضغوط يحتوي على نسخة كاملة من قاعدة البيانات." %}</p>
+                            
+                            <form method="post">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    <i class="fas fa-download"></i> {% translate "إنشاء نسخة احتياطية" %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h5>{% translate "تنويهات مهمة:" %}</h5>
+                <ul>
+                    <li>{% translate "قم بعمل نسخة احتياطية بشكل دوري كإجراء وقائي." %}</li>
+                    <li>{% translate "تأكد من حفظ النسخ الاحتياطية في أكثر من مكان (على سبيل المثال، القرص الصلب الخارجي أو التخزين السحابي)." %}</li>
+                    <li>{% translate "لا تشارك النسخ الاحتياطية مع أشخاص غير مصرح لهم بالوصول إلى البيانات." %}</li>
+                    <li>{% translate "يمكنك استعادة البيانات من خلال صفحة استعادة قاعدة البيانات." %}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

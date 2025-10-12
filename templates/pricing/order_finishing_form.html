@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% trans "خدمة خدمات مابعد الطباعة" %} | نظام تسعير الطباعة{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        {% if object %}
+        <h2>{% trans "تعديل خدمة خدمات مابعد الطباعة" %}: {{ order.order_number }}</h2>
+        {% else %}
+        <h2>{% trans "إضافة خدمات مابعد الطباعة للطلب" %}: {{ order.order_number }}</h2>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="form-section p-3 bg-light rounded">
+                        <h4 class="form-section-title mb-3">{% trans "معلومات خدمة خدمات مابعد الطباعة" %}</h4>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.finishing_type %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.quantity %}
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                {% bootstrap_field form.unit_price %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{% trans "السعر الإجمالي" %}</label>
+                                <div class="input-group">
+                                    <input type="text" id="total_price" class="form-control" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                {% bootstrap_field form.notes %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col d-flex justify-content-between">
+                    <a href="{% url 'pricing:pricing_detail' order.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> {% trans "حفظ" %}
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // حساب السعر الإجمالي
+        function calculateTotal() {
+            const quantity = parseFloat(document.getElementById('id_quantity').value) || 0;
+            const unitPrice = parseFloat(document.getElementById('id_unit_price').value) || 0;
+            const totalPrice = quantity * unitPrice;
+            document.getElementById('total_price').value = totalPrice.toFixed(2);
+        }
+        
+        // ربط الوظيفة بالأحداث
+        document.getElementById('id_quantity').addEventListener('input', calculateTotal);
+        document.getElementById('id_unit_price').addEventListener('input', calculateTotal);
+        
+        // حساب السعر الإجمالي عند تحميل الصفحة
+        calculateTotal();
+    });
+</script>
+{% endblock %} 

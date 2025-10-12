@@ -1,0 +1,13 @@
+{% if value == 'مبيعات' or value == 'sale' %}
+  <span class="badge bg-primary fw-bold">
+    <i class="fas fa-shopping-cart me-1"></i>مبيعات
+  </span>
+{% elif value == 'مشتريات' or value == 'purchase' %}
+  <span class="badge bg-info fw-bold">
+    <i class="fas fa-truck me-1"></i>مشتريات
+  </span>
+{% else %}
+  <span class="badge bg-light text-dark border">
+    <i class="fas fa-file-invoice me-1"></i>{{ value|default:"غير محدد" }}
+  </span>
+{% endif %}

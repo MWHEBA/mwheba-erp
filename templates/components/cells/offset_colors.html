@@ -1,0 +1,17 @@
+{% load i18n %}
+
+{% if item.category.code == 'offset_printing' and item.offset_details %}
+    {% if item.offset_details.max_colors == 1 %}
+        <span class="badge bg-secondary">1 لون</span>
+    {% elif item.offset_details.max_colors == 2 %}
+        <span class="badge bg-info">2 لون</span>
+    {% elif item.offset_details.max_colors == 4 %}
+        <span class="badge bg-success">4 ألوان</span>
+    {% elif item.offset_details.max_colors > 4 %}
+        <span class="badge bg-primary">{{ item.offset_details.max_colors }} ألوان</span>
+    {% else %}
+        <span class="badge bg-warning text-dark">{{ item.offset_details.max_colors }} ألوان</span>
+    {% endif %}
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

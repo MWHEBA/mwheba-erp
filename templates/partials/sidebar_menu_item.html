@@ -1,0 +1,48 @@
+{% load sidebar_permissions %}
+
+{% if has_permission %}
+<li class="sidebar-item">
+    {% if url %}
+        <a href="{% url url %}" class="sidebar-link">
+            <i class="{{ icon }} sidebar-icon"></i>
+            <span class="sidebar-text">{{ title }}</span>
+            {% if badge %}
+                <span class="badge {{ badge.class }} ms-2 sidebar-badge">{{ badge.text }}</span>
+            {% endif %}
+        </a>
+    {% else %}
+        <a href="#{{ title|slugify }}Menu" class="sidebar-link collapsed" data-bs-toggle="collapse" aria-expanded="false">
+            <i class="{{ icon }} sidebar-icon"></i>
+            <span class="sidebar-text">{{ title }}</span>
+            {% if badge %}
+                <span class="badge {{ badge.class }} ms-2 sidebar-badge">{{ badge.text }}</span>
+            {% endif %}
+            <i class="fas fa-chevron-down sidebar-arrow"></i>
+        </a>
+        
+        {% if children %}
+        <ul class="collapse list-unstyled submenu" id="{{ title|slugify }}Menu">
+            {% for child in children %}
+                {% if child.type == 'title' %}
+                    <li class="submenu-title">{{ child.text }}</li>
+                {% elif child.type == 'divider' %}
+                    <div class="nav-divider"></div>
+                {% else %}
+                    {% has_sidebar_permission child.permission as child_has_permission %}
+                    {% if child_has_permission %}
+                    <li>
+                        <a href="{% if child.url %}{% url child.url %}{% else %}#{% endif %}" class="submenu-link">
+                            <i class="{{ child.icon }} me-2"></i>{{ child.title }}
+                            {% if child.badge %}
+                                <span class="badge {{ child.badge.class }} ms-2">{{ child.badge.text }}</span>
+                            {% endif %}
+                        </a>
+                    </li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+        </ul>
+        {% endif %}
+    {% endif %}
+</li>
+{% endif %}

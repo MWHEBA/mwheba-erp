@@ -1,0 +1,51 @@
+{% comment %}
+مكون بطاقة مخصص للاستخدام في مختلف الصفحات
+
+الاستخدام:
+{% include "components/card.html" with title="عنوان البطاقة" icon="fas fa-cog" body="محتوى البطاقة" %}
+
+أو:
+{% include "components/card.html" with title="عنوان البطاقة" icon="fas fa-cog" %}
+    <p>محتوى البطاقة هنا</p>
+{% endinclude %}
+
+المعلمات:
+- title: عنوان البطاقة (مطلوب)
+- icon: أيقونة من Font Awesome (اختياري)
+- body: محتوى البطاقة (اختياري)
+- footer: تذييل البطاقة (اختياري)
+- card_class: تصنيفات CSS إضافية للبطاقة (اختياري)
+- header_class: تصنيفات CSS إضافية لرأس البطاقة (اختياري)
+- body_class: تصنيفات CSS إضافية لمحتوى البطاقة (اختياري)
+- footer_class: تصنيفات CSS إضافية لتذييل البطاقة (اختياري)
+{% endcomment %}
+
+<div class="card {{ card_class }}">
+    {% if title %}
+        <div class="card-header d-flex justify-content-between align-items-center {{ header_class }}">
+            <h5 class="card-title mb-0">
+                {% if icon %}<i class="{{ icon }} me-2"></i>{% endif %}
+                {{ title }}
+            </h5>
+            {% if extra_header %}
+                <div class="card-header-actions">
+                    {{ extra_header }}
+                </div>
+            {% endif %}
+        </div>
+    {% endif %}
+    
+    <div class="card-body {{ body_class }}">
+        {% if body %}
+            {{ body }}
+        {% elif content %}
+            {{ content }}
+        {% endif %}
+    </div>
+    
+    {% if footer %}
+        <div class="card-footer {{ footer_class }}">
+            {{ footer }}
+        </div>
+    {% endif %}
+</div> 

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="نظام موهبة لإدارة المخزون والمنتجات">
+    <meta name="author" content="MWHEBA_ERP">
+    <title>{% block title %}نظام موهبة{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="{% static 'img/favicon.ico' %}" type="image/x-icon">
+    
+    <!-- Bootstrap RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css" integrity="sha384-nU14brUcp6StFntEOOEBvcJm4huWjB0OcIeQ3fltAfSmuZFrkAif0T+UtNGlKKQv" crossorigin="anonymous">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Sweet Alert 2 -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Custom CSS - Import only what's needed for auth pages -->
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/auth.css' %}">
+    
+    {% block extra_css %}{% endblock %}
+    
+    <!-- Custom Styles for Auth Pages -->
+    <style>
+        body {
+            font-family: 'Tajawal', sans-serif;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            background-color: var(--bg-color);
+        }
+        
+        .auth-body {
+            background: url('{% static "img/auth-bg.svg" %}') no-repeat center center;
+            background-size: cover;
+            min-height: 100vh;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        
+        .auth-container {
+            margin: auto;
+            max-width: 450px;
+            width: 100%;
+            background-color: rgba(255, 255, 255, 0.9);
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1), 
+                        0 12px 24px rgba(1, 87, 138, 0.1);
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+            overflow: hidden;
+            transform: translateY(0);
+            animation: float 4s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        
+        .auth-container:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15), 
+                        0 16px 32px rgba(1, 87, 138, 0.15);
+            transform: translateY(-3px);
+        }
+        
+        .logo-container {
+            text-align: center;
+            padding: 1.5rem 0;
+        }
+        
+        .logo-container img {
+            max-height: 60px;
+            transition: all 0.3s ease;
+        }
+        
+        .logo-container img:hover {
+            transform: scale(1.03);
+        }
+        
+        .auth-form {
+            padding: 1.5rem;
+        }
+        
+        .auth-form input {
+            border-radius: 8px;
+            padding: 0.65rem 1rem;
+            border: 1px solid #e0e7ff;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .auth-form input:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(1, 87, 138, 0.25);
+        }
+        
+        .auth-button {
+            width: 100%;
+            padding: 0.65rem;
+            font-weight: 600;
+            background-color: var(--primary-color);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(1, 87, 138, 0.25);
+        }
+        
+        .auth-button:hover {
+            background-color: #013e61;
+            box-shadow: 0 6px 16px rgba(1, 87, 138, 0.35);
+            transform: translateY(-2px);
+        }
+        
+        .auth-footer {
+            text-align: center;
+            padding: 1rem;
+            background-color: rgba(255, 255, 255, 0.7);
+            border-top: 1px solid rgba(0, 0, 0, 0.05);
+            backdrop-filter: blur(5px);
+            color: var(--text-muted);
+            margin-top: auto;
+        }
+        
+        /* ظلال إضافية وتأثيرات للعناصر */
+        .form-group {
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .form-group i {
+            position: absolute;
+            right: 12px;
+            top: 15px;
+            color: var(--primary-color);
+        }
+        
+        .input-with-icon {
+            padding-right: 40px !important;
+        }
+        
+        /* الرسالة الترحيبية */
+        .welcome-message {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .welcome-message h3 {
+            color: var(--primary-color);
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 1.3rem;
+        }
+        
+        .welcome-message p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        
+        /* تجاوب مع الشاشات الصغيرة */
+        @media (max-width: 576px) {
+            .auth-container {
+                max-width: 90%;
+                margin: 1rem auto;
+            }
+            
+            .auth-form {
+                padding: 1.25rem;
+            }
+        }
+
+        /* تصغير المساحات في الصفحة بشكل عام */
+        .container.py-5 {
+            padding-top: 2rem !important;
+            padding-bottom: 2rem !important;
+        }
+    </style>
+</head>
+<body>
+    <div class="auth-body">
+        <div class="container py-5">
+            <div class="row justify-content-center align-items-center min-vh-100">
+                <div class="col-12">
+                    {% include 'components/messages.html' %}
+                    
+                    {% block content %}{% endblock %}
+                </div>
+            </div>
+        </div>
+        
+        <footer class="auth-footer">
+            <div class="container">
+                <p class="m-0">&copy; {% now "Y" %} نظام موهبة - جميع الحقوق محفوظة</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.all.min.js" integrity="sha256-LkC+rZzbNkEleBllGdKANe5nxH0QnRjn4hbw2lW+Hjo=" crossorigin="anonymous"></script>
+    
+    <!-- Include only necessary JS functions for auth pages -->
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // معالجة رسائل النظام باستخدام SweetAlert2
+        function notify(message, type = 'success', title = null) {
+            const options = {
+                icon: type,
+                text: message,
+                confirmButtonText: 'موافق',
+                confirmButtonColor: '#01578a',
+                rtl: true
+            };
+            
+            if (title) {
+                options.title = title;
+            }
+            
+            Swal.fire(options);
+        }
+        
+        // عرض رسائل تم توفيرها من Django
+        const djangoMessages = document.querySelectorAll('.alert');
+        
+        if (djangoMessages.length > 0) {
+            djangoMessages.forEach(function(message) {
+                const messageText = message.innerText.trim();
+                let messageType = 'info';
+                
+                if (message.classList.contains('alert-success')) {
+                    messageType = 'success';
+                } else if (message.classList.contains('alert-danger') || message.classList.contains('alert-error')) {
+                    messageType = 'error';
+                } else if (message.classList.contains('alert-warning')) {
+                    messageType = 'warning';
+                }
+                
+                // إخفاء الرسالة الأصلية
+                message.style.display = 'none';
+                
+                // عرض الرسالة باستخدام SweetAlert2
+                notify(messageText, messageType);
+            });
+        }
+    });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 

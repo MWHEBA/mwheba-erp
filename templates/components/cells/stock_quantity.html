@@ -1,0 +1,21 @@
+{% load i18n %}
+{% load custom_filters %}
+{% if value %}
+  {% if value <= 0 %}
+    <span class="badge bg-danger fw-bold">
+      <i class="fas fa-exclamation-triangle me-1"></i>{{ value|floatformat:0 }}
+    </span>
+  {% elif value <= 10 %}
+    <span class="badge bg-warning fw-bold">
+      <i class="fas fa-exclamation me-1"></i>{{ value|floatformat:0 }}
+    </span>
+  {% else %}
+    <span class="badge bg-success fw-bold">
+      <i class="fas fa-check-circle me-1"></i>{{ value|floatformat:0 }}
+    </span>
+  {% endif %}
+{% else %}
+  <span class="badge bg-secondary">
+    <i class="fas fa-minus me-1"></i>0
+  </span>
+{% endif %}

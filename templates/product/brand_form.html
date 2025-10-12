@@ -1,0 +1,33 @@
+{% extends 'product/form_template.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block form_content %}
+<div class="row">
+    <div class="col-md-6 mb-3">
+        {{ form.name|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3">
+        {{ form.website|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3">
+        {{ form.logo|as_crispy_field }}
+        {% if form.instance.logo %}
+        <div class="mt-2">
+            <img src="{{ form.instance.logo.url }}" alt="{{ form.instance.name }}" class="img-thumbnail" style="max-height: 100px;">
+        </div>
+        {% endif %}
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="form-check form-switch">
+            {{ form.is_active }}
+            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                {% trans "علامة تجارية نشطة" %}
+            </label>
+        </div>
+    </div>
+    <div class="col-12 mb-3">
+        {{ form.description|as_crispy_field }}
+    </div>
+</div>
+{% endblock %} 

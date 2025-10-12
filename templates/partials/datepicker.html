@@ -1,0 +1,109 @@
+{% comment %}
+مكون مختار التاريخ المخصص
+
+الاستخدام:
+{% include "partials/datepicker.html" with id="date-field" name="date" label="التاريخ" %}
+
+المعلمات:
+- id: معرف حقل التاريخ (مطلوب)
+- name: اسم حقل التاريخ (مطلوب)
+- label: نص العنوان (اختياري)
+- value: قيمة مبدئية للحقل (اختياري)
+- required: هل الحقل مطلوب (اختياري، افتراضي False)
+- format: تنسيق التاريخ (اختياري، افتراضي "YYYY-MM-DD")
+- placeholder: نص توضيحي (اختياري، افتراضي "اختر التاريخ...")
+- readonly: هل الحقل للقراءة فقط (اختياري، افتراضي False)
+- disabled: هل الحقل معطل (اختياري، افتراضي False)
+- class: تصنيفات CSS إضافية (اختياري)
+- min_date: أدنى تاريخ يمكن اختياره (اختياري)
+- max_date: أقصى تاريخ يمكن اختياره (اختياري)
+- help_text: نص مساعد (اختياري)
+{% endcomment %}
+
+<div class="form-group mb-3">
+    {% if label %}
+        <label for="{{ id }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <div class="input-group datepicker-group">
+        <input type="text" 
+               id="{{ id }}" 
+               name="{{ name }}" 
+               class="form-control datepicker {{ class }}" 
+               value="{{ value|default:'' }}" 
+               placeholder="{{ placeholder|default:'اختر التاريخ...' }}"
+               {% if required %}required{% endif %}
+               {% if readonly %}readonly{% endif %}
+               {% if disabled %}disabled{% endif %}
+               data-format="{{ format|default:'YYYY-MM-DD' }}"
+               {% if min_date %}data-min-date="{{ min_date }}"{% endif %}
+               {% if max_date %}data-max-date="{{ max_date }}"{% endif %}
+        >
+        <span class="input-group-text">
+            <i class="fas fa-calendar-alt"></i>
+        </span>
+    </div>
+    
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إذا تم تحميل flatpickr بالفعل
+        if (typeof flatpickr === 'function') {
+            initDatePicker();
+        } else {
+            // تحميل flatpickr إذا لم يكن محملاً
+            if (!document.getElementById('flatpickr-css')) {
+                const cssLink = document.createElement('link');
+                cssLink.id = 'flatpickr-css';
+                cssLink.rel = 'stylesheet';
+                cssLink.href = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css';
+                document.head.appendChild(cssLink);
+                
+                // تحميل الموضوع العربي
+                const rtlCssLink = document.createElement('link');
+                rtlCssLink.rel = 'stylesheet';
+                rtlCssLink.href = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/themes/material_blue.css';
+                document.head.appendChild(rtlCssLink);
+            }
+            
+            if (!document.getElementById('flatpickr-js')) {
+                const script = document.createElement('script');
+                script.id = 'flatpickr-js';
+                script.src = 'https://cdn.jsdelivr.net/npm/flatpickr';
+                script.onload = function() {
+                    // تحميل ملف اللغة العربية
+                    const langScript = document.createElement('script');
+                    langScript.src = 'https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ar.js';
+                    langScript.onload = initDatePicker;
+                    document.head.appendChild(langScript);
+                };
+                document.head.appendChild(script);
+            }
+        }
+        
+        function initDatePicker() {
+            const $datepicker = $('#{{ id }}');
+            
+            flatpickr($datepicker[0], {
+                locale: 'ar',
+                dateFormat: $datepicker.data('format') || 'd-m-Y',
+                minDate: $datepicker.data('min-date') || null,
+                maxDate: $datepicker.data('max-date') || null,
+                allowInput: true,
+                disableMobile: true,
+                enableTime: $datepicker.data('format') && $datepicker.data('format').includes('HH'),
+                time_24hr: true,
+                position: 'auto',
+                wrap: true,
+                appendTo: $datepicker.closest('.datepicker-group')[0] || document.body
+            });
+        }
+    });
+</script> 

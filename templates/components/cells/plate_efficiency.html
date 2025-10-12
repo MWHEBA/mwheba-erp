@@ -1,0 +1,58 @@
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% if item.category.code == 'plates' and item.plate_details %}
+    <div class="plate-efficiency-cell text-center">
+        {% if item.plate_details.set_price and item.plate_details.set_price > 0 %}
+            <!-- حساب الوفورات البسيط -->
+            {% with individual_cost=item.plate_details.price_per_plate|multiply:4 %}
+                {% with savings=individual_cost|sub:item.plate_details.set_price %}
+                    {% if savings > 50 %}
+                        <span class="badge bg-success">
+                            <i class="fas fa-star me-1"></i>
+                            ممتاز
+                        </span>
+                        <small class="text-success d-block mt-1">
+                            وفر {{ savings|floatformat:0 }} ج.م
+                        </small>
+                    {% elif savings > 20 %}
+                        <span class="badge bg-primary">
+                            <i class="fas fa-thumbs-up me-1"></i>
+                            جيد
+                        </span>
+                        <small class="text-primary d-block mt-1">
+                            وفر {{ savings|floatformat:0 }} ج.م
+                        </small>
+                    {% elif savings > 0 %}
+                        <span class="badge bg-info">
+                            <i class="fas fa-check me-1"></i>
+                            مقبول
+                        </span>
+                        <small class="text-info d-block mt-1">
+                            وفر {{ savings|floatformat:0 }} ج.م
+                        </small>
+                    {% else %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-minus me-1"></i>
+                            عادي
+                        </span>
+                        <small class="text-muted d-block mt-1">
+                            لا توفير
+                        </small>
+                    {% endif %}
+                {% endwith %}
+            {% endwith %}
+        {% else %}
+            <span class="badge bg-secondary">
+                <i class="fas fa-layer-group me-1"></i>
+                فردي فقط
+            </span>
+            <small class="text-muted d-block mt-1">
+                لا يوجد طقم
+            </small>
+        {% endif %}
+    </div>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

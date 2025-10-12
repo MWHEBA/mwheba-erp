@@ -1,0 +1,500 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تصميم بسيط ومتسق مع هوية النظام */
+    .page-header {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .page-header h1 {
+        color: #495057;
+        font-size: 1.75rem;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    
+    .page-header p {
+        color: #6c757d;
+        font-size: 0.95rem;
+        margin-bottom: 0;
+    }
+    
+    /* كروت الحسابات البسيطة */
+    .cash-account-card {
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+        margin-bottom: 20px;
+        background: #fff;
+    }
+    
+    .cash-account-card:hover {
+        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        cursor: pointer;
+        border-color: #007bff;
+    }
+    
+    .cash-account-card {
+        cursor: pointer;
+        transition: all 0.3s ease;
+        border: 2px solid transparent;
+    }
+    
+    .cash-account-card:active {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    }
+    
+    /* رؤوس الكروت */
+    .account-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .account-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .account-code {
+        font-size: 0.85rem;
+        color: #6c757d;
+        background: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
+    /* شارات أنواع الحسابات */
+    .account-type-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    .cash-badge {
+        background: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+    }
+    
+    .bank-badge {
+        background: #cce7ff;
+        color: #004085;
+        border: 1px solid #b3d7ff;
+    }
+    
+    .wallet-badge {
+        background: #fff3cd;
+        color: #856404;
+        border: 1px solid #ffeaa7;
+    }
+    
+    /* عرض الأرصدة */
+    .balance-display {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        margin: 15px 0;
+        border: 1px solid #e9ecef;
+    }
+    
+    .balance-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #28a745;
+        margin-bottom: 5px;
+    }
+    
+    .balance-currency {
+        font-size: 0.85rem;
+        color: #6c757d;
+    }
+    
+
+    
+    /* معلومات إضافية */
+    .account-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .info-item {
+        text-align: center;
+        padding: 10px;
+        background: #f8f9fa;
+        border-radius: 6px;
+        border: 1px solid #e9ecef;
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    /* أزرار الإجراءات */
+    .account-actions {
+        opacity: 0;
+        transition: opacity 0.2s ease;
+        margin-top: 15px;
+    }
+    
+    .cash-account-card:hover .account-actions {
+        opacity: 1;
+    }
+    
+    /* إحصائيات بسيطة */
+    .stats-card {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .stats-header {
+        background: #f8f9fa;
+        color: #495057;
+        padding: 15px 20px;
+        border-bottom: 1px solid #dee2e6;
+        margin: -1px -1px 0 -1px;
+        border-radius: 7px 7px 0 0;
+    }
+    
+    .stats-header h5 {
+        margin: 0;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .stat-item {
+        padding: 20px;
+        text-align: center;
+        transition: background-color 0.2s ease;
+    }
+    
+    .stat-item:hover {
+        background: #f8f9fa;
+    }
+    
+    .stat-item:not(:last-child) {
+        border-left: 1px solid #dee2e6;
+    }
+    
+    .stat-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        font-size: 0.85rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    /* حالة فارغة بسيطة */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border: 1px solid #dee2e6;
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        color: #6c757d;
+        margin-bottom: 20px;
+    }
+    
+    .empty-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 10px;
+    }
+    
+    .empty-description {
+        font-size: 0.95rem;
+        color: #6c757d;
+        margin-bottom: 25px;
+        line-height: 1.5;
+    }
+    
+    /* تحسينات الاستجابة */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .balance-amount {
+            font-size: 1.25rem;
+        }
+        
+        .account-info-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .stat-item:not(:last-child) {
+            border-left: none;
+            border-bottom: 1px solid #dee2e6;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">الحسابات النقدية والبنكية التي يمكن الصرف منها والإيداع فيها</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:enhanced_balances_list' %}" class="btn btn-outline-info" title="عرض الأرصدة المحسنة مع الكاش">
+                    <i class="fas fa-balance-scale me-2"></i>الأرصدة المحسنة
+                </a>
+                <a href="{% url 'financial:payment_sync_dashboard' %}" class="btn btn-outline-secondary" title="لوحة تحكم تزامن المدفوعات">
+                    <i class="fas fa-sync-alt me-2"></i>تزامن المدفوعات
+                </a>
+                <a href="{% url 'financial:account_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>إضافة حساب جديد
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            {% for item in breadcrumb_items %}
+                {% if item.active %}
+                    <li class="breadcrumb-item active" aria-current="page">{{ item.title }}</li>
+                {% else %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ item.url }}">
+                            {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                            {{ item.title }}
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+
+    <!-- Accounts Grid المحسن -->
+    {% if accounts %}
+        <div class="row">
+            {% for account in accounts %}
+                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                    <a href="{% url 'financial:cash_account_movements' account.id %}" class="card cash-account-card h-100 text-reset text-decoration-none" style="display: block;">
+                        <div class="card-body">
+                            <!-- رأس الكرت -->
+                            <div class="account-header">
+                                <div class="flex-grow-1">
+                                    <h5 class="account-title">{{ account.name }}</h5>
+                                    <span class="account-code">{{ account.code }}</span>
+                                </div>
+                                
+                                <!-- نوع الحساب -->
+                                <div>
+                                    {% if account.is_cash_account %}
+                                        <span class="account-type-badge cash-badge">
+                                            <i class="fas fa-money-bill-wave me-1"></i>نقدي
+                                        </span>
+                                    {% elif account.is_bank_account %}
+                                        <span class="account-type-badge bank-badge">
+                                            <i class="fas fa-university me-1"></i>بنكي
+                                        </span>
+                                    {% else %}
+                                        <span class="account-type-badge wallet-badge">
+                                            <i class="fas fa-wallet me-1"></i>خزينة
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- عرض الرصيد -->
+                            <div class="balance-display">
+                                <div class="balance-amount">
+                                    {% if account.calculated_balance is not None %}
+                                        {{ account.calculated_balance|floatformat:2 }}
+                                    {% else %}
+                                        {{ account.opening_balance|default:0|floatformat:2 }}
+                                    {% endif %}
+                                </div>
+                                <div class="balance-currency">جنيه مصري</div>
+                                
+
+                            </div>
+                            
+                            <!-- معلومات إضافية -->
+                            <div class="account-info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">الرصيد الافتتاحي</div>
+                                    <div class="info-value">
+                                        {{ account.opening_balance|default:0|floatformat:2 }}
+                                    </div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">آخر تحديث</div>
+                                    <div class="info-value">
+                                        {{ account.updated_at|date:"d-m-Y" }}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+        
+        <!-- إحصائيات محسنة -->
+        <div class="row mt-5">
+            <div class="col-12">
+                <div class="card stats-card">
+                    <div class="stats-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-chart-bar me-2"></i>إحصائيات سريعة للحسابات النقدية والبنكية
+                        </h5>
+                    </div>
+                    <div class="row g-0">
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <div class="stat-number">{{ accounts_count }}</div>
+                                <div class="stat-label">إجمالي الحسابات</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <div class="stat-number">{{ cash_accounts_count }}</div>
+                                <div class="stat-label">حسابات نقدية</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <div class="stat-number">{{ bank_accounts_count }}</div>
+                                <div class="stat-label">حسابات بنكية</div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="stat-item">
+                                <div class="stat-number">{{ total_balance|floatformat:2 }}</div>
+                                <div class="stat-label">إجمالي الأرصدة (جنيه)</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    {% else %}
+        <!-- حالة فارغة محسنة -->
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <h4 class="empty-title">لا توجد حسابات نقدية أو بنكية</h4>
+            <p class="empty-description">
+                لم يتم العثور على أي حسابات نقدية أو بنكية في النظام.<br>
+                ابدأ بإضافة أول حساب لإدارة أموالك بكفاءة.
+            </p>
+            <a href="{% url 'financial:account_create' %}" class="btn btn-success">
+                <i class="fas fa-plus me-2"></i>إضافة أول حساب
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تأثيرات بسيطة للكروت
+    $('.cash-account-card').hover(
+        function() {
+            $(this).find('.account-actions').addClass('show');
+        },
+        function() {
+            $(this).find('.account-actions').removeClass('show');
+        }
+    );
+    
+    // تحديث الأرصدة كل دقيقة (اختياري)
+    setInterval(function() {
+        // يمكن إضافة AJAX لتحديث الأرصدة تلقائياً
+        console.log('تحديث الأرصدة...');
+    }, 60000);
+});
+</script>
+{% endblock %}

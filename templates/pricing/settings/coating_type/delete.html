@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load i18n %}
+
+{% block title %}{% translate "حذف نوع التغطية" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">{% translate "حذف نوع التغطية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        {% translate "هل أنت متأكد من رغبتك في حذف نوع التغطية التالي؟" %}
+                    </p>
+                    
+                    <div class="mb-4">
+                        <h5>{{ coating_type.name }}</h5>
+                        <p>
+                            <strong>{% translate "السعر الأساسي:" %}</strong> {{ coating_type.price_per_unit }}<br>
+                            {% if coating_type.description %}
+                            <strong>{% translate "الوصف:" %}</strong> {{ coating_type.description }}<br>
+                            {% endif %}
+                            <strong>{% translate "الحالة:" %}</strong>
+                            {% if coating_type.is_active %}
+                                <span class="badge bg-success">{% translate "نشط" %}</span>
+                            {% else %}
+                                <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="alert alert-danger">
+                        <strong>{% translate "تحذير!" %}</strong> {% translate "سيؤدي حذف نوع التغطية هذا إلى إزالته نهائيًا من النظام. هذا الإجراء لا يمكن التراجع عنه." %}
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'coating_type_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> {% translate "تأكيد الحذف" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

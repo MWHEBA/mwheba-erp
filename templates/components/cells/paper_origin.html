@@ -1,0 +1,9 @@
+<!-- خلية منشأ الورق -->
+{% if row.paperservicedetails.country_of_origin %}
+    <span class="badge bg-light text-dark border">
+        <i class="fas fa-globe me-1"></i>
+        {{ row.paperservicedetails.country_of_origin }}
+    </span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

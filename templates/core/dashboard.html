@@ -1,0 +1,1030 @@
+{% extends 'base.html' %}
+{% load humanize %}
+{% load static %}
+
+{% block title %}لوحة التحكم | نظام موهبة للمبيعات والمخازن{% endblock %}
+
+{% block extra_css %}
+<style>
+    .dashboard-card {
+        background-color: #fff;
+        border-radius: 10px;
+        box-shadow: 0 2px 15px rgba(0, 0, 0, 0.08);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .dashboard-card .card-header {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+        padding-bottom: 0.75rem;
+        margin-bottom: 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .dashboard-card .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--dark);
+        margin-bottom: 0;
+    }
+
+    .stat-card {
+        border-radius: 12px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.07);
+        position: relative;
+        height: 100%;
+    }
+    
+    .stat-card-header {
+        padding: 1.25rem;
+        position: relative;
+        z-index: 1;
+    }
+    
+    .stat-card-icon {
+        position: absolute;
+        left: 1rem;
+        top: 1rem;
+        width: 45px;
+        height: 45px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 12px;
+        color: white;
+        font-size: 1.25rem;
+    }
+    
+    .stat-card-title {
+        font-size: 0.85rem;
+        font-weight: 500;
+        margin-bottom: 0.75rem;
+        color: rgba(0, 0, 0, 0.6);
+    }
+    
+    .stat-card-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--dark);
+    }
+    
+    .stat-card-subtitle {
+        font-size: 0.8rem;
+        color: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+    }
+    
+    .primary-card {
+        background: linear-gradient(145deg, #e1f0ff, #eef6ff);
+        border-right: 4px solid var(--primary-color);
+    }
+    
+    .warning-card {
+        background: linear-gradient(145deg, #fff8e0, #fffaec);
+        border-right: 4px solid var(--warning-color);
+    }
+    
+    .success-card {
+        background: linear-gradient(145deg, #dffcf0, #ecfdf5);
+        border-right: 4px solid var(--success-color);
+    }
+    
+    .info-card {
+        background: linear-gradient(145deg, #e0f7ff, #ebf9ff);
+        border-right: 4px solid var(--info-color);
+    }
+    
+    .bg-primary-soft {
+        background-color: var(--primary-color);
+    }
+    
+    .bg-warning-soft {
+        background-color: var(--warning-color);
+    }
+    
+    .bg-success-soft {
+        background-color: var(--success-color);
+    }
+    
+    .bg-info-soft {
+        background-color: var(--info-color);
+    }
+    
+    .recent-table th, .recent-table td {
+        padding: 0.75rem 1rem;
+        vertical-align: middle;
+    }
+    
+    .recent-table thead th {
+        background-color: rgba(0, 0, 0, 0.02);
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--dark);
+    }
+    
+    .recent-table tbody tr {
+        transition: all 0.2s ease;
+    }
+    
+    .recent-table tbody tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+    
+    .dash-section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        color: var(--dark);
+        position: relative;
+        padding-right: 15px;
+    }
+    
+    .dash-section-title::before {
+        content: '';
+        position: absolute;
+        right: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 4px;
+        height: 20px;
+        background-color: var(--primary-color);
+        border-radius: 2px;
+    }
+    
+    .inventory-alert {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem;
+        background-color: rgba(var(--warning-rgb), 0.05);
+        border-radius: 8px;
+        margin-bottom: 0.5rem;
+    }
+    
+    .inventory-alert-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background-color: var(--warning-color);
+        color: white;
+        margin-left: 0.75rem;
+    }
+    
+    .inventory-alert-content {
+        flex: 1;
+    }
+    
+    .inventory-alert-title {
+        font-weight: 600;
+        font-size: 0.9rem;
+        margin-bottom: 0.25rem;
+        color: var(--dark);
+    }
+    
+    .inventory-alert-text {
+        font-size: 0.8rem;
+        color: rgba(0, 0, 0, 0.6);
+        margin-bottom: 0;
+    }
+    
+    .welcome-banner {
+        position: relative;
+        border-radius: 15px;
+        overflow: hidden;
+        height: 180px;
+        display: flex;
+        align-items: center;
+        background: linear-gradient(45deg, var(--primary-color) 0%, var(--primary-light) 100%);
+        margin-bottom: 1.5rem;
+    }
+    
+    .welcome-content {
+        position: relative;
+        z-index: 2;
+        padding: 25px;
+        width: 100%;
+    }
+    
+    .welcome-title {
+        color: white;
+        font-size: 1.75rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    
+    .welcome-subtitle {
+        color: rgba(255, 255, 255, 0.85);
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .welcome-actions .btn {
+        padding: 0.5rem 1.5rem;
+        border-radius: 50px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .welcome-img {
+        position: absolute;
+        left: 25px;
+        bottom: 0;
+        height: 85%;
+        z-index: 1;
+        opacity: 0.1;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        width: 100%;
+    }
+    
+    .chart-legend {
+        display: flex;
+        justify-content: center;
+        margin-top: 1rem;
+    }
+    
+    .chart-legend-item {
+        display: flex;
+        align-items: center;
+        margin: 0 10px;
+    }
+    
+    .chart-legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-left: 5px;
+    }
+    
+    .chart-legend-label {
+        font-size: 0.8rem;
+        color: var(--dark);
+    }
+    
+    .chart-tabs {
+        display: flex;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+        margin-bottom: 1rem;
+    }
+    
+    .chart-tab {
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        border-bottom: 2px solid transparent;
+        font-weight: 500;
+        font-size: 0.9rem;
+        color: var(--secondary-color);
+        transition: all 0.2s ease;
+    }
+    
+    .chart-tab.active {
+        color: var(--primary-color);
+        border-bottom-color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة مع الترحيب -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">مرحباً بك في لوحة التحكم، يمكنك متابعة أداء عملك من هنا</p>
+                </div>
+            </div>
+            <div>
+                {% if request.user.is_admin or request.user.is_superuser %}
+                <div class="btn-group">
+                    <a href="{% url 'core:company_settings' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-building me-1"></i> إعدادات الشركة
+                    </a>
+                    <a href="{% url 'core:system_settings' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-cogs me-1"></i> إعدادات النظام
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- بانر الترحيب -->
+    <div class="welcome-banner">
+        <img src="{% static 'img/logo.png' %}" alt="نظام موهبة" class="welcome-img">
+        <div class="welcome-content">
+            <h1 class="welcome-title">مرحباً بك، {{ request.user.first_name|default:request.user.username }}</h1>
+            <p class="welcome-subtitle">أهلاً بك في لوحة التحكم الخاصة بنظام موهبة للمبيعات والمخازن</p>
+            <div class="welcome-actions">
+                <a href="{% url 'sale:sale_create' %}" class="btn btn-light me-2">
+                    <i class="fas fa-plus-circle me-1"></i> فاتورة بيع جديدة
+                </a>
+                <a href="{% url 'purchase:purchase_create' %}" class="btn btn-outline-light">
+                    <i class="fas fa-cart-plus me-1"></i> طلب شراء جديد
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- إحصائيات سريعة -->
+        <div class="col-lg-12 mb-4">
+            <div class="row">
+                <!-- إحصائيات المبيعات -->
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stat-card primary-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon bg-primary-soft">
+                                <i class="fas fa-shopping-cart"></i>
+                            </div>
+                            <div class="stat-card-title">المبيعات اليوم</div>
+                            <div class="stat-card-value">{{ sales_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="stat-card-subtitle">
+                                <span>إجمالي الفواتير: {{ sales_today.count|default:0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- إحصائيات المشتريات -->
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stat-card warning-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon bg-warning-soft">
+                                <i class="fas fa-truck"></i>
+                            </div>
+                            <div class="stat-card-title">المشتريات اليوم</div>
+                            <div class="stat-card-value">{{ purchases_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="stat-card-subtitle">
+                                <span>عدد الفواتير: {{ purchases_today.count|default:0 }}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- إحصائيات العملاء -->
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stat-card success-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon bg-success-soft">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="stat-card-title">العملاء النشطين</div>
+                            <div class="stat-card-value">{{ customers_count|default:0 }}</div>
+                            <div class="stat-card-subtitle">
+                                <span>إجمالي العملاء</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- إحصائيات المنتجات -->
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stat-card info-card">
+                        <div class="stat-card-header">
+                            <div class="stat-card-icon bg-info-soft">
+                                <i class="fas fa-box"></i>
+                            </div>
+                            <div class="stat-card-title">المنتجات المتوفرة</div>
+                            <div class="stat-card-value">{{ products_count|default:0 }}</div>
+                            <div class="stat-card-subtitle">
+                                <span>إجمالي المنتجات</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- قسم أحدث المبيعات -->
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-receipt me-2 text-primary"></i>
+                        أحدث المبيعات
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-primary">كل المبيعات</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table recent-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>العميل</th>
+                                <th>التاريخ</th>
+                                <th>المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_sales %}
+                                {% for sale in recent_sales %}
+                                <tr>
+                                    <td><a href="#" class="fw-medium">{{ sale.invoice_number }}</a></td>
+                                    <td>{{ sale.customer.name }}</td>
+                                    <td>{{ sale.date|date:"d-m-Y" }}</td>
+                                    <td class="fw-bold">{{ sale.total|floatformat:2 }} ج.م</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">لا توجد مبيعات حالياً</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- قسم أحدث المشتريات -->
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-truck-loading me-2 text-warning"></i>
+                        أحدث المشتريات
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-warning">كل المشتريات</a>
+                </div>
+                <div class="table-responsive">
+                    <table class="table recent-table mb-0">
+                        <thead>
+                            <tr>
+                                <th>رقم الفاتورة</th>
+                                <th>المورد</th>
+                                <th>التاريخ</th>
+                                <th>المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if recent_purchases %}
+                                {% for purchase in recent_purchases %}
+                                <tr>
+                                    <td><a href="#" class="fw-medium">{{ purchase.invoice_number }}</a></td>
+                                    <td>{{ purchase.supplier.name }}</td>
+                                    <td>{{ purchase.date|date:"d-m-Y" }}</td>
+                                    <td class="fw-bold">{{ purchase.total|floatformat:2 }} ج.م</td>
+                                </tr>
+                                {% endfor %}
+                            {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center py-4">
+                                        <div class="d-flex flex-column align-items-center">
+                                            <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">لا توجد مشتريات حالياً</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- المنتجات منخفضة المخزون -->
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                        منتجات منخفضة المخزون
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-warning">كل المنتجات</a>
+                </div>
+                <div>
+                    {% if low_stock_products %}
+                        {% for product in low_stock_products %}
+                            <div class="inventory-alert">
+                                <div class="inventory-alert-icon">
+                                    <i class="fas fa-exclamation"></i>
+                                </div>
+                                <div class="inventory-alert-content">
+                                    <div class="inventory-alert-title">{{ product.name }}</div>
+                                    <div class="inventory-alert-text">الكمية المتبقية: {{ product.stocks.first.quantity }}</div>
+                                </div>
+                                <a href="#" class="btn btn-sm btn-outline-primary">طلب شراء</a>
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="d-flex flex-column align-items-center py-4">
+                            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+                            <p class="text-muted">جميع المنتجات متوفرة بكميات كافية</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- الإحصاءات المالية -->
+        <div class="col-lg-6 mb-4">
+            <div class="dashboard-card h-100">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-pie me-2 text-info"></i>
+                        الملخص المالي
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-info">التقارير المالية</a>
+                </div>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-muted">إجمالي المبيعات</div>
+                                <i class="fas fa-arrow-up text-success"></i>
+                            </div>
+                            <div class="h4 mb-0">{{ sales_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="text-muted small">آخر 30 يوم</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-muted">إجمالي المشتريات</div>
+                                <i class="fas fa-arrow-down text-danger"></i>
+                            </div>
+                            <div class="h4 mb-0">{{ purchases_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="text-muted small">آخر 30 يوم</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-muted">ديون العملاء</div>
+                                <i class="fas fa-users text-primary"></i>
+                            </div>
+                            <div class="h4 mb-0">0.00 ج.م</div>
+                            <div class="text-muted small">حتى الآن</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 bg-light rounded border">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="text-muted">ديون الموردين</div>
+                                <i class="fas fa-handshake text-warning"></i>
+                            </div>
+                            <div class="h4 mb-0">0.00 ج.م</div>
+                            <div class="text-muted small">حتى الآن</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- قسم الرسوم البيانية -->
+        <div class="col-12 mb-4">
+            <div class="dashboard-card">
+                <div class="card-header">
+                    <h5 class="card-title">
+                        <i class="fas fa-chart-line me-2 text-primary"></i>
+                        تحليل المبيعات والمشتريات
+                    </h5>
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn active" data-period="day">اليوم</button>
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="week">أسبوع</button>
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="month">شهر</button>
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="year">سنة</button>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-8">
+                        <div class="chart-tabs">
+                            <div class="chart-tab active" data-chart="sales-purchases">المبيعات والمشتريات</div>
+                            <div class="chart-tab" data-chart="products">المنتجات الأكثر مبيعاً</div>
+                            <div class="chart-tab" data-chart="customers">العملاء النشطين</div>
+                        </div>
+                        <div class="chart-container">
+                            <canvas id="mainChart"></canvas>
+                        </div>
+                        <div class="chart-legend mt-3">
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-color" style="background-color: rgba(var(--primary-rgb), 0.7);"></div>
+                                <div class="chart-legend-label">المبيعات</div>
+                            </div>
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-color" style="background-color: rgba(var(--warning-rgb), 0.7);"></div>
+                                <div class="chart-legend-label">المشتريات</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded mb-3">
+                            <h6 class="mb-3 fw-bold">ملخص الأداء</h6>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small text-muted">إجمالي المبيعات</span>
+                                    <span class="fw-bold">{{ sales_month.total|default:0|floatformat:2 }} ج.م</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-primary" role="progressbar" style="width: 75%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small text-muted">إجمالي المشتريات</span>
+                                    <span class="fw-bold">{{ purchases_month.total|default:0|floatformat:2 }} ج.م</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-warning" role="progressbar" style="width: 45%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small text-muted">صافي الربح</span>
+                                    <span class="fw-bold text-success">{{ profit_month|default:0|floatformat:2 }} ج.م</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-success" role="progressbar" style="width: 65%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span class="small text-muted">نسبة النمو</span>
+                                    <span class="fw-bold text-primary">35%</span>
+                                </div>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-info" role="progressbar" style="width: 35%"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-3 bg-light rounded">
+                            <h6 class="mb-3 fw-bold">توقعات الشهر القادم</h6>
+                            <div class="mb-3">
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-arrow-up text-success me-2"></i>
+                                    <span class="small fw-bold">المبيعات المتوقعة</span>
+                                </div>
+                                <h5 class="mb-0">{{ sales_forecast|default:'15,000.00' }} ج.م</h5>
+                                <small class="text-muted">زيادة بنسبة 15% عن الشهر الحالي</small>
+                            </div>
+                            <div>
+                                <div class="d-flex align-items-center mb-2">
+                                    <i class="fas fa-arrow-down text-warning me-2"></i>
+                                    <span class="small fw-bold">المشتريات المتوقعة</span>
+                                </div>
+                                <h5 class="mb-0">{{ purchase_forecast|default:'8,500.00' }} ج.م</h5>
+                                <small class="text-muted">نقص بنسبة 5% عن الشهر الحالي</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // بيانات المبيعات والمشتريات (يمكن استبدالها ببيانات حقيقية من الخادم)
+        const salesData = [12000, 15000, 18000, 16000, 22000, 25000, 23000, 28000, 30000, 32000, 35000, 40000];
+        const purchasesData = [10000, 12000, 14000, 11000, 16000, 18000, 17000, 20000, 22000, 21000, 24000, 26000];
+        const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        
+        // إعداد الرسم البياني
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        let mainChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: months,
+                datasets: [
+                    {
+                        label: 'المبيعات',
+                        data: salesData,
+                        backgroundColor: 'rgba(var(--primary-rgb), 0.1)',
+                        borderColor: 'rgba(var(--primary-rgb), 0.7)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(var(--primary-rgb), 0.7)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'المشتريات',
+                        data: purchasesData,
+                        backgroundColor: 'rgba(var(--warning-rgb), 0.1)',
+                        borderColor: 'rgba(var(--warning-rgb), 0.7)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: 'rgba(var(--warning-rgb), 0.7)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(0, 0, 0, 0.7)',
+                        titleColor: '#fff',
+                        bodyColor: '#fff',
+                        titleFont: {
+                            size: 12,
+                            weight: 'bold'
+                        },
+                        bodyFont: {
+                            size: 12
+                        },
+                        padding: 10,
+                        displayColors: true,
+                        callbacks: {
+                            labelColor: function(context) {
+                                const colors = ['rgba(var(--primary-rgb), 1)', 'rgba(var(--warning-rgb), 1)'];
+                                return {
+                                    borderColor: 'white',
+                                    backgroundColor: colors[context.datasetIndex]
+                                };
+                            },
+                            label: function(context) {
+                                return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' ج.م';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 10
+                            }
+                        }
+                    },
+                    y: {
+                        grid: {
+                            borderDash: [2, 2],
+                            drawBorder: false
+                        },
+                        ticks: {
+                            font: {
+                                size: 11
+                            },
+                            callback: function(value) {
+                                if (value >= 1000) {
+                                    return (value / 1000) + 'k';
+                                }
+                                return value;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // تغيير الفترة الزمنية للرسم البياني
+        const periodButtons = document.querySelectorAll('.chart-period-btn');
+        periodButtons.forEach(btn => {
+            btn.addEventListener('click', function() {
+                periodButtons.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                
+                // تحديث البيانات حسب الفترة المختارة (هنا يمكن استدعاء أي دالة لجلب البيانات من الخادم)
+                const period = this.dataset.period;
+                updateChartData(period);
+            });
+        });
+        
+        // تغيير نوع الرسم البياني
+        const chartTabs = document.querySelectorAll('.chart-tab');
+        chartTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                chartTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // تحديث نوع الرسم البياني
+                const chartType = this.dataset.chart;
+                updateChartType(chartType);
+            });
+        });
+        
+        // دالة لتحديث بيانات الرسم البياني حسب الفترة
+        function updateChartData(period) {
+            let labels, data1, data2;
+            
+            switch(period) {
+                case 'day':
+                    labels = ['8 ص', '10 ص', '12 م', '2 م', '4 م', '6 م', '8 م'];
+                    data1 = [2000, 3500, 5000, 4200, 6000, 7500, 9000];
+                    data2 = [1500, 2800, 4000, 3500, 5200, 6000, 7500];
+                    break;
+                case 'week':
+                    labels = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
+                    data1 = [5000, 7000, 6500, 8000, 9500, 11000, 7500];
+                    data2 = [4000, 5500, 5000, 6000, 7000, 8500, 6000];
+                    break;
+                case 'month':
+                    labels = ['أسبوع 1', 'أسبوع 2', 'أسبوع 3', 'أسبوع 4'];
+                    data1 = [22000, 25000, 30000, 35000];
+                    data2 = [18000, 20000, 24000, 28000];
+                    break;
+                case 'year':
+                default:
+                    labels = months;
+                    data1 = salesData;
+                    data2 = purchasesData;
+                    break;
+            }
+            
+            mainChart.data.labels = labels;
+            mainChart.data.datasets[0].data = data1;
+            mainChart.data.datasets[1].data = data2;
+            mainChart.update();
+        }
+        
+        // دالة لتحديث نوع الرسم البياني
+        function updateChartType(chartType) {
+            let labels, datasets;
+            
+            switch(chartType) {
+                case 'products':
+                    labels = ['منتج 1', 'منتج 2', 'منتج 3', 'منتج 4', 'منتج 5'];
+                    datasets = [{
+                        label: 'المبيعات',
+                        data: [35000, 30000, 25000, 20000, 15000],
+                        backgroundColor: [
+                            'rgba(var(--primary-rgb), 0.7)',
+                            'rgba(var(--success-rgb), 0.7)',
+                            'rgba(var(--warning-rgb), 0.7)',
+                            'rgba(var(--info-rgb), 0.7)',
+                            'rgba(var(--secondary-rgb), 0.7)'
+                        ],
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    }];
+                    mainChart.config.type = 'bar';
+                    break;
+                case 'customers':
+                    labels = ['عميل 1', 'عميل 2', 'عميل 3', 'عميل 4', 'عميل 5'];
+                    datasets = [{
+                        label: 'المشتريات',
+                        data: [42000, 38000, 32000, 28000, 22000],
+                        backgroundColor: 'rgba(var(--success-rgb), 0.7)',
+                        borderColor: 'rgba(var(--success-rgb), 1)',
+                        borderWidth: 2
+                    }];
+                    mainChart.config.type = 'bar';
+                    break;
+                case 'sales-purchases':
+                default:
+                    labels = months;
+                    datasets = [
+                        {
+                            label: 'المبيعات',
+                            data: salesData,
+                            backgroundColor: 'rgba(var(--primary-rgb), 0.1)',
+                            borderColor: 'rgba(var(--primary-rgb), 0.7)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(var(--primary-rgb), 0.7)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'المشتريات',
+                            data: purchasesData,
+                            backgroundColor: 'rgba(var(--warning-rgb), 0.1)',
+                            borderColor: 'rgba(var(--warning-rgb), 0.7)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointBackgroundColor: 'rgba(var(--warning-rgb), 0.7)',
+                            pointBorderColor: '#fff',
+                            pointBorderWidth: 2
+                        }
+                    ];
+                    mainChart.config.type = 'line';
+                    break;
+            }
+            
+            mainChart.data.labels = labels;
+            mainChart.data.datasets = datasets;
+            mainChart.update();
+            
+            // تحديث قسم الأسطورة (Legend)
+            updateChartLegend(chartType);
+        }
+        
+        // تحديث قسم الأسطورة حسب نوع الرسم البياني
+        function updateChartLegend(chartType) {
+            const legendContainer = document.querySelector('.chart-legend');
+            let legendHTML = '';
+            
+            switch(chartType) {
+                case 'products':
+                    legendHTML = `
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--primary-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">منتج 1</div>
+                        </div>
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--success-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">منتج 2</div>
+                        </div>
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--warning-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">منتج 3</div>
+                        </div>
+                    `;
+                    break;
+                case 'customers':
+                    legendHTML = `
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--success-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">مشتريات العملاء</div>
+                        </div>
+                    `;
+                    break;
+                case 'sales-purchases':
+                default:
+                    legendHTML = `
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--primary-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">المبيعات</div>
+                        </div>
+                        <div class="chart-legend-item">
+                            <div class="chart-legend-color" style="background-color: rgba(var(--warning-rgb), 0.7);"></div>
+                            <div class="chart-legend-label">المشتريات</div>
+                        </div>
+                    `;
+                    break;
+            }
+            
+            legendContainer.innerHTML = legendHTML;
+        }
+    });
+</script>
+{% endblock %} 

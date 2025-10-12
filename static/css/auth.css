@@ -1,0 +1,551 @@
+/**
+ * Authentication Styles for MWHEBA ERP System
+ * 
+ * يحتوي على ستايلات صفحات المصادقة مثل تسجيل الدخول وإعادة تعيين كلمة المرور
+ */
+
+/**
+ * ===========================
+ * Auth Layout
+ * ===========================
+ */
+.auth-body {
+    background-color: var(--light-color);
+    background-image: linear-gradient(135deg, rgba(1, 87, 138, 0.1) 0%, rgba(0, 0, 0, 0.05) 100%);
+    background-size: cover;
+    background-position: center;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.row.justify-content-center.align-items-center.min-vh-100 {
+    min-height: 87vh !important;
+}
+
+i.fas.fa-eye, i.fas.fa-eye-slash {
+    top: 6px;
+}
+
+.auth-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.auth-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4) var(--spacing-3);
+}
+
+.auth-footer {
+    padding: var(--spacing-3);
+    background-color: rgba(255, 255, 255, 0.9);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.auth-footer a {
+    color: var(--primary-color);
+    font-weight: var(--font-weight-medium);
+    transition: all 0.3s ease;
+}
+
+.auth-footer a:hover {
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+/**
+ * ===========================
+ * Login Container
+ * ===========================
+ */
+.login-container {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-5);
+    width: 100%;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+}
+
+.login-container:hover {
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
+    transform: translateY(-5px);
+}
+
+.login-logo {
+    max-width: 120px;
+    height: auto;
+    margin-bottom: var(--spacing-2);
+    transition: transform 0.3s ease;
+}
+
+.login-logo:hover {
+    transform: scale(1.05);
+}
+
+.login-header {
+    margin-bottom: var(--spacing-4);
+}
+
+.login-header h3 {
+    margin-bottom: var(--spacing-1);
+    color: var(--primary-color);
+    font-weight: var(--font-weight-bold);
+    font-size: 1.75rem;
+}
+
+.login-header p {
+    color: var(--secondary-color);
+    font-size: 1rem;
+    margin-bottom: 0;
+}
+
+.login-form .form-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.login-form label {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-1);
+}
+
+.login-form .form-control {
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    height: auto;
+}
+
+.login-form .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(1, 87, 138, 0.25);
+}
+
+.login-form .btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: var(--font-weight-medium);
+    text-transform: none;
+    letter-spacing: 0.5px;
+    transition: all 0.3s ease;
+}
+
+.login-form .btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.login-form .btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(1, 87, 138, 0.3);
+}
+
+.login-form .btn i {
+    margin-left: var(--spacing-1);
+}
+
+/* تنسيق روابط نسيت كلمة المرور */
+.login-container .text-center a {
+    color: var(--secondary-color);
+    transition: all 0.3s ease;
+    font-size: 0.9rem;
+    text-decoration: none;
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius);
+}
+
+.login-container .text-center a:hover {
+    color: var(--primary-color);
+    background-color: rgba(1, 87, 138, 0.1);
+}
+
+/* Media Queries */
+@media (max-width: 768px) {
+    .login-container {
+        padding: var(--spacing-4);
+    }
+    
+    .login-logo {
+        max-width: 90px;
+    }
+    
+    .login-header h3 {
+        font-size: 1.5rem;
+    }
+    
+    .login-header p {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .login-container {
+        padding: var(--spacing-3);
+    }
+    
+    .login-logo {
+        max-width: 80px;
+    }
+    
+    .login-header h3 {
+        font-size: 1.25rem;
+    }
+    
+    .auth-footer {
+        font-size: 0.85rem;
+    }
+}
+
+/* ملف CSS لصفحات المصادقة */
+
+/* تنسيقات عامة للحاويات والخلفيات */
+.auth-container {
+    background-color: var(--white);
+    border-radius: 1rem;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15), 
+                0 0.25rem 0.5rem rgba(1, 87, 138, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    max-width: 480px;
+    width: 100%;
+    margin: 2rem auto;
+    padding: 2rem;
+}
+
+.auth-container:hover {
+    box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15), 
+                0 0.5rem 1rem rgba(1, 87, 138, 0.2);
+    transform: translateY(-5px);
+}
+
+/* تنسيقات الشعار وعنوان الصفحة */
+.logo-container {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.logo-container img {
+    transition: transform 0.3s ease;
+}
+
+.logo-container img:hover {
+    transform: scale(1.05);
+}
+
+.welcome-message {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.welcome-message h3 {
+    color: var(--primary-color);
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    font-size: 1.5rem;
+}
+
+.welcome-message p {
+    color: var(--text-muted);
+    margin-bottom: 0;
+}
+
+/* تنسيقات النموذج */
+.auth-form {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+    position: relative;
+}
+
+.form-label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.form-control {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background-color: var(--white);
+    background-clip: padding-box;
+    border: 1px solid var(--border-color);
+    border-radius: 0.5rem;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus {
+    color: var(--text-primary);
+    background-color: var(--white);
+    border-color: var(--primary-light);
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25);
+}
+
+.input-with-icon {
+    padding-right: 2.5rem;
+}
+
+.form-group i {
+    position: absolute;
+    right: 1rem;
+    top: 2.4rem;
+    color: var(--primary-color);
+}
+
+.password-toggle {
+    position: absolute;
+    left: 1rem;
+    top: 2.4rem;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: color 0.2s ease;
+}
+
+.password-toggle:hover {
+    color: var(--primary-color);
+}
+
+/* تنسيقات الزر والروابط */
+.auth-button {
+    display: block;
+    width: 100%;
+    padding: 0.75rem 1rem;
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--white);
+    background-color: var(--primary-color);
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    text-align: center;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.auth-button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+    transition: left 0.5s ease;
+    z-index: -1;
+}
+
+.auth-button:hover::before {
+    left: 100%;
+}
+
+.auth-button:hover {
+    background-color: var(--primary-dark);
+    box-shadow: 0 4px 12px rgba(1, 87, 138, 0.25);
+    transform: translateY(-2px);
+}
+
+/* تنسيقات النص التنبيهي والرسائل */
+.alert {
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.alert::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0.25rem;
+    height: 100%;
+}
+
+.alert-danger {
+    background-color: rgba(231, 74, 59, 0.1);
+    color: #e74a3b;
+}
+
+.alert-danger::before {
+    background-color: #e74a3b;
+}
+
+.alert-success {
+    background-color: rgba(28, 200, 138, 0.1);
+    color: #1cc88a;
+}
+
+.alert-success::before {
+    background-color: #1cc88a;
+}
+
+.alert-warning {
+    background-color: rgba(246, 194, 62, 0.1);
+    color: #f6c23e;
+}
+
+.alert-warning::before {
+    background-color: #f6c23e;
+}
+
+.alert-info {
+    background-color: rgba(54, 185, 204, 0.1);
+    color: #36b9cc;
+}
+
+.alert-info::before {
+    background-color: #36b9cc;
+}
+
+/* تنسيقات خاصة بصفحة تسجيل الدخول */
+.form-check-input {
+    width: 1rem;
+    height: 1rem;
+    margin-top: 0.25rem;
+    vertical-align: top;
+    background-color: var(--white);
+    border: 1px solid var(--border-color);
+    appearance: none;
+    border-radius: 0.25rem;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3e%3cpath fill='none' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round' stroke-width='3' d='M6 10l3 3l6-6'/%3e%3c/svg%3e");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: 0.75rem;
+}
+
+.form-check-input:focus {
+    border-color: var(--primary-light);
+    outline: 0;
+    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25);
+}
+
+.form-check-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+/* تنسيقات الروابط */
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+a:hover {
+    color: var(--primary-dark);
+    text-decoration: underline;
+}
+
+a.text-muted {
+    color: var(--text-muted);
+}
+
+a.text-muted:hover {
+    color: var(--primary-color);
+}
+
+/* تنسيقات تذييل صفحات المصادقة */
+.auth-footer {
+    text-align: center;
+    padding: 1rem;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    background-color: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* تنسيقات التجاوب مع الشاشات المختلفة */
+@media (max-width: 576px) {
+    .auth-container {
+        margin: 1rem auto;
+        padding: 1.5rem;
+    }
+    
+    .logo-container img {
+        max-width: 100px;
+    }
+    
+    .welcome-message h3 {
+        font-size: 1.25rem;
+    }
+    
+    .form-group {
+        margin-bottom: 1rem;
+    }
+}
+
+/* تحسينات للتأثيرات البصرية والظلال */
+.auth-container {
+    animation: fadeInUp 0.5s ease forwards;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* تأثير الحقول عند التركيز */
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25), 
+                0 5px 15px rgba(0, 0, 0, 0.05);
+    transform: translateY(-2px);
+}
+
+/* تأثير نبض للزر عند الضغط */
+.auth-button:active {
+    animation: pulse 0.3s ease;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+}
+
+/* تأثير حركة للشعار */
+.logo-container img {
+    animation: float 6s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+} 

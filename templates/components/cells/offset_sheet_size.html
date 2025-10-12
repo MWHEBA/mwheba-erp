@@ -1,0 +1,29 @@
+{% load i18n %}
+{% load pricing_filters %}
+
+{% if item.category.code == 'offset_printing' and item.offset_details %}
+    <div class="sheet-size-cell text-center">
+        {% if item.offset_details.sheet_size == 'custom' and item.offset_details.custom_width_cm and item.offset_details.custom_height_cm %}
+            <span class="badge bg-warning text-dark fw-bold">
+                <i class="fas fa-ruler-combined me-1"></i>
+                {{ item.offset_details.custom_width_cm|remove_trailing_zeros }}×{{ item.offset_details.custom_height_cm|remove_trailing_zeros }}
+            </span>
+            <small class="text-muted d-block mt-1">مخصص</small>
+        {% else %}
+            <span class="badge bg-primary fw-bold">
+                <i class="fas fa-ruler-combined me-1"></i>
+                {% if item.offset_details.sheet_size == '35x50' %}
+                    35×50 سم
+                {% elif item.offset_details.sheet_size == '50x70' %}
+                    50×70 سم
+                {% elif item.offset_details.sheet_size == '70x100' %}
+                    70×100 سم
+                {% else %}
+                    {{ item.offset_details.get_sheet_size_display }}
+                {% endif %}
+            </span>
+        {% endif %}
+    </div>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

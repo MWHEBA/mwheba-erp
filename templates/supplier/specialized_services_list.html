@@ -1,0 +1,861 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+
+/* تصميم عام متوافق مع هوية النظام */
+.section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.section-title {
+    color: var(--text-dark);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* كروت الإحصائيات بنفس تصميم النظام */
+.stat-card {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    position: relative;
+    height: 100%;
+    background-color: #fff;
+}
+
+.stat-card-header {
+    padding: 1.25rem;
+    position: relative;
+    z-index: 1;
+}
+
+.stat-card-icon {
+    position: absolute;
+    left: 1rem;
+    top: 1rem;
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.stat-card-title {
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.stat-card-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+/* ألوان الكروت حسب هوية النظام */
+.primary-card {
+    background: linear-gradient(145deg, var(--bg-soft-primary), #eef6ff);
+    border-right: 4px solid var(--primary-color);
+}
+
+.primary-card .stat-card-icon {
+    background-color: var(--primary-color);
+}
+
+.success-card {
+    background: linear-gradient(145deg, var(--bg-soft-success), #ecfdf5);
+    border-right: 4px solid var(--success-color);
+}
+
+.success-card .stat-card-icon {
+    background-color: var(--success-color);
+}
+
+.info-card {
+    background: linear-gradient(145deg, var(--bg-soft-info), #ebf9ff);
+    border-right: 4px solid var(--info-color);
+}
+
+.info-card .stat-card-icon {
+    background-color: var(--info-color);
+}
+
+.warning-card {
+    background: linear-gradient(145deg, var(--bg-soft-warning), #fffaec);
+    border-right: 4px solid var(--warning-color);
+}
+
+.warning-card .stat-card-icon {
+    background-color: var(--warning-color);
+}
+
+/* قسم الفلترة بتصميم النظام */
+.filter-section {
+    background-color: var(--white);
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.filter-title {
+    color: var(--text-dark);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+/* تنسيقات إضافية للجدول الموحد */
+.rating-stars {
+    color: #ffc107;
+}
+
+.rating-stars .fas {
+    margin-right: 2px;
+}
+.rating-stars .far {
+    margin-right: 2px;
+    opacity: 0.3;
+}
+
+
+/* حالة فارغة */
+.empty-state {
+    text-align: center;
+    padding: 3rem 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #6c757d;
+}
+
+.empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.4;
+    color: #6c757d;
+}
+
+.empty-state h4 {
+    color: var(--text-medium);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    color: var(--text-light);
+    margin-bottom: 1.5rem;
+}
+
+/* التجاوب */
+@media (max-width: 768px) {
+    .section-container {
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .category-header {
+        flex-direction: column;
+        gap: 0.75rem;
+        text-align: center;
+    }
+    
+    .category-stats {
+        justify-content: center;
+        gap: 0.5rem;
+    }
+    
+    .services-table {
+        font-size: 0.8rem;
+    }
+    
+    .services-table thead th,
+    .services-table tbody td {
+        padding: 0.5rem 0.25rem;
+    }
+    
+    .action-buttons {
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .stat-card {
+        margin-bottom: 1rem;
+    }
+}
+
+/* تحسينات إضافية */
+.loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* تحسين الأزرار */
+.btn {
+    border-radius: 4px;
+    font-weight: 500;
+}
+
+/* تحسين النماذج */
+.form-control, .form-select {
+    border-radius: 4px;
+    border: 1px solid #ced4da;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+}
+
+/* تصميم قسم الفلترة مطابق للنظام */
+.filter-section {
+    border-right: 3px solid #0d6efd;
+    padding-right: 15px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+  <!-- عنوان الصفحة (مطابق لصفحة المبيعات) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">استعرض وقارن الخدمات المتخصصة من جميع الموردين</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'supplier:supplier_list' %}" class="btn btn-primary">
+                  <i class="fas fa-truck me-2"></i>قائمة الموردين
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- الإحصائيات (مطابقة لصفحة المبيعات) -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-cogs"></i>
+            </div>
+            <div class="stats-card-title">إجمالي الخدمات</div>
+            <div class="stats-card-value">{{ stats.total_services }}</div>
+            <div class="stats-card-unit">خدمة متخصصة</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-truck"></i>
+            </div>
+            <div class="stats-card-title">الموردين النشطين</div>
+            <div class="stats-card-value">{{ stats.total_suppliers }}</div>
+            <div class="stats-card-unit">مورد</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-tags"></i>
+            </div>
+            <div class="stats-card-title">فئات الخدمات</div>
+            <div class="stats-card-value">{{ stats.total_categories }}</div>
+            <div class="stats-card-unit">فئة</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="stats-card-title">متوسط التقييم</div>
+            <div class="stats-card-value">{{ stats.avg_rating|floatformat:1 }}</div>
+            <div class="stats-card-unit">من 5</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="category" class="form-label">فئة الخدمة</label>
+          <select class="form-select" id="category" name="category">
+            <option value="">جميع التصنيفات</option>
+            {% for category in categories %}
+            <option value="{{ category.code }}" {% if request.GET.category == category.code %}selected{% endif %}>
+              {{ category.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="supplier_type" class="form-label">نوع المورد</label>
+          <select class="form-select" id="supplier_type" name="supplier_type">
+            <option value="">الكل</option>
+            {% for supplier_type in supplier_types %}
+            <option value="{{ supplier_type.code }}" {% if request.GET.supplier_type == supplier_type.code %}selected{% endif %}>
+              {{ supplier_type.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="min_price" class="form-label">السعر من</label>
+          <input type="number" class="form-control" id="min_price" name="min_price" value="{{ request.GET.min_price }}">
+        </div>
+        <div class="col-md-2">
+          <label for="max_price" class="form-label">السعر إلى</label>
+          <input type="number" class="form-control" id="max_price" name="max_price" value="{{ request.GET.max_price }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-2"></i>بحث
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- قائمة الخدمات المتخصصة (مطابق لصفحة المبيعات) -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الخدمات المتخصصة</h5>
+        <div class="actions-container">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportServices()">
+            <i class="fas fa-file-csv me-1"></i>تصدير البيانات
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if services %}
+        
+        <!-- استخدام المكون الذكي للجدول -->
+        {% include "components/smart_services_table.html" with 
+            context_type="general" 
+            services=services 
+            table_id="services-table" %}
+        
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد خدمات متخصصة متاحة" icon="cogs" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تهيئة الصفحة
+$(document).ready(function() {
+    initializeServicesPage();
+    setupEventListeners();
+    loadSavedState();
+});
+
+// تهيئة الصفحة
+function initializeServicesPage() {
+    // تحسين أداء الجداول
+    $('.services-table').each(function() {
+        if ($(this).find('tbody tr').length > 10) {
+            // إضافة pagination للجداول الكبيرة
+            addTablePagination($(this));
+        }
+    });
+    
+    // تفعيل tooltips
+    $('[title]').tooltip();
+    
+    // تحسين الـ accordion
+    enhanceAccordion();
+}
+
+// إعداد مستمعي الأحداث
+function setupEventListeners() {
+    // حفظ حالة الـ accordion
+    $('.accordion-button').on('click', function() {
+        const targetId = $(this).attr('data-bs-target');
+        setTimeout(() => {
+            saveAccordionState();
+        }, 300);
+    });
+    
+    // تحسين البحث
+    let searchTimeout;
+    $('input[name="search"]').on('input', function() {
+        clearTimeout(searchTimeout);
+        const value = $(this).val();
+        searchTimeout = setTimeout(() => {
+            if (value.length >= 3 || value.length === 0) {
+                highlightSearchResults(value);
+            }
+        }, 500);
+    });
+    
+    // تأثيرات hover للصفوف
+    $('.services-table tbody tr').hover(
+        function() {
+            $(this).addClass('table-hover-effect');
+        },
+        function() {
+            $(this).removeClass('table-hover-effect');
+        }
+    );
+}
+
+// تحسين الـ Accordion
+function enhanceAccordion() {
+    // إضافة عدادات ديناميكية
+    $('.accordion-item').each(function() {
+        const $item = $(this);
+        const serviceCount = $item.find('.services-table tbody tr').length;
+        const supplierCount = new Set(
+            $item.find('.supplier-badge').map(function() {
+                return $(this).text().trim();
+            }).get()
+        ).size;
+        
+        // تحديث الإحصائيات
+        $item.find('.stat-item').eq(0).find('.fw-bold').text(serviceCount);
+        $item.find('.stat-item').eq(1).find('.fw-bold').text(supplierCount);
+    });
+    
+    // إضافة مؤشر التحميل
+    $('.accordion-button').on('click', function() {
+        const $button = $(this);
+        if ($button.hasClass('collapsed')) {
+            $button.append('<span class="loading-spinner ms-2"></span>');
+            setTimeout(() => {
+                $button.find('.loading-spinner').remove();
+            }, 800);
+        }
+    });
+}
+
+// البحث المحسن مع Debounce
+let searchDebounceTimer;
+function debounceSearch(value) {
+    clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(() => {
+        if (value.length >= 2) {
+            performLiveSearch(value);
+        } else if (value.length === 0) {
+            clearSearchHighlights();
+        }
+    }, 300);
+}
+
+// البحث المباشر
+function performLiveSearch(query) {
+    const $rows = $('.services-table tbody tr');
+    let visibleCount = 0;
+    
+    $rows.each(function() {
+        const $row = $(this);
+        const text = $row.text().toLowerCase();
+        const matches = text.includes(query.toLowerCase());
+        
+        if (matches) {
+            $row.show().addClass('search-match');
+            highlightText($row, query);
+            visibleCount++;
+        } else {
+            $row.hide().removeClass('search-match');
+        }
+    });
+    
+    // تحديث عدادات النتائج
+    updateSearchResults(visibleCount);
+}
+
+// تمييز النص
+function highlightText($element, query) {
+    if (!query) return;
+    
+    $element.find('.service-name, .service-description').each(function() {
+        const $this = $(this);
+        const text = $this.text();
+        const regex = new RegExp(`(${query})`, 'gi');
+        const highlightedText = text.replace(regex, '<mark>$1</mark>');
+        $this.html(highlightedText);
+    });
+}
+
+// مسح تمييز البحث
+function clearSearchHighlights() {
+    $('.services-table tbody tr').show().removeClass('search-match');
+    $('mark').each(function() {
+        $(this).replaceWith($(this).text());
+    });
+}
+
+// تحديث نتائج البحث
+function updateSearchResults(count) {
+    // إزالة الرسائل السابقة
+    $('.search-results-info').remove();
+    
+    if (count === 0) {
+        $('.services-accordion').after(
+            '<div class="alert alert-info search-results-info mt-3">' +
+            '<i class="fas fa-info-circle me-2"></i>' +
+            'لم يتم العثور على نتائج مطابقة لبحثك' +
+            '</div>'
+        );
+    } else {
+        $('.services-accordion').after(
+            '<div class="alert alert-success search-results-info mt-3">' +
+            '<i class="fas fa-check-circle me-2"></i>' +
+            `تم العثور على ${count} خدمة مطابقة` +
+            '</div>'
+        );
+    }
+}
+
+// مسح البحث
+function clearSearch() {
+    $('input[name="search"]').val('');
+    clearSearchHighlights();
+    $('.search-results-info').remove();
+}
+
+// تحديث الفلاتر
+function updateFilters() {
+    // إظهار مؤشر التحميل
+    showLoadingIndicator();
+    
+    // تأخير قصير لتحسين تجربة المستخدم
+    setTimeout(() => {
+        $('#filterForm').submit();
+    }, 300);
+}
+
+// إظهار مؤشر التحميل
+function showLoadingIndicator() {
+    const $submitBtn = $('#filterForm button[type="submit"]');
+    $submitBtn.html('<span class="loading-spinner me-2"></span>جاري البحث...');
+    $submitBtn.prop('disabled', true);
+}
+
+// حفظ حالة الـ Accordion
+function saveAccordionState() {
+    const openAccordions = [];
+    $('.accordion-collapse.show').each(function() {
+        openAccordions.push($(this).attr('id'));
+    });
+    localStorage.setItem('servicesAccordionState', JSON.stringify(openAccordions));
+}
+
+// تحميل حالة الـ Accordion المحفوظة
+function loadSavedState() {
+    const savedState = localStorage.getItem('servicesAccordionState');
+    if (savedState) {
+        const openAccordions = JSON.parse(savedState);
+        openAccordions.forEach(id => {
+            $(`#${id}`).addClass('show');
+            $(`button[data-bs-target="#${id}"]`).removeClass('collapsed');
+        });
+    }
+}
+
+// تصدير البيانات
+function exportServices() {
+    const data = [];
+    $('.services-table tbody tr:visible').each(function() {
+        const $row = $(this);
+        data.push({
+            service: $row.find('.service-name').text().trim(),
+            supplier: $row.find('.supplier-badge').text().trim(),
+            price: $row.find('.price-display').text().trim(),
+            rating: $row.find('.rating-value').text().trim(),
+            delivery: $row.find('.text-center span').text().trim()
+        });
+    });
+    
+    // تحويل إلى CSV
+    const csv = convertToCSV(data);
+    downloadCSV(csv, 'services_export.csv');
+}
+
+// تحويل البيانات إلى CSV
+function convertToCSV(data) {
+    const headers = ['اسم الخدمة', 'المورد', 'السعر', 'التقييم', 'وقت التسليم'];
+    const csvContent = [headers.join(',')];
+    
+    data.forEach(row => {
+        csvContent.push([
+            row.service,
+            row.supplier,
+            row.price,
+            row.rating,
+            row.delivery
+        ].join(','));
+    });
+    
+    return csvContent.join('\n');
+}
+
+// تحميل ملف CSV
+function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    
+    if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+}
+
+// إضافة pagination للجداول الكبيرة
+function addTablePagination($table) {
+    const rowsPerPage = 10;
+    const $rows = $table.find('tbody tr');
+    const totalRows = $rows.length;
+    
+    if (totalRows <= rowsPerPage) return;
+    
+    let currentPage = 1;
+    const totalPages = Math.ceil(totalRows / rowsPerPage);
+    
+    // إخفاء جميع الصفوف
+    $rows.hide();
+    
+    // إظهار الصفحة الأولى
+    showPage(1);
+    
+    // إضافة أزرار التنقل
+    const paginationHtml = createPaginationHtml(totalPages);
+    $table.after(paginationHtml);
+    
+    function showPage(page) {
+        const start = (page - 1) * rowsPerPage;
+        const end = start + rowsPerPage;
+        
+        $rows.hide();
+        $rows.slice(start, end).show();
+        
+        // تحديث أزرار التنقل
+        updatePaginationButtons(page, totalPages);
+    }
+    
+    function createPaginationHtml(totalPages) {
+        return `
+            <nav class="mt-3">
+                <ul class="pagination pagination-sm justify-content-center">
+                    <li class="page-item" data-page="prev">
+                        <a class="page-link" href="#">السابق</a>
+                    </li>
+                    ${Array.from({length: totalPages}, (_, i) => 
+                        `<li class="page-item" data-page="${i + 1}">
+                            <a class="page-link" href="#">${i + 1}</a>
+                        </li>`
+                    ).join('')}
+                    <li class="page-item" data-page="next">
+                        <a class="page-link" href="#">التالي</a>
+                    </li>
+                </ul>
+            </nav>
+        `;
+    }
+    
+    function updatePaginationButtons(currentPage, totalPages) {
+        const $pagination = $table.next('nav').find('.pagination');
+        
+        $pagination.find('.page-item').removeClass('active disabled');
+        $pagination.find(`[data-page="${currentPage}"]`).addClass('active');
+        
+        if (currentPage === 1) {
+            $pagination.find('[data-page="prev"]').addClass('disabled');
+        }
+        if (currentPage === totalPages) {
+            $pagination.find('[data-page="next"]').addClass('disabled');
+        }
+    }
+    
+    // معالج أحداث التنقل
+    $(document).on('click', '.pagination .page-link', function(e) {
+        e.preventDefault();
+        const $item = $(this).parent();
+        const page = $item.data('page');
+        
+        if ($item.hasClass('disabled') || $item.hasClass('active')) return;
+        
+        if (page === 'prev') {
+            currentPage = Math.max(1, currentPage - 1);
+        } else if (page === 'next') {
+            currentPage = Math.min(totalPages, currentPage + 1);
+        } else {
+            currentPage = page;
+        }
+        
+        showPage(currentPage);
+    });
+}
+
+// تحسينات إضافية للأداء
+$(window).on('load', function() {
+    // تحسين الصور lazy loading
+    $('img').each(function() {
+        $(this).on('load', function() {
+            $(this).addClass('loaded');
+        });
+    });
+    
+    // إضافة تأثيرات الانتقال
+    $('.accordion-item').each(function(index) {
+        $(this).css('animation-delay', `${index * 0.1}s`);
+        $(this).addClass('fade-in');
+    });
+});
+</script>
+
+<style>
+/* تحسينات CSS إضافية */
+.search-match {
+    background-color: rgba(255, 193, 7, 0.1) !important;
+}
+
+.table-hover-effect {
+    background-color: var(--bs-primary-bg-subtle) !important;
+    transform: scale(1.02);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+mark {
+    background-color: #fff3cd;
+    padding: 0.1em 0.2em;
+    border-radius: 0.25rem;
+}
+
+.fade-in {
+    animation: fadeInUp 0.6s ease-out forwards;
+    opacity: 0;
+    transform: translateY(20px);
+}
+
+@keyframes fadeInUp {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.loaded {
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* تحسين الـ pagination */
+.pagination .page-link {
+    color: var(--bs-primary);
+    border-color: var(--bs-border-color);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--bs-primary);
+    border-color: var(--bs-primary);
+}
+
+.pagination .page-link:hover {
+    color: var(--bs-primary);
+    background-color: var(--bs-primary-bg-subtle);
+}
+</style>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'product/confirm_delete.html' %}
+{% load i18n %}
+
+{% block delete_message %}
+<p>{% trans "هل أنت متأكد من حذف وحدة القياس:" %} <strong>{{ unit.name }} ({{ unit.symbol }})</strong>؟</p>
+
+{% if unit.products.exists %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle ml-1"></i>
+    {% trans "تحذير: هناك" %} <strong>{{ unit.products.count }}</strong> {% trans "منتج يستخدم هذه الوحدة. حذف الوحدة قد يؤثر على هذه المنتجات." %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block delete_url %}{% url 'product:unit_delete' unit.pk %}{% endblock %}
+{% block cancel_url %}{% url 'product:unit_list' %}{% endblock %} 

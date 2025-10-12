@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+    {% if is_add %}
+        {% translate "إضافة إعداد نظام جديد" %}
+    {% else %}
+        {% translate "تعديل إعداد نظام" %}
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        {% if is_add %}
+                            {% translate "إضافة إعداد نظام جديد" %}
+                        {% else %}
+                            {% translate "تعديل إعداد نظام" %}: {{ form.instance.key }}
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                {{ form.key|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6">
+                                {{ form.value_type|as_crispy_field }}
+                            </div>
+                        </div>
+                        
+                        {{ form.value|as_crispy_field }}
+                        {{ form.description|as_crispy_field }}
+                        
+                        <div class="d-flex mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                {% if is_add %}
+                                    <i class="fas fa-plus"></i> {% translate "إضافة" %}
+                                {% else %}
+                                    <i class="fas fa-save"></i> {% translate "حفظ التغييرات" %}
+                                {% endif %}
+                            </button>
+                            <a href="{% url 'system_settings_list' %}" class="btn btn-secondary ms-2">
+                                <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

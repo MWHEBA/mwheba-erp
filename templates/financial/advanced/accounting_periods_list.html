@@ -1,0 +1,411 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ page_title|default:"الفترات المحاسبية" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام مطابق لصفحة المبيعات */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* حالات الفترات */
+  .period-status {
+    padding: 0.375rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+  
+  .period-status.open {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+  }
+  
+  .period-status.closed {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 1px solid rgba(220, 53, 69, 0.3);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">إدارة الفترات المحاسبية وإغلاق الحسابات</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:accounting_periods_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>إضافة فترة جديدة
+                </a>
+            </div>
+        </div>
+    </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الفترات" %}</div>
+            <div class="stats-card-value">{{ periods|length|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "فترة محاسبية" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-unlock"></i>
+            </div>
+            <div class="stats-card-title">{% trans "فترات مفتوحة" %}</div>
+            <div class="stats-card-value">{{ open_periods_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "فترة" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-lock"></i>
+            </div>
+            <div class="stats-card-title">{% trans "فترات مغلقة" %}</div>
+            <div class="stats-card-value">{{ closed_periods_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "فترة" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="stats-card-title">{% trans "الفترة الحالية" %}</div>
+            <div class="stats-card-value">{{ current_period.name|default:"غير محدد" }}</div>
+            <div class="stats-card-unit">{% trans "فترة نشطة" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة الفترات المحاسبية -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الفترات المحاسبية" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'financial:accounting_periods_create' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة فترة" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if periods %}
+        <!-- استخدام قالب الجدول الموحد -->
+          <div class="table-responsive">
+            <table class="table table-hover" id="periods-table">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "اسم الفترة" %}</th>
+                  <th>{% trans "تاريخ البداية" %}</th>
+                  <th>{% trans "تاريخ النهاية" %}</th>
+                  <th>{% trans "المدة" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th>{% trans "الإجراءات" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for period in periods %}
+                <tr>
+                  <td>
+                    <strong>{{ period.name }}</strong>
+                    {% if period.description %}
+                      <br><small class="text-muted">{{ period.description }}</small>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <strong>{{ period.start_date|date:'d-m-Y' }}</strong>
+                  </td>
+                  <td>
+                    <strong>{{ period.end_date|date:'d-m-Y' }}</strong>
+                  </td>
+                  <td>
+                    <span class="text-muted">
+                      {% widthratio period.end_date|timeuntil:period.start_date 1 30 %} {% trans "يوم" %}
+                    </span>
+                  </td>
+                  <td>
+                    {% if period.is_closed %}
+                      <span class="period-status closed">
+                        <i class="fas fa-lock"></i>
+                        {% trans "مغلقة" %}
+                      </span>
+                    {% else %}
+                      <span class="period-status open">
+                        <i class="fas fa-unlock"></i>
+                        {% trans "مفتوحة" %}
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td class="col-actions">
+                    <div class="btn-group" role="group">
+                      <a href="{% url 'financial:accounting_periods_edit' period.pk %}" 
+                         class="btn btn-sm btn-outline-warning action-view" title="{% trans 'تعديل' %}">
+                        <i class="fas fa-edit"></i>
+                      </a>
+                      {% if not period.is_closed %}
+                      <a href="{% url 'financial:accounting_periods_close' period.pk %}" 
+                         class="btn btn-sm btn-outline-danger" title="{% trans 'إغلاق الفترة' %}">
+                        <i class="fas fa-lock"></i>
+                      </a>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        
+        <!-- إضافة زر تصدير البيانات -->
+        <div class="d-flex justify-content-end mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="periods-table" data-filename="accounting_periods.csv">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="periods-table" data-filename="accounting_periods.xlsx">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+        
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد فترات محاسبية متاحة" icon="calendar-alt" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    // تهيئة جدول الفترات المحاسبية بدون ترتيب (استخدام الترتيب من الخادم)
+    initGlobalTable('periods-table', {
+      ordering: false, // تعطيل الترتيب في الواجهة
+      columnDefs: [
+        { targets: 5, orderable: false, width: '140px' }, // عمود الإجراءات
+        { targets: [0, 1, 2, 3, 4, 5], className: 'text-center' }
+      ],
+      autoWidth: true,
+      responsive: true
+    });
+    
+    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
+    function adjustTableSize() {
+      $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
+      $('#periods-table').css('width', '100%');
+    }
+    
+    adjustTableSize();
+    $(window).resize(adjustTableSize);
+    
+    // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
+    $('#periods-table tbody').on('click', 'tr', function(e) {
+      // تجاهل النقر على أزرار الإجراءات
+      if ($(e.target).closest('.col-actions').length > 0) {
+        return;
+      }
+      
+      // الحصول على رابط زر العرض
+      var viewButton = $(this).find('.action-view');
+      if (viewButton.length > 0) {
+        var url = viewButton.attr('href');
+        if (url) {
+          window.location.href = url;
+        }
+      }
+    });
+    
+    // إضافة مؤشر اليد عند المرور على الصف
+    $('#periods-table tbody tr').css('cursor', 'pointer');
+  });
+  
+  // تصدير الجدول إلى CSV
+  $('.btn-export-table').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToCSV(tableId, filename);
+  });
+  
+  // تصدير الجدول إلى Excel
+  $('.btn-export-excel').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToExcel(tableId, filename);
+  });
+</script>
+{% endblock %}

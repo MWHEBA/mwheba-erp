@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.delete-container {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 2rem;
+}
+
+.warning-icon {
+    font-size: 4rem;
+    color: #e74a3b;
+    margin-bottom: 1rem;
+}
+
+.service-info {
+    background: #f8f9fc;
+    border-radius: 0.35rem;
+    padding: 1.5rem;
+    margin: 1.5rem 0;
+}
+
+.info-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #5a5c69;
+}
+
+.info-value {
+    color: #858796;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="{{ page_icon }} fa-fw"></i> 
+            {% if supplier.primary_type.code == 'paper' %}
+                حذف نوع الورق
+            {% elif supplier.primary_type.code == 'digital_printing' %}
+                حذف خدمة الطباعة الديجيتال
+            {% elif supplier.primary_type.code == 'finishing' %}
+                حذف خدمة التشطيب
+            {% elif supplier.primary_type.code == 'laser' %}
+                حذف خدمة الليزر
+            {% elif supplier.primary_type.code == 'vip_gifts' %}
+                حذف نوع الهدية المميزة
+            {% else %}
+                حذف الخدمة المتخصصة
+            {% endif %}
+        </h1>
+        <div>
+            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right fa-sm"></i> العودة للمورد
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-6">
+            <div class="delete-container">
+                
+                <!-- Warning Icon -->
+                <div class="text-center">
+                    <i class="fas fa-exclamation-triangle warning-icon"></i>
+                    <h4 class="text-danger">تأكيد حذف الخدمة</h4>
+                    <p class="text-muted">هل أنت متأكد من حذف هذه الخدمة؟ لا يمكن التراجع عن هذا الإجراء.</p>
+                </div>
+                
+                <!-- Service Information -->
+                <div class="service-info">
+                    <h6 class="mb-3"><i class="fas fa-info-circle"></i> معلومات الخدمة</h6>
+                    
+                    <div class="info-item">
+                        <span class="info-label">اسم الخدمة:</span>
+                        <span class="info-value">{{ service.name }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">المورد:</span>
+                        <span class="info-value">{{ supplier.name }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">التصنيف:</span>
+                        <span class="info-value">{{ service.category.name }}</span>
+                    </div>
+                    
+                    <div class="info-item">
+                        <span class="info-label">السعر الأساسي:</span>
+                        <span class="info-value">{{ service.base_price }} ج.م</span>
+                    </div>
+                    
+                    {% if service.setup_cost > 0 %}
+                    <div class="info-item">
+                        <span class="info-label">تكلفة الإعداد:</span>
+                        <span class="info-value">{{ service.setup_cost }} ج.م</span>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="info-item">
+                        <span class="info-label">الحالة:</span>
+                        <span class="info-value">
+                            {% if service.is_active %}
+                                <span class="badge bg-success">نشطة</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشطة</span>
+                            {% endif %}
+                        </span>
+                    </div>
+                </div>
+                
+                <!-- Warning Message -->
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle"></i> تحذير مهم</h6>
+                    <ul class="mb-0">
+                        <li>سيتم حذف الخدمة نهائياً من النظام</li>
+                        <li>ستفقد جميع البيانات المرتبطة بهذه الخدمة</li>
+                        <li>لا يمكن التراجع عن هذا الإجراء</li>
+                    </ul>
+                </div>
+                
+                <!-- Form Actions -->
+                <form method="post" class="d-flex justify-content-between">
+                    {% csrf_token %}
+                    
+                    <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> إلغاء
+                    </a>
+                    
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> تأكيد الحذف
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

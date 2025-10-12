@@ -1,0 +1,17 @@
+{% load i18n %}
+{% comment %}Debug: value={{ value }}, object.sale={{ object.sale }}, object.purchase={{ object.purchase }}{% endcomment %}
+{% if object.sale %}
+  <a href="{% url 'sale:sale_detail' object.sale.id %}" class="text-success text-decoration-none fw-bold">
+    <i class="fas fa-file-invoice-dollar me-1"></i>{{ object.sale.number }}
+  </a>
+{% elif object.purchase %}
+  <a href="{% url 'purchase:purchase_detail' object.purchase.id %}" class="text-primary text-decoration-none fw-bold">
+    <i class="fas fa-shopping-cart me-1"></i>{{ object.purchase.number }}
+  </a>
+{% elif value %}
+  <span class="text-secondary fw-bold">
+    <i class="fas fa-file-alt me-1"></i>{{ value }}
+  </span>
+{% else %}
+  <span class="text-muted">-</span>
+{% endif %}

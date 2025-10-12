@@ -1,0 +1,241 @@
+{% load widget_tweaks %}
+
+<form id="paymentEditForm" method="post">
+    {% csrf_token %}
+    
+    <div class="row">
+        <!-- المبلغ -->
+        <div class="col-md-6 mb-3">
+            <label for="amount" class="form-label">
+                <i class="fas fa-money-bill-wave me-1"></i>
+                المبلغ <span class="text-danger">*</span>
+            </label>
+            <div class="input-group">
+                <input type="number" 
+                       class="form-control" 
+                       id="amount" 
+                       name="amount" 
+                       value="{{ payment.amount }}" 
+                       step="0.01" 
+                       min="0.01" 
+                       required>
+                <span class="input-group-text">ج.م</span>
+            </div>
+            <div class="form-text">أدخل مبلغ الدفعة</div>
+        </div>
+        
+        <!-- تاريخ الدفع -->
+        <div class="col-md-6 mb-3">
+            <label for="payment_date" class="form-label">
+                <i class="fas fa-calendar me-1"></i>
+                تاريخ الدفع <span class="text-danger">*</span>
+            </label>
+            <input type="date" 
+                   class="form-control" 
+                   id="payment_date" 
+                   name="payment_date" 
+                   value="{{ payment.payment_date|date:'Y-m-d' }}" 
+                   required>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- طريقة الدفع -->
+        <div class="col-md-6 mb-3">
+            <label for="payment_method" class="form-label">
+                <i class="fas fa-credit-card me-1"></i>
+                طريقة الدفع <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="payment_method" name="payment_method" required>
+                <option value="">اختر طريقة الدفع</option>
+                <option value="cash" {% if payment.payment_method == 'cash' %}selected{% endif %}>نقدي</option>
+                <option value="bank_transfer" {% if payment.payment_method == 'bank_transfer' %}selected{% endif %}>تحويل بنكي</option>
+                <option value="check" {% if payment.payment_method == 'check' %}selected{% endif %}>شيك</option>
+            </select>
+        </div>
+        
+        <!-- الحساب المالي -->
+        <div class="col-md-6 mb-3">
+            <label for="financial_account" class="form-label">
+                <i class="fas fa-university me-1"></i>
+                الحساب المالي <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" 
+                    id="financial_account" 
+                    name="financial_account" 
+                    data-current-id="{% if payment.financial_account %}{{ payment.financial_account.id }}{% else %}0{% endif %}"
+                    required>
+                <option value="">اختر الحساب المالي</option>
+                {% for account in cash_accounts %}
+                    <option value="{{ account.id }}" 
+                            {% if payment.financial_account.id == account.id %}selected{% endif %}>
+                        {{ account.code }} - {{ account.name }}
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="form-text">اختر الخزينة أو البنك المستخدم للدفع</div>
+        </div>
+    </div>
+    
+    <!-- رقم المرجع -->
+    <div class="mb-3">
+        <label for="reference_number" class="form-label">
+            <i class="fas fa-hashtag me-1"></i>
+            رقم المرجع
+        </label>
+        <input type="text" 
+               class="form-control" 
+               id="reference_number" 
+               name="reference_number" 
+               value="{{ payment.reference_number|default:'' }}" 
+               placeholder="رقم الشيك، رقم التحويل، إلخ">
+        <div class="form-text">رقم مرجعي للدفعة (اختياري)</div>
+    </div>
+    
+    <!-- الملاحظات -->
+    <div class="mb-3">
+        <label for="notes" class="form-label">
+            <i class="fas fa-sticky-note me-1"></i>
+            ملاحظات
+        </label>
+        <textarea class="form-control" 
+                  id="notes" 
+                  name="notes" 
+                  rows="3" 
+                  placeholder="أي ملاحظات إضافية...">{{ payment.notes|default:'' }}</textarea>
+    </div>
+    
+    <!-- معلومات الحالة الحالية -->
+    <div class="alert alert-info">
+        <h6 class="alert-heading">
+            <i class="fas fa-info-circle me-2"></i>
+            معلومات مهمة
+        </h6>
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-1"><strong>الحالة الحالية:</strong> 
+                    {% if payment.status == 'draft' %}
+                        <span class="badge bg-secondary">مسودة</span>
+                    {% else %}
+                        <span class="badge bg-primary">مرحّلة</span>
+                    {% endif %}
+                </p>
+                <p class="mb-1"><strong>حالة الربط المالي:</strong> 
+                    {% if payment.financial_status == 'pending' %}
+                        <span class="badge bg-warning">معلق</span>
+                    {% elif payment.financial_status == 'synced' %}
+                        <span class="badge bg-success">مربوط</span>
+                    {% elif payment.financial_status == 'failed' %}
+                        <span class="badge bg-danger">فشل</span>
+                    {% else %}
+                        <span class="badge bg-info">{{ payment.get_financial_status_display }}</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-6">
+                {% if payment.financial_transaction %}
+                    <p class="mb-1"><strong>القيد المحاسبي:</strong> 
+                        <a href="{% url 'financial:journal_entry_detail' payment.financial_transaction.id %}" 
+                           target="_blank" class="text-decoration-none">
+                            {{ payment.financial_transaction.number }}
+                            <i class="fas fa-external-link-alt ms-1"></i>
+                        </a>
+                    </p>
+                {% endif %}
+                {% if payment.posted_at %}
+                    <p class="mb-1"><strong>تاريخ الترحيل:</strong> {{ payment.posted_at|date:"Y-m-d H:i" }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if payment.status == 'posted' %}
+            <hr>
+            <p class="mb-0 text-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>تنبيه:</strong> هذه الدفعة مرحّلة. سيتم إلغاء ترحيلها أولاً، ثم تطبيق التغييرات، ثم إعادة ترحيلها تلقائياً.
+            </p>
+        {% endif %}
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحميل الحسابات المالية المناسبة حسب طريقة الدفع
+    const paymentMethodSelect = document.getElementById('payment_method');
+    const financialAccountSelect = document.getElementById('financial_account');
+    
+    // تحميل الحسابات عند تغيير طريقة الدفع
+    paymentMethodSelect.addEventListener('change', function() {
+        loadFinancialAccounts(this.value);
+    });
+    
+    // تحميل الحسابات المناسبة
+    function loadFinancialAccounts(paymentMethod) {
+        if (!paymentMethod) {
+            financialAccountSelect.innerHTML = '<option value="">اختر الحساب المالي</option>';
+            return;
+        }
+        
+        // إظهار مؤشر التحميل
+        financialAccountSelect.innerHTML = '<option value="">جاري التحميل...</option>';
+        
+        // جلب الحسابات المناسبة
+        fetch(`/financial/api/accounts/by-payment-method/${paymentMethod}/`)
+            .then(response => response.json())
+            .then(data => {
+                let options = '<option value="">اختر الحساب المالي</option>';
+                const currentAccountId = parseInt(financialAccountSelect.dataset.currentId || '0');
+                data.accounts.forEach(account => {
+                    const selected = account.id == currentAccountId ? 'selected' : '';
+                    options += `<option value="${account.id}" ${selected}>${account.code} - ${account.name}</option>`;
+                });
+                financialAccountSelect.innerHTML = options;
+            })
+            .catch(error => {
+                console.error('خطأ في تحميل الحسابات:', error);
+                financialAccountSelect.innerHTML = '<option value="">خطأ في التحميل</option>';
+            });
+    }
+    
+    // تحميل الحسابات للطريقة الحالية
+    if (paymentMethodSelect.value) {
+        loadFinancialAccounts(paymentMethodSelect.value);
+    }
+    
+    // التحقق من صحة النموذج
+    const form = document.getElementById('paymentEditForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // التحقق من الحقول المطلوبة
+        const requiredFields = ['amount', 'payment_date', 'payment_method', 'financial_account'];
+        let isValid = true;
+        
+        requiredFields.forEach(fieldName => {
+            const field = document.getElementById(fieldName);
+            if (!field.value.trim()) {
+                field.classList.add('is-invalid');
+                isValid = false;
+            } else {
+                field.classList.remove('is-invalid');
+            }
+        });
+        
+        if (!isValid) {
+            alert('يرجى ملء جميع الحقول المطلوبة');
+            return;
+        }
+        
+        // التحقق من المبلغ
+        const amount = parseFloat(document.getElementById('amount').value);
+        if (amount <= 0) {
+            document.getElementById('amount').classList.add('is-invalid');
+            alert('يجب أن يكون المبلغ أكبر من صفر');
+            return;
+        }
+        
+        // إذا كان كل شيء صحيح، يمكن إرسال النموذج
+        // سيتم التعامل مع هذا في PaymentManager
+    });
+});
+</script>

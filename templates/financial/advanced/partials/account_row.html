@@ -1,0 +1,66 @@
+<!-- صف الحساب مع الأطفال (عرض هرمي) -->
+<tr class="{% if not account.is_active %}table-secondary{% endif %}">
+    <td>
+        <span style="padding-right: {{ level }}rem;">
+            <strong>{{ account.code }}</strong>
+        </span>
+    </td>
+    <td>
+        <span style="padding-right: {{ level }}rem;">
+            {% if not account.is_leaf %}
+                <i class="fas fa-folder text-warning me-1"></i>
+            {% else %}
+                <i class="fas fa-file text-info me-1"></i>
+            {% endif %}
+            {{ account.name }}
+            {% if account.is_cash_account %}
+                <span class="badge bg-success ms-1" title="حساب نقدي">💰</span>
+            {% endif %}
+            {% if account.is_bank_account %}
+                <span class="badge bg-primary ms-1" title="حساب بنكي">🏦</span>
+            {% endif %}
+        </span>
+    </td>
+    <td>
+        <span class="badge" style="background-color: #e9ecef; color: #495057;">
+            {{ account.account_type.name }}
+        </span>
+    </td>
+    <td class="text-end">
+        {% if account.current_balance %}
+            <strong class="{% if account.current_balance < 0 %}text-danger{% endif %}">
+                {{ account.current_balance|floatformat:2 }}
+            </strong>
+        {% else %}
+            <span class="text-muted">0.00</span>
+        {% endif %}
+    </td>
+    <td>
+        {% if account.is_active %}
+            <span class="badge bg-success">نشط</span>
+        {% else %}
+            <span class="badge bg-secondary">غير نشط</span>
+        {% endif %}
+    </td>
+    <td>
+        <div class="btn-group btn-group-sm">
+            <a href="{% url 'financial:account_detail' account.pk %}" 
+               class="btn btn-outline-primary" 
+               title="عرض التفاصيل">
+                <i class="fas fa-eye"></i>
+            </a>
+            <a href="{% url 'financial:account_edit' account.pk %}" 
+               class="btn btn-outline-warning" 
+               title="تعديل">
+                <i class="fas fa-edit"></i>
+            </a>
+        </div>
+    </td>
+</tr>
+
+<!-- عرض الحسابات الفرعية بشكل تكراري -->
+{% for child in account.children.all %}
+    {% if child.is_active or not account.is_active %}
+        {% include 'financial/advanced/partials/account_row.html' with account=child level=level|add:1 %}
+    {% endif %}
+{% endfor %}

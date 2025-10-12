@@ -1,0 +1,471 @@
+/**
+ * Main CSS File for MWHEBA ERP System
+ * 
+ * ملف CSS الرئيسي الذي يستورد كل ملفات التنسيق المستخدمة في النظام
+ * 
+ * @author MWHEBA ERP Team
+ * @version 1.0.0
+ */
+
+/**
+ * استيراد المتغيرات والستايلات الأساسية
+ */
+@import 'variables.css';
+/* ملف base.css غير موجود، تم إزالته */
+
+/**
+ * استيراد ملفات التخطيط والمكونات
+ */
+@import 'layout.css';
+@import 'components.css';
+
+/**
+ * استيراد ملفات خاصة بمناطق معينة
+ */
+@import 'dashboard.css';
+@import 'forms.css';
+
+/**
+ * استيراد ملف المصادقة (لاحظ أن هذا الملف يستورد في auth_base.html مباشرة أيضاً)
+ */
+/* @import 'auth.css'; */
+
+/**
+ * Table of Contents:
+ * 
+ * 1. General Styles
+ * 2. Layout Styles
+ * 3. Component Styles
+ * 4. Dashboard Styles
+ * 5. Responsive Adjustments
+ */
+
+/*===================================================
+  1. General Styles
+===================================================*/
+/* متغيرات CSS تم نقلها إلى ملف variables.css */
+
+body {
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.9rem;
+    background-color: #f8f9fc;
+    color: #6e6e6e;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    color: #333;
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all var(--transition-speed);
+}
+
+a:hover {
+    color: #013e61;
+    text-decoration: none;
+}
+
+/*===================================================
+  2. Layout Styles
+===================================================*/
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    margin-right: var(--sidebar-width);
+    transition: margin var(--transition-speed);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.main-header {
+    height: var(--header-height);
+    background-color: #fff;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--sidebar-width);
+    z-index: 990;
+    transition: right var(--transition-speed);
+}
+
+.content-wrapper {
+    padding: calc(var(--header-height)) 3rem var(--footer-height) 3rem;
+    min-height: calc(100vh - var(--footer-height));
+}
+
+.footer {
+    height: var(--footer-height);
+    background-color: #fff;
+    border-top: 1px solid #e3e6f0;
+    padding: 0.75rem 1.5rem;
+    margin-top: auto;
+}
+
+
+/*===================================================
+  3. Component Styles
+===================================================*/
+/* Cards */
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+    padding: 0.75rem 1.25rem;
+}
+
+.card-header h6 {
+    margin-bottom: 0;
+}
+
+.border-right-primary {
+    border-right: 0.25rem solid var(--primary-color);
+}
+
+.border-right-success {
+    border-right: 0.25rem solid var(--success-color);
+}
+
+.border-right-info {
+    border-right: 0.25rem solid var(--info-color);
+}
+
+.border-right-warning {
+    border-right: 0.25rem solid var(--warning-color);
+}
+
+.border-right-danger {
+    border-right: 0.25rem solid var(--danger-color);
+}
+
+/* Tables */
+.table-hover tbody tr:hover {
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: #5a5c69;
+    background-color: #f8f9fc;
+    border-bottom: 1px solid #e3e6f0;
+}
+
+/* Forms */
+.form-control {
+    border-radius: var(--border-radius);
+    border: 1px solid #d1d3e2;
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus {
+    border-color: #bac8f3;
+    box-shadow: 0 0 0 0.25rem rgba(78, 115, 223, 0.25);
+}
+
+label {
+    font-weight: 500;
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--border-radius);
+    transition: all var(--transition-speed);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+/* Badges */
+.badge {
+    font-weight: 600;
+    padding: 0.65em 1em;
+    font-size: 0.75em;
+    border-radius: 10rem;
+}
+
+/* Navbar */
+.navbar .user-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.notification-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
+    line-height: 1;
+    border-radius: 50%;
+    background-color: var(--danger-color);
+    color: white;
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+}
+
+/*===================================================
+  4. Dashboard Styles
+===================================================*/
+/* Stat Cards */
+.stat-card {
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    transition: transform var(--transition-speed);
+    margin-bottom: 1.5rem;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+}
+
+.stat-card-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.5rem;
+}
+
+.stat-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+}
+
+.stat-card-percent {
+    font-size: 0.85rem;
+}
+
+/* Progress */
+.progress {
+    height: 0.5rem;
+    border-radius: 10rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-indicator.success {
+    background-color: var(--success-color);
+}
+
+.status-indicator.warning {
+    background-color: var(--warning-color);
+}
+
+.status-indicator.danger {
+    background-color: var(--danger-color);
+}
+
+.status-indicator.info {
+    background-color: var(--info-color);
+}
+
+
+@media (max-width: 767.98px) {
+    .content-wrapper {
+        padding: calc(var(--header-height) + 1rem) 1rem var(--footer-height) 1rem;
+    }
+    
+    .footer {
+        padding: 0.5rem 1rem;
+    }
+}
+
+/**
+ * ===========================
+ * Page Header Component
+ * ===========================
+ */
+.page-header-container {
+    margin-bottom: 2rem;
+}
+
+/* تنسيق Breadcrumbs */
+.page-breadcrumb {
+    margin-bottom: 0.5rem;
+}
+
+.page-breadcrumb .breadcrumb {
+    padding: 0.5rem 0;
+    margin-bottom: 0;
+    background-color: transparent;
+    border-radius: 0;
+    border: none;
+    box-shadow: none;
+    color: var(--gray-600);
+    font-size: 0.85rem;
+}
+
+.page-breadcrumb .breadcrumb-item a {
+    color: var(--gray-600);
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.page-breadcrumb .breadcrumb-item a:hover {
+    color: var(--primary-color);
+}
+
+.page-breadcrumb .breadcrumb-item.active {
+    color: var(--gray-800);
+    font-weight: 500;
+}
+
+.page-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    content: "\f054";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    font-size: 0.7rem;
+    color: var(--gray-400);
+    vertical-align: middle;
+    margin-top: -2px;
+}
+
+html[dir="rtl"] .page-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    content: "\f053";
+}
+
+/* تنسيق عنوان الصفحة */
+.page-header {
+    padding: 1rem 0;
+    position: relative;
+}
+
+.page-header:after {
+    content: '';
+    display: block;
+    clear: both;
+}
+
+.page-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.page-header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.header-icon {
+    width: 48px;
+    height: 48px;
+    min-width: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(45deg, var(--primary-color), var(--primary-light));
+    color: white;
+    font-size: 1.25rem;
+    box-shadow: 0 4px 10px rgba(var(--primary-rgb), 0.2);
+}
+
+.header-text {
+    margin-right: 0.5rem;
+}
+
+.header-title {
+    margin: 0;
+    padding: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--dark);
+}
+
+.header-subtitle {
+    margin: 0.25rem 0 0;
+    padding: 0;
+    font-size: 0.9rem;
+    color: var(--gray-600);
+    max-width: 80%;
+}
+
+.page-header-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-right: auto;
+}
+
+/* تنسيق للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .page-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .page-header-actions {
+        margin-top: 1rem;
+        margin-right: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .header-icon {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1rem;
+    }
+    
+    .header-title {
+        font-size: 1.3rem;
+    }
+    
+    .header-subtitle {
+        max-width: 100%;
+    }
+} 

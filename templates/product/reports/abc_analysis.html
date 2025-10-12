@@ -1,0 +1,314 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load dict_tags %}
+
+{% block title %}تحليل ABC للمخزون{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/reports.css' %}">
+<style>
+.abc-category {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 40px;
+}
+.abc-a { background: linear-gradient(45deg, #28a745, #20c997); }
+.abc-b { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+.abc-c { background: linear-gradient(45deg, #dc3545, #e83e8c); }
+
+.summary-card {
+    border: none;
+    border-radius: 15px;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    transition: all 0.3s;
+}
+.summary-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="fas fa-chart-pie me-2 text-primary"></i>
+                تحليل ABC للمخزون
+            </h1>
+            <p class="text-muted mb-0">تصنيف المنتجات حسب قيمة المبيعات والأهمية</p>
+        </div>
+        
+        <div class="btn-group">
+            <button class="btn btn-outline-primary" onclick="window.print()">
+                <i class="fas fa-print me-1"></i> طباعة
+            </button>
+            <button class="btn btn-success" onclick="alert('ميزة التصدير ستكون متاحة قريباً')">
+                <i class="fas fa-file-excel me-1"></i> تصدير Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">من تاريخ</label>
+                    <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">إلى تاريخ</label>
+                    <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">التصنيف</label>
+                    <select name="category" class="form-select">
+                        <option value="">جميع التصنيفات</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> تطبيق
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
+                        <i class="fas fa-undo me-1"></i> إعادة تعيين
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card summary-card border-left-success">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                فئة A (عالية القيمة)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ summary.category_a_count }} منتج
+                            </div>
+                            <div class="text-xs text-muted">
+                                {{ summary.category_a_percentage|floatformat:1 }}% من المنتجات
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="abc-category abc-a">A</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card summary-card border-left-warning">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                                فئة B (متوسطة القيمة)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ summary.category_b_count }} منتج
+                            </div>
+                            <div class="text-xs text-muted">
+                                {{ summary.category_b_percentage|floatformat:1 }}% من المنتجات
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="abc-category abc-b">B</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="card summary-card border-left-danger">
+                <div class="card-body">
+                    <div class="row no-gutters align-items-center">
+                        <div class="col mr-2">
+                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                فئة C (منخفضة القيمة)
+                            </div>
+                            <div class="h5 mb-0 font-weight-bold text-gray-800">
+                                {{ summary.category_c_count }} منتج
+                            </div>
+                            <div class="text-xs text-muted">
+                                {{ summary.category_c_percentage|floatformat:1 }}% من المنتجات
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="abc-category abc-c">C</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-chart-pie me-2"></i>
+                توزيع المنتجات حسب فئات ABC
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="abcChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-table me-2"></i>
+                تفاصيل المنتجات
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>التصنيف</th>
+                            <th>كود المنتج</th>
+                            <th>اسم المنتج</th>
+                            <th>الكمية المباعة</th>
+                            <th>قيمة المبيعات</th>
+                            <th>النسبة التراكمية</th>
+                            <th>الأهمية</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in analysis_data %}
+                        <tr>
+                            <td>
+                                <span class="abc-category abc-{{ item.category|lower }}">
+                                    {{ item.category }}
+                                </span>
+                            </td>
+                            <td>{{ item.product.code }}</td>
+                            <td>
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.category %}
+                                    <br><small class="text-muted">{{ item.product.category.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ item.quantity_sold|floatformat:0 }}</td>
+                            <td class="text-end">{{ item.sales_value|floatformat:2 }} ج.م</td>
+                            <td class="text-end">{{ item.cumulative_percentage|floatformat:1 }}%</td>
+                            <td>
+                                {% if item.category == 'A' %}
+                                    <span class="badge bg-success">عالية</span>
+                                {% elif item.category == 'B' %}
+                                    <span class="badge bg-warning">متوسطة</span>
+                                {% else %}
+                                    <span class="badge bg-danger">منخفضة</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <br>لا توجد بيانات متاحة للفترة المحددة
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ABC Analysis Chart
+const ctx = document.getElementById('abcChart').getContext('2d');
+const abcChart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+        labels: ['فئة A (عالية)', 'فئة B (متوسطة)', 'فئة C (منخفضة)'],
+        datasets: [{
+            data: [
+                {{ summary.category_a_count }},
+                {{ summary.category_b_count }},
+                {{ summary.category_c_count }}
+            ],
+            backgroundColor: [
+                '#28a745',
+                '#ffc107', 
+                '#dc3545'
+            ],
+            borderWidth: 2,
+            borderColor: '#ffffff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((context.parsed / total) * 100).toFixed(1);
+                        return context.label + ': ' + context.parsed + ' منتج (' + percentage + '%)';
+                    }
+                }
+            }
+        }
+    }
+});
+
+
+// DataTable initialization
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        language: {
+            url: '{% static "js/datatables/ar.json" %}'
+        },
+        order: [[4, 'desc']], // Sort by sales value descending
+        columnDefs: [
+            {
+                targets: [3, 4, 5], // Numeric columns
+                className: 'text-end'
+            }
+        ],
+        pageLength: 25,
+        responsive: true
+    });
+});
+</script>
+{% endblock %}

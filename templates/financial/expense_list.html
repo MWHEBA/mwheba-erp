@@ -1,0 +1,272 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<style>
+    .expense-card {
+        transition: transform 0.2s;
+    }
+    .expense-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    .expense-icon {
+        font-size: 2rem;
+        opacity: 0.7;
+    }
+    .expense-status {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .expense-amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .transaction-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 10px;
+    }
+    .transaction-expense {
+        background-color: #dc3545;
+    }
+    .expense-status-cell {
+        width: 100%;
+        text-align: center;
+    }
+    .badge {
+        font-size: 0.8rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">إدارة وتتبع المصروفات في النظام</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:expense_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>{% trans "إضافة مصروف جديد" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الإحصائيات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+        <div class="row">
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
+                        <div class="stats-card-value">{{ total_expense|custom_number_format }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "المصروفات المدفوعة" %}</div>
+                        <div class="stats-card-value">{{ paid_expenses|custom_number_format }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "المصروفات المعلقة" %}</div>
+                        <div class="stats-card-value">{{ pending_expenses|default:"0.00" }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "متوسط المصروفات الشهرية" %}</div>
+                        <div class="stats-card-value">{{ monthly_average|default:"0.00" }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- تصفية وبحث -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+        <div class="filter-section mb-4">
+            <form method="GET" action="" class="row g-3">
+                <div class="col-md-3">
+                    <label for="category" class="form-label">{% trans "التصنيف" %}</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">{% trans "جميع التصنيفات" %}</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">{% trans "الحالة" %}</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">{% trans "جميع الحالات" %}</option>
+                        <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "معلق" %}</option>
+                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>{% trans "ملغي" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- قائمة المصروفات -->
+    <div class="section-container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="fas fa-hand-holding-usd me-2"></i>{% trans "قائمة المصروفات" %}</h5>
+                <div class="actions-container">
+                    <a href="{% url 'financial:expense_create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>{% trans "إضافة مصروف" %}
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- استخدام الجدول الموحد -->
+                {% if expenses %}
+                  {% with table_id="expenses-table" %}
+                    {% with headers=expense_headers %}
+                      {% with data=expenses %}
+                        {% with action_buttons=expense_actions %}
+                          {% with empty_message="لا توجد مصروفات متاحة" %}
+                            {% with clickable_rows=True row_click_url="/financial/journal-entries/0/" %}
+                              {% with show_export=True export_filename="expenses" %}
+                                {% include "components/data_table.html" %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% else %}
+                  {% include 'partials/empty_state.html' with message="لا توجد مصروفات متاحة" icon="money-bill-wave" %}
+                {% endif %}
+                
+                <!-- إضافة زر تصدير البيانات -->
+                <div class="d-flex justify-content-end mt-3">
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="expenses-table" data-filename="expenses.csv">
+                    <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="expenses-table" data-filename="expenses.xlsx">
+                    <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+                  </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+</script>
+{% endblock %} 

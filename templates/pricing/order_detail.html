@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+{% load number_filters %}
+
+{% block title %}{% translate "تفاصيل الطلب" %} #{{ order.id }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{% translate "تفاصيل الطلب" %} #{{ order.id }}</h1>
+        <div>
+            <a href="{% url 'pricing:order_edit' order.id %}" class="btn btn-primary btn-sm">
+                <i class="fas fa-edit"></i> {% translate "تعديل" %}
+            </a>
+            <a href="{% url 'print_reports:print_order' order.id %}" class="btn btn-info btn-sm" target="_blank">
+                <i class="fas fa-print"></i> {% translate "طباعة" %}
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">{% translate "معلومات الطلب" %}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% translate "رقم الطلب:" %}</strong> {{ order.id }}</p>
+                            <p><strong>{% translate "اسم المنتج:" %}</strong> {{ order.product_name }}</p>
+                            <p><strong>{% translate "الكمية:" %}</strong> {{ order.quantity|smart_number }}</p>
+                            <p><strong>{% translate "تاريخ الإنشاء:" %}</strong> {{ order.created_at|date:"Y-m-d H:i" }}</p>
+                            <p><strong>{% translate "تاريخ التسليم المتوقع:" %}</strong> {{ order.expected_delivery_date|date:"Y-m-d"|default:"-" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% translate "حالة الطلب:" %}</strong> 
+                                <span class="badge {% if order.status == 'completed' %}bg-success{% elif order.status == 'pending' %}bg-warning{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-info{% endif %}">
+                                    {{ order.get_status_display }}
+                                </span>
+                            </p>
+                            <p><strong>{% translate "العميل:" %}</strong> {{ order.client.name }}</p>
+                            <p><strong>{% translate "المستخدم:" %}</strong> {{ order.user.get_full_name }}</p>
+                            <p><strong>{% translate "ملاحظات:" %}</strong> {{ order.notes|default:"-" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">{% translate "تفاصيل المنتج" %}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% translate "نوع الورق:" %}</strong> {{ order.paper_type.name|default:"-" }}</p>
+                            <p><strong>{% translate "حجم الورق:" %}</strong> {{ order.paper_size.name|default:"-" }}</p>
+                            <p><strong>{% translate "نوع الطباعة:" %}</strong> {{ order.print_type|default:"-" }}</p>
+                            <p><strong>{% translate "جهة الطباعة:" %}</strong> {{ order.print_side.name|default:"-" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% translate "عدد الألوان (وجه):" %}</strong> {{ order.colors_front|smart_number|default:"0" }}</p>
+                            <p><strong>{% translate "عدد الألوان (ظهر):" %}</strong> {{ order.colors_back|smart_number|default:"0" }}</p>
+                            <p><strong>{% translate "نوع التغطية:" %}</strong> {{ order.coating_type.name|default:"-" }}</p>
+                            <p><strong>{% translate "التشطيبات:" %}</strong> 
+                                {% for finishing in order.finishing_types.all %}
+                                    {{ finishing.name }}{% if not forloop.last %}, {% endif %}
+                                {% empty %}
+                                    -
+                                {% endfor %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">{% translate "التكاليف والأسعار" %}</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5 class="text-primary">{% translate "التكاليف" %}</h5>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>{% translate "تكلفة الخامات" %}</td>
+                                <td class="text-end">{{ order.material_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                            <tr>
+                                <td>{% translate "تكلفة الطباعة" %}</td>
+                                <td class="text-end">{{ order.printing_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                            <tr>
+                                <td>{% translate "تكلفة التشطيبات" %}</td>
+                                <td class="text-end">{{ order.finishing_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                            <tr>
+                                <td>{% translate "تكاليف إضافية" %}</td>
+                                <td class="text-end">{{ order.extra_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td>{% translate "إجمالي التكلفة" %}</td>
+                                <td class="text-end">{{ order.total_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    <div class="mb-3">
+                        <h5 class="text-primary">{% translate "التسعير" %}</h5>
+                        <table class="table table-sm">
+                            <tr>
+                                <td>{% translate "هامش الربح" %}</td>
+                                <td class="text-end">{{ order.profit_margin|smart_number }}%</td>
+                            </tr>
+                            <tr class="fw-bold">
+                                <td>{% translate "سعر البيع" %}</td>
+                                <td class="text-end">{{ order.sale_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                            <tr>
+                                <td>{% translate "سعر الوحدة" %}</td>
+                                <td class="text-end">{{ order.unit_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                            </tr>
+                        </table>
+                    </div>
+
+                    {% if order.user.commission_eligible %}
+                        <div>
+                            <h5 class="text-primary">{% translate "العمولة" %}</h5>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td>{% translate "نسبة العمولة" %}</td>
+                                    <td class="text-end">{{ order.user.commission_rate|smart_number }}%</td>
+                                </tr>
+                                <tr class="fw-bold">
+                                    <td>{% translate "قيمة العمولة" %}</td>
+                                    <td class="text-end">{{ order.commission_amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if order.materials.exists %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">{% translate "المواد المستخدمة" %}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>{% translate "المادة" %}</th>
+                                        <th>{% translate "الكمية" %}</th>
+                                        <th>{% translate "سعر الوحدة" %}</th>
+                                        <th>{% translate "السعر الإجمالي" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for material in order.materials.all %}
+                                        <tr>
+                                            <td>{{ material.name }}</td>
+                                            <td>{{ material.quantity|smart_number }}</td>
+                                            <td>{{ material.unit_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                                            <td>{{ material.total_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+    {% if order.payments.exists %}
+        <div class="row">
+            <div class="col-12">
+                <div class="card shadow mb-4">
+                    <div class="card-header py-3">
+                        <h6 class="m-0 font-weight-bold text-primary">{% translate "المدفوعات" %}</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>{% translate "تاريخ الدفع" %}</th>
+                                        <th>{% translate "المبلغ" %}</th>
+                                        <th>{% translate "طريقة الدفع" %}</th>
+                                        <th>{% translate "ملاحظات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payment in order.payments.all %}
+                                        <tr>
+                                            <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
+                                            <td>{{ payment.amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                            <td>{{ payment.get_payment_method_display }}</td>
+                                            <td>{{ payment.notes|default:"-" }}</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                                <tfoot>
+                                    <tr class="fw-bold">
+                                        <td colspan="1">{% translate "إجمالي المدفوعات" %}</td>
+                                        <td>{{ order.total_payments|floatformat:2 }} {% translate "ج.م" %}</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                    <tr class="fw-bold {% if order.remaining_amount > 0 %}text-danger{% else %}text-success{% endif %}">
+                                        <td colspan="1">{% translate "المبلغ المتبقي" %}</td>
+                                        <td>{{ order.remaining_amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                        <td colspan="2"></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

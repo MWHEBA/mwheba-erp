@@ -1,0 +1,16 @@
+<!-- خلية مقاس الورق -->
+{% load pricing_filters %}
+{% if object.paper_details and object.paper_details.sheet_size %}
+    <div class="d-flex flex-column align-items-center">
+        <span class="fw-bold text-info">
+            {{ object.paper_details.get_sheet_size_display|default:object.paper_details.sheet_size }}
+        </span>
+        {% if object.paper_details.custom_width and object.paper_details.custom_height %}
+            <small class="text-muted">
+                {{ object.paper_details.custom_width|remove_trailing_zeros }}×{{ object.paper_details.custom_height|remove_trailing_zeros }} سم
+            </small>
+        {% endif %}
+    </div>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

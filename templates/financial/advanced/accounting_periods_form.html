@@ -1,0 +1,234 @@
+{% extends 'financial/advanced/base_advanced.html' %}
+{% load i18n static %}
+
+{% block extra_css %}
+<style>
+  .form-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .form-section {
+    margin-bottom: 2rem;
+  }
+  
+  .form-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #344767;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e9ecef;
+  }
+  
+  .form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 0.5rem;
+  }
+  
+  .form-control:focus {
+    border-color: #5e72e4;
+    box-shadow: 0 0 0 0.2rem rgba(94, 114, 228, 0.25);
+  }
+  
+  .required-field::after {
+    content: " *";
+    color: #dc3545;
+  }
+  
+  .form-help-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+  }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="form-container">
+      <form method="post" id="periodForm">
+        {% csrf_token %}
+        
+        <!-- معلومات الفترة الأساسية -->
+        <div class="form-section">
+          <h5 class="form-section-title">
+            <i class="fas fa-info-circle me-2"></i>معلومات الفترة الأساسية
+          </h5>
+          
+          <div class="row">
+            <div class="col-md-12 mb-3">
+              <label for="name" class="form-label required-field">اسم الفترة</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                id="name" 
+                name="name" 
+                value="{% if period %}{{ period.name }}{% endif %}"
+                required
+                placeholder="مثال: السنة المالية 2025"
+              >
+              <div class="form-help-text">أدخل اسماً وصفياً للفترة المحاسبية</div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="start_date" class="form-label required-field">تاريخ البداية</label>
+              <input 
+                type="date" 
+                class="form-control" 
+                id="start_date" 
+                name="start_date" 
+                value="{% if period %}{{ period.start_date|date:'d-m-Y' }}{% endif %}"
+                required
+              >
+              <div class="form-help-text">تاريخ بداية الفترة المحاسبية</div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <label for="end_date" class="form-label required-field">تاريخ النهاية</label>
+              <input 
+                type="date" 
+                class="form-control" 
+                id="end_date" 
+                name="end_date" 
+                value="{% if period %}{{ period.end_date|date:'d-m-Y' }}{% endif %}"
+                required
+              >
+              <div class="form-help-text">تاريخ نهاية الفترة المحاسبية</div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="status" class="form-label required-field">الحالة</label>
+              <select class="form-select" id="status" name="status" required>
+                <option value="open" {% if not period or period.status == 'open' %}selected{% endif %}>مفتوحة</option>
+                <option value="closed" {% if period and period.status == 'closed' %}selected{% endif %}>مغلقة</option>
+              </select>
+              <div class="form-help-text">حالة الفترة المحاسبية (مفتوحة: يمكن إضافة قيود، مغلقة: لا يمكن إضافة قيود)</div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- معلومات إضافية (للتعديل فقط) -->
+        {% if period %}
+        <div class="form-section">
+          <h5 class="form-section-title">
+            <i class="fas fa-clock me-2"></i>معلومات إضافية
+          </h5>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">تاريخ الإنشاء</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                value="{{ period.created_at|date:'d-m-Y H:i' }}"
+                readonly
+                disabled
+              >
+            </div>
+            
+            {% if period.created_by %}
+            <div class="col-md-6 mb-3">
+              <label class="form-label">أنشئ بواسطة</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                value="{{ period.created_by.get_full_name|default:period.created_by.username }}"
+                readonly
+                disabled
+              >
+            </div>
+            {% endif %}
+          </div>
+          
+          {% if period.closed_at %}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">تاريخ الإغلاق</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                value="{{ period.closed_at|date:'d-m-Y H:i' }}"
+                readonly
+                disabled
+              >
+            </div>
+            
+            {% if period.closed_by %}
+            <div class="col-md-6 mb-3">
+              <label class="form-label">أغلق بواسطة</label>
+              <input 
+                type="text" 
+                class="form-control" 
+                value="{{ period.closed_by.get_full_name|default:period.closed_by.username }}"
+                readonly
+                disabled
+              >
+            </div>
+            {% endif %}
+          </div>
+          {% endif %}
+        </div>
+        {% endif %}
+        
+        <!-- أزرار الإجراءات -->
+        <div class="d-flex justify-content-between gap-2">
+          <a href="{% url 'financial:accounting_periods_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>
+            {% if period %}تحديث الفترة{% else %}إنشاء الفترة{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('periodForm');
+    const startDate = document.getElementById('start_date');
+    const endDate = document.getElementById('end_date');
+    
+    // التحقق من صحة التواريخ
+    form.addEventListener('submit', function(e) {
+        if (startDate.value && endDate.value) {
+            const start = new Date(startDate.value);
+            const end = new Date(endDate.value);
+            
+            if (start >= end) {
+                e.preventDefault();
+                alert('تاريخ البداية يجب أن يكون قبل تاريخ النهاية');
+                return false;
+            }
+        }
+    });
+    
+    // تحديث تاريخ النهاية تلقائياً عند تغيير تاريخ البداية
+    startDate.addEventListener('change', function() {
+        if (this.value && !endDate.value) {
+            const start = new Date(this.value);
+            // إضافة سنة واحدة
+            const end = new Date(start);
+            end.setFullYear(end.getFullYear() + 1);
+            end.setDate(end.getDate() - 1);
+            endDate.value = end.toISOString().split('T')[0];
+        }
+    });
+});
+</script>
+{% endblock %}

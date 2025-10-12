@@ -1,0 +1,48 @@
+{% comment %}
+مكون شارة الحالة لعرض حالة العناصر
+
+الاستخدام:
+{% include "components/status_badge.html" with status="active" %}
+
+المعلمات:
+- status: حالة العنصر (مطلوب)
+- label: نص مخصص للعرض (اختياري، سيتم استخدام الحالة إذا لم يتم توفيره)
+- badge_class: تصنيفات CSS إضافية للشارة (اختياري)
+- size: حجم الشارة (اختياري، الخيارات: sm, lg، الافتراضي هو الحجم العادي)
+- pill: استخدام نمط الكبسولة (اختياري، افتراضي True)
+- status_map: خريطة مخصصة للحالات (اختياري)
+{% endcomment %}
+
+{% with 
+    default_statuses=status_map|default:{
+        'active': {'label': 'نشط', 'class': 'success'},
+        'inactive': {'label': 'غير نشط', 'class': 'secondary'},
+        'pending': {'label': 'معلق', 'class': 'warning'},
+        'processing': {'label': 'قيد المعالجة', 'class': 'info'},
+        'completed': {'label': 'مكتمل', 'class': 'success'},
+        'cancelled': {'label': 'ملغي', 'class': 'danger'},
+        'refunded': {'label': 'مسترجع', 'class': 'danger'},
+        'paid': {'label': 'مدفوع', 'class': 'success'},
+        'unpaid': {'label': 'غير مدفوع', 'class': 'warning'},
+        'overdue': {'label': 'متأخر', 'class': 'danger'},
+        'low-stock': {'label': 'منخفض المخزون', 'class': 'warning'},
+        'out-of-stock': {'label': 'نفذ المخزون', 'class': 'danger'},
+        'in-stock': {'label': 'متوفر', 'class': 'success'},
+        'draft': {'label': 'مسودة', 'class': 'secondary'},
+        'published': {'label': 'منشور', 'class': 'success'},
+        'error': {'label': 'خطأ', 'class': 'danger'}
+    }
+%}
+
+{% with 
+    status_info=default_statuses|get:status|default:{'label': status|title, 'class': 'secondary'},
+    status_label=label|default:status_info.label,
+    badge_type=status_info.class
+%}
+
+<span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-{{ badge_type }} {{ badge_class }}">
+    {{ status_label }}
+</span>
+
+{% endwith %}
+{% endwith %} 

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "تأكيد الحذف" %}: {% if object.reference %}{{ object.reference }}{% else %}{{ object.id }}{% endif %}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* شارات ملونة */
+  .soft-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .soft-badge-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .soft-badge-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  
+  .soft-badge-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .soft-badge-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  .transaction-detail-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #dc3545;
+  }
+  
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed #dee2e6;
+  }
+  
+  .detail-row:last-child {
+    border-bottom: none;
+  }
+  
+  .delete-warning-icon {
+    font-size: 3rem;
+    color: #dc3545;
+    margin-bottom: 1rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'core:dashboard' %}">
+              <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'financial:transaction_list' %}">
+              <i class="fas fa-exchange-alt me-1"></i>{% trans "المعاملات المالية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            {% trans "حذف معاملة" %}
+          </li>
+        </ol>
+      </nav>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          <div class="bg-danger bg-opacity-10 text-danger p-3 rounded">
+            <i class="fas fa-trash-alt fa-2x"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="h3 mb-1 fw-bold text-dark">{% trans "حذف معاملة مالية" %}</h1>
+          <p class="text-muted mb-0">{% trans "تأكيد حذف معاملة مالية وإلغاء تأثيرها على الحسابات" %}</p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:transaction_detail' object.id %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للتفاصيل" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- محتوى الصفحة -->
+  <div class="section-container">
+    <div class="row">
+      <div class="col-md-7 mx-auto">
+        <div class="text-center mb-4">
+          <div class="delete-warning-icon">
+            <i class="fas fa-exclamation-triangle"></i>
+          </div>
+          <h4 class="mb-3">{% trans "هل أنت متأكد من حذف هذه المعاملة المالية؟" %}</h4>
+          <p class="text-muted">{% trans "هذا الإجراء نهائي ولا يمكن التراجع عنه. سيتم إلغاء تأثير المعاملة على الحسابات المرتبطة." %}</p>
+        </div>
+        
+        <div class="transaction-detail-section">
+          <div class="detail-row">
+            <div>{% trans "نوع المعاملة" %}</div>
+            <div>
+              {% if object.transaction_type == 'income' %}
+              <span class="soft-badge soft-badge-success">{% trans "إيراد" %}</span>
+              {% elif object.transaction_type == 'expense' %}
+              <span class="soft-badge soft-badge-danger">{% trans "مصروف" %}</span>
+              {% elif object.transaction_type == 'transfer' %}
+              <span class="soft-badge soft-badge-primary">{% trans "تحويل" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="detail-row">
+            <div>{% trans "المبلغ" %}</div>
+            <div class="fw-bold">{{ object.amount }} {% trans "ج.م" %}</div>
+          </div>
+          
+          <div class="detail-row">
+            <div>{% trans "التاريخ" %}</div>
+            <div>{{ object.date }}</div>
+          </div>
+          
+          <div class="detail-row">
+            <div>{% trans "الحساب" %}</div>
+            <div>{{ object.account.name }}</div>
+          </div>
+          
+          {% if object.transaction_type == 'transfer' and object.to_account %}
+          <div class="detail-row">
+            <div>{% trans "الحساب المستلم" %}</div>
+            <div>{{ object.to_account.name }}</div>
+          </div>
+          {% endif %}
+          
+          {% if object.reference %}
+          <div class="detail-row">
+            <div>{% trans "المرجع" %}</div>
+            <div>{{ object.reference }}</div>
+          </div>
+          {% endif %}
+          
+          {% if object.reference_number %}
+          <div class="detail-row">
+            <div>{% trans "رقم المرجع" %}</div>
+            <div>{{ object.reference_number }}</div>
+          </div>
+          {% endif %}
+          
+          {% if object.description %}
+          <div class="detail-row">
+            <div>{% trans "الوصف" %}</div>
+            <div>{{ object.description }}</div>
+          </div>
+          {% endif %}
+        </div>
+        
+        <div class="alert alert-warning mb-4">
+          <div class="d-flex">
+            <div class="me-3">
+              <i class="fas fa-exclamation-circle fa-2x"></i>
+            </div>
+            <div>
+              <h5 class="alert-heading mb-1">{% trans "تنبيه هام" %}</h5>
+              <p class="mb-0">
+                {% if object.transaction_type == 'income' %}
+                {% trans "سيتم تخفيض رصيد الحساب المستلم بمبلغ " %} {{ object.amount }} {% trans "ج.م" %}
+                {% elif object.transaction_type == 'expense' %}
+                {% trans "سيتم زيادة رصيد حساب الدفع بمبلغ " %} {{ object.amount }} {% trans "ج.م" %}
+                {% elif object.transaction_type == 'transfer' %}
+                {% trans "سيتم زيادة رصيد الحساب المصدر بمبلغ " %} {{ object.amount }} {% trans "ج.م" %} {% trans "وتخفيض رصيد الحساب المستلم بنفس المبلغ" %}
+                {% endif %}
+              </p>
+            </div>
+          </div>
+        </div>
+        
+        <form method="post">
+          {% csrf_token %}
+          <div class="d-flex justify-content-between">
+            <a href="{% url 'financial:transaction_detail' object.id %}" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+            </a>
+            <button type="submit" class="btn btn-danger">
+              <i class="fas fa-trash-alt me-1"></i> {% trans "تأكيد الحذف" %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} 

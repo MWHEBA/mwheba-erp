@@ -1,0 +1,14 @@
+{% load custom_filters %}
+{% load i18n %}
+<span class="journal-amount fw-bold">
+  {% if value > 0 %}
+    <span class="text-success">
+      <i class="fas fa-coins me-1"></i>
+      <strong>{{ value|custom_number_format }}</strong> {% trans "ج.م" %}
+    </span>
+  {% else %}
+    <span class="text-muted">
+      <i class="fas fa-minus me-1"></i>-
+    </span>
+  {% endif %}
+</span>

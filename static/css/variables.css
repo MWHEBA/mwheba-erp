@@ -1,0 +1,179 @@
+/**
+ * CSS Variables for MWHEBA ERP System
+ * 
+ * يحتوي على المتغيرات العامة والألوان الأساسية للنظام
+ * قمنا بتوحيد جميع المتغيرات في هذا الملف
+ */
+
+:root {
+    /* الألوان الأساسية */
+    --primary-color: #01578a;
+    --primary-dark: #013e61;
+    --primary-light: #0179b8;
+    --primary-rgb: 1, 87, 138;
+    --primary-soft: rgba(59, 130, 246, 0.1); /* أزرق شفاف للخلفيات */
+    --primary-soft-2: rgba(1, 87, 138, 0.05);
+    --primary-hover: #016ca6;
+    --primary-active: #015078;
+    --primary-focus: rgba(1, 87, 138, 0.25);
+
+    --secondary-color: #667788;
+    --secondary-dark: #4a5a68;
+    --secondary-light: #8295a8;
+    --secondary-rgb: 102, 119, 136;
+    --secondary-soft: rgba(102, 119, 136, 0.1);
+
+    --success-color: #22c55e;    /* أخضر للنجاح */
+    --success-dark: #059669;
+    --success-rgb: 16, 185, 129;
+    --success-soft: rgba(16, 185, 129, 0.1);
+
+    --info-color: #0ea5e9;        /* أزرق فاتح للمعلومات */
+    --info-dark: #0284c7;
+    --info-rgb: 14, 165, 233;
+    --info-soft: rgba(14, 165, 233, 0.1);
+
+    --warning-color: #f59e0b;     /* برتقالي للتحذير */
+    --warning-dark: #d97706;
+    --warning-rgb: 245, 158, 11;
+    --warning-soft: rgba(245, 158, 11, 0.1);
+
+    --danger-color: #ef4444;      /* أحمر للخطأ/الحذف */
+    --danger-dark: #dc2626;
+    --danger-rgb: 239, 68, 68;
+    --danger-soft: rgba(239, 68, 68, 0.1);
+
+    --light: #f8f9fc;
+    --light-rgb: 248, 250, 252;
+
+    --dark: #454d55;
+    --dark-rgb: 15, 23, 42;
+
+    --white: #ffffff;
+    --white-rgb: 255, 255, 255;
+
+    /* ألوان الرمادي */
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-600-rgb: 75, 85, 99;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+
+
+    /* ألوان النص */
+    --text-dark: #1f2937;         /* نص داكن */
+    --text-medium: #4b5563;       /* نص متوسط */
+    --text-light: #9ca3af;        /* نص خفيف */
+
+    /* ألوان الخلفية */
+    --bg-body: #f9fafb;          /* خلفية الصفحة */
+    --bg-card: #ffffff;          /* خلفية البطاقات */
+    --bg-light: #f3f4f6;         /* خلفية خفيفة */
+
+    /* الحدود والظلال */
+    --border-color: #e5e7eb;     /* لون الحدود */
+    --border-radius: 8px;        /* انحناء الحواف */
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+    /* المسافات */
+    --spacing-xs: 0.25rem;        /* 4px */
+    --spacing-sm: 0.5rem;         /* 8px */
+    --spacing-md: 1rem;           /* 16px */
+    --spacing-lg: 1.5rem;         /* 24px */
+    --spacing-xl: 2rem;           /* 32px */
+    
+    /* المسافات برقم */
+    --spacing-0: 0;
+    --spacing-1: 0.25rem;        /* 4px */
+    --spacing-2: 0.5rem;         /* 8px */
+    --spacing-3: 0.75rem;        /* 12px */
+    --spacing-4: 1rem;           /* 16px */
+    --spacing-5: 1.25rem;        /* 20px */
+    --spacing-6: 1.5rem;         /* 24px */
+    --spacing-7: 1.75rem;        /* 28px */
+    --spacing-8: 2rem;           /* 32px */
+    --spacing-9: 2.25rem;        /* 36px */
+    --spacing-10: 2.5rem;        /* 40px */
+    --spacing-12: 3rem;          /* 48px */
+    --spacing-16: 4rem;          /* 64px */
+    --spacing-20: 5rem;          /* 80px */
+
+    /* متغيرات التخطيط */
+    --header-height: 60px;
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 70px;
+    --footer-height: 50px;
+    --main-padding: 2rem;
+
+    /* التحولات */
+    --transition-speed: 0.15s;
+    --transition-speed-fast: 0.1s;
+    --transition-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+    /* ألوان القائمة الجانبية */
+    --sidebar-hover: #f5f7fa;
+    --sidebar-active: var(--primary-color);
+    --sidebar-text: var(--text-dark);
+    --sidebar-active-text: var(--primary-color);
+    
+    /* خلفيات العناصر الرئيسية */
+    --header-bg: #ffffff;
+    --content-bg: #f8f9fc;
+    --footer-bg: #ffffff;
+    
+    /* الأبعاد */
+    --sidebar-width: 250px;
+    --sidebar-collapsed-width: 80px;
+    --footer-height: 50px;
+    
+    /* الظلال */
+    --box-shadow: 0 0.15rem 1.75rem 0 rgba(0, 0, 0, 0.15);
+    --box-shadow-sm: 0 0.125rem 0.25rem 0 rgba(0, 0, 0, 0.1);
+    --shadow-md: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+    
+    /* تأثيرات */
+    --border-radius-sm: 0.2rem;
+    --border-radius-lg: 0.5rem;
+    
+    /* الخطوط */
+    --font-size-base: 0.9rem;
+    --font-size-sm: 0.8rem;
+    --font-size-lg: 1rem;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-bold: 600;
+    
+    /* متغيرات الإشعارات */
+    --notification-icon-size: 40px;
+    --notification-dropdown-width: 360px;
+    --notification-unread-bg: rgba(1, 87, 138, 0.05);
+    --notification-hover-bg: var(--gray-100);
+    --notification-text-color: var(--gray-700);
+    --notification-time-color: var(--gray-500);
+    --notification-badge-size: 20px;
+    
+    /* ألوان خلفيات ناعمة للأيقونات */
+    --bg-soft-primary: #e1f0ff;
+    --bg-soft-secondary: #e9ecef;
+    --bg-soft-success: #dffcf0;
+    --bg-soft-info: #e0f7ff;
+    --bg-soft-warning: #fff8e0;
+    --bg-soft-danger: #ffebeb;
+    --bg-soft-light: #f8f9fa;
+    --bg-soft-dark: #eaeaea;
+}
+
+/* متغيرات إضافية للأجهزة المحمولة، تضاف من خلال media queries في ملفات CSS المعنية */
+
+@media (max-width: 767px) {
+    :root {
+        --footer-height: 80px;
+        --notification-dropdown-width: 300px;
+    }
+} 

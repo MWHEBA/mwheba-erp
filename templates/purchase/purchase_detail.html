@@ -1,0 +1,884 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/variables.css' %}">
+<style>
+    .invoice-container {
+        background-color: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-6);
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .invoice-header {
+        position: relative;
+        background: linear-gradient(120deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+        color: white;
+        padding: var(--spacing-4);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .invoice-header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 200px;
+        height: 100%;
+        background-image: url("data:image/svg+xml,%3Csvg width='100' height='100' viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M11 18c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm48 25c3.866 0 7-3.134 7-7s-3.134-7-7-7-7 3.134-7 7 3.134 7 7 7zm-43-7c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3zm63 31c1.657 0 3-1.343 3-3s-1.343-3-3-3-3 1.343-3 3 1.343 3 3 3z' fill='rgba(255,255,255,.05)' fill-rule='evenodd'/%3E%3C/svg%3E");
+        opacity: 0.2;
+        pointer-events: none;
+    }
+    
+    .invoice-number {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-bottom: var(--spacing-1);
+        letter-spacing: 0.5px;
+    }
+    
+    .invoice-status {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 30px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin-right: var(--spacing-3);
+    }
+    
+    .invoice-status-paid {
+        background-color: rgba(40, 167, 69, 0.9);
+        color: white;
+    }
+    
+    .invoice-status-partially-paid {
+        background-color: rgba(253, 126, 20, 0.9);
+        color: white;
+    }
+    
+    .invoice-status-unpaid {
+        background-color: rgba(220, 53, 69, 0.9);
+        color: white;
+    }
+    
+    .invoice-meta {
+        display: flex;
+        justify-content: space-between;
+        margin-top: var(--spacing-4);
+    }
+    
+    .invoice-body {
+        padding: var(--spacing-6);
+    }
+    
+    .invoice-parties {
+        display: flex;
+        gap: var(--spacing-6);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    .invoice-party {
+        flex: 1;
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius);
+        background-color: var(--gray-50);
+        border-left: 4px solid var(--primary-color);
+    }
+    
+    .party-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: var(--spacing-3);
+        border-bottom: 1px dashed var(--gray-300);
+        padding-bottom: var(--spacing-2);
+    }
+    
+    .party-info {
+        margin-bottom: var(--spacing-2);
+    }
+    
+    .party-label {
+        font-weight: 600;
+        color: var(--gray-600);
+        margin-bottom: var(--spacing-1);
+    }
+    
+    .party-value {
+        font-size: 1.1rem;
+    }
+    
+    .invoice-items {
+        margin-top: var(--spacing-6);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    .invoice-items table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .invoice-items table thead th {
+        background-color: var(--gray-100);
+        padding: var(--spacing-3);
+        font-weight: 600;
+        text-align: right;
+        border-bottom: 2px solid var(--primary-color);
+        border-top: 1px solid var(--gray-200);
+        color: var(--gray-700);
+    }
+    
+    .invoice-items table tbody tr {
+        transition: all 0.2s ease;
+        font-size: 1.2rem;
+        line-height: 1.5;
+    }
+    
+    .invoice-items table tbody tr td {
+        padding: 15px 10px;
+        vertical-align: middle;
+    }
+    
+    .invoice-items table tbody tr:hover {
+        background-color: var(--gray-50);
+    }
+    
+    .invoice-summary {
+        background-color: var(--gray-50);
+        border-radius: var(--border-radius);
+        padding: var(--spacing-4);
+        margin-top: var(--spacing-6);
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--gray-200);
+    }
+    
+    .invoice-summary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        width: 6px;
+        background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--spacing-2) 0;
+        border-bottom: 1px dashed var(--gray-300);
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+        margin-top: var(--spacing-3);
+        padding-top: var(--spacing-3);
+        border-top: 2px solid var(--gray-300);
+        font-weight: 700;
+        font-size: 1.2rem;
+        color: var(--primary-color);
+    }
+    
+    .summary-label {
+        font-weight: 600;
+        color: var(--gray-600);
+    }
+    
+    .summary-value {
+        font-weight: 600;
+    }
+    
+    .action-bar {
+        background-color: var(--gray-50);
+        padding: 1.5rem;
+        margin-top: var(--spacing-5);
+        border-radius: var(--border-radius);
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        border: 1px solid var(--gray-200);
+    }
+    
+    .action-bar-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+    }
+    
+
+    
+    .action-button {
+        padding: 0.75rem 1.25rem;
+        border-radius: var(--border-radius);
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: 1rem;
+        text-decoration: none;
+        color: white;
+        min-width: 18%;
+    }
+    
+    .btn-edit {
+        background-color: var(--warning-color);
+        color: white;
+    }
+    
+    .btn-delete {
+        background-color: var(--danger-color);
+        color: white;
+    }
+    
+    .btn-print {
+        background-color: var(--info-color);
+        color: white;
+    }
+    
+    .btn-payment {
+        background-color: var(--success-color);
+        color: white !important;
+        text-decoration: none !important;
+    }
+    
+    .btn-return {
+        background-color: var(--secondary-color);
+        color: white;
+    }
+    
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        color: white;
+        text-decoration: none;
+    }
+    
+    .invoice-notes {
+        margin-top: var(--spacing-6);
+        padding: var(--spacing-4);
+        background-color: var(--gray-50);
+        border-radius: var(--border-radius);
+        border-right: 4px solid var(--primary-color);
+    }
+    
+    .notes-title {
+        font-weight: 600;
+        color: var(--gray-700);
+        margin-bottom: var(--spacing-2);
+    }
+    
+    .notes-content {
+        color: var(--gray-600);
+        line-height: 1.6;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+        margin-bottom: var(--spacing-4);
+        padding-bottom: var(--spacing-2);
+        border-bottom: 1px solid var(--gray-200);
+        display: flex;
+        align-items: center;
+    }
+    
+    .section-title i {
+        margin-left: var(--spacing-2);
+        color: var(--primary-color);
+    }
+    
+    /* تنسيق جداول المرتجعات والمدفوعات */
+    .related-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        border-radius: var(--border-radius);
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .related-table thead th {
+        background-color: var(--gray-100);
+        padding: var(--spacing-3);
+        font-weight: 600;
+        text-align: right;
+        color: var(--gray-700);
+        border-bottom: 2px solid var(--primary-color);
+    }
+    
+    .related-table tbody td {
+        padding: var(--spacing-3);
+        border-bottom: 1px solid var(--gray-200);
+        background-color: white;
+    }
+    
+    .related-table tbody tr:hover td {
+        background-color: var(--gray-50);
+    }
+    
+    .badge {
+        display: inline-block;
+        padding: 0.3rem 0.8rem;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: 600;
+    }
+    
+    /* تنسيق أزرار الإجراءات في الجداول */
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+        border-radius: 0.2rem;
+        margin-right: 0.2rem;
+    }
+    
+    .btn-sm i {
+        font-size: 0.875rem;
+    }
+    
+    .btn-sm:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    /* تأثيرات الصفوف القابلة للنقر */
+    .clickable-row {
+        transition: background-color 0.2s ease;
+    }
+    
+    .clickable-row:hover,
+    .table-hover-effect {
+        background-color: rgba(0, 123, 255, 0.1) !important;
+        transform: scale(1.01);
+        transition: all 0.2s ease;
+    }
+    
+    .clickable-row:active {
+        background-color: rgba(0, 123, 255, 0.2) !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">عرض تفاصيل فاتورة المشتريات وإدارتها</p>
+                </div>
+            </div>
+            <div class="action-buttons d-flex flex-wrap gap-2">
+                {% if purchase.payment_status != 'paid' %}
+                <a href="{% url 'purchase:purchase_edit' purchase.pk %}" class="btn btn-warning">
+                    <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
+                </a>
+                <a href="{% url 'purchase:purchase_delete' purchase.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
+                </a>
+                {% endif %}
+                <a href="{% url 'purchase:purchase_print' purchase.pk %}" class="btn btn-info">
+                    <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
+                </a>
+                <a href="{% url 'purchase:purchase_return' purchase.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-undo me-1"></i> {% trans "مرتجع" %}
+                </a>
+                {% if purchase.payment_status != 'paid' %}
+                <a href="{% url 'purchase:purchase_add_payment' purchase.pk %}" class="btn btn-success">
+                    <i class="fas fa-money-bill me-1"></i> {% trans "إضافة دفعة" %}
+                </a>
+                {% endif %}
+                <a href="{% url 'purchase:purchase_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="invoice-container">
+                <div class="invoice-header">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <div class="invoice-number">{{ purchase.number }}</div>
+                            <div class="d-flex align-items-center mt-1">
+                                <small class="me-2">{% trans "تاريخ:" %} {{ purchase.date|date:"d-m-Y" }}</small>
+                                <span class="invoice-status 
+                                    {% if purchase.payment_status == 'paid' %}invoice-status-paid
+                                    {% elif purchase.payment_status == 'partially_paid' %}invoice-status-partially-paid
+                                    {% else %}invoice-status-unpaid{% endif %}">
+                                    {{ purchase.get_payment_status_display }}
+                                </span>
+                                {% if purchase.is_returned %}
+                                    {% if purchase.return_status == 'full' %}
+                                    <span class="badge bg-danger">{% trans "مرتجع كلي" %}</span>
+                                    {% elif purchase.return_status == 'partial' %}
+                                    <span class="badge bg-warning">{% trans "مرتجع جزئي" %}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="text-end">
+                            <div><small class="opacity-75">{% trans "إنشاء:" %}</small> {{ purchase.created_at|date:"d-m-Y H:i" }}</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="invoice-body">
+                    <div class="invoice-parties">
+                        <div class="invoice-party">
+                            <div class="party-title">
+                                <i class="fas fa-user me-2"></i> {% trans "معلومات المورد" %}
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "المورد:" %}</div>
+                                <div class="party-value">
+                                    <a href="{% url 'supplier:supplier_detail' purchase.supplier.id %}" class="text-primary">
+                                        <i class="fas fa-user-circle me-1"></i> {{ purchase.supplier.name }}
+    </a>
+</div>
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "العنوان:" %}</div>
+                                <div class="party-value">{{ purchase.supplier.address|default:"غير متوفر" }}</div>
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "الهاتف:" %}</div>
+                                <div class="party-value">{{ purchase.supplier.phone|default:"غير متوفر" }}</div>
+                            </div>
+                        </div>
+                        
+                        <div class="invoice-party">
+                            <div class="party-title">
+                                <i class="fas fa-file-invoice me-2"></i> {% trans "معلومات الفاتورة" %}
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "المستودع:" %}</div>
+                                <div class="party-value">
+                                    <a href="{% url 'product:warehouse_detail' purchase.warehouse.id %}" class="text-primary">
+                                        <i class="fas fa-warehouse me-1"></i> {{ purchase.warehouse.name }}
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "طريقة الدفع:" %}</div>
+                                <div class="party-value">{{ purchase.get_payment_method_display }}</div>
+                            </div>
+                            <div class="party-info">
+                                <div class="party-label">{% trans "العملة:" %}</div>
+                                <div class="party-value">{{ purchase.currency|default:"جنيه مصري" }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if purchase.notes %}
+                    <div class="invoice-notes">
+                        <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات:" %}</div>
+                        <div class="notes-content">{{ purchase.notes }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="invoice-items">
+                        <div class="section-title">
+                            <i class="fas fa-boxes"></i> {% trans "بنود الفاتورة" %}
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>{% trans "المنتج" %}</th>
+                                        <th style="width: 100px;">{% trans "الكمية" %}</th>
+                                        <th style="width: 150px;">{% trans "سعر الوحدة" %}</th>
+                                        <th style="width: 150px;">{% trans "الخصم" %}</th>
+                                        <th style="width: 150px;">{% trans "الإجمالي" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in purchase.items.all %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td class="fw-bold">{{ item.product.name }}</td>
+                                        <td class="fw-bold">{{ item.quantity|floatformat:"0" }}</td>
+                                        <td>{{ item.unit_price|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td>{{ item.discount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td class="fw-bold">{{ item.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="invoice-summary">
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
+                            <div class="summary-value">{{ purchase.subtotal|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "الخصم:" %}</div>
+                            <div class="summary-value">{{ purchase.discount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "الإجمالي:" %}</div>
+                            <div class="summary-value">{{ purchase.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "المدفوع:" %}</div>
+                            <div class="summary-value">{{ purchase.amount_paid|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "المتبقي:" %}</div>
+                            <div class="summary-value">{{ purchase.amount_due|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-bar">
+                        <div class="action-bar-buttons">
+                            {% if purchase.payment_status != 'paid' %}
+                            <a href="{% url 'purchase:purchase_edit' purchase.pk %}" class="action-button btn-edit">
+                                <i class="fas fa-edit me-1"></i> {% trans "تعديل" %}
+                            </a>
+                            {% endif %}
+                            {% if not purchase.is_returned or purchase.return_status == 'partial' %}
+                            <a href="{% url 'purchase:purchase_return' purchase.pk %}" class="action-button btn-return">
+                                <i class="fas fa-undo me-1"></i> {% trans "مرتجع" %}
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'purchase:purchase_print' purchase.pk %}" class="action-button btn-print">
+                                <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
+                            </a>
+                            {% if purchase.payment_status != 'paid' %}
+                            <a href="{% url 'purchase:purchase_add_payment' purchase.pk %}" class="action-button btn-payment">
+                                <i class="fas fa-money-bill me-1"></i> {% trans "إضافة دفعة" %}
+                            </a>
+                            <a href="{% url 'purchase:purchase_delete' purchase.pk %}" class="action-button btn-delete" onclick="return confirm('هل أنت متأكد من حذف هذه الفاتورة؟')">
+                                <i class="fas fa-trash me-1"></i> {% trans "حذف" %}
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- بداية قسم المرتجعات -->
+                    {% if purchase.returns.exists %}
+                    <div class="mt-5">
+                        <div class="section-title">
+                            <i class="fas fa-undo-alt"></i> {% trans "مرتجعات الفاتورة" %}
+                            <span class="badge bg-danger ms-2">{{ purchase.returns.count }}</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="related-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>{% trans "رقم المرتجع" %}</th>
+                                        <th>{% trans "التاريخ" %}</th>
+                                        <th>{% trans "الإجمالي" %}</th>
+                                        <th>{% trans "الحالة" %}</th>
+                                        <th>{% trans "إجراءات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for return in purchase.returns.all %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>
+                                            <a href="{% url 'purchase:purchase_return_detail' return.pk %}" class="text-decoration-none fw-bold">
+                                                {{ return.number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ return.date|date:"d-m-Y" }}</td>
+                                        <td>{{ return.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td>
+                                            <span class="badge {% if return.status == 'draft' %}bg-warning{% elif return.status == 'confirmed' %}bg-success{% else %}bg-danger{% endif %}">
+                                                {{ return.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'purchase:purchase_return_detail' return.pk %}" class="btn btn-sm btn-info">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            {% if return.status == 'draft' %}
+                                            <a href="{% url 'purchase:purchase_return_confirm' return.pk %}" class="btn btn-sm btn-success" onclick="return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟')">
+                                                <i class="fas fa-check"></i>
+                                            </a>
+                                            <a href="{% url 'purchase:purchase_return_cancel' return.pk %}" class="btn btn-sm btn-danger" onclick="return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')">
+                                                <i class="fas fa-times"></i>
+                                            </a>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <!-- نهاية قسم المرتجعات -->
+                    
+                    <!-- بداية قسم المدفوعات -->
+                    {% if purchase.payments.exists %}
+                    <div class="mt-5">
+                        <div class="section-title">
+                            <i class="fas fa-money-bill-wave"></i> {% trans "سجل المدفوعات" %}
+                            <span class="badge bg-primary ms-2">{{ purchase.payments.count }}</span>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="related-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 50px;">#</th>
+                                        <th>{% trans "الحالة" %}</th>
+                                        <th>{% trans "تاريخ ووقت الدفع" %}</th>
+                                        <th>{% trans "المبلغ" %}</th>
+                                        <th>{% trans "طريقة الدفع" %}</th>
+                                        <th>{% trans "الحساب المالي" %}</th>
+                                        <th>{% trans "القيد المحاسبي" %}</th>
+                                        <th>{% trans "ملاحظات" %}</th>
+                                        <th>{% trans "إجراءات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payment in payments %}
+                                    <tr class="clickable-row" data-payment-url="{% url 'purchase:payment_detail' payment.id %}" style="cursor: pointer;">
+                                        <td>
+                                            {% if payment.financial_transaction and payment.financial_transaction.reference %}
+                                                <strong class="text-primary">{{ payment.financial_transaction.reference }}</strong>
+                                            {% elif payment.reference_number %}
+                                                <strong class="text-primary">{{ payment.reference_number }}</strong>
+                                            {% else %}
+                                                {{ forloop.counter }}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if payment.status == 'draft' %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-file-alt me-1"></i>{% trans "مسودة" %}
+                                            </span>
+                                            {% elif payment.status == 'posted' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check-circle me-1"></i>{% trans "مرحّلة" %}
+                                            </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div>{{ payment.payment_date|date:"d-m-Y" }}</div>
+                                            <small class="text-muted">{{ payment.created_at|date:"h:i A" }}</small>
+                                        </td>
+                                        <td class="fw-bold">{{ payment.amount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td>
+                                            {% if payment.payment_method == 'cash' %}
+                                            <span class="badge bg-success">{% trans "نقدي" %}</span>
+                                            {% elif payment.payment_method == 'bank_transfer' %}
+                                            <span class="badge bg-info">{% trans "تحويل بنكي" %}</span>
+                                            {% elif payment.payment_method == 'check' %}
+                                            <span class="badge bg-warning">{% trans "شيك" %}</span>
+                                            {% else %}
+                                            <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if payment.financial_account %}
+                                            <span class="text-primary">
+                                                <i class="fas fa-wallet me-1"></i>{{ payment.financial_account.name }}
+                                            </span>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if payment.financial_transaction %}
+                                            <a href="{% url 'financial:journal_entries_detail' payment.financial_transaction.id %}" class="text-success fw-bold" target="_blank" onclick="event.stopPropagation();">
+                                                <i class="fas fa-book me-1"></i>{{ payment.financial_transaction.number }}
+                                            </a>
+                                            {% else %}
+                                            <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ payment.notes|truncatechars:30|default:"-" }}</td>
+                                        <td onclick="event.stopPropagation();">
+                                            <div class="btn-group" role="group">
+                                                {% if payment.status == 'draft' %}
+                                                <a href="{% url 'purchase:post_payment' payment.id %}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-check me-1"></i>ترحيل
+                                                </a>
+                                                <a href="{% url 'purchase:edit_payment' payment.id %}" class="btn btn-sm btn-outline-secondary" title="تعديل الدفعة">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                {% elif payment.status == 'posted' %}
+                                                <a href="{% url 'purchase:unpost_payment' payment.id %}" class="btn btn-sm btn-warning">
+                                                    <i class="fas fa-undo me-1"></i>إلغاء الترحيل
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if purchase.amount_due > 0 %}
+                        <div class="mt-3 text-end">
+                            <a href="{% url 'purchase:purchase_add_payment' purchase.id %}" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus me-1"></i> {% trans "إضافة دفعة جديدة" %}
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <!-- نهاية قسم المدفوعات -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // إصلاح مشكلة القوائم المنسدلة في بوتستراب 5
+        if (typeof bootstrap !== 'undefined') {
+            // استخدام Bootstrap 5 API
+            var dropdownElementList = document.querySelectorAll('.dropdown-toggle');
+            var dropdownList = [...dropdownElementList].map(dropdownToggleEl => new bootstrap.Dropdown(dropdownToggleEl));
+            
+            // بديل يدوي في حالة وجود مشاكل مع Bootstrap 5
+            if (dropdownElementList.length > 0 && typeof bootstrap.Dropdown === 'undefined') {
+                $('.dropdown button').on('click', function() {
+                    $(this).siblings('.dropdown-menu').toggleClass('show');
+                });
+                
+                $(document).on('click', function(e) {
+                    if (!$(e.target).closest('.dropdown').length) {
+                        $('.dropdown-menu').removeClass('show');
+                    }
+                });
+            }
+        } else {
+            // الاعتماد على الحل اليدوي
+            $('.dropdown button').on('click', function() {
+                $(this).siblings('.dropdown-menu').toggleClass('show');
+            });
+            
+            $(document).on('click', function(e) {
+                if (!$(e.target).closest('.dropdown').length) {
+                    $('.dropdown-menu').removeClass('show');
+                }
+            });
+        }
+        
+        // تفعيل Tooltips
+        if (typeof bootstrap !== 'undefined' && typeof bootstrap.Tooltip !== 'undefined') {
+            var tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            var tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+        }
+        
+        // تنسيق الأزرار
+        $('.btn-edit, .btn-return, .btn-print, .btn-payment, .action-button').each(function() {
+            $(this).on('mouseover', function() {
+                $(this).css('color', 'white');
+            });
+        });
+        
+        // معالجة أزرار الترحيل والإلغاء مع رسالة تأكيد واحدة فقط
+        $('.btn-post-payment, .btn-unpost-payment').on('click', function(e) {
+            e.preventDefault();
+            var confirmMessage = $(this).data('confirm');
+            var href = $(this).attr('href');
+            
+            if (confirm(confirmMessage)) {
+                window.location.href = href;
+            }
+        });
+        
+        // معالجة النقر على صفوف الدفعات
+        $('.clickable-row').on('click', function(e) {
+            // تجاهل النقر إذا كان على زر أو رابط
+            if ($(e.target).closest('a, button, .btn-group').length > 0) {
+                return;
+            }
+            
+            var paymentUrl = $(this).data('payment-url');
+            if (paymentUrl) {
+                window.location.href = paymentUrl;
+            }
+        });
+        
+        // إضافة تأثير hover للصفوف القابلة للنقر
+        $('.clickable-row').hover(
+            function() {
+                $(this).addClass('table-hover-effect');
+            },
+            function() {
+                $(this).removeClass('table-hover-effect');
+            }
+        );
+    });
+    
+    // عرض SweetAlert للترحيل بعد حفظ الدفعة
+    {% if show_post_alert %}
+    document.addEventListener('DOMContentLoaded', function() {
+        showPostAfterSaveAlert(
+            '',
+            '/purchases/payments/{{ show_post_alert.payment_id }}/post/',
+            'الدفعة'
+        );
+    });
+    {% endif %}
+</script>
+{% endblock %} 

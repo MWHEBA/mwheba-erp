@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}أوامر الشراء{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>
+                            الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">
+                            <i class="fas fa-shopping-bag me-1"></i>
+                            المشتريات
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-clipboard-list me-1"></i>
+                        طلبات الشراء
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-clipboard-list fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">طلبات الشراء</h1>
+                    <p class="text-muted mb-0">قائمة بطلبات الشراء المرسلة للموردين (قبل استلام البضائع)</p>
+                </div>
+            </div>
+            
+            <div>
+                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>{% trans "إضافة طلب شراء" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">{% trans "طلبات الشراء" %}</h5>
+                            <span class="badge bg-primary">{{ purchase_orders.count }} {% trans "طلب" %}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if purchase_orders %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>{% trans "رقم الأمر" %}</th>
+                                        <th>{% trans "التاريخ" %}</th>
+                                        <th>{% trans "المورد" %}</th>
+                                        <th>{% trans "المستودع" %}</th>
+                                        <th>{% trans "التاريخ المتوقع للاستلام" %}</th>
+                                        <th>{% trans "الحالة" %}</th>
+                                        <th>{% trans "خيارات" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order in purchase_orders %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td><code>{{ order.number }}</code></td>
+                                        <td>{{ order.date|date:"d-m-Y" }}</td>
+                                        <td>{{ order.supplier.name }}</td>
+                                        <td>{{ order.warehouse.name }}</td>
+                                        <td>{{ order.expected_date|date:"d-m-Y"|default:"-" }}</td>
+                                        <td>
+                                            {% if order.status == 'draft' %}
+                                            <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+                                            {% elif order.status == 'confirmed' %}
+                                            <span class="badge bg-primary">{% trans "مؤكد" %}</span>
+                                            {% elif order.status == 'received' %}
+                                            <span class="badge bg-success">{% trans "مستلم" %}</span>
+                                            {% else %}
+                                            <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-outline-info" title="{% trans 'عرض' %}">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-outline-primary" title="{% trans 'تعديل' %}">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-outline-danger" title="{% trans 'حذف' %}">
+                                                    <i class="fas fa-trash"></i>
+                                                </a>
+                                                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-outline-success" title="{% trans 'تحويل لفاتورة' %}">
+                                                    <i class="fas fa-file-invoice"></i>
+                                                </a>
+                                                <a href="#" onclick="alert('قيد التطوير');" class="btn btn-outline-info" title="{% trans 'طباعة' %}">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if is_paginated %}
+                            {% include 'partials/pagination.html' %}
+                        {% endif %}
+                        
+                        {% else %}
+                            {% include 'partials/empty_state.html' with message="لا توجد أوامر شراء متاحة" icon="clipboard-list" %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // تفعيل تنسيق الجدول
+        if (document.querySelector('.table')) {
+            initDataTableArabic('.table', {
+                pageLength: 25,
+                responsive: true,
+                order: [[0, 'desc']] // ترتيب تنازلي حسب العمود الأول (التاريخ)
+            });
+        }
+    });
+</script>
+{% endblock %} 

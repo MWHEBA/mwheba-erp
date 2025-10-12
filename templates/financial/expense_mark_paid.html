@@ -1,0 +1,171 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .expense-info {
+        padding: 1.5rem;
+        border-radius: 0.5rem;
+        background-color: #f8f9fa;
+        margin-bottom: 1.5rem;
+    }
+    .expense-amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #dc3545;
+    }
+    .account-card {
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    .account-card:hover {
+        border-color: #007bff;
+        box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
+    }
+    .account-card.selected {
+        border-color: #28a745;
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+    .account-balance {
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-check-circle me-2"></i>{{ title }}
+                    </h5>
+                    <a href="{% url 'financial:expense_detail' expense.id %}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>{% trans "العودة" %}
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="expense-info">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-1">{% trans "عنوان المصروف" %}</h6>
+                                <p class="mb-3">{{ expense.title }}</p>
+                                
+                                <h6 class="text-muted mb-1">{% trans "التصنيف" %}</h6>
+                                <p class="mb-3">{{ expense.category.name }}</p>
+                            </div>
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-1">{% trans "المبلغ" %}</h6>
+                                <p class="expense-amount mb-3">{{ expense.amount|custom_number_format }} {% trans "ج.م" %}</p>
+                                
+                                <h6 class="text-muted mb-1">{% trans "التاريخ" %}</h6>
+                                <p class="mb-0">{{ expense.date|date:"d-m-Y" }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <form method="post" id="form-mark-paid">
+                        {% csrf_token %}
+                        
+                        <h5 class="mb-3">{% trans "اختر الحساب للدفع" %}</h5>
+                        
+                        {% if accounts %}
+                            <div class="accounts-container">
+                                {% for account in accounts %}
+                                    <div class="account-card {% if forloop.first %}selected{% endif %}" data-account-id="{{ account.id }}" data-account-balance="{{ account.balance }}">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input account-radio" type="radio" name="account" id="account-{{ account.id }}" value="{{ account.id }}" {% if forloop.first %}checked{% endif %}>
+                                                    <label class="form-check-label" for="account-{{ account.id }}">
+                                                        {{ account.name }}
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div class="account-balance {% if account.balance < expense.amount %}text-danger{% else %}text-success{% endif %}">
+                                                {{ account.balance|custom_number_format }} {% trans "ج.م" %}
+                                            </div>
+                                        </div>
+                                        
+                                        {% if account.balance < expense.amount %}
+                                            <div class="alert alert-warning mt-2 mb-0">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>{% trans "رصيد غير كافٍ" %}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle me-2"></i>{% trans "سيتم إنشاء معاملة مصروف تلقائياً وخصم المبلغ من الحساب المحدد." %}
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <a href="{% url 'financial:expense_detail' expense.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+                                </a>
+                                <button type="submit" class="btn btn-success" id="btn-mark-paid">
+                                    <i class="fas fa-check me-1"></i>{% trans "تأكيد الدفع" %}
+                                </button>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-danger">
+                                <i class="fas fa-exclamation-circle me-2"></i>{% trans "لا توجد حسابات نشطة لدفع المصروف. الرجاء إضافة حساب أولاً." %}
+                            </div>
+                            
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                                <a href="{% url 'financial:expense_detail' expense.id %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>{% trans "العودة" %}
+                                </a>
+                                <a href="{% url 'financial:account_create' %}" class="btn btn-primary">
+                                    <i class="fas fa-plus me-1"></i>{% trans "إضافة حساب" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // تحديد الحساب عند النقر على البطاقة
+        $('.account-card').on('click', function() {
+            $('.account-card').removeClass('selected');
+            $(this).addClass('selected');
+            $(this).find('.account-radio').prop('checked', true);
+        });
+        
+        // تحقق من كفاية الرصيد قبل الإرسال
+        $('#form-mark-paid').on('submit', function(e) {
+            var selectedAccountId = $('input[name="account"]:checked').val();
+            var selectedAccount = $('.account-card[data-account-id="' + selectedAccountId + '"]');
+            var accountBalance = parseFloat(selectedAccount.data('account-balance'));
+            var expenseAmount = {{ expense.amount }};
+            
+            if (accountBalance < expenseAmount) {
+                e.preventDefault();
+                alert('رصيد الحساب المحدد غير كافٍ لتسديد هذا المصروف.');
+                return false;
+            }
+            
+            // تعطيل الزر لمنع النقر المتكرر
+            $('#btn-mark-paid').prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري التنفيذ...');
+        });
+    });
+</script>
+{% endblock %} 

@@ -1,0 +1,23 @@
+{% load i18n %}
+
+{% if item.category.code == 'plates' and item.plate_details %}
+    {% if item.plate_details.plate_size == 'custom' and item.plate_details.custom_width_cm and item.plate_details.custom_height_cm %}
+        <span class="badge bg-warning text-dark">
+            {{ item.plate_details.custom_width_cm|floatformat:0 }}×{{ item.plate_details.custom_height_cm|floatformat:0 }} سم
+        </span>
+    {% else %}
+        <span class="badge bg-info">
+            {% if item.plate_details.plate_size == '35x50' %}
+                35×50 سم
+            {% elif item.plate_details.plate_size == '50x70' %}
+                50×70 سم
+            {% elif item.plate_details.plate_size == '70x100' %}
+                70×100 سم
+            {% else %}
+                {{ item.plate_details.get_plate_size_display }}
+            {% endif %}
+        </span>
+    {% endif %}
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

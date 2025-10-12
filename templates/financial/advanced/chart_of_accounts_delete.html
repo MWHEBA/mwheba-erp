@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0 text-danger">
+                        <i class="{{ page_icon }} me-2"></i>{{ page_title }}
+                    </h1>
+                    <p class="text-muted mb-0">تأكيد حذف الحساب المحاسبي</p>
+                </div>
+                <div>
+                    <a href="#" onclick="window.history.back(); return false;"financial:account_detail' account.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>إلغاء
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>تحذير: حذف الحساب
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>تحذير مهم!
+                        </h6>
+                        <p class="mb-0">
+                            أنت على وشك حذف الحساب التالي. هذا الإجراء سيؤدي إلى إلغاء تنشيط الحساب وليس حذفه نهائياً.
+                            يمكنك إعادة تنشيطه لاحقاً إذا لزم الأمر.
+                        </p>
+                    </div>
+                    
+                    <!-- معلومات الحساب -->
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">معلومات الحساب المراد حذفه</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">كود الحساب:</label>
+                                        <p class="form-control-plaintext">{{ account.code }}</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">اسم الحساب:</label>
+                                        <p class="form-control-plaintext">{{ account.name }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">نوع الحساب:</label>
+                                        <p class="form-control-plaintext">
+                                            {% if account.account_type %}
+                                                {{ account.account_type.name }}
+                                            {% else %}
+                                                <span class="text-muted">غير محدد</span>
+                                            {% endif %}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label fw-bold">الرصيد الافتتاحي:</label>
+                                        <p class="form-control-plaintext">
+                                            {{ account.opening_balance|floatformat:2 }} ج.م
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- تحذيرات إضافية -->
+                    {% if account.children.exists %}
+                    <div class="alert alert-warning" role="alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-info-circle me-2"></i>ملاحظة مهمة
+                        </h6>
+                        <p class="mb-0">
+                            هذا الحساب يحتوي على <strong>{{ account.children.count }}</strong> حساب فرعي.
+                            حذف هذا الحساب قد يؤثر على الحسابات الفرعية.
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- نموذج التأكيد -->
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="confirmDelete" required>
+                            <label class="form-check-label" for="confirmDelete">
+                                أؤكد أنني أريد إلغاء تنشيط هذا الحساب
+                            </label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="#" onclick="window.history.back(); return false;"financial:account_detail' account.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+                                <i class="fas fa-trash me-2"></i>إلغاء تنشيط الحساب
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmCheckbox = document.getElementById('confirmDelete');
+    const deleteBtn = document.getElementById('deleteBtn');
+    
+    confirmCheckbox.addEventListener('change', function() {
+        deleteBtn.disabled = !this.checked;
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="{{ page_icon }}"></i> {{ page_title }}
+                        </h5>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-book fa-4x text-primary mb-3"></i>
+                                    <h5 class="card-title">{% trans "دليل المستخدم" %}</h5>
+                                    <p class="card-text">{% trans "دليل شامل حول كيفية استخدام النظام والعمليات المختلفة" %}</p>
+                                    <a href="#" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#userManualModal">
+                                        <i class="fas fa-eye"></i> {% trans "عرض الدليل" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-video fa-4x text-success mb-3"></i>
+                                    <h5 class="card-title">{% trans "فيديوهات تعليمية" %}</h5>
+                                    <p class="card-text">{% trans "مجموعة من الفيديوهات التوضيحية لخطوات العمل على النظام" %}</p>
+                                    <a href="#" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#tutorialVideosModal">
+                                        <i class="fas fa-play"></i> {% trans "مشاهدة الفيديوهات" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-headset fa-4x text-danger mb-3"></i>
+                                    <h5 class="card-title">{% trans "الدعم الفني" %}</h5>
+                                    <p class="card-text">{% trans "تواصل مع فريق الدعم الفني للمساعدة في حل المشكلات" %}</p>
+                                    <a href="#" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#supportModal">
+                                        <i class="fas fa-ticket-alt"></i> {% trans "طلب مساعدة" %}
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-12">
+                            <div class="accordion" id="faqAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingOne">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                            <i class="fas fa-question-circle me-2"></i> {% trans "الأسئلة الشائعة" %}
+                                        </button>
+                                    </h2>
+                                    <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                                        <div class="accordion-body">
+                                            <div class="mb-4">
+                                                <h6 class="fw-bold">{% trans "كيف يمكنني إنشاء فاتورة جديدة؟" %}</h6>
+                                                <p>{% trans "يمكنك إنشاء فاتورة جديدة عن طريق الانتقال إلى قسم المبيعات ثم النقر على زر 'فاتورة جديدة'. قم بإدخال بيانات العميل والمنتجات ثم حفظ الفاتورة." %}</p>
+                                            </div>
+                                            <div class="mb-4">
+                                                <h6 class="fw-bold">{% trans "كيف يمكنني إضافة منتج جديد؟" %}</h6>
+                                                <p>{% trans "انتقل إلى قسم المنتجات ثم انقر على 'إضافة منتج جديد'. قم بملء البيانات المطلوبة مثل الاسم والكود والسعر وحفظ المنتج." %}</p>
+                                            </div>
+                                            <div class="mb-4">
+                                                <h6 class="fw-bold">{% trans "كيف يمكنني عرض تقارير المبيعات؟" %}</h6>
+                                                <p>{% trans "انتقل إلى قسم التقارير ثم اختر 'تقارير المبيعات'. يمكنك تحديد الفترة الزمنية وتصفية البيانات حسب المنتج أو العميل." %}</p>
+                                            </div>
+                                            <div class="mb-4">
+                                                <h6 class="fw-bold">{% trans "كيف يمكنني إدارة المستخدمين وصلاحياتهم؟" %}</h6>
+                                                <p>{% trans "انتقل إلى قسم الإعدادات ثم اختر 'إدارة المستخدمين'. هنا يمكنك إضافة مستخدمين جدد أو تعديل صلاحيات المستخدمين الحاليين." %}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة دليل المستخدم -->
+<div class="modal fade" id="userManualModal" tabindex="-1" aria-labelledby="userManualModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userManualModalLabel">{% trans "دليل المستخدم" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="text-center mb-4">
+                    <p>{% trans "يمكنك تحميل دليل المستخدم الكامل من الرابط أدناه:" %}</p>
+                    <a href="{% static 'docs/user_manual.pdf' %}" class="btn btn-primary" target="_blank">
+                        <i class="fas fa-download"></i> {% trans "تحميل دليل المستخدم" %}
+                    </a>
+                </div>
+                
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> {% trans "نعمل حاليًا على تحديث دليل المستخدم ليشمل جميع الميزات الجديدة." %}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة الفيديوهات التعليمية -->
+<div class="modal fade" id="tutorialVideosModal" tabindex="-1" aria-labelledby="tutorialVideosModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tutorialVideosModalLabel">{% trans "الفيديوهات التعليمية" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group">
+                    <a href="#" class="list-group-item list-group-item-action" data-video-id="video1">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{% trans "مقدمة إلى النظام" %}</h6>
+                            <small>5:30</small>
+                        </div>
+                        <p class="mb-1">{% trans "نظرة عامة على واجهة النظام وكيفية التنقل بين الأقسام المختلفة" %}</p>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" data-video-id="video2">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{% trans "إدارة المبيعات" %}</h6>
+                            <small>8:45</small>
+                        </div>
+                        <p class="mb-1">{% trans "شرح مفصل لعملية إنشاء وإدارة فواتير المبيعات" %}</p>
+                    </a>
+                    <a href="#" class="list-group-item list-group-item-action" data-video-id="video3">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">{% trans "إدارة المخزون" %}</h6>
+                            <small>7:20</small>
+                        </div>
+                        <p class="mb-1">{% trans "شرح كيفية إدارة المخزون وإضافة المنتجات وتعديلها" %}</p>
+                    </a>
+                </div>
+                
+                <div class="mt-4">
+                    <div class="ratio ratio-16x9">
+                        <iframe id="videoPlayer" src="" title="YouTube video player" allowfullscreen></iframe>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة الدعم الفني -->
+<div class="modal fade" id="supportModal" tabindex="-1" aria-labelledby="supportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="supportModalLabel">{% trans "طلب دعم فني" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="supportForm">
+                    <div class="mb-3">
+                        <label for="issueType" class="form-label">{% trans "نوع المشكلة" %}</label>
+                        <select class="form-select" id="issueType" required>
+                            <option value="">{% trans "اختر نوع المشكلة" %}</option>
+                            <option value="technical">{% trans "مشكلة تقنية" %}</option>
+                            <option value="account">{% trans "مشكلة في الحساب" %}</option>
+                            <option value="feature">{% trans "استفسار عن ميزة" %}</option>
+                            <option value="other">{% trans "أخرى" %}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="issueDescription" class="form-label">{% trans "وصف المشكلة" %}</label>
+                        <textarea class="form-control" id="issueDescription" rows="4" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="contactMethod" class="form-label">{% trans "طريقة التواصل المفضلة" %}</label>
+                        <select class="form-select" id="contactMethod" required>
+                            <option value="email">{% trans "البريد الإلكتروني" %}</option>
+                            <option value="phone">{% trans "الهاتف" %}</option>
+                            <option value="whatsapp">{% trans "واتساب" %}</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="urgencyLevel" class="form-label">{% trans "مستوى الأهمية" %}</label>
+                        <select class="form-select" id="urgencyLevel" required>
+                            <option value="low">{% trans "منخفض" %}</option>
+                            <option value="medium">{% trans "متوسط" %}</option>
+                            <option value="high">{% trans "عالي" %}</option>
+                            <option value="critical">{% trans "حرج" %}</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إغلاق" %}</button>
+                <button type="button" class="btn btn-primary" id="submitSupportBtn">{% trans "إرسال الطلب" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block javascripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // معالج النقر على الفيديوهات التعليمية
+        document.querySelectorAll('[data-video-id]').forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const videoId = this.getAttribute('data-video-id');
+                let videoUrl = '';
+                
+                // هنا يمكنك وضع روابط الفيديوهات الفعلية
+                switch(videoId) {
+                    case 'video1':
+                        videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                        break;
+                    case 'video2':
+                        videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                        break;
+                    case 'video3':
+                        videoUrl = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+                        break;
+                    default:
+                        videoUrl = '';
+                }
+                
+                document.getElementById('videoPlayer').src = videoUrl;
+            });
+        });
+        
+        // معالج إرسال نموذج الدعم الفني
+        document.getElementById('submitSupportBtn').addEventListener('click', function() {
+            const form = document.getElementById('supportForm');
+            if (form.checkValidity()) {
+                // إظهار رسالة نجاح
+                alert('{% trans "تم إرسال طلب الدعم الفني بنجاح وسيتم التواصل معك قريبًا" %}');
+                // إغلاق النافذة المنبثقة
+                const modal = bootstrap.Modal.getInstance(document.getElementById('supportModal'));
+                modal.hide();
+                // إعادة تعيين النموذج
+                form.reset();
+            } else {
+                // تحفيز التحقق من صحة النموذج
+                form.reportValidity();
+            }
+        });
+    });
+</script>
+{% endblock %} 

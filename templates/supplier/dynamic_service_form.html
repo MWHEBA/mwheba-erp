@@ -1,0 +1,439 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/components.css' %}" rel="stylesheet">
+<link href="{% static 'css/dynamic_services.css' %}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'supplier:supplier_list' %}">
+                            <i class="fas fa-truck me-1"></i>الموردين
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'supplier:supplier_detail' supplier.pk %}">
+                            <i class="fas fa-building me-1"></i>{{ supplier.name }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page" id="breadcrumb-title">
+                        <i class="{{ page_icon }} me-1"></i>
+                        {% if is_edit %}
+                            تعديل خدمة - {{ service.name }}
+                        {% elif selected_category == 'paper' %}
+                            إضافة ورق
+                        {% elif request.GET.category == 'offset_printing' %}
+                            إضافة ماكينة أوفست
+                        {% elif request.GET.category == 'digital_printing' %}
+                            إضافة ماكينة ديجيتال
+                        {% elif request.GET.category == 'finishing' %}
+                            إضافة خدمة طباعة
+                        {% elif request.GET.category == 'plates' %}
+                            إضافة نوع زنك CTP
+                        {% else %}
+                            إضافة خدمة متخصصة
+                        {% endif %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="{{ page_icon }} fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1" id="page-title">
+                        {% if is_edit %}
+                            تعديل خدمة: {{ service.name }}
+                        {% elif selected_category == 'paper' %}
+                            إضافة ورق
+                        {% elif selected_category == 'offset_printing' %}
+                            إضافة ماكينة أوفست
+                        {% elif selected_category == 'digital_printing' %}
+                            إضافة ماكينة ديجيتال
+                        {% elif selected_category == 'finishing' %}
+                            إضافة خدمة طباعة
+                        {% elif selected_category == 'plates' %}
+                            إضافة نوع زنك CTP
+                        {% else %}
+                            إضافة خدمة متخصصة
+                        {% endif %}
+                        {% if not is_edit %}
+                        <a href="#" id="change-category-link" class="text-decoration-none ms-2" 
+                           style="font-size: 12px; color: var(--gray-500);"
+                           onclick="toggleCategorySelection()">
+                            (تغيير)
+                        </a>
+                        {% endif %}
+                    </h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-building me-1"></i>
+                        المورد: <strong>{{ supplier.name }}</strong>
+                    </p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>رجوع
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <form id="dynamic-service-form" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="supplier_id" value="{{ supplier.id }}">
+        {% if is_edit and service %}
+        <input type="hidden" name="service_id" value="{{ service.id }}">
+        {% endif %}
+        
+        <!-- اختيار نوع الخدمة -->
+        <div class="form-section" id="category-selection-section" {% if selected_category %}style="display: none;"{% else %}style="display: block;"{% endif %}>
+            <div class="form-section-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tags me-2"></i>
+                    اختيار نوع الخدمة
+                </h5>
+            </div>
+            <div class="form-section-body">
+                <div class="row g-3">
+                    {% for category in categories %}
+                    <div class="col-md-4 col-lg-3">
+                        <div class="category-card p-3 text-center h-100" 
+                             data-category="{{ category.code }}" 
+                             data-name="{{ category.name }}"
+                             data-color="{{ category.color|default:'#6c757d' }}"
+                             onclick="selectCategory(this)">
+                            <i class="{{ category.icon }} fa-2x mb-2 category-icon"></i>
+                            <h6 class="mb-1">{{ category.name }}</h6>
+                            <small class="text-muted">{{ category.description|default:"" }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                
+                <input type="hidden" id="selected-category" name="category_code" value="{{ selected_category }}">
+                
+                <div class="alert alert-info mt-3" id="category-help" style="display: none;">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <span id="category-help-text"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- النموذج الديناميكي -->
+        <div class="form-section" id="dynamic-form-section" {% if is_edit or selected_category %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+            <div class="form-section-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-edit me-2"></i>
+                    <span id="form-title">تفاصيل الخدمة</span>
+                </h5>
+            </div>
+            <div class="form-section-body">
+                <!-- Loading Spinner -->
+                <div class="loading-spinner" id="form-loading" {% if is_edit or selected_category %}style="display: none;"{% else %}style="display: block;"{% endif %}>
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                    </div>
+                    <p class="mt-2 text-muted">جاري تحميل النموذج...</p>
+                </div>
+                
+                <!-- Dynamic Form Container -->
+                <div id="dynamic-form-container">
+                    {% if is_edit %}
+                        {% include form_template %}
+                    {% elif selected_category and form_template %}
+                        {% include form_template %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- أزرار الحفظ -->
+        <div class="form-section" id="save-section" {% if is_edit or selected_category %}style="display: block;"{% else %}style="display: none;"{% endif %}>
+            <div class="form-section-body text-center">
+                <button type="submit" class="btn btn-save btn-lg me-3">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ الخدمة
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-lg" onclick="resetForm()">
+                    <i class="fas fa-undo me-2"></i>
+                    إعادة تعيين
+                </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'js/universal_form_handler.js' %}"></script>
+<script>
+// متغيرات أساسية
+let selectedCategory = {% if is_edit %}'{{ service.category.code }}'{% elif selected_category %}'{{ selected_category }}'{% else %}null{% endif %};
+let priceTiers = [];
+let tierCounter = 0;
+
+// النظام الجديد الموحد فقط
+
+// دوال أساسية للنظام الجديد
+async function selectCategory(element) {
+    document.querySelectorAll('.category-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    
+    element.classList.add('selected');
+    selectedCategory = element.dataset.category;
+    
+    document.getElementById('selected-category').value = selectedCategory;
+    
+    // إخفاء قسم اختيار النوع
+    document.getElementById('category-selection-section').style.display = 'none';
+    
+    // إظهار النموذج مع loading
+    const formSection = document.getElementById('dynamic-form-section');
+    const formContainer = document.getElementById('dynamic-form-container');
+    const formLoading = document.getElementById('form-loading');
+    const saveSection = document.getElementById('save-section');
+    
+    formSection.style.display = 'block';
+    formLoading.style.display = 'block';
+    formContainer.innerHTML = '';
+    
+    try {
+        // تحميل النموذج من الخادم
+        const response = await fetch(`/supplier/api/get-category-form/?category=${selectedCategory}&supplier_id={{ supplier.id }}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            formLoading.style.display = 'none';
+            formContainer.innerHTML = data.html;
+            saveSection.style.display = 'block';
+            
+            // تهيئة النظام الموحد بعد تحميل النموذج
+            if (typeof UniversalFormHandler !== 'undefined') {
+                console.log(`تم اختيار النوع: ${selectedCategory}`);
+                window.universalHandler = new UniversalFormHandler(selectedCategory, null, '{{ supplier.id }}');
+                window.universalHandler.initialize();
+            }
+            
+            // تفعيل إنشاء الاسم التلقائي
+            initializeAutoNameGeneration(selectedCategory);
+        } else {
+            formLoading.style.display = 'none';
+            formContainer.innerHTML = '<div class="alert alert-danger">خطأ في تحميل النموذج</div>';
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل النموذج:', error);
+        formLoading.style.display = 'none';
+        formContainer.innerHTML = '<div class="alert alert-danger">خطأ في الاتصال بالخادم</div>';
+    }
+}
+
+function toggleCategorySelection() {
+    const section = document.getElementById('category-selection-section');
+    const link = document.getElementById('change-category-link');
+    
+    if (section.style.display === 'none') {
+        section.style.display = 'block';
+        link.textContent = '(إخفاء)';
+    } else {
+        section.style.display = 'none';
+        link.textContent = '(تغيير)';
+    }
+}
+
+// دوال إنشاء الاسم التلقائي
+function initializeAutoNameGeneration(categoryCode) {
+    if (categoryCode === 'offset_printing') {
+        initializeOffsetServiceNameGeneration();
+    } else if (categoryCode === 'digital_printing') {
+        initializeDigitalServiceNameGeneration();
+    } else if (categoryCode === 'paper') {
+        initializePaperServiceNameGeneration();
+    }
+}
+
+// إنشاء اسم خدمة الأوفست تلقائياً
+function initializeOffsetServiceNameGeneration() {
+    function generateServiceName() {
+        const machineType = document.getElementById('machine-type');
+        const sheetSize = document.getElementById('sheet-size');
+        const maxColors = document.getElementById('max-colors');
+        const serviceNameField = document.getElementById('service-name');
+        
+        if (machineType && sheetSize && maxColors && serviceNameField) {
+            const machineText = machineType.options[machineType.selectedIndex]?.text || '';
+            const sizeText = sheetSize.options[sheetSize.selectedIndex]?.text || '';
+            const colorsValue = maxColors.value || '1';
+            
+            if (machineText && sizeText) {
+                const serviceName = `ماكينة ${sizeText} - ${colorsValue} لون - ${machineText}`;
+                serviceNameField.value = serviceName;
+                console.log('تم إنشاء اسم الخدمة:', serviceName);
+            }
+        }
+    }
+    
+    // ربط الأحداث
+    setTimeout(() => {
+        const machineType = document.getElementById('machine-type');
+        const sheetSize = document.getElementById('sheet-size');
+        const maxColors = document.getElementById('max-colors');
+        
+        if (machineType) {
+            machineType.addEventListener('change', generateServiceName);
+        }
+        if (sheetSize) {
+            sheetSize.addEventListener('change', generateServiceName);
+        }
+        if (maxColors) {
+            maxColors.addEventListener('change', generateServiceName);
+            maxColors.addEventListener('input', generateServiceName);
+        }
+        
+        // إنشاء الاسم مرة واحدة عند التحميل
+        generateServiceName();
+    }, 500);
+}
+
+// إنشاء اسم خدمة الديجيتال تلقائياً - تم تعطيله لصالح النظام الموحد
+function initializeDigitalServiceNameGeneration() {
+    // تم نقل هذا المنطق إلى النظام الموحد universal_form_handler.js
+    // لتجنب التضارب وضمان التنسيق الصحيح
+    console.log('تم تخطي إنشاء اسم الخدمة الديجيتال - يتم التعامل معه بواسطة النظام الموحد');
+}
+
+// إنشاء اسم خدمة الورق تلقائياً - تم تعطيله لصالح النظام الموحد
+function initializePaperServiceNameGeneration() {
+    // تم نقل هذا المنطق إلى النظام الموحد universal_form_handler.js
+    // لتجنب التضارب وضمان التنسيق الصحيح
+    console.log('تم تخطي إنشاء اسم خدمة الورق - يتم التعامل معه بواسطة النظام الموحد');
+}
+
+// تهيئة النظام الجديد
+document.addEventListener('DOMContentLoaded', function() {
+    // تطبيق ألوان الأيقونات
+    document.querySelectorAll('.category-card').forEach(card => {
+        const icon = card.querySelector('.category-icon');
+        const color = card.dataset.color;
+        if (icon && color) {
+            icon.style.color = color;
+        }
+    });
+    
+    if (typeof UniversalFormHandler !== 'undefined') {
+        console.log('تهيئة النظام الموحد الجديد...');
+        
+        const isEditMode = window.location.pathname.includes('/edit/');
+        const pathParts = window.location.pathname.split('/');
+        const supplierId = pathParts[2];
+        let serviceId = null;
+        
+        if (isEditMode) {
+            const serviceIndex = pathParts.indexOf('specialized-services');
+            if (serviceIndex !== -1 && pathParts[serviceIndex + 1]) {
+                serviceId = pathParts[serviceIndex + 1];
+            }
+        }
+        
+        if (selectedCategory) {
+            console.log(`إنشاء UniversalFormHandler: ${selectedCategory}, Service ID: ${serviceId}, Supplier ID: ${supplierId}`);
+            
+            window.universalHandler = new UniversalFormHandler(selectedCategory, serviceId, supplierId);
+            
+            window.universalHandler.initialize().then(success => {
+                if (success) {
+                    console.log('✅ النظام الموحد جاهز ويعمل بمثالية');
+                    
+                    // إخفاء النظام القديم إذا كان يعمل
+                    if (isEditMode) {
+                        console.log('🎯 وضع التعديل نشط - جميع البيانات محملة');
+                    }
+                } else {
+                    console.warn('⚠️ تحذير: النظام الموحد لم يهيئ بشكل كامل');
+                }
+            }).catch(error => {
+                console.error('❌ خطأ في تهيئة النظام الموحد:', error);
+            });
+        }
+    }
+    
+    // إظهار قسم اختيار النوع في وضع الإضافة (فقط إذا لم يكن هناك category محدد)
+    {% if not is_edit and not selected_category %}
+    const categorySection = document.getElementById('category-selection-section');
+    if (categorySection) {
+        categorySection.style.display = 'block';
+    }
+    {% endif %}
+    
+    // إذا كان هناك category محدد من URL، قم بتحميل النموذج تلقائياً
+    {% if selected_category and not is_edit %}
+    if (selectedCategory && !document.getElementById('dynamic-form-container').innerHTML.trim()) {
+        // تحديد الكرت المناسب كمختار
+        document.querySelectorAll('.category-card').forEach(card => {
+            if (card.dataset.category === selectedCategory) {
+                card.classList.add('selected');
+            }
+        });
+        
+        // تحميل النموذج تلقائياً
+        const formSection = document.getElementById('dynamic-form-section');
+        const formContainer = document.getElementById('dynamic-form-container');
+        const formLoading = document.getElementById('form-loading');
+        const saveSection = document.getElementById('save-section');
+        
+        if (formSection && formContainer && !formContainer.innerHTML.trim()) {
+            formSection.style.display = 'block';
+            formLoading.style.display = 'block';
+            
+            fetch(`/supplier/api/get-category-form/?category=${selectedCategory}&supplier_id={{ supplier.id }}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        formLoading.style.display = 'none';
+                        formContainer.innerHTML = data.html;
+                        saveSection.style.display = 'block';
+                        
+                        // تهيئة النظام الموحد
+                        if (typeof UniversalFormHandler !== 'undefined') {
+                            console.log(`تم تحميل النموذج تلقائياً للنوع: ${selectedCategory}`);
+                            window.universalHandler = new UniversalFormHandler(selectedCategory, null, '{{ supplier.id }}');
+                            window.universalHandler.initialize();
+                        }
+                        
+                        // تفعيل إنشاء الاسم التلقائي
+                        initializeAutoNameGeneration(selectedCategory);
+                    } else {
+                        formLoading.style.display = 'none';
+                        formContainer.innerHTML = '<div class="alert alert-danger">خطأ في تحميل النموذج</div>';
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في تحميل النموذج:', error);
+                    formLoading.style.display = 'none';
+                    formContainer.innerHTML = '<div class="alert alert-danger">خطأ في الاتصال بالخادم</div>';
+                });
+        }
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

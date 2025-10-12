@@ -1,0 +1,16 @@
+{% load i18n %}
+
+<div class="d-flex justify-content-center">
+    <a href="{% url 'supplier:edit_specialized_service' item.supplier.id item.id %}" 
+       class="action-button btn-warning action-edit me-1" 
+       title="تعديل الخدمة">
+        <i class="fas fa-edit"></i>
+    </a>
+    <a href="{% url 'supplier:delete_specialized_service' item.supplier.id item.id %}" 
+       class="action-button btn-danger action-delete" 
+       title="حذف الخدمة"
+       data-confirm="true"
+       onclick="return confirm('هل أنت متأكد من حذف الخدمة {{ item.name }}؟\n\nهذا الإجراء لا يمكن التراجع عنه.')">
+        <i class="fas fa-trash"></i>
+    </a>
+</div>

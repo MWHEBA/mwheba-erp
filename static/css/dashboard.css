@@ -1,0 +1,221 @@
+/**
+ * Dashboard Styles for MWHEBA ERP System
+ * 
+ * يحتوي على ستايلات خاصة بلوحة التحكم
+ */
+
+/**
+ * ===========================
+ * Dashboard Cards
+ * ===========================
+ */
+.dashboard-stats {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-4);
+}
+
+.dashboard-stat-card {
+    flex: 1;
+    min-width: 200px;
+    margin-bottom: var(--spacing-3);
+}
+
+.stat-card-icon {
+    position: absolute;
+    left: var(--spacing-3);
+    bottom: var(--spacing-3);
+    opacity: 0.3;
+    font-size: 2.5rem;
+}
+
+.stat-card.primary .stat-card-icon {
+    color: var(--primary-color);
+}
+
+.stat-card.success .stat-card-icon {
+    color: var(--success-color);
+}
+
+.stat-card.warning .stat-card-icon {
+    color: var(--warning-color);
+}
+
+.stat-card.danger .stat-card-icon {
+    color: var(--danger-color);
+}
+
+.stat-card.info .stat-card-icon {
+    color: var(--info-color);
+}
+
+/**
+ * ===========================
+ * Dashboard Charts
+ * ===========================
+ */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+    margin-bottom: var(--spacing-4);
+}
+
+/**
+ * ===========================
+ * Recent Activity Section
+ * ===========================
+ */
+.activity-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.activity-item {
+    padding: var(--spacing-2) 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    display: flex;
+    align-items: flex-start;
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--border-radius);
+    background-color: rgba(78, 115, 223, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: var(--spacing-2);
+    color: var(--primary-color);
+}
+
+.activity-icon.success {
+    background-color: rgba(28, 200, 138, 0.1);
+    color: var(--success-color);
+}
+
+.activity-icon.warning {
+    background-color: rgba(246, 194, 62, 0.1);
+    color: var(--warning-color);
+}
+
+.activity-icon.danger {
+    background-color: rgba(231, 74, 59, 0.1);
+    color: var(--danger-color);
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-title {
+    font-weight: var(--font-weight-medium);
+    margin-bottom: var(--spacing-1);
+}
+
+.activity-time {
+    font-size: var(--font-size-sm);
+    color: var(--secondary-color);
+}
+
+/**
+ * ===========================
+ * Quick Links Section
+ * ===========================
+ */
+.quick-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.quick-link {
+    flex: 1;
+    min-width: 120px;
+    text-align: center;
+    padding: var(--spacing-3);
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-sm);
+    transition: all var(--transition-speed);
+}
+
+.quick-link:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow);
+}
+
+.quick-link-icon {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-2);
+    color: var(--primary-color);
+}
+
+.quick-link-title {
+    font-weight: var(--font-weight-medium);
+}
+
+/**
+ * ===========================
+ * Quick Link Cards
+ * ===========================
+ */
+.quick-link-card {
+    display: block;
+    text-align: center;
+    padding: var(--spacing-3);
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all var(--transition-speed);
+    margin-bottom: var(--spacing-2);
+    text-decoration: none;
+}
+
+.quick-link-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--box-shadow);
+    border-color: rgba(0, 0, 0, 0.1);
+    text-decoration: none;
+    color: var(--body-color);
+}
+
+.quick-link-card .icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--spacing-3);
+    border-radius: 50%;
+    font-size: 1.5rem;
+}
+
+.quick-link-card .title {
+    font-weight: var(--font-weight-bold);
+    font-size: 1rem;
+    margin-bottom: var(--spacing-1);
+    color: var(--dark-color);
+}
+
+.quick-link-card .description {
+    font-size: var(--font-size-sm);
+    color: var(--secondary-color);
+    margin-top: var(--spacing-1);
+}
+
+/**
+ * ===========================
+ * Low Stock Products
+ * ===========================
+ */
+.low-stock-list {
+    max-height: 300px;
+    overflow-y: auto;
+} 

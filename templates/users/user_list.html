@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% else %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">المستخدمين</li>
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% else %}
+                    <div class="me-3">
+                        <i class="fas fa-users fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <p class="text-muted mb-0">إدارة مستخدمي النظام</p>
+                </div>
+            </div>
+            <div>
+                <a href="#" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i> إضافة مستخدم
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- بطاقة القائمة -->
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <!-- أدوات البحث والفلترة -->
+                <div class="p-3 border-bottom">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="بحث عن اسم مستخدم أو بريد إلكتروني">
+                                <button class="btn btn-outline-primary" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select class="form-select">
+                                <option value="">نوع المستخدم</option>
+                                <option value="admin">مدير</option>
+                                <option value="cashier">كاشير</option>
+                                <option value="sales">مندوب مبيعات</option>
+                                <option value="inventory">أمين مخزن</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select class="form-select">
+                                <option value="">الحالة</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">غير نشط</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- استخدام الجدول الموحد -->
+                {% if users %}
+                  {% with table_id="users-table" %}
+                    {% with headers=headers %}
+                      {% with data=users %}
+                        {% with action_buttons=action_buttons %}
+                          {% with empty_message="لا يوجد مستخدمين مسجلين حتى الآن" %}
+                            {% with show_export=True export_filename="users" %}
+                              {% include "components/data_table.html" %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% else %}
+                  {% include 'partials/empty_state.html' with message="لا يوجد مستخدمين مسجلين حتى الآن" icon="users" %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- الجدول الموحد يتولى جميع الوظائف -->
+{% endblock %} 

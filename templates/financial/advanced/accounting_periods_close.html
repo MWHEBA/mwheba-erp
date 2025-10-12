@@ -1,0 +1,137 @@
+{% extends 'financial/advanced/base_advanced.html' %}
+{% load i18n static %}
+
+{% block extra_css %}
+<style>
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 2rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .warning-icon {
+    font-size: 4rem;
+    color: #dc3545;
+    margin-bottom: 1.5rem;
+  }
+  
+  .period-detail-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border-left: 4px solid #dc3545;
+  }
+  
+  .detail-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.75rem 0;
+    border-bottom: 1px dashed #dee2e6;
+  }
+  
+  .detail-row:last-child {
+    border-bottom: none;
+  }
+  
+  .detail-label {
+    font-weight: 600;
+    color: #495057;
+  }
+  
+  .detail-value {
+    color: #212529;
+  }
+</style>
+{% endblock %}
+
+{% block page_content %}
+<div class="row">
+  <div class="col-md-8 mx-auto">
+    <div class="section-container">
+      <!-- أيقونة التحذير -->
+      <div class="text-center mb-4">
+        <div class="warning-icon">
+          <i class="fas fa-lock"></i>
+        </div>
+        <h3 class="mb-3">هل أنت متأكد من إغلاق هذه الفترة المحاسبية؟</h3>
+        <p class="text-muted">
+          إغلاق الفترة المحاسبية يعني عدم إمكانية إضافة أو تعديل أي قيود محاسبية خلال هذه الفترة.
+          هذا الإجراء يجب أن يتم بعد التأكد من صحة جميع القيود والتقارير المالية.
+        </p>
+      </div>
+      
+      <!-- تفاصيل الفترة -->
+      <div class="period-detail-section">
+        <div class="detail-row">
+          <div class="detail-label">
+            <i class="fas fa-tag me-2"></i>اسم الفترة
+          </div>
+          <div class="detail-value">{{ period.name }}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">
+            <i class="fas fa-calendar-alt me-2"></i>تاريخ البداية
+          </div>
+          <div class="detail-value">{{ period.start_date|date:"d-m-Y" }}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">
+            <i class="fas fa-calendar-check me-2"></i>تاريخ النهاية
+          </div>
+          <div class="detail-value">{{ period.end_date|date:"d-m-Y" }}</div>
+        </div>
+        
+        <div class="detail-row">
+          <div class="detail-label">
+            <i class="fas fa-info-circle me-2"></i>الحالة الحالية
+          </div>
+          <div class="detail-value">
+            {% if period.is_closed %}
+              <span class="badge bg-danger">مغلقة</span>
+            {% else %}
+              <span class="badge bg-success">مفتوحة</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- تحذير هام -->
+      <div class="alert alert-warning mb-4">
+        <div class="d-flex">
+          <div class="me-3">
+            <i class="fas fa-exclamation-triangle fa-2x"></i>
+          </div>
+          <div>
+            <h5 class="alert-heading mb-2">تنبيه هام</h5>
+            <ul class="mb-0">
+              <li>لن تتمكن من إضافة قيود محاسبية جديدة في هذه الفترة</li>
+              <li>لن تتمكن من تعديل القيود الموجودة في هذه الفترة</li>
+              <li>يجب التأكد من صحة جميع التقارير المالية قبل الإغلاق</li>
+              <li>يُنصح بعمل نسخة احتياطية قبل إغلاق الفترة</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+      
+      <!-- نموذج التأكيد -->
+      <form method="post">
+        {% csrf_token %}
+        <div class="d-flex justify-content-between gap-2">
+          <a href="{% url 'financial:accounting_periods_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </a>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-lock me-2"></i>تأكيد الإغلاق
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

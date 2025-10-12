@@ -1,0 +1,865 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% translate "حذف جانب الطباعة" %} | {% translate "إعدادات النظام" %}{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% translate "تأكيد حذف جانب الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% translate "هل أنت متأكد من حذف جانب الطباعة التالي؟" %}</h5>
+            <p>{% translate "هذه العملية لا يمكن التراجع عنها." %}</p>
+            <p class="mb-0">{% translate "حذف جانب الطباعة قد يؤثر على عمليات التسعير المرتبطة به." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% translate "معلومات جانب الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% translate "الاسم" %}:</strong> {{ print_side.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "عدد الجوانب" %}:</strong> {{ print_side.sides_count }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% translate "الحالة" %}:</strong> 
+                    {% if print_side.is_active %}
+                        <span class="badge bg-success">{% translate "نشط" %}</span>
+                    {% else %}
+                        <span class="badge bg-danger">{% translate "غير نشط" %}</span>
+                    {% endif %}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'print_side_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% translate "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% translate "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

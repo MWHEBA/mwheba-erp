@@ -1,0 +1,25 @@
+{% load custom_filters %}
+
+{% comment %}
+خلية نوع الماكينة للطباعة الديجيتال
+المعلمات المطلوبة:
+- item: عنصر البيانات الذي يحتوي على service و details
+{% endcomment %}
+
+{% if item.details %}
+<div class="text-center">
+    <div class="fw-bold text-primary mb-1">
+        {{ item.details.get_machine_type_display|default:"غير محدد" }}
+    </div>
+    {% if item.details.machine_model %}
+    <small class="text-muted d-block">
+        {{ item.details.machine_model }}
+    </small>
+    {% endif %}
+</div>
+{% else %}
+<div class="text-center text-muted">
+    <i class="fas fa-question-circle"></i>
+    <small class="d-block">غير محدد</small>
+</div>
+{% endif %}

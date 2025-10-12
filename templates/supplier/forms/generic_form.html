@@ -1,0 +1,196 @@
+<!-- نموذج عام للخدمات الأخرى -->
+<div class="generic-service-form">
+    <!-- الحقول الأساسية -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="form-floating">
+                <input type="text" class="form-control" name="name" id="service-name" 
+                       placeholder="اسم الخدمة" required>
+                <label for="service-name">اسم الخدمة *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="text" class="form-control" name="unit_type" 
+                       id="unit-type" placeholder="نوع الوحدة" value="قطعة">
+                <label for="unit-type">نوع الوحدة</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="price_per_unit" 
+                       id="price-per-unit" placeholder="سعر الوحدة" step="0.01" min="0" required>
+                <label for="price-per-unit">سعر الوحدة (ج.م) *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="base_price" 
+                       id="base-price" placeholder="السعر الأساسي" step="0.01" min="0" required>
+                <label for="base-price">السعر الأساسي (ج.م) *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="min_quantity" 
+                       id="min-quantity" placeholder="الحد الأدنى" min="1" value="1" required>
+                <label for="min-quantity">الحد الأدنى للكمية *</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="setup_cost" 
+                       id="setup-cost" placeholder="تكلفة التجهيز" step="0.01" min="0" value="0">
+                <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="delivery_time" 
+                       id="delivery-time" placeholder="وقت التسليم" min="1" value="24">
+                <label for="delivery-time">وقت التسليم (ساعات)</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-12">
+            <div class="form-floating">
+                <textarea class="form-control" name="service_details" id="service-details" 
+                          placeholder="تفاصيل الخدمة" style="height: 100px;"></textarea>
+                <label for="service-details">تفاصيل الخدمة</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="form-floating">
+                <textarea class="form-control" name="description" id="description" 
+                          placeholder="وصف الخدمة" style="height: 80px;"></textarea>
+                <label for="description">وصف الخدمة</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <textarea class="form-control" name="notes" id="notes" 
+                          placeholder="ملاحظات" style="height: 80px;"></textarea>
+                <label for="notes">ملاحظات</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+        <div class="col-md-12">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" checked>
+                <label class="form-check-label" for="is-active">
+                    الخدمة نشطة
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات إضافية -->
+    <div class="alert alert-light border">
+        <h6 class="alert-heading">
+            <i class="fas fa-info-circle text-primary me-2"></i>
+            معلومات عن الخدمات العامة
+        </h6>
+        <ul class="mb-0 small">
+            <li>يمكن استخدام هذا النموذج لأي نوع خدمة غير متخصصة</li>
+            <li>تأكد من تحديد نوع الوحدة بوضوح (قطعة، متر، ساعة، إلخ)</li>
+            <li>أضف تفاصيل كافية في وصف الخدمة لتوضيح طبيعة العمل</li>
+        </ul>
+    </div>
+
+    <!-- حاسبة سريعة -->
+    <div class="card mt-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0">
+                <i class="fas fa-calculator me-2"></i>
+                حاسبة سريعة للتكلفة
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">الكمية المطلوبة</label>
+                    <input type="number" class="form-control" id="calc-quantity" 
+                           placeholder="الكمية" min="1" value="10">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">شامل التجهيز</label>
+                    <div class="form-check form-switch mt-2">
+                        <input class="form-check-input" type="checkbox" id="include-setup" 
+                               checked onchange="calculateQuickCost()">
+                        <label class="form-check-label" for="include-setup">
+                            تكلفة التجهيز
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">التكلفة المتوقعة</label>
+                    <input type="text" class="form-control bg-light" id="calc-result" 
+                           placeholder="سيتم الحساب تلقائياً" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// تحديث السعر الأساسي من سعر الوحدة
+document.getElementById('price-per-unit').addEventListener('input', function() {
+    const basePriceField = document.getElementById('base-price');
+    if (!basePriceField.value) {
+        basePriceField.value = this.value;
+    }
+    calculateQuickCost();
+});
+
+// حاسبة سريعة
+function calculateQuickCost() {
+    const quantity = parseInt(document.getElementById('calc-quantity').value) || 0;
+    const pricePerUnit = parseFloat(document.getElementById('price-per-unit').value) || 0;
+    const setupCost = parseFloat(document.getElementById('setup-cost').value) || 0;
+    const includeSetup = document.getElementById('include-setup').checked;
+    
+    if (quantity > 0 && pricePerUnit > 0) {
+        let totalCost = quantity * pricePerUnit;
+        
+        if (includeSetup) {
+            totalCost += setupCost;
+        }
+        
+        const costPerUnit = totalCost / quantity;
+        const unitType = document.getElementById('unit-type').value || 'وحدة';
+        
+        document.getElementById('calc-result').value = 
+            `${totalCost.toFixed(2)} ج.م (${costPerUnit.toFixed(2)} ج.م/${unitType})`;
+    }
+}
+
+// ربط الأحداث
+document.getElementById('calc-quantity').addEventListener('input', calculateQuickCost);
+document.getElementById('setup-cost').addEventListener('input', calculateQuickCost);
+document.getElementById('unit-type').addEventListener('input', calculateQuickCost);
+
+// تحديث اسم الخدمة بناءً على فئة المورد
+document.addEventListener('DOMContentLoaded', function() {
+    // يمكن تخصيص اسم الخدمة حسب فئة المورد
+    const categoryName = '{{ category.name }}';
+    const nameField = document.getElementById('service-name');
+    
+    if (!nameField.value && categoryName) {
+        nameField.value = `خدمة ${categoryName}`;
+    }
+});
+</script>

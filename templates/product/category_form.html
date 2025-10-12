@@ -1,0 +1,45 @@
+{% extends 'product/form_template.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block form_content %}
+<div class="row">
+    <div class="col-md-6 mb-3">
+        {{ form.name|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3">
+        {{ form.parent|as_crispy_field }}
+    </div>
+    <div class="col-12 mb-3">
+        {{ form.description|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3">
+        <div class="form-check form-switch">
+            {{ form.is_active }}
+            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                {% trans "فئة نشطة" %}
+            </label>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    $(document).ready(function() {
+        // منع اختيار التصنيف نفسها كأب
+        {% if form.instance.pk %}
+        const categoryId = {{ form.instance.pk }};
+        
+        $('#id_parent').on('change', function() {
+            const selectedValue = $(this).val();
+            
+            if (selectedValue == categoryId) {
+                alert('{% trans "لا يمكن اختيار التصنيف نفسها كفئة أب" %}');
+                $(this).val('').trigger('change');
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %} 

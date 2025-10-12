@@ -1,0 +1,267 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .status-draft {
+        background-color: #ffeeba;
+        color: #856404;
+    }
+    .status-confirmed {
+        background-color: #c3e6cb;
+        color: #155724;
+    }
+    .status-cancelled {
+        background-color: #f5c6cb;
+        color: #721c24;
+    }
+    .table-info th {
+        width: 40%;
+        background-color: #f8f9fa;
+    }
+    .card-title {
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'purchase:purchase_list' %}">
+                            <i class="fas fa-truck me-1"></i>{% trans "المشتريات" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'purchase:purchase_return_list' %}">
+                            <i class="fas fa-undo-alt me-1"></i>{% trans "مرتجعات المشتريات" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {{ purchase_return.number }}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-undo-alt fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <p class="text-muted mb-0">{% trans "تفاصيل مرتجع المشتريات رقم" %} {{ purchase_return.number }}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'purchase:purchase_return_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
+                </a>
+                {% if purchase_return.status == 'draft' %}
+                <div class="btn-group ms-2">
+                    <a href="{% url 'purchase:purchase_return_confirm' purchase_return.pk %}" class="btn btn-success" onclick="return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟')">
+                        <i class="fas fa-check me-1"></i> {% trans "تأكيد المرتجع" %}
+                    </a>
+                    <a href="{% url 'purchase:purchase_return_cancel' purchase_return.pk %}" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')">
+                        <i class="fas fa-times me-1"></i> {% trans "إلغاء المرتجع" %}
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- معلومات المرتجع -->
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "رقم المرتجع" %}</th>
+                            <td>{{ purchase_return.number }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "التاريخ" %}</th>
+                            <td>{{ purchase_return.date }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الحالة" %}</th>
+                            <td>
+                                <span class="status-badge status-{{ purchase_return.status }}">
+                                    {{ purchase_return.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "تاريخ الإنشاء" %}</th>
+                            <td>{{ purchase_return.created_at }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "بواسطة" %}</th>
+                            <td>{{ purchase_return.created_by }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات الفاتورة الأصلية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "رقم الفاتورة" %}</th>
+                            <td>
+                                <a href="{% url 'purchase:purchase_detail' purchase_return.purchase.pk %}">
+                                    {{ purchase_return.purchase.number }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المورد" %}</th>
+                            <td>{{ purchase_return.purchase.supplier.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المخزن" %}</th>
+                            <td>{{ purchase_return.warehouse.name }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملخص المالية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "المجموع الفرعي" %}</th>
+                            <td>{{ purchase_return.subtotal|custom_number_format }} {% trans "ج.م" %}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الخصم" %}</th>
+                            <td>{{ purchase_return.discount|custom_number_format }} {% trans "ج.م" %}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الضريبة" %}</th>
+                            <td>{{ purchase_return.tax|custom_number_format }} {% trans "ج.م" %}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الإجمالي" %}</th>
+                            <td class="font-weight-bold">{{ purchase_return.total|custom_number_format }} {% trans "ج.م" %}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- بنود المرتجع -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "بنود المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>{% trans "المنتج" %}</th>
+                                    <th>{% trans "الكمية" %}</th>
+                                    <th>{% trans "سعر الوحدة" %}</th>
+                                    <th>{% trans "الخصم" %}</th>
+                                    <th>{% trans "الإجمالي" %}</th>
+                                    <th>{% trans "سبب الإرجاع" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in purchase_return.items.all %}
+                                <tr>
+                                    <td>{{ item.product.name }}</td>
+                                    <td>{{ item.quantity|custom_number_format }}</td>
+                                    <td>{{ item.unit_price|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.discount|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.total|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.reason }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "المجموع الفرعي" %}</th>
+                                    <th>{{ purchase_return.subtotal|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "الضريبة" %}</th>
+                                    <th>{{ purchase_return.tax|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "الإجمالي" %}</th>
+                                    <th>{{ purchase_return.total|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if purchase_return.notes %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملاحظات" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ purchase_return.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

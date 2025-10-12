@@ -1,0 +1,42 @@
+[
+    {
+        "model": "users.user",
+        "pk": 1,
+        "fields": {
+            "password": "MedooAlnems2008",
+            "last_login": "2025-01-01T00:00:00Z",
+            "is_superuser": true,
+            "username": "mwheba",
+            "first_name": "Mohamed ",
+            "last_name": "Yousif",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "info@mwheba.com",
+            "phone": "01229609292",
+            "user_type": "admin",
+            "status": "active",
+            "address": ""
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 2,
+        "fields": {
+            "password": "123456",
+            "last_login": "2025-01-01T00:00:00Z",
+            "is_superuser": true,
+            "username": "fatma",
+            "first_name": "Fatma",
+            "last_name": "",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "mwheba.adv@gmail.com",
+            "phone": "",
+            "user_type": "admin",
+            "status": "active",
+            "address": ""
+        }
+    }
+] 

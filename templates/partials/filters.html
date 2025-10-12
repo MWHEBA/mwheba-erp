@@ -1,0 +1,60 @@
+{% comment %}
+مكون الفلاتر المستخدم في صفحات القوائم
+
+الاستخدام:
+{% include "partials/filters.html" with filter_form=filter_form %}
+
+المعلمات:
+- filter_form: نموذج الفلترة من django-filter (إلزامي)
+- form_id: معرف النموذج (اختياري، الافتراضي "filter-form")
+- collapse_id: معرف منطقة الطي/الفتح (اختياري، الافتراضي "filterCollapse")
+- container_class: تصنيفات CSS إضافية للحاوية (اختياري)
+- btn_reset_url: رابط إعادة ضبط الفلاتر (اختياري، الافتراضي ".")
+{% endcomment %}
+
+<div class="filters-container {{ container_class }}">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <button class="btn btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#{{ collapse_id|default:'filterCollapse' }}" aria-expanded="false" aria-controls="filterCollapse">
+            <i class="fas fa-filter me-1"></i> عرض الفلاتر 
+            {% if request.GET %}
+                <span class="badge bg-primary ms-1">{{ request.GET|length }}</span>
+            {% endif %}
+        </button>
+        
+        {% if request.GET %}
+            <a href="{{ btn_reset_url|default:'.' }}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-times me-1"></i> إعادة ضبط
+            </a>
+        {% endif %}
+    </div>
+    
+    <div class="collapse {% if request.GET %}show{% endif %}" id="{{ collapse_id|default:'filterCollapse' }}">
+        <div class="card card-body mb-4">
+            <form method="get" id="{{ form_id|default:'filter-form' }}">
+                <div class="row">
+                    {% for field in filter_form.form %}
+                        <div class="col-md-4 col-lg-3 mb-3">
+                            <div class="form-group">
+                                <label for="{{ field.id_for_label }}" class="form-label">{{ field.label }}</label>
+                                {{ field }}
+                                {% if field.help_text %}
+                                    <small class="form-text text-muted">{{ field.help_text }}</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="d-flex">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1"></i> تطبيق الفلاتر
+                    </button>
+                    
+                    <a href="{{ btn_reset_url|default:'.' }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> إعادة ضبط
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div> 

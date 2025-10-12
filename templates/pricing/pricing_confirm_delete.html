@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% trans "تأكيد حذف طلب التسعير" %} | نظام تسعير الطباعة{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% trans "تأكيد حذف طلب التسعير" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% trans "هل أنت متأكد من حذف طلب التسعير التالي؟" %}</h5>
+            <p>{% trans "هذه العملية لا يمكن التراجع عنها." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% trans "معلومات الطلب" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% trans "رقم الطلب" %}:</strong> {{ object.order_number }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "العميل" %}:</strong> {{ object.client.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "العنوان" %}:</strong> {{ object.title }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "نوع الطلب" %}:</strong> {{ object.get_order_type_display }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "الكمية" %}:</strong> {{ object.quantity }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "سعر البيع" %}:</strong> {{ object.sale_price }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "تاريخ الإنشاء" %}:</strong> {{ object.created_at|date:"Y-m-d" }}
+                </li>
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'pricing:pricing_detail' object.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% trans "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% else %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="#"><i class="fas fa-cogs me-1"></i>الإعدادات</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">إعدادات الشركة</li>
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% else %}
+                    <div class="me-3">
+                        <i class="fas fa-building fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <p class="text-muted mb-0">تخصيص معلومات وإعدادات الشركة</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="post" novalidate enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h5 class="mb-3">معلومات الشركة الأساسية</h5>
+                            
+                            <div class="mb-3">
+                                <label for="company_name" class="form-label">اسم الشركة</label>
+                                <input type="text" class="form-control" id="company_name" name="company_name" 
+                                    value="{{ company_name }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_address" class="form-label">عنوان الشركة</label>
+                                <textarea class="form-control" id="company_address" name="company_address" rows="3">{{ company_address }}</textarea>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_phone" class="form-label">رقم الهاتف</label>
+                                <input type="text" class="form-control" id="company_phone" name="company_phone" 
+                                    value="{{ company_phone }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_email" class="form-label">البريد الإلكتروني</label>
+                                <input type="email" class="form-control" id="company_email" name="company_email" 
+                                    value="{{ company_email }}" dir="ltr">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_website" class="form-label">الموقع الإلكتروني</label>
+                                <input type="url" class="form-control" id="company_website" name="company_website" 
+                                    value="{{ company_website }}" dir="ltr">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_tax_number" class="form-label">الرقم الضريبي</label>
+                                <input type="text" class="form-control" id="company_tax_number" name="company_tax_number" 
+                                    value="{{ company_tax_number }}">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="company_logo" class="form-label">شعار الشركة</label>
+                                <input type="file" class="form-control" id="company_logo" name="company_logo">
+                                {% if company_logo %}
+                                    <div class="mt-2">
+                                        <img src="{{ company_logo }}" 
+                                            class="img-thumbnail" alt="شعار الشركة" style="max-height: 100px;">
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h5 class="mb-3">إعدادات الفواتير</h5>
+                            
+                            <div class="mb-3">
+                                <label for="invoice_prefix" class="form-label">بادئة الفواتير</label>
+                                <input type="text" class="form-control" id="invoice_prefix" name="invoice_prefix" 
+                                    value="{{ invoice_prefix }}">
+                                <small class="form-text text-muted">مثال: INV-</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="default_currency" class="form-label">العملة الافتراضية</label>
+                                <input type="text" class="form-control" id="default_currency" name="default_currency" 
+                                    value="{{ default_currency }}">
+                                <small class="form-text text-muted">مثال: ج.م، $، ريال</small>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="default_tax_rate" class="form-label">نسبة الضريبة الافتراضية (%)</label>
+                                <input type="number" class="form-control" id="default_tax_rate" name="default_tax_rate" 
+                                    value="{{ default_tax_rate }}" step="0.01" min="0" max="100">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="invoice_notes" class="form-label">ملاحظات الفاتورة الافتراضية</label>
+                                <textarea class="form-control" id="invoice_notes" name="invoice_notes" rows="4">{{ invoice_notes }}</textarea>
+                                <small class="form-text text-muted">سيتم عرض هذه الملاحظات أسفل جميع الفواتير</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-end mt-3">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> حفظ الإعدادات
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

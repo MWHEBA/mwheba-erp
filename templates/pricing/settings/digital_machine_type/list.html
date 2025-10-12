@@ -1,0 +1,222 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "أنواع ماكينات الديجيتال" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"أنواع ماكينات الديجيتال" }}</h1>
+                    <p class="text-muted mb-0">إدارة أنواع ماكينات الديجيتال المختلفة</p>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fas fa-plus me-2"></i>{% translate "إضافة نوع ماكينة جديد" %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "اسم النوع" %}</th>
+                        <th>{% trans "الكود" %}</th>
+                        <th>{% trans "الشركة المصنعة" %}</th>
+                        <th>{% trans "الوصف" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "افتراضي" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for machine_type in machine_types %}
+                    <tr>
+                        <td>
+                            <strong>{{ machine_type.name }}</strong>
+                        </td>
+                        <td>
+                            <code class="text-primary">{{ machine_type.code }}</code>
+                        </td>
+                        <td>
+                            {% if machine_type.manufacturer %}
+                                <span class="text-info">
+                                    <i class="fas fa-industry me-1"></i>
+                                    {{ machine_type.manufacturer }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if machine_type.description %}
+                                <span title="{{ machine_type.description }}">
+                                    {{ machine_type.description|truncatechars:40 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if machine_type.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>{% trans "نشط" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times me-1"></i>{% trans "غير نشط" %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if machine_type.is_default %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-star me-1"></i>{% trans "افتراضي" %}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ machine_type.pk }})" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ machine_type.pk }})" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-layer-group fa-3x mb-3 d-block"></i>
+                            {% trans "لا توجد أنواع ماكينات مضافة بعد" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- Modal للإنشاء والتعديل -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="modalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal للحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="deleteModalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateModal() {
+    fetch('{% url "pricing:digital_machine_type_create" %}')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openEditModal(id) {
+    fetch(`{% url "pricing:digital_machine_type_edit" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openDeleteModal(id) {
+    fetch(`{% url "pricing:digital_machine_type_delete" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+}
+
+function submitForm(formId) {
+    const form = document.getElementById(formId);
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            console.log(data.errors);
+        }
+    });
+}
+</script>
+{% endblock %}

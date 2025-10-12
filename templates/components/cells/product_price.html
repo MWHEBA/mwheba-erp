@@ -1,0 +1,11 @@
+{% load custom_filters %}
+{% load i18n %}
+<span class="product-price fw-bold text-primary">
+  {% if object.sale_price %}
+    <strong>{{ object.sale_price|custom_number_format }}</strong> {% trans "ج.م" %}
+  {% elif object.selling_price %}
+    <strong>{{ object.selling_price|custom_number_format }}</strong> {% trans "ج.م" %}
+  {% else %}
+    <span class="text-muted">{% trans "غير محدد" %}</span>
+  {% endif %}
+</span>

@@ -1,0 +1,29 @@
+{% if item.status == 'draft' %}
+    <span class="badge bg-secondary">
+        <i class="fas fa-edit me-1"></i>مسودة
+    </span>
+{% elif item.status == 'pending' %}
+    <span class="badge bg-warning">
+        <i class="fas fa-clock me-1"></i>قيد الانتظار
+    </span>
+{% elif item.status == 'approved' %}
+    <span class="badge bg-success">
+        <i class="fas fa-check me-1"></i>معتمد
+    </span>
+{% elif item.status == 'rejected' %}
+    <span class="badge bg-danger">
+        <i class="fas fa-times-circle me-1"></i>مرفوض
+    </span>
+{% elif item.status == 'executed' %}
+    <span class="badge bg-primary">
+        <i class="fas fa-check-double me-1"></i>منفذ
+    </span>
+{% elif item.status == 'cancelled' %}
+    <span class="badge bg-dark">
+        <i class="fas fa-ban me-1"></i>ملغي
+    </span>
+{% else %}
+    <span class="badge bg-light text-dark border">
+        <i class="fas fa-question me-1"></i>{{ item.get_status_display|default:"غير محدد" }}
+    </span>
+{% endif %}

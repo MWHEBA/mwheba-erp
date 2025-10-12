@@ -1,0 +1,487 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load custom_filters %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/variables.css' %}">
+<style>
+    
+    .payment-container {
+        background-color: var(--white);
+        border-radius: var(--border-radius);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        margin-bottom: var(--spacing-6);
+        border: 1px solid var(--gray-200);
+    }
+    
+    .payment-header {
+        background: var(--gray-50);
+        color: var(--gray-800);
+        padding: var(--spacing-5) var(--spacing-4);
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    
+    .payment-number {
+        font-size: 1.3rem;
+        font-weight: 600;
+        margin-bottom: var(--spacing-2);
+    }
+    
+    .payment-status {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--spacing-1);
+        padding: 0.3rem 0.8rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        margin-right: var(--spacing-2);
+    }
+    
+    .payment-status-posted {
+        background: var(--success-color);
+        color: white;
+    }
+    
+    .payment-status-draft {
+        background: var(--warning-color);
+        color: white;
+    }
+    
+    .status-timeline {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-2);
+        margin-top: var(--spacing-3);
+        padding: var(--spacing-2);
+        background: var(--white);
+        border-radius: 4px;
+        border: 1px solid var(--gray-200);
+    }
+    
+    .timeline-step {
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-1);
+        font-size: 0.75rem;
+        opacity: 0.6;
+    }
+    
+    .timeline-step.active {
+        opacity: 1;
+        font-weight: 500;
+    }
+    
+    .timeline-step i {
+        font-size: 0.9rem;
+    }
+    
+    
+    .payment-body {
+        padding: var(--spacing-6);
+    }
+    
+    .payment-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-6);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    .info-card {
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius);
+        background-color: var(--gray-50);
+        border: 1px solid var(--gray-200);
+        border-left: 3px solid var(--primary-color);
+    }
+    
+    .info-card.financial {
+        border-left-color: var(--success-color);
+    }
+    
+    .info-card.invoice {
+        border-left-color: var(--info-color);
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--gray-800);
+        margin-bottom: var(--spacing-3);
+        display: flex;
+        align-items: center;
+        gap: var(--spacing-2);
+    }
+    
+    .info-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: var(--spacing-2) 0;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        font-weight: 500;
+        color: var(--gray-600);
+    }
+    
+    .info-value {
+        font-weight: 600;
+        color: var(--gray-900);
+    }
+    
+    .amount-highlight {
+        font-size: 1.2rem;
+        color: var(--success-color);
+    }
+    
+    .sync-status {
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius);
+        margin-bottom: var(--spacing-4);
+    }
+    
+    .sync-status.synced {
+        background-color: var(--success-soft);
+        border: 1px solid var(--success-color);
+    }
+    
+    .sync-status.pending {
+        background-color: var(--warning-soft);
+        border: 1px solid var(--warning-color);
+    }
+    
+    .sync-status.failed {
+        background-color: var(--danger-soft);
+        border: 1px solid var(--danger-color);
+    }
+    
+    .action-buttons {
+        display: flex;
+        gap: var(--spacing-3);
+        margin-top: var(--spacing-6);
+        padding-top: var(--spacing-4);
+        border-top: 1px solid var(--gray-200);
+    }
+    
+    .action-buttons .btn {
+        transition: background-color 0.2s ease;
+    }
+    
+    .quick-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: var(--spacing-3);
+        margin-bottom: var(--spacing-5);
+        padding: var(--spacing-3);
+        background: var(--white);
+        border-radius: var(--border-radius);
+        border: 1px solid var(--gray-200);
+    }
+    
+    .stat-item {
+        text-align: center;
+        padding: var(--spacing-2);
+    }
+    
+    .stat-value {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: var(--gray-900);
+        margin-bottom: var(--spacing-1);
+    }
+    
+    .stat-label {
+        font-size: 0.8rem;
+        color: var(--gray-600);
+        font-weight: 400;
+    }
+    
+    @media (max-width: 768px) {
+        .payment-info-grid {
+            grid-template-columns: 1fr;
+        }
+        
+        .d-flex.justify-content-between {
+            flex-direction: column;
+            gap: var(--spacing-3);
+        }
+        
+        .d-flex.align-items-center.gap-2 {
+            flex-wrap: wrap;
+            justify-content: flex-start;
+        }
+        
+        .action-buttons {
+            flex-direction: column;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Breadcrumbs -->
+            {% if breadcrumb_items %}
+            <div class="mb-2">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        {% for item in breadcrumb_items %}
+                            {% if forloop.last or item.active %}
+                                <li class="breadcrumb-item active" aria-current="page">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </li>
+                            {% else %}
+                                <li class="breadcrumb-item">
+                                    <a href="{{ item.url }}">
+                                        {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                        {{ item.title }}
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+                    </ol>
+                </nav>
+            </div>
+            {% endif %}
+            
+            <div class="payment-container">
+                <!-- Header -->
+                <div class="payment-header">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <div>
+                            <div class="payment-number">
+                                <i class="fas fa-money-bill-wave me-2"></i>
+                                دفعة رقم #{{ payment.id }}
+                                {% if payment.reference_number %}
+                                    - {{ payment.reference_number }}
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <div class="fw-bold">{{ payment.payment_date|date:"d-m-Y" }}</div>
+                                <small class="opacity-75">{{ payment.created_at|date:"h:i A" }}</small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex align-items-center gap-2">
+                            <span class="payment-status {% if payment.status == 'posted' %}payment-status-posted{% else %}payment-status-draft{% endif %}">
+                                {% if payment.status == 'posted' %}
+                                    <i class="fas fa-check-circle"></i>مرحّلة
+                                {% else %}
+                                    <i class="fas fa-file-alt"></i>مسودة
+                                {% endif %}
+                            </span>
+                            
+                            {% if financial_info.is_synced %}
+                            <span class="payment-status payment-status-posted">
+                                <i class="fas fa-link"></i>مربوطة مالياً
+                            </span>
+                            {% if financial_info.journal_entry %}
+                                <a href="{% url 'financial:journal_entries_detail' financial_info.journal_entry.pk %}" 
+                                   class="btn btn-sm btn-outline-primary"
+                                   target="_blank">
+                                    <i class="fas fa-external-link-alt me-1"></i>
+                                    القيد
+                                </a>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Body -->
+                <div class="payment-body">
+                    
+                    <!-- معلومات الدفعة والفاتورة -->
+                    <div class="payment-info-grid">
+                        <!-- تفاصيل الدفعة -->
+                        <div class="info-card">
+                            <div class="card-title">
+                                <i class="fas fa-money-bill-wave text-muted"></i>
+                                تفاصيل الدفعة
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">المبلغ:</span>
+                                <span class="info-value amount-highlight">
+                                    {{ payment.amount|custom_number_format }} {{ sale.currency|default:"ج.م" }}
+                                </span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">طريقة الدفع:</span>
+                                <span class="info-value">
+                                    {% if payment.payment_method == 'cash' %}
+                                        <span class="badge bg-success">نقدي</span>
+                                    {% elif payment.payment_method == 'bank_transfer' %}
+                                        <span class="badge bg-info">تحويل بنكي</span>
+                                    {% elif payment.payment_method == 'check' %}
+                                        <span class="badge bg-warning">شيك</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ payment.get_payment_method_display }}</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">الحساب المالي:</span>
+                                <span class="info-value">
+                                    {% if payment.financial_account %}
+                                        <i class="fas fa-wallet me-1 text-primary"></i>
+                                        {{ payment.financial_account.name }}
+                                    {% else %}
+                                        <span class="text-muted">غير محدد</span>
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">تاريخ الإنشاء:</span>
+                                <span class="info-value">{{ payment.created_at|date:"d-m-Y - h:i A" }}</span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">أنشئ بواسطة:</span>
+                                <span class="info-value">
+                                    <i class="fas fa-user me-1"></i>
+                                    {{ payment.created_by.get_full_name|default:payment.created_by.username }}
+                                </span>
+                            </div>
+                        </div>
+                        
+                        <!-- الفاتورة المرتبطة -->
+                        <div class="info-card invoice">
+                            <div class="card-title">
+                                <i class="fas fa-file-invoice-dollar text-muted"></i>
+                                الفاتورة المرتبطة
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">رقم الفاتورة:</span>
+                                <span class="info-value">
+                                    <a href="{% url 'sale:sale_detail' sale.pk %}" class="text-primary fw-bold">
+                                        {{ sale.number }}
+                                    </a>
+                                </span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">العميل:</span>
+                                <span class="info-value">
+                                    <i class="fas fa-user-tie me-1"></i>
+                                    {{ sale.customer.name }}
+                                </span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">إجمالي الفاتورة:</span>
+                                <span class="info-value">{{ sale.total|custom_number_format }} {{ sale.currency|default:"ج.م" }}</span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">المبلغ المدفوع:</span>
+                                <span class="info-value text-success">{{ sale.amount_paid|custom_number_format }} {{ sale.currency|default:"ج.م" }}</span>
+                            </div>
+                            
+                            <div class="info-item">
+                                <span class="info-label">المبلغ المتبقي:</span>
+                                <span class="info-value {% if sale.amount_due > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ sale.amount_due|custom_number_format }} {{ sale.currency|default:"ج.م" }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    
+                    <!-- الملاحظات -->
+                    {% if payment.notes %}
+                    <div class="info-card mt-4">
+                        <div class="card-title">
+                            <i class="fas fa-sticky-note text-muted"></i>
+                            الملاحظات
+                        </div>
+                        <div class="mt-2">
+                            <p class="mb-0">{{ payment.notes|linebreaks }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- أزرار الإجراءات -->
+                    <div class="action-buttons">
+                        {% if financial_info.can_edit %}
+                        <a href="{% url 'sale:add_payment' sale.pk %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-1"></i>تعديل الدفعة
+                        </a>
+                        {% endif %}
+                        
+                        {% if payment.status == 'draft' %}
+                        <a href="{% url 'sale:post_payment' payment.id %}" 
+                           class="btn btn-success"
+                           onclick="return confirm('هل تريد ترحيل هذه الدفعة؟ سيتم إنشاء القيد المحاسبي.')">
+                            <i class="fas fa-check me-1"></i>ترحيل الدفعة
+                        </a>
+                        {% elif payment.status == 'posted' %}
+                        <a href="{% url 'sale:unpost_payment' payment.id %}" 
+                           class="btn btn-warning">
+                            <i class="fas fa-undo me-1"></i>إلغاء الترحيل
+                        </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-left me-1"></i>العودة للفاتورة
+                        </a>
+                        
+                        {% if financial_info.can_delete %}
+                        <a href="#" class="btn btn-outline-danger"
+                           onclick="return confirm('هل تريد حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.')">
+                            <i class="fas fa-trash me-1"></i>حذف الدفعة
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تحسين تجربة المستخدم للأزرار
+    $('.btn').on('click', function() {
+        if ($(this).hasClass('btn-success') || $(this).hasClass('btn-warning')) {
+            const $btn = $(this);
+            const originalText = $btn.html();
+            
+            $btn.prop('disabled', true);
+            $btn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري المعالجة...');
+            
+            setTimeout(() => {
+                $btn.prop('disabled', false);
+                $btn.html(originalText);
+            }, 2000);
+        }
+    });
+    
+    // Tooltips للمساعدة
+    $('[data-bs-toggle="tooltip"]').tooltip();
+    
+    // تحسين الروابط
+    $('a[href*="journal_entries_detail"]').attr('target', '_blank').attr('rel', 'noopener');
+});
+</script>
+{% endblock %}

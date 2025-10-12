@@ -1,0 +1,21 @@
+{% load custom_filters %}
+
+{% comment %}
+خلية مقاس الورق للطباعة الديجيتال
+المعلمات المطلوبة:
+- item: عنصر البيانات الذي يحتوي على service و details
+{% endcomment %}
+
+{% if item.details %}
+<div class="text-center">
+    <span class="badge bg-info px-3 py-2">
+        <i class="fas fa-file-alt me-1"></i>
+        {{ item.details.get_paper_size_display|default:"غير محدد" }}
+    </span>
+</div>
+{% else %}
+<div class="text-center text-muted">
+    <i class="fas fa-question-circle"></i>
+    <small class="d-block">غير محدد</small>
+</div>
+{% endif %}

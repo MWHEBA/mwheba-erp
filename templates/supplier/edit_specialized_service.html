@@ -1,0 +1,289 @@
+{% extends 'supplier/add_specialized_service.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="{{ page_icon }} fa-fw"></i> 
+            {% if supplier.primary_type.code == 'paper' %}
+                تعديل نوع الورق
+            {% elif supplier.primary_type.code == 'digital_printing' %}
+                تعديل خدمة الطباعة الديجيتال
+            {% elif supplier.primary_type.code == 'finishing' %}
+                تعديل خدمة التشطيب
+            {% elif supplier.primary_type.code == 'laser' %}
+                تعديل خدمة الليزر
+            {% elif supplier.primary_type.code == 'vip_gifts' %}
+                تعديل نوع الهدية المميزة
+            {% else %}
+                تعديل الخدمة المتخصصة
+            {% endif %}
+        </h1>
+        <div>
+            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right fa-sm"></i> العودة للمورد
+            </a>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="form-container">
+                
+                <!-- Service Edit Info -->
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-edit"></i> تعديل الخدمة المتخصصة</h6>
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <p class="mb-1">تعديل خدمة <strong>{{ service.name }}</strong></p>
+                            <p class="mb-0">للمورد <strong>{{ supplier.name }}</strong> - {{ supplier.primary_type.name|default:"غير محدد" }}</p>
+                        </div>
+                        <div>
+                            {% if service.is_active %}
+                                <span class="badge bg-success">نشطة</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشطة</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Current Service Stats -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="card border-primary">
+                            <div class="card-body text-center py-3">
+                                <h5 class="text-primary mb-1">{{ service.base_price }} ج.م</h5>
+                                <small class="text-muted">السعر الحالي</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-info">
+                            <div class="card-body text-center py-3">
+                                <h5 class="text-info mb-1">{{ service.category.name }}</h5>
+                                <small class="text-muted">التصنيف الحالية</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-success">
+                            <div class="card-body text-center py-3">
+                                <h5 class="text-success mb-1">{{ service.min_quantity }}</h5>
+                                <small class="text-muted">الحد الأدنى</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card border-warning">
+                            <div class="card-body text-center py-3">
+                                <h5 class="text-warning mb-1">{{ service.created_at|date:"d/m/Y" }}</h5>
+                                <small class="text-muted">تاريخ الإنشاء</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <form method="post" id="serviceForm">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-info-circle"></i>
+                            المعلومات الأساسية
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">اسم الخدمة *</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.category.id_for_label }}" class="form-label">فئة الخدمة *</label>
+                                    {{ form.category }}
+                                    {% if form.category.errors %}
+                                        <div class="text-danger small">{{ form.category.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">اختر التصنيف المناسبة لنوع المورد</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">وصف الخدمة</label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Pricing Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-dollar-sign"></i>
+                            معلومات التسعير
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.base_price.id_for_label }}" class="form-label">السعر الأساسي (ج.م) *</label>
+                                    {{ form.base_price }}
+                                    {% if form.base_price.errors %}
+                                        <div class="text-danger small">{{ form.base_price.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">السعر الحالي: {{ service.base_price }} ج.م</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.setup_cost.id_for_label }}" class="form-label">تكلفة الإعداد (ج.م)</label>
+                                    {{ form.setup_cost }}
+                                    {% if form.setup_cost.errors %}
+                                        <div class="text-danger small">{{ form.setup_cost.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">التكلفة الحالية: {{ service.setup_cost }} ج.م</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Type-Specific Fields (same as add form) -->
+                    {% if supplier.primary_type %}
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="{{ supplier.primary_type.icon|default:'fas fa-cogs' }}"></i>
+                            تفاصيل متخصصة - {{ supplier.primary_type.name }}
+                        </h5>
+                        
+                        <div class="type-specific-fields">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle"></i>
+                                يمكنك تحديث التفاصيل المتخصصة للخدمة حسب نوع المورد
+                            </div>
+                            
+                            <!-- Include the same type-specific fields as in add form -->
+                            <!-- This would be the same content as in the add form -->
+                            
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Quantity Limits -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-sort-numeric-up"></i>
+                            حدود الكمية والتوقيت
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.min_quantity.id_for_label }}" class="form-label">الحد الأدنى للكمية</label>
+                                    {{ form.min_quantity }}
+                                    {% if form.min_quantity.errors %}
+                                        <div class="text-danger small">{{ form.min_quantity.errors.0 }}</div>
+                                    {% endif %}
+                                    <div class="help-text">الحد الحالي: {{ service.min_quantity }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">آخر تحديث</label>
+                                    <input type="text" class="form-control" value="{{ service.updated_at|date:'d/m/Y H:i' }}" readonly>
+                                    <div class="help-text">تاريخ آخر تعديل للخدمة</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-toggle-on"></i>
+                            الحالة والملاحظات
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    {{ form.is_active }}
+                                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                        الخدمة نشطة ومتاحة
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-3">
+                                    <input class="form-check-input" type="checkbox" name="update_pricing" id="updatePricing">
+                                    <label class="form-check-label" for="updatePricing">
+                                        تحديث الشرائح السعرية تلقائياً
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إلغاء
+                        </a>
+                        <div>
+                            <button type="button" class="btn btn-warning me-2" onclick="resetForm()">
+                                <i class="fas fa-undo"></i> إعادة تعيين
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save"></i> حفظ التغييرات
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function resetForm() {
+    if (confirm('هل أنت متأكد من إعادة تعيين النموذج؟ ستفقد جميع التغييرات غير المحفوظة.')) {
+        document.getElementById('serviceForm').reset();
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديد الحقول المتغيرة
+    const originalValues = {
+        name: '{{ service.name|escapejs }}',
+        base_price: '{{ service.base_price }}',
+        setup_cost: '{{ service.setup_cost }}',
+        min_quantity: '{{ service.min_quantity }}'
+    };
+    
+    // مراقبة التغييرات
+    Object.keys(originalValues).forEach(field => {
+        const element = document.querySelector(`[name="${field}"]`);
+        if (element) {
+            element.addEventListener('input', function() {
+                if (this.value !== originalValues[field]) {
+                    this.style.borderColor = '#ffc107';
+                } else {
+                    this.style.borderColor = '';
+                }
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

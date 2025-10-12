@@ -1,0 +1,32 @@
+{% load custom_filters %}
+
+{% comment %}
+خلية نطاق السعر للطباعة الديجيتال - نفس تنسيق سعر التراج في الأوفست
+المعلمات المطلوبة:
+- item: عنصر البيانات الذي يحتوي على service و details
+{% endcomment %}
+
+<div class="text-center">
+    {% if item.price_tiers.exists %}
+        {% with first_tier=item.price_tiers.first last_tier=item.price_tiers.last %}
+            <div class="fw-bold text-success mb-1">
+                {{ first_tier.price_per_unit|custom_number_format }} ج.م
+            </div>
+            {% if item.price_tiers.count > 1 %}
+                <small class="text-muted d-block">
+                    إلى {{ last_tier.price_per_unit|custom_number_format }} ج.م
+                </small>
+            {% endif %}
+            {% if first_tier.floor_price %}
+                <small class="text-info d-block">
+                    أرضيات: {{ first_tier.floor_price|custom_number_format }} ج.م
+                </small>
+            {% endif %}
+        {% endwith %}
+    {% else %}
+        <div class="text-muted">
+            <i class="fas fa-exclamation-triangle text-warning"></i>
+            <small class="d-block">لا توجد أسعار</small>
+        </div>
+    {% endif %}
+</div>

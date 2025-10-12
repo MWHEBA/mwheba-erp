@@ -1,0 +1,276 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .badge-status {
+        font-size: 1rem;
+        padding: 0.4rem 0.8rem;
+    }
+    .table th, .table td {
+        vertical-align: middle;
+    }
+    .item-total {
+        font-weight: bold;
+    }
+    .info-card {
+        margin-bottom: 1.5rem;
+    }
+    .info-card .card-header {
+        font-weight: 600;
+    }
+    .info-card dt {
+        font-weight: 600;
+    }
+    .total-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "الرئيسية" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'sale:sale_list' %}">{% trans "المبيعات" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'sale:sale_return_list' %}">{% trans "مرتجعات المبيعات" %}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{{ sale_return.number }}</li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="page-title">{% trans "مرتجع مبيعات" %} - {{ sale_return.number }}</h1>
+                <div class="btn-group">
+                    {% if sale_return.status == 'draft' %}
+                    <a href="{% url 'sale:sale_return_confirm' sale_return.pk %}" class="btn btn-success">
+                        <i class="fas fa-check me-1"></i> {% trans "تأكيد المرتجع" %}
+                    </a>
+                    <a href="{% url 'sale:sale_return_cancel' sale_return.pk %}" class="btn btn-danger">
+                        <i class="fas fa-ban me-1"></i> {% trans "إلغاء المرتجع" %}
+                    </a>
+                    {% endif %}
+                    
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                        <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
+                    </button>
+                    
+                    <a href="{% url 'sale:sale_return_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- حالة المرتجع -->
+    <div class="row mb-4">
+        <div class="col">
+            <div class="alert 
+                {% if sale_return.status == 'draft' %}alert-warning
+                {% elif sale_return.status == 'confirmed' %}alert-success
+                {% else %}alert-danger{% endif %}">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h4 class="alert-heading mb-1">
+                            {% if sale_return.status == 'draft' %}
+                                <i class="fas fa-file-alt me-2"></i>{% trans "مسودة" %}
+                            {% elif sale_return.status == 'confirmed' %}
+                                <i class="fas fa-check-circle me-2"></i>{% trans "مؤكد" %}
+                            {% else %}
+                                <i class="fas fa-ban me-2"></i>{% trans "ملغي" %}
+                            {% endif %}
+                        </h4>
+                        <p class="mb-0">
+                            {% if sale_return.status == 'draft' %}
+                                {% trans "هذا المرتجع في حالة مسودة ويمكن تعديله أو تأكيده أو إلغاؤه." %}
+                            {% elif sale_return.status == 'confirmed' %}
+                                {% trans "تم تأكيد هذا المرتجع وتحديث المخزون." %}
+                            {% else %}
+                                {% trans "تم إلغاء هذا المرتجع ولا يمكن تعديله." %}
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div>
+                        <span class="badge badge-status 
+                            {% if sale_return.status == 'draft' %}bg-warning
+                            {% elif sale_return.status == 'confirmed' %}bg-success
+                            {% else %}bg-danger{% endif %}">
+                            {% if sale_return.status == 'draft' %}{% trans "مسودة" %}
+                            {% elif sale_return.status == 'confirmed' %}{% trans "مؤكد" %}
+                            {% else %}{% trans "ملغي" %}{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- معلومات المرتجع -->
+        <div class="col-md-4">
+            <div class="card shadow-sm info-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">{% trans "رقم المرتجع" %}</dt>
+                        <dd class="col-sm-7"><code>{{ sale_return.number }}</code></dd>
+                        
+                        <dt class="col-sm-5">{% trans "تاريخ المرتجع" %}</dt>
+                        <dd class="col-sm-7">{{ sale_return.date|date:"d-m-Y" }}</dd>
+                        
+                        <dt class="col-sm-5">{% trans "فاتورة المبيعات" %}</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'sale:sale_detail' sale_return.sale.pk %}">
+                                {{ sale_return.sale.number }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">{% trans "العميل" %}</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'client:customer_detail' sale_return.sale.customer.pk %}">
+                                {{ sale_return.sale.customer.name }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">{% trans "المستودع" %}</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'product:warehouse_detail' sale_return.warehouse.pk %}">
+                                {{ sale_return.warehouse.name }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">{% trans "تاريخ الإنشاء" %}</dt>
+                        <dd class="col-sm-7">{{ sale_return.created_at|date:"d-m-Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-5">{% trans "المستخدم" %}</dt>
+                        <dd class="col-sm-7">{{ sale_return.created_by.get_full_name }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            {% if sale_return.notes %}
+            <div class="card shadow-sm info-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملاحظات" %}</h5>
+                </div>
+                <div class="card-body">
+                    {{ sale_return.notes|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- ملخص المبالغ -->
+            <div class="card shadow-sm info-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملخص المبالغ" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-6">{% trans "المجموع الفرعي" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.subtotal|custom_number_format }} {% trans "ج.م" %}</div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">{% trans "الخصم" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.discount|custom_number_format }} {% trans "ج.م" %}</div>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-6">{% trans "الضريبة" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.tax|custom_number_format }} {% trans "ج.م" %}</div>
+                    </div>
+                    <hr>
+                    <div class="row font-weight-bold">
+                        <div class="col-6">{% trans "الإجمالي" %}</div>
+                        <div class="col-6 text-end total-value">{{ sale_return.total|custom_number_format }} {% trans "ج.م" %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- تفاصيل البنود -->
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "بنود المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>{% trans "المنتج" %}</th>
+                                    <th>{% trans "الكمية" %}</th>
+                                    <th>{% trans "سعر الوحدة" %}</th>
+                                    <th>{% trans "الخصم" %}</th>
+                                    <th>{% trans "الإجمالي" %}</th>
+                                    <th>{% trans "سبب الإرجاع" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sale_return.items.all %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>
+                                        <a href="{% url 'product:product_detail' item.product.pk %}">
+                                            {{ item.product.name }}
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">{{ item.product.sku }}</small>
+                                    </td>
+                                    <td>{{ item.quantity|custom_number_format }}</td>
+                                    <td>{{ item.unit_price|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.discount|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td class="item-total">{{ item.total|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.reason }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="5" class="text-end">{% trans "المجموع الفرعي" %}</th>
+                                    <th>{{ sale_return.subtotal|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th></th>
+                                </tr>
+                                {% if sale_return.tax > 0 %}
+                                <tr>
+                                    <th colspan="5" class="text-end">{% trans "الضريبة" %}</th>
+                                    <th>{{ sale_return.tax|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th></th>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th colspan="5" class="text-end">{% trans "الإجمالي" %}</th>
+                                    <th>{{ sale_return.total|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th></th>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // يمكن إضافة أي سكريبت هنا إذا لزم الأمر
+    });
+</script>
+{% endblock %} 

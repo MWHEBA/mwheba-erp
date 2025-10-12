@@ -1,0 +1,22 @@
+{% load static %}
+{% load i18n %}
+
+<footer class="footer">
+    <div class="footer-container">
+        <div class="footer-content">
+            <div class="footer-logo">
+                <img src="{% static 'img/logo.png' %}" alt="{{ SITE_NAME }}" width="70">
+            </div>
+            <div class="footer-copyright">
+                <p>جميع الحقوق محفوظة &copy; {{ current_year|default:'2023' }} {{ SITE_NAME }}</p>
+            </div>
+
+        </div>
+        <div class="footer-links">
+            <a href="https://wa.me/201229609292" target="_blank" class="footer-link no-dot">
+                <i class="fab fa-whatsapp me-1"></i>
+                {% trans "الدعم الفني" %}
+            </a>
+        </div>
+    </div>
+</footer> 

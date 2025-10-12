@@ -1,0 +1,10 @@
+{% load i18n %}
+{% load custom_filters %}
+
+{% if item.category.code == 'plates' and item.plate_details %}
+    <span class="fw-bold text-success">
+        {{ item.plate_details.price_per_plate|custom_number_format }} ج.م
+    </span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

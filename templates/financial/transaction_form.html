@@ -1,0 +1,343 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* شارات ملونة */
+  .soft-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .soft-badge-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .soft-badge-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  
+  .soft-badge-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .soft-badge-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  .transaction-type-indicator {
+    border-radius: 8px;
+    padding: 10px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+  }
+  
+  .transaction-type-income {
+    border-left-color: #198754;
+    background-color: rgba(25, 135, 84, 0.05);
+  }
+  
+  .transaction-type-expense {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+  }
+  
+  .transaction-type-transfer {
+    border-left-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.05);
+  }
+  
+  .form-section {
+    margin-bottom: 1rem;
+  }
+  
+  .notes-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+  
+  .type-desc {
+    padding-left: 10px;
+    border-left: 3px solid #dee2e6;
+  }
+  
+  /* تحسينات لتقليل المساحة */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  label {
+    margin-bottom: 0.25rem;
+  }
+  
+  .compact-row {
+    margin-bottom: 0.5rem;
+  }
+  
+  .compact-section {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'core:dashboard' %}">
+              <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'financial:transaction_list' %}">
+              <i class="fas fa-exchange-alt me-1"></i>{% trans "المعاملات المالية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            {% if form.instance.pk %}{% trans "تعديل معاملة" %}{% else %}{% trans "إضافة معاملة جديدة" %}{% endif %}
+          </li>
+        </ol>
+      </nav>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          <div class="bg-primary bg-opacity-10 text-primary p-3 rounded">
+            <i class="fas fa-exchange-alt fa-2x"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="h3 mb-1 fw-bold text-dark">
+            {% if form.instance.pk %}{% trans "تعديل معاملة مالية" %}{% else %}{% trans "إضافة معاملة مالية جديدة" %}{% endif %}
+          </h1>
+          <p class="text-muted mb-0">
+            {% trans "إدارة التدفقات النقدية للمؤسسة من خلال تسجيل المعاملات المالية المختلفة" %}
+          </p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:transaction_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للقائمة" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج إضافة معاملة -->
+  <div class="section-container">
+    <form method="post" id="transactionForm" novalidate>
+      {% csrf_token %}
+      
+      {% if form.errors %}
+      <div class="alert alert-danger mb-3">
+        <div class="d-flex align-items-center mb-1">
+          <div class="me-2">
+            <i class="fas fa-exclamation-triangle text-danger"></i>
+          </div>
+          <div>
+            <strong>{% trans "يوجد أخطاء في النموذج" %}</strong>
+            <span class="small">: {% trans "يرجى تصحيح الأخطاء التالية" %}</span>
+          </div>
+        </div>
+        <ul class="mb-0 ps-4 small">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li>{{ field.label }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      
+      <div class="row">
+        <!-- القسم الأيمن - نوع المعاملة والتفاصيل الأساسية -->
+        <div class="col-lg-5">
+          <!-- نوع المعاملة والمبلغ -->
+          <div class="form-section">
+            <h5 class="section-title">
+              <i class="fas fa-tag me-2"></i>{% trans "نوع المعاملة والمبلغ" %}
+            </h5>
+            
+            <div class="row compact-row">
+              <div class="col-md-6 mb-3">
+                {{ form.transaction_type|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.amount|as_crispy_field }}
+              </div>
+            </div>
+            
+            <div id="transaction-type-indicator" class="transaction-type-indicator transaction-type-income">
+              <div id="income-info" class="transaction-type-desc" style="display: none;">
+                <i class="fas fa-arrow-down me-1"></i> 
+                <span class="me-2">{% trans "إيراد" %}</span>
+                <small class="text-muted">{% trans "تسجيل المبالغ الواردة للحساب" %}</small>
+              </div>
+              <div id="expense-info" class="transaction-type-desc" style="display: none;">
+                <i class="fas fa-arrow-up me-1"></i> 
+                <span class="me-2">{% trans "مصروف" %}</span>
+                <small class="text-muted">{% trans "تسجيل المبالغ المصروفة من الحساب" %}</small>
+              </div>
+              <div id="transfer-info" class="transaction-type-desc" style="display: none;">
+                <i class="fas fa-exchange-alt me-1"></i> 
+                <span class="me-2">{% trans "تحويل" %}</span>
+                <small class="text-muted">{% trans "نقل الأموال بين الحسابات" %}</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- الحسابات -->
+          <div id="accounts-section" class="form-section">
+            <h5 class="section-title"><i class="fas fa-university me-2"></i>{% trans "الحسابات" %}</h5>
+            <div class="row compact-row">
+              <div class="col-12 mb-3" id="account-from-section">
+                <div id="account-from-wrapper">
+                  <label for="{{ form.account.id_for_label }}" id="account-label">
+                    {% trans "الحساب" %} <span class="text-danger">*</span>
+                  </label>
+                  {{ form.account }}
+                </div>
+              </div>
+              <div class="col-12 mb-3" id="to-account-section" style="display: none;">
+                <div id="account-to-wrapper">
+                  <label for="{{ form.to_account.id_for_label }}" id="to-account-label">
+                    {% trans "الحساب المستلم" %} <span class="text-danger">*</span>
+                  </label>
+                  {{ form.to_account }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- القسم الأيسر - التفاصيل والمعلومات الإضافية -->
+        <div class="col-lg-7">
+          <!-- تفاصيل المعاملة -->
+          <div class="form-section">
+            <h5 class="section-title"><i class="fas fa-file-invoice-dollar me-2"></i>{% trans "تفاصيل المعاملة" %}</h5>
+            <div class="row compact-row">
+              <div class="col-md-6 mb-3">
+                {{ form.date|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.reference_number|as_crispy_field }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.reference|as_crispy_field }}
+              </div>
+              <div class="col-md-12 mb-3">
+                <div class="notes-section">
+                  {{ form.description|as_crispy_field }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- أزرار الإجراءات -->
+      <div class="mt-3 pt-2 border-top d-flex justify-content-between">
+        <a href="{% url 'financial:transaction_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+        </a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i>{% trans "حفظ المعاملة" %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // تنشيط Select2 للقوائم المنسدلة
+    $('select').select2({
+      theme: 'bootstrap-5',
+      placeholder: "{% trans 'اختر...' %}",
+      allowClear: true
+    });
+    
+    // تغيير نمط النموذج حسب نوع المعاملة
+    function updateTransactionType() {
+      const transactionType = $('#id_transaction_type').val();
+      
+      // إخفاء كل أقسام الوصف
+      $('.transaction-type-desc').hide();
+      
+      // إزالة كل الأنماط السابقة
+      $('#transaction-type-indicator').removeClass('transaction-type-income transaction-type-expense transaction-type-transfer');
+      
+      // إظهار/إخفاء حقل الحساب المستلم
+      if (transactionType === 'income') {
+        $('#income-info').show();
+        $('#transaction-type-indicator').addClass('transaction-type-income');
+        $('#to-account-section').hide();
+        $('#account-label').text("{% trans 'الحساب المستلم' %}");
+      } else if (transactionType === 'expense') {
+        $('#expense-info').show();
+        $('#transaction-type-indicator').addClass('transaction-type-expense');
+        $('#to-account-section').hide();
+        $('#account-label').text("{% trans 'حساب الدفع' %}");
+      } else if (transactionType === 'transfer') {
+        $('#transfer-info').show();
+        $('#transaction-type-indicator').addClass('transaction-type-transfer');
+        $('#to-account-section').show();
+        $('#account-label').text("{% trans 'الحساب المصدر' %}");
+        $('#to-account-label').text("{% trans 'الحساب المستلم' %}");
+      }
+    }
+    
+    // تنفيذ الدالة عند تغيير نوع المعاملة وعند تحميل الصفحة
+    $('#id_transaction_type').change(updateTransactionType);
+    
+    // تنفيذ الدالة فور تحميل الصفحة
+    updateTransactionType();
+  });
+</script>
+{% endblock %} 

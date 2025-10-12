@@ -1,0 +1,70 @@
+/* تقارير المنتجات - ملف CSS مشترك */
+
+/* تحسينات عامة للتقارير */
+.report-container {
+    padding: 20px;
+}
+
+.metric-card, .alert-card {
+    transition: all 0.3s ease;
+}
+
+.metric-card:hover, .alert-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+/* مؤشرات الحالة */
+.status-indicator {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-align: center;
+    color: white;
+}
+
+/* أشرطة التقدم */
+.progress-bar {
+    transition: width 0.3s ease;
+}
+
+/* تحسينات الجداول */
+.table-responsive {
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.table th {
+    background-color: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+/* تحسينات الرسوم البيانية */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* تحسينات الأزرار */
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+/* تحسينات responsive */
+@media (max-width: 768px) {
+    .metric-card {
+        margin-bottom: 1rem;
+    }
+    
+    .chart-container {
+        height: 250px;
+    }
+}

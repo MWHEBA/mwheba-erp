@@ -1,0 +1,697 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load dict_tags %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- استخدام CDN لملفات DataTables كما في base.html -->
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم كروت الإحصائيات */
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+  
+  .display-5 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  
+  /* شارات ملونة */
+  .soft-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .soft-badge-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .soft-badge-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  
+  .soft-badge-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .soft-badge-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #0dcaf0;
+  }
+  
+  .soft-badge-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* تنسيق الصفحات */
+  .pagination {
+    justify-content: center;
+  }
+  
+  .page-link {
+    border-radius: 5px;
+    margin: 0 3px;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+  }
+  
+  .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  
+  /* أزرار الإجراءات */
+  .action-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-right: 5px;
+    color: #6c757d;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: none;
+  }
+  
+  .action-button:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+  
+  .action-view:hover {
+    color: #0d6efd;
+  }
+  
+  .action-edit:hover {
+    color: #ffc107;
+  }
+  
+  .action-delete:hover {
+    color: #dc3545;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">عرض وإدارة المعاملات المالية للشركة</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'financial:transaction_create' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "إضافة معاملة" %}
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- كروت الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي القيود" %}</div>
+            <div class="stats-card-value">{{ total_transactions|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "قيد محاسبي" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
+            <div class="stats-card-value">{{ total_credit|floatformat:2 }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
+            <div class="stats-card-value">{{ total_debit|floatformat:2 }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-3 col-md-6 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stats-card-title">{% trans "التوازن" %}</div>
+            <div class="stats-card-value">
+              {% if total_debit == total_credit %}
+                <span class="text-success">متوازن</span>
+              {% else %}
+                <span class="text-warning">غير متوازن</span>
+              {% endif %}
+            </div>
+            <div class="stats-card-unit">{% trans "حالة القيود" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- الفلاتر -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "فلاتر البحث" %}</h5>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-3">
+        <label for="account" class="form-label">{% trans "الحساب" %}</label>
+        <select class="form-select" id="account" name="account">
+          <option value="">{% trans "جميع الحسابات" %}</option>
+          {% for account in accounts %}
+          <option value="{{ account.id }}" {% if request.GET.account == account.id|stringformat:"i" %}selected{% endif %}>
+            {{ account.name }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="type" class="form-label">{% trans "نوع المعاملة" %}</label>
+        <select class="form-select" id="type" name="type">
+          <option value="">{% trans "الكل" %}</option>
+          <option value="income" {% if request.GET.type == 'income' %}selected{% endif %}>{% trans "إيراد" %}</option>
+          <option value="expense" {% if request.GET.type == 'expense' %}selected{% endif %}>{% trans "مصروف" %}</option>
+          <option value="transfer" {% if request.GET.type == 'transfer' %}selected{% endif %}>{% trans "تحويل" %}</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+      </div>
+      <div class="col-md-2">
+        <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+      </div>
+      <div class="col-md-3 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary me-2">
+          <i class="fas fa-search me-1"></i>{% trans "تطبيق الفلاتر" %}
+        </button>
+        <button type="button" class="btn btn-outline-secondary" onclick="window.location.href='{{ request.path }}'">
+          <i class="fas fa-undo me-1"></i>{% trans "إعادة تعيين" %}
+        </button>
+      </div>
+    </form>
+  </div>
+  
+  <!-- جدول المعاملات المالية -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة المعاملات" %}</h5>
+      <div class="actions-container">
+        <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="exportTransactionsCSV()">
+          <i class="fas fa-file-csv me-1"></i>{% trans "CSV" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-success" onclick="exportTransactionsExcel()">
+          <i class="fas fa-file-excel me-1"></i>{% trans "Excel" %}
+        </button>
+      </div>
+    </div>
+    <div class="table-container">
+      <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="transactions-table">
+          <thead class="table-light">
+            <tr>
+              <th class="text-center">رقم القيد</th>
+              <th class="text-center">التاريخ</th>
+              <th class="text-center">النوع</th>
+              <th>الوصف</th>
+              <th class="text-center">المرجع</th>
+              <th class="text-end">المبلغ</th>
+              <th class="text-center">الحالة</th>
+              <th class="text-center">المستخدم</th>
+              <th class="text-center no-sort">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for entry in transactions %}
+            <tr>
+              <td class="text-center fw-bold">
+                <a href="{% url 'financial:journal_entries_detail' entry.id %}" class="text-decoration-none">
+                  {{ entry.number|default:entry.id }}
+                </a>
+              </td>
+              <td class="text-center">{{ entry.date|date:"Y-m-d" }}</td>
+              <td class="text-center">
+                {% with lines=entry.journalentryline_set.all %}
+                  {% if lines|length == 2 %}
+                    {% if lines.0.debit > 0 and 'خزينة' in lines.0.account.name %}
+                      <span class="badge bg-success">إيراد نقدي</span>
+                    {% elif lines.1.debit > 0 and 'خزينة' in lines.1.account.name %}
+                      <span class="badge bg-success">إيراد نقدي</span>
+                    {% elif lines.0.credit > 0 and 'خزينة' in lines.0.account.name %}
+                      <span class="badge bg-danger">مصروف نقدي</span>
+                    {% elif lines.1.credit > 0 and 'خزينة' in lines.1.account.name %}
+                      <span class="badge bg-danger">مصروف نقدي</span>
+                    {% elif lines.0.debit > 0 and 'بنك' in lines.0.account.name %}
+                      <span class="badge bg-primary">إيراد بنكي</span>
+                    {% elif lines.1.debit > 0 and 'بنك' in lines.1.account.name %}
+                      <span class="badge bg-primary">إيراد بنكي</span>
+                    {% elif lines.0.credit > 0 and 'بنك' in lines.0.account.name %}
+                      <span class="badge bg-warning">مصروف بنكي</span>
+                    {% elif lines.1.credit > 0 and 'بنك' in lines.1.account.name %}
+                      <span class="badge bg-warning">مصروف بنكي</span>
+                    {% else %}
+                      <span class="badge bg-info">تحويل</span>
+                    {% endif %}
+                  {% elif lines|length > 2 %}
+                    <span class="badge bg-secondary">قيد مركب</span>
+                  {% else %}
+                    <span class="badge bg-info">تحويل</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td>
+                <div class="text-truncate" style="max-width: 300px;" title="{{ entry.description }}">
+                  {{ entry.description|default:"بدون وصف" }}
+                </div>
+              </td>
+              <td class="text-center">
+                {% if entry.reference %}
+                  <code class="text-muted">{{ entry.reference }}</code>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="text-end fw-bold">
+                {% with lines=entry.journalentryline_set.all %}
+                  {% if lines.0.debit > 0 %}
+                    <span class="text-primary">{{ lines.0.debit|floatformat:2 }} ج.م</span>
+                  {% elif lines.0.credit > 0 %}
+                    <span class="text-primary">{{ lines.0.credit|floatformat:2 }} ج.م</span>
+                  {% elif lines.1.debit > 0 %}
+                    <span class="text-primary">{{ lines.1.debit|floatformat:2 }} ج.م</span>
+                  {% elif lines.1.credit > 0 %}
+                    <span class="text-primary">{{ lines.1.credit|floatformat:2 }} ج.م</span>
+                  {% else %}
+                    <span class="text-muted">0.00 ج.م</span>
+                  {% endif %}
+                {% endwith %}
+              </td>
+              <td class="text-center">
+                {% if entry.status == 'posted' or not entry.status %}
+                  <span class="badge bg-success">مرحل</span>
+                {% elif entry.status == 'draft' %}
+                  <span class="badge bg-warning">مسودة</span>
+                {% else %}
+                  <span class="badge bg-secondary">{{ entry.get_status_display }}</span>
+                {% endif %}
+              </td>
+              <td class="text-center">
+                <small class="text-muted">
+                  {{ entry.created_by.get_full_name|default:"غير محدد" }}
+                </small>
+              </td>
+              <td class="text-center">
+                <div class="btn-group" role="group">
+                  <a href="{% url 'financial:journal_entries_detail' entry.id %}" 
+                     class="btn btn-sm btn-outline-primary" title="عرض التفاصيل">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  {% if entry.status == 'draft' %}
+                  <a href="{% url 'financial:transaction_edit' entry.id %}" 
+                     class="btn btn-sm btn-outline-warning" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  {% endif %}
+                  <button class="btn btn-sm btn-outline-danger" 
+                          onclick="confirmDelete('{{ entry.id }}')" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="9" class="text-center py-4">
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <i class="fas fa-book"></i>
+                  </div>
+                  <h5 class="text-muted">لا توجد قيود محاسبية</h5>
+                  <p class="text-muted">لم يتم العثور على قيود محاسبية بالمعايير المحددة</p>
+                  <a href="{% url 'financial:transaction_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>إضافة قيد جديد
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير المعاملات إلى Excel
+  function exportTransactionsExcel() {
+    try {
+      const table = document.getElementById('transactions-table');
+      let data = [];
+      
+      // العنوان
+      data.push(['قائمة القيود المحاسبية']);
+      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
+      data.push([]);
+      
+      // الإحصائيات
+      data.push(['الإحصائيات:']);
+      data.push(['إجمالي القيود', '{{ total_transactions|default:"0" }}', 'قيد محاسبي']);
+      data.push(['إجمالي الدائن', '{{ total_credit|floatformat:2|default:"0.00" }}', 'جنيه مصري']);
+      data.push(['إجمالي المدين', '{{ total_debit|floatformat:2|default:"0.00" }}', 'جنيه مصري']);
+      data.push(['حالة التوازن', '{% if total_debit == total_credit %}متوازن{% else %}غير متوازن{% endif %}', '']);
+      data.push([]);
+      
+      // Headers من الجدول الفعلي
+      const headers = [];
+      table.querySelectorAll('thead th').forEach((th, index) => {
+        const headerText = th.textContent.trim();
+        if (headerText && !headerText.includes('الإجراءات')) {
+          headers.push(headerText);
+        }
+      });
+      data.push(headers);
+      
+      // البيانات من الجدول الفعلي
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.cells.length > 1 && !tr.querySelector('.empty-state')) {
+          const row = [];
+          tr.querySelectorAll('td').forEach((td, index) => {
+            // تجنب عمود الإجراءات (العمود الأخير عادة)
+            if (index < tr.cells.length - 1) {
+              let text = td.textContent.trim();
+              // تنظيف النص من المسافات الزائدة
+              text = text.replace(/\s+/g, ' ');
+              row.push(text);
+            }
+          });
+          if (row.length > 0) {
+            data.push(row);
+          }
+        }
+      });
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'القيود المحاسبية');
+      XLSX.writeFile(wb, 'القيود_المحاسبية_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      
+      showNotification('تم تصدير القيود المحاسبية إلى Excel بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير Excel:', error);
+      showNotification('حدث خطأ أثناء تصدير Excel', 'error');
+    }
+  }
+  
+  // تصدير المعاملات إلى CSV
+  function exportTransactionsCSV() {
+    try {
+      const table = document.getElementById('transactions-table');
+      let csv = [];
+      
+      // Headers
+      const headers = [];
+      table.querySelectorAll('thead th').forEach((th, index) => {
+        if (index < 7) { // تجنب عمود الإجراءات
+          headers.push(th.textContent.trim());
+        }
+      });
+      csv.push(headers.join(','));
+      
+      // Rows
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.cells.length > 1) { // تجنب صف الحالة الفارغة
+          const row = [];
+          tr.querySelectorAll('td').forEach((td, index) => {
+            if (index < 7) { // تجنب عمود الإجراءات
+              let text = td.textContent.trim();
+              row.push('"' + text.replace(/"/g, '""') + '"');
+            }
+          });
+          if (row.length > 0) {
+            csv.push(row.join(','));
+          }
+        }
+      });
+      
+      // تحميل الملف
+      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'القيود_المحاسبية_' + new Date().toISOString().split('T')[0] + '.csv';
+      link.click();
+      
+      showNotification('تم تصدير القيود المحاسبية إلى CSV بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير CSV:', error);
+      showNotification('حدث خطأ أثناء تصدير CSV', 'error');
+    }
+  }
+  
+  // تأكيد الحذف
+  function confirmDelete(transactionId) {
+    if (confirm('هل أنت متأكد من حذف هذا القيد المحاسبي؟ لا يمكن التراجع عن هذا الإجراء.')) {
+      showNotification('جاري حذف القيد...', 'info');
+      
+      // محاولة الانتقال لصفحة الحذف
+      window.location.href = `/financial/journal-entries/${transactionId}/delete/`;
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  $(document).ready(function() {
+    // تهيئة الجدول المحسن
+    initGlobalTable('transactions-table', {
+      order: [[1, 'desc']],  // ترتيب حسب التاريخ تنازلياً
+      columnDefs: [
+        {
+          targets: [8], // عمود الإجراءات
+          orderable: false,
+          searchable: false
+        },
+        {
+          targets: [5], // عمود المبلغ
+          className: 'text-end'
+        }
+      ],
+      pageLength: 25,
+      responsive: true,
+      language: {
+        url: '/static/js/datatables/ar.json'
+      }
+    });
+    
+    // تأثيرات hover للكروت
+    $('.stats-card').hover(
+      function() {
+        $(this).addClass('shadow-lg');
+      },
+      function() {
+        $(this).removeClass('shadow-lg');
+      }
+    );
+    
+    // تنسيق حقول التاريخ
+    $('input[type="date"]').addClass('form-control');
+  });
+</script>
+{% endblock %} 

@@ -1,0 +1,138 @@
+[
+  {
+    "model": "supplier.supplier",
+    "pk": 10,
+    "fields": {
+      "code": "PRINT010",
+      "name": "مطبعة النهضة الحديثة",
+      "primary_type": 10,
+      "phone": "011-234-5678",
+      "email": "info@nahda-print.com",
+      "address": "شارع الملك فهد، الرياض",
+      "contact_person": "أحمد محمد",
+      "notes": "مطبعة متخصصة في الطباعة الأوفست عالية الجودة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 11,
+    "fields": {
+      "code": "PRINT011",
+      "name": "مطابع الخليج الرقمية",
+      "primary_type": 11,
+      "phone": "011-345-6789",
+      "email": "orders@gulf-digital.com",
+      "address": "طريق الملك عبدالعزيز، جدة",
+      "contact_person": "سارة أحمد",
+      "notes": "متخصصون في الطباعة الديجيتال السريعة والكميات الصغيرة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 12,
+    "fields": {
+      "code": "PAPER012",
+      "name": "شركة الورق السعودية",
+      "primary_type": 12,
+      "phone": "011-456-7890",
+      "email": "sales@saudi-paper.com",
+      "address": "المنطقة الصناعية، الدمام",
+      "contact_person": "محمد العلي",
+      "notes": "أكبر مورد للورق في المملكة مع جميع الأنواع والأوزان",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 13,
+    "fields": {
+      "code": "FINISH013",
+      "name": "ورشة التشطيب المتقدم",
+      "primary_type": 13,
+      "phone": "011-567-8901",
+      "email": "workshop@advanced-finishing.com",
+      "address": "شارع الأمير سلطان، الرياض",
+      "contact_person": "خالد السعد",
+      "notes": "متخصصون في جميع أنواع التشطيب والتجليد",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 14,
+    "fields": {
+      "code": "CTP014",
+      "name": "مركز إنتاج الزنكات",
+      "primary_type": 14,
+      "phone": "011-678-9012",
+      "email": "production@ctp-center.com",
+      "address": "المنطقة الصناعية الثانية، الرياض",
+      "contact_person": "عبدالله المطيري",
+      "notes": "إنتاج زنكات CTP عالية الدقة لجميع أنواع الطباعة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 6,
+    "fields": {
+      "code": "PRINT003",
+      "name": "مطبعة الإبداع الفني",
+      "primary_type": 1,
+      "phone": "012-123-4567",
+      "email": "creative@art-printing.com",
+      "address": "شارع التحلية، جدة",
+      "contact_person": "فاطمة الزهراني",
+      "notes": "متخصصة في المطبوعات الفنية والإعلانية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 7,
+    "fields": {
+      "code": "PRINT004",
+      "name": "مطابع السرعة الذكية",
+      "primary_type": 2,
+      "phone": "013-234-5678",
+      "email": "fast@smart-speed.com",
+      "address": "الكورنيش، الخبر",
+      "contact_person": "ياسر القحطاني",
+      "notes": "خدمة سريعة للطباعة الديجيتال خلال ساعات",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplier",
+    "pk": 8,
+    "fields": {
+      "code": "PAPER002",
+      "name": "مؤسسة الورق المتميز",
+      "primary_type": 3,
+      "phone": "014-345-6789",
+      "email": "premium@paper-excellence.com",
+      "address": "شارع الملك خالد، أبها",
+      "contact_person": "نورا العسيري",
+      "notes": "ورق فاخر ومتخصص للمطبوعات عالية الجودة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

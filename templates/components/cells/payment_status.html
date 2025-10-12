@@ -1,0 +1,34 @@
+{% load i18n %}
+{% if value == 'pending' or value == 'معلقة' or value == 'معلق' %}
+  <span class="badge bg-warning fw-bold">
+    <i class="fas fa-clock me-1"></i>{% trans "معلقة" %}
+  </span>
+{% elif value == 'synced' or value == 'مربوطة' or value == 'مربوط' %}
+  <span class="badge bg-success fw-bold">
+    <i class="fas fa-check-circle me-1"></i>{% trans "مربوطة" %}
+  </span>
+{% elif value == 'failed' or value == 'فاشلة' or value == 'فاشل' %}
+  <span class="badge bg-danger fw-bold">
+    <i class="fas fa-exclamation-triangle me-1"></i>{% trans "فاشلة" %}
+  </span>
+{% elif value == 'cancelled' or value == 'ملغية' or value == 'ملغي' %}
+  <span class="badge bg-secondary fw-bold">
+    <i class="fas fa-ban me-1"></i>{% trans "ملغية" %}
+  </span>
+{% elif value == 'completed' or value == 'مكتملة' or value == 'مكتمل' %}
+  <span class="badge bg-primary fw-bold">
+    <i class="fas fa-check-double me-1"></i>{% trans "مكتملة" %}
+  </span>
+{% elif value == 'posted' or value == 'مرحل' or value == 'مرحلة' %}
+  <span class="badge bg-info fw-bold">
+    <i class="fas fa-paper-plane me-1"></i>{% trans "مرحل" %}
+  </span>
+{% elif value == 'draft' or value == 'مسودة' %}
+  <span class="badge bg-secondary fw-bold">
+    <i class="fas fa-edit me-1"></i>{% trans "مسودة" %}
+  </span>
+{% else %}
+  <span class="badge bg-light text-dark border">
+    <i class="fas fa-exclamation-circle me-1"></i>{{ value|default:"غير محدد" }}
+  </span>
+{% endif %}

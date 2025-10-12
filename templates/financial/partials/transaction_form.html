@@ -1,0 +1,185 @@
+{% load static %}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">{{ form_title|default:"معاملة مالية جديدة" }}</h6>
+    </div>
+    <div class="card-body">
+        <form method="post" id="transactionForm">
+            {% csrf_token %}
+            
+            <!-- رسالة الخطأ -->
+            {% if form.errors %}
+            <div class="alert alert-danger">
+                <strong>هناك أخطاء في النموذج:</strong>
+                <ul>
+                    {% for field in form %}
+                        {% for error in field.errors %}
+                            <li>{{ field.label }}: {{ error }}</li>
+                        {% endfor %}
+                    {% endfor %}
+                    {% for error in form.non_field_errors %}
+                        <li>{{ error }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+            
+            <!-- معلومات المعاملة الأساسية -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.date.id_for_label }}">التاريخ <span class="text-danger">*</span></label>
+                        {{ form.date }}
+                        <div class="invalid-feedback">{{ form.date.errors }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.transaction_type.id_for_label }}">نوع المعاملة <span class="text-danger">*</span></label>
+                        {{ form.transaction_type }}
+                        <div class="invalid-feedback">{{ form.transaction_type.errors }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.reference.id_for_label }}">الرقم المرجعي</label>
+                        {{ form.reference }}
+                        <div class="invalid-feedback">{{ form.reference.errors }}</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">
+                        <label for="{{ form.related_to.id_for_label }}">متعلق بـ</label>
+                        {{ form.related_to }}
+                        <div class="invalid-feedback">{{ form.related_to.errors }}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label for="{{ form.description.id_for_label }}">الوصف <span class="text-danger">*</span></label>
+                {{ form.description }}
+                <div class="invalid-feedback">{{ form.description.errors }}</div>
+            </div>
+            
+            <!-- تفاصيل المعاملة -->
+            <div class="card mb-4 border-left-primary">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">تفاصيل المعاملة</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.account_from.id_for_label }}">من حساب <span class="text-danger">*</span></label>
+                                {{ form.account_from }}
+                                <div class="invalid-feedback">{{ form.account_from.errors }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.account_to.id_for_label }}">إلى حساب <span class="text-danger">*</span></label>
+                                {{ form.account_to }}
+                                <div class="invalid-feedback">{{ form.account_to.errors }}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.amount.id_for_label }}">المبلغ <span class="text-danger">*</span></label>
+                                {{ form.amount }}
+                                <div class="invalid-feedback">{{ form.amount.errors }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="{{ form.is_verified.id_for_label }}">حالة التحقق</label>
+                                <div class="custom-control custom-switch">
+                                    {{ form.is_verified }}
+                                    <label class="custom-control-label" for="{{ form.is_verified.id_for_label }}">تم التحقق</label>
+                                </div>
+                                <div class="invalid-feedback">{{ form.is_verified.errors }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- الملاحظات والمرفقات -->
+            <div class="form-group">
+                <label for="{{ form.notes.id_for_label }}">ملاحظات</label>
+                {{ form.notes }}
+                <div class="invalid-feedback">{{ form.notes.errors }}</div>
+            </div>
+            
+            <div class="form-group text-center">
+                <button type="submit" class="btn btn-primary px-4">
+                    <i class="fas fa-save"></i> حفظ
+                </button>
+                <a href="#" onclick="window.history.back(); return false;"financial:transaction_list' %}" class="btn btn-secondary px-4">
+                    <i class="fas fa-times"></i> إلغاء
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    $(document).ready(function() {
+        // تنسيق الحقول
+        $('.form-control').addClass('form-control-sm');
+        
+        // تنسيق حقول التاريخ
+        $('input[type="date"]').attr('placeholder', 'YYYY-MM-DD');
+        
+        // تحديد لون النوع حسب نوع المعاملة
+        $('#{{ form.transaction_type.id_for_label }}').change(function() {
+            const transactionType = $(this).val();
+            const cardHeader = $('.card-header');
+            
+            // إزالة جميع الألوان السابقة
+            cardHeader.removeClass('border-left-primary border-left-success border-left-danger border-left-warning');
+            
+            // إضافة اللون المناسب حسب النوع
+            if (transactionType === 'deposit') {
+                cardHeader.addClass('border-left-success');
+            } else if (transactionType === 'withdrawal') {
+                cardHeader.addClass('border-left-danger');
+            } else if (transactionType === 'transfer') {
+                cardHeader.addClass('border-left-primary');
+            } else {
+                cardHeader.addClass('border-left-warning');
+            }
+        });
+        
+        // تغيير حقول الحسابات حسب نوع المعاملة
+        $('#{{ form.transaction_type.id_for_label }}').change(function() {
+            const transactionType = $(this).val();
+            const accountFromLabel = $('label[for="{{ form.account_from.id_for_label }}"]');
+            const accountToLabel = $('label[for="{{ form.account_to.id_for_label }}"]');
+            
+            if (transactionType === 'deposit') {
+                accountFromLabel.text('مصدر الإيداع');
+                accountToLabel.text('الحساب المستهدف');
+            } else if (transactionType === 'withdrawal') {
+                accountFromLabel.text('الحساب المصدر');
+                accountToLabel.text('وجهة السحب');
+            } else if (transactionType === 'transfer') {
+                accountFromLabel.text('الحساب المصدر');
+                accountToLabel.text('الحساب المستهدف');
+            } else {
+                accountFromLabel.text('من حساب');
+                accountToLabel.text('إلى حساب');
+            }
+        });
+        
+        // تشغيل التغيير الأول لتحديد الحالة الأولية
+        $('#{{ form.transaction_type.id_for_label }}').trigger('change');
+    });
+</script> 

@@ -1,0 +1,513 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ warehouse.name }} - {% trans "تفاصيل المستودع" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+<style>
+    .clickable-row:hover {
+        background-color: #f8f9fa !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: all 0.2s ease;
+    }
+    
+    .table-hover-effect {
+        background-color: #e3f2fd !important;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .clickable-row {
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    
+    /* توسيط جميع خلايا جدول المخزون والعناوين */
+    #inventory-table th,
+    #inventory-table td {
+        text-align: center !important;
+        vertical-align: middle !important;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">{% trans "إدارة ومتابعة حركة المخزون" %}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'product:warehouse_edit' warehouse.pk %}" class="btn btn-primary me-2">
+                    <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+                </a>
+                <a href="{% url 'product:warehouse_delete' warehouse.pk %}" class="btn btn-danger">
+                    <i class="fas fa-trash me-1"></i>{% trans "حذف" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-4 inventory-stats">
+        <div class="col-md-3">
+            <div class="card shadow-sm bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">{% trans "إجمالي المنتجات" %}</h6>
+                            <h3 class="mt-3 mb-0">{{ total_products|default:"0" }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-box fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">{% trans "متوفر بالمخزون" %}</h6>
+                            <h3 class="mt-3 mb-0">{{ in_stock_products|default:"0" }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-check-circle fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">{% trans "مخزون منخفض" %}</h6>
+                            <h3 class="mt-3 mb-0">{{ low_stock_products|default:"0" }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow-sm bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">{% trans "نفذ من المخزون" %}</h6>
+                            <h3 class="mt-3 mb-0">{{ out_of_stock_products|default:"0" }}</h3>
+                        </div>
+                        <div>
+                            <i class="fas fa-times-circle fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات المخزن" %}</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">{% trans "الكود" %}</dt>
+                        <dd class="col-sm-8"><code>{{ warehouse.code }}</code></dd>
+                        
+                        <dt class="col-sm-4">{% trans "الاسم" %}</dt>
+                        <dd class="col-sm-8">{{ warehouse.name }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "الموقع" %}</dt>
+                        <dd class="col-sm-8">{{ warehouse.location|default:"-" }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "المسؤول" %}</dt>
+                        <dd class="col-sm-8">{{ warehouse.manager|default:"-" }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "الحالة" %}</dt>
+                        <dd class="col-sm-8">
+                            {% if warehouse.is_active %}
+                            <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                            {% endif %}
+                        </dd>
+                        
+                        <dt class="col-sm-4">{% trans "تاريخ الإنشاء" %}</dt>
+                        <dd class="col-sm-8">{{ warehouse.created_at|date:"d-m-Y H:i" }}</dd>
+                        
+                        <dt class="col-sm-4">{% trans "آخر تحديث" %}</dt>
+                        <dd class="col-sm-8">{{ warehouse.updated_at|date:"d-m-Y H:i" }}</dd>
+                    </dl>
+                </div>
+            </div>
+            
+            {% if warehouse.description %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "الوصف" %}</h5>
+                </div>
+                <div class="card-body">
+                    {{ warehouse.description|linebreaks }}
+                </div>
+            </div>
+            {% endif %}
+            
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{% trans "آخر الحركات" %}</h5>
+                    <a href="{% url 'product:stock_movement_list' %}?warehouse={{ warehouse.pk }}" class="btn btn-sm btn-outline-primary">{% trans "جميع الحركات" %}</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_movements %}
+                    <div class="list-group list-group-flush">
+                        {% for movement in recent_movements %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="mb-1">
+                                        {% if movement.movement_type == 'in' %}
+                                        <span class="badge bg-success">{% trans "إضافة" %}</span>
+                                        {% elif movement.movement_type == 'out' %}
+                                        <span class="badge bg-danger">{% trans "سحب" %}</span>
+                                        {% elif movement.movement_type == 'transfer' %}
+                                        <span class="badge bg-info">{% trans "تحويل" %}</span>
+                                        {% elif movement.movement_type == 'adjustment' %}
+                                        <span class="badge bg-warning">{% trans "تعديل" %}</span>
+                                        {% endif %}
+                                        {{ movement.product.name }}
+                                    </h6>
+                                    <small class="text-muted">#{{ movement.reference_number }}</small>
+                                </div>
+                                <div class="text-end">
+                                    <div class="fw-bold">{{ movement.quantity|floatformat:"0" }}</div>
+                                    <small class="text-muted">{{ movement.timestamp|date:"d-m-Y H:i" }}</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-center text-muted my-3">{% trans "لا توجد حركات حديثة" %}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">{% trans "المخزون" %}</h5>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="export-inventory">
+                            <i class="fas fa-file-export me-1"></i>{% trans "تصدير" %}
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col">
+                            <input type="text" class="form-control" id="inventory-search" placeholder="{% trans 'بحث في المنتجات...' %}">
+                        </div>
+                    </div>
+                    
+                    {% if stocks %}
+                    <!-- استخدام الجدول الموحد -->
+                      {% with table_id="inventory-table" %}
+                        {% include "components/data_table.html" with headers=stock_headers data=stocks action_buttons=stock_action_buttons primary_key=primary_key empty_message="لا توجد منتجات في هذا المخزن" clickable_rows=True row_click_url="/products/stock/0/" show_export=True export_filename="warehouse_inventory" %}
+                      {% endwith %}
+                    
+                    {% else %}
+                        {% include 'partials/empty_state.html' with message="لا يوجد مخزون متاح في هذا المخزن" icon="boxes" %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة إضافة منتج للمخزون -->
+<div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addStockModalLabel">{% trans "إضافة منتج للمخزون" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-stock-form">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="product" class="form-label">{% trans "المنتج" %}</label>
+                        <select class="form-select" id="product" name="product" required>
+                            <option value="">{% trans "اختر المنتج" %}</option>
+                            {% for product in all_products %}
+                            <option value="{{ product.id }}">{{ product.name }} ({{ product.sku }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">{% trans "الكمية" %}</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="reference_number" class="form-label">{% trans "رقم المرجع" %}</label>
+                        <input type="text" class="form-control" id="reference_number" name="reference_number" placeholder="{% trans 'مثل: رقم الفاتورة' %}">
+                    </div>
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">{% trans "ملاحظات" %}</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" id="save-stock-btn">{% trans "حفظ" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة حركة المخزون -->
+<div class="modal fade" id="stockMovementModal" tabindex="-1" aria-labelledby="stockMovementModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="stockMovementModalLabel">{% trans "حركة المخزون" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="stock-movement-form">
+                    {% csrf_token %}
+                    <input type="hidden" id="movement-product-id" name="product_id">
+                    <input type="hidden" id="movement-type" name="movement_type">
+                    <input type="hidden" name="warehouse_id" value="{{ warehouse.id }}">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">{% trans "المنتج" %}</label>
+                        <p class="form-control-static fw-bold" id="movement-product-name"></p>
+                    </div>
+                    
+                    <div class="mb-3" id="current-stock-container">
+                        <label class="form-label">{% trans "المخزون الحالي" %}</label>
+                        <p class="form-control-static" id="current-stock-display"></p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="movement-quantity" class="form-label">{% trans "الكمية" %}</label>
+                        <input type="number" class="form-control" id="movement-quantity" name="quantity" min="1" required>
+                    </div>
+                    
+                    <div class="mb-3 destination-warehouse" style="display: none;">
+                        <label for="destination-warehouse" class="form-label">{% trans "المخزن المستلم" %}</label>
+                        <select class="form-select" id="destination-warehouse" name="destination_warehouse">
+                            <option value="">{% trans "اختر المخزن" %}</option>
+                            {% for other_warehouse in other_warehouses %}
+                            <option value="{{ other_warehouse.id }}">{{ other_warehouse.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="movement-reference" class="form-label">{% trans "رقم المرجع" %}</label>
+                        <input type="text" class="form-control" id="movement-reference" name="reference_number">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="movement-notes" class="form-label">{% trans "ملاحظات" %}</label>
+                        <textarea class="form-control" id="movement-notes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" id="save-movement-btn">{% trans "حفظ" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/stock.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // تفعيل تنسيق الجدول
+        if (document.querySelector('.stock-table')) {
+            initDataTableArabic('.stock-table', {
+                pageLength: 25,
+                responsive: true
+            });
+        }
+        
+        if (document.querySelector('.movement-table')) {
+            initDataTableArabic('.movement-table', {
+                pageLength: 10,
+                responsive: true,
+                order: [[0, 'desc']]
+            });
+        }
+        
+        // تنشيط حقل اختيار المنتج
+        const productSelect = document.querySelector('#product');
+        if (productSelect) {
+            $(productSelect).select2({
+                theme: 'bootstrap-5',
+                dropdownParent: $('#addStockModal'),
+                placeholder: "{% trans 'اختر المنتج' %}",
+                allowClear: true
+            });
+        }
+        
+        // إضافة منتج للمخزون
+        document.querySelector('#save-stock-btn')?.addEventListener('click', function() {
+            const form = document.querySelector('#add-stock-form');
+            const formData = new FormData(form);
+            formData.append('warehouse_id', '{{ warehouse.id }}');
+            formData.append('movement_type', 'in');
+            
+            fetch("{% url 'product:add_stock_movement' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || "{% trans 'حدث خطأ أثناء إضافة المخزون' %}");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("{% trans 'حدث خطأ أثناء إضافة المخزون' %}");
+            });
+        });
+        
+        // تعبئة بيانات نافذة حركة المخزون
+        document.querySelectorAll('.add-stock-btn, .remove-stock-btn, .adjust-stock-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const productId = this.getAttribute('data-product-id');
+                const productName = this.getAttribute('data-product-name');
+                const movementType = this.getAttribute('data-movement-type');
+                
+                document.querySelector('#movement-product-id').value = productId;
+                document.querySelector('#movement-type').value = movementType;
+                document.querySelector('#movement-product-name').textContent = productName;
+                
+                // عرض/إخفاء حقل المخزن المستلم
+                const destinationWarehouse = document.querySelector('.destination-warehouse');
+                if (movementType === 'transfer') {
+                    destinationWarehouse.style.display = 'block';
+                } else {
+                    destinationWarehouse.style.display = 'none';
+                }
+                
+                // عرض المخزون الحالي للتعديل
+                const currentStockContainer = document.querySelector('#current-stock-container');
+                if (movementType === 'adjustment') {
+                    const currentStock = this.getAttribute('data-current-stock');
+                    document.querySelector('#current-stock-display').textContent = currentStock;
+                    currentStockContainer.style.display = 'block';
+                    document.querySelector('#movement-quantity').value = currentStock;
+                } else {
+                    currentStockContainer.style.display = 'none';
+                    document.querySelector('#movement-quantity').value = '';
+                }
+                
+                // تعديل عنوان النافذة حسب نوع الحركة
+                let title = '';
+                if (movementType === 'in') title = "{% trans 'إضافة مخزون' %}";
+                else if (movementType === 'out') title = "{% trans 'سحب مخزون' %}";
+                else if (movementType === 'adjustment') title = "{% trans 'تعديل المخزون' %}";
+                else if (movementType === 'transfer') title = "{% trans 'تحويل مخزون' %}";
+                
+                document.querySelector('#stockMovementModalLabel').textContent = title + ': ' + productName;
+            });
+        });
+        
+        // حفظ حركة المخزون
+        document.querySelector('#save-movement-btn')?.addEventListener('click', function() {
+            const form = document.querySelector('#stock-movement-form');
+            const formData = new FormData(form);
+            
+            fetch("{% url 'product:add_stock_movement' %}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                },
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.error || "{% trans 'حدث خطأ أثناء تحديث المخزون' %}");
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert("{% trans 'حدث خطأ أثناء تحديث المخزون' %}");
+            });
+        });
+        
+        // تصدير بيانات المخزون
+        document.querySelector('#export-inventory')?.addEventListener('click', function() {
+            window.location.href = "{% url 'product:export_warehouse_inventory' warehouse.id %}";
+        });
+        
+        // الجدول الموحد يتولى جميع وظائف التفاعل
+    });
+</script>
+{% endblock %} 

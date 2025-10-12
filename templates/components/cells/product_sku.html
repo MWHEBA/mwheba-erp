@@ -1,0 +1,8 @@
+{% load i18n %}
+{% if object.sku %}
+  {{ object.sku }}
+{% elif object.code %}
+  {{ object.code }}
+{% else %}
+  #{{ object.id }}
+{% endif %}

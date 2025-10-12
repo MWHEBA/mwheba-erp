@@ -1,0 +1,656 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% if purchase.id %}تعديل فاتورة مشتريات - {{ purchase.number }}{% else %}إضافة فاتورة مشتريات جديدة{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+    .item-row {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        margin-bottom: 10px;
+        padding: 10px;
+    }
+    
+    .total-section {
+        background-color: #f1f1f1;
+        border-radius: 5px;
+        padding: 15px;
+        margin-top: 20px;
+    }
+    
+    .remove-item {
+        color: #dc3545;
+        cursor: pointer;
+    }
+    
+    .add-more-btn {
+        margin-top: 10px;
+    }
+    
+    .form-label {
+        font-weight: bold;
+    }
+    
+    .required-field::after {
+        content: " *";
+        color: red;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"إضافة فاتورة مشتريات" }}</h1>
+                    <p class="text-muted mb-0">{% if purchase.id %}تعديل بيانات الفاتورة رقم {{ purchase.number }}{% else %}إضافة فاتورة مشتريات جديدة إلى النظام{% endif %}</p>
+                </div>
+            </div>
+            
+            <div>
+                <a href="{% url 'purchase:purchase_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> العودة للقائمة
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="row">
+            <div class="col">
+                <form method="post" id="purchase-form">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>يرجى تصحيح الأخطاء التالية:</strong>
+                        <ul>
+                            {% for field, errors in form.errors.items %}
+                                {% for error in errors %}
+                                    <li>{{ error }}</li>
+                                {% endfor %}
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">رقم الفاتورة</label>
+                                {% if purchase.id %}
+                                <input type="text" id="id_number" value="{{ purchase.number }}" class="form-control" readonly>
+                                <input type="hidden" name="number" value="{{ purchase.number }}">
+                                {% else %}
+                                <input type="text" id="id_number" value="{{ next_purchase_number|default:'' }}" class="form-control" readonly>
+                                <input type="hidden" name="number" value="{{ next_purchase_number|default:'' }}">
+                                {% if not next_purchase_number %}
+                                <small class="text-danger">سيتم إنشاء رقم فاتورة جديد تلقائياً عند الحفظ</small>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">تاريخ الفاتورة</label>
+                                <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">المورد</label>
+                                {% if purchase.id %}
+                                    <input type="text" class="form-control" value="{{ purchase.supplier.name }}" readonly>
+                                    <input type="hidden" name="supplier" value="{{ purchase.supplier.id }}">
+                                {% else %}
+                                    <select name="supplier" id="id_supplier" class="form-control" required>
+                                        <option value="">اختر المورد</option>
+                                        {% for supplier in suppliers %}
+                                            <option value="{{ supplier.id }}" {% if form.supplier.value == supplier.id|stringformat:'s' %}selected{% endif %}>{{ supplier.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-3">
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">المستودع</label>
+                                {% if purchase.id %}
+                                    <input type="text" class="form-control" value="{{ purchase.warehouse.name }}" readonly>
+                                    <input type="hidden" name="warehouse" value="{{ purchase.warehouse.id }}">
+                                {% else %}
+                                    <select name="warehouse" id="id_warehouse" class="form-control" required>
+                                        <option value="">اختر المستودع</option>
+                                        {% for warehouse in warehouses %}
+                                            <option value="{{ warehouse.id }}" {% if form.warehouse.value|stringformat:'s' == warehouse.id|stringformat:'s' %}selected{% endif %}>{{ warehouse.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        {% if not purchase.id %}
+                        <div class="col-md-4">
+                            <div class="form-group mb-3">
+                                <label class="form-label">طلب شراء (اختياري)</label>
+                                <select name="purchase_order" id="id_purchase_order" class="form-control">
+                                    <option value="">اختر طلب الشراء (اختياري)</option>
+                                    {% for po in purchase_orders %}
+                                        <option value="{{ po.id }}" {% if form.purchase_order.value|stringformat:'s' == po.id|stringformat:'s' %}selected{% endif %}>
+                                            {{ po.number }} - {{ po.supplier.name }} ({{ po.date|date:'d-m-Y' }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="col-md-{% if purchase.id %}6{% else %}4{% endif %}">
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">طريقة الدفع</label>
+                                <select name="payment_method" id="id_payment_method" class="form-control" required>
+                                    <option value="">اختر طريقة الدفع</option>
+                                    <option value="cash" {% if form.payment_method.value == 'cash' %}selected{% endif %}>نقداً</option>
+                                    <option value="credit" {% if form.payment_method.value == 'credit' %}selected{% endif %}>آجل</option>
+                                    <option value="bank_transfer" {% if form.payment_method.value == 'bank_transfer' %}selected{% endif %}>تحويل بنكي</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-{% if purchase.id %}6{% else %}4{% endif %}">
+                            <div class="form-group mb-3">
+                                <label class="form-label">خصم على كامل الفاتورة</label>
+                                <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" step="0.01">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- حقل الخزينة للفواتير النقدية -->
+                    <div class="row mb-4" id="financial_account_wrapper" style="display: none;">
+                        <div class="col-md-12">
+                            <div class="alert alert-warning" role="alert">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                <strong>تنبيه هام:</strong> عند اختيار الدفع النقدي، سيتم:
+                                <ul class="mb-0 mt-2">
+                                    <li>إنشاء دفعة تلقائية بالمبلغ الكامل</li>
+                                    <li>تسجيل الفاتورة كمدفوعة بالكامل</li>
+                                    <li>خصم المبلغ من الخزينة المختارة</li>
+                                </ul>
+                            </div>
+                            <div class="form-group mb-3">
+                                <label class="form-label required-field">الخزينة/البنك</label>
+                                {{ form.financial_account }}
+                                <small class="form-text text-muted">اختر الخزينة التي سيتم الدفع منها</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <h5 class="mb-3">بنود الفاتورة</h5>
+                    <div id="items-container">
+                        {% if purchase.id and purchase.items.exists %}
+                            {% for item in purchase.items.all %}
+                            <div class="item-row row">
+                                <div class="col-md-4">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required-field">المنتج</label>
+                                        <select name="product[]" class="form-control product-select" required>
+                                            <option value="">اختر المنتج</option>
+                                            {% for product in products %}
+                                            <option value="{{ product.id }}" data-price="{{ product.cost_price }}" {% if product.id == item.product.id %}selected{% endif %}>{{ product.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required-field">الكمية</label>
+                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|floatformat:'0' }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label required-field">سعر الوحدة</label>
+                                        <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" value="{{ item.unit_price }}" required>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label">الخصم</label>
+                                        <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-2">
+                                    <div class="form-group mb-2">
+                                        <label class="form-label">الإجمالي</label>
+                                        <input type="text" class="form-control item-total" value="{{ item.total }}" readonly>
+                                    </div>
+                                </div>
+                                
+                                {% if not forloop.first %}
+                                <div class="text-end mt-2">
+                                    <a href="javascript:void(0)" class="remove-item text-danger">
+                                        <i class="fas fa-times-circle"></i> إزالة
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                        <!-- سطر فارغ لإضافة فاتورة جديدة -->
+                        <div class="item-row row">
+                            <div class="col-md-4">
+                                <div class="form-group mb-2">
+                                    <label class="form-label required-field">المنتج</label>
+                                    <select name="product[]" class="form-control product-select" required>
+                                        <option value="">اختر المنتج</option>
+                                        {% for product in products %}
+                                        <option value="{{ product.id }}" data-price="{{ product.cost_price }}">{{ product.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-group mb-2">
+                                    <label class="form-label required-field">الكمية</label>
+                                    <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="1" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-group mb-2">
+                                    <label class="form-label required-field">سعر الوحدة</label>
+                                    <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" required>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-group mb-2">
+                                    <label class="form-label">الخصم</label>
+                                    <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="0">
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-2">
+                                <div class="form-group mb-2">
+                                    <label class="form-label">الإجمالي</label>
+                                    <input type="text" class="form-control item-total" readonly>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn">
+                        <i class="fa fa-plus"></i> إضافة بند
+                    </button>
+                    
+                    <div class="row total-section mt-4">
+                        <div class="col-md-8">
+                            <div class="form-group mb-3">
+                                <label class="form-label">ملاحظات</label>
+                                {{ form.notes }}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="row mb-2">
+                                <div class="col-6 text-end">
+                                    <strong>المجموع الفرعي:</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span id="subtotal">0.00</span>
+                                    <input type="hidden" name="subtotal" id="subtotal-input">
+                                </div>
+                            </div>
+                            
+                            <div class="row mb-2">
+                                <div class="col-6 text-end">
+                                    <strong>الخصم على الفاتورة:</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span id="discount-total">0.00</span>
+                                </div>
+                            </div>
+                            
+                            <hr>
+                            
+                            <div class="row">
+                                <div class="col-6 text-end">
+                                    <strong>الإجمالي:</strong>
+                                </div>
+                                <div class="col-6 text-end">
+                                    <span id="grand-total">0.00</span>
+                                    <input type="hidden" name="total" id="total-input">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <button type="submit" class="btn btn-primary">حفظ الفاتورة</button>
+                        <a href="{% url 'purchase:purchase_list' %}" class="btn btn-secondary">إلغاء</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        // تهيئة Select2 للحقول
+        $('.product-select').select2({
+            placeholder: "اختر المنتج",
+            width: '100%',
+            allowClear: true
+        });
+        
+        $('#id_supplier').select2({
+            placeholder: "اختر المورد",
+            width: '100%',
+            allowClear: true
+        });
+        
+        $('#id_warehouse').select2({
+            placeholder: "اختر المستودع",
+            width: '100%',
+            allowClear: true
+        });
+        
+        $('#id_purchase_order').select2({
+            placeholder: "اختر طلب الشراء (اختياري)",
+            width: '100%',
+            allowClear: true
+        });
+        
+        // إضافة بند جديد للفاتورة
+        $("#add-item").click(function() {
+            // نحتفظ بحالة كل صف موجود قبل النسخ
+            $('.product-select').each(function() {
+                var select = $(this);
+                // نحفظ القيمة المختارة في صفة مخصصة لاستخدامها لاحقاً
+                select.attr('data-selected-value', select.val());
+                select.attr('data-selected-text', select.find('option:selected').text());
+            });
+            
+            // إزالة السليكت الحالي قبل النسخ لمنع المشاكل
+            var firstRow = $(".item-row:first");
+            var selectHtml = firstRow.find('.product-select').html();
+            firstRow.find('.product-select').select2('destroy');
+            
+            // نسخ الصف
+            var newRow = firstRow.clone();
+            
+            // إعادة تهيئة select2 للصف الأصلي
+            firstRow.find('.product-select').html(selectHtml);
+            firstRow.find('.product-select').select2({
+                placeholder: "اختر المنتج",
+                width: '100%',
+                allowClear: true
+            });
+
+            // استعادة قيم الصفوف الموجودة
+            $('.product-select').each(function() {
+                var select = $(this);
+                var selectedValue = select.attr('data-selected-value');
+                var selectedText = select.attr('data-selected-text');
+                
+                if (selectedValue && selectedText) {
+                    select.val(selectedValue).trigger('change');
+                    
+                    // تحديث النص المعروض
+                    setTimeout(function() {
+                        select.siblings('.select2-container').find('.select2-selection__rendered').text(selectedText);
+                    }, 50);
+                }
+            });
+
+            // تنظيف الصف الجديد وإعداده
+            newRow.find('input').val('');
+            newRow.find('.quantity').val('1');
+            newRow.find('.product-select').html(selectHtml);
+            newRow.find('.product-select').val('');
+            newRow.find('.product-select').removeAttr('data-selected-value');
+            newRow.find('.product-select').removeAttr('data-selected-text');
+            
+            // إضافة زر الحذف إذا لم يكن موجودًا
+            if (newRow.find('.remove-item').length === 0) {
+                newRow.append('<div class="text-end mt-2"><a href="javascript:void(0)" class="remove-item text-danger"><i class="fas fa-times-circle"></i> إزالة</a></div>');
+            }
+            
+            // إضافة الصف الجديد للحاوية
+            $("#items-container").append(newRow);
+            
+            // تهيئة select2 للصف الجديد
+            newRow.find('.product-select').select2({
+                placeholder: "اختر المنتج",
+                width: '100%',
+                allowClear: true
+            });
+            
+            // إعادة ربط الأحداث
+            bindEventHandlers();
+        });
+        
+        // حذف بند من الفاتورة
+        $(document).on('click', '.remove-item, .remove-btn', function() {
+            $(this).closest('.item-row').remove();
+            calculateTotals();
+        });
+        
+        // ربط كل الأحداث للحقول
+        function bindEventHandlers() {
+            // عند تغيير المنتج، ملء سعر الوحدة تلقائياً
+            $('.product-select').off('change').on('change', function() {
+                var selectedOption = $(this).find('option:selected');
+                var price = selectedOption.data('price') || '';
+                $(this).closest('.item-row').find('.unit-price').val(price);
+                calculateRowTotal($(this).closest('.item-row'));
+                
+                // التأكد من عرض النص المختار بشكل صحيح
+                var selectedText = selectedOption.text();
+                if (selectedText) {
+                    setTimeout(function() {
+                        $(this).siblings('.select2-container').find('.select2-selection__rendered').text(selectedText);
+                    }.bind(this), 100);
+                }
+            });
+            
+            // عند تغيير الكمية أو السعر أو الخصم، حساب الإجمالي
+            $('.quantity, .unit-price, .item-discount').off('input').on('input', function() {
+                calculateRowTotal($(this).closest('.item-row'));
+            });
+            
+            // عند تغيير الخصم الإجمالي
+            $('#id_discount').off('input').on('input', function() {
+                calculateTotals();
+            });
+            
+            // ضمان أن الخصم الإجمالي يتم حسابه في حال كان منسدل (غير نصي)
+            if ($('#id_discount').is('select')) {
+                $('#id_discount').off('change').on('change', function() {
+                    calculateTotals();
+                });
+            }
+        }
+        
+        // حساب إجمالي الصف
+        function calculateRowTotal(row) {
+            var quantity = parseInt(row.find('.quantity').val()) || 0;
+            var unitPrice = parseFloat(row.find('.unit-price').val()) || 0;
+            var discount = parseFloat(row.find('.item-discount').val()) || 0;
+            
+            var subtotal = quantity * unitPrice;
+            var total = subtotal - discount;
+            
+            // تجنب القيم السالبة
+            if (total < 0) total = 0;
+            
+            row.find('.item-total').val(total.toFixed(2));
+            
+            calculateTotals();
+        }
+        
+        // حساب الإجماليات
+        function calculateTotals() {
+            var subtotal = 0;
+            
+            $('.item-total').each(function() {
+                var rowTotal = parseFloat($(this).val()) || 0;
+                subtotal += rowTotal;
+            });
+            
+            var discount = parseFloat($('#id_discount').val()) || 0;
+            var grandTotal = subtotal - discount;
+            
+            // عرض القيم
+            $('#subtotal').text(subtotal.toFixed(2) + ' ج.م');
+            $('#discount-total').text(discount.toFixed(2) + ' ج.م');
+            $('#grand-total').text(grandTotal.toFixed(2) + ' ج.م');
+            
+            // تعيين القيم في الحقول المخفية
+            $('#subtotal-input').val(subtotal.toFixed(2));
+            $('#total-input').val(grandTotal.toFixed(2));
+        }
+        
+        // ربط الأحداث عند تحميل الصفحة
+        bindEventHandlers();
+        
+        // حساب إجمالي كل صف عند تحميل الصفحة في حالة التعديل
+        $('.item-row').each(function() {
+            calculateRowTotal($(this));
+        });
+        
+        calculateTotals();
+        
+        // تحديث قيمة الخصم في حالة التعديل
+        if ($('#id_discount').val()) {
+            $('#discount-total').text(parseFloat($('#id_discount').val()).toFixed(2) + ' ج.م');
+        }
+        
+        // التحكم في إظهار/إخفاء حقل الخزينة بناءً على طريقة الدفع
+        function toggleFinancialAccount() {
+            var paymentMethod = $('#id_payment_method').val();
+            var financialAccountWrapper = $('#financial_account_wrapper');
+            var financialAccountSelect = $('#id_financial_account');
+            
+            if (paymentMethod === 'cash') {
+                financialAccountWrapper.slideDown();
+                financialAccountSelect.prop('required', true);
+            } else {
+                financialAccountWrapper.slideUp();
+                financialAccountSelect.prop('required', false);
+            }
+        }
+        
+        // تشغيل عند تحميل الصفحة
+        toggleFinancialAccount();
+        
+        // تشغيل عند تغيير طريقة الدفع
+        $('#id_payment_method').on('change', function() {
+            toggleFinancialAccount();
+        });
+        
+        // التحقق من النموذج قبل الإرسال
+        $('#purchase-form').on('submit', function(e) {
+            var isValid = true;
+            
+            // التحقق من وجود بند واحد على الأقل
+            if ($('.item-row').length < 1) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ',
+                    text: 'يجب إضافة بند واحد على الأقل للفاتورة'
+                });
+                isValid = false;
+            }
+            
+            // التحقق من إدخال جميع البيانات المطلوبة
+            $('.item-row').each(function(index) {
+                var row = $(this);
+                var product = row.find('.product-select').val();
+                var quantity = row.find('.quantity').val();
+                var unitPrice = row.find('.unit-price').val();
+                
+                if (!product || !quantity || !unitPrice) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ',
+                        text: 'يرجى ملء جميع البيانات المطلوبة في البند رقم ' + (index + 1)
+                    });
+                    isValid = false;
+                    return false;
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+            }
+        });
+        
+        // بعد تهيئة الصفحة، نقوم بعملية تحديث إضافية لقوائم select2
+        $('.product-select').each(function() {
+            var select = $(this);
+            var selectedOption = select.find('option:selected');
+            if (selectedOption.length && selectedOption.val()) {
+                setTimeout(function() {
+                    var selectedText = selectedOption.text();
+                    select.siblings('.select2-container').find('.select2-selection__rendered').text(selectedText);
+                }, 200);
+            }
+        });
+    });
+</script>
+{% endblock %} 

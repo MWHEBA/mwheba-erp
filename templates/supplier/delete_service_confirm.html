@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}حذف خدمة - {{ service.name }}{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'css/components.css' %}" rel="stylesheet">
+<link href="{% static 'css/dynamic_services.css' %}" rel="stylesheet">
+<style>
+.delete-confirmation {
+    background: var(--danger-color);
+    color: var(--white);
+    border-radius: var(--border-radius-lg);
+    padding: var(--spacing-8);
+    text-align: center;
+    box-shadow: var(--card-shadow);
+}
+
+.service-info {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-5);
+    margin: var(--spacing-5) 0;
+    color: var(--text-dark);
+    box-shadow: var(--card-shadow);
+    border: 1px solid var(--border-color);
+}
+
+.warning-icon {
+    font-size: 4rem;
+    color: var(--warning-color);
+    margin-bottom: var(--spacing-5);
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.btn-delete {
+    background: var(--danger-color);
+    border: none;
+    padding: var(--spacing-3) var(--spacing-8);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-speed) ease;
+    color: var(--white);
+}
+
+.btn-delete:hover {
+    background: var(--danger-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow);
+    color: var(--white);
+}
+
+.btn-cancel {
+    background: var(--gray-500);
+    border: none;
+    padding: var(--spacing-3) var(--spacing-8);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-speed) ease;
+    color: var(--white);
+}
+
+.btn-cancel:hover {
+    background: var(--gray-600);
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow);
+    color: var(--white);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:dashboard' %}">
+                    <i class="fas fa-home"></i> الرئيسية
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'supplier:supplier_list' %}">
+                    <i class="fas fa-truck"></i> الموردين
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'supplier:supplier_detail' supplier.pk %}">
+                    {{ supplier.name }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active">حذف خدمة - {{ service.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="delete-confirmation">
+                <div class="warning-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                
+                <h2 class="mb-3">تأكيد حذف الخدمة</h2>
+                <p class="lead mb-4">
+                    هل أنت متأكد من حذف هذه الخدمة؟ هذا الإجراء لا يمكن التراجع عنه.
+                </p>
+
+                <div class="service-info">
+                    <h5 class="text-primary mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        معلومات الخدمة المراد حذفها
+                    </h5>
+                    
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <strong>اسم الخدمة:</strong><br>
+                            <span class="text-muted">{{ service.name }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>نوع الخدمة:</strong><br>
+                            <span class="text-muted">{{ service.category.name }}</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>السعر الأساسي:</strong><br>
+                            <span class="text-success">{{ service.base_price|floatformat:2 }} ج.م</span>
+                        </div>
+                        <div class="col-md-6">
+                            <strong>الحالة:</strong><br>
+                            {% if service.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشط</span>
+                            {% endif %}
+                        </div>
+                        {% if service.description %}
+                        <div class="col-12">
+                            <strong>الوصف:</strong><br>
+                            <span class="text-muted">{{ service.description|truncatewords:20 }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="alert alert-warning text-dark">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>تحذير:</strong> سيتم حذف جميع البيانات المرتبطة بهذه الخدمة بما في ذلك:
+                    <ul class="mb-0 mt-2">
+                        <li>الشرائح السعرية</li>
+                        <li>التفاصيل المتخصصة</li>
+                        <li>سجل التعديلات</li>
+                    </ul>
+                </div>
+
+                <form method="post" class="mt-4">
+                    {% csrf_token %}
+                    <div class="d-grid gap-3 d-md-flex justify-content-md-center">
+                        <button type="submit" class="btn btn-delete btn-lg me-md-3">
+                            <i class="fas fa-trash me-2"></i>
+                            نعم، احذف الخدمة
+                        </button>
+                        <a href="{% url 'supplier:supplier_detail' supplier.pk %}" 
+                           class="btn btn-cancel btn-lg">
+                            <i class="fas fa-times me-2"></i>
+                            إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تأكيد إضافي قبل الحذف
+document.querySelector('form').addEventListener('submit', function(e) {
+    if (!confirm('هل أنت متأكد تماماً من حذف هذه الخدمة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+        e.preventDefault();
+    }
+});
+
+// تأثير بصري للأزرار
+document.querySelectorAll('.btn').forEach(btn => {
+    btn.addEventListener('mouseenter', function() {
+        this.style.transform = 'translateY(-2px)';
+    });
+    
+    btn.addEventListener('mouseleave', function() {
+        this.style.transform = 'translateY(0)';
+    });
+});
+</script>
+{% endblock %}

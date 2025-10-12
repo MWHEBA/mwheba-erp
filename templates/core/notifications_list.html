@@ -1,0 +1,347 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | {{ SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-card {
+        margin-bottom: 1rem;
+        transition: all 0.3s;
+        border-right: 4px solid transparent;
+    }
+    
+    .notification-card.unread {
+        border-right-color: var(--primary-color);
+        background-color: rgba(var(--primary-rgb), 0.03);
+    }
+    
+    .notification-card .card-header {
+        display: flex;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background-color: transparent;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    }
+    
+    .notification-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-left: 0.75rem;
+        flex-shrink: 0;
+    }
+    
+    .notification-card .card-body {
+        padding: 1rem;
+    }
+    
+    .notification-card .card-footer {
+        background-color: transparent;
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        padding: 0.5rem 1rem;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .notification-title {
+        font-weight: 600;
+        margin-bottom: 0;
+    }
+    
+    .notification-time {
+        font-size: 0.75rem;
+        color: var(--gray-500);
+    }
+    
+    .notification-actions a, .notification-actions button {
+        margin-left: 0.5rem;
+    }
+    
+    .notification-actions .btn-mark-read {
+        background-color: transparent;
+        border: none;
+        color: var(--primary-color);
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.5rem;
+        border-radius: 0.25rem;
+        transition: all 0.2s;
+    }
+    
+    .notification-actions .btn-mark-read:hover {
+        background-color: var(--primary-soft);
+    }
+    
+    .notification-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 200px;
+        padding: 2rem;
+        text-align: center;
+    }
+    
+    .notification-empty i {
+        font-size: 4rem;
+        color: var(--gray-300);
+        margin-bottom: 1rem;
+    }
+    
+    .notification-category {
+        margin-bottom: 2rem;
+    }
+    
+    .notification-category-title {
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid var(--border-color);
+        font-weight: 600;
+        color: var(--gray-700);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">يمكنك متابعة جميع الإشعارات الخاصة بك من هنا</p>
+                </div>
+            </div>
+            
+            {% if unread_count > 0 %}
+            <div>
+                <button type="submit" form="mark_all_read_form" class="btn btn-outline-primary">
+                    <i class="fas fa-check-double me-1"></i>
+                    تعليم الكل كمقروء
+                </button>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- نموذج تعليم جميع الإشعارات كمقروءة -->
+    <form id="mark_all_read_form" method="post" class="d-none">
+        {% csrf_token %}
+        <input type="hidden" name="mark_all_read" value="1">
+    </form>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body p-0 p-md-3">
+                    {% if total_count > 0 %}
+                        <!-- الإشعارات غير المقروءة -->
+                        {% if unread_count > 0 %}
+                        <div class="notification-category">
+                            <h6 class="notification-category-title">
+                                <i class="fas fa-exclamation-circle me-2 text-danger"></i>
+                                {% trans "إشعارات غير مقروءة" %}
+                                <span class="badge bg-danger rounded-pill ms-2">{{ unread_count }}</span>
+                            </h6>
+                            <div class="notification-list">
+                                {% for notification in unread_notifications %}
+                                <div class="card notification-card unread">
+                                    <div class="card-header">
+                                        <div class="notification-icon bg-{{ notification.type }}">
+                                            <i class="fas 
+                                                {% if notification.type == 'info' %}fa-info
+                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
+                                                {% elif notification.type == 'success' %}fa-check
+                                                {% elif notification.type == 'danger' %}fa-times
+                                                {% elif notification.type == 'inventory_alert' %}fa-box
+                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
+                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
+                                                {% elif notification.type == 'return_request' %}fa-undo
+                                                {% else %}fa-bell
+                                                {% endif %}">
+                                            </i>
+                                        </div>
+                                        <h6 class="notification-title">{{ notification.title }}</h6>
+                                        <span class="notification-time ms-auto">
+                                            <i class="far fa-clock me-1"></i>
+                                            {{ notification.created_at|timesince }}
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">{{ notification.message }}</p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="notification-actions">
+                                            <a href="#" class="btn btn-sm btn-primary">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                {% trans "فتح" %}
+                                            </a>
+                                            <button type="button" class="btn-mark-read" data-id="{{ notification.id }}" data-url="{% url 'core:mark_notification_read' notification.id %}">
+                                                <i class="fas fa-check me-1"></i>
+                                                {% trans "تعليم كمقروء" %}
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- الإشعارات المقروءة -->
+                        <div class="notification-category">
+                            <h6 class="notification-category-title">
+                                <i class="fas fa-history me-2 text-secondary"></i>
+                                {% trans "إشعارات سابقة" %}
+                                <span class="badge bg-secondary rounded-pill ms-2">{{ read_notifications.count }}</span>
+                            </h6>
+                            <div class="notification-list">
+                                {% for notification in read_notifications %}
+                                <div class="card notification-card">
+                                    <div class="card-header">
+                                        <div class="notification-icon bg-light text-{{ notification.type }}">
+                                            <i class="fas 
+                                                {% if notification.type == 'info' %}fa-info
+                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
+                                                {% elif notification.type == 'success' %}fa-check
+                                                {% elif notification.type == 'danger' %}fa-times
+                                                {% elif notification.type == 'inventory_alert' %}fa-box
+                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
+                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
+                                                {% elif notification.type == 'return_request' %}fa-undo
+                                                {% else %}fa-bell
+                                                {% endif %}">
+                                            </i>
+                                        </div>
+                                        <h6 class="notification-title">{{ notification.title }}</h6>
+                                        <span class="notification-time ms-auto">
+                                            <i class="far fa-clock me-1"></i>
+                                            {{ notification.created_at|timesince }}
+                                        </span>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">{{ notification.message }}</p>
+                                    </div>
+                                    <div class="card-footer">
+                                        <div class="notification-actions">
+                                            <a href="#" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-external-link-alt"></i>
+                                                {% trans "فتح" %}
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="notification-empty">
+                            <i class="far fa-bell-slash"></i>
+                            <h5>{% trans "لا توجد إشعارات" %}</h5>
+                            <p class="text-muted">{% trans "لم يتم العثور على أي إشعارات في حسابك" %}</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // تعليم إشعار واحد كمقروء
+        $(document).on('click', '.btn-mark-read', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const $button = $(this);
+            const $notification = $button.closest('.notification-card');
+            const notificationId = $button.data('id');
+            const url = $button.data('url');
+            
+            // تنفيذ طلب AJAX لتحديث حالة الإشعار
+            $.ajax({
+                url: url,
+                type: 'POST',
+                data: {
+                    'csrfmiddlewaretoken': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // إزالة فئة غير مقروء وتحريك الإشعار لقسم المقروءة
+                        $notification.removeClass('unread').fadeOut(300, function() {
+                            $notification.prependTo('.notification-category:last-child .notification-list').fadeIn(300);
+                            
+                            // تحديث العدادات
+                            updateNotificationCounters();
+                        });
+                    }
+                },
+                error: function() {
+                    // عرض رسالة خطأ
+                    alert('حدث خطأ أثناء تحديث الإشعار');
+                }
+            });
+        });
+        
+        // تحديث عدادات الإشعارات
+        function updateNotificationCounters() {
+            const unreadCount = $('.notification-card.unread').length;
+            const totalCount = $('.notification-card').length;
+            const readCount = totalCount - unreadCount;
+            
+            // تحديث العدادات في العناوين
+            $('.notification-category:first-child .badge').text(unreadCount);
+            $('.notification-category:last-child .badge').text(readCount);
+            
+            // إخفاء زر تعليم الكل كمقروء إذا لم يكن هناك إشعارات غير مقروءة
+            if (unreadCount === 0) {
+                $('[form="mark_all_read_form"]').fadeOut(300);
+                // إخفاء قسم الإشعارات غير المقروءة
+                $('.notification-category:first-child').fadeOut(300);
+            }
+        }
+    });
+</script>
+{% endblock %} 

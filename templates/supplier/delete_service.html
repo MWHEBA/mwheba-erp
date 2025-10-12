@@ -1,0 +1,181 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}حذف خدمة - {{ supplier.name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.delete-container {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    min-height: 100vh;
+    padding: 2rem 0;
+}
+
+.delete-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    overflow: hidden;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.delete-header {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    color: white;
+    padding: 2rem;
+    text-align: center;
+}
+
+.delete-body {
+    padding: 2rem;
+}
+
+.service-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+    border-left: 4px solid #ff6b6b;
+}
+
+.warning-box {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+
+.btn-secondary {
+    background: #6c757d;
+    border: none;
+    padding: 0.75rem 2rem;
+    border-radius: 8px;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="delete-container">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="delete-card">
+                    <div class="delete-header">
+                        <h2><i class="fas fa-exclamation-triangle me-2"></i>تأكيد حذف الخدمة</h2>
+                        <p class="mb-0">هل أنت متأكد من حذف هذه الخدمة؟</p>
+                    </div>
+                    
+                    <div class="delete-body">
+                        <!-- معلومات الخدمة -->
+                        <div class="service-info">
+                            <h5><i class="fas fa-info-circle me-2"></i>معلومات الخدمة</h5>
+                            <div class="row mt-3">
+                                <div class="col-md-6">
+                                    <strong>اسم الخدمة:</strong><br>
+                                    <span class="text-primary">{{ service.name }}</span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>نوع الخدمة:</strong><br>
+                                    <span class="badge bg-info">{{ service.type }}</span>
+                                </div>
+                            </div>
+                            
+                            {% if service.description %}
+                            <div class="mt-3">
+                                <strong>الوصف:</strong><br>
+                                <span class="text-muted">{{ service.description }}</span>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="row mt-3">
+                                {% if service.estimated_price %}
+                                <div class="col-md-6">
+                                    <strong>السعر التقديري:</strong><br>
+                                    <span class="text-success">{{ service.estimated_price }} جنيه</span>
+                                </div>
+                                {% endif %}
+                                
+                                {% if service.delivery_days %}
+                                <div class="col-md-6">
+                                    <strong>مدة التنفيذ:</strong><br>
+                                    <span class="text-info">{{ service.delivery_days }} يوم</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="mt-3">
+                                <strong>المورد:</strong><br>
+                                <span class="text-dark">{{ supplier.name }}</span>
+                            </div>
+                        </div>
+
+                        <!-- تحذير -->
+                        <div class="warning-box">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle text-warning me-2 fa-2x"></i>
+                                <div>
+                                    <h6 class="mb-1">تحذير هام</h6>
+                                    <p class="mb-0">
+                                        سيتم حذف هذه الخدمة نهائياً من قائمة خدمات المورد. 
+                                        هذا الإجراء لا يمكن التراجع عنه.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- نموذج الحذف -->
+                        <form method="post" id="delete-service-form">
+                            {% csrf_token %}
+                            
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-1"></i>إلغاء
+                                </a>
+                                
+                                <button type="submit" class="btn btn-danger" id="confirm-delete-btn">
+                                    <i class="fas fa-trash me-1"></i>تأكيد الحذف
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تأكيد إضافي قبل الحذف
+    $('#delete-service-form').submit(function(e) {
+        if (!confirm('هل أنت متأكد تماماً من حذف خدمة "{{ service.name }}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+
+    // تأثير بصري على زر الحذف
+    $('#confirm-delete-btn').hover(
+        function() {
+            $(this).html('<i class="fas fa-trash me-1"></i>نعم، احذف الخدمة');
+        },
+        function() {
+            $(this).html('<i class="fas fa-trash me-1"></i>تأكيد الحذف');
+        }
+    );
+});
+</script>
+{% endblock %}

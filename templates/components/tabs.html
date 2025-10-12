@@ -1,0 +1,83 @@
+{% comment %}
+مكون التبويبات لعرض محتوى مقسم إلى علامات تبويب
+
+الاستخدام:
+{% include "components/tabs.html" with id="my-tabs" tabs=tabs active_tab="tab1" %}
+
+المعلمات:
+- id: معرف فريد للتبويبات (مطلوب)
+- tabs: قائمة بالتبويبات [{'id': 'tab1', 'title': 'التبويب الأول', 'content': '<p>محتوى التبويب</p>', 'icon': 'fa-info'}, ...] (مطلوب)
+- active_tab: معرف التبويب النشط (اختياري، افتراضي هو التبويب الأول)
+- tab_class: تصنيفات CSS إضافية للتبويبات (اختياري)
+- content_class: تصنيفات CSS إضافية لمحتوى التبويبات (اختياري)
+- pills: استخدام نمط pills بدلاً من tabs (اختياري، افتراضي False)
+- vertical: عرض التبويبات بشكل عمودي (اختياري، افتراضي False)
+{% endcomment %}
+
+{% with active_tab=active_tab|default:tabs.0.id %}
+<div class="tabs-container">
+    {% if vertical %}
+        <div class="row">
+            <div class="col-md-3">
+                <div class="nav {% if pills %}nav-pills{% else %}nav-tabs{% endif %} flex-column {{ tab_class }}" id="{{ id }}-tab" role="tablist">
+                    {% for tab in tabs %}
+                        <button class="nav-link {% if tab.id == active_tab %}active{% endif %}" 
+                                id="{{ tab.id }}-tab" 
+                                data-bs-toggle="tab" 
+                                data-bs-target="#{{ tab.id }}" 
+                                type="button" 
+                                role="tab" 
+                                aria-controls="{{ tab.id }}" 
+                                aria-selected="{% if tab.id == active_tab %}true{% else %}false{% endif %}">
+                            {% if tab.icon %}<i class="fas {{ tab.icon }} me-2"></i>{% endif %}
+                            {{ tab.title }}
+                        </button>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="col-md-9">
+                <div class="tab-content {{ content_class }}" id="{{ id }}-content">
+                    {% for tab in tabs %}
+                        <div class="tab-pane fade {% if tab.id == active_tab %}show active{% endif %}" 
+                             id="{{ tab.id }}" 
+                             role="tabpanel" 
+                             aria-labelledby="{{ tab.id }}-tab">
+                            {% if tab.content %}
+                                {{ tab.content|safe }}
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="nav {% if pills %}nav-pills{% else %}nav-tabs{% endif %} {{ tab_class }}" id="{{ id }}-tab" role="tablist">
+            {% for tab in tabs %}
+                <button class="nav-link {% if tab.id == active_tab %}active{% endif %}" 
+                        id="{{ tab.id }}-tab" 
+                        data-bs-toggle="tab" 
+                        data-bs-target="#{{ tab.id }}" 
+                        type="button" 
+                        role="tab" 
+                        aria-controls="{{ tab.id }}" 
+                        aria-selected="{% if tab.id == active_tab %}true{% else %}false{% endif %}">
+                    {% if tab.icon %}<i class="fas {{ tab.icon }} me-2"></i>{% endif %}
+                    {{ tab.title }}
+                </button>
+            {% endfor %}
+        </div>
+        <div class="tab-content {{ content_class }}" id="{{ id }}-content">
+            {% for tab in tabs %}
+                <div class="tab-pane fade {% if tab.id == active_tab %}show active{% endif %}" 
+                     id="{{ tab.id }}" 
+                     role="tabpanel" 
+                     aria-labelledby="{{ tab.id }}-tab">
+                    {% if tab.content %}
+                        {{ tab.content|safe }}
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endwith %} 

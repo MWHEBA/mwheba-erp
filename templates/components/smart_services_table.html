@@ -1,0 +1,90 @@
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% comment %}
+مكون جدول الخدمات الذكي - يتكيف حسب السياق
+الاستخدام:
+{% include "components/smart_services_table.html" with context_type="supplier_detail" services=services %}
+{% include "components/smart_services_table.html" with context_type="category_detail" services=services %}
+
+المعلمات:
+- context_type: نوع السياق ('supplier_detail', 'category_detail', 'general')
+- services: قائمة الخدمات المعروضة
+- table_id: معرف الجدول (اختياري)
+- show_supplier: إظهار عمود المورد (اختياري، افتراضي True)
+- show_category: إظهار عمود الفئة (اختياري، افتراضي True)
+{% endcomment %}
+
+{% if services %}
+
+<!-- تحديد الـ headers حسب السياق -->
+{% if context_type == 'supplier_detail' %}
+  {% comment %}في صفحة المورد - لا نحتاج عمود المورد{% endcomment %}
+  {% with service_headers=supplier_service_headers %}
+    {% include "components/data_table.html" with 
+        table_id=table_id|default:"supplier-services-table"
+        headers=service_headers
+        data=services
+        action_buttons=supplier_service_actions
+        primary_key="id"
+        show_search=True
+        show_length_menu=True
+        length_options="10,25,50"
+        show_export=True
+        export_filename="supplier_services"
+        empty_message="لا توجد خدمات متاحة لهذا المورد"
+    %}
+  {% endwith %}
+
+{% elif context_type == 'category_detail' %}
+  {% comment %}في صفحة الفئة - نحتاج عمود المورد{% endcomment %}
+  {% with service_headers=category_service_headers %}
+    {% include "components/data_table.html" with 
+        table_id=table_id|default:"category-services-table"
+        headers=service_headers
+        data=services
+        action_buttons=category_service_actions
+        primary_key="id"
+        show_search=True
+        show_length_menu=True
+        length_options="10,25,50,100"
+        show_export=True
+        export_filename="category_services"
+        empty_message="لا توجد خدمات متاحة في هذه الفئة"
+        clickable_rows=True
+        row_click_url="/supplier/0/"
+    %}
+  {% endwith %}
+
+{% else %}
+  {% comment %}العرض العام - جميع الأعمدة{% endcomment %}
+  {% with service_headers=general_service_headers %}
+    {% include "components/data_table.html" with 
+        table_id=table_id|default:"services-table"
+        headers=service_headers
+        data=services
+        action_buttons=general_service_actions
+        primary_key="id"
+        show_search=True
+        show_length_menu=True
+        length_options="10,25,50,100"
+        show_export=True
+        export_filename="services"
+        empty_message="لا توجد خدمات متاحة"
+        clickable_rows=True
+        row_click_url="/supplier/0/"
+    %}
+  {% endwith %}
+{% endif %}
+
+{% else %}
+<!-- حالة عدم وجود بيانات -->
+<div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa;">
+    <div class="empty-state-icon mb-3">
+        <i class="fas fa-cogs fa-3x text-muted" style="opacity: 0.5;"></i>
+    </div>
+    <h4 class="empty-state-title text-muted mb-2">لا توجد خدمات متاحة</h4>
+    <p class="text-muted">لم يتم العثور على أي خدمات لعرضها</p>
+</div>
+{% endif %}

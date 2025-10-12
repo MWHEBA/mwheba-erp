@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  .table-controls {
+    display: none;
+  }
+
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* تصميم كروت الإحصائيات */
+  .stat-card {
+    transition: transform 0.2s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-2px);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+
+  /* تصميم فلترة */
+  .filter-section {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1.5rem;
+    border: 1px solid #dee2e6;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title|default:category.name }}</h1>
+                  <p class="text-muted mb-0">{{ category.description|default:"خدمات متخصصة في مجال "|add:category.name }}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'services:services_home' %}" class="btn btn-primary">
+                  <i class="fas fa-arrow-left me-2"></i>{% trans "العودة للخدمات" %}
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- فلترة وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <div class="filter-section">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-4">
+          <label for="supplier" class="form-label">المورد</label>
+          <select class="form-select" id="supplier" name="supplier">
+            <option value="">جميع الموردين</option>
+            {% for supplier in suppliers %}
+            <option value="{{ supplier.id }}" {% if request.GET.supplier == supplier.id|stringformat:"s" %}selected{% endif %}>
+              {{ supplier.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="min_price" class="form-label">السعر من</label>
+          <input type="number" class="form-control" id="min_price" name="min_price" 
+                 value="{{ request.GET.min_price }}" step="0.01">
+        </div>
+        <div class="col-md-3">
+          <label for="max_price" class="form-label">السعر إلى</label>
+          <input type="number" class="form-control" id="max_price" name="max_price" 
+                 value="{{ request.GET.max_price }}" step="0.01">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">&nbsp;</label>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-1"></i>بحث
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول الخدمات -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>{% trans "خدمات" %} {{ category.name }}</h5>
+    </div>
+    
+    {% if services %}
+      <!-- استخدام الجدول الموحد -->
+      {% include "components/data_table.html" with data=services headers=category_service_headers action_buttons=category_service_actions primary_key=primary_key table_id="category-services-table" empty_message="لا توجد خدمات متاحة" show_export=True export_filename="category_services" %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-cogs fa-3x text-muted mb-3" style="opacity: 0.5;"></i>
+        <h4 class="text-muted">لا توجد خدمات متاحة</h4>
+        <p class="text-muted">لم يتم إضافة أي خدمات في هذه الفئة بعد</p>
+        <a href="{% url 'services:services_home' %}" class="btn btn-primary mt-3">
+          <i class="fas fa-arrow-left me-2"></i>العودة للخدمات
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تفعيل الفلترة
+    $('#supplier, #status').on('change', function() {
+        // يمكن إضافة منطق الفلترة هنا لاحقاً
+        console.log('تم تغيير الفلتر');
+    });
+    
+    // تفعيل البحث
+    $('#search').on('input', function() {
+        // يمكن إضافة منطق البحث هنا لاحقاً
+        console.log('تم البحث عن:', $(this).val());
+    });
+    
+    // تأكيد الحذف
+    $(document).on('click', '.action-delete[data-confirm="true"], .btn-outline-danger[data-confirm="true"]', function(e) {
+        e.preventDefault();
+        
+        const serviceName = $(this).closest('tr').find('td:first').text().trim();
+        const deleteUrl = $(this).attr('href');
+        
+        if (confirm(`هل أنت متأكد من حذف الخدمة "${serviceName}"؟\n\nهذا الإجراء لا يمكن التراجع عنه.`)) {
+            window.location.href = deleteUrl;
+        }
+    });
+    
+    // تحسين مظهر أزرار الإجراءات
+    $('.action-button, .btn-group .btn').tooltip();
+    
+    // تحسين النماذج
+    $('.form-select, .form-control').on('change', function() {
+        if ($(this).val()) {
+            $(this).addClass('is-valid');
+        } else {
+            $(this).removeClass('is-valid');
+        }
+    });
+});
+</script>
+{% endblock %}

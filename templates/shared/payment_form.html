@@ -1,0 +1,662 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .payment-form-container {
+    background-color: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-md);
+    margin-bottom: var(--spacing-8);
+    overflow: hidden;
+  }
+  
+  .payment-header {
+    background: var(--primary-color);
+    padding: var(--spacing-4) var(--spacing-5);
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .payment-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.1;
+  }
+  
+  .payment-title {
+    color: #fff;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.2rem;
+    position: relative;
+  }
+  
+  .payment-subtitle {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.85rem;
+    position: relative;
+  }
+  
+  .info-card {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: var(--spacing-5);
+    margin-bottom: var(--spacing-6);
+    border-right: 3px solid var(--primary-color);
+  }
+  
+  .info-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: var(--spacing-3);
+  }
+  
+  .info-item:last-child {
+    margin-bottom: 0;
+  }
+  
+  .info-label {
+    min-width: 140px;
+    font-weight: var(--font-weight-bold);
+    color: var(--text-medium);
+  }
+  
+  .info-value {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+    font-size: 1.05rem;
+  }
+  
+  .info-value.price {
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    direction: rtl;
+    font-size: 1.15rem;
+  }
+  
+  .payment-form-body {
+    padding: var(--spacing-6);
+  }
+  
+  .form-floating {
+    margin-bottom: 1rem;
+  }
+  
+  .form-floating > label {
+    padding-right: 1rem;
+  }
+  
+  .payment-actions {
+    margin-top: 1rem;
+  }
+  
+  .btn-back {
+    background-color: var(--gray-50);
+    color: var(--gray-700);
+    border: 1px solid var(--border-color);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-back:hover {
+    background-color: var(--gray-100);
+    transform: translateY(-1px);
+  }
+  
+  .btn-submit {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    font-weight: var(--font-weight-bold);
+    padding: var(--spacing-2) var(--spacing-5);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+  }
+  
+  .btn-submit:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .payment-method-select {
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: left 0.5rem center;
+    background-size: 16px 12px;
+    appearance: none;
+  }
+  
+  .payment-method-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-soft);
+    outline: 0;
+  }
+  
+  .form-control, .form-select {
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--border-color);
+    transition: all 0.2s ease;
+  }
+  
+  .form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-soft);
+    outline: 0;
+  }
+  
+  textarea.form-control {
+    min-height: 60px;
+    resize: vertical;
+  }
+  
+  .remaining-balance {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-3);
+    border-radius: var(--border-radius);
+    background-color: var(--gray-50);
+    margin-top: var(--spacing-4);
+    margin-bottom: var(--spacing-3);
+    border: 1px dashed var(--border-color);
+  }
+  
+  .balance-label {
+    font-weight: var(--font-weight-medium);
+    color: var(--gray-600);
+  }
+  
+  .balance-value {
+    font-weight: var(--font-weight-bold);
+    font-size: 1.1rem;
+    color: var(--primary-color);
+    direction: rtl;
+  }
+  
+  .error-text {
+    color: var(--danger-color);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-1);
+  }
+  
+  .form-hint {
+    color: var(--gray-500);
+    font-size: var(--font-size-sm);
+    margin-top: var(--spacing-1);
+  }
+  
+  .input-group {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+  }
+  
+  .input-group .form-control {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+  }
+  
+  .input-group .input-group-text {
+    background-color: var(--gray-50);
+    border-color: var(--border-color);
+    color: var(--gray-600);
+    font-weight: var(--font-weight-medium);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-3">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'core:dashboard' %}">
+              <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+            </a>
+          </li>
+          {% if is_purchase %}
+          <li class="breadcrumb-item">
+            <a href="{% url 'purchase:purchase_list' %}">
+              <i class="fas fa-shopping-cart me-1"></i>{% trans "فواتير المشتريات" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'purchase:purchase_detail' invoice.id %}">
+              {{ invoice.number }}
+            </a>
+          </li>
+          {% else %}
+          <li class="breadcrumb-item">
+            <a href="{% url 'sale:sale_list' %}">
+              <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "فواتير المبيعات" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'sale:sale_detail' invoice.id %}">
+              {{ invoice.number }}
+            </a>
+          </li>
+          {% endif %}
+          <li class="breadcrumb-item active" aria-current="page">
+            <i class="fas fa-money-bill-wave me-1"></i>{% trans "إضافة دفعة" %}
+          </li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-9">
+      <div class="payment-form-container">
+        <!-- رأس نموذج الدفع -->
+        <div class="payment-header">
+          <h1 class="payment-title">{{ title }} <i class="fas fa-money-bill-wave ms-2"></i></h1>
+          <div class="payment-subtitle">
+            {% if is_purchase %}
+            {% trans "إضافة دفعة جديدة لفاتورة المشتريات" %}
+            {% else %}
+            {% trans "إضافة دفعة جديدة لفاتورة المبيعات" %}
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- جسم نموذج الدفع -->
+        <div class="payment-form-body">
+          <!-- بطاقة معلومات الفاتورة -->
+          <div class="info-card mb-4">
+            <div class="row">
+              <div class="col-md-6">
+                <div class="info-item">
+                  <div class="info-label">{% trans "رقم الفاتورة:" %}</div>
+                  <div class="info-value">{{ invoice.number }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">{% trans "تاريخ الفاتورة:" %}</div>
+                  <div class="info-value">{{ invoice.date|date:"d-m-Y" }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">
+                    {% if is_purchase %}
+                    {% trans "المورد:" %}
+                    {% else %}
+                    {% trans "العميل:" %}
+                    {% endif %}
+                  </div>
+                  <div class="info-value">
+                    {% if is_purchase %}
+                    {{ invoice.supplier.name }}
+                    {% else %}
+                    {{ invoice.customer.name }}
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="info-item">
+                  <div class="info-label">{% trans "إجمالي الفاتورة:" %}</div>
+                  <div class="info-value price">{{ invoice.total|currency }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">{% trans "المبلغ المدفوع:" %}</div>
+                  <div class="info-value price">{{ invoice.amount_paid|currency }}</div>
+                </div>
+                <div class="info-item">
+                  <div class="info-label">{% trans "المبلغ المتبقي:" %}</div>
+                  <div class="info-value price">{{ invoice.amount_due|currency }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- نموذج الدفع -->
+          <form method="post" class="payment-form">
+            {% csrf_token %}
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <!-- حقل المبلغ -->
+                <div class="form-group">
+                  <label for="{{ form.amount.id_for_label }}" class="form-label fw-bold">
+                    {{ form.amount.label }}{% if form.amount.field.required %} *{% endif %}
+                  </label>
+                  <div class="input-group">
+                    <span class="input-group-text">ج.م</span>
+                    <input type="number" 
+                           name="{{ form.amount.name }}" 
+                           id="{{ form.amount.id_for_label }}" 
+                           class="form-control text-start {% if form.amount.errors %}is-invalid{% endif %}" 
+                           value="{{ form.amount.value|default:'' }}" 
+                           step="0.01"
+                           min="0"
+                           required>
+                  </div>
+                  {% if form.amount.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.amount.errors }}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <!-- حقل تاريخ الدفع -->
+                <div class="form-group">
+                  <label for="{{ form.payment_date.id_for_label }}" class="form-label fw-bold">
+                    {{ form.payment_date.label }}{% if form.payment_date.field.required %} *{% endif %}
+                  </label>
+                  <input type="date" 
+                         name="{{ form.payment_date.name }}" 
+                         id="{{ form.payment_date.id_for_label }}" 
+                         class="form-control {% if form.payment_date.errors %}is-invalid{% endif %}" 
+                         value="{{ form.payment_date.value|date:'Y-m-d'|default:'' }}"
+                         required>
+                  {% if form.payment_date.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.payment_date.errors }}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+              
+            <!-- حقل الحساب المالي (الخزينة/البنك) -->
+            {% if form.financial_account %}
+            <div class="row">
+              <div class="col-12 mb-3">
+                <div class="form-group">
+                  <label for="{{ form.financial_account.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-university me-1 text-primary"></i>
+                    {{ form.financial_account.label }}{% if form.financial_account.field.required %} *{% endif %}
+                  </label>
+                  <select name="{{ form.financial_account.name }}" 
+                          id="{{ form.financial_account.id_for_label }}" 
+                          class="form-select {% if form.financial_account.errors %}is-invalid{% endif %}"
+                          required>
+                    {% for value, text in form.financial_account.field.choices %}
+                    {% if value %}
+                    <option value="{{ value }}" 
+                            data-account-type="{% if 'صندوق' in text or 'نقد' in text %}cash{% elif 'بنك' in text %}bank{% else %}other{% endif %}"
+                            {% if form.financial_account.value == value|stringformat:"s" %}selected{% endif %}>
+                      {{ text }}
+                    </option>
+                    {% else %}
+                    <option value="">{{ text }}</option>
+                    {% endif %}
+                    {% endfor %}
+                  </select>
+                  {% if form.financial_account.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.financial_account.errors }}
+                  </div>
+                  {% endif %}
+                  {% if form.financial_account.help_text %}
+                  <div class="form-hint mt-1">
+                    <i class="fas fa-info-circle me-1"></i>{{ form.financial_account.help_text }}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %}
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <!-- حقل طريقة الدفع -->
+                <div class="form-group">
+                  <label for="{{ form.payment_method.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-credit-card me-1 text-success"></i>
+                    {{ form.payment_method.label }}{% if form.payment_method.field.required %} *{% endif %}
+                  </label>
+                  <select name="{{ form.payment_method.name }}" 
+                          id="{{ form.payment_method.id_for_label }}" 
+                          class="payment-method-select form-select {% if form.payment_method.errors %}is-invalid{% endif %}">
+                    {% for value, text in form.payment_method.field.choices %}
+                    <option value="{{ value }}" {% if form.payment_method.value == value|stringformat:"s" %}selected{% endif %}>
+                      {{ text }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                  {% if form.payment_method.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.payment_method.errors }}
+                  </div>
+                  {% endif %}
+                  <div id="payment-method-hint" class="form-hint mt-1"></div>
+                </div>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <!-- حقل رقم المرجع -->
+                <div class="form-group">
+                  <label for="{{ form.reference_number.id_for_label }}" class="form-label fw-bold">
+                    <i class="fas fa-hashtag me-1 text-info"></i>
+                    {{ form.reference_number.label }}{% if form.reference_number.field.required %} *{% endif %}
+                  </label>
+                  <input type="text" 
+                         name="{{ form.reference_number.name }}" 
+                         id="{{ form.reference_number.id_for_label }}" 
+                         class="form-control {% if form.reference_number.errors %}is-invalid{% endif %}" 
+                         value="{{ form.reference_number.value|default:'' }}">
+                  {% if form.reference_number.errors %}
+                  <div class="invalid-feedback d-block">
+                    {{ form.reference_number.errors }}
+                  </div>
+                  {% endif %}
+                  <div id="reference-hint" class="form-hint mt-1"></div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- حقل الملاحظات -->
+            <div class="form-group mb-4">
+              <label for="{{ form.notes.id_for_label }}" class="form-label fw-bold">
+                {{ form.notes.label }}{% if form.notes.field.required %} *{% endif %}
+              </label>
+              <textarea name="{{ form.notes.name }}" 
+                        id="{{ form.notes.id_for_label }}" 
+                        class="form-control {% if form.notes.errors %}is-invalid{% endif %}" 
+                        rows="3">{{ form.notes.value|default:'' }}</textarea>
+              {% if form.notes.errors %}
+              <div class="invalid-feedback d-block">
+                {{ form.notes.errors }}
+              </div>
+              {% endif %}
+            </div>
+            
+            <!-- رصيد ما بعد الدفع -->
+            <div class="remaining-balance mb-4">
+              <div class="balance-label">{% trans "الرصيد المتبقي بعد الدفع:" %}</div>
+              <div class="balance-value" id="remaining-balance">{{ invoice.amount_due|currency }}</div>
+            </div>
+            
+            <!-- أزرار الإجراءات -->
+            <div class="d-flex justify-content-between">
+              <button type="button" class="btn btn-back" onclick="history.back()">
+                <i class="fas fa-arrow-right me-1"></i> {% trans "رجوع" %}
+              </button>
+              <button type="submit" class="btn btn-submit">
+                <i class="fas fa-save me-1"></i> {% trans "حفظ الدفعة" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // تمرير البيانات من Django للـ JavaScript
+  const INVOICE_DATA = {
+    amountDue: parseFloat('{{ invoice.amount_due }}') || 0
+  };
+  
+  $(document).ready(function() {
+    const amountField = $('#{{ form.amount.id_for_label }}');
+    const paymentMethodField = $('#{{ form.payment_method.id_for_label }}');
+    const referenceField = $('#{{ form.reference_number.id_for_label }}');
+    const financialAccountField = $('#{{ form.financial_account.id_for_label }}');
+    
+    // التحقق من تطابق طريقة الدفع مع نوع الحساب
+    function validateAccountPaymentMatch() {
+      const paymentMethod = paymentMethodField.val();
+      const selectedAccount = financialAccountField.find('option:selected');
+      const accountType = selectedAccount.data('account-type');
+      
+      // إزالة الأخطاء السابقة
+      financialAccountField.removeClass('is-invalid');
+      paymentMethodField.removeClass('is-invalid');
+      $('.account-payment-mismatch').remove();
+      
+      if (paymentMethod && accountType) {
+        let isValid = true;
+        let errorMessage = '';
+        
+        if (paymentMethod === 'cash' && accountType !== 'cash') {
+          isValid = false;
+          errorMessage = '{% trans "يجب اختيار حساب نقدي عند اختيار الدفع النقدي" %}';
+        } else if ((paymentMethod === 'bank_transfer' || paymentMethod === 'check') && accountType !== 'bank') {
+          isValid = false;
+          errorMessage = '{% trans "يجب اختيار حساب بنكي عند اختيار التحويل البنكي أو الشيك" %}';
+        }
+        
+        if (!isValid) {
+          financialAccountField.addClass('is-invalid');
+          financialAccountField.parent().append(
+            '<div class="invalid-feedback d-block account-payment-mismatch">' + errorMessage + '</div>'
+          );
+          return false;
+        }
+      }
+      
+      return true;
+    }
+    
+    // إظهار تلميحات لطرق الدفع المختلفة
+    function updatePaymentMethodHint() {
+      const paymentMethod = paymentMethodField.val();
+      let hint = '';
+      
+      if (paymentMethod === 'bank_transfer') {
+        hint = '{% trans "أدخل رقم الحوالة المصرفية أو رقم المعاملة" %}';
+        referenceField.attr('placeholder', '{% trans "مثال: TRN1234567" %}');
+      } else if (paymentMethod === 'check') {
+        hint = '{% trans "أدخل رقم الشيك وتاريخ الاستحقاق" %}';
+        referenceField.attr('placeholder', '{% trans "مثال: 234567 استحقاق 2025/4/30" %}');
+      } else if (paymentMethod === 'cash') {
+        hint = '{% trans "دفع نقدي مباشر" %}';
+        referenceField.attr('placeholder', '{% trans "رقم الإيصال (اختياري)" %}');
+      }
+      
+      $('#payment-method-hint').text(hint);
+      
+      // التحقق من التطابق عند تغيير طريقة الدفع
+      validateAccountPaymentMatch();
+    }
+    
+    // تحديث المبلغ المتبقي بعد الدفع
+    function updateRemainingAmount() {
+      const amountValue = parseFloat(amountField.val()) || 0;
+      const totalDue = INVOICE_DATA.amountDue;
+      let remaining = totalDue - amountValue;
+      
+      // للتأكد من عدم وجود قيم سالبة
+      if (remaining < 0) {
+        remaining = 0;
+      }
+      
+      // تنسيق المبلغ المتبقي بعد الدفع
+      $('#remaining-balance').text(formatNumber(remaining) + ' {% trans "ج.م" %}');
+      
+      // تحذير إذا كان المبلغ أكبر من المبلغ المتبقي
+      if (amountValue > totalDue) {
+        amountField.addClass('is-invalid');
+        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "المبلغ المدخل أكبر من المبلغ المستحق" %}</div>');
+      } else {
+        amountField.removeClass('is-invalid');
+        amountField.parent().parent().find('.invalid-feedback').remove();
+      }
+    }
+    
+    // تنسيق الأرقام لعرضها
+    function formatNumber(number) {
+      return number.toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+    }
+    
+    // ربط الأحداث
+    amountField.on('input', updateRemainingAmount);
+    paymentMethodField.on('change', updatePaymentMethodHint);
+    
+    // التحقق من التطابق عند تغيير الحساب المالي
+    if (financialAccountField.length) {
+      financialAccountField.on('change', validateAccountPaymentMatch);
+    }
+    
+    // التحقق من النموذج قبل الإرسال
+    $('.payment-form').on('submit', function(e) {
+      const amount = parseFloat(amountField.val());
+      
+      // التحقق من المبلغ
+      if (isNaN(amount) || amount <= 0) {
+        e.preventDefault();
+        amountField.addClass('is-invalid');
+        amountField.parent().parent().find('.invalid-feedback').remove();
+        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "يرجى إدخال مبلغ صحيح أكبر من صفر" %}</div>');
+        return false;
+      }
+      
+      // التحقق من الحساب المالي
+      if (financialAccountField.length && !financialAccountField.val()) {
+        e.preventDefault();
+        financialAccountField.addClass('is-invalid');
+        financialAccountField.parent().find('.invalid-feedback').remove();
+        financialAccountField.parent().append('<div class="invalid-feedback d-block">{% trans "يرجى اختيار الحساب المالي" %}</div>');
+        return false;
+      }
+      
+      // التحقق من تطابق طريقة الدفع مع الحساب
+      if (!validateAccountPaymentMatch()) {
+        e.preventDefault();
+        return false;
+      }
+      
+      // تأكيد إذا كان المبلغ أكبر من المستحق
+      if (amount > INVOICE_DATA.amountDue) {
+        if (!confirm('{% trans "المبلغ المدخل أكبر من المبلغ المستحق. هل تريد الاستمرار؟" %}')) {
+          e.preventDefault();
+          return false;
+        }
+      }
+      
+      return true;
+    });
+    
+    // تفعيل التلميحات عند تحميل الصفحة
+    updatePaymentMethodHint();
+    updateRemainingAmount();
+  });
+</script>
+{% endblock %} 

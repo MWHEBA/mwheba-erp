@@ -1,0 +1,491 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="{{ page_icon }} me-2"></i>{{ page_title }}
+                    </h1>
+                    <p class="text-muted mb-0">إدارة القيود المحاسبية</p>
+                </div>
+                <div>
+                    <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-book me-2"></i>معلومات القيد المحاسبي
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- المعلومات الأساسية -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-info-circle me-2"></i>المعلومات الأساسية
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="reference" class="form-label required">رقم المرجع</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="reference" 
+                                               name="reference" 
+                                               value="{% if journal_entry %}{{ journal_entry.reference }}{% endif %}"
+                                               placeholder="سيتم إنشاؤه تلقائياً"
+                                               maxlength="50">
+                                        <div class="form-text">رقم مرجع فريد للقيد (اتركه فارغاً للإنشاء التلقائي)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="date" class="form-label required">التاريخ</label>
+                                        <input type="date" 
+                                               class="form-control" 
+                                               id="date" 
+                                               name="date" 
+                                               value="{% if journal_entry %}{{ journal_entry.date|date:'d-m-Y' }}{% else %}{% now 'd-m-Y' %}{% endif %}"
+                                               required>
+                                        <div class="form-text">تاريخ القيد المحاسبي</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="accounting_period" class="form-label">الفترة المحاسبية</label>
+                                        <select class="form-select" id="accounting_period" name="accounting_period">
+                                            <option value="">اختيار تلقائي بناءً على التاريخ</option>
+                                            {% for period in accounting_periods %}
+                                                <option value="{{ period.id }}" 
+                                                        {% if journal_entry.accounting_period_id == period.id %}selected{% endif %}>
+                                                    {{ period.name }} ({{ period.start_date }} - {{ period.end_date }})
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text">الفترة المحاسبية للقيد</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="status" class="form-label">الحالة</label>
+                                        <select class="form-select" id="status" name="status">
+                                            <option value="draft" {% if not journal_entry or journal_entry.status == 'draft' %}selected{% endif %}>مسودة</option>
+                                            <option value="posted" {% if journal_entry.status == 'posted' %}selected{% endif %}>مرحل</option>
+                                        </select>
+                                        <div class="form-text">حالة القيد المحاسبي</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- الوصف والملاحظات -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-comment me-2"></i>الوصف والملاحظات
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">الوصف</label>
+                                        <textarea class="form-control" 
+                                                  id="description" 
+                                                  name="description" 
+                                                  rows="3"
+                                                  placeholder="وصف مختصر للقيد المحاسبي">{% if journal_entry %}{{ journal_entry.description }}{% endif %}</textarea>
+                                        <div class="form-text">وصف مختصر لطبيعة القيد</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-12">
+                                    <div class="mb-3">
+                                        <label for="notes" class="form-label">ملاحظات</label>
+                                        <textarea class="form-control" 
+                                                  id="notes" 
+                                                  name="notes" 
+                                                  rows="2"
+                                                  placeholder="ملاحظات إضافية (اختياري)">{% if journal_entry %}{{ journal_entry.notes }}{% endif %}</textarea>
+                                        <div class="form-text">ملاحظات إضافية للمرجع المستقبلي</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- بنود القيد -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-list me-2"></i>بنود القيد
+                                <button type="button" class="btn btn-sm btn-outline-primary float-end" id="addLineBtn">
+                                    <i class="fas fa-plus me-1"></i>إضافة بند
+                                </button>
+                            </h6>
+                            
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="journalLinesTable">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th style="width: 35%">الحساب</th>
+                                            <th style="width: 25%">الوصف</th>
+                                            <th style="width: 15%">مدين</th>
+                                            <th style="width: 15%">دائن</th>
+                                            <th style="width: 10%">إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="journalLinesBody">
+                                        {% if journal_entry.lines.exists %}
+                                            {% for line in journal_entry.lines.all %}
+                                            <tr class="journal-line">
+                                                <td>
+                                                    <select class="form-select account-select" name="lines[{{ forloop.counter0 }}][account]" required>
+                                                        <option value="">اختر الحساب</option>
+                                                        {% for account in accounts %}
+                                                            <option value="{{ account.id }}" 
+                                                                    {% if line.account_id == account.id %}selected{% endif %}>
+                                                                {{ account.code }} - {{ account.name }}
+                                                            </option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="text" 
+                                                           class="form-control" 
+                                                           name="lines[{{ forloop.counter0 }}][description]" 
+                                                           value="{{ line.description }}"
+                                                           placeholder="وصف البند">
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control debit-input" 
+                                                           name="lines[{{ forloop.counter0 }}][debit]" 
+                                                           value="{% if line.debit %}{{ line.debit }}{% endif %}"
+                                                           step="0.01" 
+                                                           min="0"
+                                                           placeholder="0.00">
+                                                </td>
+                                                <td>
+                                                    <input type="number" 
+                                                           class="form-control credit-input" 
+                                                           name="lines[{{ forloop.counter0 }}][credit]" 
+                                                           value="{% if line.credit %}{{ line.credit }}{% endif %}"
+                                                           step="0.01" 
+                                                           min="0"
+                                                           placeholder="0.00">
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <!-- بند فارغ للبداية -->
+                                            <tr class="journal-line">
+                                                <td>
+                                                    <select class="form-select account-select" name="lines[0][account]" required>
+                                                        <option value="">اختر الحساب</option>
+                                                        {% for account in accounts %}
+                                                            <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                                                        {% endfor %}
+                                                    </select>
+                                                </td>
+                                                <td>
+                                                    <input type="text" class="form-control" name="lines[0][description]" placeholder="وصف البند">
+                                                </td>
+                                                <td>
+                                                    <input type="number" class="form-control debit-input" name="lines[0][debit]" step="0.01" min="0" placeholder="0.00">
+                                                </td>
+                                                <td>
+                                                    <input type="number" class="form-control credit-input" name="lines[0][credit]" step="0.01" min="0" placeholder="0.00">
+                                                </td>
+                                                <td>
+                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                    <tfoot class="table-secondary">
+                                        <tr>
+                                            <th colspan="2">الإجمالي</th>
+                                            <th class="text-end">
+                                                <span id="totalDebits" class="text-success fw-bold">0.00</span>
+                                            </th>
+                                            <th class="text-end">
+                                                <span id="totalCredits" class="text-danger fw-bold">0.00</span>
+                                            </th>
+                                            <th></th>
+                                        </tr>
+                                        <tr id="balanceRow">
+                                            <th colspan="4" class="text-center">
+                                                <span id="balanceStatus" class="badge bg-secondary">غير متوازن</span>
+                                                <span id="balanceDifference" class="ms-2"></span>
+                                            </th>
+                                            <th></th>
+                                        </tr>
+                                    </tfoot>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- أزرار الحفظ والإلغاء -->
+                        <div class="form-section">
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <button type="submit" class="btn btn-save me-3" id="saveBtn">
+                                        <i class="fas fa-save"></i>
+                                        حفظ القيد
+                                    </button>
+                                    <a href="#" onclick="window.history.back(); return false;"financial:journal_entries_list' %}" class="btn btn-cancel">
+                                        <i class="fas fa-times"></i>
+                                        إلغاء
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template لبند جديد -->
+<template id="journalLineTemplate">
+    <tr class="journal-line">
+        <td>
+            <select class="form-select account-select" name="lines[INDEX][account]" required>
+                <option value="">اختر الحساب</option>
+                {% for account in accounts %}
+                    <option value="{{ account.id }}">{{ account.code }} - {{ account.name }}</option>
+                {% endfor %}
+            </select>
+        </td>
+        <td>
+            <input type="text" class="form-control" name="lines[INDEX][description]" placeholder="وصف البند">
+        </td>
+        <td>
+            <input type="number" class="form-control debit-input" name="lines[INDEX][debit]" step="0.01" min="0" placeholder="0.00">
+        </td>
+        <td>
+            <input type="number" class="form-control credit-input" name="lines[INDEX][credit]" step="0.01" min="0" placeholder="0.00">
+        </td>
+        <td>
+            <button type="button" class="btn btn-sm btn-outline-danger remove-line-btn">
+                <i class="fas fa-trash"></i>
+            </button>
+        </td>
+    </tr>
+</template>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let lineIndex = {{ journal_entry.lines.count|default:1 }};
+    
+    // إضافة بند جديد
+    document.getElementById('addLineBtn').addEventListener('click', function() {
+        const template = document.getElementById('journalLineTemplate');
+        const tbody = document.getElementById('journalLinesBody');
+        
+        const newRow = template.content.cloneNode(true);
+        const rowHtml = newRow.querySelector('tr').outerHTML.replace(/INDEX/g, lineIndex);
+        
+        tbody.insertAdjacentHTML('beforeend', rowHtml);
+        lineIndex++;
+        
+        updateCalculations();
+        attachEventListeners();
+    });
+    
+    // حذف بند
+    function attachEventListeners() {
+        document.querySelectorAll('.remove-line-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (document.querySelectorAll('.journal-line').length > 1) {
+                    this.closest('tr').remove();
+                    updateCalculations();
+                } else {
+                    alert('يجب أن يحتوي القيد على بند واحد على الأقل');
+                }
+            });
+        });
+        
+        // منع إدخال قيم في كلا الحقلين
+        document.querySelectorAll('.debit-input, .credit-input').forEach(input => {
+            input.addEventListener('input', function() {
+                const row = this.closest('tr');
+                const debitInput = row.querySelector('.debit-input');
+                const creditInput = row.querySelector('.credit-input');
+                
+                if (this.classList.contains('debit-input') && this.value) {
+                    creditInput.value = '';
+                } else if (this.classList.contains('credit-input') && this.value) {
+                    debitInput.value = '';
+                }
+                
+                updateCalculations();
+            });
+        });
+    }
+    
+    // تحديث الحسابات
+    function updateCalculations() {
+        let totalDebits = 0;
+        let totalCredits = 0;
+        
+        document.querySelectorAll('.debit-input').forEach(input => {
+            totalDebits += parseFloat(input.value) || 0;
+        });
+        
+        document.querySelectorAll('.credit-input').forEach(input => {
+            totalCredits += parseFloat(input.value) || 0;
+        });
+        
+        document.getElementById('totalDebits').textContent = totalDebits.toFixed(2);
+        document.getElementById('totalCredits').textContent = totalCredits.toFixed(2);
+        
+        const difference = Math.abs(totalDebits - totalCredits);
+        const balanceStatus = document.getElementById('balanceStatus');
+        const balanceDifference = document.getElementById('balanceDifference');
+        
+        if (difference < 0.01) {
+            balanceStatus.textContent = 'متوازن';
+            balanceStatus.className = 'badge bg-success';
+            balanceDifference.textContent = '';
+        } else {
+            balanceStatus.textContent = 'غير متوازن';
+            balanceStatus.className = 'badge bg-danger';
+            balanceDifference.textContent = `الفرق: ${difference.toFixed(2)} ج.م`;
+        }
+    }
+    
+    // تهيئة الأحداث
+    attachEventListeners();
+    updateCalculations();
+    
+    // التحقق من صحة النموذج
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const lines = document.querySelectorAll('.journal-line');
+        let hasValidLine = false;
+        
+        lines.forEach(line => {
+            const account = line.querySelector('.account-select').value;
+            const debit = parseFloat(line.querySelector('.debit-input').value) || 0;
+            const credit = parseFloat(line.querySelector('.credit-input').value) || 0;
+            
+            if (account && (debit > 0 || credit > 0)) {
+                hasValidLine = true;
+            }
+        });
+        
+        if (!hasValidLine) {
+            e.preventDefault();
+            alert('يجب إضافة بند واحد صحيح على الأقل');
+            return false;
+        }
+        
+        const totalDebits = parseFloat(document.getElementById('totalDebits').textContent);
+        const totalCredits = parseFloat(document.getElementById('totalCredits').textContent);
+        const difference = Math.abs(totalDebits - totalCredits);
+        
+        if (difference >= 0.01) {
+            const confirm = window.confirm('القيد غير متوازن. هل تريد المتابعة؟');
+            if (!confirm) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+});
+</script>
+
+<style>
+.form-section {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.section-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #007bff;
+}
+
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.btn-save {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    padding: 0.5rem 2rem;
+}
+
+.btn-save:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: white;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+    padding: 0.5rem 2rem;
+}
+
+.btn-cancel:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: white;
+}
+
+.table th, .table td {
+    vertical-align: middle;
+}
+
+.journal-line input, .journal-line select {
+    font-size: 0.9rem;
+}
+
+#journalLinesTable tfoot th {
+    background-color: #f8f9fa;
+    border-top: 2px solid #dee2e6;
+}
+</style>
+{% endblock %}

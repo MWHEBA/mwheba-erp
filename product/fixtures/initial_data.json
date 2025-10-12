@@ -1,0 +1,74 @@
+[
+  {
+    "model": "product.warehouse",
+    "pk": 1,
+    "fields": {
+      "name": "المخزن الرئيسي",
+      "code": "1",
+      "location": "",
+      "manager": null,
+      "description": "",
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.category",
+    "pk": 1,
+    "fields": {
+      "name": "ورق",
+      "parent": null,
+      "description": "",
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.brand",
+    "pk": 1,
+    "fields": {
+      "name": "كوشيه",
+      "description": "",
+      "logo": null,
+      "website": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.unit",
+    "pk": 1,
+    "fields": {
+      "name": "فرخ",
+      "symbol": "فرخ",
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.product",
+    "pk": 1,
+    "fields": {
+      "name": "كوشيه 300جم",
+      "category": 1,
+      "brand": 1,
+      "description": "",
+      "sku": "1",
+      "barcode": "",
+      "unit": 1,
+      "cost_price": "5.00",
+      "selling_price": "7.00",
+      "min_stock": 0,
+      "is_active": true,
+      "is_featured": false,
+      "tax_rate": "0.00",
+      "discount_rate": "0.00",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": 1
+    }
+  }
+]

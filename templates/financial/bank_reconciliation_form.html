@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{% trans "إنشاء تسوية بنكية" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .form-card {
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        border-radius: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "الرئيسية" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'financial:account_list' %}">{% trans "الإدارة المالية" %}</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'financial:bank_reconciliation_list' %}">{% trans "التسويات البنكية" %}</a></li>
+                    <li class="breadcrumb-item active" aria-current="page">{% trans "إنشاء تسوية بنكية" %}</li>
+                </ol>
+            </nav>
+            <h1 class="page-title">{% trans "إنشاء تسوية بنكية جديدة" %}</h1>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            {% include 'financial/partials/bank_reconciliation_form.html' with form_title="إنشاء تسوية بنكية جديدة" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إضافة أي كود JavaScript إضافي هنا
+    });
+</script>
+{% endblock %}

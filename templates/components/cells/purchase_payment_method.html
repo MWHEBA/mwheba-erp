@@ -1,0 +1,26 @@
+{% load i18n %}
+{% if value == 'cash' or value == 'نقدي' %}
+  <span class="badge bg-success fw-bold">
+    <i class="fas fa-money-bill-wave me-1"></i>{% trans "نقدي" %}
+  </span>
+{% elif value == 'credit' or value == 'آجل' %}
+  <span class="badge bg-warning fw-bold">
+    <i class="fas fa-clock me-1"></i>{% trans "آجل" %}
+  </span>
+{% elif value == 'bank_transfer' or value == 'تحويل بنكي' %}
+  <span class="badge bg-primary fw-bold">
+    <i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}
+  </span>
+{% elif value == 'check' or value == 'شيك' %}
+  <span class="badge bg-info fw-bold">
+    <i class="fas fa-money-check me-1"></i>{% trans "شيك" %}
+  </span>
+{% elif value == 'installment' or value == 'تقسيط' %}
+  <span class="badge bg-secondary fw-bold">
+    <i class="fas fa-calendar-alt me-1"></i>{% trans "تقسيط" %}
+  </span>
+{% else %}
+  <span class="badge bg-light text-dark border">
+    <i class="fas fa-coins me-1"></i>{{ value|default:"غير محدد" }}
+  </span>
+{% endif %}

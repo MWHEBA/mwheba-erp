@@ -1,0 +1,120 @@
+/* تنسيقات لمربعات الاختيار المتعددة */
+.supplier-types-checkboxes {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.supplier-types-checkboxes label {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+    padding: 5px 10px;
+    display: flex;
+    align-items: center;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    margin-bottom: 0;
+}
+
+.supplier-types-checkboxes label:hover {
+    border-color: #adb5bd;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.supplier-types-checkboxes input[type="checkbox"] {
+    margin-left: 8px;
+}
+
+.supplier-types-checkboxes label.checked,
+.supplier-types-checkboxes label:has(input:checked) {
+    background-color: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+/* تنسيق خاص بأنواع المورد المختلفة */
+.supplier-types-checkboxes label[data-type="paper"],
+.supplier-types-checkboxes label[for$="1"] {
+    border-right: 3px solid #28a745;
+}
+
+.supplier-types-checkboxes label[data-type="offset_press"],
+.supplier-types-checkboxes label[for$="2"] {
+    border-right: 3px solid #17a2b8;
+}
+
+.supplier-types-checkboxes label[data-type="digital_press"],
+.supplier-types-checkboxes label[for$="3"] {
+    border-right: 3px solid #ffc107;
+}
+
+.supplier-types-checkboxes label[data-type="finishing"],
+.supplier-types-checkboxes label[for$="4"] {
+    border-right: 3px solid #dc3545;
+}
+
+.supplier-types-checkboxes label[data-type="plates"],
+.supplier-types-checkboxes label[for$="5"] {
+    border-right: 3px solid #6c757d;
+}
+
+.supplier-types-checkboxes label[data-type="other"],
+.supplier-types-checkboxes label[for$="6"] {
+    border-right: 3px solid #343a40;
+}
+
+/* تنسيقات إضافية للمورد */
+.legacy-field {
+    opacity: 0.7;
+}
+
+/* تنسيقات للبطاقات في صفحة التفاصيل */
+.supplier-type-badge {
+    display: inline-block;
+    padding: 3px 8px;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    margin-right: 5px;
+    margin-bottom: 5px;
+    color: #fff;
+    background-color: #6c757d;
+}
+
+/* ألوان لأنواع المورد المختلفة - الأنواع القديمة */
+.supplier-type-paper,
+.supplier-type-type_1 {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.supplier-type-offset_press,
+.supplier-type-type_2 {
+    background-color: #198754;
+    color: white;
+}
+
+.supplier-type-digital_press,
+.supplier-type-type_3 {
+    background-color: #dc3545;
+    color: black;
+}
+
+.supplier-type-finishing,
+.supplier-type-type_4 {
+    background-color: #fd7e14;
+    color: white;
+}
+
+.supplier-type-plates,
+.supplier-type-type_5 {
+    background-color: #6f42c1;
+    color: white;
+}
+
+.supplier-type-other,
+.supplier-type-type_6 {
+    background-color: #6c757d;
+    color: white;
+} 

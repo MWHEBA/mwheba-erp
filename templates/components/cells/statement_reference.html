@@ -1,0 +1,16 @@
+{% load i18n %}
+{% if value %}
+  {% if object.type == 'purchase' %}
+    <a href="{% url 'purchase:purchase_detail' object.purchase_id %}" class="text-primary text-decoration-none fw-bold">
+      <i class="fas fa-shopping-cart me-1"></i>{{ value }}
+    </a>
+  {% elif object.type == 'invoice' %}
+    <a href="{% url 'sale:sale_detail' object.invoice_id %}" class="text-success text-decoration-none fw-bold">
+      <i class="fas fa-file-invoice-dollar me-1"></i>{{ value }}
+    </a>
+  {% else %}
+    <span class="badge bg-secondary">{{ value }}</span>
+  {% endif %}
+{% else %}
+  <span class="text-muted">-</span>
+{% endif %}

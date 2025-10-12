@@ -1,0 +1,1242 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ supplier.name }} - {% trans "تفاصيل المورد" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* بقية التنسيقات */
+  .supplier-avatar {
+    width: 75px;
+    height: 75px;
+    border-radius: 50%;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: #5614B0;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .supplier-info-card {
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    height: 100%;
+    transition: all 0.3s ease;
+  }
+
+  .supplier-info-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .info-card-header {
+    background: linear-gradient(to left, #6a3093, #a044ff);
+    color: white;
+    padding: 1.2rem 1.5rem;
+    font-weight: 600;
+    position: relative;
+  }
+
+  .info-card-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url('{% static "img/patterns/wave-pattern.svg" %}') right center no-repeat;
+    background-size: cover;
+    opacity: 0.1;
+  }
+
+  .finance-card-header {
+    background: linear-gradient(to left, #FF512F, #F09819);
+  }
+
+  .payments-card-header {
+    background: linear-gradient(to left, #2980B9, #2C3E50);
+  }
+
+  .info-list-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  }
+
+  .info-list-item:last-child {
+    border-bottom: none;
+  }
+
+  .info-list-item .icon-wrapper {
+    width: 35px;
+    height: 35px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 1rem;
+    font-size: 1rem;
+    background-color: rgba(106, 48, 147, 0.1);
+    color: #6a3093;
+  }
+
+  .info-list-item .icon-wrapper.phone {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+
+  .info-list-item .icon-wrapper.email {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+
+  .info-list-item .icon-wrapper.address {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+
+  .info-list-item .icon-wrapper.person {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+
+  .info-list-item .icon-wrapper.tax {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #0dcaf0;
+  }
+
+  .info-list-item .info-content {
+    flex: 1;
+  }
+
+  .info-list-item .info-content .info-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+
+  .info-list-item .info-content .info-value {
+    font-weight: 600;
+    color: #344767;
+  }
+
+  .balance-indicator {
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .balance-indicator.positive {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+
+  .balance-indicator.negative {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+
+  .actions-floating-btn {
+    position: fixed;
+    bottom: 2rem;
+    right: 2rem;
+    z-index: 99;
+  }
+
+  .floating-btn {
+    width: 3.5rem;
+    height: 3.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  .floating-btn:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+  }
+
+  .back-btn {
+    transition: all 0.3s ease;
+  }
+
+  .back-btn:hover {
+    transform: translateX(5px);
+  }
+
+  .notes-section {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    border-right: 4px solid #6a3093;
+  }
+
+  .notes-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #344767;
+    margin-bottom: 0.75rem;
+  }
+
+  .notes-content {
+    color: #6c757d;
+    line-height: 1.6;
+  }
+
+  /* تصميم كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .supplier-header {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .supplier-info-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    margin-right: 0.75rem;
+    margin-bottom: 0.5rem;
+    background-color: #f8f9fa;
+    color: #344767;
+    font-weight: 500;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .transaction-amount {
+    direction: rtl !important;
+  }
+  
+  /* تنسيقات التابات */
+  .supplier-tabs {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+  }
+  
+  .nav-tabs {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+  }
+  
+  .nav-tabs .nav-item {
+    margin-bottom: -1px;
+  }
+  
+  .nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 600;
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-bottom: 3px solid transparent;
+    border-radius: 0;
+    margin-right: 0.5rem;
+    transition: all 0.2s ease;
+    position: relative;
+    background-color: transparent;
+  }
+  
+  .nav-tabs .nav-link.active {
+    color: #6a3093;
+    border-bottom-color: #6a3093;
+    background-color: transparent;
+  }
+  
+  .nav-tabs .nav-link:hover {
+    color: #6a3093;
+    border-bottom-color: rgba(106, 48, 147, 0.4);
+  }
+  
+  .nav-tabs .nav-link .badge {
+    position: absolute;
+    top: 0;
+    right: 0;
+    transform: translate(25%, -25%);
+    font-size: 0.7rem;
+  }
+  
+  .tab-content {
+    padding-top: 1rem;
+  }
+  
+  .tab-pane {
+    animation: fadeIn 0.3s ease;
+  }
+  
+  @keyframes fadeIn {
+    0% { opacity: 0; }
+    100% { opacity: 1; }
+  }
+  
+  /* تنسيقات التابات الفرعية للخدمات */
+  .services-sub-tabs .nav-tabs {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 1.5rem;
+  }
+  
+  .services-sub-tabs .nav-tabs .nav-link {
+    color: #6c757d;
+    font-weight: 500;
+    padding: 0.75rem 1.25rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    margin-right: 0.25rem;
+    transition: all 0.2s ease;
+    background-color: transparent;
+  }
+  
+  .services-sub-tabs .nav-tabs .nav-link.active {
+    color: #6a3093;
+    border-bottom-color: #6a3093;
+    background-color: transparent;
+  }
+  
+  .services-sub-tabs .nav-tabs .nav-link:hover {
+    color: #6a3093;
+    border-bottom-color: rgba(106, 48, 147, 0.4);
+  }
+  
+  .services-sub-tabs .nav-tabs .nav-link .badge {
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  
+  /* تقليل ارتفاع خلايا جداول الخدمات */
+  .services-sub-tabs .transaction-table td {
+    padding: 0.5rem 0.75rem !important;
+    vertical-align: middle;
+    line-height: 1.3;
+  }
+  
+  .services-sub-tabs .transaction-table td .fw-bold {
+    margin-bottom: 0.25rem;
+    font-size: 0.9rem;
+  }
+  
+  .services-sub-tabs .transaction-table td small {
+    font-size: 0.75rem;
+    line-height: 1.2;
+    margin-bottom: 0.1rem;
+  }
+  
+  .services-sub-tabs .transaction-table td small.d-block {
+    margin-bottom: 0.15rem;
+  }
+  
+  .services-sub-tabs .transaction-table .btn-group .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8rem;
+  }
+  
+  .services-sub-tabs .transaction-table .transaction-amount strong {
+    font-size: 0.85rem;
+    margin-bottom: 0.1rem;
+  }
+  
+  .services-sub-tabs .transaction-table .transaction-date {
+    font-size: 0.8rem;
+    margin-bottom: 0.1rem;
+  }
+  
+  /* تحسين مظهر الأزرار في جداول الخدمات */
+  .services-sub-tabs .transaction-table .btn-group {
+    gap: 0.15rem;
+  }
+  
+  .services-sub-tabs .transaction-table .badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+  
+  /* تحسين خلية اسم الخدمة */
+  .services-sub-tabs .transaction-table .col-name {
+    max-width: 200px;
+  }
+  
+  .services-sub-tabs .transaction-table .col-name .fw-bold {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  /* تحسين خلية التفاصيل */
+  .services-sub-tabs .transaction-table .col-details {
+    max-width: 180px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'supplier:supplier_list' %}">
+                            <i class="fas fa-truck me-1"></i>{% trans "الموردين" %}
+                        </a>
+                    </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            {{ supplier.name }}
+          </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+    <div class="supplier-header">
+      <div class="row align-items-center">
+        <div class="col-md-7">
+          <div class="d-flex align-items-center mb-3">
+                <div class="me-3">
+              <i class="fas fa-user-tie fa-3x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ supplier.name }}</h1>
+              <div class="d-flex flex-wrap mt-2">
+                <div class="supplier-info-badge me-2 mb-2">
+                  <i class="fas fa-hashtag me-2 text-primary"></i>
+                  <span>{{ supplier.code }}</span>
+                </div>
+                
+                    {% if supplier.actual_balance > 0 %}
+                  <div class="supplier-info-badge me-2 mb-2" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545; font-weight: 700;">
+                    <i class="fas fa-arrow-up me-2"></i>
+                    <span>{% trans "الاستحقاق:" %} {{ supplier.actual_balance|custom_number_format }} {% trans "ج.م" %}</span>
+                  </div>
+                    {% else %}
+                  <div class="supplier-info-badge me-2 mb-2" style="background-color: rgba(25, 135, 84, 0.1); color: #198754; font-weight: 700;">
+                    <i class="fas fa-arrow-down me-2"></i>
+                    <span>{% trans "الاستحقاق:" %} {{ supplier.actual_balance|custom_number_format }} {% trans "ج.م" %}</span>
+                  </div>
+                    {% endif %}
+                
+                {% if supplier.tax_number %}
+                <div class="supplier-info-badge mb-2">
+                  <i class="fas fa-receipt me-2 text-info"></i>
+                  <span>{{ supplier.tax_number }}</span>
+                </div>
+                {% endif %}
+                
+                {% if financial_account %}
+                <div class="supplier-info-badge mb-2" style="background-color: rgba(25, 135, 84, 0.1); border: 1px solid rgba(25, 135, 84, 0.2);">
+                  <i class="fas fa-link me-2 text-success"></i>
+                  <a href="{% url 'financial:account_detail' financial_account.pk %}" class="text-success text-decoration-none fw-bold">
+                    دليل الحسابات
+                  </a>
+                </div>
+                {% endif %}
+                
+                
+                </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-5">
+          <div class="d-flex flex-wrap justify-content-md-end align-items-center">
+            <!-- أنواع الخدمات كهاشتاجات -->
+            {% if supplier.supplier_types.exists %}
+              <div class="d-flex flex-wrap me-3">
+                {% for supplier_type in supplier.supplier_types.all %}
+                  <span class="badge me-1 mb-1" style="
+                    font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 12px;
+                    {% if 'ورق' in supplier_type.name %}
+                      background-color: #28a745; color: white;
+                    {% elif 'ديجيتال' in supplier_type.name %}
+                      background-color: #6f42c1; color: white;
+                    {% elif 'أوفست' in supplier_type.name %}
+                      background-color: #007bff; color: white;
+                    {% elif 'طباعة' in supplier_type.name %}
+                      background-color: #fd7e14; color: white;
+                    {% elif 'ليزر' in supplier_type.name %}
+                      background-color: #dc3545; color: white;
+                    {% elif 'هدايا' in supplier_type.name %}
+                      background-color: #ffc107; color: #212529;
+                    {% elif 'تغطية' in supplier_type.name %}
+                      background-color: #20c997; color: white;
+                    {% elif 'أوت دور' in supplier_type.name %}
+                      background-color: #e83e8c; color: white;
+                    {% elif 'فصل' in supplier_type.name %}
+                      background-color: #17a2b8; color: white;
+                    {% else %}
+                      background-color: #6c757d; color: white;
+                    {% endif %}
+                  ">#{{ supplier_type.name }}</span>
+                {% endfor %}
+              </div>
+            {% endif %}
+            <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="btn btn-success me-2 mb-2" style="font-weight: 700;">
+              <i class="fas fa-shopping-cart me-1"></i> {% trans "فاتورة شراء" %}
+            </a>
+            <a href="#" class="btn btn-outline-secondary mb-2" data-bs-toggle="modal" data-bs-target="#actionsModal" style="font-weight: 600;">
+              <i class="fas fa-ellipsis-v"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overview Cards -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}</h5>
+    <div class="row">
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
+            <div class="stats-card-value">{{ total_purchases|default:"0"|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-box"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
+            <div class="stats-card-value">{{ products_count|default:"0" }}</div>
+            <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
+            </div>
+        </div>
+    </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+            <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
+            <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-tools"></i>
+            </div>
+            <div class="stats-card-title">الخدمات المتخصصة</div>
+            <div class="stats-card-value">{{ supplier.specialized_services.count|default:"0" }}</div>
+            <div class="stats-card-unit" style="font-weight: 600;">خدمة</div>
+          </div>
+        </div>
+      </div>
+    </div>
+                    </div>
+
+  <!-- نظام التابات -->
+  <div class="supplier-tabs">
+    <ul class="nav nav-tabs" id="supplierTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-tab-pane" type="button" role="tab" aria-controls="info-tab-pane" aria-selected="true">
+          <i class="fas fa-info-circle me-2"></i>{% trans "معلومات المورد" %}
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane" aria-selected="false">
+          <i class="fas fa-shopping-cart me-2"></i>{% trans "فواتير الشراء" %}
+          <span class="badge bg-info rounded-pill">{{ purchases_count|default:"0" }}</span>
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane" aria-selected="false">
+          <i class="fas fa-boxes me-2"></i>المنتجات
+          <span class="badge bg-success rounded-pill">{{ products_count|default:"0" }}</span>
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="pricing-services-tab" data-bs-toggle="tab" data-bs-target="#pricing-services-tab-pane" type="button" role="tab" aria-controls="pricing-services-tab-pane" aria-selected="false">
+          <i class="fas fa-tools me-2"></i>خدمات التسعير
+          <span class="badge bg-warning rounded-pill">{{ supplier_service_categories_count|default:"0" }}</span>
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane" aria-selected="false">
+          <i class="fas fa-money-bill-wave me-2"></i>{% trans "المدفوعات" %}
+          <span class="badge bg-primary rounded-pill">{{ payments|length|default:"0" }}</span>
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
+          <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
+        </button>
+                            </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
+          <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
+        </button>
+                            </li>
+                        </ul>
+                        
+    <div class="tab-content" id="supplierTabsContent">
+      <!-- تاب معلومات المورد -->
+      <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+        <div class="section-container">
+          <div class="p-0">
+            <div class="info-list-item">
+              <div class="icon-wrapper phone">
+                <i class="fas fa-phone"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "رقم الهاتف" %}</div>
+                <div class="info-value">{{ supplier.phone|format_phone }}</div>
+              </div>
+            </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper email">
+                <i class="fas fa-envelope"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "البريد الإلكتروني" %}</div>
+                <div class="info-value">{{ supplier.email|default:"لا يوجد" }}</div>
+              </div>
+            </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper address">
+                <i class="fas fa-map-marker-alt"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "العنوان" %}</div>
+                <div class="info-value">{{ supplier.address|default:"لا يوجد" }}</div>
+                        </div>
+                    </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper person">
+                <i class="fas fa-user-tie"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "جهة الاتصال" %}</div>
+                <div class="info-value">{{ supplier.contact_person|default:"لا يوجد" }}</div>
+                        </div>
+                    </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper tax">
+                <i class="fas fa-file-invoice"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "الرقم الضريبي" %}</div>
+                <div class="info-value">{{ supplier.tax_number|default:"لا يوجد" }}</div>
+                </div>
+            </div>
+            
+            {% if supplier.notes %}
+            <div class="notes-section">
+              <div class="notes-title">
+                <i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات" %}
+              </div>
+              <div class="notes-content">
+                {{ supplier.notes }}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- تاب فواتير الشراء -->
+      <div class="tab-pane fade" id="purchases-tab-pane" role="tabpanel" aria-labelledby="purchases-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة فاتورة جديدة" %}
+            </a>
+          </div>
+          
+          {% if purchases %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-purchases-table" %}
+            {% with headers=purchase_headers %}
+              {% with data=purchases %}
+                {% with action_buttons=purchase_action_buttons %}
+                  {% with empty_message="لا توجد فواتير مشتريات متاحة" %}
+                    {% with clickable_rows=purchases_clickable row_click_url="/purchases/0/" %}
+                      {% with show_export=True export_filename="supplier_purchases" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد فواتير مشتريات مسجلة لهذا المورد." %}
+              <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="alert-link">
+                {% trans "إضافة فاتورة جديدة" %}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب المنتجات -->
+      <div class="tab-pane fade" id="products-tab-pane" role="tabpanel" aria-labelledby="products-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-boxes me-2 text-success"></i>منتجات المورد
+            </h5>
+            <div class="d-flex align-items-center">
+              <span class="badge bg-success me-2">{{ products_count }} منتج</span>
+            </div>
+          </div>
+          
+          <!-- إزالة الشرط لإظهار الجدول دائماً -->
+          {% comment %} {% if supplier_products %} {% endcomment %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-products-table" %}
+            {% include "components/data_table.html" with headers=products_headers data=supplier_products action_buttons=products_action_buttons primary_key=products_primary_key empty_message="لا توجد منتجات مشتراة من هذا المورد" clickable_rows=True row_click_url="/products/0/" show_export=True export_filename="supplier_products" %}
+          {% endwith %}
+          {% comment %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              لا توجد منتجات مشتراة من هذا المورد حتى الآن.
+              <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="alert-link">
+                إضافة فاتورة شراء جديدة
+              </a>
+            </div>
+          </div>
+          {% endif %}
+          {% endcomment %}
+        </div>
+      </div>
+      
+      <!-- تاب خدمات التسعير -->
+      <div class="tab-pane fade" id="pricing-services-tab-pane" role="tabpanel" aria-labelledby="pricing-services-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-tools me-2 text-warning"></i>خدمات التسعير والطباعة
+            </h5>
+            <div class="d-flex align-items-center">
+              <span class="badge bg-warning me-2">{{ supplier_service_categories_count|default:"0" }} نوع خدمة</span>
+            </div>
+          </div>
+          
+          <!-- تابات فرعية للخدمات حسب الفئة -->
+          {% load supplier_extras %}
+          {% get_all_service_categories supplier as all_categories %}
+          {% regroup supplier.specialized_services.all by category as services_by_category %}
+          
+          <!-- التابات الفرعية - تظهر دائماً -->
+          <div class="services-sub-tabs">
+            <ul class="nav nav-tabs" id="servicesSubTabs" role="tablist">
+              {% for category in all_categories %}
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link {% if forloop.first %}active{% endif %}" id="category-{{ category.id }}-tab" data-bs-toggle="tab" data-bs-target="#category-{{ category.id }}-services" type="button" role="tab" aria-controls="category-{{ category.id }}-services" aria-selected="{% if forloop.first %}true{% else %}false{% endif %}">
+                    <i class="fas fa-layer-group me-2"></i>
+                    {% if category.code == 'paper' %}
+                      الورق
+                    {% elif category.code == 'offset_printing' %}
+                      ماكينات أوفست
+                    {% elif category.code == 'digital_printing' %}
+                      ماكينات ديجيتال
+                    {% elif category.code == 'finishing' %}
+                      خدمات الطباعة
+                    {% elif category.code == 'plates' %}
+                      زنكات CTP
+                    {% else %}
+                      {{ category.name }}
+                    {% endif %}
+                    {% comment %}حساب عدد الخدمات لهذه الفئة{% endcomment %}
+                    {% has_services_for_category services_by_category category.id as has_services %}
+                    {% if has_services %}
+                      {% for category_group in services_by_category %}
+                        {% if category_group.grouper.id == category.id %}
+                          <span class="badge bg-primary ms-2">{{ category_group.list|length }}</span>
+                        {% endif %}
+                      {% endfor %}
+                    {% else %}
+                      <span class="badge bg-secondary ms-2">0</span>
+                    {% endif %}
+                  </button>
+                </li>
+              {% empty %}
+                {% comment %}إذا لم توجد فئات في النظام{% endcomment %}
+                <li class="nav-item" role="presentation">
+                  <button class="nav-link active" id="no-categories-tab" data-bs-toggle="tab" data-bs-target="#no-categories" type="button" role="tab">
+                    <i class="fas fa-info-circle me-2"></i>
+                    لا توجد فئات خدمات
+                  </button>
+                </li>
+              {% endfor %}
+            </ul>
+          </div>
+
+          <!-- محتوى التابات الفرعية -->
+          <div class="tab-content" id="servicesSubTabsContent">
+            {% for category in all_categories %}
+              <div class="tab-pane fade {% if forloop.first %}show active{% endif %}" id="category-{{ category.id }}-services" role="tabpanel" aria-labelledby="category-{{ category.id }}-tab">
+
+                <!-- زر إضافة خدمة جديدة - النظام الديناميكي -->
+                <div class="d-flex justify-content-end mb-3">
+                  <a href="{% url 'supplier:add_specialized_service' supplier.pk %}?category={{ category.code }}" 
+                     class="btn btn-sm btn-primary dynamic-service-btn">
+                    <i class="fas fa-plus me-1"></i>
+                    {% if category.code == 'paper' %}
+                      إضافة ورق
+                    {% elif category.code == 'offset_printing' %}
+                      إضافة ماكينة أوفست
+                    {% elif category.code == 'digital_printing' %}
+                      إضافة ماكينة ديجيتال
+                    {% elif category.code == 'finishing' %}
+                      إضافة خدمة طباعة
+                    {% elif category.code == 'plates' %}
+                      إضافة نوع زنك CTP
+                    {% else %}
+                      إضافة {{ category.name }}
+                    {% endif %}
+                  </a>
+                </div>
+
+                <!-- عرض الخدمات أو رسالة فارغة -->
+                {% comment %}البحث عن خدمات هذه الفئة{% endcomment %}
+                {% for category_group in services_by_category %}
+                  {% if category_group.grouper.id == category.id %}
+                    <!-- اختيار headers المناسبة حسب نوع الفئة -->
+                    {% if category.code == 'digital_printing' %}
+                      {% with current_headers=digital_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% elif category.code == 'offset_printing' %}
+                      {% with current_headers=offset_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% elif category.code == 'paper' %}
+                      {% with current_headers=paper_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% elif category.code == 'plates' %}
+                      {% with current_headers=plates_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% else %}
+                      {% with current_headers=services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endif %}
+                  {% endif %}
+                {% endfor %}
+                
+                <!-- إذا لم توجد خدمات لهذه الفئة -->
+                {% has_services_for_category services_by_category category.id as has_services %}
+                {% if not has_services %}
+                  <div class="text-center py-4">
+                    <i class="fas fa-tools fa-2x text-muted mb-3"></i>
+                    <h6 class="text-muted">لا توجد خدمات من فئة {{ category.name }}</h6>
+                    <p class="text-muted small">ابدأ بإضافة خدمات {{ category.name }} لهذا المورد</p>
+                  </div>
+                {% endif %}
+
+              </div>
+            {% empty %}
+              <!-- لا توجد فئات في النظام -->
+              <div class="tab-pane fade show active" id="no-categories" role="tabpanel">
+                <div class="text-center py-5">
+                  <i class="fas fa-exclamation-triangle fa-3x text-warning mb-3"></i>
+                  <h5>لا توجد فئات خدمات في النظام</h5>
+                  <p class="text-muted">يجب إضافة فئات الخدمات في نظام التسعير أولاً</p>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      
+      <!-- تاب المدفوعات -->
+      <div class="tab-pane fade" id="payments-tab-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
+              <i class="fas fa-money-bill-wave me-2"></i>
+              <span>{% trans "الإجمالي:" %} {{ total_payments|custom_number_format }} {% trans "ج.م" %}</span>
+            </div>
+                    </div>
+          
+                        {% if payments %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-payments-table" %}
+            {% with headers=payments_headers %}
+              {% with data=payments %}
+                {% with empty_message="لا توجد مدفوعات مسجلة لهذا المورد" %}
+                  {% with clickable_rows=payments_clickable row_click_url="/purchases/payments/0/" %}
+                    {% with show_export=True export_filename="supplier_payments" %}
+                      {% include "components/data_table.html" %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد مدفوعات مسجلة لهذا المورد. يمكنك إضافة دفعات عبر فواتير المشتريات." %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب القيود المحاسبية -->
+      <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية المرتبطة" %}</h5>
+            {% if financial_account %}
+            <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
+            </a>
+            {% endif %}
+          </div>
+          
+          {% if journal_entries %}
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-journal-table" %}
+            {% with headers=journal_headers %}
+              {% with data=journal_entries %}
+                {% with action_buttons=journal_action_buttons %}
+                  {% with empty_message="لا توجد قيود محاسبية لهذا المورد" %}
+                    {% with clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" %}
+                      {% with show_export=True export_filename="supplier_journal_entries" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد قيود محاسبية مسجلة لهذا المورد." %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب كشف الحساب -->
+      <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>{% trans "كشف حساب المورد" %}</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
+              <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
+            </button>
+          </div>
+          
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="supplier-statement-table" %}
+            {% with headers=statement_headers %}
+              {% with data=transactions %}
+                {% with empty_message="لا توجد معاملات مسجلة لهذا المورد" %}
+                  {% with show_export=True export_filename="supplier_statement" %}
+                    {% include "components/data_table.html" %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions Modal -->
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionsModalLabel">
+          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group">
+          <a href="{% url 'supplier:supplier_edit' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="icon-wrapper me-3" style="background-color: rgba(255, 193, 7, 0.1); color: #ffc107;">
+              <i class="fas fa-edit"></i>
+            </div>
+            <div>
+              <div class="fw-bold" style="font-weight: 700;">{% trans "تعديل بيانات المورد" %}</div>
+              <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+            </div>
+          </a>
+          <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="icon-wrapper me-3" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
+              <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div>
+              <div class="fw-bold" style="font-weight: 700;">تغيير الحساب المحاسبي</div>
+              <small class="text-muted">ربط المورد بحساب آخر في دليل الحسابات</small>
+            </div>
+          </a>
+          <a href="{% url 'supplier:supplier_delete' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="icon-wrapper me-3" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
+              <i class="fas fa-trash"></i>
+            </div>
+            <div>
+              <div class="fw-bold" style="font-weight: 700;">{% trans "حذف المورد" %}</div>
+              <small class="text-muted">{% trans "حذف المورد نهائياً من النظام" %}</small>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (window.GlobalTableManager) {
+        window.GlobalTableManager.initializeAllTables();
+    }
+    
+    // دالة عرض تفاصيل الخدمة
+    function viewServiceDetails(serviceId) {
+        alert('عرض تفاصيل الخدمة رقم: ' + serviceId);
+    }
+    
+    // جعل الصفوف القابلة للنقر تعمل
+    document.addEventListener('click', function(e) {
+        const clickableRow = e.target.closest('.clickable-row');
+        if (clickableRow && clickableRow.dataset.href) {
+            window.open(clickableRow.dataset.href, '_blank');
+        }
+    });
+    
+    // حفظ واستعادة التابات النشطة
+    initializeTabMemory();
+});
+
+function initializeTabMemory() {
+    const pageKey = 'supplier_detail_{{ supplier.pk }}';
+    
+    // استعادة التاب الرئيسي النشط
+    const savedMainTab = localStorage.getItem(pageKey + '_main_tab');
+    if (savedMainTab) {
+        const mainTabButton = document.querySelector(`#${savedMainTab}`);
+        const mainTabPane = document.querySelector(`#${savedMainTab.replace('-tab', '-tab-pane')}`);
+        
+        if (mainTabButton && mainTabPane) {
+            // إزالة active من جميع التابات الرئيسية
+            document.querySelectorAll('#supplierTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('#supplierTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // تفعيل التاب المحفوظ
+            mainTabButton.classList.add('active');
+            mainTabButton.setAttribute('aria-selected', 'true');
+            mainTabPane.classList.add('show', 'active');
+        }
+    }
+    
+    // استعادة التاب الفرعي النشط (للخدمات)
+    const savedSubTab = localStorage.getItem(pageKey + '_sub_tab');
+    if (savedSubTab) {
+        const subTabButton = document.querySelector(`#${savedSubTab}`);
+        const subTabPane = document.querySelector(`#${savedSubTab.replace('-tab', '-services')}`);
+        
+        if (subTabButton && subTabPane) {
+            // إزالة active من جميع التابات الفرعية
+            document.querySelectorAll('#servicesSubTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('#servicesSubTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // تفعيل التاب الفرعي المحفوظ
+            subTabButton.classList.add('active');
+            subTabButton.setAttribute('aria-selected', 'true');
+            subTabPane.classList.add('show', 'active');
+        }
+    }
+    
+    // حفظ التاب الرئيسي عند التغيير
+    document.querySelectorAll('#supplierTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function() {
+            localStorage.setItem(pageKey + '_main_tab', this.id);
+        });
+    });
+    
+    // حفظ التاب الفرعي عند التغيير
+    document.querySelectorAll('#servicesSubTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function() {
+            localStorage.setItem(pageKey + '_sub_tab', this.id);
+        });
+    });
+    
+    // تفعيل tooltips للأزرار الموحدة
+    $('.action-button').tooltip();
+}
+</script>
+{% endblock %}

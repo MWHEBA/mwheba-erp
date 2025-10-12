@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* شارات ملونة */
+  .soft-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .soft-badge-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .soft-badge-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  
+  .soft-badge-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .soft-badge-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  .expense-status-indicator {
+    border-radius: 8px;
+    padding: 10px;
+    border-left-width: 4px;
+    border-left-style: solid;
+    font-weight: 500;
+    margin-bottom: 1.5rem;
+  }
+  
+  .expense-status-pending {
+    border-left-color: #ffc107;
+    background-color: rgba(255, 193, 7, 0.05);
+  }
+  
+  .expense-status-paid {
+    border-left-color: #198754;
+    background-color: rgba(25, 135, 84, 0.05);
+  }
+  
+  .expense-status-cancelled {
+    border-left-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.05);
+  }
+  
+  .form-section {
+    margin-bottom: 1rem;
+  }
+  
+  .notes-section {
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem;
+  }
+  
+  .type-desc {
+    padding-left: 10px;
+    border-left: 3px solid #dee2e6;
+  }
+  
+  /* تحسينات لتقليل المساحة */
+  .form-group {
+    margin-bottom: 1rem;
+  }
+  
+  label {
+    margin-bottom: 0.25rem;
+  }
+  
+  .compact-row {
+    margin-bottom: 0.5rem;
+  }
+  
+  .compact-section {
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'core:dashboard' %}">
+              <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="#">
+              <i class="fas fa-money-bill-wave me-1"></i>{% trans "الإدارة المالية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'financial:expense_list' %}">
+              <i class="fas fa-hand-holding-usd me-1"></i>{% trans "المصروفات" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            {% if form.instance.pk %}{% trans "تعديل مصروف" %}{% else %}{% trans "إضافة مصروف جديد" %}{% endif %}
+          </li>
+        </ol>
+      </nav>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          <div class="bg-primary bg-opacity-10 text-primary p-3 rounded">
+            <i class="fas fa-hand-holding-usd fa-2x"></i>
+          </div>
+        </div>
+        <div>
+          <h1 class="h3 mb-1 fw-bold text-dark">
+            {% if form.instance.pk %}{% trans "تعديل مصروف" %}{% else %}{% trans "إضافة مصروف جديد" %}{% endif %}
+          </h1>
+          <p class="text-muted mb-0">
+            {% trans "إدارة مصروفات المؤسسة وتسجيل المدفوعات" %}
+          </p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:expense_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للقائمة" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج إضافة مصروف -->
+  <div class="section-container">
+    <form method="post" id="expenseForm" novalidate>
+      {% csrf_token %}
+      
+      {% if form.errors %}
+      <div class="alert alert-danger mb-3">
+        <div class="d-flex align-items-center mb-1">
+          <div class="me-2">
+            <i class="fas fa-exclamation-triangle text-danger"></i>
+          </div>
+          <div>
+            <strong>{% trans "يوجد أخطاء في النموذج" %}</strong>
+            <span class="small">: {% trans "يرجى تصحيح الأخطاء التالية" %}</span>
+          </div>
+        </div>
+        <ul class="mb-0 ps-4 small">
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li>{{ field.label }}: {{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
+      
+      {% if expense %}
+      <div class="expense-status-indicator expense-status-{{ expense.status }}">
+        <i class="fas fa-info-circle me-1"></i>
+        {% if expense.status == 'pending' %}
+          {% trans "هذا المصروف في حالة معلقة (غير مدفوع)" %}
+        {% elif expense.status == 'paid' %}
+          {% trans "هذا المصروف مدفوع بتاريخ" %}: {{ expense.payment_date|date:"d-m-Y" }}
+        {% elif expense.status == 'cancelled' %}
+          {% trans "هذا المصروف ملغي" %}
+        {% endif %}
+      </div>
+      {% endif %}
+      
+      <div class="row">
+        <!-- القسم الأيمن - التفاصيل الأساسية -->
+        <div class="col-lg-6">
+          <!-- عنوان المصروف والمبلغ -->
+          <div class="form-section">
+            <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>{% trans "التفاصيل الأساسية" %}</h5>
+            <div class="row">
+              <div class="col-md-12 form-group">
+                {{ form.title.label_tag }}
+                {{ form.title }}
+                {% if form.title.errors %}
+                  <div class="invalid-feedback d-block">{{ form.title.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 form-group">
+                {{ form.amount.label_tag }}
+                <div class="input-group">
+                  {{ form.amount }}
+                  <span class="input-group-text">{% trans "ج.م" %}</span>
+                </div>
+                {% if form.amount.errors %}
+                  <div class="invalid-feedback d-block">{{ form.amount.errors }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6 form-group">
+                {{ form.category.label_tag }}
+                {{ form.category }}
+                {% if form.category.errors %}
+                  <div class="invalid-feedback d-block">{{ form.category.errors }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+          <!-- التواريخ -->
+          <div class="form-section">
+            <h5 class="section-title"><i class="fas fa-calendar-alt me-2"></i>{% trans "التواريخ" %}</h5>
+            <div class="row">
+              <div class="col-md-6 form-group">
+                {{ form.date.label_tag }}
+                {{ form.date }}
+                {% if form.date.errors %}
+                  <div class="invalid-feedback d-block">{{ form.date.errors }}</div>
+                {% endif %}
+                <small class="form-text text-muted">{% trans "تاريخ إنشاء المصروف" %}</small>
+              </div>
+              <div class="col-md-6 form-group">
+                {{ form.payment_date.label_tag }}
+                {{ form.payment_date }}
+                {% if form.payment_date.errors %}
+                  <div class="invalid-feedback d-block">{{ form.payment_date.errors }}</div>
+                {% endif %}
+                <small class="form-text text-muted">{% trans "تاريخ دفع المصروف (اختياري)" %}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- القسم الأيسر - الحسابات والمراجع -->
+        <div class="col-lg-6">
+          <!-- الحسابات -->
+          <div class="form-section">
+            <h5 class="section-title"><i class="fas fa-landmark me-2"></i>{% trans "حساب الدفع" %}</h5>
+            <div class="row">
+              <div class="col-md-12 form-group">
+                {{ form.payment_account.label_tag }}
+                {{ form.payment_account }}
+                {% if form.payment_account.errors %}
+                  <div class="invalid-feedback d-block">{{ form.payment_account.errors }}</div>
+                {% endif %}
+                <small class="form-text text-muted">{% trans "حساب الخزينة أو الحساب المستخدم في الدفع" %}</small>
+              </div>
+            </div>
+          </div>
+          
+          <!-- المراجع -->
+          <div class="form-section">
+            <h5 class="section-title"><i class="fas fa-bookmark me-2"></i>{% trans "المراجع" %}</h5>
+            <div class="row">
+              <div class="col-md-6 form-group">
+                {{ form.reference.label_tag }}
+                {{ form.reference }}
+                {% if form.reference.errors %}
+                  <div class="invalid-feedback d-block">{{ form.reference.errors }}</div>
+                {% endif %}
+                <small class="form-text text-muted">{% trans "المرجع (اختياري)" %}</small>
+              </div>
+              <div class="col-md-6 form-group">
+                {{ form.reference_number.label_tag }}
+                {{ form.reference_number }}
+                {% if form.reference_number.errors %}
+                  <div class="invalid-feedback d-block">{{ form.reference_number.errors }}</div>
+                {% endif %}
+                <small class="form-text text-muted">{% trans "رقم المرجع (اختياري)" %}</small>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- الوصف -->
+      <div class="form-section">
+        <h5 class="section-title"><i class="fas fa-align-left me-2"></i>{% trans "الوصف" %}</h5>
+        <div class="row">
+          <div class="col-md-12 form-group">
+            {{ form.description }}
+            {% if form.description.errors %}
+              <div class="invalid-feedback d-block">{{ form.description.errors }}</div>
+            {% endif %}
+            <small class="form-text text-muted">{% trans "وصف تفصيلي للمصروف (اختياري)" %}</small>
+          </div>
+        </div>
+      </div>
+      
+      <!-- أزرار الإجراءات -->
+      <div class="d-flex justify-content-end mt-4">
+        <a href="{% url 'financial:expense_list' %}" class="btn btn-outline-secondary me-2">
+          <i class="fas fa-times me-1"></i>{% trans "إلغاء" %}
+        </a>
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-save me-1"></i>
+          {% if form.instance.pk %}{% trans "حفظ التغييرات" %}{% else %}{% trans "حفظ المصروف" %}{% endif %}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // تنسيق حقول التاريخ
+    $('input[type="date"]').addClass('form-control');
+    
+    // تحديث حالة مؤشر الدفع
+    function updatePaymentStatus() {
+      var paymentDate = $('#id_payment_date').val();
+      if (paymentDate && paymentDate.trim() !== '') {
+        $('#id_status').val('paid');
+      } else {
+        $('#id_status').val('pending');
+      }
+    }
+    
+    // مراقبة تغيير تاريخ الدفع
+    $('#id_payment_date').change(updatePaymentStatus);
+  });
+</script>
+{% endblock %} 

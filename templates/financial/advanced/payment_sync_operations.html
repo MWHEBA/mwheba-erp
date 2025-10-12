@@ -1,0 +1,413 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title|default:"عمليات تزامن المدفوعات" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* حالة فارغة */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="#">
+                          <i class="fas fa-money-bill-wave me-1"></i>{% trans "الإدارة المالية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'financial:payment_sync_dashboard' %}">
+                          <i class="fas fa-sync-alt me-1"></i>{% trans "تزامن المدفوعات" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-cogs me-1"></i>{% trans "عمليات التزامن" %}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-cogs fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% trans "عمليات تزامن المدفوعات" %}</h1>
+                  <p class="text-muted mb-0">{% trans "مراقبة وإدارة عمليات تزامن المدفوعات مع النظام المحاسبي" %}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'financial:payment_sync_dashboard' %}" class="btn btn-outline-secondary me-2">
+                  <i class="fas fa-arrow-left me-2"></i>{% trans "العودة للوحة التحكم" %}
+              </a>
+              <a href="{% url 'financial:payment_sync_logs' %}" class="btn btn-outline-info">
+                  <i class="fas fa-list-alt me-2"></i>{% trans "سجلات التزامن" %}
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- قائمة العمليات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة العمليات" %}</h5>
+        <div class="actions-container">
+          {% if operations %}
+            <span class="badge bg-primary">{{ operations|length }} {% trans "عملية" %}</span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover table-sm">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "معرف العملية" %}</th>
+                <th>{% trans "نوع العملية" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "تاريخ الإنشاء" %}</th>
+                <th>{% trans "تاريخ البدء" %}</th>
+                <th>{% trans "تاريخ الانتهاء" %}</th>
+                <th>{% trans "المحاولات" %}</th>
+                <th>{% trans "المستخدم" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for operation in operations %}
+              <tr>
+                <td>
+                  <code class="text-primary">{{ operation.operation_id|truncatechars:12 }}</code>
+                </td>
+                <td>
+                  <span class="badge bg-info">{{ operation.get_operation_type_display }}</span>
+                </td>
+                <td>
+                  {% if operation.status == 'completed' %}
+                    <span class="badge bg-success">
+                      <i class="fas fa-check me-1"></i>{% trans "مكتملة" %}
+                    </span>
+                  {% elif operation.status == 'failed' %}
+                    <span class="badge bg-danger">
+                      <i class="fas fa-times me-1"></i>{% trans "فاشلة" %}
+                    </span>
+                  {% elif operation.status == 'processing' %}
+                    <span class="badge bg-warning">
+                      <i class="fas fa-spinner me-1"></i>{% trans "قيد المعالجة" %}
+                    </span>
+                  {% elif operation.status == 'pending' %}
+                    <span class="badge bg-secondary">
+                      <i class="fas fa-clock me-1"></i>{% trans "قيد الانتظار" %}
+                    </span>
+                  {% elif operation.status == 'retry' %}
+                    <span class="badge bg-warning">
+                      <i class="fas fa-redo me-1"></i>{% trans "إعادة محاولة" %}
+                    </span>
+                  {% else %}
+                    <span class="badge bg-secondary">{{ operation.get_status_display }}</span>
+                  {% endif %}
+                </td>
+                <td>{{ operation.created_at|date:"Y-m-d H:i:s" }}</td>
+                <td>
+                  {% if operation.started_at %}
+                    {{ operation.started_at|date:"Y-m-d H:i:s" }}
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if operation.completed_at %}
+                    {{ operation.completed_at|date:"Y-m-d H:i:s" }}
+                  {% else %}
+                    <span class="text-muted">-</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <span class="badge bg-light text-dark">
+                    {{ operation.retry_count }}/{{ operation.max_retries }}
+                  </span>
+                </td>
+                <td>
+                  {% if operation.created_by %}
+                    {{ operation.created_by.username }}
+                  {% else %}
+                    <span class="text-muted">{% trans "نظام" %}</span>
+                  {% endif %}
+                </td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="8">
+                  <div class="empty-state">
+                    <div class="empty-state-icon">
+                      <i class="fas fa-inbox"></i>
+                    </div>
+                    <h5>{% trans "لا توجد عمليات تزامن" %}</h5>
+                    <p class="text-muted mb-0">{% trans "لم يتم العثور على عمليات تزامن للعرض" %}</p>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        
+        {% if operations %}
+        <div class="mt-3">
+          <small class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "عرض آخر 50 عملية. للمزيد من العمليات، يمكن استخدام أدوات الإدارة المتقدمة." %}
+          </small>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  
+  <!-- إجراءات النظام -->
+  {% if operations %}
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-tools me-2"></i>{% trans "إجراءات النظام" %}</h5>
+      </div>
+      <div class="card-body">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% trans "يتم عرض العمليات لمراقبة النظام" %}
+        </div>
+        
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <button class="btn btn-success w-100" onclick="processAllOperations()">
+              <i class="fas fa-play me-2"></i>{% trans "تشغيل جميع العمليات" %}
+            </button>
+          </div>
+          <div class="col-md-4 mb-3">
+            <button class="btn btn-outline-info w-100" onclick="resolveOldErrors()">
+              <i class="fas fa-check me-2"></i>{% trans "حل الأخطاء القديمة" %}
+            </button>
+          </div>
+          <div class="col-md-4 mb-3">
+            <button class="btn btn-outline-danger w-100" onclick="resetAllOperations()">
+              <i class="fas fa-trash me-2"></i>{% trans "مسح جميع العمليات" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+
+function processAllOperations() {
+    if (confirm('هل تريد تشغيل جميع العمليات (المعلقة والفاشلة)؟')) {
+        showLoadingMessage('جاري معالجة جميع العمليات...');
+        fetch('/financial/api/payment-sync/process-all/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoadingMessage();
+            if (data.success) {
+                let message = `✅ تم بنجاح:\n`;
+                message += `• العمليات المعلقة: ${data.processed_pending}\n`;
+                message += `• العمليات الفاشلة: ${data.retried_failed}\n`;
+                message += `• إجمالي المعالجة: ${data.total_processed}`;
+                
+                if (data.errors > 0) {
+                    message += `\n⚠️ أخطاء: ${data.errors}`;
+                }
+                
+                showSuccessMessage(message);
+                setTimeout(() => location.reload(), 3000);
+            } else {
+                showErrorMessage(data.message || 'حدث خطأ أثناء المعالجة');
+            }
+        })
+        .catch(error => {
+            hideLoadingMessage();
+            showErrorMessage('خطأ في الاتصال بالخادم');
+        });
+    }
+}
+
+function resetAllOperations() {
+    if (confirm('⚠️ هذا سيحذف جميع العمليات والأخطاء!\nهل أنت متأكد؟')) {
+        if (confirm('تأكيد نهائي: سيتم حذف جميع البيانات!')) {
+            showLoadingMessage('جاري مسح جميع العمليات...');
+            
+            fetch('/financial/api/payment-sync/reset-all/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                hideLoadingMessage();
+                if (data.success) {
+                    showSuccessMessage('تم مسح جميع العمليات بنجاح');
+                    setTimeout(() => location.reload(), 2000);
+                } else {
+                    showErrorMessage(data.message || 'حدث خطأ أثناء المسح');
+                }
+            })
+            .catch(error => {
+                hideLoadingMessage();
+                showErrorMessage('خطأ في الاتصال بالخادم');
+            });
+        }
+    }
+}
+
+function resolveOldErrors() {
+    if (confirm('هل تريد وضع علامة حل على الأخطاء القديمة؟')) {
+        showLoadingMessage('جاري حل الأخطاء...');
+        
+        fetch('/financial/api/payment-sync/resolve-errors/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            hideLoadingMessage();
+            if (data.success) {
+                showSuccessMessage(`تم حل ${data.count} خطأ`);
+                setTimeout(() => location.reload(), 2000);
+            } else {
+                showErrorMessage(data.message || 'حدث خطأ أثناء حل الأخطاء');
+            }
+        })
+        .catch(error => {
+            hideLoadingMessage();
+            showErrorMessage('خطأ في الاتصال بالخادم');
+        });
+    }
+}
+
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+           document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+}
+
+function showLoadingMessage(message) {
+    // إنشاء toast للتحميل
+    const toast = document.createElement('div');
+    toast.className = 'toast show position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="toast-header bg-info text-white">
+            <i class="fas fa-spinner fa-spin me-2"></i>
+            <strong class="me-auto">جاري المعالجة</strong>
+        </div>
+        <div class="toast-body">${message}</div>
+    `;
+    toast.id = 'loadingToast';
+    document.body.appendChild(toast);
+}
+
+function hideLoadingMessage() {
+    const toast = document.getElementById('loadingToast');
+    if (toast) {
+        toast.remove();
+    }
+}
+
+function showSuccessMessage(message) {
+    showToast(message, 'success', 'fas fa-check-circle');
+}
+
+function showErrorMessage(message) {
+    showToast(message, 'danger', 'fas fa-exclamation-triangle');
+}
+
+function showToast(message, type, icon) {
+    const toast = document.createElement('div');
+    toast.className = 'toast show position-fixed top-0 end-0 m-3';
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <div class="toast-header bg-${type} text-white">
+            <i class="${icon} me-2"></i>
+            <strong class="me-auto">${type === 'success' ? 'نجح' : 'خطأ'}</strong>
+            <button type="button" class="btn-close btn-close-white" onclick="this.closest('.toast').remove()"></button>
+        </div>
+        <div class="toast-body">${message}</div>
+    `;
+    document.body.appendChild(toast);
+    
+    // إخفاء تلقائي بعد 5 ثواني
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

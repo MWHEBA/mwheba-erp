@@ -1,0 +1,299 @@
+<!-- نموذج خدمات الطباعة الديجيتال -->
+<div class="digital-printing-form">
+    <!-- الحقول الأساسية -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-12">
+            <div class="form-floating">
+                <input type="text" class="form-control bg-light" name="name" id="service-name" 
+                       data-field-id="digital_printing:name" placeholder="سيتم إنشاء الاسم تلقائياً" readonly required>
+                <label for="service-name">اسم الخدمة (تلقائي) *</label>
+                <div class="form-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    سيتم إنشاء الاسم تلقائياً: ماكينة ديجيتال {نوع الماكينة} - {مقاس}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات الماكينة -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-6">
+            <div class="form-floating">
+                <select name="machine_type" class="form-select" id="machine-type" 
+                        data-field-id="digital_printing:machine_type" required>
+                    <option value="">اختر نوع الماكينة</option>
+                    {% for choice in form_choices.machine_types %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="machine-type">نوع الماكينة *</label>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-floating">
+                <select name="paper_size" class="form-select" id="paper-size" 
+                        data-field-id="digital_printing:paper_size" required>
+                    <option value="">اختر مقاس الماكينة</option>
+                    {% for choice in form_choices.paper_sizes %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="paper-size">مقاس الماكينة *</label>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- الشرائح السعرية -->
+    <div class="alert alert-primary py-2 mb-3">
+        <h6 class="alert-heading mb-0">
+            <i class="fas fa-layer-group me-2"></i>
+            الشرائح السعرية
+            <small class="badge bg-light text-dark ms-2">إجباري</small>
+        </h6>
+    </div>
+           
+            <div id="price-tiers-container">
+                <!-- الشريحة الافتراضية -->
+                <div class="tier-row border rounded-3 p-3 mb-3 bg-light shadow-sm" data-tier="1">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">من الكمية</label>
+                            <input type="number" class="form-control text-center" name="tier_1_min_quantity" 
+                                   value="1" min="1" required readonly>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">إلى الكمية</label>
+                            <input type="number" class="form-control text-center" name="tier_1_max_quantity" 
+                                   value="50" min="1" required>
+                        </div>
+                        <div class="col-md-1"></div> <!-- فراغ -->
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
+                            <input type="number" class="form-control text-center" name="tier_1_price" 
+                                   step="0.01" min="0" placeholder="0.00" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                            <input type="number" class="form-control text-center" name="tier_1_floor_price" 
+                                   step="0.01" min="0" placeholder="0.00">
+                        </div>
+                        <div class="col"></div> <!-- فراغ مرن -->
+                        <div class="col-auto">
+                            <label class="form-label fw-bold text-muted small">الإجراءات</label>
+                            <div>
+                                <button type="button" class="btn btn-outline-success btn-sm" disabled>
+                                    <i class="fas fa-lock me-1"></i>
+                                    محمية
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- زر إضافة شريحة جديدة -->
+            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                <button type="button" class="btn btn-outline-success" onclick="addNewTier()">
+                    <i class="fas fa-plus me-2"></i>
+                    إضافة شريحة جديدة
+                </button>
+                <small class="text-muted align-self-center ms-2">
+                    <i class="fas fa-lightbulb me-1"></i>
+                    كلما زادت الكمية، قل السعر عادة
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- فاصل بصري -->
+    <hr class="my-4">
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-9">
+            <div class="form-floating">
+                <textarea class="form-control" name="description" id="description" 
+                          data-field-id="digital_printing:description" placeholder="وصف الخدمة" style="height: 70px;"></textarea>
+                <label for="description">وصف الخدمة</label>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-center justify-content-center">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" data-field-id="digital_printing:is_active" checked>
+                <label class="form-check-label" for="is-active">
+                    الخدمة نشطة
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- حقل مخفي لضمان إرسال has_price_tiers كـ true -->
+    <input type="hidden" name="has_price_tiers" value="true">
+
+
+</div>
+
+<script>
+// متغير لتتبع عدد الشرائح
+let tierCount = 1;
+
+// إضافة شريحة جديدة
+function addNewTier() {
+    tierCount++;
+    const container = document.getElementById('price-tiers-container');
+    
+    // الحصول على آخر شريحة لتحديد الكمية الدنيا للشريحة الجديدة
+    const lastTier = container.querySelector('.tier-row:last-child');
+    const lastMaxQuantity = lastTier ? parseInt(lastTier.querySelector('[name*="max_quantity"]').value) : 0;
+    const newMinQuantity = lastMaxQuantity + 1;
+    
+    const tierHtml = `
+        <div class="tier-row border rounded-3 p-3 mb-3 shadow-sm" data-tier="${tierCount}">
+            <div class="row g-3 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-muted small">من الكمية</label>
+                    <input type="number" class="form-control" name="tier_${tierCount}_min_quantity" 
+                           value="${newMinQuantity}" min="1" required readonly>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-muted small">إلى الكمية</label>
+                    <input type="number" class="form-control" name="tier_${tierCount}_max_quantity" 
+                           value="${newMinQuantity + 49}" min="${newMinQuantity}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
+                    <input type="number" class="form-control" name="tier_${tierCount}_price" 
+                           step="0.01" min="0" placeholder="0.00" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                    <input type="number" class="form-control" name="tier_${tierCount}_floor_price" 
+                           step="0.01" min="0" placeholder="0.00">
+                </div>
+                <div class="col"></div> <!-- فراغ مرن -->
+                <div class="col-md-2">
+                    <label class="form-label fw-bold text-muted small">الإجراءات</label>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeTier(${tierCount})" title="حذف الشريحة">
+                        <i class="fas fa-trash me-1"></i>
+                        حذف
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.insertAdjacentHTML('beforeend', tierHtml);
+    updateTierNumbers();
+}
+
+// حذف شريحة
+function removeTier(tierNumber) {
+    const tierRow = document.querySelector(`[data-tier="${tierNumber}"]`);
+    if (tierRow && tierNumber > 1) { // لا يمكن حذف الشريحة الافتراضية
+        tierRow.remove();
+        updateTierNumbers();
+    }
+}
+
+// تحديث ترقيم الشرائح
+function updateTierNumbers() {
+    const tierRows = document.querySelectorAll('.tier-row');
+    tierRows.forEach((row, index) => {
+        if (index > 0) { // تخطي الشريحة الافتراضية
+            const prevRow = tierRows[index - 1];
+            const prevMaxQuantity = parseInt(prevRow.querySelector('[name*="max_quantity"]').value);
+            const minQuantityInput = row.querySelector('[name*="min_quantity"]');
+            minQuantityInput.value = prevMaxQuantity + 1;
+            minQuantityInput.min = prevMaxQuantity + 1;
+            
+            const maxQuantityInput = row.querySelector('[name*="max_quantity"]');
+            maxQuantityInput.min = prevMaxQuantity + 1;
+        }
+    });
+}
+
+// التحقق من وجود شريحة واحدة على الأقل قبل الإرسال
+function validatePriceTiers() {
+    const tierRows = document.querySelectorAll('.tier-row');
+    if (tierRows.length === 0) {
+        alert('يجب إضافة شريحة سعرية واحدة على الأقل للطباعة الديجيتال');
+        return false;
+    }
+    
+    // التحقق من عدم تداخل الشرائح
+    for (let i = 0; i < tierRows.length; i++) {
+        const row = tierRows[i];
+        const minQty = parseInt(row.querySelector('[name*="min_quantity"]').value);
+        const maxQty = parseInt(row.querySelector('[name*="max_quantity"]').value);
+        const price = parseFloat(row.querySelector('[name*="price"]').value);
+        
+        if (maxQty < minQty) {
+            alert(`الشريحة ${i + 1}: الكمية القصوى يجب أن تكون أكبر من أو تساوي الكمية الدنيا`);
+            return false;
+        }
+        
+        if (price <= 0) {
+            alert(`الشريحة ${i + 1}: السعر يجب أن يكون أكبر من صفر`);
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+// تحديث المقاسات القصوى بناءً على مقاس الماكينة
+function updateMaxSizes() {
+    const paperSizeSelect = document.getElementById('paper-size');
+    const maxWidth = document.getElementById('max-width');
+    const maxHeight = document.getElementById('max-height');
+    
+    if (!paperSizeSelect || !maxWidth || !maxHeight) return;
+    
+    // مقاسات افتراضية
+    const defaultSizes = {
+        'a4': { width: 21, height: 29.7 },
+        'a3': { width: 29.7, height: 42 },
+        'a3_plus': { width: 32, height: 45 },
+        'sra3': { width: 32, height: 45 }
+    };
+    
+    const size = defaultSizes[paperSizeSelect.value];
+    if (size && !maxWidth.value && !maxHeight.value) {
+        maxWidth.value = size.width;
+        maxHeight.value = size.height;
+    }
+}
+
+// ملاحظة: تم نقل دالة updateServiceName إلى النظام الموحد universal_form_handler.js
+// لتجنب التضارب والتكرار
+
+// تهيئة الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة التحقق للنموذج عند الإرسال
+    const form = document.querySelector('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!validatePriceTiers()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    }
+    
+    // إضافة event listener للشريحة الافتراضية
+    const defaultMaxQuantityInput = document.querySelector('[name="tier_1_max_quantity"]');
+    if (defaultMaxQuantityInput) {
+        defaultMaxQuantityInput.addEventListener('change', updateTierNumbers);
+    }
+    
+    // إضافة event listener لتحديث المقاسات
+    const paperSizeSelect = document.getElementById('paper-size');
+    if (paperSizeSelect) {
+        paperSizeSelect.addEventListener('change', updateMaxSizes);
+    }
+    
+    // ملاحظة: تم نقل منطق تحديث اسم الخدمة إلى النظام الموحد universal_form_handler.js
+    // لا حاجة لربط الأحداث هنا لتجنب التضارب
+});
+</script>

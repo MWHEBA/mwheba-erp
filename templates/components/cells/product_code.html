@@ -1,0 +1,11 @@
+{% load i18n %}
+<span class="badge bg-info-subtle text-info border border-info fw-bold">
+  <i class="fas fa-barcode me-1"></i>
+  {% if object.code %}
+    {{ object.code }}
+  {% elif object.sku %}
+    {{ object.sku }}
+  {% else %}
+    {% trans "غير محدد" %}
+  {% endif %}
+</span>

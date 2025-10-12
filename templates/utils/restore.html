@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+    {{ title }}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 d-flex align-items-center justify-content-between">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="{{ page_icon }}"></i> {{ page_title }}
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-circle"></i>
+                {% translate "تحذير: عملية استعادة البيانات ستؤدي إلى استبدال جميع البيانات الحالية بالبيانات من النسخة الاحتياطية. تأكد من عمل نسخة احتياطية قبل المتابعة." %}
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 offset-md-3">
+                    <div class="card border-danger">
+                        <div class="card-header bg-danger text-white">
+                            <i class="fas fa-upload"></i> {% translate "استعادة البيانات" %}
+                        </div>
+                        <div class="card-body">
+                            <p>{% translate "حدد ملف النسخة الاحتياطية لاستعادة قاعدة البيانات." %}</p>
+                            <p>{% translate "يمكنك تحديد ملف بصيغة .zip أو .sql أو .sqlite3 حسب نوع قاعدة البيانات." %}</p>
+                            
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                <div class="form-group">
+                                    <label for="backup_file">{% translate "ملف النسخة الاحتياطية" %}</label>
+                                    <input type="file" class="form-control" id="backup_file" name="backup_file" required>
+                                    <small class="form-text text-muted">{% translate "الصيغ المدعومة: .zip، .sql، .sqlite3" %}</small>
+                                </div>
+                                
+                                <div class="custom-control custom-checkbox mb-3">
+                                    <input type="checkbox" class="custom-control-input" id="confirm" required>
+                                    <label class="custom-control-label" for="confirm">
+                                        {% translate "أؤكد أنني أفهم أن هذه العملية ستستبدل جميع البيانات الحالية" %}
+                                    </label>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-danger btn-block" onclick="return confirm('{% translate "هل أنت متأكد من استعادة قاعدة البيانات؟ سيتم استبدال جميع البيانات الحالية." %}')">
+                                    <i class="fas fa-upload"></i> {% translate "استعادة البيانات" %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <h5>{% translate "تنويهات مهمة:" %}</h5>
+                <ul>
+                    <li>{% translate "تأكد من اختيار ملف نسخة احتياطية صحيح ومتوافق مع إصدار النظام الحالي." %}</li>
+                    <li>{% translate "قم بعمل نسخة احتياطية من البيانات الحالية قبل الاستعادة." %}</li>
+                    <li>{% translate "سيتم تسجيل الخروج من النظام بعد الاستعادة، وستحتاج إلى تسجيل الدخول مرة أخرى." %}</li>
+                    <li>{% translate "قد تستغرق عملية الاستعادة بعض الوقت حسب حجم قاعدة البيانات." %}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,132 @@
+[
+  {
+    "model": "supplier.suppliertype",
+    "pk": 1,
+    "fields": {
+      "name": "مطبعة أوفست",
+      "code": "offset_printing",
+      "description": "موردين متخصصين في الطباعة الأوفست عالية الجودة",
+      "icon": "fas fa-print",
+      "color": "#007bff",
+      "is_active": true,
+      "display_order": 1
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 2,
+    "fields": {
+      "name": "مطبعة ديجيتال",
+      "code": "digital_printing",
+      "description": "موردين متخصصين في الطباعة الرقمية السريعة",
+      "icon": "fas fa-desktop",
+      "color": "#fd7e14",
+      "is_active": true,
+      "display_order": 2
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 3,
+    "fields": {
+      "name": "مخزن ورق",
+      "code": "paper",
+      "description": "موردين الورق والخامات",
+      "icon": "fas fa-scroll",
+      "color": "#28a745",
+      "is_active": true,
+      "display_order": 3
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 4,
+    "fields": {
+      "name": "خدمات الطباعة",
+      "code": "finishing",
+      "description": "موردين خدمات ما بعد الطباعة والتشطيب",
+      "icon": "fas fa-hammer",
+      "color": "#6c757d",
+      "is_active": true,
+      "display_order": 4
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 5,
+    "fields": {
+      "name": "مكتب فصل",
+      "code": "plates",
+      "description": "موردين إنتاج الزنكات وخدمات CTP",
+      "icon": "fas fa-layer-group",
+      "color": "#6c757d",
+      "is_active": true,
+      "display_order": 5
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 6,
+    "fields": {
+      "name": "تغطية",
+      "code": "packaging",
+      "description": "موردين خدمات التغطية والتعبئة",
+      "icon": "fas fa-box-open",
+      "color": "#20c997",
+      "is_active": true,
+      "display_order": 6
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 8,
+    "fields": {
+      "name": "أوت دور",
+      "code": "outdoor",
+      "description": "موردين الإعلانات الخارجية واللافتات",
+      "icon": "fas fa-bullhorn",
+      "color": "#e83e8c",
+      "is_active": true,
+      "display_order": 8
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 9,
+    "fields": {
+      "name": "ليزر",
+      "code": "laser",
+      "description": "موردين خدمات القص والحفر بالليزر",
+      "icon": "fas fa-cut",
+      "color": "#dc3545",
+      "is_active": true,
+      "display_order": 9
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 10,
+    "fields": {
+      "name": "هدايا VIP",
+      "code": "vip_gifts",
+      "description": "موردين الهدايا الدعائية والمنتجات المخصصة",
+      "icon": "fas fa-gift",
+      "color": "#ffc107",
+      "is_active": true,
+      "display_order": 10
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 11,
+    "fields": {
+      "name": "أخرى",
+      "code": "other",
+      "description": "خدمات أخرى متنوعة",
+      "icon": "fas fa-industry",
+      "color": "#6c757d",
+      "is_active": true,
+      "display_order": 11
+    }
+  }
+]

@@ -1,0 +1,190 @@
+[
+  {
+    "model": "pricing.printdirection",
+    "pk": 1,
+    "fields": {
+      "name": "عادي",
+      "description": "اتجاه طباعة عادي",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.printdirection",
+    "pk": 2,
+    "fields": {
+      "name": "طولي",
+      "description": "اتجاه طباعة طولي",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.printdirection",
+    "pk": 3,
+    "fields": {
+      "name": "عرضي",
+      "description": "اتجاه طباعة عرضي",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.printside",
+    "pk": 1,
+    "fields": {
+      "name": "وجه واحد",
+      "description": "طباعة على وجه واحد فقط",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.printside",
+    "pk": 2,
+    "fields": {
+      "name": "وجهين",
+      "description": "طباعة على الوجهين",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.coatingtype",
+    "pk": 1,
+    "fields": {
+      "name": "بدون تغطية",
+      "description": "بدون أي نوع من التغطية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.coatingtype",
+    "pk": 2,
+    "fields": {
+      "name": "تغطية لامع",
+      "description": "تغطية بطبقة لامعة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.coatingtype",
+    "pk": 3,
+    "fields": {
+      "name": "تغطية مطفي",
+      "description": "تغطية بطبقة مطفية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.coatingtype",
+    "pk": 4,
+    "fields": {
+      "name": "تغطية حراري",
+      "description": "تغطية حراري للحماية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 1,
+    "fields": {
+      "name": "قص عادي",
+      "description": "قص عادي بدون تشطيبات خاصة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 2,
+    "fields": {
+      "name": "قص دائري",
+      "description": "قص بزوايا دائرية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 3,
+    "fields": {
+      "name": "تثقيب",
+      "description": "تثقيب للملفات والأوراق",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 4,
+    "fields": {
+      "name": "تدبيس",
+      "description": "تدبيس للكتيبات والمجلات",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 5,
+    "fields": {
+      "name": "طي",
+      "description": "طي الأوراق والمطبوعات",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.finishingtype",
+    "pk": 6,
+    "fields": {
+      "name": "تجليد حلزوني",
+      "description": "تجليد بالسلك الحلزوني",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.platesize",
+    "pk": 1,
+    "fields": {
+      "name": "زنك صغير",
+      "width": "30.00",
+      "height": "40.00",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.platesize",
+    "pk": 2,
+    "fields": {
+      "name": "زنك متوسط",
+      "width": "50.00",
+      "height": "70.00",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.platesize",
+    "pk": 3,
+    "fields": {
+      "name": "زنك كبير",
+      "width": "70.00",
+      "height": "100.00",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

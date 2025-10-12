@@ -1,0 +1,174 @@
+<!-- نموذج خدمات الورق -->
+<div class="paper-service-form">
+    <!-- الحقول الأساسية -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-12">
+            <div class="form-floating">
+                <input type="text" class="form-control bg-light" name="name" id="service-name" 
+                       data-field-id="paper:name" placeholder="سيتم إنشاء الاسم تلقائياً" readonly required>
+                <label for="service-name">اسم الخدمة (تلقائي) *</label>
+                <div class="form-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    سيتم إنشاء الاسم تلقائياً: {نوع الورق} {المنشأ} - {الوزن}جم - {المقاس}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="paper_type" class="form-select" id="paper-type" 
+                        data-field-id="paper:paper_type" required>
+                    <option value="">اختر نوع الورق</option>
+                    {% for choice in form_choices.paper_types %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="paper-type">نوع الورق *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="gsm" class="form-select" id="gsm" 
+                        data-field-id="paper:gsm" required>
+                    <option value="">اختر وزن الورق</option>
+                    {% for choice in form_choices.paper_weights %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="gsm">وزن الورق (جرام) *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="sheet_size" class="form-select" id="sheet-size" 
+                        data-field-id="paper:sheet_size" onchange="toggleCustomSize(this)" required>
+                    <option value="">اختر مقاس الفرخ</option>
+                    {% for choice in form_choices.sheet_sizes %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="sheet-size">مقاس الفرخ *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="country_of_origin" class="form-select" id="country" 
+                        data-field-id="paper:country_of_origin">
+                    <option value="">اختر بلد المنشأ</option>
+                    {% for choice in form_choices.paper_origins %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="country">بلد المنشأ</label>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- الحقول المخصصة للمقاس -->
+    <div class="custom-size-fields" id="custom-size-fields" style="display: none;">
+        <div class="alert alert-info">
+            <i class="fas fa-ruler me-2"></i>
+            أدخل الأبعاد المخصصة للفرخ بالسنتيمتر
+        </div>
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="number" class="form-control" name="custom_width" 
+                           id="custom-width" data-field-id="paper:custom_width" 
+                           placeholder="العرض" step="0.1" min="0">
+                    <label for="custom-width">العرض (سم)</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="number" class="form-control" name="custom_height" 
+                           id="custom-height" data-field-id="paper:custom_height" 
+                           placeholder="الارتفاع" step="0.1" min="0">
+                    <label for="custom-height">الارتفاع (سم)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- أسعار الورق -->
+    <div class="alert alert-primary py-2 mb-3">
+        <h6 class="alert-heading mb-0">
+            <i class="fas fa-scroll me-2"></i>
+            أسعار الورق والتفاصيل
+        </h6>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="price_per_sheet" 
+                       id="price-sheet" data-field-id="paper:price_per_sheet" 
+                       placeholder="سعر الفرخ" step="0.01" min="0" required>
+                <label for="price-sheet">سعر الفرخ (ج.م) *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="text" class="form-control" name="brand" id="brand" 
+                       data-field-id="paper:brand" placeholder="الماركة">
+                <label for="brand">الماركة</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="minimum_order" 
+                       id="minimum-order" data-field-id="paper:minimum_order" 
+                       placeholder="الحد الأدنى للطلب" min="1" value="1">
+                <label for="minimum-order">الحد الأدنى للطلب (فرخ)</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-9">
+            <div class="form-floating">
+                <textarea class="form-control" name="description" id="description" 
+                          data-field-id="paper:description" 
+                          placeholder="وصف الخدمة" style="height: 70px;"></textarea>
+                <label for="description">وصف الخدمة</label>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-center justify-content-center">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" data-field-id="paper:is_active" checked>
+                <label class="form-check-label" for="is-active">
+                    الخدمة نشطة
+                </label>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// تفعيل إظهار/إخفاء الحقول المخصصة
+function toggleCustomSize(selectElement) {
+    const customFields = document.getElementById('custom-size-fields');
+    const customWidth = document.getElementById('custom-width');
+    const customHeight = document.getElementById('custom-height');
+    
+    if (selectElement.value === 'custom') {
+        customFields.style.display = 'block';
+        customWidth.required = true;
+        customHeight.required = true;
+    } else {
+        customFields.style.display = 'none';
+        customWidth.required = false;
+        customHeight.required = false;
+        customWidth.value = '';
+        customHeight.value = '';
+    }
+}
+
+// ملاحظة: تم نقل منطق تحديث اسم الخدمة إلى النظام الموحد universal_form_handler.js
+// لتجنب التضارب والحصول على تنسيق موحد مع باقي النماذج
+</script>

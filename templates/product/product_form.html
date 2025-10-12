@@ -1,0 +1,358 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title|default:"إضافة منتج جديد" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .form-actions {
+        padding-top: 1rem;
+        border-top: 1px solid #eee;
+    }
+    .thumbnail-container {
+        width: 100px;
+        height: 100px;
+        overflow: hidden;
+        border-radius: 4px;
+        margin-bottom: 10px;
+    }
+    .thumbnail-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"إضافة منتج جديد" }}</h1>
+                    <p class="text-muted mb-0">{% if form.instance.pk %}تعديل بيانات المنتج الحالي{% else %}إضافة منتج جديد إلى قاعدة البيانات{% endif %}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>{% trans "العودة للقائمة" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "معلومات المنتج" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" enctype="multipart/form-data" id="product-form" novalidate>
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <!-- المعلومات الأساسية -->
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-8 mb-3">
+                                                    {{ form.name|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.sku|as_crispy_field }}
+                                                </div>
+                                                <div class="col-12 mb-3">
+                                                    {{ form.description|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- التصنيف والنوع -->
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-tags me-2"></i>التصنيف والنوع</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.category|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.brand|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.unit|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- الأسعار والمخزون -->
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-dollar-sign me-2"></i>الأسعار والمخزون</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.cost_price|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.selling_price|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.min_stock|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-12 mb-3">
+                                                    {{ form.barcode|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-4">
+                                    <div class="card shadow-sm mb-4">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0">{% trans "الخيارات" %}</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="form-check form-switch mb-3">
+                                                {{ form.is_active }}
+                                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                                    {% trans "منتج نشط" %}
+                                                </label>
+                                            </div>
+                                            <div class="form-check form-switch mb-3">
+                                                {{ form.is_featured }}
+                                                <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
+                                                    {% trans "منتج مميز" %}
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {% if form.instance.pk %}
+                                    <div class="card shadow-sm mb-4">
+                                        <div class="card-header bg-light d-flex justify-content-between">
+                                            <h6 class="card-title mb-0">{% trans "صور المنتج" %}</h6>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="add-image-btn">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="product-images">
+                                                {% if form.instance.images.exists %}
+                                                <div class="row">
+                                                    {% for image in form.instance.images.all %}
+                                                    <div class="col-6 mb-3">
+                                                        <div class="card">
+                                                            <img src="{{ image.image.url }}" class="card-img-top" alt="{{ image.alt_text }}">
+                                                            <div class="card-body p-2 text-center">
+                                                                <a href="#" class="btn btn-sm btn-outline-danger delete-image" data-id="{{ image.id }}">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </a>
+                                                                <a href="#" class="btn btn-sm btn-outline-info {% if image.is_primary %}active{% endif %}" data-id="{{ image.id }}">
+                                                                    <i class="fas fa-star"></i>
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <p class="text-center text-muted">{% trans "لا توجد صور للمنتج" %}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="form-actions mt-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>{% trans "حفظ" %}
+                                </button>
+                                <a href="{% url 'product:product_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة منبثقة لإضافة صورة -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">{% trans "إضافة صورة" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="image-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="image-file" class="form-label">{% trans "الصورة" %}</label>
+                        <input type="file" class="form-control" id="image-file" name="image" accept="image/*" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image-alt" class="form-label">{% trans "نص بديل" %}</label>
+                        <input type="text" class="form-control" id="image-alt" name="alt_text">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="image-primary" name="is_primary">
+                        <label class="form-check-label" for="image-primary">
+                            {% trans "صورة رئيسية" %}
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" id="save-image-btn">{% trans "حفظ" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        // تنشيط Select2 للقوائم المنسدلة
+        $('#id_category').select2({
+            theme: 'bootstrap-5',
+            placeholder: "{% trans 'اختر التصنيف' %}",
+            allowClear: true
+        });
+        
+        $('#id_brand').select2({
+            theme: 'bootstrap-5',
+            placeholder: "{% trans 'اختر النوع' %}",
+            allowClear: true
+        });
+        
+        $('#id_unit').select2({
+            theme: 'bootstrap-5',
+            placeholder: "{% trans 'اختر وحدة القياس' %}",
+            allowClear: true
+        });
+        
+        // زر إضافة صورة جديدة
+        $('#add-image-btn').click(function() {
+            $('#image-form')[0].reset();
+            $('#imageModal').modal('show');
+        });
+        
+        {% if form.instance.pk %}
+        // حفظ الصورة الجديدة
+        $('#save-image-btn').click(function() {
+            const formData = new FormData($('#image-form')[0]);
+            formData.append('product_id', '{{ form.instance.pk }}');
+            
+            $.ajax({
+                url: "{% url 'product:add_product_image' %}",
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        $('#imageModal').modal('hide');
+                        // تحديث صفحة الصور
+                        location.reload();
+                    } else {
+                        alert(response.error);
+                    }
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    alert('{% trans "حدث خطأ أثناء رفع الصورة" %}');
+                }
+            });
+        });
+        
+        // حذف صورة
+        $('.delete-image').click(function(e) {
+            e.preventDefault();
+            const imageId = $(this).data('id');
+            
+            if (confirm('{% trans "هل أنت متأكد من حذف هذه الصورة؟" %}')) {
+                $.ajax({
+                    url: `/products/images/${imageId}/delete/`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    data: {
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert(response.message || 'تم حذف الصورة بنجاح');
+                            location.reload();
+                        } else {
+                            alert(response.error || 'حدث خطأ أثناء حذف الصورة');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error details:', xhr.responseText);
+                        alert('{% trans "حدث خطأ أثناء حذف الصورة" %}: ' + error);
+                    }
+                });
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %} 

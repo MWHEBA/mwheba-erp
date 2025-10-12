@@ -1,0 +1,308 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .return-quantity-input {
+        width: 80px;
+    }
+    .reasons-input {
+        width: 100%;
+    }
+    .alert-warning {
+        background-color: #fff3cd;
+        border-color: #ffeeba;
+        color: #856404;
+    }
+    .table th {
+        background-color: #f8f9fa;
+    }
+    .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+    }
+    .error-text {
+        color: #dc3545;
+        font-size: 0.875rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'purchase:purchase_list' %}">
+                            <i class="fas fa-truck me-1"></i>{% trans "المشتريات" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'purchase:purchase_detail' purchase.pk %}">
+                            <i class="fas fa-file-invoice me-1"></i>{{ purchase.number }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-undo-alt me-1"></i>{% trans "مرتجع مشتريات" %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-undo-alt fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <p class="text-muted mb-0">{% trans "إنشاء مرتجع للفاتورة رقم" %} {{ purchase.number }}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'purchase:purchase_detail' purchase.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للفاتورة" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات الفاتورة" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <th>{% trans "رقم الفاتورة" %}</th>
+                            <td>{{ purchase.number }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "التاريخ" %}</th>
+                            <td>{{ purchase.date }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المورد" %}</th>
+                            <td>{{ purchase.supplier.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المخزن" %}</th>
+                            <td>{{ purchase.warehouse.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الإجمالي" %}</th>
+                            <td>{{ purchase.total|custom_number_format }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "مرتجع مشتريات" %}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" id="return-form">
+                        {% csrf_token %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            {% trans "حدد المنتجات التي تريد إرجاعها وأدخل الكميات المرتجعة وأسباب الإرجاع" %}
+                        </div>
+
+                        <input type="hidden" name="date" value="{{ purchase.date|date:'Y-m-d' }}">
+                        <input type="hidden" name="warehouse" value="{{ purchase.warehouse.id }}">
+
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>{% trans "المنتج" %}</th>
+                                        <th>{% trans "الكمية الأصلية" %}</th>
+                                        <th>{% trans "الكمية المرتجعة" %}</th>
+                                        <th>{% trans "سبب الإرجاع" %}</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in items %}
+                                    <tr>
+                                        <td>
+                                            <input type="hidden" name="item_id" value="{{ item.id }}">
+                                            {{ item.product.name }}
+                                        </td>
+                                        <td>{{ item.quantity|custom_number_format }}</td>
+                                        <td>
+                                            <input type="number" name="return_quantity" class="form-control return-quantity-input" 
+                                                   min="0" max="{{ item.quantity }}" value="0">
+                                            <span class="error-text quantity-error-{{ forloop.counter }}" style="display:none;"></span>
+                                        </td>
+                                        <td>
+                                            <input type="text" name="return_reason" class="form-control reasons-input" 
+                                                   placeholder="{% trans 'سبب الإرجاع' %}">
+                                            <span class="error-text reason-error-{{ forloop.counter }}" style="display:none;"></span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <a href="{% url 'purchase:purchase_detail' purchase.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> {% trans "إلغاء" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary" id="submit-btn">
+                                <i class="fas fa-save me-1"></i> {% trans "تأكيد المرتجع" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('return-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const returnQuantityInputs = document.querySelectorAll('input[name="return_quantity"]');
+        const returnReasonInputs = document.querySelectorAll('input[name="return_reason"]');
+        
+        // التحقق من أن الكمية المرتجعة لا تتجاوز الكمية الأصلية
+        returnQuantityInputs.forEach(function(input, index) {
+            input.addEventListener('change', function() {
+                const max = parseInt(this.getAttribute('max'), 10);
+                const value = parseInt(this.value, 10);
+                const errorSpan = document.querySelector(`.quantity-error-${index + 1}`);
+                
+                errorSpan.style.display = 'none';
+                
+                if (value > max) {
+                    this.value = max;
+                    errorSpan.textContent = 'الكمية المرتجعة لا يمكن أن تتجاوز الكمية الأصلية';
+                    errorSpan.style.display = 'block';
+                }
+                
+                if (value < 0) {
+                    this.value = 0;
+                }
+                
+                // إذا كانت الكمية أكبر من 0، تأكد من وجود سبب
+                if (value > 0) {
+                    const reasonInput = returnReasonInputs[index];
+                    reasonInput.setAttribute('required', 'required');
+                    
+                    const reasonError = document.querySelector(`.reason-error-${index + 1}`);
+                    if (!reasonInput.value.trim()) {
+                        reasonError.textContent = 'يجب إدخال سبب الإرجاع';
+                        reasonError.style.display = 'block';
+                    } else {
+                        reasonError.style.display = 'none';
+                    }
+                } else {
+                    const reasonInput = returnReasonInputs[index];
+                    reasonInput.removeAttribute('required');
+                    document.querySelector(`.reason-error-${index + 1}`).style.display = 'none';
+                }
+            });
+        });
+        
+        // تغيير حالة حقل السبب عند تغيير قيمته
+        returnReasonInputs.forEach(function(input, index) {
+            input.addEventListener('input', function() {
+                const errorSpan = document.querySelector(`.reason-error-${index + 1}`);
+                const quantityInput = returnQuantityInputs[index];
+                
+                if (parseInt(quantityInput.value, 10) > 0 && !this.value.trim()) {
+                    errorSpan.textContent = 'يجب إدخال سبب الإرجاع';
+                    errorSpan.style.display = 'block';
+                } else {
+                    errorSpan.style.display = 'none';
+                }
+            });
+        });
+        
+        // التحقق من صحة النموذج قبل الإرسال
+        form.addEventListener('submit', function(e) {
+            let hasReturns = false;
+            let isValid = true;
+            
+            returnQuantityInputs.forEach(function(input, index) {
+                const quantity = parseInt(input.value, 10);
+                const reason = returnReasonInputs[index].value.trim();
+                const quantityErrorSpan = document.querySelector(`.quantity-error-${index + 1}`);
+                const reasonErrorSpan = document.querySelector(`.reason-error-${index + 1}`);
+                
+                // إعادة تعيين رسائل الخطأ
+                quantityErrorSpan.style.display = 'none';
+                reasonErrorSpan.style.display = 'none';
+                
+                if (quantity > 0) {
+                    hasReturns = true;
+                    if (!reason) {
+                        isValid = false;
+                        reasonErrorSpan.textContent = 'يجب إدخال سبب الإرجاع';
+                        reasonErrorSpan.style.display = 'block';
+                        returnReasonInputs[index].classList.add('is-invalid');
+                    } else {
+                        returnReasonInputs[index].classList.remove('is-invalid');
+                    }
+                }
+            });
+            
+            if (!hasReturns) {
+                e.preventDefault();
+                alert('يجب تحديد كمية مرتجعة واحدة على الأقل');
+                return false;
+            }
+            
+            if (!isValid) {
+                e.preventDefault();
+                alert('يجب إدخال سبب الإرجاع لجميع المنتجات المرتجعة');
+                return false;
+            }
+            
+            // تعطيل الزر لمنع النقرات المتعددة
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري المعالجة...';
+            
+            return true;
+        });
+    });
+</script>
+{% endblock %} 

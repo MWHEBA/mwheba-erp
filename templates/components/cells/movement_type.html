@@ -1,0 +1,22 @@
+{% load i18n %}
+{% if value == 'in' %}
+  <span class="badge bg-success fw-bold">
+    <i class="fas fa-plus-circle me-1"></i>{% trans "إضافة" %}
+  </span>
+{% elif value == 'out' %}
+  <span class="badge bg-danger fw-bold">
+    <i class="fas fa-minus-circle me-1"></i>{% trans "سحب" %}
+  </span>
+{% elif value == 'transfer' %}
+  <span class="badge bg-warning fw-bold">
+    <i class="fas fa-exchange-alt me-1"></i>{% trans "تحويل" %}
+  </span>
+{% elif value == 'adjustment' %}
+  <span class="badge bg-info fw-bold">
+    <i class="fas fa-tools me-1"></i>{% trans "تعديل الجرد" %}
+  </span>
+{% else %}
+  <span class="badge bg-secondary">
+    <i class="fas fa-question me-1"></i>{{ value|default:"غير محدد" }}
+  </span>
+{% endif %}

@@ -1,0 +1,292 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<style>
+    .status-badge {
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-weight: 600;
+    }
+    .status-pending {
+        background-color: #fff9c2;
+        color: #927500;
+    }
+    .status-received {
+        background-color: #c2f5d5;
+        color: #0e6245;
+    }
+    .status-cancelled {
+        background-color: #ffd9d9;
+        color: #922020;
+    }
+    .detail-card {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .detail-header {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-bottom: 1px solid #eee;
+    }
+    .detail-content {
+        padding: 1.5rem;
+    }
+    .detail-row {
+        margin-bottom: 1rem;
+        display: flex;
+        flex-wrap: wrap;
+    }
+    .detail-label {
+        font-weight: 600;
+        width: 180px;
+        color: #555;
+    }
+    .detail-value {
+        flex: 1;
+    }
+    .action-btn {
+        margin-right: 8px;
+    }
+    .transaction-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 10px;
+    }
+    .transaction-income {
+        background-color: #28a745;
+    }
+    .income-status-cell {
+        width: 100%;
+        text-align: center;
+    }
+    .badge {
+        font-size: 0.8rem;
+    }
+    .filter-section {
+        background-color: #f8f9fa;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">
+                            <i class="fas fa-money-bill-wave me-1"></i>{% trans "الإدارة المالية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-cash-register me-1"></i>{% trans "الإيرادات" %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-cash-register fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">إدارة وتتبع الإيرادات في النظام</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:income_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>{% trans "إضافة إيراد جديد" %}
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الإحصائيات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+        <div class="row">
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+                        <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "الإيرادات المستلمة" %}</div>
+                        <div class="stats-card-value">{{ received_incomes|custom_number_format }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "الإيرادات المعلقة" %}</div>
+                        <div class="stats-card-value">{{ pending_incomes|default:"0.00" }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stats-card-title">{% trans "متوسط الإيرادات الشهرية" %}</div>
+                        <div class="stats-card-value">{{ monthly_average|default:"0.00" }}</div>
+                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- تصفية وبحث -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+        <div class="filter-section mb-4">
+            <form method="GET" action="" class="row g-3">
+                <div class="col-md-3">
+                    <label for="category" class="form-label">{% trans "التصنيف" %}</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">{% trans "جميع التصنيفات" %}</option>
+                        {% for category in categories %}
+                        <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
+                            {{ category.name }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="status" class="form-label">{% trans "الحالة" %}</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">{% trans "جميع الحالات" %}</option>
+                        <option value="received" {% if request.GET.status == 'received' %}selected{% endif %}>{% trans "مستلم" %}</option>
+                        <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "معلق" %}</option>
+                        <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>{% trans "ملغي" %}</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- قائمة الإيرادات -->
+    <div class="section-container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="fas fa-cash-register me-2"></i>{% trans "قائمة الإيرادات" %}</h5>
+                <div class="actions-container">
+                    <a href="{% url 'financial:income_create' %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>{% trans "إضافة إيراد" %}
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- استخدام الجدول الموحد -->
+                {% if incomes %}
+                  {% with table_id="incomes-table" %}
+                    {% with headers=income_headers %}
+                      {% with data=incomes %}
+                        {% with action_buttons=income_actions %}
+                          {% with empty_message="لا توجد إيرادات متاحة" %}
+                            {% with clickable_rows=True row_click_url="/financial/journal-entries/0/" %}
+                              {% with show_export=True export_filename="incomes" %}
+                                {% include "components/data_table.html" %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% else %}
+                  {% include 'partials/empty_state.html' with message="لا توجد إيرادات متاحة" icon="cash-register" %}
+                {% endif %}
+                
+                <!-- إضافة زر تصدير البيانات -->
+                <div class="d-flex justify-content-end mt-3">
+                  <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="incomes-table" data-filename="incomes.csv">
+                    <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="incomes-table" data-filename="incomes.xlsx">
+                    <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+                  </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+</script>
+{% endblock %} 

@@ -1,0 +1,472 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.supplier-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.supplier-info {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.service-category {
+    margin-bottom: 2rem;
+}
+
+.category-header {
+    background: #f8f9fc;
+    border-radius: 10px 10px 0 0;
+    padding: 1rem;
+    border-left: 4px solid #4e73df;
+}
+
+.service-card {
+    border: 1px solid #e3e6f0;
+    border-radius: 0 0 10px 10px;
+    transition: all 0.3s ease;
+}
+
+.service-card:hover {
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.service-item {
+    padding: 1.5rem;
+    border-bottom: 1px solid #f1f3f4;
+}
+
+.service-item:last-child {
+    border-bottom: none;
+}
+
+.service-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #5a5c69;
+    margin-bottom: 0.5rem;
+}
+
+.service-price {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.service-details {
+    background: #f8f9fc;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.detail-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.detail-row:last-child {
+    border-bottom: none;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: #6c757d;
+}
+
+.detail-value {
+    color: #495057;
+}
+
+.contact-methods {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.contact-method {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: #e9ecef;
+    border-radius: 20px;
+    text-decoration: none;
+    color: #495057;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.contact-method:hover {
+    background: #dee2e6;
+    color: #495057;
+    transform: translateY(-1px);
+}
+
+.contact-method i {
+    margin-right: 0.5rem;
+}
+
+.rating-stars {
+    color: #ffc107;
+}
+
+.no-services {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+
+.stats-card {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-number {
+    font-size: 2rem;
+    font-weight: bold;
+    color: #4e73df;
+}
+
+.stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Supplier Header -->
+    <div class="supplier-header">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="mb-2">
+                    <i class="{{ page_icon }} fa-fw me-2"></i>{{ supplier.name }}
+                </h1>
+                <p class="mb-0 opacity-75">{{ supplier.get_primary_type_display }}</p>
+                
+                <div class="supplier-info">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex align-items-center mb-2">
+                                <span class="rating-stars me-2">{{ supplier.get_rating_stars }}</span>
+                                <span>({{ supplier.supplier_rating }}/5)</span>
+                            </div>
+                            <div class="mb-2">
+                                <i class="fas fa-clock fa-fw me-2"></i>
+                                مدة التسليم: {{ supplier.delivery_time }} أيام
+                            </div>
+                            {% if supplier.min_order_amount > 0 %}
+                            <div class="mb-2">
+                                <i class="fas fa-box fa-fw me-2"></i>
+                                الحد الأدنى: {{ supplier.min_order_amount }} ج.م
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            {% if supplier.working_hours %}
+                            <div class="mb-2">
+                                <i class="fas fa-business-time fa-fw me-2"></i>
+                                {{ supplier.working_hours }}
+                            </div>
+                            {% endif %}
+                            {% if supplier.payment_terms %}
+                            <div class="mb-2">
+                                <i class="fas fa-credit-card fa-fw me-2"></i>
+                                {{ supplier.payment_terms }}
+                            </div>
+                            {% endif %}
+                            {% if supplier.is_preferred %}
+                            <div class="mb-2">
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-star fa-fw"></i> مورد مفضل
+                                </span>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 text-end">
+                <div class="stats-card bg-white text-dark">
+                    <div class="stat-number">{{ total_services }}</div>
+                    <div class="stat-label">خدمة متخصصة</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Methods -->
+    {% if contact_methods %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-address-book fa-fw me-2"></i>طرق التواصل
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="contact-methods">
+                {% for method in contact_methods %}
+                    {% if method.type == 'phone' %}
+                        <a href="tel:{{ method.value }}" class="contact-method">
+                            <i class="fas fa-phone"></i> {{ method.label }}: {{ method.value }}
+                        </a>
+                    {% elif method.type == 'whatsapp' %}
+                        <a href="https://wa.me/{{ method.value }}" class="contact-method" target="_blank">
+                            <i class="fab fa-whatsapp"></i> واتساب: {{ method.value }}
+                        </a>
+                    {% elif method.type == 'email' %}
+                        <a href="mailto:{{ method.value }}" class="contact-method">
+                            <i class="fas fa-envelope"></i> {{ method.value }}
+                        </a>
+                    {% elif method.type == 'website' %}
+                        <a href="{{ method.value }}" class="contact-method" target="_blank">
+                            <i class="fas fa-globe"></i> الموقع الإلكتروني
+                        </a>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Services by Category -->
+    {% if services_by_category %}
+        {% for category_name, services in services_by_category.items %}
+        <div class="service-category">
+            <div class="category-header">
+                <h4 class="mb-0">
+                    <i class="fas fa-cogs fa-fw me-2"></i>{{ category_name }}
+                    <span class="badge bg-primary ms-2">{{ services|length }}</span>
+                </h4>
+            </div>
+            
+            <div class="service-card">
+                {% for service_data in services %}
+                <div class="service-item">
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="service-name">{{ service_data.service.name }}</div>
+                            
+                            {% if service_data.service.description %}
+                            <p class="text-muted mb-2">{{ service_data.service.description }}</p>
+                            {% endif %}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-box fa-fw"></i>
+                                        الحد الأدنى: {{ service_data.service.min_quantity }} قطعة
+                                    </small>
+                                </div>
+                                {% if service_data.service.setup_cost > 0 %}
+                                <div class="col-md-6">
+                                    <small class="text-muted">
+                                        <i class="fas fa-tools fa-fw"></i>
+                                        تكلفة التجهيز: {{ service_data.service.setup_cost }} ج.م
+                                    </small>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="service-price">{{ service_data.service.base_price }} ج.م</div>
+                            <small class="text-muted">السعر الأساسي</small>
+                        </div>
+                    </div>
+                    
+                    <!-- Specialized Details -->
+                    {% if service_data.details %}
+                    <div class="service-details">
+                        <h6 class="mb-3">تفاصيل الخدمة:</h6>
+                        
+                        {% if service_data.service.category.code == 'paper' %}
+                            <div class="detail-row">
+                                <span class="detail-label">نوع الورق:</span>
+                                <span class="detail-value">{{ service_data.details.get_paper_type_display }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">الوزن:</span>
+                                <span class="detail-value">{{ service_data.details.gsm }} جرام</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">مقاس الفرخ:</span>
+                                <span class="detail-value">{{ service_data.details.get_sheet_size_display }}</span>
+                            </div>
+                            {% if service_data.details.brand %}
+                            <div class="detail-row">
+                                <span class="detail-label">الماركة:</span>
+                                <span class="detail-value">{{ service_data.details.brand }}</span>
+                            </div>
+                            {% endif %}
+                            {% if service_data.details.country_of_origin %}
+                            <div class="detail-row">
+                                <span class="detail-label">بلد المنشأ:</span>
+                                <span class="detail-value">{{ service_data.details.country_of_origin }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="detail-row">
+                                <span class="detail-label">سعر الفرخ:</span>
+                                <span class="detail-value">{{ service_data.details.price_per_sheet }} ج.م</span>
+                            </div>
+                            
+                        {% elif service_data.service.category.code == 'digital_printing' %}
+                            <div class="detail-row">
+                                <span class="detail-label">نوع الماكينة:</span>
+                                <span class="detail-value">{{ service_data.details.get_machine_type_display }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">نوع التغذية:</span>
+                                <span class="detail-value">{{ service_data.details.get_paper_handling_display }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">أقصى مقاس:</span>
+                                <span class="detail-value">{{ service_data.details.max_width_cm }} × {{ service_data.details.max_height_cm }} سم</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">سعر الصفحة أبيض/أسود:</span>
+                                <span class="detail-value">{{ service_data.details.price_per_page_bw }} ج.م</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">سعر الصفحة ملونة:</span>
+                                <span class="detail-value">{{ service_data.details.price_per_page_color }} ج.م</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">طباعة على الوجهين:</span>
+                                <span class="detail-value">
+                                    {% if service_data.details.duplex_printing %}
+                                        <i class="fas fa-check text-success"></i> متاح
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i> غير متاح
+                                    {% endif %}
+                                </span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">طباعة بيانات متغيرة:</span>
+                                <span class="detail-value">
+                                    {% if service_data.details.variable_data_printing %}
+                                        <i class="fas fa-check text-success"></i> متاح
+                                    {% else %}
+                                        <i class="fas fa-times text-danger"></i> غير متاح
+                                    {% endif %}
+                                </span>
+                            </div>
+                            
+                        {% elif service_data.service.category.code == 'finishing' %}
+                            <div class="detail-row">
+                                <span class="detail-label">نوع الخدمة:</span>
+                                <span class="detail-value">{{ service_data.details.get_finishing_type_display }}</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">طريقة الحساب:</span>
+                                <span class="detail-value">{{ service_data.details.get_calculation_method_display }}</span>
+                            </div>
+                            {% if service_data.details.min_size_cm %}
+                            <div class="detail-row">
+                                <span class="detail-label">أصغر مقاس:</span>
+                                <span class="detail-value">{{ service_data.details.min_size_cm }} سم</span>
+                            </div>
+                            {% endif %}
+                            {% if service_data.details.max_size_cm %}
+                            <div class="detail-row">
+                                <span class="detail-label">أكبر مقاس:</span>
+                                <span class="detail-value">{{ service_data.details.max_size_cm }} سم</span>
+                            </div>
+                            {% endif %}
+                            <div class="detail-row">
+                                <span class="detail-label">سعر الوحدة:</span>
+                                <span class="detail-value">{{ service_data.details.price_per_unit }} ج.م</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">وقت التجهيز:</span>
+                                <span class="detail-value">{{ service_data.details.setup_time_minutes }} دقيقة</span>
+                            </div>
+                            <div class="detail-row">
+                                <span class="detail-label">وقت التسليم:</span>
+                                <span class="detail-value">{{ service_data.details.turnaround_time_hours }} ساعة</span>
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        
+    {% else %}
+    <!-- No Services -->
+    <div class="card">
+        <div class="card-body no-services">
+            <i class="fas fa-tools fa-3x mb-3"></i>
+            <h4>لا توجد خدمات متخصصة</h4>
+            <p class="text-muted">لم يتم إضافة خدمات متخصصة لهذا المورد بعد</p>
+            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> العودة لبيانات المورد
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-outline-primary me-2">
+                <i class="fas fa-arrow-left"></i> العودة لبيانات المورد
+            </a>
+            <a href="{% url 'supplier:service_comparison' %}" class="btn btn-primary me-2">
+                <i class="fas fa-balance-scale"></i> مقارنة مع موردين آخرين
+            </a>
+            <a href="{% url 'supplier:specialized_services_list' %}" class="btn btn-success">
+                <i class="fas fa-cogs"></i> جميع الخدمات المتخصصة
+            </a>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تأثيرات بصرية للخدمات
+    $('.service-item').hover(
+        function() {
+            $(this).addClass('bg-light');
+        },
+        function() {
+            $(this).removeClass('bg-light');
+        }
+    );
+    
+    // تأثيرات لطرق التواصل
+    $('.contact-method').hover(
+        function() {
+            $(this).addClass('shadow-sm');
+        },
+        function() {
+            $(this).removeClass('shadow-sm');
+        }
+    );
+});
+</script>
+{% endblock %}

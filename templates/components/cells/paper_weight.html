@@ -1,0 +1,9 @@
+<!-- خلية وزن الورق -->
+{% if object.paper_details and object.paper_details.gsm %}
+    <span class="badge bg-success">
+        <i class="fas fa-weight-hanging me-1"></i>
+        {{ object.paper_details.gsm }} جم
+    </span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

@@ -1,0 +1,594 @@
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+<!-- الشريط الجانبي -->
+<div class="sidebar-wrapper">
+    <div id="sidebarMenu" class="sidebar">
+        <div class="sidebar-logo">
+            <a href="{% url 'core:dashboard' %}" class="d-flex align-items-center link-dark text-decoration-none">
+                <img src="{% static 'img/logo-light.png' %}" alt="Logo" class="sidebar-logo-img logo-large">
+                <img src="{% static 'img/logo-mini.png' %}" alt="Logo" class="sidebar-logo-img logo-small">
+            </a>
+            <button type="button" id="sidebar-collapse" class="btn border-0 p-0 sidebar-collapse-btn" title="تصغير/توسيع القائمة">
+                <i class="fas fa-angle-double-right"></i>
+            </button>
+        </div>
+
+        <div class="sidebar-scroll">
+            <ul class="list-unstyled sidebar-nav">
+                <!-- لوحة التحكم -->
+                <li class="sidebar-item">
+                    <a href="{% url 'core:dashboard' %}" class="sidebar-link {% if active_menu == 'dashboard' %}active{% endif %}">
+                        <i class="fas fa-home sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الرئيسية" %}</span>
+                    </a>
+                </li>
+
+                <!-- المبيعات -->
+                <li class="sidebar-item">
+                    <a href="#salesMenu" class="sidebar-link collapsed {% if active_menu == 'sales' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-shopping-cart sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "المبيعات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'sales' %}show{% endif %}" id="salesMenu">
+                        <!-- الفواتير -->
+                        <li>
+                            <a href="{% url 'sale:sale_list' %}" class="submenu-link">
+                                <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المبيعات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'sale:sale_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "فاتورة جديدة" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- المدفوعات -->
+                        <li class="submenu-title">المدفوعات</li>
+                        <li>
+                            <a href="{% url 'financial:payment_list' %}" class="submenu-link">
+                                <i class="fas fa-money-bill-wave me-2"></i>{% trans "جميع المدفوعات" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- المرتجعات -->
+                        <li class="submenu-title">المرتجعات</li>
+                        <li>
+                            <a href="{% url 'sale:sale_return_list' %}" class="submenu-link">
+                                <i class="fas fa-undo-alt me-2"></i>{% trans "مرتجعات البيع" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- المشتريات -->
+                <li class="sidebar-item">
+                    <a href="#purchaseMenu" class="sidebar-link collapsed {% if active_menu == 'purchases' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-shopping-bag sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "المشتريات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'purchases' %}show{% endif %}" id="purchaseMenu">
+                        <!-- طلبات الشراء -->
+                        <li class="submenu-title">طلبات الشراء</li>
+                        <li>
+                            <a href="{% url 'purchase:purchase_order_list' %}" class="submenu-link">
+                                <i class="fas fa-clipboard-list me-2"></i>{% trans "طلبات الشراء" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'purchase:purchase_order_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "طلب شراء جديد" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- الفواتير -->
+                        <li class="submenu-title">الفواتير</li>
+                        <li>
+                            <a href="{% url 'purchase:purchase_list' %}" class="submenu-link">
+                                <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'purchase:purchase_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة فاتورة" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- المرتجعات -->
+                        <li class="submenu-title">المرتجعات</li>
+                        <li>
+                            <a href="{% url 'purchase:purchase_return_list' %}" class="submenu-link">
+                                <i class="fas fa-undo-alt me-2"></i>{% trans "مرتجعات الشراء" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- العملاء -->
+                <li class="sidebar-item">
+                    <a href="#clientMenu" class="sidebar-link collapsed {% if active_menu == 'clients' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-users sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "العملاء" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'clients' %}show{% endif %}" id="clientMenu">
+                        <li>
+                            <a href="{% url 'client:customer_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'client:customer_add' %}" class="submenu-link">
+                                <i class="fas fa-user-plus me-2"></i>{% trans "إضافة عميل" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- الموردين -->
+                <li class="sidebar-item">
+                    <a href="#supplierMenu" class="sidebar-link collapsed {% if active_menu == 'suppliers' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-people-carry sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الموردين" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'suppliers' %}show{% endif %}" id="supplierMenu">
+                        <li>
+                            <a href="{% url 'supplier:supplier_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة الموردين" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'supplier:supplier_add' %}" class="submenu-link">
+                                <i class="fas fa-user-plus me-2"></i>{% trans "إضافة مورد" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li>
+                            <a href="{% url 'supplier:specialized_services_list' %}" class="submenu-link">
+                                <i class="fas fa-cogs me-2"></i>{% trans "الخدمات المتخصصة" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- الخدمات المتخصصة -->
+                <li class="sidebar-item">
+                    <a href="#servicesMenu" class="sidebar-link collapsed {% if active_menu == 'services' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-cogs sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الخدمات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'services' %}show{% endif %}" id="servicesMenu">
+                        <li>
+                            <a href="{% url 'services:services_home' %}" class="submenu-link">
+                                <i class="fas fa-home me-2"></i>{% trans "جميع الخدمات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- المنتجات -->
+                <li class="sidebar-item">
+                    <a href="#productsMenu" class="sidebar-link collapsed {% if active_menu == 'products' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-box sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "المنتجات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'products' %}show{% endif %}" id="productsMenu">
+                        <li>
+                            <a href="{% url 'product:product_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة المنتجات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:product_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة منتج" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:category_list' %}" class="submenu-link">
+                                <i class="fas fa-tags me-2"></i>{% trans "التصنيفات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:brand_list' %}" class="submenu-link">
+                                <i class="fas fa-copyright me-2"></i>{% trans "البراندات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:unit_list' %}" class="submenu-link">
+                                <i class="fas fa-ruler me-2"></i>{% trans "وحدات القياس" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- تسعير -->
+                <li class="sidebar-item">
+                    <a href="#pricingMenu" class="sidebar-link collapsed {% if active_menu == 'pricing' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-calculator sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "تسعير" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'pricing' %}show{% endif %}" id="pricingMenu">
+                        <!-- طلبات التسعير -->
+                        <li class="submenu-title">طلبات التسعير</li>
+                        <li>
+                            <a href="{% url 'pricing:pricing_order_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة طلبات التسعير" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:pricing_order_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "طلب تسعير جديد" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- عروض الأسعار -->
+                        <li class="submenu-title">عروض الأسعار</li>
+                        <li>
+                            <a href="{% url 'pricing:quotation_list' %}" class="submenu-link">
+                                <i class="fas fa-file-contract me-2"></i>{% trans "عروض الأسعار" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:quotation_create' %}" class="submenu-link">
+                                <i class="fas fa-edit me-2"></i>{% trans "إنشاء عرض سعر" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- الموردين والأسعار -->
+                        <li class="submenu-title">إدارة الأسعار</li>
+                        <li>
+                            <a href="{% url 'pricing:supplier_pricing_list' %}" class="submenu-link">
+                                <i class="fas fa-tags me-2"></i>{% trans "أسعار الموردين" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:price_comparison' %}" class="submenu-link">
+                                <i class="fas fa-balance-scale-right me-2"></i>{% trans "مقارنة الأسعار" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- التقارير والتحليلات -->
+                        <li class="submenu-title">التقارير والتحليلات</li>
+                        <li>
+                            <a href="{% url 'pricing:pricing_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة تحكم التسعير" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:profitability_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-line me-2"></i>{% trans "تقرير الربحية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:pricing_analytics' %}" class="submenu-link">
+                                <i class="fas fa-analytics me-2"></i>{% trans "تحليلات التسعير" %}
+                            </a>
+                        </li>
+                        
+                    </ul>
+                </li>
+
+                <!-- المخازن والمخزون -->
+                <li class="sidebar-item">
+                    <a href="#warehousesMenu" class="sidebar-link collapsed {% if active_menu == 'warehouses' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-warehouse sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "المخازن" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'warehouses' %}show{% endif %}" id="warehousesMenu">
+                        <li>
+                            <a href="{% url 'product:warehouse_list' %}" class="submenu-link">
+                                <i class="fas fa-warehouse me-2"></i>{% trans "قائمة المخازن" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:stock_list' %}" class="submenu-link">
+                                <i class="fas fa-clipboard-list me-2"></i>{% trans "جرد المخزون" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:stock_movement_list' %}" class="submenu-link">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "حركات المخزون" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- التقارير المتقدمة -->
+                        <li class="submenu-title">التقارير المتقدمة</li>
+                        <li>
+                            <a href="{% url 'product:abc_analysis_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-bar me-2"></i>{% trans "تحليل ABC" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:inventory_turnover_report' %}" class="submenu-link">
+                                <i class="fas fa-sync-alt me-2"></i>{% trans "معدل دوران المخزون" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:stock_aging_report' %}" class="submenu-link">
+                                <i class="fas fa-clock me-2"></i>{% trans "تقرير عمر المخزون" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:reorder_point_report' %}" class="submenu-link">
+                                <i class="fas fa-exclamation-triangle me-2"></i>{% trans "نقطة إعادة الطلب" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- الإدارة المالية -->
+                {% has_module_access 'enhanced_financial' as can_access_enhanced_financial %}
+                {% if can_access_enhanced_financial %}
+                <li class="sidebar-item">
+                    <a href="#financialManagementMenu" class="sidebar-link collapsed {% if active_menu == 'financial_management' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-money-bill-wave sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الإدارة المالية" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'financial_management' %}show{% endif %}" id="financialManagementMenu">
+                        <!-- الحسابات والخزن -->
+                        <li class="submenu-title">الحسابات والخزن</li>
+                        <li>
+                            <a href="{% url 'financial:cash_accounts_list' %}" class="submenu-link">
+                                <i class="fas fa-money-bill-wave me-2"></i>{% trans "الخزن والحسابات النقدية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:chart_of_accounts_list' %}" class="submenu-link">
+                                <i class="fas fa-sitemap me-2"></i>{% trans "دليل الحسابات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:account_types_list' %}" class="submenu-link">
+                                <i class="fas fa-layer-group me-2"></i>{% trans "أنواع الحسابات" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- المعاملات المالية -->
+                        <li class="submenu-title">المعاملات المالية</li>
+                        <li>
+                            <a href="{% url 'financial:transaction_list' %}" class="submenu-link">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "المعاملات المالية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:expense_list' %}" class="submenu-link">
+                                <i class="fas fa-money-bill-alt me-2"></i>{% trans "المصروفات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:income_list' %}" class="submenu-link">
+                                <i class="fas fa-coins me-2"></i>{% trans "الإيرادات" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- إدارة الدفعات المحسنة -->
+                        <li class="submenu-title">إدارة الدفعات</li>
+                        <li>
+                            <a href="{% url 'financial:payment_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة تحكم الدفعات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:payment_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة الدفعات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:audit_trail_list' %}" class="submenu-link">
+                                <i class="fas fa-history me-2"></i>{% trans "سجل التدقيق" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- الأرصدة والتزامن -->
+                        <li class="submenu-title">الأرصدة والتزامن</li>
+                        <li>
+                            <a href="{% url 'financial:enhanced_balances_list' %}" class="submenu-link">
+                                <i class="fas fa-balance-scale me-2"></i>{% trans "الأرصدة المحسنة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:payment_sync_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-sync-alt me-2"></i>{% trans "تزامن المدفوعات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- التقارير والمحاسبة -->
+                <li class="sidebar-item">
+                    <a href="#reportsAccountingMenu" class="sidebar-link collapsed {% if active_menu == 'reports_accounting' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-chart-line sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الحسابات العامة" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'reports_accounting' %}show{% endif %}" id="reportsAccountingMenu">
+                        <!-- القيود المحاسبية -->
+                        <li>
+                            <a href="{% url 'financial:journal_entries_list' %}" class="submenu-link">
+                                <i class="fas fa-book me-2"></i>{% trans "القيود اليومية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:accounting_periods_list' %}" class="submenu-link">
+                                <i class="fas fa-calendar-alt me-2"></i>{% trans "الفترات المحاسبية" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- التقارير المحاسبية -->
+                        <li>
+                            <a href="{% url 'financial:ledger_report' %}" class="submenu-link">
+                                <i class="fas fa-book-open me-2"></i>{% trans "دفتر الأستاذ" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:trial_balance_report' %}" class="submenu-link">
+                                <i class="fas fa-balance-scale me-2"></i>{% trans "ميزان المراجعة" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- التقارير المالية الأساسية -->
+                        <li class="submenu-title">التقارير المالية</li>
+                        <li>
+                            <a href="{% url 'financial:balance_sheet' %}" class="submenu-link">
+                                <i class="fas fa-file-alt me-2"></i>{% trans "الميزانية العمومية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:income_statement' %}" class="submenu-link">
+                                <i class="fas fa-chart-area me-2"></i>{% trans "قائمة الدخل" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:financial_analytics' %}" class="submenu-link">
+                                <i class="fas fa-analytics me-2"></i>{% trans "التحليلات المالية" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- تقارير العمليات -->
+                        <li class="submenu-title">تقارير العمليات</li>
+                        <li>
+                            <a href="{% url 'financial:sales_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-line me-2"></i>{% trans "تقرير المبيعات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:purchases_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-pie me-2"></i>{% trans "تقرير المشتريات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:inventory_report' %}" class="submenu-link">
+                                <i class="fas fa-boxes me-2"></i>{% trans "تقرير المخزون" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- المستخدمين -->
+                <li class="sidebar-item">
+                    <a href="#userMenu" class="sidebar-link collapsed {% if active_menu == 'users' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-user-shield sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "المستخدمين" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'users' %}show{% endif %}" id="userMenu">
+                        <li>
+                            <a href="{% url 'users:user_list' %}" class="submenu-link">
+                                <i class="fas fa-users me-2"></i>{% trans "قائمة المستخدمين" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'users:profile' %}" class="submenu-link">
+                                <i class="fas fa-user-circle me-2"></i>{% trans "الملف الشخصي" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'users:activity_log' %}" class="submenu-link">
+                                <i class="fas fa-history me-2"></i>{% trans "سجل النشاطات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'core:notifications_list' %}" class="submenu-link">
+                                <i class="fas fa-bell me-2"></i>{% trans "الإشعارات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- الإعدادات -->
+                <li class="sidebar-item">
+                    <a href="#settingsMenu" class="sidebar-link collapsed {% if active_menu == 'settings' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-cogs sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الإعدادات" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'settings' %}show{% endif %}" id="settingsMenu">
+                        <!-- الإعدادات العامة -->
+                        <li class="submenu-title">الإعدادات العامة</li>
+                        <li>
+                            <a href="{% url 'core:system_settings' %}" class="submenu-link">
+                                <i class="fas fa-sliders-h me-2"></i>{% trans "إعدادات النظام" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'core:company_settings' %}" class="submenu-link">
+                                <i class="fas fa-building me-2"></i>{% trans "إعدادات الشركة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'pricing:settings_home' %}" class="submenu-link">
+                                <i class="fas fa-calculator me-2"></i>{% trans "إعدادات التسعير" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- النسخ الاحتياطي المتقدم -->
+                        <li class="submenu-title">النسخ الاحتياطي المتقدم</li>
+                        <li>
+                            <a href="{% url 'financial:general_backup' %}" class="submenu-link">
+                                <i class="fas fa-database me-2"></i>{% trans "النسخ الاحتياطي العام" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:financial_backup_advanced' %}" class="submenu-link">
+                                <i class="fas fa-coins me-2"></i>{% trans "نسخ احتياطي مالي متقدم" %}
+                                <span class="badge bg-warning ms-2">جديد</span>
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:restore_data' %}" class="submenu-link">
+                                <i class="fas fa-history me-2"></i>{% trans "استعادة البيانات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:data_integrity_check' %}" class="submenu-link">
+                                <i class="fas fa-shield-alt me-2"></i>{% trans "التحقق من سلامة البيانات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>

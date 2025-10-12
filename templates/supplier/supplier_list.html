@@ -1,0 +1,847 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load app_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- استخدام CDN لملفات DataTables كما في base.html -->
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم كروت الإحصائيات */
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+  
+  .display-5 {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+  }
+  
+  /* شارات ملونة */
+  .soft-badge {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+  
+  .soft-badge-primary {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: #0d6efd;
+  }
+  
+  .soft-badge-success {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+  }
+  
+  .soft-badge-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+  }
+  
+  .soft-badge-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    color: #0dcaf0;
+  }
+  
+  .soft-badge-warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    color: #ffc107;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* تنسيق الصفحات */
+  .pagination {
+    justify-content: center;
+  }
+  
+  .page-link {
+    border-radius: 5px;
+    margin: 0 3px;
+    color: #6c757d;
+    border: 1px solid #dee2e6;
+  }
+  
+  .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  
+  /* أزرار الإجراءات */
+  .action-button {
+    width: 32px;
+    height: 32px;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    margin-right: 5px;
+    color: #6c757d;
+    background-color: rgba(0, 0, 0, 0.03);
+    border: none;
+  }
+  
+  .action-button:hover {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+  
+  .action-view:hover {
+    color: #0d6efd;
+  }
+  
+  .action-edit:hover {
+    color: #ffc107;
+  }
+  
+  .action-delete:hover {
+    color: #dc3545;
+  }
+
+  /* تنسيق badges أنواع الموردين */
+  .supplier-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    margin: 0.125rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: white;
+    text-decoration: none;
+  }
+
+  .supplier-type-badge:hover {
+    opacity: 0.8;
+    color: white;
+  }
+
+
+  /* تنسيق badge المفضل */
+  .preferred-badge {
+    background-color: #ffc107;
+    color: #000;
+    font-size: 0.7rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 0.25rem;
+  }
+
+
+  /* تحسين عرض أنواع الموردين في الجدول */
+  .col-supplier_types_display {
+    max-width: 200px;
+    min-width: 150px;
+  }
+
+  .col-supplier_types_display .badge {
+    white-space: nowrap;
+    margin: 1px;
+    font-size: 0.7rem !important;
+  }
+
+  /* تحسين عرض الجدول */
+  #suppliers-table td {
+    vertical-align: middle;
+  }
+
+  /* تنسيق فلاتر الأنواع */
+  .supplier-type-filter {
+    transition: all 0.2s ease;
+    border-width: 1px;
+    font-weight: 500;
+    cursor: pointer;
+    pointer-events: auto;
+  }
+
+  .supplier-type-filter:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  }
+
+  .supplier-type-filter:disabled {
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+    pointer-events: none;
+  }
+
+  .supplier-type-filter .fa-spinner {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid" id="main-content">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'supplier:specialized_services_list' %}" class="btn btn-info me-2">
+                  <i class="fas fa-cogs me-2"></i>الخدمات المتخصصة
+              </a>
+              <a href="{% url 'supplier:suppliers_by_type' %}" class="btn btn-secondary me-2">
+                  <i class="fas fa-layer-group me-2"></i>حسب النوع
+              </a>
+              <a href="{% url 'supplier:supplier_add' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "إضافة مورد" %}
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-truck"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الموردين" %}</div>
+            <div class="stats-card-value">{{ suppliers.count }}</div>
+            <div class="stats-card-unit">{% trans "مورد" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الاستحقاق" %}</div>
+            <div class="stats-card-value">{{ total_debt|default:"0"|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-star"></i>
+            </div>
+            <div class="stats-card-title">الموردين المفضلين</div>
+            <div class="stats-card-value">{{ preferred_suppliers }}</div>
+            <div class="stats-card-unit">مورد</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-layer-group"></i>
+            </div>
+            <div class="stats-card-title">أنواع الخدمات</div>
+            <div class="stats-card-value">{{ supplier_types|length }}</div>
+            <div class="stats-card-unit">نوع</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="{% url 'supplier:supplier_list' %}" class="row g-3">
+        <div class="col-md-2">
+          <label for="status" class="form-label">{% trans "الحالة" %}</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
+            <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="supplier_type" class="form-label">نوع المورد</label>
+          <select class="form-select" id="supplier_type" name="supplier_type">
+            <option value="">جميع الأنواع</option>
+            {% for type in supplier_types %}
+            {% if type.code != 'design' %}
+            <option value="{{ type.id }}" {% if request.GET.supplier_type == type.id|stringformat:"s" %}selected{% endif %}>
+              {{ type.name }}
+            </option>
+            {% endif %}
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="preferred" class="form-label">المفضلين</label>
+          <select class="form-select" id="preferred" name="preferred">
+            <option value="">الكل</option>
+            <option value="1" {% if request.GET.preferred == '1' %}selected{% endif %}>المفضلين فقط</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="search" class="form-label">{% trans "بحث" %}</label>
+          <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="{% trans 'اسم أو كود المورد' %}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+          </button>
+          <a href="{% url 'supplier:supplier_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>مسح
+          </a>
+        </div>
+      </form>
+    </div>
+    
+    <!-- فلاتر سريعة حسب نوع المورد -->
+    <div class="mt-4">
+      <h6 class="mb-3"><i class="fas fa-filter me-2"></i>فلترة سريعة حسب النوع:</h6>
+      <div class="d-flex flex-wrap gap-2" id="supplier-type-filters">
+        <button type="button" data-url="{% url 'supplier:supplier_list' %}" class="btn btn-sm supplier-type-filter {% if not request.GET.supplier_type %}btn-primary{% else %}btn-outline-primary{% endif %}">
+          <i class="fas fa-list me-1"></i>الكل
+        </button>
+        {% for type in supplier_types %}
+        {% if type.code != 'design' %}
+        <button type="button" data-url="?supplier_type={{ type.id }}" 
+           class="btn btn-sm supplier-type-filter {% if request.GET.supplier_type == type.id|stringformat:'s' %}btn-primary{% else %}btn-outline-primary{% endif %}"
+           style="{% if request.GET.supplier_type == type.id|stringformat:'s' %}background-color: {{ type.color }}; border-color: {{ type.color }};{% else %}color: {{ type.color }}; border-color: {{ type.color }};{% endif %}">
+          <i class="{{ type.icon }} me-1"></i>{{ type.name }}
+        </button>
+        {% endif %}
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة الموردين -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الموردين" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'supplier:service_comparison' %}" class="btn btn-sm btn-warning me-2">
+            <i class="fas fa-balance-scale me-1"></i>مقارنة الخدمات
+          </a>
+          <a href="{% url 'supplier:supplier_add' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة مورد" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- استخدام قالب الجدول الموحد -->
+        {% with table_id="suppliers-table" %}
+          {% with headers=headers %}
+            {% with data=suppliers %}
+              {% with empty_message="لا يوجد موردين متاحين" %}
+                {% with table_class="hover" %}
+                  {% with action_buttons=action_buttons %}
+                    {% with primary_key="id" %}
+                      {% with clickable_rows=True row_click_url="/supplier/0/detail/" %}
+                        {% with current_order_by=current_order_by %}
+                          {% with current_order_dir=current_order_dir %}
+                            {% with show_currency=True currency_symbol="ج.م" %}
+                              {% with show_search=True show_length_menu=True length_options="10,25,50,100" %}
+                                {% include "components/data_table.html" %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        {% endwith %}
+        
+        <!-- إضافة زر تصدير البيانات -->
+        <div class="d-flex justify-content-end mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="suppliers-table" data-filename="suppliers.csv">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="suppliers-table" data-filename="suppliers.xlsx">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    // تهيئة جدول الموردين
+    if (typeof initGlobalTable === 'function') {
+      initGlobalTable('suppliers-table', {
+        order: [],
+        ordering: true,
+        orderCellsTop: true,
+        searching: true,  // تفعيل البحث للـ table-controls
+        lengthChange: true,  // تفعيل length menu للـ table-controls
+        info: true,  // تفعيل info text
+        paging: true,  // تفعيل pagination
+        dom: 't',  // إخفاء search box الافتراضي وإظهار الجدول فقط
+        columnDefs: [
+          { targets: 'col-actions', orderable: false, width: '120px' },
+          { targets: 'col-name', width: '18%' },
+          { targets: 'col-code', width: '10%' },
+          { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+          { targets: 'col-phone', width: '12%' },
+          { targets: 'col-city', width: '10%' },
+          { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+          { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+        ],
+        autoWidth: true,
+        responsive: true
+      });
+    } else {
+      // تهيئة DataTable مباشرة
+      $('#suppliers-table').DataTable({
+        order: [],
+        ordering: true,
+        orderCellsTop: true,
+        searching: true,
+        lengthChange: true,
+        info: true,
+        paging: true,
+        dom: 't',
+        columnDefs: [
+          { targets: 'col-actions', orderable: false, width: '120px' },
+          { targets: 'col-name', width: '18%' },
+          { targets: 'col-code', width: '10%' },
+          { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+          { targets: 'col-phone', width: '12%' },
+          { targets: 'col-city', width: '10%' },
+          { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+          { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+        ],
+        autoWidth: true,
+        responsive: true,
+        language: {
+          "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+        }
+      });
+    }
+    
+    // تنسيق حقول التاريخ
+    $('input[type="date"]').addClass('form-control');
+    
+    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
+    function adjustTableSize() {
+      $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
+      $('#suppliers-table').css('width', '100%');
+    }
+    
+    adjustTableSize();
+    $(window).resize(adjustTableSize);
+    
+    // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
+    $('#suppliers-table tbody').on('click', 'tr', function(e) {
+      // تجاهل النقر على أزرار الإجراءات
+      if ($(e.target).closest('.col-actions').length > 0) {
+        return;
+      }
+      
+      // الحصول على رابط زر العرض
+      var viewButton = $(this).find('.action-view');
+      if (viewButton.length > 0) {
+        var url = viewButton.attr('href');
+        if (url) {
+          window.location.href = url;
+        }
+      }
+    });
+    
+    // إضافة مؤشر اليد عند المرور على الصف
+    $('#suppliers-table tbody tr').css('cursor', 'pointer');
+    
+    // Ajax filtering جذري وبسيط
+    $(document).on('click', '.supplier-type-filter', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const $btn = $(this);
+      const url = $btn.data('url');
+      
+      if (!url) {
+        return;
+      }
+      
+      // Loading state
+      const originalHtml = $btn.html();
+      $btn.html('<i class="fas fa-spinner fa-spin"></i> جاري التحميل...').prop('disabled', true);
+      
+      // Ajax call
+      $.ajax({
+        url: url,
+        type: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+          if (response.success && response.html) {
+            // استبدال المحتوى بالكامل
+            const newContent = $(response.html).find('#main-content').html();
+            $('#main-content').html(newContent);
+            
+            // إعادة تهيئة الجدول
+            setTimeout(function() {
+              if (typeof initGlobalTable === 'function') {
+                initGlobalTable('suppliers-table', {
+                  order: [],
+                  ordering: true,
+                  orderCellsTop: true,
+                  searching: false,
+                  lengthChange: false,
+                  info: false,
+                  paging: false,
+                  columnDefs: [
+                    { targets: 'col-actions', orderable: false, width: '120px' },
+                    { targets: 'col-name', width: '18%' },
+                    { targets: 'col-code', width: '10%' },
+                    { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+                    { targets: 'col-phone', width: '12%' },
+                    { targets: 'col-city', width: '10%' },
+                    { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+                    { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+                  ],
+                  autoWidth: true,
+                  responsive: true
+                });
+              } else if ($.fn.DataTable) {
+                $('#suppliers-table').DataTable({
+                  order: [],
+                  ordering: true,
+                  orderCellsTop: true,
+                  searching: false,
+                  lengthChange: false,
+                  info: false,
+                  paging: false,
+                  columnDefs: [
+                    { targets: 'col-actions', orderable: false, width: '120px' },
+                    { targets: 'col-name', width: '18%' },
+                    { targets: 'col-code', width: '10%' },
+                    { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+                    { targets: 'col-phone', width: '12%' },
+                    { targets: 'col-city', width: '10%' },
+                    { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+                    { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+                  ],
+                  autoWidth: true,
+                  responsive: true,
+                  language: {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+                  }
+                });
+              }
+              
+              // إعادة ربط أحداث الجدول
+              bindTableEvents();
+            }, 200);
+            
+            // تحديث URL
+            history.pushState(null, '', url);
+          } else {
+            // fallback للـ HTML العادي
+            const newContent = $(response).find('#main-content').html();
+            $('#main-content').html(newContent);
+            history.pushState(null, '', url);
+          }
+        },
+        error: function(xhr, status, error) {
+          alert('حدث خطأ في التحميل');
+          $btn.html(originalHtml).prop('disabled', false);
+        },
+        complete: function() {
+          // إعادة تمكين جميع الأزرار
+          $('.supplier-type-filter').prop('disabled', false);
+        }
+      });
+    });
+    
+    // تحسين البحث في table-controls (DataTable search box)
+    $(document).on('input', '.table-search', function() {
+      const searchTerm = $(this).val();
+      const tableId = $(this).data('table');
+      
+      // البحث في DataTable مباشرة
+      if ($.fn.DataTable && $.fn.DataTable.isDataTable('#' + tableId)) {
+        $('#' + tableId).DataTable().search(searchTerm).draw();
+      }
+    });
+    
+    // تحسين البحث في filter-section
+    $('form[action*="supplier_list"]').on('submit', function(e) {
+      e.preventDefault();
+      
+      const formData = new FormData(this);
+      const params = new URLSearchParams(formData);
+      const url = $(this).attr('action') + '?' + params.toString();
+      
+      // إظهار loading في زر البحث
+      const $submitBtn = $(this).find('button[type="submit"]');
+      const originalText = $submitBtn.html();
+      $submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري البحث...').prop('disabled', true);
+      
+      // Ajax call
+      $.ajax({
+        url: url,
+        type: 'GET',
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        success: function(response) {
+          if (response.success && response.html) {
+            const newContent = $(response.html).find('#main-content').html();
+            $('#main-content').html(newContent);
+            
+            // إعادة تهيئة الجدول
+            setTimeout(function() {
+              if (typeof initGlobalTable === 'function') {
+                initGlobalTable('suppliers-table', {
+                  order: [],
+                  ordering: true,
+                  orderCellsTop: true,
+                  searching: false,
+                  lengthChange: false,
+                  info: false,
+                  paging: false,
+                  columnDefs: [
+                    { targets: 'col-actions', orderable: false, width: '120px' },
+                    { targets: 'col-name', width: '18%' },
+                    { targets: 'col-code', width: '10%' },
+                    { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+                    { targets: 'col-phone', width: '12%' },
+                    { targets: 'col-city', width: '10%' },
+                    { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+                    { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+                  ],
+                  autoWidth: true,
+                  responsive: true
+                });
+              } else if ($.fn.DataTable) {
+                $('#suppliers-table').DataTable({
+                  order: [],
+                  ordering: true,
+                  orderCellsTop: true,
+                  searching: false,
+                  lengthChange: false,
+                  info: false,
+                  paging: false,
+                  columnDefs: [
+                    { targets: 'col-actions', orderable: false, width: '120px' },
+                    { targets: 'col-name', width: '18%' },
+                    { targets: 'col-code', width: '10%' },
+                    { targets: 'col-supplier_types_display', orderable: false, width: '20%' },
+                    { targets: 'col-phone', width: '12%' },
+                    { targets: 'col-city', width: '10%' },
+                    { targets: 'col-is_preferred', width: '10%', className: 'text-center' },
+                    { targets: 'col-actual_balance', width: '15%', className: 'text-end' }
+                  ],
+                  autoWidth: true,
+                  responsive: true,
+                  language: {
+                    "url": "//cdn.datatables.net/plug-ins/1.10.25/i18n/Arabic.json"
+                  }
+                });
+              }
+              
+              bindTableEvents();
+            }, 200);
+            
+            // تحديث URL
+            history.pushState(null, '', url);
+          } else {
+            // fallback - إعادة تحميل الصفحة
+            window.location.href = url;
+          }
+        },
+        error: function() {
+          // fallback - إعادة تحميل الصفحة
+          window.location.href = url;
+        },
+        complete: function() {
+          $submitBtn.html(originalText).prop('disabled', false);
+        }
+      });
+    });
+    
+    // دالة لربط أحداث الجدول
+    function bindTableEvents() {
+      $('#suppliers-table tbody tr').css('cursor', 'pointer');
+      $('#suppliers-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+        if ($(e.target).closest('.col-actions').length > 0) {
+          return;
+        }
+        
+        const viewButton = $(this).find('.action-view');
+        if (viewButton.length > 0) {
+          const url = viewButton.attr('href');
+          if (url) {
+            window.location.href = url;
+          }
+        }
+      });
+    }
+  });
+</script>
+{% endblock %} 

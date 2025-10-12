@@ -1,0 +1,22 @@
+{% comment %}
+Template لعرض تفاصيل الخدمة المتخصصة في الجدول
+{% endcomment %}
+
+{% if object.paper_details %}
+    <small class="d-block">{{ object.paper_details.paper_type }} - {{ object.paper_details.weight }}جم</small>
+    <small class="text-muted">{{ object.paper_details.size }} - {{ object.paper_details.origin_country }}</small>
+{% elif object.digital_printing_details %}
+    <small class="d-block">{{ object.digital_printing_details.machine_type }}</small>
+    <small class="text-muted">{{ object.digital_printing_details.max_paper_size }} - {{ object.digital_printing_details.color_support|yesno:"ملون,أبيض وأسود" }}</small>
+{% elif object.finishing_details %}
+    <small class="d-block">{{ object.finishing_details.service_type }}</small>
+    <small class="text-muted">{{ object.finishing_details.calculation_method }}</small>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}
+
+{% if object.unit %}
+    <div class="mt-1">
+        <small class="text-muted">{{ object.unit }}</small>
+    </div>
+{% endif %}

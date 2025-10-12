@@ -1,0 +1,20 @@
+{% load i18n %}
+{% if value == 'income' or value == 'إيراد' %}
+  <span class="badge bg-success">
+    <i class="fas fa-plus-circle me-1"></i>{% trans "إيراد" %}
+  </span>
+{% elif value == 'expense' or value == 'مصروف' %}
+  <span class="badge bg-danger">
+    <i class="fas fa-minus-circle me-1"></i>{% trans "مصروف" %}
+  </span>
+{% elif value == 'transfer' or value == 'تحويل' %}
+  <span class="badge bg-info">
+    <i class="fas fa-exchange-alt me-1"></i>{% trans "تحويل" %}
+  </span>
+{% elif value == 'adjustment' or value == 'تعديل' %}
+  <span class="badge bg-warning">
+    <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+  </span>
+{% else %}
+  <span class="badge bg-secondary">{{ value|default:"غير محدد" }}</span>
+{% endif %}

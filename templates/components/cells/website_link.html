@@ -1,0 +1,11 @@
+{% load i18n %}
+{% if object.website %}
+  <a href="{{ object.website }}" target="_blank" class="text-primary text-decoration-none">
+    <i class="fas fa-external-link-alt me-1"></i>
+    {{ object.website|truncatechars:25 }}
+  </a>
+{% else %}
+  <span class="text-muted">
+    {% trans "غير متاح" %}
+  </span>
+{% endif %}

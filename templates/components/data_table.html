@@ -1,0 +1,415 @@
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% comment %}
+مكون جدول بيانات للعرض في صفحات القوائم مع دعم الترتيب والفلترة
+
+الاستخدام:
+{% include "components/data_table.html" with table_id="products-table" headers=headers data=products %}
+
+المعلمات:
+- table_id: معرف الجدول (اختياري، افتراضي "data-table")
+- headers: قائمة برؤوس الأعمدة [{'key': 'name', 'label': 'الاسم', 'sortable': True, 'width': '10%', 'class': 'text-center'}, ...] 
+- data: قائمة العناصر المعروضة
+- empty_message: رسالة عندما لا توجد بيانات (اختياري، افتراضي "لا توجد بيانات للعرض")
+- table_class: تصنيفات CSS إضافية للجدول (اختياري)
+- primary_key: اسم الحقل المستخدم كمفتاح أساسي (اختياري، افتراضي "id")
+- action_buttons: قائمة بأزرار الإجراءات مثل [{'url': 'edit_url', 'icon': 'fa-edit', 'label': 'تعديل', 'class': 'action-edit'}]
+- responsive: هل الجدول مستجيب (اختياري، افتراضي True)
+- sortable: هل الجدول قابل للترتيب (اختياري، افتراضي True)
+- current_order_by: الحقل الحالي للترتيب (اختياري، افتراضي "")
+- current_order_dir: اتجاه الترتيب الحالي (اختياري، افتراضي "")
+- row_class_callback: دالة لتحديد فئة الصفوف تبعاً لمحتواها (اختياري)
+- show_currency: هل تظهر رمز العملة في القيم المالية (اختياري، افتراضي False)
+- currency_symbol: رمز العملة (اختياري، افتراضي "ج.م")
+- hover_effect: هل تظهر تأثير عند المرور على الصف (اختياري، افتراضي True)
+- show_search: إظهار مربع البحث (اختياري، افتراضي True)
+- show_length_menu: إظهار قائمة عدد العناصر (اختياري، افتراضي True)
+- length_options: خيارات عدد العناصر [10, 25, 50, 100] (اختياري)
+- clickable_rows: جعل الصفوف قابلة للنقر (اختياري، افتراضي False)
+- row_click_url: URL للانتقال عند النقر على الصف (اختياري)
+- show_export: إظهار أزرار التصدير (اختياري، افتراضي False)
+- export_filename: اسم الملف للتصدير (اختياري، افتراضي table_data)
+{% endcomment %}
+
+<!-- DEBUG: data={{ data|length|default:"None" }}, headers={{ headers|length|default:"None" }} -->
+
+{% if data %}
+{% if show_search|default:True or show_length_menu|default:True %}
+<div class="table-controls mb-3">
+    <div class="d-flex justify-content-between align-items-center flex-wrap">
+        {% if show_length_menu|default:True %}
+        <div class="table-length-control d-flex align-items-center">
+            <span class="length-label me-2">{% trans "عرض" %}</span>
+            <select class="form-select form-select-sm table-length" data-table="{{ table_id|default:'data-table' }}" aria-label="{% trans 'عدد العناصر' %}">
+                {% for option in length_options|default:"10,25,50,100"|split:"," %}
+                <option value="{{ option }}" {% if option == '25' %}selected{% endif %}>{{ option }}</option>
+                {% endfor %}
+            </select>
+            <span class="length-label ms-2">{% trans "عنصر" %}</span>
+        </div>
+        {% endif %}
+        
+        {% if show_search|default:True %}
+        <div class="table-search-control">
+            <div class="input-group">
+                <input type="text" class="form-control form-control-sm table-search" placeholder="{% trans 'بحث...' %}" aria-label="{% trans 'بحث' %}" data-table="{{ table_id|default:'data-table' }}">
+                <span class="input-group-text search-icon">
+                    <i class="fas fa-search"></i>
+                </span>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div {% if responsive|default:True %}class="table-responsive"{% endif %}>
+    <table id="{{ table_id|default:'data-table' }}" class="transaction-table table-hover table-striped {{ table_class }}" style="width: 100%">
+        <thead>
+            <tr>
+                {% for header in headers %}
+                    <th {% if header.width %}style="width: {{ header.width }};"{% endif %} class="{% if header.class %}{{ header.class }}{% endif %} col-{{ header.key }} text-center">
+                        <span class="d-block text-center">{{ header.label }}</span>
+                    </th>
+                {% endfor %}
+                {% if action_buttons %}
+                    <th class="text-center col-actions">{% trans "إجراءات" %}</th>
+                {% endif %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in data %}
+                {% if forloop.first %}<!-- DEBUG: لدينا بيانات فعلية -->{% endif %}
+                    <tr {% if row_class_callback %}class="{{ item|call:row_class_callback }}"{% endif %} data-id="{{ item|get_attr:primary_key|default:'0' }}">
+                        {% for header in headers %}
+                            {% with field_value=item|get_attr:header.key %}
+                                <td class="{% if header.class %}{{ header.class }}{% endif %} col-{{ header.key }}">
+                                    {% if header.template %}
+                                        {% include header.template with value=field_value object=item %}
+                                    {% elif header.format == 'date' %}
+                                        <span class="transaction-date">{{ field_value|date:"d-m-Y" }}</span>
+                                    {% elif header.format == 'datetime' %}
+                                        <span class="transaction-date">{{ field_value|date:"d-m-Y H:i" }}</span>
+                                    {% elif header.format == 'datetime_12h' %}
+                                        <div>{{ field_value|date:"d-m-Y" }}</div>
+                                        <small class="text-muted">{{ field_value|date:"h:i A" }}</small>
+                                    {% elif header.format == 'currency' %}
+                                        <span class="transaction-amount {% if header.variant %}{{ header.variant }}{% endif %}" style="text-align: center; width: 100%; display: block;">
+                                            {% if field_value == None or field_value == '' %}
+                                                <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
+                                            {% elif field_value == 0 %}
+                                                {% if header.key == 'balance' %}
+                                                    <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
+                                                {% else %}
+                                                    <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> 0</strong>
+                                                {% endif %}
+                                            {% else %}
+                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> {{ field_value|custom_number_format }}</strong>
+                                            {% endif %}
+                                        </span>
+                                    {% elif header.format == 'boolean' %}
+                                        {% if header.key == 'is_active' %}
+                                            {% if field_value %}
+                                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
+                                            {% endif %}
+                                        {% else %}
+                                            {% if field_value %}
+                                                <span class="badge bg-success">نعم</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">لا</span>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% elif header.format == 'image' %}
+                                        {% if field_value %}
+                                            <img src="{{ field_value.url }}" alt="صورة" class="img-thumbnail" style="max-width: 50px; height: auto;">
+                                        {% else %}
+                                            <i class="fas fa-image text-muted"></i>
+                                        {% endif %}
+                                    {% elif header.format == 'status' %}
+                                        <div class="expense-status-cell">
+                                            {% if header.key == 'is_active' %}
+                                                {% if field_value %}
+                                                    <span class="badge bg-success">{% trans "نشط" %}</span>
+                                                {% elif field_value == False %}
+                                                    <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                                                {% else %}
+                                                    <span class="badge bg-warning">{% trans "غير محدد" %} ({{ field_value|stringformat:'r' }})</span>
+                                                {% endif %}
+                                            
+                                            <!-- معالجة حالة الدفع -->
+                                            {% elif header.key == 'payment_status' %}
+                                                {% if field_value == 'paid' %}
+                                                    <span class="badge bg-success">{% trans "مدفوعة" %}</span>
+                                                {% elif field_value == 'partially_paid' %}
+                                                    <span class="badge bg-warning">{% trans "مدفوعة جزئياً" %}</span>
+                                                {% elif field_value == 'unpaid' %}
+                                                    <span class="badge bg-danger">{% trans "غير مدفوعة" %}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ field_value }}</span>
+                                                {% endif %}
+                                                
+                                            <!-- معالجة طريقة الدفع -->
+                                            {% elif header.key == 'payment_method' %}
+                                                {% if field_value == 'cash' %}
+                                                    <span class="badge payment-method cash">{% trans "نقدي" %}</span>
+                                                {% elif field_value == 'credit' %}
+                                                    <span class="badge payment-method credit">{% trans "آجل" %}</span>
+                                                {% elif field_value == 'bank_transfer' %}
+                                                    <span class="badge payment-method bank-transfer">{% trans "تحويل بنكي" %}</span>
+                                                {% else %}
+                                                    <span class="badge payment-method">{{ field_value }}</span>
+                                                {% endif %}
+                                                
+                                            <!-- معالجة حالة الإرجاع -->
+                                            {% elif header.key == 'return_status' %}
+                                                {% if field_value == 'full' %}
+                                                    <span class="badge bg-danger">{% trans "مرتجع كلي" %}</span>
+                                                {% elif field_value == 'partial' %}
+                                                    <span class="badge bg-warning">{% trans "مرتجع جزئي" %}</span>
+                                                {% elif not field_value %}
+                                                    <span class="text-muted">-</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ field_value }}</span>
+                                                {% endif %}
+                                                
+                                            <!-- معالجة حالة المخزون -->
+                                            {% elif header.key == 'status' and 'warehouse' in request.resolver_match.url_name %}
+                                                {% if field_value == 'متوفر' %}
+                                                    <span class="badge bg-success">{{ field_value }}</span>
+                                                {% elif field_value == 'منخفض' %}
+                                                    <span class="badge bg-warning">{{ field_value }}</span>
+                                                {% elif field_value == 'نفد' %}
+                                                    <span class="badge bg-danger">{{ field_value }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">{{ field_value }}</span>
+                                                {% endif %}
+                                                
+                                            {% elif field_value == 'paid' %}
+                                                <span class="badge bg-success">{% trans "مدفوع" %}</span>
+                                            {% elif field_value == 'pending' %}
+                                                <span class="badge bg-warning">{% trans "معلق" %}</span>
+                                            {% elif field_value == 'received' %}
+                                                <span class="badge bg-success">{% trans "مستلم" %}</span>
+                                            {% elif field_value == 'cancelled' %}
+                                                <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">{{ field_value }}</span>
+                                            {% endif %}
+                                        </div>
+                                    {% elif header.format == 'reference' %}
+                                        {% if field_value %}
+                                            {% if header.variant == 'highlight-code' %}
+                                                <div class="transaction-ref text-center">
+                                                    {% if header.key == 'reference_number' or header.key == 'number' %}
+                                                        {% if header.app == 'purchase' %}
+                                                        <a href="{% url 'purchase:purchase_detail' item|get_attr:primary_key|default:'0' %}" class="text-decoration-none">
+                                                        {% elif header.app == 'sale' %}
+                                                        <a href="{% url 'sale:sale_detail' item|get_attr:primary_key|default:'0' %}" class="text-decoration-none">
+                                                        {% else %}
+                                                        <a href="#" class="text-decoration-none">
+                                                        {% endif %}
+                                                            <span class="badge invoice-number"><i class="fas fa-file-invoice me-1"></i> {{ field_value }}</span>
+                                                        </a>
+                                                    {% else %}
+                                                        <span class="badge invoice-number"><i class="fas fa-file-invoice me-1"></i> {{ field_value }}</span>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="transaction-ref text-center">{{ field_value }}</div>
+                                            {% endif %}
+                                        {% else %}
+                                            <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
+                                        {% endif %}
+                                    {% elif header.format == 'icon_text' %}
+                                        <div class="d-flex align-items-center">
+                                            {% if header.icon_callback %}
+                                                <div class="transaction-icon {{ item|call:header.icon_callback }}">
+                                                    <i class="fas {{ item|call:header.icon_class_callback }}"></i>
+                                                </div>
+                                            {% endif %}
+                                            <div {% if header.icon_callback %}class="transaction-type-text me-2"{% endif %}>
+                                                {% if header.key == 'transaction_type' %}
+                                                    {{ item|call:"get_transaction_type_display" }}
+                                                {% else %}
+                                                    {{ field_value }}
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    {% elif header.format == 'link' %}
+                                        {% if header.url and field_value %}
+                                            <a href="{% url header.url item|get_attr:primary_key|default:'0' %}" class="text-decoration-none fw-bold text-primary">
+                                                {{ field_value }}
+                                            </a>
+                                        {% else %}
+                                            {{ field_value|default:"-" }}
+                                        {% endif %}
+                                    {% elif header.format == 'html' %}
+                                        {{ field_value|safe }}
+                                    {% elif header.format == 'rating' %}
+                                        <div class="rating-display text-center">
+                                            <div class="rating-stars text-warning mb-1">
+                                                {% with rating=field_value|default:0|floatformat:0 %}
+                                                    {% for i in "12345" %}
+                                                        {% if forloop.counter <= rating|add:0 %}
+                                                            <i class="fas fa-star"></i>
+                                                        {% else %}
+                                                            <i class="far fa-star"></i>
+                                                        {% endif %}
+                                                    {% endfor %}
+                                                {% endwith %}
+                                            </div>
+                                            <small class="text-muted">{{ field_value|default:0 }}/5</small>
+                                        </div>
+                                    {% elif header.format == 'boolean_badge' %}
+                                        {% if field_value %}
+                                            <span class="badge bg-warning text-dark">
+                                                <i class="fas fa-star me-1"></i>مفضل
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    {% else %}
+                                        {% if header.ellipsis|default:False %}
+                                            <div class="description">{{ field_value|default:"-" }}</div>
+                                        {% else %}
+                                            {% if field_value == None or field_value == '' %}
+                                                <span class="text-muted">-</span>
+                                            {% else %}
+                                                {{ field_value }}
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endif %}
+                                </td>
+                            {% endwith %}
+                        {% endfor %}
+                        
+                        {% if action_buttons %}
+                            <td class="text-center col-actions">
+                                <div class="d-flex justify-content-center">
+                                    {% for button in action_buttons %}
+                                        {% comment %} التحقق من الشرط إذا كان موجوداً {% endcomment %}
+                                        {% if button.condition == 'not_fully_paid' %}
+                                            {% if item.payment_status != 'paid' %}
+                                                {% if ':' in button.url %}
+                                                    {% with url_name=button.url %}
+                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
+                                                           class="action-button {{ button.class|default:'action-view' }}" 
+                                                           title="{{ button.label }}"
+                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                            <i class="fas {{ button.icon }}"></i>
+                                                        </a>
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+                                                       class="action-button {{ button.class|default:'action-view' }}" 
+                                                       title="{{ button.label }}"
+                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                        <i class="fas {{ button.icon }}"></i>
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% else %}
+                                            {% comment %} عرض الزر بدون شرط {% endcomment %}
+                                            {% if ':' in button.url %}
+                                                {% with url_name=button.url %}
+                                                    <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
+                                                       class="action-button {{ button.class|default:'action-view' }}" 
+                                                       title="{{ button.label }}"
+                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                        <i class="fas {{ button.icon }}"></i>
+                                                    </a>
+                                                {% endwith %}
+                                            {% else %}
+                                                <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+                                                   class="action-button {{ button.class|default:'action-view' }}" 
+                                                   title="{{ button.label }}"
+                                                   {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                    <i class="fas {{ button.icon }}"></i>
+                                                </a>
+                                            {% endif %}
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </td>
+                        {% endif %}
+                    </tr>
+                {% empty %}
+                <!-- DEBUG: الـ for loop فارغ - لا توجد بيانات -->
+                <tr>
+                    <td colspan="{% if action_buttons %}{{ headers|length|add:1 }}{% else %}{{ headers|length }}{% endif %}" class="text-center py-5">
+                        <div class="empty-state-icon mb-3">
+                            <i class="fas fa-table fa-2x text-muted" style="opacity: 0.6;"></i>
+                        </div>
+                        <h5 class="text-muted mb-2">{{ empty_message|default:"لا توجد بيانات للعرض" }}</h5>
+                        <p class="text-muted small">لم يتم العثور على أي بيانات لعرضها في هذا الجدول</p>
+                    </td>
+                </tr>
+                {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% else %}
+<!-- DEBUG: في قسم الإشعار - data={{ data|default:"None" }} -->
+<!-- عرض إشعار بدلاً من الجدول الفارغ -->
+<div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa;">
+    <div class="empty-state-icon mb-3">
+        <i class="fas fa-table fa-sm text-muted" style="opacity: 0.5;"></i>
+    </div>
+    <h4 class="empty-state-title text-muted mb-2">{{ empty_message|default:"لا توجد بيانات للعرض" }}</h4>
+    <p class="text-muted">لم يتم العثور على أي بيانات لعرضها في هذا الجدول</p>
+</div>
+{% endif %}
+
+{% if show_export|default:False and data %}
+<!-- أزرار التصدير -->
+<div class="d-flex justify-content-end mt-3">
+    <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="{{ table_id|default:'data-table' }}" data-filename="{{ export_filename|default:'table_data' }}.csv">
+        <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+    </button>
+    <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="{{ table_id|default:'data-table' }}" data-filename="{{ export_filename|default:'table_data' }}.xlsx">
+        <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+    </button>
+</div>
+{% endif %}
+
+{% if clickable_rows|default:False and row_click_url %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // جعل صفوف الجدول قابلة للنقر
+    const tableBody = document.querySelector('#{{ table_id|default:"data-table" }} tbody');
+    if (tableBody) {
+        tableBody.addEventListener('click', function(e) {
+            const row = e.target.closest('tr');
+            if (!row) return;
+            
+            // تجاهل النقر على أزرار الإجراءات
+            if (e.target.closest('.col-actions')) return;
+            
+            // تجاهل الصفوف الفارغة
+            if (row.getAttribute('data-empty') === 'true') return;
+            
+            // الحصول على ID من أول خلية أو من data attribute
+            const itemId = row.getAttribute('data-id') || row.querySelector('td:first-child')?.textContent?.trim();
+            if (itemId) {
+                const url = '{{ row_click_url }}'.replace('0', itemId);
+                window.location.href = url;
+            }
+        });
+        
+        // إضافة مؤشر اليد للصفوف
+        const rows = tableBody.querySelectorAll('tr:not([data-empty])');
+        rows.forEach(row => {
+            row.style.cursor = 'pointer';
+        });
+    }
+});
+</script>
+{% endif %}
+
+<!-- DEBUG: نهاية الملف - إذا وصلت هنا فالكود يعمل -->
+<script>console.log('data_table.html loaded successfully');</script>

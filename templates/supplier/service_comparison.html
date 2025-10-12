@@ -1,0 +1,378 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.comparison-table {
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.comparison-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+}
+
+.service-column {
+    border-right: 1px solid #e3e6f0;
+    padding: 1rem;
+    min-height: 400px;
+}
+
+.service-column:last-child {
+    border-right: none;
+}
+
+.service-header {
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fc;
+    border-bottom: 2px solid #e3e6f0;
+}
+
+.price-highlight {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #28a745;
+}
+
+.best-price {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border-radius: 5px;
+    padding: 0.5rem;
+}
+
+.feature-row {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f1f3f4;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.feature-label {
+    font-weight: 600;
+    color: #5a5c69;
+}
+
+.feature-value {
+    color: #858796;
+}
+
+.rating-stars {
+    color: #ffc107;
+}
+
+.contact-method {
+    display: inline-block;
+    margin: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    background: #e9ecef;
+    border-radius: 15px;
+    font-size: 0.8rem;
+    text-decoration: none;
+    color: #495057;
+}
+
+.contact-method:hover {
+    background: #dee2e6;
+    color: #495057;
+}
+
+.category-selector {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.no-services {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="{{ page_icon }} fa-fw me-2"></i>{{ page_title }}
+            </h1>
+            <p class="mb-0 text-muted">قارن الأسعار والخدمات من موردين مختلفين</p>
+        </div>
+    </div>
+
+    <!-- Category Selector -->
+    <div class="category-selector">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <label class="form-label fw-bold">اختر فئة الخدمة للمقارنة:</label>
+            </div>
+            <div class="col-md-6">
+                <select id="categorySelector" class="form-select">
+                    {% for cat in categories %}
+                        <option value="{{ cat.code }}" {% if cat.code == category.code %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <button onclick="changeCategory()" class="btn btn-primary w-100">
+                    <i class="fas fa-sync-alt"></i> تحديث المقارنة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    {% if comparison_data %}
+    <!-- Comparison Table -->
+    <div class="comparison-table">
+        <div class="comparison-header">
+            <h4 class="mb-0">
+                <i class="{{ category.icon }} fa-fw me-2"></i>
+                مقارنة خدمات {{ category.name }}
+            </h4>
+        </div>
+        
+        <div class="row g-0">
+            {% for data in comparison_data %}
+            <div class="col-md-4 service-column">
+                <!-- Service Header -->
+                <div class="service-header {% if forloop.first %}best-price{% endif %}">
+                    <h5 class="mb-2">{{ data.service.name }}</h5>
+                    <div class="price-highlight">
+                        {{ data.service.base_price }} ج.م
+                        {% if forloop.first %}
+                            <small class="d-block text-white-50">أفضل سعر</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <!-- Supplier Info -->
+                <div class="feature-row">
+                    <span class="feature-label">المورد:</span>
+                    <span class="feature-value">
+                        <strong>{{ data.supplier.name }}</strong>
+                    </span>
+                </div>
+                
+                <div class="feature-row">
+                    <span class="feature-label">التقييم:</span>
+                    <span class="feature-value">
+                        <span class="rating-stars">{{ data.rating_stars }}</span>
+                        ({{ data.supplier.supplier_rating }}/5)
+                    </span>
+                </div>
+                
+                <div class="feature-row">
+                    <span class="feature-label">تقييم الجودة:</span>
+                    <span class="feature-value">
+                        <span class="rating-stars">{{ data.quality_stars }}</span>
+                        ({{ data.supplier.quality_rating }}/5)
+                    </span>
+                </div>
+                
+                <div class="feature-row">
+                    <span class="feature-label">مدة التسليم:</span>
+                    <span class="feature-value">{{ data.supplier.delivery_time }} أيام</span>
+                </div>
+                
+                <div class="feature-row">
+                    <span class="feature-label">الحد الأدنى:</span>
+                    <span class="feature-value">{{ data.service.min_quantity }} قطعة</span>
+                </div>
+                
+                {% if data.service.setup_cost > 0 %}
+                <div class="feature-row">
+                    <span class="feature-label">تكلفة التجهيز:</span>
+                    <span class="feature-value">{{ data.service.setup_cost }} ج.م</span>
+                </div>
+                {% endif %}
+                
+                <!-- Specialized Details -->
+                {% if data.details %}
+                    {% if category.code == 'paper' %}
+                        <div class="feature-row">
+                            <span class="feature-label">نوع الورق:</span>
+                            <span class="feature-value">{{ data.details.get_paper_type_display }}</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">الوزن:</span>
+                            <span class="feature-value">{{ data.details.gsm }} جرام</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">المقاس:</span>
+                            <span class="feature-value">{{ data.details.get_sheet_size_display }}</span>
+                        </div>
+                        {% if data.details.brand %}
+                        <div class="feature-row">
+                            <span class="feature-label">الماركة:</span>
+                            <span class="feature-value">{{ data.details.brand }}</span>
+                        </div>
+                        {% endif %}
+                        {% if data.details.country_of_origin %}
+                        <div class="feature-row">
+                            <span class="feature-label">بلد المنشأ:</span>
+                            <span class="feature-value">{{ data.details.country_of_origin }}</span>
+                        </div>
+                        {% endif %}
+                    {% elif category.code == 'digital_printing' %}
+                        <div class="feature-row">
+                            <span class="feature-label">نوع الماكينة:</span>
+                            <span class="feature-value">{{ data.details.get_machine_type_display }}</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">أقصى مقاس:</span>
+                            <span class="feature-value">{{ data.details.max_width_cm }}×{{ data.details.max_height_cm }} سم</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">أبيض/أسود:</span>
+                            <span class="feature-value">{{ data.details.price_per_page_bw }} ج.م/صفحة</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">ملونة:</span>
+                            <span class="feature-value">{{ data.details.price_per_page_color }} ج.م/صفحة</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">طباعة وجهين:</span>
+                            <span class="feature-value">
+                                {% if data.details.duplex_printing %}
+                                    <i class="fas fa-check text-success"></i> متاح
+                                {% else %}
+                                    <i class="fas fa-times text-danger"></i> غير متاح
+                                {% endif %}
+                            </span>
+                        </div>
+                    {% elif category.code == 'finishing' %}
+                        <div class="feature-row">
+                            <span class="feature-label">نوع الخدمة:</span>
+                            <span class="feature-value">{{ data.details.get_finishing_type_display }}</span>
+                        </div>
+                        <div class="feature-row">
+                            <span class="feature-label">طريقة الحساب:</span>
+                            <span class="feature-value">{{ data.details.get_calculation_method_display }}</span>
+                        </div>
+                        {% if data.details.min_size_cm %}
+                        <div class="feature-row">
+                            <span class="feature-label">أصغر مقاس:</span>
+                            <span class="feature-value">{{ data.details.min_size_cm }} سم</span>
+                        </div>
+                        {% endif %}
+                        {% if data.details.max_size_cm %}
+                        <div class="feature-row">
+                            <span class="feature-label">أكبر مقاس:</span>
+                            <span class="feature-value">{{ data.details.max_size_cm }} سم</span>
+                        </div>
+                        {% endif %}
+                        <div class="feature-row">
+                            <span class="feature-label">وقت التسليم:</span>
+                            <span class="feature-value">{{ data.details.turnaround_time_hours }} ساعة</span>
+                        </div>
+                    {% endif %}
+                {% endif %}
+                
+                <!-- Contact Methods -->
+                <div class="feature-row">
+                    <span class="feature-label">طرق التواصل:</span>
+                    <div class="feature-value">
+                        {% for method in data.contact_methods %}
+                            {% if method.type == 'phone' %}
+                                <a href="tel:{{ method.value }}" class="contact-method">
+                                    <i class="fas fa-phone"></i> {{ method.label }}
+                                </a>
+                            {% elif method.type == 'whatsapp' %}
+                                <a href="https://wa.me/{{ method.value }}" class="contact-method" target="_blank">
+                                    <i class="fab fa-whatsapp"></i> واتساب
+                                </a>
+                            {% elif method.type == 'email' %}
+                                <a href="mailto:{{ method.value }}" class="contact-method">
+                                    <i class="fas fa-envelope"></i> بريد
+                                </a>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="text-center mt-3 mb-2">
+                    <a href="{% url 'supplier:supplier_detail' data.supplier.pk %}" class="btn btn-outline-primary btn-sm me-2">
+                        <i class="fas fa-eye"></i> عرض المورد
+                    </a>
+                    <a href="{% url 'supplier:supplier_services_detail' data.supplier.pk %}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-tools"></i> جميع الخدمات
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    {% else %}
+    <!-- No Services -->
+    <div class="card">
+        <div class="card-body no-services">
+            <i class="fas fa-search fa-3x mb-3"></i>
+            <h4>لا توجد خدمات للمقارنة</h4>
+            <p class="text-muted">لا توجد خدمات متاحة في فئة {{ category.name }} حالياً</p>
+            <a href="{% url 'supplier:specialized_services_list' %}" class="btn btn-primary">
+                <i class="fas fa-arrow-left"></i> عرض جميع الخدمات
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function changeCategory() {
+    const categoryCode = document.getElementById('categorySelector').value;
+    window.location.href = `{% url 'supplier:service_comparison' %}?category=${categoryCode}`;
+}
+
+$(document).ready(function() {
+    // تأثيرات بصرية
+    $('.service-column').hover(
+        function() {
+            $(this).addClass('shadow-lg');
+        },
+        function() {
+            $(this).removeClass('shadow-lg');
+        }
+    );
+    
+    // تمييز أفضل سعر
+    let minPrice = Infinity;
+    let bestPriceColumn = null;
+    
+    $('.price-highlight').each(function() {
+        const priceText = $(this).text().replace(/[^\d.]/g, '');
+        const price = parseFloat(priceText);
+        if (price < minPrice) {
+            minPrice = price;
+            bestPriceColumn = $(this).closest('.service-column');
+        }
+    });
+    
+    if (bestPriceColumn) {
+        bestPriceColumn.find('.service-header').addClass('best-price');
+    }
+});
+</script>
+{% endblock %}

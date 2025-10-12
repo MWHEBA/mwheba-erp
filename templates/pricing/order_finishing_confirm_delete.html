@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% trans "تأكيد حذف خدمة خدمات مابعد الطباعة" %} | نظام تسعير الطباعة{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% trans "تأكيد حذف خدمة خدمات مابعد الطباعة" %}</h2>
+    </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <h5 class="alert-heading">{% trans "هل أنت متأكد من حذف خدمة خدمات مابعد الطباعة التالية؟" %}</h5>
+            <p>{% trans "هذه العملية لا يمكن التراجع عنها." %}</p>
+        </div>
+        
+        <div class="mb-4">
+            <h5>{% trans "معلومات خدمة خدمات مابعد الطباعة" %}:</h5>
+            <ul class="list-group">
+                <li class="list-group-item">
+                    <strong>{% trans "نوع خدمات مابعد الطباعة" %}:</strong> {{ object.finishing_type.name }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "الكمية" %}:</strong> {{ object.quantity }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "سعر الوحدة" %}:</strong> {{ object.unit_price }}
+                </li>
+                <li class="list-group-item">
+                    <strong>{% trans "السعر الإجمالي" %}:</strong> {{ object.total_price }}
+                </li>
+                {% if object.notes %}
+                <li class="list-group-item">
+                    <strong>{% trans "ملاحظات" %}:</strong> {{ object.notes }}
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <form method="post">
+            {% csrf_token %}
+            <div class="d-flex justify-content-between">
+                <a href="{% url 'pricing:pricing_detail' object.order.pk %}" class="btn btn-secondary">
+                    <i class="fas fa-times"></i> {% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> {% trans "حذف" %}
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %} 

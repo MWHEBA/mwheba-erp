@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirmation-card {
+        background-color: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 2rem;
+        max-width: 600px;
+        margin: 2rem auto;
+    }
+    
+    .confirmation-title {
+        color: #dc3545;
+        font-weight: 700;
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    
+    .confirmation-message {
+        text-align: center;
+        margin-bottom: 2rem;
+        font-size: 1.1rem;
+    }
+    
+    .confirmation-highlight {
+        font-weight: 600;
+        color: #01578a;
+    }
+    
+    .confirmation-details {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed #ddd;
+    }
+    
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    
+    .confirmation-actions {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="confirmation-card">
+        <h3 class="confirmation-title">
+            <i class="fas fa-exclamation-triangle"></i> تأكيد الحذف
+        </h3>
+        
+        <div class="confirmation-message">
+            هل أنت متأكد من رغبتك في حذف فاتورة المبيعات
+            <span class="confirmation-highlight">{{ sale.number }}</span>؟
+        </div>
+        
+        <div class="confirmation-details">
+            <div class="detail-row">
+                <div>العميل</div>
+                <div>{{ sale.customer.name }}</div>
+            </div>
+            <div class="detail-row">
+                <div>التاريخ</div>
+                <div>{{ sale.date|date:"d-m-Y" }}</div>
+            </div>
+            <div class="detail-row">
+                <div>الإجمالي</div>
+                <div>{{ sale.total }}</div>
+            </div>
+            <div class="detail-row">
+                <div>عدد البنود</div>
+                <div>{{ sale.items.count }}</div>
+            </div>
+        </div>
+        
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-circle"></i>
+            تحذير: لا يمكن استرجاع هذا الإجراء بعد تنفيذه. سيتم حذف الفاتورة وجميع بنودها، وإرجاع كميات المنتجات إلى المخزون.
+        </div>
+        
+        <div class="confirmation-actions">
+            <form method="post">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                    <i class="fas fa-trash"></i> تأكيد الحذف
+                </button>
+            </form>
+            
+            <a href="#" onclick="window.history.back(); return false;"sale:sale_detail' sale.id %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> إلغاء
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %} 

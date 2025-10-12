@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block extra_css %}
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="{{ page_icon }} me-2"></i>{{ page_title }}
+            </h1>
+        </div>
+    </div>
+
+    <!-- بطاقة معلومات المورد -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-truck me-2"></i>معلومات المورد
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>اسم المورد:</strong>
+                            <p class="mb-0">{{ supplier.name }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>كود المورد:</strong>
+                            <p class="mb-0">{{ supplier.code }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الحساب المحاسبي الحالي:</strong>
+                            {% if supplier.financial_account %}
+                                <p class="mb-0 text-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    {{ supplier.financial_account.code }} - {{ supplier.financial_account.name }}
+                                </p>
+                            {% else %}
+                                <p class="mb-0 text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    غير مربوط بحساب محاسبي
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الرصيد الحالي:</strong>
+                            <p class="mb-0">{{ supplier.actual_balance|floatformat:2 }} ج.م</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج تغيير الحساب -->
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-gradient-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>تغيير الحساب المحاسبي
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.financial_account.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-chart-line me-2 text-success"></i>{{ form.financial_account.label }}
+                            </label>
+                            {{ form.financial_account }}
+                            {% if form.financial_account.help_text %}
+                                <div class="form-text">{{ form.financial_account.help_text }}</div>
+                            {% endif %}
+                            {% if form.financial_account.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.financial_account.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- تنبيه مهم -->
+                        <div class="alert alert-info border-0" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>ملاحظة مهمة:
+                            </h6>
+                            <p class="mb-0">
+                                • الحسابات المتاحة: <strong>حساب الموردين والحسابات الفرعية منه فقط</strong><br>
+                                • سيتم تحديث الربط فوراً بعد الحفظ<br>
+                                • النظام يمنع اختيار أي حسابات أخرى خارج نطاق الموردين
+                            </p>
+                        </div>
+
+                        <!-- أزرار الإجراءات -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-right me-2"></i>إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>حفظ التغييرات
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #1cc88a 100%);
+}
+
+.card {
+    border-radius: 10px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.form-control:focus {
+    border-color: var(--bs-success);
+    box-shadow: 0 0 0 0.2rem rgba(28, 200, 138, 0.25);
+}
+
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+/* تخصيص Select2 للعربية */
+.select2-container--bootstrap-5 .select2-selection {
+    direction: rtl;
+    text-align: right;
+}
+
+.select2-container--bootstrap-5 .select2-selection__rendered {
+    padding-right: 12px;
+    padding-left: 20px;
+}
+
+.select2-container--bootstrap-5 .select2-selection__arrow {
+    right: auto;
+    left: 1px;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear, 
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    right: unset;
+}
+</style>
+
+{% block extra_js %}
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+$(document).ready(function() {
+    // تفعيل Select2 للحسابات المحاسبية
+    $('.select2-search').select2({
+        theme: 'bootstrap-5',
+        dir: 'rtl',
+        language: {
+            noResults: function() {
+                return "لا توجد نتائج";
+            },
+            searching: function() {
+                return "جاري البحث...";
+            },
+            inputTooShort: function() {
+                return "اكتب للبحث";
+            },
+            loadingMore: function() {
+                return "جاري تحميل المزيد...";
+            }
+        },
+        placeholder: function() {
+            return $(this).data('placeholder');
+        },
+        allowClear: true,
+        width: '100%'
+    });
+});
+</script>
+{% endblock %}
+{% endblock %}

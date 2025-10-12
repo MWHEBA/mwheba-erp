@@ -1,0 +1,665 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ page_title|default:"التحليلات المالية" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام مطابق لصفحة المبيعات */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* تصميم الرسوم البيانية */
+  .chart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .chart-title {
+    color: #344767;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .chart-subtitle {
+    color: #6c757d;
+    font-size: 0.875rem;
+    margin: 0;
+  }
+  
+  /* تصميم كروت التحليلات المتقدمة */
+  .analytics-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    transition: all 0.3s ease;
+  }
+  
+  .analytics-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 35px rgba(102, 126, 234, 0.4);
+  }
+  
+  .analytics-card.success {
+    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    box-shadow: 0 8px 25px rgba(17, 153, 142, 0.3);
+  }
+  
+  .analytics-card.warning {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    box-shadow: 0 8px 25px rgba(240, 147, 251, 0.3);
+  }
+  
+  .analytics-card.danger {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    box-shadow: 0 8px 25px rgba(79, 172, 254, 0.3);
+  }
+  
+  .analytics-card-icon {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    opacity: 0.9;
+  }
+  
+  .analytics-card-title {
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    opacity: 0.9;
+  }
+  
+  .analytics-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  
+  .analytics-card-unit {
+    font-size: 0.8rem;
+    opacity: 0.8;
+  }
+  
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .section-container {
+      box-shadow: none !important;
+      border: 1px solid #ccc !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-chart-line fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% trans "التحليلات المالية" %}</h1>
+                  <p class="text-muted mb-0">{% trans "تحليل البيانات المالية وعرض المؤشرات الرئيسية" %}</p>
+              </div>
+          </div>
+          <div>
+              <button type="button" class="btn btn-success" onclick="exportAnalytics()">
+                  <i class="fas fa-file-pdf me-2"></i>{% trans "تصدير التقرير" %}
+              </button>
+          </div>
+      </div>
+  </div>
+  
+  <!-- الإحصائيات الأساسية -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "المؤشرات المالية الرئيسية" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stats-card-title">{% trans "الإيرادات الشهرية" %}</div>
+            <div class="stats-card-value">{{ monthly_income|default:"32500"|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stats-card-title">{% trans "هامش الربح" %}</div>
+            <div class="stats-card-value">{{ profit_margin|default:"24" }}%</div>
+            <div class="stats-card-unit">{% trans "نسبة مئوية" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stats-card-title">{% trans "متوسط قيمة الفاتورة" %}</div>
+            <div class="stats-card-value">{{ avg_invoice|default:"1250"|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-check"></i>
+            </div>
+            <div class="stats-card-title">{% trans "المعاملات اليومية" %}</div>
+            <div class="stats-card-value">{{ daily_transactions|default:"14" }}</div>
+            <div class="stats-card-unit">{% trans "معاملة/يوم" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- التحليلات المتقدمة -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-analytics me-2"></i>{% trans "مؤشرات الأداء المتقدمة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="analytics-card">
+          <div class="analytics-card-icon">
+            <i class="fas fa-percent"></i>
+          </div>
+          <div class="analytics-card-title">{% trans "معدل التحصيل" %}</div>
+          <div class="analytics-card-value">{{ collection_rate|default:"87" }}%</div>
+          <div class="analytics-card-unit">{% trans "نسبة التحصيل" %}</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="analytics-card success">
+          <div class="analytics-card-icon">
+            <i class="fas fa-user-plus"></i>
+          </div>
+          <div class="analytics-card-title">{% trans "عملاء جدد" %}</div>
+          <div class="analytics-card-value">{{ new_customers|default:"24" }}</div>
+          <div class="analytics-card-unit">{% trans "هذا الشهر" %}</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="analytics-card warning">
+          <div class="analytics-card-icon">
+            <i class="fas fa-clock"></i>
+          </div>
+          <div class="analytics-card-title">{% trans "متوسط دورة المبيعات" %}</div>
+          <div class="analytics-card-value">{{ sales_cycle|default:"4.2" }}</div>
+          <div class="analytics-card-unit">{% trans "أيام" %}</div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="analytics-card danger">
+          <div class="analytics-card-icon">
+            <i class="fas fa-credit-card"></i>
+          </div>
+          <div class="analytics-card-title">{% trans "ديون مستحقة" %}</div>
+          <div class="analytics-card-value">{{ due_debt|default:"18750"|custom_number_format }}</div>
+          <div class="analytics-card-unit">{% trans "جنيه" %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- الرسوم البيانية -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>{% trans "التحليل البياني" %}</h5>
+    <div class="row">
+      <div class="col-lg-8 mb-4">
+        <div class="chart-container">
+          <div class="chart-header">
+            <div>
+              <h6 class="chart-title">{% trans "الإيرادات والمصروفات" %}</h6>
+              <p class="chart-subtitle">{% trans "آخر 6 أشهر" %}</p>
+            </div>
+            <div class="actions-container">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('revenue-expenses-chart')">
+                <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
+              </button>
+            </div>
+          </div>
+          <div style="height: 300px;">
+            <canvas id="revenue-expenses-chart"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4 mb-4">
+        <div class="chart-container h-100">
+          <div class="chart-header">
+            <div>
+              <h6 class="chart-title">{% trans "توزيع المصروفات" %}</h6>
+              <p class="chart-subtitle">{% trans "حسب التصنيف" %}</p>
+            </div>
+            <div class="actions-container">
+              <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('expenses-distribution-chart')">
+                <i class="fas fa-download me-1"></i>{% trans "تصدير" %}
+              </button>
+            </div>
+          </div>
+          <div style="height: 250px;">
+            <canvas id="expenses-distribution-chart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- مكتبة Chart.js للرسوم البيانية -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير التحليلات المالية
+  function exportAnalytics() {
+    try {
+      let data = [];
+      
+      // العنوان
+      data.push(['التحليلات المالية']);
+      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
+      data.push([]);
+      
+      // المؤشرات الرئيسية
+      data.push(['المؤشرات المالية الرئيسية']);
+      data.push(['الإيرادات الشهرية', '{{ monthly_income|default:"32500" }}']);
+      data.push(['هامش الربح', '{{ profit_margin|default:"24" }}%']);
+      data.push(['متوسط قيمة الفاتورة', '{{ avg_invoice|default:"1250" }}']);
+      data.push(['المعاملات اليومية', '{{ daily_transactions|default:"14" }}']);
+      data.push([]);
+      
+      // مؤشرات الأداء المتقدمة
+      data.push(['مؤشرات الأداء المتقدمة']);
+      data.push(['معدل التحصيل', '{{ collection_rate|default:"87" }}%']);
+      data.push(['عملاء جدد', '{{ new_customers|default:"24" }}']);
+      data.push(['متوسط دورة المبيعات', '{{ sales_cycle|default:"4.2" }} أيام']);
+      data.push(['ديون مستحقة', '{{ due_debt|default:"18750" }}']);
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'التحليلات المالية');
+      XLSX.writeFile(wb, 'التحليلات_المالية_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      
+      showNotification('تم تصدير التحليلات المالية بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير التحليلات:', error);
+      showNotification('حدث خطأ أثناء تصدير البيانات', 'error');
+    }
+  }
+  
+  // تصدير الرسم البياني
+  function exportChart(chartId) {
+    try {
+      const canvas = document.getElementById(chartId);
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = chartId + '_' + new Date().toISOString().split('T')[0] + '.png';
+      link.href = url;
+      link.click();
+      
+      showNotification('تم تصدير الرسم البياني بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير الرسم البياني:', error);
+      showNotification('حدث خطأ أثناء تصدير الرسم البياني', 'error');
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  $(document).ready(function() {
+    // رسم بياني للإيرادات والمصروفات
+    const revenueExpensesChart = new Chart(
+      document.getElementById('revenue-expenses-chart'),
+      {
+        type: 'line',
+        data: {
+          labels: ['يناير', 'فبراير', 'مارس', 'إبريل', 'مايو', 'يونيو'],
+          datasets: [
+            {
+              label: 'الإيرادات',
+              data: [28500, 32000, 35500, 31000, 38000, 41500],
+              borderColor: '#0d6efd',
+              backgroundColor: 'rgba(13, 110, 253, 0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: '#0d6efd',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 6
+            },
+            {
+              label: 'المصروفات',
+              data: [22000, 25000, 26500, 23000, 29000, 31500],
+              borderColor: '#dc3545',
+              backgroundColor: 'rgba(220, 53, 69, 0.1)',
+              borderWidth: 3,
+              fill: true,
+              tension: 0.4,
+              pointBackgroundColor: '#dc3545',
+              pointBorderColor: '#fff',
+              pointBorderWidth: 2,
+              pointRadius: 6
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: {
+                usePointStyle: true,
+                padding: 20,
+                font: {
+                  size: 14
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#0d6efd',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' جنيه';
+                }
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              grid: {
+                color: 'rgba(0, 0, 0, 0.1)'
+              },
+              ticks: {
+                callback: function(value) {
+                  return value.toLocaleString() + ' جنيه';
+                },
+                font: {
+                  size: 12
+                }
+              }
+            },
+            x: {
+              grid: {
+                color: 'rgba(0, 0, 0, 0.1)'
+              },
+              ticks: {
+                font: {
+                  size: 12
+                }
+              }
+            }
+          }
+        }
+      }
+    );
+    
+    // رسم بياني لتوزيع المصروفات
+    const expensesDistributionChart = new Chart(
+      document.getElementById('expenses-distribution-chart'),
+      {
+        type: 'doughnut',
+        data: {
+          labels: ['رواتب', 'إيجارات', 'مصروفات تشغيل', 'خدمات', 'أخرى'],
+          datasets: [
+            {
+              data: [45, 15, 20, 12, 8],
+              backgroundColor: [
+                '#0d6efd',
+                '#198754',
+                '#ffc107',
+                '#0dcaf0',
+                '#dc3545'
+              ],
+              borderWidth: 3,
+              borderColor: '#fff',
+              hoverBorderWidth: 4,
+              hoverBorderColor: '#fff'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#0d6efd',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = ((context.parsed / total) * 100).toFixed(1);
+                  return context.label + ': ' + percentage + '%';
+                }
+              }
+            }
+          }
+        }
+      }
+    );
+    
+    // إضافة تأثيرات hover للكروت
+    $('.stats-card, .analytics-card').hover(
+      function() {
+        $(this).addClass('shadow-lg');
+      },
+      function() {
+        $(this).removeClass('shadow-lg');
+      }
+    );
+  });
+</script>
+{% endblock %} 

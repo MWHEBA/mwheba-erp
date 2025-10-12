@@ -1,0 +1,74 @@
+[
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 1,
+    "fields": {
+      "supplier": 1,
+      "suppliertype": 1
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 2,
+    "fields": {
+      "supplier": 1,
+      "suppliertype": 4
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 3,
+    "fields": {
+      "supplier": 2,
+      "suppliertype": 2
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 5,
+    "fields": {
+      "supplier": 3,
+      "suppliertype": 3
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 6,
+    "fields": {
+      "supplier": 3,
+      "suppliertype": 6
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 7,
+    "fields": {
+      "supplier": 4,
+      "suppliertype": 4
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 8,
+    "fields": {
+      "supplier": 4,
+      "suppliertype": 9
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 9,
+    "fields": {
+      "supplier": 5,
+      "suppliertype": 5
+    }
+  },
+  {
+    "model": "supplier.supplier_supplier_types",
+    "pk": 10,
+    "fields": {
+      "supplier": 5,
+      "suppliertype": 1
+    }
+  }
+]

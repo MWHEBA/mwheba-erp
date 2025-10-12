@@ -1,0 +1,306 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+{% load custom_filters %}
+
+{% block title %}{% trans "تفاصيل المعاملة المالية" %} #{{ transaction.id }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .transaction-badge {
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-weight: 600;
+  }
+  .transaction-income {
+    background-color: #c2f5d5;
+    color: #0e6245;
+  }
+  .transaction-expense {
+    background-color: #ffd9d9;
+    color: #922020;
+  }
+  .transaction-transfer {
+    background-color: #d9e9ff;
+    color: #1a53a1;
+  }
+  .detail-card {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .detail-header {
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+  }
+  .detail-content {
+    padding: 1.5rem;
+  }
+  .detail-row {
+    margin-bottom: 1rem;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .detail-label {
+    font-weight: 600;
+    width: 180px;
+    color: #555;
+  }
+  .detail-value {
+    flex: 1;
+  }
+  .action-btn {
+    margin-right: 8px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          <li class="breadcrumb-item">
+            <a href="{% url 'core:dashboard' %}">
+              <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item">
+            <a href="{% url 'financial:transaction_list' %}">
+              <i class="fas fa-money-bill-wave me-1"></i>{% trans "المعاملات المالية" %}
+            </a>
+          </li>
+          <li class="breadcrumb-item active" aria-current="page">
+            <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "تفاصيل المعاملة" %} #{{ transaction.id }}
+          </li>
+        </ol>
+      </nav>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          {% if transaction.transaction_type == 'expense' %}
+            <i class="fas fa-money-bill-wave fa-2x text-danger"></i>
+          {% elif transaction.transaction_type == 'income' %}
+            <i class="fas fa-money-bill-wave fa-2x text-success"></i>
+          {% elif transaction.transaction_type == 'sale_payment' %}
+            <i class="fas fa-shopping-cart fa-2x text-primary"></i>
+          {% elif transaction.transaction_type == 'purchase_payment' %}
+            <i class="fas fa-truck fa-2x text-info"></i>
+          {% else %}
+            <i class="fas fa-exchange-alt fa-2x text-secondary"></i>
+          {% endif %}
+        </div>
+        <div>
+          <h1 class="h3 mb-1">
+            {% if transaction.transaction_type == 'expense' %}
+              {% trans "مصروف" %}
+            {% elif transaction.transaction_type == 'income' %}
+              {% trans "إيراد" %}
+            {% elif transaction.transaction_type == 'sale_payment' %}
+              {% trans "دفعة مبيعات" %}
+            {% elif transaction.transaction_type == 'purchase_payment' %}
+              {% trans "دفعة مشتريات" %}
+            {% else %}
+              {% trans "معاملة" %}
+            {% endif %}
+            #{{ transaction.id }}
+          </h1>
+          <p class="text-muted mb-0">{{ transaction.date }}</p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:transaction_list' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "قائمة المعاملات" %}
+        </a>
+        <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+          <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
+        </button>
+      </div>
+    </div>
+  </div>
+  
+  <div class="detail-card mb-4">
+    <div class="detail-header">
+      <div class="d-flex justify-content-between align-items-center">
+        <h2 class="h4 mb-0">{% trans "تفاصيل المعاملة" %}</h2>
+        <div>
+          <span class="transaction-badge transaction-{{ transaction.transaction_type }}">
+            {% if transaction.transaction_type == 'income' %}
+              {% trans "إيراد" %}
+            {% elif transaction.transaction_type == 'expense' %}
+              {% trans "مصروف" %}
+            {% elif transaction.transaction_type == 'transfer' %}
+              {% trans "تحويل" %}
+            {% endif %}
+          </span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="detail-content">
+      <div class="row">
+        <div class="col-md-6">
+          <div class="detail-row">
+            <div class="detail-label">{% trans "المبلغ" %}</div>
+            <div class="detail-value fw-bold">{{ transaction.amount }} {% trans "جنيه" %}</div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "التاريخ" %}</div>
+            <div class="detail-value">{{ transaction.date }}</div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "النوع" %}</div>
+            <div class="detail-value">
+              {% if transaction.transaction_type == 'income' %}
+                <span class="text-success">{% trans "إيراد" %}</span>
+              {% elif transaction.transaction_type == 'expense' %}
+                <span class="text-danger">{% trans "مصروف" %}</span>
+              {% elif transaction.transaction_type == 'transfer' %}
+                <span class="text-primary">{% trans "تحويل" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "الحساب" %}</div>
+            <div class="detail-value">
+              <a href="{% url 'financial:account_detail' transaction.account.id %}">
+                {{ transaction.account.name }}
+              </a>
+            </div>
+          </div>
+        </div>
+        
+        <div class="col-md-6">
+          {% if transaction.transaction_type == 'transfer' and transaction.to_account %}
+          <div class="detail-row">
+            <div class="detail-label">{% trans "الحساب المستلم" %}</div>
+            <div class="detail-value">
+              <a href="{% url 'financial:account_detail' transaction.to_account.id %}">
+                {{ transaction.to_account.name }}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "رقم المرجع" %}</div>
+            <div class="detail-value">
+              {% if transaction.reference_number %}
+                {{ transaction.reference_number }}
+              {% else %}
+                <span class="text-muted">{% trans "غير محدد" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "تاريخ الإنشاء" %}</div>
+            <div class="detail-value">{{ transaction.created_at }}</div>
+          </div>
+          
+          <div class="detail-row">
+            <div class="detail-label">{% trans "أنشئ بواسطة" %}</div>
+            <div class="detail-value">
+              {% if transaction.created_by %}
+                {{ transaction.created_by.get_full_name }}
+              {% else %}
+                <span class="text-muted">{% trans "غير محدد" %}</span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {% if transaction.description %}
+      <div class="detail-row mt-3">
+        <div class="detail-label">{% trans "الوصف" %}</div>
+        <div class="detail-value">{{ transaction.description }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  {% if related_expenses or related_incomes %}
+  <div class="detail-card">
+    <div class="detail-header">
+      <h2 class="h4 mb-0">{% trans "السجلات المرتبطة" %}</h2>
+    </div>
+    
+    <div class="detail-content p-0">
+      <div class="table-responsive">
+        <table class="table table-striped mb-0">
+          <thead>
+            <tr>
+              <th>{% trans "النوع" %}</th>
+              <th>{% trans "العنوان" %}</th>
+              <th>{% trans "التاريخ" %}</th>
+              <th>{% trans "المبلغ" %}</th>
+              <th>{% trans "الحالة" %}</th>
+              <th>{% trans "إجراءات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for expense in related_expenses %}
+            <tr>
+              <td><span class="badge bg-danger">{% trans "مصروف" %}</span></td>
+              <td>{{ expense.title }}</td>
+              <td>{{ expense.date }}</td>
+              <td>{{ expense.amount }}</td>
+              <td>
+                {% if expense.status == 'pending' %}
+                  <span class="badge bg-warning text-dark">{% trans "قيد الانتظار" %}</span>
+                {% elif expense.status == 'paid' %}
+                  <span class="badge bg-success">{% trans "مدفوع" %}</span>
+                {% elif expense.status == 'cancelled' %}
+                  <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'financial:expense_detail' expense.id %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+            
+            {% for income in related_incomes %}
+            <tr>
+              <td><span class="badge bg-success">{% trans "إيراد" %}</span></td>
+              <td>{{ income.title }}</td>
+              <td>{{ income.date }}</td>
+              <td>{{ income.amount }}</td>
+              <td>
+                {% if income.status == 'pending' %}
+                  <span class="badge bg-warning text-dark">{% trans "قيد الانتظار" %}</span>
+                {% elif income.status == 'received' %}
+                  <span class="badge bg-success">{% trans "مستلم" %}</span>
+                {% elif income.status == 'cancelled' %}
+                  <span class="badge bg-danger">{% trans "ملغي" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                <a href="{% url 'financial:income_detail' income.id %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %} 

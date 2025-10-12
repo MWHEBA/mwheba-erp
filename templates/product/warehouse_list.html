@@ -1,0 +1,302 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ page_title|default:"قائمة المخازن" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام مطابق لصفحة المبيعات */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* تصميم badges المخازن */
+  .warehouse-code {
+    background: #e9ecef;
+    padding: 0.35rem 0.65rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: #495057;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+  }
+  
+  .status-badge {
+    padding: 0.4rem 0.85rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    display: inline-block;
+    min-width: 70px;
+    text-align: center;
+  }
+  
+  .status-badge.active {
+    background: #d1e7dd;
+    color: #0f5132;
+  }
+  
+  .status-badge.inactive {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  /* تصميم الروابط */
+  .warehouse-link {
+    color: #344767;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+  }
+  
+  .warehouse-link:hover {
+    color: #0d6efd;
+  }
+
+  /* حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+
+  /* تحسين الجدول */
+  .warehouses-table tbody tr {
+    transition: all 0.3s ease;
+    cursor: pointer;
+  }
+  
+  .warehouses-table tbody tr:hover {
+    background: #f8f9fa;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  /* توسيط جميع خلايا الجدول */
+  .warehouses-table th,
+  .warehouses-table td {
+    text-align: center !important;
+    vertical-align: middle !important;
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .section-container {
+      box-shadow: none !important;
+      border: 1px solid #ccc !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-warehouse fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">قائمة المخازن</h1>
+                    <p class="text-muted mb-0">إدارة المخازن ومتابعة المخزون</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'product:warehouse_create' %}" class="btn btn-success">
+                    <i class="fas fa-plus me-2"></i>إضافة مخزن جديد
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- الفلاتر والإحصائيات -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-filter me-2"></i>فلاتر البحث</h5>
+                <form method="get" id="warehouse-filter-form">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label for="search" class="form-label">البحث</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="search" name="search" placeholder="اسم أو كود المخزن" value="{{ request.GET.search|default:'' }}">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label for="warehouse-status-filter" class="form-label">الحالة</label>
+                            <select class="form-select" id="warehouse-status-filter" name="status">
+                                <option value="all" {% if request.GET.status == 'all' or not request.GET.status %}selected{% endif %}>الكل</option>
+                                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشط</option>
+                                <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>غير نشط</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search me-2"></i>تطبيق الفلاتر
+                                </button>
+                                <a href="{% url 'product:warehouse_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-undo me-2"></i>إعادة تعيين
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات المخازن</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-4">
+                        <div class="stats-card stats-card-primary">
+                            <div class="stats-card-header"></div>
+                            <div class="stats-card-body">
+                                <div class="stats-card-icon">
+                                    <i class="fas fa-warehouse"></i>
+                                </div>
+                                <div class="stats-card-title">إجمالي المخازن</div>
+                                <div class="stats-card-value">{{ total_warehouses|default:"0" }}</div>
+                                <div class="stats-card-unit">مخزن</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-4">
+                        <div class="stats-card stats-card-success">
+                            <div class="stats-card-header"></div>
+                            <div class="stats-card-body">
+                                <div class="stats-card-icon">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                                <div class="stats-card-title">المخازن النشطة</div>
+                                <div class="stats-card-value">{{ active_warehouses|default:"0" }}</div>
+                                <div class="stats-card-unit">مخزن نشط</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول المخازن -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>قائمة المخازن</h5>
+            <div class="actions-container">
+                <span class="badge bg-primary me-2">{{ warehouses.count }} مخزن</span>
+            </div>
+        </div>
+        <div class="table-container">
+            <!-- استخدام الجدول الموحد -->
+            {% if warehouses %}
+              {% with table_id="warehouses-table" %}
+                {% with headers=warehouse_headers %}
+                  {% with data=warehouses %}
+                    {% with action_buttons=warehouse_actions %}
+                      {% with empty_message="لا توجد مستودعات متاحة" %}
+                        {% with clickable_rows=True row_click_url="/products/warehouses/0/" %}
+                          {% with show_export=True export_filename="warehouses" %}
+                            {% include "components/data_table.html" %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% else %}
+              {% include 'partials/empty_state.html' with message="لا توجد مستودعات متاحة" icon="warehouse" %}
+            {% endif %}
+        </div>
+    </div>
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+</script>
+{% endblock %} 

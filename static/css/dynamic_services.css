@@ -1,0 +1,301 @@
+/**
+ * Dynamic Services CSS - نظام الخدمات الديناميكية
+ * 
+ * ملف CSS خاص بنظام الخدمات المتخصصة الديناميكية
+ * يستخدم متغيرات النظام من variables.css
+ */
+
+/* بطاقات اختيار التصنيف */
+.category-card {
+    border: 2px solid var(--border-color);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+    background: var(--bg-card);
+    padding: var(--spacing-4);
+    text-align: center;
+    height: 100%;
+}
+
+.category-card:hover {
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.category-card.selected {
+    border-color: var(--primary-color);
+    color: var(--white);
+    transform: translateY(-2px);
+    box-shadow: var(--card-shadow);
+}
+
+.category-card i {
+    font-size: 2rem;
+    margin-bottom: var(--spacing-2);
+}
+
+/* أقسام النموذج */
+.form-section {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    margin-bottom: var(--spacing-6);
+    overflow: hidden;
+    border: 1px solid var(--border-color);
+}
+
+.form-section-header {
+    background: var(--gray-50);
+    padding: var(--spacing-5);
+    border-bottom: 1px solid var(--border-color);
+}
+
+.form-section-header h5 {
+    margin: 0;
+    color: var(--text-dark);
+    font-weight: var(--font-weight-medium);
+}
+
+.form-section-body {
+    padding: var(--spacing-6);
+}
+
+/* حاوي النموذج الديناميكي */
+.dynamic-form-container {
+    background: var(--gray-50);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-5);
+    margin-top: var(--spacing-5);
+    border: 1px solid var(--border-color);
+}
+
+/* الشرائح السعرية */
+.price-tier {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-3);
+    position: relative;
+}
+
+.price-tier-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: var(--spacing-3);
+}
+
+.tier-remove-btn {
+    position: absolute;
+    top: var(--spacing-3);
+    right: var(--spacing-3);
+    width: 25px;
+    height: 25px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    background: var(--danger-color);
+    color: var(--white);
+    border: none;
+    cursor: pointer;
+    transition: background var(--transition-speed) ease;
+}
+
+.tier-remove-btn:hover {
+    background: var(--danger-dark);
+}
+
+/* أزرار النظام */
+.btn-add-tier {
+    background: var(--info-color);
+    border: none;
+    color: var(--white);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-speed) ease;
+    padding: var(--spacing-2) var(--spacing-4);
+}
+
+.btn-add-tier:hover {
+    background: var(--info-dark);
+    color: var(--white);
+}
+
+.btn-save {
+    background: var(--success-color);
+    border: none;
+    padding: var(--spacing-3) var(--spacing-8);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-speed) ease;
+    color: var(--white);
+}
+
+.btn-save:hover {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow);
+    color: var(--white);
+}
+
+.btn-reset {
+    background: var(--gray-500);
+    border: none;
+    padding: var(--spacing-3) var(--spacing-8);
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--border-radius-sm);
+    transition: all var(--transition-speed) ease;
+    color: var(--white);
+}
+
+.btn-reset:hover {
+    background: var(--gray-600);
+    transform: translateY(-1px);
+    box-shadow: var(--card-shadow);
+    color: var(--white);
+}
+
+/* رابط تغيير التصنيف */
+#change-category-link {
+    font-size: 12px !important;
+    color: var(--gray-500) !important;
+    margin-right: var(--spacing-3);
+    transition: color var(--transition-speed) ease;
+    text-decoration: none;
+}
+
+#change-category-link:hover {
+    color: var(--gray-700) !important;
+    text-decoration: underline !important;
+}
+
+/* حالات التحميل */
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: var(--spacing-10);
+    color: var(--gray-500);
+}
+
+.loading-spinner i {
+    font-size: 2rem;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* الحقول المخفية */
+.custom-size-fields {
+    display: none;
+}
+
+/* تحسينات النماذج */
+.form-floating {
+    margin-bottom: var(--spacing-4);
+}
+
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+/* التنبيهات */
+.alert-info {
+    background: var(--info-soft);
+    border: 1px solid var(--info-color);
+    color: var(--info-dark);
+    border-radius: var(--border-radius-sm);
+}
+
+.alert-warning {
+    background: var(--warning-soft);
+    border: 1px solid var(--warning-color);
+    color: var(--warning-dark);
+    border-radius: var(--border-radius-sm);
+}
+
+.alert-success {
+    background: var(--success-soft);
+    border: 1px solid var(--success-color);
+    color: var(--success-dark);
+    border-radius: var(--border-radius-sm);
+}
+
+.alert-danger {
+    background: var(--danger-soft);
+    border: 1px solid var(--danger-color);
+    color: var(--danger-dark);
+    border-radius: var(--border-radius-sm);
+}
+
+/* ألوان النصوص */
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-success {
+    color: var(--success-color) !important;
+}
+
+.text-info {
+    color: var(--info-color) !important;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.text-muted {
+    color: var(--gray-500) !important;
+}
+
+/* التصميم المتجاوب */
+@media (max-width: 768px) {
+    .form-section-body {
+        padding: var(--spacing-4);
+    }
+    
+    .dynamic-form-container {
+        padding: var(--spacing-4);
+    }
+    
+    .category-card {
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .btn-save,
+    .btn-reset {
+        width: 100%;
+        margin-bottom: var(--spacing-2);
+    }
+}
+
+/* تحسينات إضافية للأداء */
+.category-card,
+.form-section,
+.price-tier,
+.btn-save,
+.btn-reset,
+.btn-add-tier {
+    will-change: transform;
+}
+
+/* حالات التركيز للوصولية */
+.category-card:focus,
+.btn-save:focus,
+.btn-reset:focus,
+.btn-add-tier:focus,
+.tier-remove-btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}

@@ -1,0 +1,160 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="page-title">{% trans "تفاصيل وحدة القياس:" %} {{ unit.name }}</h1>
+                <div>
+                    <a href="{% url 'product:unit_edit' unit.pk %}" class="btn btn-warning">
+                        <i class="fas fa-edit ml-1"></i> {% trans "تعديل" %}
+                    </a>
+                    <a href="{% url 'product:unit_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right ml-1"></i> {% trans "العودة للقائمة" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- بطاقة معلومات وحدة القياس -->
+        <div class="col-md-4 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">{% trans "معلومات وحدة القياس" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3 text-center">
+                        <h2 class="display-6">{{ unit.name }}</h2>
+                        <span class="h3 badge bg-info text-white rounded-pill">{{ unit.symbol }}</span>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>{% trans "الحالة:" %}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            {% if unit.is_active %}
+                            <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                            <span class="badge bg-danger">{% trans "غير نشط" %}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>{% trans "تاريخ الإنشاء:" %}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            {{ unit.created_at|date:"d-m-Y H:i" }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>{% trans "آخر تحديث:" %}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            {{ unit.updated_at|date:"d-m-Y H:i" }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>{% trans "عدد المنتجات:" %}</strong>
+                        </div>
+                        <div class="col-md-6">
+                            <span class="badge bg-primary">{{ products.count }}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer d-flex justify-content-between">
+                    <a href="{% url 'product:unit_edit' unit.pk %}" class="btn btn-warning btn-sm">
+                        <i class="fas fa-edit"></i> {% trans "تعديل" %}
+                    </a>
+                    <a href="{% url 'product:unit_delete' unit.pk %}" class="btn btn-danger btn-sm">
+                        <i class="fas fa-trash"></i> {% trans "حذف" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- قائمة المنتجات التي تستخدم هذه الوحدة -->
+        <div class="col-md-8 mb-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">{% trans "المنتجات المرتبطة" %}</h5>
+                </div>
+                <div class="card-body">
+                    {% if products %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>{% trans "المنتج" %}</th>
+                                    <th>{% trans "الرمز" %}</th>
+                                    <th>{% trans "التصنيف" %}</th>
+                                    <th>{% trans "النوع" %}</th>
+                                    <th>{% trans "سعر البيع" %}</th>
+                                    <th>{% trans "خيارات" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for product in products %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td>{{ product.name }}</td>
+                                    <td><code>{{ product.sku }}</code></td>
+                                    <td>{{ product.category.name }}</td>
+                                    <td>{{ product.brand.name|default:"-" }}</td>
+                                    <td>{{ product.selling_price|custom_number_format }}</td>
+                                    <td>
+                                        <a href="{% url 'product:product_detail' product.pk %}" class="btn btn-sm btn-outline-info">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle ml-1"></i>
+                        {% trans "لا توجد منتجات مرتبطة بهذه الوحدة." %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // تفعيل تنسيق الجدول
+        if (document.querySelector('.table')) {
+            initDataTableArabic('.table', {
+                pageLength: 25,
+                responsive: true
+            });
+        }
+    });
+</script>
+{% endblock %} 

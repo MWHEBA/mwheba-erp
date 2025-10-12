@@ -1,0 +1,31 @@
+{% load i18n %}
+
+<div class="modal-header">
+    <h5 class="modal-title text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% translate "تأكيد الحذف" %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="deletePrintDirectionForm" method="post" action="{{ action_url }}">
+    <div class="modal-body">
+        {% csrf_token %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "هل أنت متأكد من حذف اتجاه الطباعة" %} <strong>"{{ direction.name }}"</strong>؟
+        </div>
+        <p class="text-muted mb-0">
+            {% translate "لا يمكن التراجع عن هذا الإجراء." %}
+        </p>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            {% translate "إلغاء" %}
+        </button>
+        <button type="submit" class="btn btn-danger" onclick="submitForm('deletePrintDirectionForm')">
+            <i class="fas fa-trash me-2"></i>
+            {% translate "حذف" %}
+        </button>
+    </div>
+</form>

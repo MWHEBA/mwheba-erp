@@ -1,0 +1,9 @@
+{% load i18n %}
+<span class="badge bg-info-subtle text-info border border-info fw-bold">
+  <i class="fas fa-boxes me-1"></i>
+  {% if object.products.count %}
+    {{ object.products.count }}
+  {% else %}
+    0
+  {% endif %}
+</span>

@@ -1,0 +1,62 @@
+{% comment %}
+مكون النافذة المنبثقة للاستخدام في مختلف أجزاء التطبيق
+
+الاستخدام:
+{% include "components/modal.html" with id="my-modal" title="عنوان النافذة" %}
+    <p>محتوى النافذة هنا</p>
+    <button type="button" class="btn btn-primary">حفظ</button>
+{% endinclude %}
+
+المعلمات:
+- id: معرف فريد للنافذة (مطلوب)
+- title: عنوان النافذة (اختياري)
+- size: حجم النافذة (اختياري، الخيارات: sm, lg, xl، الافتراضي هو الحجم العادي)
+- centered: محاذاة النافذة للوسط (اختياري، افتراضي True)
+- footer: محتوى تذييل النافذة (اختياري)
+- close_text: نص زر الإغلاق (اختياري، افتراضي "إغلاق")
+- form_modal: هل النافذة تحتوي على نموذج (اختياري، افتراضي False)
+- form_id: معرف النموذج (اختياري، مطلوب إذا كان form_modal=True)
+- form_action: عنوان النموذج (اختياري، مطلوب إذا كان form_modal=True)
+- submit_text: نص زر الإرسال (اختياري، افتراضي "حفظ")
+- static_backdrop: منع إغلاق النافذة بالنقر خارجها (اختياري، افتراضي False)
+{% endcomment %}
+
+<div class="modal fade" id="{{ id }}" tabindex="-1" role="dialog" aria-labelledby="{{ id }}-title" aria-hidden="true" 
+    {% if static_backdrop %}data-bs-backdrop="static" data-bs-keyboard="false"{% endif %}>
+    <div class="modal-dialog {% if size %}modal-{{ size }}{% endif %} {% if centered|default:True %}modal-dialog-centered{% endif %}" role="document">
+        {% if form_modal %}
+            <form id="{{ form_id }}" method="post" action="{{ form_action }}" {% if enctype %}enctype="{{ enctype }}"{% endif %} class="modal-content">
+                {% csrf_token %}
+        {% else %}
+            <div class="modal-content">
+        {% endif %}
+            
+            {% if title %}
+                <div class="modal-header">
+                    <h5 class="modal-title" id="{{ id }}-title">{{ title }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                </div>
+            {% endif %}
+            
+            <div class="modal-body">
+                {{ content|default:"" }}
+            </div>
+            
+            {% if footer or form_modal %}
+                <div class="modal-footer">
+                    {% if form_modal %}
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{ close_text|default:"إغلاق" }}</button>
+                        <button type="submit" class="btn btn-primary">{{ submit_text|default:"حفظ" }}</button>
+                    {% else %}
+                        {{ footer }}
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+        {% if form_modal %}
+            </form>
+        {% else %}
+            </div>
+        {% endif %}
+    </div>
+</div> 

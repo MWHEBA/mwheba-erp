@@ -1,0 +1,24 @@
+<!-- خلية مواصفات الورق -->
+{% load custom_filters %}
+
+<div class="d-flex flex-column align-items-center">
+    <!-- الوزن والمقاس -->
+    <div class="fw-bold text-primary mb-1">
+        {% if row.paperservicedetails.gsm %}
+            {{ row.paperservicedetails.gsm }}جم
+        {% else %}
+            -
+        {% endif %}
+        {% if row.paperservicedetails.sheet_size %}
+            • {{ row.paperservicedetails.sheet_size }}
+        {% endif %}
+    </div>
+    
+    <!-- الماركة إذا وجدت -->
+    {% if row.paperservicedetails.brand %}
+        <div class="small text-muted">
+            <i class="fas fa-trademark me-1"></i>
+            {{ row.paperservicedetails.brand }}
+        </div>
+    {% endif %}
+</div>

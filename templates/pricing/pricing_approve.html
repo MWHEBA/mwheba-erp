@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{% trans "اعتماد طلب التسعير" %} | نظام تسعير الطباعة{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col">
+        <h2>{% trans "اعتماد طلب التسعير" %}: {{ object.order_number }}</h2>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <div class="mb-4">
+                    <h5>{% trans "معلومات الطلب" %}:</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>{% trans "رقم الطلب" %}:</strong> {{ object.order_number }}</p>
+                            <p><strong>{% trans "العميل" %}:</strong> {{ object.client.name }}</p>
+                            <p><strong>{% trans "العنوان" %}:</strong> {{ object.title }}</p>
+                            <p><strong>{% trans "نوع الطلب" %}:</strong> {{ object.get_order_type_display }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>{% trans "الكمية" %}:</strong> {{ object.quantity }}</p>
+                            <p><strong>{% trans "تاريخ الإنشاء" %}:</strong> {{ object.created_at|date:"Y-m-d" }}</p>
+                            <p><strong>{% trans "تم الإنشاء بواسطة" %}:</strong> {{ object.created_by.get_full_name }}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <h5>{% trans "ملخص التكاليف" %}:</h5>
+                    <table class="table table-sm">
+                        <tbody>
+                            <tr>
+                                <th>{% trans "تكلفة الخامات" %}</th>
+                                <td class="text-end">{{ object.material_cost }}</td>
+                            </tr>
+                            <tr>
+                                <th>{% trans "تكلفة الطباعة" %}</th>
+                                <td class="text-end">{{ object.printing_cost }}</td>
+                            </tr>
+                            <tr>
+                                <th>{% trans "تكلفة خدمات مابعد الطباعة" %}</th>
+                                <td class="text-end">{{ object.finishing_cost }}</td>
+                            </tr>
+                            <tr>
+                                <th>{% trans "تكاليف إضافية" %}</th>
+                                <td class="text-end">{{ object.extra_cost }}</td>
+                            </tr>
+                            <tr class="table-secondary">
+                                <th>{% trans "إجمالي التكلفة" %}</th>
+                                <td class="text-end"><strong>{{ object.total_cost }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>{% trans "هامش الربح (%)" %}</th>
+                                <td class="text-end">{{ object.profit_margin }}%</td>
+                            </tr>
+                            <tr class="table-success">
+                                <th>{% trans "سعر البيع الحالي" %}</th>
+                                <td class="text-end"><strong>{{ object.sale_price }}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="form-section p-3 bg-light rounded mb-4">
+                        <h5>{% trans "تعديل السعر النهائي (اختياري)" %}:</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% bootstrap_field form.sale_price %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'pricing:pricing_detail' object.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-right"></i> {% trans "العودة" %}
+                        </a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-check"></i> {% trans "اعتماد الطلب" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">{% trans "ملاحظة" %}</h5>
+            </div>
+            <div class="card-body">
+                <p>{% trans "اعتماد الطلب يعني الموافقة على السعر والتكلفة المحسوبة وجاهزية الطلب للتنفيذ." %}</p>
+                <p>{% trans "يمكنك تعديل السعر النهائي قبل الاعتماد إذا لزم الأمر." %}</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i> {% trans "بعد الاعتماد، لن يمكن تغيير بيانات الطلب الأساسية." %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

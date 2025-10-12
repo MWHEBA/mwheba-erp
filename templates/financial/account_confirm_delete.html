@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "تأكيد الحذف" %}: {{ object }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .delete-card {
+        border-color: #dc3545;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+    .delete-header {
+        background-color: #dc3545;
+        color: white;
+        border-radius: 7px 7px 0 0;
+    }
+    .account-details {
+        background-color: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .detail-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 0.5rem 0;
+        border-bottom: 1px dashed #ddd;
+    }
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card delete-card">
+                <div class="card-header delete-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% trans "تأكيد حذف الحساب" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="card-title mb-4">{% trans "هل أنت متأكد من حذف الحساب المالي التالي؟" %}</h4>
+                    
+                    <div class="account-details">
+                        <div class="detail-row">
+                            <div>{% trans "اسم الحساب" %}</div>
+                            <div><strong>{{ object.name }}</strong></div>
+                        </div>
+                        <div class="detail-row">
+                            <div>{% trans "الكود" %}</div>
+                            <div>{{ object.code }}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div>{% trans "نوع الحساب" %}</div>
+                            <div>{{ object.get_type_display }}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div>{% trans "تصنيف الحساب" %}</div>
+                            <div>{{ object.account_type }}</div>
+                        </div>
+                        <div class="detail-row">
+                            <div>{% trans "الرصيد الحالي" %}</div>
+                            <div class="{% if object.balance > 0 %}text-success{% elif object.balance < 0 %}text-danger{% endif %}">
+                                <strong>{{ object.balance }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if warning_message %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ warning_message }}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ cancel_url }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> {% trans "إلغاء" %}
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-1"></i> {% trans "نعم، قم بالحذف" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

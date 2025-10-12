@@ -1,0 +1,716 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load dict_tags %}
+{% load app_tags %}
+
+{% block title %}تقرير نقطة إعادة الطلب{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام مطابق لصفحة المبيعات */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* تصميم badges نقاط الطلب */
+  .stock-status {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 80px;
+    font-size: 0.85em;
+  }
+  
+  .status-critical { 
+    background: linear-gradient(45deg, #dc3545, #e83e8c); 
+    animation: pulse 2s infinite;
+  }
+  .status-low { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+  .status-normal { background: linear-gradient(45deg, #28a745, #20c997); }
+  .status-overstock { background: linear-gradient(45deg, #17a2b8, #6f42c1); }
+
+  /* تنبيه عاجل */
+  .urgent-alert {
+    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.8; }
+    100% { opacity: 1; }
+  }
+
+  /* شريط التقدم للمخزون */
+  .progress-stock {
+    height: 10px;
+    border-radius: 5px;
+    background-color: #e9ecef;
+  }
+
+  .progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+  }
+
+  /* اقتراح إعادة الطلب */
+  .reorder-suggestion {
+    background: #f8f9fa;
+    border-left: 4px solid #007bff;
+    padding: 10px;
+    margin: 5px 0;
+    border-radius: 5px;
+  }
+
+  /* تصميم الرسوم البيانية */
+  .chart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .chart-title {
+    color: #344767;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  /* حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .section-container {
+      box-shadow: none !important;
+      border: 1px solid #ccc !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'product:product_list' %}">
+                            <i class="fas fa-boxes me-1"></i>المنتجات
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <i class="fas fa-chart-bar me-1"></i>التقارير
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-shopping-cart me-1"></i>تقرير نقطة إعادة الطلب
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-shopping-cart fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">تقرير نقطة إعادة الطلب</h1>
+                    <p class="text-muted mb-0">مراقبة مستويات المخزون وتحديد المنتجات التي تحتاج إعادة طلب</p>
+                </div>
+            </div>
+            <div class="no-print">
+                <button class="btn btn-outline-primary me-2" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i>طباعة
+                </button>
+                <button class="btn btn-success" onclick="exportReorderReport()">
+                    <i class="fas fa-file-excel me-1"></i>تصدير Excel
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Critical Alerts -->
+    {% if critical_items %}
+    <div class="urgent-alert">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+            <div>
+                <h5 class="mb-1">تنبيه عاجل: نفاد المخزون!</h5>
+                <p class="mb-0">
+                    {{ critical_items|length }} منتج وصل للحد الحرج أو نفد تماماً - 
+                    يتطلب إجراء فوري!
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الفلاتر -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>فلاتر التقرير</h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">التصنيف</label>
+                <select name="category" class="form-select">
+                    <option value="">جميع التصنيفات</option>
+                    {% for cat in categories %}
+                        <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                            {{ cat.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">المورد</label>
+                <select name="supplier" class="form-select">
+                    <option value="">جميع الموردين</option>
+                    {% for sup in suppliers %}
+                        <option value="{{ sup.id }}" {% if sup.id|stringformat:"s" == request.GET.supplier %}selected{% endif %}>
+                            {{ sup.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">حالة المخزون</label>
+                <select name="status" class="form-select">
+                    <option value="">جميع الحالات</option>
+                    <option value="critical" {% if request.GET.status == 'critical' %}selected{% endif %}>حرج</option>
+                    <option value="low" {% if request.GET.status == 'low' %}selected{% endif %}>منخفض</option>
+                    <option value="normal" {% if request.GET.status == 'normal' %}selected{% endif %}>طبيعي</option>
+                    <option value="overstock" {% if request.GET.status == 'overstock' %}selected{% endif %}>مخزون زائد</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">يحتاج إعادة طلب</label>
+                <select name="needs_reorder" class="form-select">
+                    <option value="">الكل</option>
+                    <option value="1" {% if request.GET.needs_reorder == '1' %}selected{% endif %}>نعم</option>
+                    <option value="0" {% if request.GET.needs_reorder == '0' %}selected{% endif %}>لا</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">ترتيب حسب</label>
+                <select name="sort" class="form-select">
+                    <option value="urgency" {% if request.GET.sort == 'urgency' %}selected{% endif %}>الأولوية</option>
+                    <option value="stock_level" {% if request.GET.sort == 'stock_level' %}selected{% endif %}>مستوى المخزون</option>
+                    <option value="days_supply" {% if request.GET.sort == 'days_supply' %}selected{% endif %}>أيام التوريد</option>
+                    <option value="value" {% if request.GET.sort == 'value' %}selected{% endif %}>القيمة</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>تطبيق الفلاتر
+                </button>
+                <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
+                    <i class="fas fa-undo me-1"></i>إعادة تعيين
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- كروت الإحصائيات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات نقاط الطلب</h5>
+        <div class="row">
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stats-card-title">حالة حرجة</div>
+                        <div class="stats-card-value">{{ summary.critical_count|default:"0" }}</div>
+                        <div class="stats-card-unit">منتج - نفد أو وصل للحد الأدنى</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-arrow-down"></i>
+                        </div>
+                        <div class="stats-card-title">مخزون منخفض</div>
+                        <div class="stats-card-value">{{ summary.low_count|default:"0" }}</div>
+                        <div class="stats-card-unit">منتج - قارب على نقطة الطلب</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-card-title">مخزون طبيعي</div>
+                        <div class="stats-card-value">{{ summary.normal_count|default:"0" }}</div>
+                        <div class="stats-card-unit">منتج - ضمن المستوى الآمن</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-arrow-up"></i>
+                        </div>
+                        <div class="stats-card-title">مخزون زائد</div>
+                        <div class="stats-card-value">{{ summary.overstock_count|default:"0" }}</div>
+                        <div class="stats-card-unit">منتج - أعلى من الحد الأقصى</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول تفاصيل نقاط الطلب -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-table me-2"></i>تفاصيل نقاط إعادة الطلب</h5>
+            <div class="actions-container">
+                <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="exportTableCSV()">
+                    <i class="fas fa-file-csv me-1"></i>CSV
+                </button>
+                <button type="button" class="btn btn-sm btn-success" onclick="exportTableExcel()">
+                    <i class="fas fa-file-excel me-1"></i>Excel
+                </button>
+            </div>
+        </div>
+        <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>الأولوية</th>
+                            <th>كود المنتج</th>
+                            <th>اسم المنتج</th>
+                            <th>المخزون الحالي</th>
+                            <th>نقطة الطلب</th>
+                            <th>الحد الأقصى</th>
+                            <th>مستوى المخزون</th>
+                            <th>أيام التوريد</th>
+                            <th>الكمية المقترحة</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in reorder_data %}
+                        <tr {% if item.urgency == 'critical' %}class="table-danger"{% elif item.urgency == 'high' %}class="table-warning"{% endif %}>
+                            <td>
+                                {% if item.urgency == 'critical' %}
+                                    <span class="badge bg-danger">عاجل</span>
+                                {% elif item.urgency == 'high' %}
+                                    <span class="badge bg-warning">عالي</span>
+                                {% elif item.urgency == 'medium' %}
+                                    <span class="badge bg-info">متوسط</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">منخفض</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.product.code }}</td>
+                            <td>
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.category %}
+                                    <br><small class="text-muted">{{ item.product.category.name }}</small>
+                                {% endif %}
+                                {% if item.supplier %}
+                                    <br><small class="text-info">{{ item.supplier.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                <strong>{{ item.current_stock|floatformat:0 }}</strong>
+                                {% if item.unit %}
+                                    <small class="text-muted">{{ item.unit.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ item.reorder_point|floatformat:0 }}</td>
+                            <td class="text-end">-</td>
+                            <td>
+                                <div class="progress progress-stock">
+                                    <div class="progress-bar 
+                                        {% if item.stock_percentage <= 25 %}bg-danger progress-bar-animated
+                                        {% elif item.stock_percentage <= 50 %}bg-warning
+                                        {% elif item.stock_percentage <= 100 %}bg-success
+                                        {% else %}bg-info{% endif %}" 
+                                        style="width: {{ item.stock_percentage|floatformat:0 }}%">
+                                    </div>
+                                </div>
+                                <small class="text-muted">{{ item.stock_percentage|floatformat:1 }}%</small>
+                            </td>
+                            <td class="text-end">
+                                {% if item.days_supply %}
+                                    {{ item.days_supply|floatformat:0 }} يوم
+                                {% else %}
+                                    <span class="text-muted">غير محدد</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if item.suggested_quantity > 0 %}
+                                    <strong class="text-primary">{{ item.suggested_quantity|floatformat:0 }}</strong>
+                                    <div class="reorder-suggestion">
+                                        <small>
+                                            <i class="fas fa-lightbulb text-warning"></i>
+                                            اطلب {{ item.suggested_quantity|floatformat:0 }} وحدة
+                                        </small>
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">غير مطلوب</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.current_stock <= 0 %}
+                                    <span class="stock-status status-critical">نفد</span>
+                                {% elif item.current_stock <= item.reorder_point %}
+                                    <span class="stock-status status-critical">حرج</span>
+                                {% elif item.current_stock <= item.reorder_point_threshold %}
+                                    <span class="stock-status status-low">منخفض</span>
+                                {% else %}
+                                    <span class="stock-status status-normal">طبيعي</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" title="عرض التفاصيل" onclick="alert('عرض تفاصيل المنتج')">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    {% if item.suggested_quantity > 0 %}
+                                    <button class="btn btn-outline-success" title="إنشاء أمر شراء" onclick="alert('إنشاء أمر شراء للمنتج')">
+                                        <i class="fas fa-shopping-cart"></i>
+                                    </button>
+                                    {% endif %}
+                                    <button class="btn btn-outline-info" title="حركة المخزون" onclick="alert('عرض حركة المخزون')">
+                                        <i class="fas fa-history"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center py-4">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-shopping-cart"></i>
+                                    </div>
+                                    <h5 class="text-muted">لا توجد منتجات تحتاج إعادة طلب</h5>
+                                    <p class="text-muted">جميع المنتجات ضمن المستويات الآمنة للمخزون</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة Chart.js للرسوم البيانية -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير تقرير نقطة إعادة الطلب إلى Excel
+  function exportReorderReport() {
+    try {
+      let data = [];
+      
+      // العنوان
+      data.push(['تقرير نقطة إعادة الطلب']);
+      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
+      data.push([]);
+      
+      // الإحصائيات
+      data.push(['الإحصائيات:']);
+      data.push(['حالة حرجة', '{{ summary.critical_count|default:"0" }}', 'منتج']);
+      data.push(['مخزون منخفض', '{{ summary.low_count|default:"0" }}', 'منتج']);
+      data.push(['مخزون طبيعي', '{{ summary.normal_count|default:"0" }}', 'منتج']);
+      data.push(['مخزون زائد', '{{ summary.overstock_count|default:"0" }}', 'منتج']);
+      data.push([]);
+      
+      // Headers
+      data.push(['الأولوية', 'كود المنتج', 'اسم المنتج', 'المخزون الحالي', 'نقطة الطلب', 'الحد الأقصى', 'مستوى المخزون %', 'أيام التوريد', 'الكمية المقترحة', 'الحالة']);
+      
+      // إضافة بيانات المنتجات
+      {% for item in reorder_data %}
+      data.push([
+        '{% if item.urgency == "critical" %}عاجل{% elif item.urgency == "high" %}عالي{% elif item.urgency == "medium" %}متوسط{% else %}منخفض{% endif %}',
+        '{{ item.product.code }}',
+        '{{ item.product.name }}',
+        '{{ item.current_stock|floatformat:"0" }}',
+        '{{ item.reorder_point|floatformat:"0" }}',
+        '-',
+        '{{ item.stock_percentage|floatformat:"1" }}%',
+        '{% if item.days_supply %}{{ item.days_supply|floatformat:"0" }} يوم{% else %}غير محدد{% endif %}',
+        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|floatformat:"0" }}{% else %}غير مطلوب{% endif %}',
+        '{% if item.current_stock <= 0 %}نفد{% elif item.current_stock <= item.reorder_point %}حرج{% elif item.current_stock <= item.reorder_point_threshold %}منخفض{% else %}طبيعي{% endif %}'
+      ]);
+      {% endfor %}
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'تقرير نقطة إعادة الطلب');
+      XLSX.writeFile(wb, 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      
+      showNotification('تم تصدير تقرير نقطة إعادة الطلب إلى Excel بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير Excel:', error);
+      showNotification('حدث خطأ أثناء تصدير Excel', 'error');
+    }
+  }
+  
+  // تصدير الجدول إلى CSV
+  function exportTableCSV() {
+    try {
+      const table = document.getElementById('dataTable');
+      let csv = [];
+      
+      // Headers
+      const headers = [];
+      table.querySelectorAll('thead th').forEach(th => {
+        headers.push(th.textContent.trim());
+      });
+      csv.push(headers.join(','));
+      
+      // Rows
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        if (tr.cells.length > 1) { // تجنب صف الحالة الفارغة
+          const row = [];
+          tr.querySelectorAll('td').forEach((td, index) => {
+            if (index < headers.length - 1) { // تجنب عمود الإجراءات
+              let text = td.textContent.trim();
+              row.push('"' + text.replace(/"/g, '""') + '"');
+            }
+          });
+          if (row.length > 0) {
+            csv.push(row.join(','));
+          }
+        }
+      });
+      
+      // تحميل الملف
+      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'تقرير_نقطة_إعادة_الطلب_' + new Date().toISOString().split('T')[0] + '.csv';
+      link.click();
+      
+      showNotification('تم تصدير الجدول إلى CSV بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير CSV:', error);
+      showNotification('حدث خطأ أثناء تصدير CSV', 'error');
+    }
+  }
+  
+  // تصدير الجدول إلى Excel
+  function exportTableExcel() {
+    exportReorderReport(); // استخدام نفس دالة التصدير الشاملة
+  }
+  
+  // تصدير الرسم البياني
+  function exportChart(chartId) {
+    try {
+      const canvas = document.getElementById(chartId);
+      const link = document.createElement('a');
+      link.href = canvas.toDataURL('image/png');
+      link.download = 'رسم_بياني_نقاط_الطلب_' + new Date().toISOString().split('T')[0] + '.png';
+      link.click();
+      
+      showNotification('تم تصدير الرسم البياني بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير الرسم البياني:', error);
+      showNotification('حدث خطأ أثناء تصدير الرسم البياني', 'error');
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  // الرسم البياني
+  const ctx = document.getElementById('stockChart').getContext('2d');
+  const stockChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+          labels: ['حرج', 'منخفض', 'طبيعي', 'زائد'],
+          datasets: [{
+              label: 'عدد المنتجات',
+              data: [
+                  {{ summary.critical_count|default:"0" }},
+                  {{ summary.low_count|default:"0" }},
+                  {{ summary.normal_count|default:"0" }},
+                  {{ summary.overstock_count|default:"0" }}
+              ],
+              backgroundColor: [
+                  '#dc3545',
+                  '#ffc107',
+                  '#28a745',
+                  '#17a2b8'
+              ],
+              borderColor: [
+                  '#c82333',
+                  '#e0a800',
+                  '#1e7e34',
+                  '#138496'
+              ],
+              borderWidth: 1
+          }]
+      },
+      options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+              legend: {
+                  display: false
+              },
+              tooltip: {
+                  callbacks: {
+                      label: function(context) {
+                          return 'عدد المنتجات: ' + context.parsed.y;
+                      }
+                  }
+              }
+          },
+          scales: {
+              y: {
+                  beginAtZero: true,
+                  ticks: {
+                      stepSize: 1
+                  }
+              }
+          }
+      }
+  });
+
+  $(document).ready(function() {
+    // تهيئة الجدول
+    initGlobalTable('dataTable', {
+        order: [[0, 'desc']], // ترتيب حسب الأولوية
+        columnDefs: [
+            {
+                targets: [3, 4, 5, 7, 8], // الأعمدة الرقمية
+                className: 'text-end'
+            },
+            {
+                targets: [10], // عمود الإجراءات
+                orderable: false
+            }
+        ]
+    });
+    
+    // تأثيرات hover للكروت
+    $('.stats-card').hover(
+      function() {
+        $(this).addClass('shadow-lg');
+      },
+      function() {
+        $(this).removeClass('shadow-lg');
+      }
+    );
+  });
+</script>
+{% endblock %}

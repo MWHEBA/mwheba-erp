@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% trans "تفاصيل حركة المخزون" %} #{{ movement.reference_number|default:movement.id }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'product:stock_movement_list' %}">
+                            <i class="fas fa-exchange-alt me-1"></i>{% trans "حركات المخزون" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">{% trans "تفاصيل الحركة" %} #{{ movement.reference_number|default:movement.id }}</li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    {% if movement.movement_type == 'in' %}
+                    <i class="fas fa-arrow-circle-down fa-2x text-success"></i>
+                    {% elif movement.movement_type == 'out' %}
+                    <i class="fas fa-arrow-circle-up fa-2x text-danger"></i>
+                    {% elif movement.movement_type == 'transfer' %}
+                    <i class="fas fa-exchange-alt fa-2x text-primary"></i>
+                    {% elif movement.movement_type == 'adjustment' %}
+                    <i class="fas fa-sliders-h fa-2x text-warning"></i>
+                    {% endif %}
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{% trans "تفاصيل حركة المخزون" %}</h1>
+                    <p class="text-muted mb-0">
+                        {% if movement.movement_type == 'in' %}
+                        <span>{% trans "إضافة مخزون" %}</span>
+                        {% elif movement.movement_type == 'out' %}
+                        <span>{% trans "سحب مخزون" %}</span>
+                        {% elif movement.movement_type == 'transfer' %}
+                        <span>{% trans "تحويل مخزون" %}</span>
+                        {% elif movement.movement_type == 'adjustment' %}
+                        <span>{% trans "تعديل مخزون" %}</span>
+                        {% endif %}
+                        | {{ movement.product.name }} | {{ movement.timestamp|date:"d-m-Y H:i" }}
+                    </p>
+                </div>
+            </div>
+            <div>
+                {% if not movement.document_type or movement.document_type == 'adjustment' %}
+                <a href="{% url 'product:stock_movement_delete' movement.pk %}" class="btn btn-danger me-2">
+                    <i class="fas fa-trash me-2"></i>{% trans "حذف" %}
+                </a>
+                {% endif %}
+                <button type="button" class="btn btn-outline-secondary" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>{% trans "طباعة" %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card shadow-sm mb-4 movement-info">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "معلومات الحركة" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3 text-center">
+                            {% if movement.movement_type == 'in' %}
+                            <span class="badge bg-success mb-3">{% trans "إضافة مخزون" %}</span>
+                            {% elif movement.movement_type == 'out' %}
+                            <span class="badge bg-danger mb-3">{% trans "سحب مخزون" %}</span>
+                            {% elif movement.movement_type == 'transfer' %}
+                            <span class="badge bg-info mb-3">{% trans "تحويل مخزون" %}</span>
+                            {% elif movement.movement_type == 'adjustment' %}
+                            <span class="badge bg-warning mb-3">{% trans "تعديل مخزون" %}</span>
+                            {% endif %}
+                            
+                            <h4 class="mt-2">
+                                {% if movement.movement_type == 'in' or movement.movement_type == 'transfer_in' %}
+                                <span class="text-success">+{{ movement.quantity }}</span>
+                                {% elif movement.movement_type == 'out' or movement.movement_type == 'transfer_out' %}
+                                <span class="text-danger">-{{ movement.quantity }}</span>
+                                {% else %}
+                                <span>{{ movement.quantity }}</span>
+                                {% endif %}
+                            </h4>
+                        </div>
+                        
+                        <dl class="row mb-0">
+                            <dt class="col-sm-5">{% trans "رقم المرجع" %}</dt>
+                            <dd class="col-sm-7"><code>{{ movement.reference_number|default:"-" }}</code></dd>
+                            
+                            <dt class="col-sm-5">{% trans "المنتج" %}</dt>
+                            <dd class="col-sm-7">
+                                <a href="{% url 'product:product_detail' movement.product.pk %}">
+                                    {{ movement.product.name }}
+                                </a>
+                            </dd>
+                            
+                            <dt class="col-sm-5">{% trans "كود المنتج" %}</dt>
+                            <dd class="col-sm-7"><code>{{ movement.product.sku }}</code></dd>
+                            
+                            <dt class="col-sm-5">{% trans "المخزن" %}</dt>
+                            <dd class="col-sm-7">
+                                <a href="{% url 'product:warehouse_detail' movement.warehouse.pk %}">
+                                    {{ movement.warehouse.name }}
+                                </a>
+                            </dd>
+                            
+                            {% if movement.destination_warehouse %}
+                            <dt class="col-sm-5">{% trans "الوجهة" %}</dt>
+                            <dd class="col-sm-7">
+                                <a href="{% url 'product:warehouse_detail' movement.destination_warehouse.pk %}">
+                                    {{ movement.destination_warehouse.name }}
+                                </a>
+                            </dd>
+                            {% endif %}
+                            
+                            <dt class="col-sm-5">{% trans "التاريخ" %}</dt>
+                            <dd class="col-sm-7">{{ movement.timestamp|date:"d-m-Y H:i" }}</dd>
+                            
+                            <dt class="col-sm-5">{% trans "المستخدم" %}</dt>
+                            <dd class="col-sm-7">{{ movement.created_by|default:"-" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                {% if movement.notes %}
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "ملاحظات" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        {{ movement.notes|linebreaks }}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-8">
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "تأثير الحركة" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded mb-3">
+                                    <h6 class="text-muted">{% trans "المخزون قبل" %}</h6>
+                                    <h2 class="mb-0">{{ previous_stock|default:"0" }}</h2>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded mb-3">
+                                    <h6 class="text-muted">{% trans "المخزون بعد" %}</h6>
+                                    <h2 class="mb-0">{{ current_stock|default:"0" }}</h2>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center my-3">
+                            <i class="fas fa-arrow-down fa-2x text-muted"></i>
+                        </div>
+                        
+                        <div class="p-3 border rounded mb-3">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6>{% trans "معلومات المنتج" %}</h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-5">{% trans "التصنيف" %}</dt>
+                                        <dd class="col-sm-7">{{ movement.product.category }}</dd>
+                                        
+                                        <dt class="col-sm-5">{% trans "النوع" %}</dt>
+                                        <dd class="col-sm-7">{{ movement.product.brand|default:"-" }}</dd>
+                                        
+                                        <dt class="col-sm-5">{% trans "وحدة القياس" %}</dt>
+                                        <dd class="col-sm-7">{{ movement.product.unit }}</dd>
+                                    </dl>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6>{% trans "معلومات المخزون" %}</h6>
+                                    <dl class="row mb-0">
+                                        <dt class="col-sm-6">{% trans "الحد الأدنى" %}</dt>
+                                        <dd class="col-sm-6">{{ movement.product.min_stock }}</dd>
+                                        
+                                        
+                                        <dt class="col-sm-6">{% trans "الحالة" %}</dt>
+                                        <dd class="col-sm-6">
+                                            {% if current_stock <= 0 %}
+                                            <span class="badge bg-danger">{% trans "نفذ من المخزون" %}</span>
+                                            {% elif current_stock < movement.product.min_stock %}
+                                            <span class="badge bg-warning">{% trans "مخزون منخفض" %}</span>
+                                            {% else %}
+                                            <span class="badge bg-success">{% trans "مخزون جيد" %}</span>
+                                            {% endif %}
+                                        </dd>
+                                    </dl>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">{% trans "تاريخ حركات المنتج" %}</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if related_movements %}
+                        <div class="movement-timeline">
+                            {% for rel_movement in related_movements %}
+                            <div class="timeline-item">
+                                <h6 class="mb-1">
+                                    {% if rel_movement.id == movement.id %}
+                                    <strong>{{ rel_movement.timestamp|date:"d-m-Y H:i" }}</strong>
+                                    {% else %}
+                                    {{ rel_movement.timestamp|date:"d-m-Y H:i" }}
+                                    {% endif %}
+                                </h6>
+                                <p class="mb-1">
+                                    {% if rel_movement.movement_type == 'in' %}
+                                    <span class="badge bg-success">{% trans "إضافة" %}</span>
+                                    {% elif rel_movement.movement_type == 'out' %}
+                                    <span class="badge bg-danger">{% trans "سحب" %}</span>
+                                    {% elif rel_movement.movement_type == 'transfer' %}
+                                    <span class="badge bg-info">{% trans "تحويل" %}</span>
+                                    {% elif rel_movement.movement_type == 'adjustment' %}
+                                    <span class="badge bg-warning">{% trans "تعديل" %}</span>
+                                    {% endif %}
+                                    
+                                    {% if rel_movement.movement_type == 'in' or rel_movement.movement_type == 'transfer_in' %}
+                                    <span class="text-success fw-bold">+{{ rel_movement.quantity }}</span>
+                                    {% elif rel_movement.movement_type == 'out' or rel_movement.movement_type == 'transfer_out' %}
+                                    <span class="text-danger fw-bold">-{{ rel_movement.quantity }}</span>
+                                    {% else %}
+                                    <span class="fw-bold">{{ rel_movement.quantity }}</span>
+                                    {% endif %}
+                                </p>
+                                <p class="mb-0 text-muted small">
+                                    {% if rel_movement.id == movement.id %}
+                                    <strong>{% trans "الحركة الحالية" %}</strong>
+                                    {% else %}
+                                    <a href="{% url 'product:stock_movement_detail' rel_movement.pk %}">{% trans "عرض التفاصيل" %}</a>
+                                    {% endif %}
+                                    
+                                    {% if rel_movement.reference_number %}
+                                    <span class="mx-2">|</span>
+                                    <span>{{ rel_movement.reference_number }}</span>
+                                    {% endif %}
+                                    
+                                    {% if rel_movement.warehouse %}
+                                    <span class="mx-2">|</span>
+                                    <span>{{ rel_movement.warehouse.name }}</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-center text-muted my-3">{% trans "لا توجد حركات سابقة لهذا المنتج" %}</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

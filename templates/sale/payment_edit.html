@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h4 class="card-title mb-0">{{ page_title }}</h4>
+                    <div>
+                        <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-right"></i> العودة للفاتورة
+                        </a>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- معلومات الفاتورة -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-file-invoice"></i> معلومات الفاتورة</h6>
+                                <p class="mb-1"><strong>رقم الفاتورة:</strong> {{ sale.number }}</p>
+                                <p class="mb-1"><strong>العميل:</strong> {{ sale.customer.name }}</p>
+                                <p class="mb-0"><strong>إجمالي الفاتورة:</strong> {{ sale.total_amount|floatformat:2 }} ج.م</p>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-info-circle"></i> معلومات الدفعة</h6>
+                                <p class="mb-1"><strong>الحالة:</strong> 
+                                    {% if payment.is_posted %}
+                                        <span class="badge badge-success">مرحّلة</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">مسودة</span>
+                                    {% endif %}
+                                </p>
+                                <p class="mb-1"><strong>الحالة المالية:</strong> 
+                                    {% if payment.financial_status == 'synced' %}
+                                        <span class="badge badge-success">مربوطة</span>
+                                    {% elif payment.financial_status == 'pending' %}
+                                        <span class="badge badge-warning">معلقة</span>
+                                    {% elif payment.financial_status == 'failed' %}
+                                        <span class="badge badge-danger">فشل</span>
+                                    {% else %}
+                                        <span class="badge badge-info">يدوي</span>
+                                    {% endif %}
+                                </p>
+                                {% if payment.is_posted %}
+                                    <p class="mb-0"><small class="text-muted">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        تعديل هذه الدفعة سيؤثر على الأرصدة المحاسبية
+                                    </small></p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- نموذج التعديل -->
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- المبلغ -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.amount.id_for_label }}" class="form-label">
+                                    <i class="fas fa-money-bill"></i> {{ form.amount.label }}
+                                </label>
+                                {{ form.amount }}
+                                {% if form.amount.help_text %}
+                                    <small class="form-text text-muted">{{ form.amount.help_text }}</small>
+                                {% endif %}
+                                {% if form.amount.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.amount.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- تاريخ الدفع -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.payment_date.id_for_label }}" class="form-label">
+                                    <i class="fas fa-calendar"></i> {{ form.payment_date.label }}
+                                </label>
+                                {{ form.payment_date }}
+                                {% if form.payment_date.help_text %}
+                                    <small class="form-text text-muted">{{ form.payment_date.help_text }}</small>
+                                {% endif %}
+                                {% if form.payment_date.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.payment_date.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- طريقة الدفع -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.payment_method.id_for_label }}" class="form-label">
+                                    <i class="fas fa-credit-card"></i> {{ form.payment_method.label }}
+                                </label>
+                                {{ form.payment_method }}
+                                {% if form.payment_method.help_text %}
+                                    <small class="form-text text-muted">{{ form.payment_method.help_text }}</small>
+                                {% endif %}
+                                {% if form.payment_method.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.payment_method.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <!-- الحساب المالي -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.financial_account.id_for_label }}" class="form-label">
+                                    <i class="fas fa-university"></i> {{ form.financial_account.label }}
+                                </label>
+                                {{ form.financial_account }}
+                                {% if form.financial_account.help_text %}
+                                    <small class="form-text text-muted">{{ form.financial_account.help_text }}</small>
+                                {% endif %}
+                                {% if form.financial_account.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.financial_account.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <!-- رقم المرجع -->
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.reference_number.id_for_label }}" class="form-label">
+                                    <i class="fas fa-hashtag"></i> {{ form.reference_number.label }}
+                                </label>
+                                {{ form.reference_number }}
+                                {% if form.reference_number.help_text %}
+                                    <small class="form-text text-muted">{{ form.reference_number.help_text }}</small>
+                                {% endif %}
+                                {% if form.reference_number.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.reference_number.errors %}{{ error }}{% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- الملاحظات -->
+                        <div class="mb-3">
+                            <label for="{{ form.notes.id_for_label }}" class="form-label">
+                                <i class="fas fa-sticky-note"></i> {{ form.notes.label }}
+                            </label>
+                            {{ form.notes }}
+                            {% if form.notes.help_text %}
+                                <small class="form-text text-muted">{{ form.notes.help_text }}</small>
+                            {% endif %}
+                            {% if form.notes.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in form.notes.errors %}{{ error }}{% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- أزرار الإجراءات -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save"></i> حفظ التعديلات
+                                </button>
+                                <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> إلغاء
+                                </a>
+                            </div>
+                            
+                            {% if permissions.can_unpost and payment.is_posted %}
+                                <div>
+                                    <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#unpostModal">
+                                        <i class="fas fa-undo"></i> إلغاء الترحيل
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إلغاء الترحيل -->
+{% if permissions.can_unpost and payment.is_posted %}
+<div class="modal fade" id="unpostModal" tabindex="-1" role="dialog">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">إلغاء ترحيل الدفعة</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="post" action="{% url 'sale:unpost_payment_only' payment.pk %}" class="unpost-form">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>تحذير:</strong> إلغاء الترحيل سيحذف القيد المحاسبي المرتبط ويؤثر على الأرصدة.
+                    </div>
+                    <div class="form-group">
+                        <label for="reason">سبب الإلغاء (اختياري):</label>
+                        <textarea name="reason" id="reason" class="form-control" rows="3" 
+                                  placeholder="اكتب سبب إلغاء الترحيل..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-undo"></i> إلغاء الترحيل
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تفعيل validation
+(function() {
+    'use strict';
+    window.addEventListener('load', function() {
+        var forms = document.getElementsByClassName('needs-validation');
+        var validation = Array.prototype.filter.call(forms, function(form) {
+            form.addEventListener('submit', function(event) {
+                if (form.checkValidity() === false) {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+                form.classList.add('was-validated');
+            }, false);
+        });
+    }, false);
+    
+    // معالجة نموذج حفظ الدفعة مع خيار الترحيل
+    const paymentForm = document.getElementById('payment-form');
+    if (paymentForm) {
+        paymentForm.addEventListener('submit', function(e) {
+            // السماح بإرسال النموذج أولاً لحفظ البيانات
+            // سيتم عرض SweetAlert في صفحة النتيجة
+        });
+    }
+})();
+
+// دالة عرض SweetAlert بعد حفظ الدفعة (يتم استدعاؤها من السيرفر)
+function showPostPaymentAlert(paymentId, paymentType = 'sale') {
+    const postUrl = paymentType === 'purchase' 
+        ? `/purchases/payments/${paymentId}/post/`
+        : `/sales/payments/${paymentId}/post/`;
+    
+    showPostAfterSaveAlert('', postUrl, 'الدفعة');
+}
+</script>
+{% endblock %}

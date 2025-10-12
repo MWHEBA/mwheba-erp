@@ -1,0 +1,370 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .stock-indicator {
+    display: inline-block;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 5px;
+  }
+  .stock-indicator.danger {
+    background-color: #dc3545;
+  }
+  .stock-indicator.warning {
+    background-color: #ffc107;
+  }
+  .stock-indicator.success {
+    background-color: #28a745;
+  }
+  .stock-card {
+    transition: all 0.3s ease;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .stock-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+  }
+  .warehouse-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+  }
+  .warehouse-icon {
+    font-size: 2rem;
+    opacity: 0.8;
+  }
+  .stat-item {
+    text-align: center;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+  }
+  .stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+  .stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  .movement-row {
+    transition: all 0.2s ease;
+  }
+  .movement-row:hover {
+    background-color: rgba(0,0,0,0.03);
+  }
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+    <!-- Breadcrumbs -->
+    <div class="mb-2">
+      <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-0">
+          {% for item in breadcrumb_items %}
+            {% if item.active %}
+              <li class="breadcrumb-item active" aria-current="page">
+                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                {{ item.title }}
+              </li>
+            {% else %}
+              <li class="breadcrumb-item">
+                <a href="{{ item.url }}">
+                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                  {{ item.title }}
+                </a>
+              </li>
+            {% endif %}
+          {% endfor %}
+        </ol>
+      </nav>
+    </div>
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        <div class="me-3">
+          <i class="{{ page_icon }} fa-2x text-primary"></i>
+        </div>
+        <div>
+          <h1 class="h3 mb-1">{{ page_title }}</h1>
+          <p class="text-muted mb-0">
+            {% trans "كود المنتج:" %} {{ product.sku }} | 
+            {% trans "التصنيف:" %} {{ product.category.name }} | 
+            {% trans "وحدة القياس:" %} {{ product.unit.name }}
+          </p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'product:product_detail' product.id %}" class="btn btn-outline-secondary">
+          <i class="fas fa-info-circle me-1"></i>{% trans "تفاصيل المنتج" %}
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+    <!-- ملخص المخزون -->
+    <div class="row mb-4">
+      <div class="col-md-3">
+        <div class="stat-item">
+          <h3 class="stat-value">{{ total_stock|floatformat:"0" }}</h3>
+          <p class="stat-label">{% trans "إجمالي المخزون" %}</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <h3 class="stat-value">{{ product.min_stock|floatformat:"0" }}</h3>
+          <p class="stat-label">{% trans "الحد الأدنى" %}</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <h3 class="stat-value">{{ product.max_stock|floatformat:"0" }}</h3>
+          <p class="stat-label">{% trans "الحد الأقصى" %}</p>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="stat-item">
+          <h3 class="stat-value">{{ stock_items.count }}</h3>
+          <p class="stat-label">{% trans "عدد المخازن" %}</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- المخزون في كل مستودع -->
+    <h4 class="mb-4">{% trans "المخزون حسب المستودع" %}</h4>
+    <div class="row">
+      {% for stock in stock_items %}
+      <div class="col-md-4 mb-4">
+        <div class="card stock-card h-100">
+          <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <span class="warehouse-title">{{ stock.warehouse.name }}</span>
+            <i class="fas fa-warehouse warehouse-icon text-muted"></i>
+          </div>
+          <div class="card-body">
+            <div class="text-center mb-3">
+              <h2 class="display-4 fw-bold">{{ stock.quantity|floatformat:"0" }}</h2>
+              <div class="mt-2">
+                {% if stock.quantity <= 0 %}
+                <span class="badge bg-danger">{% trans "نفذ من المخزون" %}</span>
+                {% elif stock.quantity < product.min_stock %}
+                <span class="badge bg-warning">{% trans "مخزون منخفض" %}</span>
+                {% elif stock.quantity > product.max_stock %}
+                <span class="badge bg-info">{% trans "مخزون زائد" %}</span>
+                {% else %}
+                <span class="badge bg-success">{% trans "مخزون جيد" %}</span>
+                {% endif %}
+              </div>
+            </div>
+            <dl class="row mb-0">
+              <dt class="col-sm-6">{% trans "الموقع" %}</dt>
+              <dd class="col-sm-6">{{ stock.warehouse.location|default:"-" }}</dd>
+              
+              <dt class="col-sm-6">{% trans "آخر تحديث" %}</dt>
+              <dd class="col-sm-6">{{ stock.updated_at|date:"d-m-Y" }}</dd>
+            </dl>
+          </div>
+          <div class="card-footer bg-white d-flex justify-content-between">
+            <a href="{% url 'product:warehouse_detail' stock.warehouse.id %}" class="btn btn-sm btn-outline-secondary">
+              <i class="fas fa-warehouse me-1"></i>{% trans "المستودع" %}
+            </a>
+            <a href="#" class="btn btn-sm btn-primary" onclick="openAdjustModal('{{ stock.warehouse.id }}', '{{ stock.warehouse.name }}', {{ stock.quantity }})">
+              <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+            </a>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>{% trans "لا يوجد مخزون لهذا المنتج في أي مستودع." %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    
+    <!-- آخر حركات المخزون -->
+    <div class="mt-5">
+      <h4 class="mb-4">{% trans "آخر حركات المخزون" %}</h4>
+      {% if stock_movements %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>{% trans "التاريخ" %}</th>
+              <th>{% trans "النوع" %}</th>
+              <th>{% trans "الكمية" %}</th>
+              <th>{% trans "المستودع" %}</th>
+              <th>{% trans "الوجهة" %}</th>
+              <th>{% trans "ملاحظات" %}</th>
+              <th>{% trans "خيارات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for movement in stock_movements %}
+            <tr class="movement-row">
+              <td>{{ movement.timestamp|date:"d-m-Y H:i" }}</td>
+              <td>
+                {% if movement.movement_type == 'in' %}
+                <span class="badge bg-success">{% trans "إضافة" %}</span>
+                {% elif movement.movement_type == 'out' %}
+                <span class="badge bg-danger">{% trans "سحب" %}</span>
+                {% elif movement.movement_type == 'transfer' %}
+                <span class="badge bg-primary">{% trans "تحويل" %}</span>
+                {% elif movement.movement_type == 'adjustment' %}
+                <span class="badge bg-warning">{% trans "تعديل" %}</span>
+                {% endif %}
+              </td>
+              <td class="fw-bold">
+                {% if movement.movement_type == 'in' or movement.movement_type == 'transfer_in' %}
+                <span class="text-success">+{{ movement.quantity }}</span>
+                {% elif movement.movement_type == 'out' or movement.movement_type == 'transfer_out' %}
+                <span class="text-danger">-{{ movement.quantity }}</span>
+                {% else %}
+                <span>{{ movement.quantity }}</span>
+                {% endif %}
+              </td>
+              <td>{{ movement.warehouse.name }}</td>
+              <td>{{ movement.destination_warehouse.name|default:"-" }}</td>
+              <td>{{ movement.notes|truncatechars:30|default:"-" }}</td>
+              <td>
+                <a href="{% url 'product:stock_movement_detail' movement.id %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-eye"></i>
+                </a>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد حركات مخزون لهذا المنتج." %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Modal إضافة مخزون -->
+<div class="modal fade" id="addStockModal" tabindex="-1" aria-labelledby="addStockModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="addStockModalLabel">{% trans "إضافة مخزون" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="addStockForm" method="post" action="{% url 'product:add_stock_movement' %}">
+          {% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <input type="hidden" name="movement_type" value="in">
+          
+          <div class="mb-3">
+            <label for="warehouse" class="form-label">{% trans "المستودع" %}</label>
+            <select class="form-select" id="warehouse" name="warehouse_id" required>
+              <option value="">{% trans "اختر المستودع..." %}</option>
+              {% for wh in warehouses %}
+              <option value="{{ wh.id }}">{{ wh.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label for="quantity" class="form-label">{% trans "الكمية" %}</label>
+            <input type="number" class="form-control" id="quantity" name="quantity" min="1" required>
+          </div>
+          
+          <div class="mb-3">
+            <label for="notes" class="form-label">{% trans "ملاحظات" %}</label>
+            <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('addStockForm').submit();">{% trans "إضافة" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal تعديل المخزون -->
+<div class="modal fade" id="adjustStockModal" tabindex="-1" aria-labelledby="adjustStockModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="adjustStockModalLabel">{% trans "تعديل المخزون" %}</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <form id="adjustStockForm" method="post" action="{% url 'product:add_stock_movement' %}">
+          {% csrf_token %}
+          <input type="hidden" name="product_id" value="{{ product.id }}">
+          <input type="hidden" name="movement_type" value="adjustment">
+          <input type="hidden" id="adjust_warehouse_id" name="warehouse_id">
+          
+          <div class="mb-3">
+            <label for="warehouse_name" class="form-label">{% trans "المستودع" %}</label>
+            <input type="text" class="form-control" id="warehouse_name" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label for="current_quantity" class="form-label">{% trans "الكمية الحالية" %}</label>
+            <input type="number" class="form-control" id="current_quantity" readonly>
+          </div>
+          
+          <div class="mb-3">
+            <label for="adjust_quantity" class="form-label">{% trans "الكمية الجديدة" %}</label>
+            <input type="number" class="form-control" id="adjust_quantity" name="quantity" min="0" required>
+          </div>
+          
+          <div class="mb-3">
+            <label for="adjust_notes" class="form-label">{% trans "ملاحظات" %}</label>
+            <textarea class="form-control" id="adjust_notes" name="notes" rows="3"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('adjustStockForm').submit();">{% trans "تعديل" %}</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // تفعيل Select2
+    $('select').select2({
+      theme: 'bootstrap-5',
+      dropdownParent: $('#addStockModal'),
+      placeholder: "{% trans 'اختر...' %}"
+    });
+  });
+  
+  // دالة لفتح نافذة تعديل المخزون
+  function openAdjustModal(warehouseId, warehouseName, currentQuantity) {
+    $('#adjust_warehouse_id').val(warehouseId);
+    $('#warehouse_name').val(warehouseName);
+    $('#current_quantity').val(currentQuantity);
+    $('#adjust_quantity').val(currentQuantity);
+    $('#adjustStockModal').modal('show');
+  }
+</script>
+{% endblock %} 

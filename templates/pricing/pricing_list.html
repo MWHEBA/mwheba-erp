@@ -1,0 +1,235 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+{% load static %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{% trans "قائمة طلبات التسعير" %} | نظام تسعير الطباعة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title|default:"قائمة طلبات التسعير" }}</h1>
+                  <p class="text-muted mb-0">إدارة وعرض جميع طلبات التسعير في النظام</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'pricing:pricing_add' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "إضافة طلب تسعير جديد" %}
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="client" class="form-label">{% trans "العميل" %}</label>
+            <select name="client" id="client" class="form-select">
+                <option value="">{% trans "جميع العملاء" %}</option>
+                {% for client in clients %}
+                    <option value="{{ client.id }}" {% if request.GET.client == client.id|stringformat:"i" %}selected{% endif %}>{{ client.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">{% trans "جميع الحالات" %}</option>
+                {% for status_code, status_name in status_choices %}
+                    <option value="{{ status_code }}" {% if request.GET.status == status_code %}selected{% endif %}>{{ status_name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+            <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from|default:'' }}">
+        </div>
+        <div class="col-md-2">
+            <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+            <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to|default:'' }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <div class="d-grid gap-2 w-100">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i> {% trans "فلترة" %}
+                </button>
+                <a href="{% url 'pricing:pricing_order_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i> {% trans "إعادة ضبط" %}
+                </a>
+            </div>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة طلبات التسعير -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة طلبات التسعير" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'pricing:pricing_add' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة طلب" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% with table_id=table_id %}
+          {% with headers=headers %}
+            {% with data=data %}
+              {% with empty_message="لا توجد طلبات تسعير" %}
+                {% with table_class="hover" %}
+                  {% with action_buttons=action_buttons %}
+                    {% with primary_key=primary_key %}
+                      {% with clickable_rows=clickable_rows row_click_url=row_click_url %}
+                        {% with show_currency=show_currency currency_symbol=currency_symbol %}
+                          {% with show_search=True show_length_menu=True length_options="10,25,50,100" sortable=False %}
+                            {% include "components/data_table.html" %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        {% endwith %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if is_paginated %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" aria-label="First">
+                <span aria-hidden="true">&laquo;&laquo;</span>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" aria-label="Previous">
+                <span aria-hidden="true">&laquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">&laquo;&laquo;</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">&laquo;</span>
+        </li>
+        {% endif %}
+
+        {% for i in paginator.page_range %}
+        {% if page_obj.number == i %}
+        <li class="page-item active"><span class="page-link">{{ i }}</span></li>
+        {% elif i > page_obj.number|add:'-3' and i < page_obj.number|add:'3' %}
+        <li class="page-item"><a class="page-link" href="?page={{ i }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">{{ i }}</a></li>
+        {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" aria-label="Next">
+                <span aria-hidden="true">&raquo;</span>
+            </a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}" aria-label="Last">
+                <span aria-hidden="true">&raquo;&raquo;</span>
+            </a>
+        </li>
+        {% else %}
+        <li class="page-item disabled">
+            <span class="page-link">&raquo;</span>
+        </li>
+        <li class="page-item disabled">
+            <span class="page-link">&raquo;&raquo;</span>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجدول الموحد
+    initializeTable('{{ table_id }}', {
+        "order": [[7, 'desc']], // ترتيب حسب تاريخ الإنشاء
+        "columnDefs": [
+            { "className": "text-center", "targets": [0, 4, 7] }, // رقم الطلب، الكمية، تاريخ الإنشاء
+            { "className": "text-end", "targets": [5] } // سعر البيع
+        ]
+    });
+});
+</script>
+{% endblock %}

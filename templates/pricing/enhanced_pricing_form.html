@@ -1,0 +1,674 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+{% load static %}
+
+{% block title %}نظام التسعير المحسن | mwheba ERP{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link rel="stylesheet" href="{% static 'css/pricing_form.css' %}">
+<style>
+/* تصميم محسن للنظام */
+.pricing-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 30px;
+    padding: 0 20px;
+}
+
+.step {
+    flex: 1;
+    text-align: center;
+    position: relative;
+}
+
+.step::before {
+    content: '';
+    position: absolute;
+    top: 25px;
+    left: 50%;
+    right: -50%;
+    height: 2px;
+    background: #e0e0e0;
+    z-index: 1;
+}
+
+.step:last-child::before {
+    display: none;
+}
+
+.step-number {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #666;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 10px;
+    font-weight: bold;
+    position: relative;
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+.step.active .step-number {
+    background: #007bff;
+    color: white;
+}
+
+.step.completed .step-number {
+    background: #28a745;
+    color: white;
+}
+
+.step-title {
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+.step.active .step-title {
+    color: #007bff;
+    font-weight: 600;
+}
+
+.pricing-section {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    margin-bottom: 25px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.pricing-section:hover {
+    box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+}
+
+.section-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.section-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.section-title i {
+    margin-left: 10px;
+    font-size: 20px;
+}
+
+.section-content {
+    padding: 25px;
+}
+
+.cost-summary {
+    background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    color: white;
+    border-radius: 12px;
+    padding: 25px;
+    margin-top: 20px;
+}
+
+.cost-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+}
+
+.cost-item:last-child {
+    border-bottom: none;
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 10px;
+    padding-top: 20px;
+    border-top: 2px solid rgba(255,255,255,0.3);
+}
+
+.cost-label {
+    font-weight: 500;
+}
+
+.cost-value {
+    font-weight: 600;
+    font-size: 16px;
+}
+
+.btn-calculate {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border: none;
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 20px;
+}
+
+.btn-calculate:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+    color: white;
+}
+
+.loading-spinner {
+    display: none;
+    text-align: center;
+    padding: 20px;
+}
+
+.alert-success {
+    border-left: 4px solid #28a745;
+    background: #d4edda;
+    border-color: #c3e6cb;
+}
+
+.alert-info {
+    border-left: 4px solid #17a2b8;
+    background: #d1ecf1;
+    border-color: #bee5eb;
+}
+
+.form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.form-select:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="pricing-container">
+    <!-- عنوان الصفحة -->
+    <div class="text-center mb-4">
+        <h1 class="display-6 fw-bold text-primary">
+            <i class="fas fa-calculator me-3"></i>
+            نظام التسعير المحسن
+        </h1>
+        <p class="lead text-muted">احسب تكلفة المطبوعات بدقة وسهولة</p>
+    </div>
+
+    <!-- مؤشر الخطوات -->
+    <div class="step-indicator">
+        <div class="step active" id="step-1">
+            <div class="step-number">1</div>
+            <div class="step-title">البيانات الأساسية</div>
+        </div>
+        <div class="step" id="step-2">
+            <div class="step-number">2</div>
+            <div class="step-title">تفاصيل الورق</div>
+        </div>
+        <div class="step" id="step-3">
+            <div class="step-number">3</div>
+            <div class="step-title">الطباعة والتشطيب</div>
+        </div>
+        <div class="step" id="step-4">
+            <div class="step-number">4</div>
+            <div class="step-title">النتائج</div>
+        </div>
+    </div>
+
+    <!-- نموذج التسعير -->
+    <form id="pricing-form">
+        {% csrf_token %}
+        
+        <!-- القسم الأول: البيانات الأساسية -->
+        <div class="pricing-section" id="section-1">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="fas fa-info-circle"></i>
+                    البيانات الأساسية
+                </h3>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">نوع الطلب</label>
+                        <select class="form-select" id="order_type" name="order_type" required>
+                            <option value="">اختر نوع الطلب</option>
+                            <option value="offset">طباعة أوفست</option>
+                            <option value="digital">طباعة رقمية</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">الكمية</label>
+                        <input type="number" class="form-control" id="quantity" name="quantity" 
+                               placeholder="أدخل الكمية المطلوبة" min="1" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">المورد</label>
+                        <select class="form-select" id="supplier" name="supplier" required>
+                            <option value="">جاري التحميل...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">ملاحظات</label>
+                        <input type="text" class="form-control" id="notes" name="notes" 
+                               placeholder="ملاحظات إضافية (اختياري)">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- القسم الثاني: تفاصيل الورق -->
+        <div class="pricing-section" id="section-2">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="fas fa-file-alt"></i>
+                    تفاصيل الورق
+                </h3>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">نوع الورق</label>
+                        <select class="form-select" id="paper_type" name="paper_type" required>
+                            <option value="">جاري التحميل...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">مقاس الورق</label>
+                        <select class="form-select" id="paper_size" name="paper_size" required>
+                            <option value="">جاري التحميل...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">وزن الورق (جرام)</label>
+                        <select class="form-select" id="paper_weight" name="paper_weight" required>
+                            <option value="80">80 جرام</option>
+                            <option value="90">90 جرام</option>
+                            <option value="120">120 جرام</option>
+                            <option value="150">150 جرام</option>
+                            <option value="200">200 جرام</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- معلومات سعر الورق -->
+                <div id="paper-price-info" class="mt-3"></div>
+            </div>
+        </div>
+
+        <!-- القسم الثالث: الطباعة والتشطيب -->
+        <div class="pricing-section" id="section-3">
+            <div class="section-header">
+                <h3 class="section-title">
+                    <i class="fas fa-print"></i>
+                    الطباعة والتشطيب
+                </h3>
+            </div>
+            <div class="section-content">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">ألوان الوجه الأمامي</label>
+                        <select class="form-select" id="colors_front" name="colors_front" required>
+                            <option value="1">لون واحد</option>
+                            <option value="2">لونين</option>
+                            <option value="4" selected>4 ألوان (فول كلر)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label fw-bold">ألوان الوجه الخلفي</label>
+                        <select class="form-select" id="colors_back" name="colors_back" required>
+                            <option value="0" selected>بدون طباعة</option>
+                            <option value="1">لون واحد</option>
+                            <option value="2">لونين</option>
+                            <option value="4">4 ألوان (فول كلر)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- زر الحساب -->
+        <button type="button" class="btn-calculate" id="calculate-btn">
+            <i class="fas fa-calculator me-2"></i>
+            احسب التكلفة الآن
+        </button>
+    </form>
+
+    <!-- مؤشر التحميل -->
+    <div class="loading-spinner" id="loading-spinner">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري الحساب...</span>
+        </div>
+        <p class="mt-2 text-muted">جاري حساب التكلفة، يرجى الانتظار...</p>
+    </div>
+
+    <!-- ملخص التكلفة -->
+    <div class="cost-summary" id="cost-summary" style="display: none;">
+        <h4 class="mb-4">
+            <i class="fas fa-chart-line me-2"></i>
+            ملخص التكلفة
+        </h4>
+        <div class="cost-item">
+            <span class="cost-label">تكلفة المواد:</span>
+            <span class="cost-value" id="material-cost">0.00 جنيه</span>
+        </div>
+        <div class="cost-item">
+            <span class="cost-label">تكلفة الطباعة:</span>
+            <span class="cost-value" id="printing-cost">0.00 جنيه</span>
+        </div>
+        <div class="cost-item">
+            <span class="cost-label">تكلفة الزنكات:</span>
+            <span class="cost-value" id="plates-cost">0.00 جنيه</span>
+        </div>
+        <div class="cost-item">
+            <span class="cost-label">تكلفة التشطيب:</span>
+            <span class="cost-value" id="finishing-cost">0.00 جنيه</span>
+        </div>
+        <div class="cost-item">
+            <span class="cost-label">إجمالي التكلفة:</span>
+            <span class="cost-value" id="total-cost">0.00 جنيه</span>
+        </div>
+        <div class="cost-item">
+            <span class="cost-label">سعر البيع المقترح:</span>
+            <span class="cost-value" id="sale-price">0.00 جنيه</span>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// نظام التسعير المحسن
+class EnhancedPricingSystem {
+    constructor() {
+        this.baseUrl = '/pricing/api/v2/';
+        this.currentStep = 1;
+        this.init();
+    }
+
+    async init() {
+        console.log('تهيئة نظام التسعير المحسن...');
+        await this.loadInitialData();
+        this.setupEventListeners();
+    }
+
+    async loadInitialData() {
+        try {
+            // تحميل الموردين
+            const suppliersResponse = await fetch(this.baseUrl + 'suppliers/');
+            const suppliersData = await suppliersResponse.json();
+            
+            if (suppliersData.success) {
+                this.populateSuppliers(suppliersData.suppliers);
+            }
+
+            // تحميل أنواع الورق
+            const paperTypesResponse = await fetch(this.baseUrl + 'paper-types/');
+            const paperTypesData = await paperTypesResponse.json();
+            
+            if (paperTypesData.success) {
+                this.populatePaperTypes(paperTypesData.paper_types);
+            }
+
+            // تحميل مقاسات الورق
+            const paperSizesResponse = await fetch(this.baseUrl + 'paper-sizes/');
+            const paperSizesData = await paperSizesResponse.json();
+            
+            if (paperSizesData.success) {
+                this.populatePaperSizes(paperSizesData.paper_sizes);
+            }
+
+        } catch (error) {
+            console.error('خطأ في تحميل البيانات:', error);
+            this.showAlert('خطأ في تحميل البيانات الأساسية', 'danger');
+        }
+    }
+
+    populateSuppliers(suppliers) {
+        const select = document.getElementById('supplier');
+        select.innerHTML = '<option value="">اختر المورد</option>';
+        
+        suppliers.forEach(supplier => {
+            const option = document.createElement('option');
+            option.value = supplier.id;
+            option.textContent = supplier.name;
+            select.appendChild(option);
+        });
+    }
+
+    populatePaperTypes(paperTypes) {
+        const select = document.getElementById('paper_type');
+        select.innerHTML = '<option value="">اختر نوع الورق</option>';
+        
+        paperTypes.forEach(type => {
+            const option = document.createElement('option');
+            option.value = type.id;
+            option.textContent = type.name;
+            select.appendChild(option);
+        });
+    }
+
+    populatePaperSizes(paperSizes) {
+        const select = document.getElementById('paper_size');
+        select.innerHTML = '<option value="">اختر مقاس الورق</option>';
+        
+        paperSizes.forEach(size => {
+            const option = document.createElement('option');
+            option.value = size.id;
+            // إزالة الأصفار الزائدة من الأبعاد
+            const width = parseFloat(size.width).toString();
+            const height = parseFloat(size.height).toString();
+            option.textContent = `${size.name} (${width}×${height})`;
+            select.appendChild(option);
+        });
+    }
+
+    setupEventListeners() {
+        // زر الحساب
+        document.getElementById('calculate-btn').addEventListener('click', () => {
+            this.calculateCost();
+        });
+
+        // تغيير المورد أو نوع الورق أو المقاس
+        ['supplier', 'paper_type', 'paper_size', 'paper_weight'].forEach(id => {
+            document.getElementById(id).addEventListener('change', () => {
+                this.updatePaperPrice();
+            });
+        });
+    }
+
+    async updatePaperPrice() {
+        const supplier = document.getElementById('supplier').value;
+        const paperType = document.getElementById('paper_type').value;
+        const paperSize = document.getElementById('paper_size').value;
+        const paperWeight = document.getElementById('paper_weight').value;
+
+        if (supplier && paperType && paperSize && paperWeight) {
+            try {
+                const url = `${this.baseUrl}paper-price/?supplier_id=${supplier}&paper_type_id=${paperType}&paper_size_id=${paperSize}&weight=${paperWeight}`;
+                const response = await fetch(url);
+                const data = await response.json();
+
+                if (data.success) {
+                    this.displayPaperPrice(data);
+                } else {
+                    document.getElementById('paper-price-info').innerHTML = 
+                        '<div class="alert alert-warning">لم يتم العثور على سعر للورق المحدد</div>';
+                }
+            } catch (error) {
+                console.error('خطأ في جلب سعر الورق:', error);
+            }
+        }
+    }
+
+    displayPaperPrice(data) {
+        const info = document.getElementById('paper-price-info');
+        info.innerHTML = `
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle me-2"></i>معلومات سعر الورق</h6>
+                <p class="mb-1"><strong>السعر لكل ورقة:</strong> ${data.price_per_sheet} جنيه</p>
+                <p class="mb-1"><strong>السعر لكل كيلو:</strong> ${data.price_per_kg} جنيه</p>
+                <p class="mb-0"><strong>الحد الأدنى للكمية:</strong> ${data.minimum_quantity} ورقة</p>
+            </div>
+        `;
+    }
+
+    async calculateCost() {
+        // جمع البيانات
+        const formData = {
+            order_type: document.getElementById('order_type').value,
+            quantity: parseInt(document.getElementById('quantity').value),
+            paper_type: document.getElementById('paper_type').value,
+            paper_size: document.getElementById('paper_size').value,
+            paper_weight: parseInt(document.getElementById('paper_weight').value),
+            supplier: document.getElementById('supplier').value,
+            colors_front: parseInt(document.getElementById('colors_front').value),
+            colors_back: parseInt(document.getElementById('colors_back').value)
+        };
+
+        // التحقق من البيانات المطلوبة
+        const requiredFields = ['order_type', 'quantity', 'paper_type', 'paper_size', 'supplier'];
+        for (let field of requiredFields) {
+            if (!formData[field]) {
+                this.showAlert(`يرجى ملء حقل ${this.getFieldLabel(field)}`, 'warning');
+                return;
+            }
+        }
+
+        // إظهار مؤشر التحميل
+        this.showLoading(true);
+        this.updateStep(4);
+
+        try {
+            const response = await fetch(this.baseUrl + 'calculate-cost/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(formData)
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                this.displayResults(data);
+                this.showAlert('تم حساب التكلفة بنجاح!', 'success');
+            } else {
+                this.showAlert(`خطأ في الحساب: ${data.error}`, 'danger');
+            }
+
+        } catch (error) {
+            console.error('خطأ في حساب التكلفة:', error);
+            this.showAlert('حدث خطأ في الاتصال بالخادم', 'danger');
+        } finally {
+            this.showLoading(false);
+        }
+    }
+
+    displayResults(data) {
+        // تحديث القيم
+        document.getElementById('material-cost').textContent = `${parseFloat(data.material_cost).toFixed(2)} جنيه`;
+        document.getElementById('printing-cost').textContent = `${parseFloat(data.printing_cost).toFixed(2)} جنيه`;
+        document.getElementById('plates-cost').textContent = `${parseFloat(data.plates_cost).toFixed(2)} جنيه`;
+        document.getElementById('finishing-cost').textContent = `${parseFloat(data.finishing_cost).toFixed(2)} جنيه`;
+        document.getElementById('total-cost').textContent = `${parseFloat(data.total_cost).toFixed(2)} جنيه`;
+        document.getElementById('sale-price').textContent = `${parseFloat(data.sale_price).toFixed(2)} جنيه`;
+
+        // إظهار ملخص التكلفة
+        document.getElementById('cost-summary').style.display = 'block';
+        
+        // التمرير للنتائج
+        document.getElementById('cost-summary').scrollIntoView({ behavior: 'smooth' });
+    }
+
+    updateStep(step) {
+        // إزالة الحالة النشطة من جميع الخطوات
+        document.querySelectorAll('.step').forEach(s => {
+            s.classList.remove('active');
+        });
+
+        // تحديد الخطوات المكتملة
+        for (let i = 1; i < step; i++) {
+            document.getElementById(`step-${i}`).classList.add('completed');
+        }
+
+        // تحديد الخطوة النشطة
+        document.getElementById(`step-${step}`).classList.add('active');
+        this.currentStep = step;
+    }
+
+    showLoading(show) {
+        const spinner = document.getElementById('loading-spinner');
+        const button = document.getElementById('calculate-btn');
+        
+        if (show) {
+            spinner.style.display = 'block';
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحساب...';
+        } else {
+            spinner.style.display = 'none';
+            button.disabled = false;
+            button.innerHTML = '<i class="fas fa-calculator me-2"></i>احسب التكلفة الآن';
+        }
+    }
+
+    showAlert(message, type) {
+        // إنشاء تنبيه
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${type} alert-dismissible fade show`;
+        alert.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+
+        // إضافة التنبيه في أعلى الصفحة
+        const container = document.querySelector('.pricing-container');
+        container.insertBefore(alert, container.firstChild);
+
+        // إزالة التنبيه تلقائياً بعد 5 ثوان
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 5000);
+    }
+
+    getFieldLabel(field) {
+        const labels = {
+            'order_type': 'نوع الطلب',
+            'quantity': 'الكمية',
+            'paper_type': 'نوع الورق',
+            'paper_size': 'مقاس الورق',
+            'supplier': 'المورد'
+        };
+        return labels[field] || field;
+    }
+}
+
+// تهيئة النظام عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    new EnhancedPricingSystem();
+});
+</script>
+{% endblock %}

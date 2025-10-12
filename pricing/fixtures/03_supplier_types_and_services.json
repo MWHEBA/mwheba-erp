@@ -1,0 +1,227 @@
+[
+  {
+    "model": "supplier.suppliertype",
+    "pk": 10,
+    "fields": {
+      "name": "مطبعة أوفست",
+      "code": "offset_printing",
+      "description": "مطابع متخصصة في الطباعة الأوفست",
+      "icon": "fa-print",
+      "color": "#FF6B6B",
+      "is_active": true,
+      "display_order": 1
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 11,
+    "fields": {
+      "name": "مطبعة ديجيتال",
+      "code": "digital_printing",
+      "description": "مطابع متخصصة في الطباعة الديجيتال",
+      "icon": "fa-desktop",
+      "color": "#4ECDC4",
+      "is_active": true,
+      "display_order": 2
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 12,
+    "fields": {
+      "name": "مخزن ورق",
+      "code": "paper",
+      "description": "موردين متخصصين في أنواع الورق المختلفة",
+      "icon": "fa-file-alt",
+      "color": "#45B7D1",
+      "is_active": true,
+      "display_order": 3
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 13,
+    "fields": {
+      "name": "خدمات التشطيب",
+      "code": "finishing",
+      "description": "خدمات ما بعد الطباعة والتشطيب",
+      "icon": "fa-cut",
+      "color": "#96CEB4",
+      "is_active": true,
+      "display_order": 4
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 14,
+    "fields": {
+      "name": "مكتب فصل",
+      "code": "plates",
+      "description": "إنتاج زنكات CTP للطباعة الأوفست",
+      "icon": "fa-layer-group",
+      "color": "#FECA57",
+      "is_active": true,
+      "display_order": 5
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 20,
+    "fields": {
+      "name": "طباعة أوفست ملونة",
+      "description": "طباعة أوفست بالألوان الكاملة",
+      "category": "printing",
+      "color_code": "#FF6B6B",
+      "display_order": 1,
+      "estimated_duration": 3,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 2,
+    "fields": {
+      "name": "طباعة أوفست أبيض وأسود",
+      "description": "طباعة أوفست بالأبيض والأسود",
+      "category": "printing",
+      "color_code": "#4ECDC4",
+      "display_order": 2,
+      "estimated_duration": 2,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 3,
+    "fields": {
+      "name": "طباعة ديجيتال ملونة",
+      "description": "طباعة ديجيتال بالألوان الكاملة",
+      "category": "printing",
+      "color_code": "#45B7D1",
+      "display_order": 3,
+      "estimated_duration": 1,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 4,
+    "fields": {
+      "name": "طباعة ديجيتال أبيض وأسود",
+      "description": "طباعة ديجيتال بالأبيض والأسود",
+      "category": "printing",
+      "color_code": "#96CEB4",
+      "display_order": 4,
+      "estimated_duration": 1,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 5,
+    "fields": {
+      "name": "توريد ورق أبيض",
+      "description": "توريد أنواع الورق الأبيض المختلفة",
+      "category": "paper",
+      "color_code": "#FECA57",
+      "display_order": 5,
+      "estimated_duration": 1,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 25,
+    "fields": {
+      "name": "توريد ورق ملون",
+      "description": "توريد أنواع الورق الملون والمتخصص",
+      "category": "paper",
+      "color_code": "#FF9FF3",
+      "display_order": 6,
+      "estimated_duration": 2,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 26,
+    "fields": {
+      "name": "قص وتشطيب",
+      "description": "خدمات القص والتشطيب النهائي",
+      "category": "finishing",
+      "color_code": "#54A0FF",
+      "display_order": 7,
+      "estimated_duration": 1,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 27,
+    "fields": {
+      "name": "تجليد وتدبيس",
+      "description": "خدمات التجليد والتدبيس",
+      "category": "finishing",
+      "color_code": "#5F27CD",
+      "display_order": 8,
+      "estimated_duration": 2,
+      "is_active": true,
+      "requires_approval": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 28,
+    "fields": {
+      "name": "إنتاج زنكات CTP",
+      "description": "إنتاج زنكات CTP للطباعة الأوفست",
+      "category": "prepress",
+      "color_code": "#00D2D3",
+      "display_order": 9,
+      "estimated_duration": 1,
+      "is_active": true,
+      "requires_approval": false,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "supplier.supplierservicetag",
+    "pk": 10,
+    "fields": {
+      "name": "تصميم وإخراج",
+      "description": "خدمات التصميم والإخراج الفني",
+      "category": "design",
+      "color_code": "#FF6348",
+      "display_order": 10,
+      "estimated_duration": 3,
+      "is_active": true,
+      "requires_approval": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z"
+    }
+  }
+]

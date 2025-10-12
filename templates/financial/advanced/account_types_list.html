@@ -1,0 +1,399 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-type-list {
+        background: #ffffff;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+    }
+    
+    .parent-type {
+        background: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+        padding: 1rem;
+        font-weight: 600;
+        border-radius: 6px 6px 0 0;
+    }
+    
+    .parent-type .type-icon {
+        font-size: 1.25rem;
+    }
+    
+    .parent-type .type-name {
+        color: #212529;
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    
+    .parent-type .type-category {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    
+    .parent-type .type-nature {
+        background: #e9ecef;
+        color: #495057;
+        border: 1px solid #dee2e6;
+    }
+    
+    .child-type {
+        padding: 0.75rem 1rem 0.75rem 3rem;
+        border-bottom: 1px solid #f1f3f4;
+        border-right: 3px solid #dee2e6;
+        background: white;
+    }
+    
+    .child-type:hover {
+        background: #f8f9fa;
+    }
+    
+    .child-type:last-child {
+        border-bottom: none;
+        border-radius: 0 0 6px 6px;
+    }
+    .type-group {
+        margin-bottom: 0.5rem;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid #dee2e6;
+        transition: border-color 0.2s ease;
+        cursor: pointer;
+    }
+    
+    .type-icon {
+        margin-left: 0.5rem;
+        color: #6c757d;
+    }
+    
+    .type-name {
+        color: #495057;
+        font-weight: 500;
+    }
+    
+    .type-category {
+        color: #6c757d;
+        font-size: 0.875rem;
+    }
+    
+    .type-nature {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+    }
+    
+    .btn-edit {
+        color: #6c757d;
+        border: none;
+        background: none;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    
+    .btn-edit:hover {
+        color: #007bff;
+    }
+    
+    .toggle-children {
+        cursor: pointer;
+        border: none;
+        background: none;
+        padding: 0.1rem 0.3rem;
+    }
+    
+    /* تحسينات للهيكل الهرمي الجديد */
+    .children-container {
+        border-right: 1px solid #e9ecef;
+        margin-right: 1rem;
+        padding-right: 1rem;
+        cursor: default !important;
+    }
+    
+    
+    /* إضافة cursor للصف كله */
+    .type-group {
+        cursor: pointer !important;
+    }
+    
+    /* منع cursor على الأزرار والروابط */
+    .type-group .btn-edit,
+    .type-group .toggle-children,
+    .type-group a,
+    .type-group button {
+        cursor: pointer;
+    }
+    
+    .toggle-children:hover {
+        color: #007bff;
+    }
+    
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">إدارة أنواع الحسابات المحاسبية وتصنيفاتها</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:account_types_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>إضافة نوع جديد
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <i class="fas fa-layer-group fa-2x text-primary mb-2"></i>
+                <h3 class="mb-0">{{ total_types }}</h3>
+                <p class="text-muted mb-0">إجمالي الأنواع</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <i class="fas fa-sitemap fa-2x text-success mb-2"></i>
+                <h3 class="mb-0">{{ root_count }}</h3>
+                <p class="text-muted mb-0">الأنواع الرئيسية</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0">
+            <div class="card-body text-center">
+                <i class="fas fa-code-branch fa-2x text-info mb-2"></i>
+                <h3 class="mb-0">{{ child_count }}</h3>
+                <p class="text-muted mb-0">الأنواع الفرعية</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- أدوات التحكم في الهيكل الهرمي -->
+{% if tree_structure %}
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="d-flex justify-content-end gap-2">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="expandAllAccountTypes()">
+                <i class="fas fa-expand-arrows-alt me-1"></i>توسيع الكل
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="collapseAllAccountTypes()">
+                <i class="fas fa-compress-arrows-alt me-1"></i>طي الكل
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- قائمة أنواع الحسابات الهرمية الجديدة -->
+{% if tree_structure %}
+    {% for tree_item in tree_structure %}
+        {% include 'financial/advanced/account_type_tree_item.html' with item=tree_item %}
+    {% endfor %}
+{% else %}
+    <!-- عرض مؤقت لجميع الأنواع -->
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        عرض مؤقت لجميع أنواع الحسابات ({{ all_types.count }} نوع)
+    </div>
+    
+    {% for account_type in all_types %}
+    <div class="card mb-2">
+        <div class="card-body py-2">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <span class="badge bg-primary me-2">{{ account_type.level }}</span>
+                    <span class="me-2"></span>
+                    <div>
+                        <strong>{{ account_type.name }}</strong>
+                        <small class="text-muted d-block">{{ account_type.code }}</small>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-secondary">{{ account_type.category }}</span>
+                    <span class="badge {% if account_type.nature == 'debit' %}bg-success{% else %}bg-warning{% endif %}">
+                        {% if account_type.nature == 'debit' %}مدين{% else %}دائن{% endif %}
+                    </span>
+                    {% if not account_type.is_active %}
+                    <span class="badge bg-danger">غير نشط</span>
+                    {% endif %}
+                    <a href="{% url 'financial:account_types_edit' account_type.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+
+{% if not tree_structure and not all_types %}
+<div class="text-center py-5">
+    <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
+    <h4 class="text-muted">لا توجد أنواع حسابات</h4>
+    <p class="text-muted">ابدأ بإضافة أنواع الحسابات الأساسية</p>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block header_actions %}
+<div>
+    <a href="{% url 'financial:account_types_create' %}" class="btn btn-primary btn-lg">
+        <i class="fas fa-plus me-2"></i>إضافة نوع جديد
+    </a>
+    <a href="{% url 'financial:chart_of_accounts_list' %}" class="btn btn-outline-primary btn-lg ms-2">
+        <i class="fas fa-list me-2"></i>دليل الحسابات
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// JavaScript للتوسيط والطي في أنواع الحسابات
+document.addEventListener('DOMContentLoaded', function() {
+    // دالة بسيطة للتوسيط والطي
+    function toggleChildren(typeId) {
+        const target = document.querySelector('#children-' + typeId);
+        const icon = document.querySelector('[data-target="#children-' + typeId + '"] i');
+        
+        console.log('Toggle function - TypeId:', typeId);
+        console.log('Target found:', !!target);
+        console.log('Icon found:', !!icon);
+        
+        if (target && icon) {
+            if (target.style.display === 'none' || target.style.display === '') {
+                target.style.display = 'block';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+                console.log('Opened children for:', typeId);
+            } else {
+                target.style.display = 'none';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+                console.log('Closed children for:', typeId);
+            }
+        } else {
+            console.log('Missing elements - Target:', !!target, 'Icon:', !!icon);
+        }
+    }
+    
+    // إضافة النقر لكل type-group
+    document.querySelectorAll('.type-group').forEach(function(typeGroup) {
+        const typeId = typeGroup.dataset.typeId;
+        const toggleButton = typeGroup.querySelector('.toggle-children');
+        
+        console.log('Type Group:', typeId, 'Has Toggle:', !!toggleButton);
+        
+        if (toggleButton && typeId) {
+            // النقر على الصف كله
+            typeGroup.addEventListener('click', function(e) {
+                console.log('Clicked on type:', typeId, 'Target:', e.target.tagName);
+                
+                // تجاهل النقر على الأزرار والروابط
+                if (e.target.tagName === 'A' || 
+                    e.target.tagName === 'BUTTON' || 
+                    e.target.closest('a') || 
+                    e.target.closest('button')) {
+                    console.log('Ignored click on button/link');
+                    return;
+                }
+                
+                e.stopPropagation();
+                console.log('Toggling children for:', typeId);
+                toggleChildren(typeId);
+            });
+        }
+    });
+    
+    // دالة التوسيط والطي للأزرار (للتوافق)
+    document.querySelectorAll('.toggle-children').forEach(function(button) {
+        button.addEventListener('click', function(e) {
+            e.stopPropagation(); // منع انتشار الحدث للصف
+            const target = document.querySelector(this.dataset.target);
+            const icon = this.querySelector('i');
+            
+            if (target) {
+                if (target.style.display === 'none' || target.style.display === '') {
+                    target.style.display = 'block';
+                    icon.classList.remove('fa-chevron-down');
+                    icon.classList.add('fa-chevron-up');
+                } else {
+                    target.style.display = 'none';
+                    icon.classList.remove('fa-chevron-up');
+                    icon.classList.add('fa-chevron-down');
+                }
+            }
+        });
+    });
+    
+    // دالة توسيع الكل
+    window.expandAllAccountTypes = function() {
+        document.querySelectorAll('.children-container').forEach(function(container) {
+            container.style.display = 'block';
+        });
+        document.querySelectorAll('.toggle-children i').forEach(function(icon) {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        });
+    };
+    
+    // دالة طي الكل
+    window.collapseAllAccountTypes = function() {
+        document.querySelectorAll('.children-container').forEach(function(container) {
+            container.style.display = 'none';
+        });
+        document.querySelectorAll('.toggle-children i').forEach(function(icon) {
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        });
+    };
+});
+</script>
+{% endblock %}

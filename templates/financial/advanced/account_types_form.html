@@ -1,0 +1,312 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">
+                        <i class="{{ page_icon }} me-2"></i>{{ page_title }}
+                    </h1>
+                    <p class="text-muted mb-0">إدارة أنواع الحسابات المحاسبية</p>
+                </div>
+                <div>
+                    <a href="{% url 'financial:account_types_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-layer-group me-2"></i>معلومات نوع الحساب
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- المعلومات الأساسية -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-info-circle me-2"></i>المعلومات الأساسية
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="code" class="form-label required">كود النوع</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="code" 
+                                               name="code" 
+                                               value="{% if account_type %}{{ account_type.code }}{% endif %}"
+                                               placeholder="مثال: ASSET"
+                                               maxlength="10"
+                                               required>
+                                        <div class="form-text">كود فريد لنوع الحساب (حروف إنجليزية فقط)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="name" class="form-label required">اسم النوع</label>
+                                        <input type="text" 
+                                               class="form-control" 
+                                               id="name" 
+                                               name="name" 
+                                               value="{% if account_type %}{{ account_type.name }}{% endif %}"
+                                               placeholder="مثال: الأصول"
+                                               maxlength="100"
+                                               required>
+                                        <div class="form-text">اسم نوع الحساب باللغة العربية</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- التصنيف والطبيعة -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-tags me-2"></i>التصنيف والطبيعة
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="category" class="form-label required">التصنيف</label>
+                                        <select class="form-select" id="category" name="category" required>
+                                            <option value="">اختر التصنيف</option>
+                                            <option value="asset" {% if account_type.category == 'asset' %}selected{% endif %}>أصول</option>
+                                            <option value="liability" {% if account_type.category == 'liability' %}selected{% endif %}>خصوم</option>
+                                            <option value="equity" {% if account_type.category == 'equity' %}selected{% endif %}>حقوق الملكية</option>
+                                            <option value="revenue" {% if account_type.category == 'revenue' %}selected{% endif %}>إيرادات</option>
+                                            <option value="expense" {% if account_type.category == 'expense' %}selected{% endif %}>مصروفات</option>
+                                        </select>
+                                        <div class="form-text">التصنيف المحاسبية الرئيسية لهذا النوع</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="nature" class="form-label required">الطبيعة</label>
+                                        <select class="form-select" id="nature" name="nature" required>
+                                            <option value="">اختر الطبيعة</option>
+                                            <option value="debit" {% if account_type.nature == 'debit' %}selected{% endif %}>مدين</option>
+                                            <option value="credit" {% if account_type.nature == 'credit' %}selected{% endif %}>دائن</option>
+                                        </select>
+                                        <div class="form-text">الطبيعة المحاسبية للحساب (مدين أم دائن)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- التسلسل الهرمي -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-sitemap me-2"></i>التسلسل الهرمي
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="parent" class="form-label">النوع الأب</label>
+                                        <select class="form-select" id="parent" name="parent">
+                                            <option value="">لا يوجد (نوع رئيسي)</option>
+                                            {% for parent_type in parent_types %}
+                                                <option value="{{ parent_type.id }}" 
+                                                        {% if account_type.parent_id == parent_type.id %}selected{% endif %}>
+                                                    {{ parent_type.code }} - {{ parent_type.name }}
+                                                </option>
+                                            {% endfor %}
+                                        </select>
+                                        <div class="form-text">النوع الأب في التسلسل الهرمي (اختياري)</div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="level" class="form-label">المستوى</label>
+                                        <input type="number" 
+                                               class="form-control" 
+                                               id="level" 
+                                               name="level" 
+                                               value="{% if account_type %}{{ account_type.level }}{% else %}1{% endif %}"
+                                               min="1" 
+                                               max="10"
+                                               readonly>
+                                        <div class="form-text">المستوى في التسلسل الهرمي (يُحسب تلقائياً)</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- الحالة -->
+                        <div class="form-section mb-4">
+                            <h6 class="section-title">
+                                <i class="fas fa-toggle-on me-2"></i>الحالة
+                            </h6>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input" 
+                                                   type="checkbox" 
+                                                   id="is_active" 
+                                                   name="is_active"
+                                                   {% if not account_type or account_type.is_active %}checked{% endif %}>
+                                            <label class="form-check-label" for="is_active">
+                                                نوع حساب نشط
+                                            </label>
+                                        </div>
+                                        <div class="form-text">يمكن استخدام هذا النوع في إنشاء حسابات جديدة</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- أزرار الحفظ والإلغاء -->
+                        <div class="form-section">
+                            <div class="row">
+                                <div class="col-12 text-center">
+                                    <button type="submit" class="btn btn-save me-3">
+                                        <i class="fas fa-save"></i>
+                                        حفظ
+                                    </button>
+                                    <a href="#" onclick="window.history.back(); return false;"financial:account_types_list' %}" class="btn btn-cancel">
+                                        <i class="fas fa-times"></i>
+                                        إلغاء
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديث المستوى تلقائياً عند تغيير النوع الأب
+    const parentSelect = document.getElementById('parent');
+    const levelInput = document.getElementById('level');
+    
+    parentSelect.addEventListener('change', function() {
+        if (this.value) {
+            // إذا تم اختيار نوع أب، زيادة المستوى
+            levelInput.value = 2; // يمكن تحسين هذا لحساب المستوى الفعلي
+        } else {
+            // إذا لم يتم اختيار نوع أب، المستوى 1
+            levelInput.value = 1;
+        }
+    });
+    
+    // تحديث الطبيعة تلقائياً بناءً على التصنيف
+    const categorySelect = document.getElementById('category');
+    const natureSelect = document.getElementById('nature');
+    
+    categorySelect.addEventListener('change', function() {
+        const category = this.value;
+        
+        // تحديد الطبيعة المناسبة لكل فئة
+        const natureMapping = {
+            'asset': 'debit',
+            'expense': 'debit',
+            'liability': 'credit',
+            'equity': 'credit',
+            'revenue': 'credit'
+        };
+        
+        if (natureMapping[category]) {
+            natureSelect.value = natureMapping[category];
+        }
+    });
+    
+    // التحقق من صحة البيانات
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const code = document.getElementById('code').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const category = document.getElementById('category').value;
+        const nature = document.getElementById('nature').value;
+        
+        if (!code || !name || !category || !nature) {
+            e.preventDefault();
+            alert('يرجى ملء جميع الحقول المطلوبة');
+            return false;
+        }
+        
+        // التحقق من صحة الكود (حروف إنجليزية فقط)
+        const codePattern = /^[A-Z_]+$/;
+        if (!codePattern.test(code)) {
+            e.preventDefault();
+            alert('كود النوع يجب أن يحتوي على حروف إنجليزية كبيرة وشرطة سفلية فقط');
+            return false;
+        }
+    });
+});
+</script>
+
+<style>
+.form-section {
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 1rem;
+}
+
+.form-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.section-title {
+    color: #495057;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #007bff;
+}
+
+.required::after {
+    content: " *";
+    color: #dc3545;
+}
+
+.btn-save {
+    background-color: #28a745;
+    border-color: #28a745;
+    color: white;
+    padding: 0.5rem 2rem;
+}
+
+.btn-save:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+    color: white;
+}
+
+.btn-cancel {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    color: white;
+    padding: 0.5rem 2rem;
+}
+
+.btn-cancel:hover {
+    background-color: #5a6268;
+    border-color: #545b62;
+    color: white;
+}
+</style>
+{% endblock %}

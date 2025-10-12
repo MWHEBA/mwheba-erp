@@ -1,0 +1,816 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load dict_tags %}
+{% load app_tags %}
+
+{% block title %}تقرير تقادم المخزون{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام مطابق لصفحة المبيعات */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  /* كروت الإحصائيات */
+  .stats-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+
+  /* تصميم badges التقادم */
+  .aging-badge {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 80px;
+    font-size: 0.85em;
+  }
+  
+  .aging-fresh { background: linear-gradient(45deg, #28a745, #20c997); }
+  .aging-good { background: linear-gradient(45deg, #17a2b8, #6f42c1); }
+  .aging-warning { background: linear-gradient(45deg, #ffc107, #fd7e14); }
+  .aging-danger { background: linear-gradient(45deg, #dc3545, #e83e8c); }
+  .aging-critical { background: linear-gradient(45deg, #6f42c1, #e83e8c); }
+
+  /* تنبيه انتهاء الصلاحية */
+  .expiry-alert {
+    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    color: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+  }
+
+  .value-at-risk {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #fff;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+  }
+
+  /* تصميم الرسوم البيانية */
+  .chart-container {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .chart-title {
+    color: #344767;
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  /* حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    .section-container {
+      box-shadow: none !important;
+      border: 1px solid #ccc !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>الرئيسية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'product:product_list' %}">
+                          <i class="fas fa-boxes me-1"></i>المنتجات
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <i class="fas fa-chart-bar me-1"></i>التقارير
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-clock me-1"></i>تقرير تقادم المخزون
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-clock fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">تقرير تقادم المخزون</h1>
+                  <p class="text-muted mb-0">تحليل أعمار المخزون وتواريخ انتهاء الصلاحية</p>
+              </div>
+          </div>
+          <div>
+              <button type="button" class="btn btn-outline-primary me-2" onclick="window.print()">
+                  <i class="fas fa-print me-1"></i>طباعة
+              </button>
+              <button type="button" class="btn btn-success" onclick="exportStockAging()">
+                  <i class="fas fa-file-excel me-1"></i>تصدير Excel
+              </button>
+          </div>
+      </div>
+  </div>
+
+    <!-- Critical Alerts -->
+    {% if critical_items %}
+    <div class="expiry-alert">
+        <div class="d-flex align-items-center">
+            <i class="fas fa-exclamation-triangle fa-2x me-3"></i>
+            <div>
+                <h5 class="mb-1">تنبيه: منتجات قاربت على انتهاء الصلاحية!</h5>
+                <p class="mb-0">
+                    {{ critical_items|length }} منتج ينتهي خلال 30 يوم - 
+                    القيمة المعرضة للخطر: <span class="value-at-risk">{{ critical_value|floatformat:2 }} ج.م</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+  <!-- الفلاتر والبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>فلاتر التقرير</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-2">
+            <label class="form-label">التصنيف</label>
+            <select name="category" class="form-select">
+                <option value="">جميع التصنيفات</option>
+                {% for cat in categories %}
+                    <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                        {{ cat.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">المخزن</label>
+            <select name="warehouse" class="form-select">
+                <option value="">جميع المخازن</option>
+                {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if wh.id|stringformat:"s" == request.GET.warehouse %}selected{% endif %}>
+                        {{ wh.name }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">فئة العمر</label>
+            <select name="age_group" class="form-select">
+                <option value="">جميع التصنيفات</option>
+                <option value="fresh" {% if request.GET.age_group == 'fresh' %}selected{% endif %}>جديد (0-30 يوم)</option>
+                <option value="good" {% if request.GET.age_group == 'good' %}selected{% endif %}>جيد (31-90 يوم)</option>
+                <option value="warning" {% if request.GET.age_group == 'warning' %}selected{% endif %}>تحذير (91-180 يوم)</option>
+                <option value="danger" {% if request.GET.age_group == 'danger' %}selected{% endif %}>خطر (181-365 يوم)</option>
+                <option value="critical" {% if request.GET.age_group == 'critical' %}selected{% endif %}>حرج (+365 يوم)</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">الحد الأدنى للكمية</label>
+            <input type="number" name="min_quantity" class="form-control" value="{{ request.GET.min_quantity }}" placeholder="0">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">يشمل منتهي الصلاحية</label>
+            <select name="include_expired" class="form-select">
+                <option value="1" {% if request.GET.include_expired != '0' %}selected{% endif %}>نعم</option>
+                <option value="0" {% if request.GET.include_expired == '0' %}selected{% endif %}>لا</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary me-2">
+                <i class="fas fa-search me-1"></i>تطبيق
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
+                <i class="fas fa-undo me-1"></i>إعادة تعيين
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- إحصائيات التقادم -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات التقادم</h5>
+    <div class="row">
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-seedling"></i>
+                    </div>
+                    <div class="stats-card-title">جديد (0-30)</div>
+                    <div class="stats-card-value">{{ summary.fresh_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.fresh_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-title">جيد (31-90)</div>
+                    <div class="stats-card-value">{{ summary.good_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.good_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-card-title">تحذير (91-180)</div>
+                    <div class="stats-card-value">{{ summary.warning_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.warning_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stats-card-title">خطر (181-365)</div>
+                    <div class="stats-card-value">{{ summary.danger_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.danger_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-secondary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-skull-crossbones"></i>
+                    </div>
+                    <div class="stats-card-title">حرج (+365)</div>
+                    <div class="stats-card-value">{{ summary.critical_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.critical_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6 col-lg-2 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-boxes"></i>
+                    </div>
+                    <div class="stats-card-title">الإجمالي</div>
+                    <div class="stats-card-value">{{ summary.total_count|default:"0" }}</div>
+                    <div class="stats-card-unit">منتج - {{ summary.total_value|default:"0"|floatformat:0 }} جنيه</div>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- الرسوم البيانية -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>التحليل البياني</h5>
+    <div class="row">
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container">
+                <div class="chart-header">
+                    <div>
+                        <h6 class="chart-title">توزيع المنتجات حسب العمر</h6>
+                        <p class="chart-subtitle">عدد المنتجات في كل فئة</p>
+                    </div>
+                    <div class="actions-container">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('agingChart')">
+                            <i class="fas fa-download me-1"></i>تصدير
+                        </button>
+                    </div>
+                </div>
+                <div style="height: 300px;">
+                    <canvas id="agingChart"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6 mb-4">
+            <div class="chart-container h-100">
+                <div class="chart-header">
+                    <div>
+                        <h6 class="chart-title">توزيع القيمة حسب العمر</h6>
+                        <p class="chart-subtitle">القيمة المالية لكل فئة</p>
+                    </div>
+                    <div class="actions-container">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportChart('valueChart')">
+                            <i class="fas fa-download me-1"></i>تصدير
+                        </button>
+                    </div>
+                </div>
+                <div style="height: 300px;">
+                    <canvas id="valueChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+
+  <!-- جدول تفاصيل المنتجات -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="section-title mb-0"><i class="fas fa-table me-2"></i>تفاصيل تقادم المنتجات</h5>
+        <div class="actions-container">
+            <button type="button" class="btn btn-sm btn-outline-success me-2" onclick="exportTableCSV()">
+                <i class="fas fa-file-csv me-1"></i>CSV
+            </button>
+            <button type="button" class="btn btn-sm btn-success" onclick="exportTableExcel()">
+                <i class="fas fa-file-excel me-1"></i>Excel
+            </button>
+        </div>
+    </div>
+    <div class="table-container">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th>كود المنتج</th>
+                            <th>اسم المنتج</th>
+                            <th>المخزن</th>
+                            <th>الكمية</th>
+                            <th>تاريخ الإدخال</th>
+                            <th>العمر (يوم)</th>
+                            <th>تاريخ انتهاء الصلاحية</th>
+                            <th>الأيام المتبقية</th>
+                            <th>القيمة</th>
+                            <th>فئة العمر</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in aging_data %}
+                        <tr {% if item.days_until_expiry <= 30 and item.days_until_expiry > 0 %}class="table-warning"{% elif item.days_until_expiry <= 0 %}class="table-danger"{% endif %}>
+                            <td>{{ item.product.code }}</td>
+                            <td>
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.category %}
+                                    <br><small class="text-muted">{{ item.product.category.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ item.warehouse.name|default:"غير محدد" }}</td>
+                            <td class="text-end">{{ item.quantity|floatformat:0 }}</td>
+                            <td>{{ item.entry_date|date:"Y-m-d" }}</td>
+                            <td class="text-end">{{ item.age_days }}</td>
+                            <td>
+                                {% if item.expiry_date %}
+                                    {{ item.expiry_date|date:"Y-m-d" }}
+                                    {% if item.days_until_expiry <= 0 %}
+                                        <br><small class="text-danger">منتهي الصلاحية</small>
+                                    {% elif item.days_until_expiry <= 30 %}
+                                        <br><small class="text-warning">ينتهي قريباً</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">غير محدد</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if item.expiry_date %}
+                                    {% if item.days_until_expiry <= 0 %}
+                                        <span class="text-danger">{{ item.days_until_expiry }}</span>
+                                    {% elif item.days_until_expiry <= 30 %}
+                                        <span class="text-warning">{{ item.days_until_expiry }}</span>
+                                    {% else %}
+                                        {{ item.days_until_expiry }}
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ item.total_value|floatformat:2 }} ج.م</td>
+                            <td>
+                                {% if item.age_days <= 30 %}
+                                    <span class="aging-badge aging-fresh">جديد</span>
+                                {% elif item.age_days <= 90 %}
+                                    <span class="aging-badge aging-good">جيد</span>
+                                {% elif item.age_days <= 180 %}
+                                    <span class="aging-badge aging-warning">تحذير</span>
+                                {% elif item.age_days <= 365 %}
+                                    <span class="aging-badge aging-danger">خطر</span>
+                                {% else %}
+                                    <span class="aging-badge aging-critical">حرج</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    <a href="{% url 'product:product_detail' item.product.id %}" 
+                                       class="btn btn-outline-primary" title="عرض التفاصيل">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if item.days_until_expiry <= 30 and item.days_until_expiry > 0 %}
+                                    <button class="btn btn-outline-warning" title="ينتهي قريباً">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    </button>
+                                    {% elif item.days_until_expiry <= 0 %}
+                                    <button class="btn btn-outline-danger" title="منتهي الصلاحية">
+                                        <i class="fas fa-times-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-clock"></i>
+                                    </div>
+                                    <h5 class="text-muted">لا توجد بيانات تقادم متاحة</h5>
+                                    <p class="text-muted">لا توجد منتجات تطابق معايير البحث المحددة</p>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- مكتبة Chart.js للرسوم البيانية -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير تقرير تقادم المخزون
+  function exportStockAging() {
+    try {
+      let data = [];
+      
+      // العنوان
+      data.push(['تقرير تقادم المخزون']);
+      data.push(['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')]);
+      data.push([]);
+      
+      // إحصائيات التقادم
+      data.push(['إحصائيات التقادم']);
+      data.push(['جديد (0-30)', '{{ summary.fresh_count|default:"0" }}', '{{ summary.fresh_value|default:"0" }} جنيه']);
+      data.push(['جيد (31-90)', '{{ summary.good_count|default:"0" }}', '{{ summary.good_value|default:"0" }} جنيه']);
+      data.push(['تحذير (91-180)', '{{ summary.warning_count|default:"0" }}', '{{ summary.warning_value|default:"0" }} جنيه']);
+      data.push(['خطر (181-365)', '{{ summary.danger_count|default:"0" }}', '{{ summary.danger_value|default:"0" }} جنيه']);
+      data.push(['حرج (+365)', '{{ summary.critical_count|default:"0" }}', '{{ summary.critical_value|default:"0" }} جنيه']);
+      data.push(['الإجمالي', '{{ summary.total_count|default:"0" }}', '{{ summary.total_value|default:"0" }} جنيه']);
+      data.push([]);
+      
+      // تفاصيل المنتجات
+      data.push(['تفاصيل تقادم المنتجات']);
+      data.push(['كود المنتج', 'اسم المنتج', 'المخزن', 'الكمية', 'تاريخ الإدخال', 'العمر (يوم)', 'تاريخ انتهاء الصلاحية', 'الأيام المتبقية', 'القيمة', 'فئة العمر']);
+      
+      // إضافة بيانات الجدول
+      {% for item in aging_data %}
+      data.push([
+        '{{ item.product.code }}',
+        '{{ item.product.name }}',
+        '{{ item.warehouse.name|default:"غير محدد" }}',
+        '{{ item.quantity|floatformat:0 }}',
+        '{{ item.entry_date|date:"Y-m-d" }}',
+        '{{ item.age_days }}',
+        '{% if item.expiry_date %}{{ item.expiry_date|date:"Y-m-d" }}{% else %}غير محدد{% endif %}',
+        '{% if item.expiry_date %}{{ item.days_until_expiry }}{% else %}-{% endif %}',
+        '{{ item.total_value|floatformat:2 }}',
+        '{% if item.age_days <= 30 %}جديد{% elif item.age_days <= 90 %}جيد{% elif item.age_days <= 180 %}تحذير{% elif item.age_days <= 365 %}خطر{% else %}حرج{% endif %}'
+      ]);
+      {% endfor %}
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'تقرير تقادم المخزون');
+      XLSX.writeFile(wb, 'تقرير_تقادم_المخزون_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      
+      showNotification('تم تصدير تقرير تقادم المخزون بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير التقرير:', error);
+      showNotification('حدث خطأ أثناء تصدير البيانات', 'error');
+    }
+  }
+  
+  // تصدير الجدول إلى CSV
+  function exportTableCSV() {
+    try {
+      const table = document.getElementById('dataTable');
+      let csv = [];
+      
+      // Headers
+      const headers = [];
+      table.querySelectorAll('thead th').forEach(th => {
+        headers.push(th.textContent.trim());
+      });
+      csv.push(headers.join(','));
+      
+      // Rows
+      table.querySelectorAll('tbody tr').forEach(tr => {
+        const row = [];
+        tr.querySelectorAll('td').forEach((td, index) => {
+          if (index < headers.length - 1) { // تجاهل عمود الإجراءات
+            row.push('"' + td.textContent.trim().replace(/"/g, '""') + '"');
+          }
+        });
+        if (row.length > 0) {
+          csv.push(row.join(','));
+        }
+      });
+      
+      // تحميل الملف
+      const blob = new Blob([csv.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'تقرير_تقادم_المخزون_' + new Date().toISOString().split('T')[0] + '.csv';
+      link.click();
+      
+      showNotification('تم تصدير الجدول إلى CSV بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير CSV:', error);
+      showNotification('حدث خطأ أثناء تصدير CSV', 'error');
+    }
+  }
+  
+  // تصدير الجدول إلى Excel
+  function exportTableExcel() {
+    try {
+      const table = document.getElementById('dataTable');
+      const wb = XLSX.utils.table_to_book(table, { sheet: 'تقرير تقادم المخزون' });
+      XLSX.writeFile(wb, 'تقرير_تقادم_المخزون_' + new Date().toISOString().split('T')[0] + '.xlsx');
+      
+      showNotification('تم تصدير الجدول إلى Excel بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير Excel:', error);
+      showNotification('حدث خطأ أثناء تصدير Excel', 'error');
+    }
+  }
+  
+  // تصدير الرسم البياني
+  function exportChart(chartId) {
+    try {
+      const canvas = document.getElementById(chartId);
+      const url = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = chartId + '_' + new Date().toISOString().split('T')[0] + '.png';
+      link.href = url;
+      link.click();
+      
+      showNotification('تم تصدير الرسم البياني بنجاح', 'success');
+    } catch (error) {
+      console.error('خطأ في تصدير الرسم البياني:', error);
+      showNotification('حدث خطأ أثناء تصدير الرسم البياني', 'error');
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  $(document).ready(function() {
+    // رسم بياني لتوزيع المنتجات حسب العمر
+    const agingChart = new Chart(
+      document.getElementById('agingChart'),
+      {
+        type: 'doughnut',
+        data: {
+          labels: ['جديد (0-30)', 'جيد (31-90)', 'تحذير (91-180)', 'خطر (181-365)', 'حرج (+365)'],
+          datasets: [{
+            data: [
+              {{ summary.fresh_count|default:"0" }},
+              {{ summary.good_count|default:"0" }},
+              {{ summary.warning_count|default:"0" }},
+              {{ summary.danger_count|default:"0" }},
+              {{ summary.critical_count|default:"0" }}
+            ],
+            backgroundColor: [
+              '#198754',
+              '#0dcaf0',
+              '#ffc107',
+              '#dc3545',
+              '#6f42c1'
+            ],
+            borderWidth: 3,
+            borderColor: '#fff',
+            hoverBorderWidth: 4,
+            hoverBorderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#0d6efd',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0';
+                  return context.label + ': ' + context.parsed + ' منتج (' + percentage + '%)';
+                }
+              }
+            }
+          }
+        }
+      }
+    );
+    
+    // رسم بياني لتوزيع القيمة حسب العمر
+    const valueChart = new Chart(
+      document.getElementById('valueChart'),
+      {
+        type: 'doughnut',
+        data: {
+          labels: ['جديد', 'جيد', 'تحذير', 'خطر', 'حرج'],
+          datasets: [{
+            data: [
+              {{ summary.fresh_value|default:"0" }},
+              {{ summary.good_value|default:"0" }},
+              {{ summary.warning_value|default:"0" }},
+              {{ summary.danger_value|default:"0" }},
+              {{ summary.critical_value|default:"0" }}
+            ],
+            backgroundColor: [
+              '#198754',
+              '#0dcaf0',
+              '#ffc107',
+              '#dc3545',
+              '#6f42c1'
+            ],
+            borderWidth: 3,
+            borderColor: '#fff',
+            hoverBorderWidth: 4,
+            hoverBorderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: {
+                usePointStyle: true,
+                padding: 15,
+                font: {
+                  size: 12
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: 'rgba(0, 0, 0, 0.8)',
+              titleColor: '#fff',
+              bodyColor: '#fff',
+              borderColor: '#0d6efd',
+              borderWidth: 1,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(context) {
+                  const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                  const percentage = total > 0 ? ((context.parsed / total) * 100).toFixed(1) : '0';
+                  return context.label + ': ' + context.parsed.toLocaleString() + ' جنيه (' + percentage + '%)';
+                }
+              }
+            }
+          }
+        }
+      }
+    );
+    
+    // تهيئة الجدول
+    initGlobalTable('dataTable', {
+        order: [[7, 'asc']], // ترتيب حسب أيام انتهاء الصلاحية
+        columnDefs: [
+            {
+                targets: [3, 5, 7, 8], // الأعمدة الرقمية
+                className: 'text-end'
+            }
+        ]
+    });
+    
+    // إضافة تأثيرات hover للكروت
+    $('.stats-card').hover(
+      function() {
+        $(this).addClass('shadow-lg');
+      },
+      function() {
+        $(this).removeClass('shadow-lg');
+      }
+    );
+  });
+</script>
+{% endblock %}

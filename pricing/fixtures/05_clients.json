@@ -1,0 +1,65 @@
+[
+  {
+    "model": "client.customer",
+    "pk": 1,
+    "fields": {
+      "name": "شركة التقنية المتقدمة",
+      "code": "TECH001",
+      "company_name": "شركة التقنية المتقدمة للحلول الرقمية",
+      "phone": "0111111111",
+      "email": "info@advanced-tech.com",
+      "address": "برج المملكة، الرياض",
+      "client_type": "company",
+      "credit_limit": "50000.00",
+      "balance": "0.00",
+      "tax_number": "300123456789003",
+      "notes": "عميل مؤسسي كبير - يحتاج مطبوعات تقنية عالية الجودة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": 1
+    }
+  },
+  {
+    "model": "client.customer",
+    "pk": 2,
+    "fields": {
+      "name": "مؤسسة التعليم الحديث",
+      "code": "EDU001",
+      "company_name": "مؤسسة التعليم الحديث للخدمات التعليمية",
+      "phone": "0112222222",
+      "email": "orders@modern-education.com",
+      "address": "شارع الملك فهد، الرياض",
+      "client_type": "government",
+      "tax_number": "300234567890003",
+      "credit_limit": "100000.00",
+      "balance": "0.00",
+      "notes": "مؤسسة تعليمية - تحتاج كتب ومواد تعليمية",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": 1
+    }
+  },
+  {
+    "model": "client.customer",
+    "pk": 3,
+    "fields": {
+      "name": "شركة الإعلان الإبداعي",
+      "code": "ADV001",
+      "company_name": "شركة الإعلان الإبداعي للحلول التسويقية",
+      "phone": "0123333333",
+      "email": "creative@ad-agency.com",
+      "address": "شارع التحلية، جدة",
+      "client_type": "company",
+      "tax_number": "300345678901003",
+      "credit_limit": "75000.00",
+      "balance": "0.00",
+      "notes": "وكالة إعلانية - تحتاج مطبوعات إعلانية متنوعة",
+      "is_active": true,
+      "created_at": "2024-01-01T00:00:00Z",
+      "updated_at": "2024-01-01T00:00:00Z",
+      "created_by": 1
+    }
+  }
+]

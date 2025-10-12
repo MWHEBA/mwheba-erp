@@ -1,0 +1,151 @@
+/**
+ * أنماط إدارة المخزون والمخازن
+ */
+
+/* أنماط مستوى المخزون */
+.stock-level {
+    width: 100%;
+    height: 10px;
+    background-color: #e9ecef;
+    border-radius: 5px;
+    overflow: hidden;
+    margin-top: 5px;
+}
+
+.stock-level .progress-bar {
+    height: 100%;
+}
+
+/* أنماط إحصائيات المخزون */
+.inventory-stats .card {
+    transition: all 0.3s;
+}
+
+.inventory-stats .card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* أنماط حركة المخزون */
+.movement-info .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+/* أنماط الجدول الزمني لحركات المخزون */
+.movement-timeline {
+    position: relative;
+    padding-left: 2rem;
+}
+
+.movement-timeline::before {
+    content: '';
+    position: absolute;
+    left: 7px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background-color: #dee2e6;
+}
+
+.movement-timeline .timeline-item {
+    position: relative;
+    padding-bottom: 1.5rem;
+}
+
+.movement-timeline .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -2rem;
+    top: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background-color: #fff;
+    border: 2px solid #0d6efd;
+}
+
+.movement-timeline .timeline-item:last-child {
+    padding-bottom: 0;
+}
+
+/* أنماط تأكيد الحذف */
+.confirm-delete-card {
+    max-width: 600px;
+    margin: 50px auto;
+}
+
+.alert-warning {
+    border-right: 5px solid #ffc107;
+}
+
+/* مؤشرات حالة المخزون */
+.stock-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.stock-indicator.in-stock {
+    background-color: #28a745;
+}
+
+.stock-indicator.low-stock {
+    background-color: #ffc107;
+}
+
+.stock-indicator.out-of-stock {
+    background-color: #dc3545;
+}
+
+/* تخصيص بطاقات العرض */
+.warehouse-card {
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.warehouse-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+/* أنماط الفلتر */
+.filter-section {
+    border-right: 3px solid #0d6efd;
+    padding-right: 15px;
+}
+
+/* طباعة التقارير */
+@media print {
+    .no-print {
+        display: none !important;
+    }
+    
+    .print-only {
+        display: block !important;
+    }
+    
+    .card {
+        border: none !important;
+        box-shadow: none !important;
+    }
+    
+    .card-header {
+        background-color: transparent !important;
+        color: #000 !important;
+        border-bottom: 1px solid #ddd !important;
+    }
+    
+    .container-fluid {
+        width: 100% !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+    
+    @page {
+        size: A4;
+        margin: 1cm;
+    }
+} 

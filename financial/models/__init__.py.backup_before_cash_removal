@@ -1,0 +1,54 @@
+# استيراد النماذج الجديدة
+from .chart_of_accounts import (
+    AccountType, ChartOfAccounts, AccountGroup
+)
+from .journal_entry import (
+    AccountingPeriod, JournalEntry, JournalEntryLine,
+    JournalEntryTemplate, JournalEntryTemplateLine
+)
+from .enhanced_balance import (
+    BalanceSnapshot, AccountBalanceCache, BalanceAuditLog, BalanceReconciliation
+)
+from .payment_sync import (
+    PaymentSyncOperation, PaymentSyncLog, PaymentSyncRule, PaymentSyncError
+)
+from .bank_reconciliation import (
+    BankReconciliation, BankReconciliationItem
+)
+from .categories import (
+    FinancialCategory, CategoryBudget
+)
+
+# استيراد آمن للنماذج الاختيارية
+try:
+    from .transactions import (
+        FinancialTransaction, ExpenseTransaction, IncomeTransaction, TransactionAttachment
+    )
+except Exception:
+    # النماذج غير متوفرة في قاعدة البيانات بعد
+    FinancialTransaction = None
+    ExpenseTransaction = None
+    IncomeTransaction = None
+    TransactionAttachment = None
+
+__all__ = [
+    # النماذج الأساسية
+    'AccountType', 'ChartOfAccounts', 'AccountGroup',
+    'AccountingPeriod', 'JournalEntry', 'JournalEntryLine',
+    'JournalEntryTemplate', 'JournalEntryTemplateLine',
+    
+    # نماذج الأرصدة المحسنة
+    'BalanceSnapshot', 'AccountBalanceCache', 'BalanceAuditLog', 'BalanceReconciliation',
+    
+    # نماذج تزامن المدفوعات
+    'PaymentSyncOperation', 'PaymentSyncLog', 'PaymentSyncRule', 'PaymentSyncError',
+    
+    # نماذج التسوية البنكية
+    'BankReconciliation', 'BankReconciliationItem',
+    
+    # نماذج التصنيفات والميزانيات
+    'FinancialCategory', 'CategoryBudget',
+    
+    # نماذج المعاملات المحسنة
+    'FinancialTransaction', 'ExpenseTransaction', 'IncomeTransaction', 'TransactionAttachment',
+]

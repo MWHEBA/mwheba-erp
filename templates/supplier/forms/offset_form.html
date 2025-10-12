@@ -1,0 +1,117 @@
+<!-- نموذج خدمات الطباعة الأوفست -->
+<div class="offset-printing-form">
+    <!-- الحقول الأساسية -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-12">
+            <div class="form-floating">
+                <input type="text" class="form-control bg-light" name="name" id="service-name" 
+                       data-field-id="offset_printing:name" placeholder="سيتم إنشاء الاسم تلقائياً" readonly required>
+                <label for="service-name">اسم الخدمة (تلقائي) *</label>
+                <div class="form-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    سيتم إنشاء الاسم تلقائياً: ماكينة {مقاس} - {عدد الألوان} لون - {نوع}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="machine_type" class="form-select" id="machine-type" 
+                        data-field-id="offset_printing:machine_type" required>
+                    <option value="">اختر نوع الماكينة</option>
+                    {% for choice in form_choices.machine_types %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="machine-type">نوع الماكينة *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="sheet_size" class="form-select" id="sheet-size" 
+                        data-field-id="offset_printing:sheet_size" required>
+                    <option value="">اختر مقاس الماكينة</option>
+                    {% for choice in form_choices.sheet_sizes %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="sheet-size">مقاس الماكينة *</label>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="max_colors" 
+                       id="max-colors" data-field-id="offset_printing:max_colors" 
+                       placeholder="عدد الألوان" min="1" max="8" value="4" required>
+                <label for="max-colors">عدد الألوان *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="setup_cost" 
+                       id="setup-cost" data-field-id="offset_printing:setup_cost" 
+                       placeholder="مصاريف تجهيز" step="0.01" min="0" value="0">
+                <label for="setup-cost">مصاريف تجهيز ثابتة</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- أسعار التراج -->
+    <div class="alert alert-primary py-2 mb-3">
+        <h6 class="alert-heading mb-0">
+            <i class="fas fa-print me-2"></i>
+            أسعار التراج والطباعة
+        </h6>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="impression_cost_per_1000" 
+                       id="impression-cost" data-field-id="offset_printing:impression_cost_per_1000" 
+                       placeholder="سعر التراج" step="0.01" min="0" required>
+                <label for="impression-cost">سعر التراج (لكل 1000) *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="special_impression_cost" 
+                       id="special-cost" data-field-id="offset_printing:special_impression_cost" 
+                       placeholder="سعر التراج مخصوص" step="0.01" min="0">
+                <label for="special-cost">سعر التراج مخصوص</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="break_impression_cost" 
+                       id="break-cost" data-field-id="offset_printing:break_impression_cost" 
+                       placeholder="سعر كسر التراج" step="0.01" min="0">
+                <label for="break-cost">سعر كسر التراج</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-9">
+            <div class="form-floating">
+                <textarea class="form-control" name="description" id="description" 
+                          data-field-id="offset_printing:description" 
+                          placeholder="وصف الخدمة" style="height: 70px;"></textarea>
+                <label for="description">وصف الخدمة</label>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex align-items-center justify-content-center">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" data-field-id="offset_printing:is_active" checked>
+                <label class="form-check-label" for="is-active">
+                    الخدمة نشطة
+                </label>
+            </div>
+        </div>
+    </div>
+
+</div>
+

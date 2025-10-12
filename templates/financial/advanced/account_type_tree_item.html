@@ -1,0 +1,118 @@
+{% load static %}
+
+<div class="type-group" data-level="{{ item.level }}" data-type-id="{{ item.type.id }}">
+    <!-- النوع الحالي -->
+    <div class="{% if item.level == 0 %}parent-type{% else %}child-type{% endif %} {% if not item.type.is_active %}opacity-50{% endif %}">
+        
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <!-- مسافة المستوى -->
+                {% if item.level > 0 %}
+                    <span class="me-3"></span>
+                {% endif %}
+                
+                <!-- أيقونة النوع -->
+                <span class="type-icon me-3">
+                    {% if item.type.code == 'ASSET' %}🏢
+                    {% elif item.type.code == 'LIABILITY' %}📋
+                    {% elif item.type.code == 'EQUITY' %}🏛️
+                    {% elif item.type.code == 'REVENUE' %}💰
+                    {% elif item.type.code == 'EXPENSE' %}📊
+                    {% elif item.type.code == 'CURRENT_ASSET' %}🏢
+                    {% elif item.type.code == 'CURRENT_LIABILITY' %}📋
+                    {% elif item.type.code == 'CASH' %}💰
+                    {% elif item.type.code == 'BANK' %}🏦
+                    {% elif item.type.code == 'INVENTORY' %}📦
+                    {% elif item.type.code == 'RECEIVABLES' %}👥
+                    {% elif item.type.code == 'PAYABLES' %}🏪
+                    {% elif item.type.code == 'SALES_REVENUE' %}💵
+                    {% elif item.type.code == 'OTHER_REVENUE' %}💸
+                    {% elif item.type.code == 'COGS' %}📊
+                    {% elif item.type.code == 'CAPITAL' %}🏛️
+                    {% elif item.type.code == 'PARTNER_ACCOUNT' %}👤
+                    {% elif item.type.code == 'RETAINED_EARNINGS' %}💼
+                    {% elif item.type.code == 'SALES_DISTRIBUTION_EXPENSE' %}🚚
+                    {% elif item.type.code == 'MARKETING_ADVERTISING_EXPENSE' %}📢
+                    {% elif item.type.code == 'DEPRECIATION_EXPENSE' %}📉
+                    {% elif item.type.code == 'INTEREST_EXPENSE' %}💸
+                    {% elif item.type.code == 'OTHER_EXPENSE' %}📋
+                    {% elif item.type.code == 'NOTES_RECEIVABLE' %}📄
+                    {% elif item.type.code == 'NOTES_PAYABLE' %}📑
+                    {% elif item.type.code == 'PREPAID_EXPENSES' %}⏰
+                    {% elif item.type.code == 'ACCRUED_EXPENSES' %}⏳
+                    {% elif item.type.code == 'UNEARNED_REVENUE' %}🔄
+                    {% elif item.type.code == 'LONG_TERM_LIABILITY' %}📊
+                    {% elif item.type.code == 'LONG_TERM_LOANS' %}🏦
+                    {% elif item.type.code == 'CURRENT_YEAR_EARNINGS' %}📈
+                    {% else %}📁
+                    {% endif %}
+                </span>
+                
+                <!-- معلومات النوع -->
+                <div>
+                    <div class="type-name">
+                        {{ item.type.name }}
+                        {% if item.has_children %}
+                            <button class="btn btn-sm btn-outline-secondary ms-2 toggle-children" 
+                                    data-target="#children-{{ item.type.id }}" 
+                                    style="font-size: 0.7rem; padding: 0.1rem 0.3rem;">
+                                <i class="fas fa-chevron-down"></i>
+                            </button>
+                        {% endif %}
+                    </div>
+                    <div class="type-category">
+                        <small class="text-muted">{{ item.type.code }} - المستوى {{ item.type.level }}</small>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- معلومات إضافية وأزرار -->
+            <div class="d-flex align-items-center gap-2">
+                <!-- عدد الحسابات -->
+                {% if item.accounts_count > 0 %}
+                <span class="badge bg-info me-1">
+                    {{ item.accounts_count }} حساب
+                </span>
+                {% endif %}
+                
+                <!-- عدد الأطفال -->
+                {% if item.children_count > 0 %}
+                <span class="badge bg-secondary me-1">
+                    {{ item.children_count }} فرعي
+                </span>
+                {% endif %}
+                
+                <!-- حالة النشاط -->
+                {% if not item.type.is_active %}
+                <span class="badge bg-danger me-1">غير نشط</span>
+                {% endif %}
+                
+                <!-- طبيعة الحساب -->
+                <span class="type-nature">
+                    {% if item.type.nature == 'debit' %}
+                        <span class="badge bg-success">مدين</span>
+                    {% else %}
+                        <span class="badge bg-warning">دائن</span>
+                    {% endif %}
+                </span>
+                
+
+                
+                <!-- أزرار التحكم -->
+                <a href="{% url 'financial:account_types_edit' item.type.pk %}" 
+                   class="btn btn-edit" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الأطفال (مخفيين افتراضياً) -->
+    {% if item.has_children %}
+    <div id="children-{{ item.type.id }}" class="children-container" style="display: none;">
+        {% for child in item.children %}
+            {% include 'financial/advanced/account_type_tree_item.html' with item=child %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

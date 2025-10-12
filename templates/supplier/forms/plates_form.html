@@ -1,0 +1,139 @@
+<!-- نموذج خدمات الزنكات -->
+<div class="plates-service-form">
+    <div class="row g-3 mb-3">
+        <div class="col-md-12">
+            <div class="form-floating">
+                <input type="text" class="form-control" name="name" id="service-name" 
+                       placeholder="اسم الخدمة" required readonly
+                       style="background-color: #f8f9fa;">
+                <label for="service-name">اسم الخدمة (تلقائي) *</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-md-3">
+            <div class="form-floating">
+                <select name="plate_size" class="form-select" id="plate-size" 
+                        onchange="toggleCustomSize(this)" required>
+                    <option value="">اختر مقاس الزنك</option>
+                    {% for choice in form_choices.plate_sizes %}
+                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                    {% endfor %}
+                </select>
+                <label for="plate-size">مقاس الزنك *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="price_per_plate" 
+                       id="price-per-plate" placeholder="سعر الزنك" step="0.01" min="0" required>
+                <label for="price-per-plate">سعر الزنك (ج.م) *</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="set_price" 
+                       id="set-price" placeholder="سعر الطقم" step="0.01" min="0">
+                <label for="set-price">سعر الطقم (4 زنكات)</label>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="form-check form-switch mt-3">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" checked>
+                <label class="form-check-label" for="is-active">
+                    الخدمة نشطة
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- الحقول المخصصة للمقاس -->
+    <div class="custom-size-fields" id="custom-size-fields" style="display: none;">
+        <div class="row g-3 mb-3">
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="number" class="form-control" name="custom_width_cm" 
+                           id="custom-width" placeholder="العرض" step="0.1" min="0">
+                    <label for="custom-width">العرض (سم)</label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="form-floating">
+                    <input type="number" class="form-control" name="custom_height_cm" 
+                           id="custom-height" placeholder="الارتفاع" step="0.1" min="0">
+                    <label for="custom-height">الارتفاع (سم)</label>
+                </div>
+            </div>
+        </div>
+    </div>
+
+<script>
+// إظهار/إخفاء الحقول المخصصة
+function toggleCustomSize(selectElement) {
+    const customFields = document.getElementById('custom-size-fields');
+    const customWidth = document.getElementById('custom-width');
+    const customHeight = document.getElementById('custom-height');
+    
+    if (selectElement.value === 'custom') {
+        customFields.style.display = 'block';
+        customWidth.required = true;
+        customHeight.required = true;
+    } else {
+        customFields.style.display = 'none';
+        customWidth.required = false;
+        customHeight.required = false;
+        customWidth.value = '';
+        customHeight.value = '';
+    }
+}
+
+// تحديث اسم الخدمة تلقائياً
+function updateServiceName() {
+    const nameField = document.getElementById('service-name');
+    const sizeField = document.getElementById('plate-size');
+    
+    if (sizeField.value) {
+        const sizeText = sizeField.options[sizeField.selectedIndex].text;
+        
+        // إذا كان مقاس مخصوص، استخدم اسم مختلف
+        if (sizeField.value === 'custom') {
+            nameField.value = 'زنك CTP - مقاس مخصوص';
+        } else {
+            // استخدم النص كما هو (ربع، نص، فرخ)
+            nameField.value = `زنك CTP - ${sizeText}`;
+        }
+    }
+}
+
+// ربط الأحداث
+document.getElementById('plate-size').addEventListener('change', updateServiceName);
+
+// دالة لتنسيق الأرقام بدون علامات عشرية غير ضرورية
+function formatPrice(price) {
+    return price % 1 === 0 ? price.toString() : price.toFixed(2);
+}
+
+// حساب سعر الطقم تلقائياً (4 زنكات)
+document.getElementById('price-per-plate').addEventListener('input', function() {
+    const pricePerPlate = parseFloat(this.value) || 0;
+    const setPriceField = document.getElementById('set-price');
+    
+    if (pricePerPlate > 0) {
+        const setPrice = pricePerPlate * 4;
+        setPriceField.value = formatPrice(setPrice);
+    } else {
+        setPriceField.value = '';
+    }
+});
+
+// تحديث سعر الطقم عند تغيير سعر الزنك الواحد
+document.getElementById('set-price').addEventListener('focus', function() {
+    const pricePerPlate = parseFloat(document.getElementById('price-per-plate').value) || 0;
+    if (pricePerPlate > 0 && !this.value) {
+        const setPrice = pricePerPlate * 4;
+        this.value = formatPrice(setPrice);
+    }
+});
+</script>

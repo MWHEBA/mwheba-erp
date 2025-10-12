@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% trans "تسوية المخزون" %} - {{ stock.product.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
+<style>
+  .stock-indicator {
+    text-align: center;
+    padding: 15px;
+    border-radius: 10px;
+    background-color: #f8f9fa;
+    margin-bottom: 20px;
+  }
+  .stock-current {
+    font-size: 2.2rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .card-info {
+    margin-bottom: 20px;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'product:product_list' %}">
+                            <i class="fas fa-boxes me-1"></i>{% trans "المنتجات" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'product:stock_list' %}">
+                            <i class="fas fa-cubes me-1"></i>{% trans "المخزون" %}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'product:stock_detail' stock.pk %}">
+                            <i class="fas fa-box me-1"></i>{{ stock.product.name }}
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-balance-scale me-1"></i>{% trans "تسوية المخزون" %}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-balance-scale fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{% trans "تسوية المخزون" %} - {{ stock.product.name }}</h1>
+                    <p class="text-muted mb-0">{% trans "تعديل وتصحيح كمية المخزون الحالية" %}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'product:stock_detail' stock.pk %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-right me-1"></i>{% trans "العودة للتفاصيل" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-5">
+            <!-- معلومات المخزون -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات المخزون الحالي" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="stock-indicator mb-4">
+                        <h5 class="mb-2">{% trans "الكمية الحالية" %}</h5>
+                        <div class="stock-current">{{ stock.quantity }}</div>
+                        <div class="mt-2">
+                            {% if stock.quantity <= 0 %}
+                            <span class="badge bg-danger">{% trans "نفذ من المخزون" %}</span>
+                            {% elif stock.quantity < stock.product.min_stock %}
+                            <span class="badge bg-warning">{% trans "مخزون منخفض" %}</span>
+                            {% else %}
+                            <span class="badge bg-success">{% trans "مخزون جيد" %}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">{% trans "المنتج" %}</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'product:product_detail' stock.product.pk %}">
+                                {{ stock.product.name }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">{% trans "كود المنتج" %}</dt>
+                        <dd class="col-sm-7"><code>{{ stock.product.sku }}</code></dd>
+                        
+                        <dt class="col-sm-5">{% trans "المخزن" %}</dt>
+                        <dd class="col-sm-7">
+                            <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}">
+                                {{ stock.warehouse.name }}
+                            </a>
+                        </dd>
+                        
+                        <dt class="col-sm-5">{% trans "الحد الأدنى" %}</dt>
+                        <dd class="col-sm-7">{{ stock.product.min_stock }}</dd>
+                        
+                    </dl>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <!-- نموذج تسوية المخزون -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "تسوية المخزون" %}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% trans "ستؤدي عملية التسوية إلى تعديل المخزون الحالي. يرجى التأكد من صحة البيانات المدخلة." %}
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="quantity" class="form-label">{% trans "الكمية الجديدة" %}</label>
+                            <input type="number" class="form-control form-control-lg" id="quantity" name="quantity" min="0" step="1" 
+                                   value="{{ stock.quantity }}" required>
+                            <div class="form-text">{% trans "أدخل الكمية الجديدة بعد الجرد" %}</div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="notes" class="form-label">{% trans "ملاحظات" %}</label>
+                            <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="{% trans 'سبب التسوية...' %}"></textarea>
+                        </div>
+                        
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-check-circle me-2"></i>{% trans "تسوية المخزون" %}
+                            </button>
+                            <a href="{% url 'product:stock_detail' stock.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // تحقق من الكمية عند الإدخال
+        $('#quantity').change(function() {
+            const value = parseInt($(this).val()) || 0;
+            if (value < 0) {
+                $(this).val(0);
+                alert('{% trans "لا يمكن إدخال كمية سالبة" %}');
+            }
+        });
+    });
+</script>
+{% endblock %} 

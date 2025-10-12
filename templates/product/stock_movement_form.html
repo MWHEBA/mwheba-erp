@@ -1,0 +1,62 @@
+{% extends 'product/form_template.html' %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block form_content %}
+<div class="row">
+    <div class="col-md-6 mb-3">
+        {{ form.product|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3">
+        {{ form.warehouse|as_crispy_field }}
+    </div>
+    <div class="col-md-4 mb-3">
+        {{ form.movement_type|as_crispy_field }}
+    </div>
+    <div class="col-md-4 mb-3">
+        {{ form.quantity|as_crispy_field }}
+    </div>
+    <div class="col-md-4 mb-3">
+        {{ form.reference_number|as_crispy_field }}
+    </div>
+    <div class="col-md-12 mb-3">
+        {{ form.notes|as_crispy_field }}
+    </div>
+    <div class="col-md-6 mb-3 destination-warehouse">
+        {{ form.destination_warehouse|as_crispy_field }}
+    </div>
+</div>
+{% endblock %}
+
+{% block page_js %}
+<script>
+    $(document).ready(function() {
+        // إظهار/إخفاء حقل المستودع المستلم بناءً على نوع الحركة
+        const movementType = $('#id_movement_type');
+        const destinationWarehouse = $('.destination-warehouse');
+        
+        function toggleDestinationWarehouse() {
+            if (movementType.val() === 'transfer') {
+                destinationWarehouse.show();
+            } else {
+                destinationWarehouse.hide();
+            }
+        }
+        
+        // التنفيذ عند التحميل وعند التغيير
+        toggleDestinationWarehouse();
+        movementType.change(toggleDestinationWarehouse);
+        
+        // تحقق من عدم اختيار نفس المستودع كمصدر ووجهة للتحويل
+        $('#id_destination_warehouse').change(function() {
+            const sourceWarehouse = $('#id_warehouse').val();
+            const destWarehouse = $(this).val();
+            
+            if (sourceWarehouse == destWarehouse) {
+                alert('{% trans "لا يمكن اختيار نفس المستودع كمصدر ووجهة للتحويل" %}');
+                $(this).val('').trigger('change');
+            }
+        });
+    });
+</script>
+{% endblock %} 

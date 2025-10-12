@@ -1,0 +1,419 @@
+{% load static %}
+{% load i18n %}
+
+<header class="header">
+    <div class="header-container">
+        <!-- الجانب الأيمن للهيدر (بدءًا من اليمين): المستخدم، التنبيهات، البحث، الإجراءات -->
+        <div class="header-right">
+            <!-- زر إظهار/إخفاء القائمة الجانبية (للموبايل) -->
+            <button type="button" class="mobile-sidebar-btn d-lg-none">
+                <i class="fas fa-bars"></i>
+            </button>
+            
+            <!-- عنوان الصفحة مع الأيقونة -->
+            <div class="page-title-wrapper">
+                <div class="page-icon">
+                    <i class="{% if page_icon %}{{ page_icon }}{% elif icon %}{{ icon }}{% else %}
+                        {% with page_header=page_title|default:'' %}
+                        {% if 'إضافة عميل' in page_header %}fas fa-user-plus
+                        {% elif 'إضافة مورد' in page_header %}fas fa-handshake
+                        {% elif 'إضافة منتج' in page_header %}fas fa-box-open
+                        {% elif 'إضافة فاتورة' in page_header or 'فاتورة جديدة' in page_header %}fas fa-file-invoice
+                        {% elif 'إضافة مستخدم' in page_header %}fas fa-user-plus
+                        {% elif 'إضافة' in page_header and 'عميل' in page_header %}fas fa-user-plus
+                        {% elif 'إضافة' in page_header and 'مورد' in page_header %}fas fa-handshake
+                        {% elif 'إضافة' in page_header and 'منتج' in page_header %}fas fa-box-open
+                        {% elif 'إضافة' in page_header and 'مستخدم' in page_header %}fas fa-user-plus
+                        {% elif 'إضافة' in page_header and 'مخزون' in page_header %}fas fa-warehouse
+                        {% elif 'إضافة' in page_header and 'صنف' in page_header %}fas fa-boxes
+                        {% elif 'إضافة' in page_header and 'فاتورة' in page_header %}fas fa-file-invoice
+                        {% elif 'إضافة' in page_header %}fas fa-plus-circle
+                        {% elif 'العملاء' in page_header %}fas fa-users
+                        {% elif 'المنتجات' in page_header %}fas fa-box
+                        {% elif 'المبيعات' in page_header %}fas fa-shopping-cart
+                        {% elif 'المشتريات' in page_header %}fas fa-truck
+                        {% elif 'المالية' in page_header %}fas fa-money-bill-wave
+                        {% elif 'التقارير' in page_header %}fas fa-chart-bar
+                        {% elif 'الإشعارات' in page_header %}fas fa-bell
+                        {% elif 'الإعدادات' in page_header %}fas fa-cog
+                        {% elif 'الملف الشخصي' in page_header %}fas fa-user
+                        {% elif 'الأنواع' in page_header %}fas fa-tag
+                        {% elif 'الأصناف' in page_header %}fas fa-boxes
+                        {% elif 'المخزون' in page_header %}fas fa-warehouse
+                        {% elif 'الموردين' in page_header %}fas fa-handshake
+                        {% elif 'المصروفات' in page_header %}fas fa-file-invoice-dollar
+                        {% elif 'الإيرادات' in page_header %}fas fa-hand-holding-usd
+                        {% else %}fas fa-home{% endif %}
+                        {% endwith %}
+                    {% endif %}"></i>
+                </div>
+                <h1 class="page-title">{% if page_title %}{{ page_title }}{% else %}لوحة التحكم{% endif %}</h1>
+            </div>
+        </div>
+
+        <!-- الجانب الأيسر للهيدر: اسم الصفحة مع الأيقونة -->
+        <div class="header-left">
+            <!-- الإجراءات السريعة -->
+            <div class="quick-actions dropdown">
+                <button class="quick-action-btn" type="button" id="quickActionsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-bolt"></i>
+                    <span>إجراء سريع</span>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end quick-actions-dropdown shadow-lg" aria-labelledby="quickActionsDropdown">
+                    <div class="quick-actions-header">
+                        <h6 class="dropdown-header">
+                            <i class="fas fa-bolt me-2 text-primary"></i>
+                            <span>إجراءات سريعة</span>
+                        </h6>
+                    </div>
+                    
+                    <div class="quick-actions-body">
+                        <!-- المبيعات -->
+                        <div class="quick-actions-category">
+                            <h6 class="dropdown-header text-primary">
+                                <i class="fas fa-shopping-cart me-2"></i>
+                                <span>المبيعات</span>
+                            </h6>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-primary">
+                                    <i class="fas fa-cart-plus text-primary"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">فاتورة بيع جديدة</div>
+                                    <div class="quick-action-desc">إنشاء فاتورة بيع جديدة للعملاء</div>
+                                </div>
+                                <div class="quick-action-shortcut">
+                                    <span class="badge rounded-pill bg-soft-primary text-primary">Alt+S</span>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <!-- المشتريات -->
+                        <div class="quick-actions-category">
+                            <h6 class="dropdown-header text-success">
+                                <i class="fas fa-truck me-2"></i>
+                                <span>المشتريات</span>
+                            </h6>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-success">
+                                    <i class="fas fa-shopping-bag text-success"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">فاتورة شراء جديدة</div>
+                                    <div class="quick-action-desc">إنشاء فاتورة شراء جديدة من الموردين</div>
+                                </div>
+                                <div class="quick-action-shortcut">
+                                    <span class="badge rounded-pill bg-soft-success text-success">Alt+P</span>
+                                </div>
+                            </a>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-info">
+                                    <i class="fas fa-clipboard-list text-info"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">طلب شراء</div>
+                                    <div class="quick-action-desc">إنشاء طلب توريد جديد</div>
+                                </div>
+                            </a>
+                        </div>
+                        
+                        <!-- المنتجات والمخزون -->
+                        <div class="quick-actions-category">
+                            <h6 class="dropdown-header text-info">
+                                <i class="fas fa-box-open me-2"></i>
+                                <span>المنتجات والمخزون</span>
+                            </h6>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-info">
+                                    <i class="fas fa-box text-info"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">منتج جديد</div>
+                                    <div class="quick-action-desc">إضافة منتج جديد للمخزون</div>
+                                </div>
+                            </a>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-secondary">
+                                    <i class="fas fa-exchange-alt text-secondary"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">تحويل مخزني</div>
+                                    <div class="quick-action-desc">تحويل منتجات بين المستودعات</div>
+                                </div>
+                            </a>
+                            <a class="dropdown-item quick-action-item" href="{% url 'core:dashboard' %}">
+                                <div class="quick-action-icon bg-soft-dark">
+                                    <i class="fas fa-barcode text-dark"></i>
+                                </div>
+                                <div class="quick-action-content">
+                                    <div class="quick-action-title">جرد المخزون</div>
+                                    <div class="quick-action-desc">إجراء عملية جرد للمخزون</div>
+                                </div>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- حقل البحث -->
+            <div class="search-box">
+                <form class="search-form" action="#" method="GET">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="q" placeholder="بحث..." aria-label="بحث">
+                        <span class="input-group-text">
+                            <button type="submit" class="btn-search border-0 bg-transparent p-0">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </span>
+                    </div>
+                </form>
+            </div>
+            <!-- التنبيهات -->
+            <div class="notifications dropdown">
+                <button class="btn-icon notification-btn" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-bell"></i>
+                    {% with unread_count=0 %}
+                    {% for notification in notifications %}
+                        {% if not notification.read %}
+                            {% with unread_count=unread_count|add:1 %}{% endwith %}
+                        {% endif %}
+                    {% endfor %}
+                    <span class="badge bg-danger badge-counter notification-badge {% if unread_count == 0 %}d-none{% endif %}">
+                        {{ unread_count }}
+                    </span>
+                    {% endwith %}
+                </button>
+                <div class="dropdown-menu dropdown-menu-end notifications-dropdown shadow-lg" aria-labelledby="notificationsDropdown">
+                    <div class="dropdown-header d-flex justify-content-between align-items-center py-3">
+                        <span class="fw-bold">
+                            <i class="fas fa-bell me-2 text-primary"></i>
+                            {% trans "التنبيهات" %}
+                            {% with unread_count=0 %}
+                            {% for notification in notifications %}
+                                {% if not notification.read %}
+                                    {% with unread_count=unread_count|add:1 %}{% endwith %}
+                                {% endif %}
+                            {% endfor %}
+                            {% if unread_count > 0 %}
+                            <span class="badge bg-danger rounded-pill ms-2">{{ unread_count }}</span>
+                            {% endif %}
+                            {% endwith %}
+                        </span>
+                        {% with unread_count=0 %}
+                        {% for notification in notifications %}
+                            {% if not notification.read %}
+                                {% with unread_count=unread_count|add:1 %}{% endwith %}
+                            {% endif %}
+                        {% endfor %}
+                        {% if unread_count > 0 %}
+                        <button type="button" class="btn btn-sm btn-outline-primary mark-all-read" data-url="{% url 'core:mark_all_notifications_read' %}">
+                            <i class="fas fa-check-double"></i>
+                            <span class="d-none d-md-inline-block">{% trans "تعليم الكل كمقروء" %}</span>
+                        </button>
+                        {% endif %}
+                        {% endwith %}
+                    </div>
+                    
+                    <div class="notification-list ps-custom">
+                        {% if notifications %}
+                            <!-- الإشعارات غير المقروءة -->
+                            {% with unread_notifications='' %}
+                            {% with has_unread=False %}
+                            <div class="notification-category">
+                                <div class="notification-category-title">
+                                    <span>{% trans "جديدة" %}</span>
+                                </div>
+                                {% for notification in notifications %}
+                                    {% if not notification.read %}
+                                        {% with has_unread=True %}{% endwith %}
+                                        <a href="{{ notification.link }}" class="notification-item unread" data-id="{{ notification.id }}">
+                                            <div class="notification-icon bg-{{ notification.notification_type }}">
+                                                <i class="fas 
+                                                    {% if notification.notification_type == 'info' %}fa-info
+                                                    {% elif notification.notification_type == 'warning' %}fa-exclamation-triangle
+                                                    {% elif notification.notification_type == 'success' %}fa-check
+                                                    {% elif notification.notification_type == 'danger' %}fa-times
+                                                    {% elif notification.notification_type == 'inventory_alert' %}fa-box
+                                                    {% elif notification.notification_type == 'payment_received' %}fa-money-bill-wave
+                                                    {% elif notification.notification_type == 'new_invoice' %}fa-file-invoice
+                                                    {% elif notification.notification_type == 'return_request' %}fa-undo
+                                                    {% else %}fa-bell
+                                                    {% endif %}">
+                                                </i>
+                                </div>
+                                <div class="notification-content">
+                                    <div class="notification-title">{{ notification.title }}</div>
+                                    <div class="notification-text">{{ notification.message }}</div>
+                                                <div class="notification-time">
+                                                    <i class="far fa-clock me-1"></i>
+                                                    {{ notification.created_at|timesince }}
+                                                </div>
+                                            </div>
+                                            <button type="button" class="btn-mark-read" data-id="{{ notification.id }}" data-url="{% url 'core:mark_notification_read' notification.id %}">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% if not has_unread %}
+                                <style>.notification-category:first-child { display: none; }</style>
+                            {% endif %}
+                            {% endwith %}
+                            {% endwith %}
+                            
+                            <!-- الإشعارات المقروءة مؤخرًا -->
+                            {% with has_read=False %}
+                            <div class="notification-category">
+                                <div class="notification-category-title">
+                                    <span>{% trans "سابقة" %}</span>
+                                </div>
+                                {% for notification in notifications %}
+                                    {% if notification.read %}
+                                        {% with has_read=True %}{% endwith %}
+                                        <a href="{{ notification.link }}" class="notification-item">
+                                            <div class="notification-icon bg-light text-{{ notification.notification_type }}">
+                                                <i class="fas 
+                                                    {% if notification.notification_type == 'info' %}fa-info
+                                                    {% elif notification.notification_type == 'warning' %}fa-exclamation-triangle
+                                                    {% elif notification.notification_type == 'success' %}fa-check
+                                                    {% elif notification.notification_type == 'danger' %}fa-times
+                                                    {% elif notification.notification_type == 'inventory_alert' %}fa-box
+                                                    {% elif notification.notification_type == 'payment_received' %}fa-money-bill-wave
+                                                    {% elif notification.notification_type == 'new_invoice' %}fa-file-invoice
+                                                    {% elif notification.notification_type == 'return_request' %}fa-undo
+                                                    {% else %}fa-bell
+                                                    {% endif %}">
+                                                </i>
+                                            </div>
+                                            <div class="notification-content">
+                                                <div class="notification-title">{{ notification.title }}</div>
+                                                <div class="notification-text">{{ notification.message }}</div>
+                                                <div class="notification-time">
+                                                    <i class="far fa-clock me-1"></i>
+                                                    {{ notification.created_at|timesince }}
+                                                </div>
+                                </div>
+                            </a>
+                                    {% endif %}
+                            {% endfor %}
+                            </div>
+                            {% if not has_read %}
+                                <style>.notification-category:last-child { display: none; }</style>
+                            {% endif %}
+                            {% endwith %}
+                        {% else %}
+                            <div class="dropdown-item text-center py-5">
+                                <div class="empty-notifications">
+                                    <i class="far fa-bell-slash fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted mb-0">{% trans "لا توجد إشعارات جديدة" %}</p>
+                                </div>
+                            </div>
+                        {% endif %}
+                    </div>
+                    <div class="dropdown-footer py-2 text-center">
+                        <a href="{% url 'core:notifications_list' %}" class="btn btn-sm btn-light w-100">
+                            <i class="fas fa-list me-1"></i>
+                            {% trans "عرض كل الإشعارات" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <!-- قائمة المستخدم -->
+            <div class="user-menu dropdown">
+                <button class="user-dropdown-toggle" type="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <div class="avatar-wrapper">
+                        <div class="avatar">
+                            {% if user.profile_image %}
+                                <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="avatar-img">
+                            {% else %}
+                                <img src="{% static 'img/user.png' %}" alt="{{ user.get_full_name }}" class="avatar-img">
+                            {% endif %}
+                        </div>
+                        <span class="user-name-short d-none d-md-inline-block">{{ user.get_full_name|default:"المستخدم" }}</span>
+                        <i class="fas fa-chevron-down ms-1 user-dropdown-icon"></i>
+                    </div>
+                </button>
+                <div class="dropdown-menu dropdown-menu-end user-dropdown">
+                    <div class="user-dropdown-header">
+                        <div class="user-dropdown-profile">
+                            <div class="user-avatar-large">
+                                {% if user.profile_image %}
+                                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="user-avatar-img">
+                                {% else %}
+                                    <img src="{% static 'img/user.png' %}" alt="{{ user.get_full_name }}" class="user-avatar-img">
+                                {% endif %}
+                            </div>
+                            <div class="user-info-wrapper">
+                                <h5 class="user-name">{{ user.get_full_name|default:"المستخدم" }}</h5>
+                                <p class="user-email">{{ user.email|default:"user@example.com" }}</p>
+                                <span class="user-role">{{ user.role|default:"مدير النظام" }}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="user-dropdown-divider"></div>
+                    
+                    <div class="user-dropdown-menu-items">
+                        <a href="#" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-primary">
+                                <i class="fas fa-user-circle text-primary"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>الملف الشخصي</span>
+                                <small>إدارة معلوماتك الشخصية</small>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-success">
+                                <i class="fas fa-cog text-success"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>الإعدادات</span>
+                                <small>تخصيص إعدادات النظام</small>
+                            </div>
+                        </a>
+                        
+                        <a href="#" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-info">
+                                <i class="fas fa-bell text-info"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>الإشعارات</span>
+                                <small>إدارة تفضيلات الإشعارات</small>
+                            </div>
+                            <span class="badge rounded-pill bg-danger ms-auto">3</span>
+                        </a>
+                        
+                        <a href="#" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-warning">
+                                <i class="fas fa-history text-warning"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>النشاط</span>
+                                <small>مشاهدة سجل النشاط الخاص بك</small>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="user-dropdown-divider"></div>
+                    
+                    <div class="user-dropdown-footer">
+                        <a href="{% url 'logout' %}" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-danger">
+                                <i class="fas fa-sign-out-alt text-danger"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>تسجيل الخروج</span>
+                            </div>
+                        </a>
+                    </div>
+                    
+                    <div class="user-dropdown-info">
+                        <small>آخر تسجيل دخول: اليوم، {{ now|time:"h:i a" }}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</header> 

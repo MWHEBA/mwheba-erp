@@ -1,0 +1,13 @@
+{% if item.order_type == 'offset' %}
+    <span class="badge bg-primary">
+        <i class="fas fa-print me-1"></i>أوفست
+    </span>
+{% elif item.order_type == 'digital' %}
+    <span class="badge bg-info">
+        <i class="fas fa-desktop me-1"></i>ديجيتال
+    </span>
+{% else %}
+    <span class="badge bg-secondary">
+        <i class="fas fa-question me-1"></i>غير محدد
+    </span>
+{% endif %}

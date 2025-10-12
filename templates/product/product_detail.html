@@ -1,0 +1,1461 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block extra_css %}
+<!-- تمرير البيانات من Django إلى JavaScript -->
+{{ product.id|json_script:"product-id" }}
+<meta name="csrf-token" content="{{ csrf_token }}">
+<script>
+    const PRODUCT_ID = JSON.parse(document.getElementById('product-id').textContent);
+</script>
+
+<style>
+    
+    .info-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-card h5 {
+        color: #495057;
+        margin-bottom: 1rem;
+        font-weight: 600;
+        border-bottom: 1px solid #e9ecef;
+        padding-bottom: 0.5rem;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        color: #212529;
+        font-weight: 600;
+    }
+    
+    .price-highlight {
+        background: #e3f2fd;
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        color: #1976d2;
+    }
+    
+    .stock-badge {
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .stock-good { background: #d4edda; color: #155724; }
+    .stock-low { background: #fff3cd; color: #856404; }
+    .stock-out { background: #f8d7da; color: #721c24; }
+    
+    .table-simple {
+        margin-bottom: 0;
+    }
+    
+    .table-simple th {
+        background: #f8f9fa;
+        border-top: none;
+        color: #495057;
+        font-weight: 600;
+        padding: 0.75rem;
+    }
+    
+    .table-simple td {
+        padding: 0.75rem;
+        vertical-align: middle;
+    }
+    
+    .btn-simple {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.875rem;
+        border-radius: 4px;
+        border: 1px solid #dee2e6;
+        background: white;
+        color: #495057;
+    }
+    
+    .btn-simple:hover {
+        background: #f8f9fa;
+        border-color: #adb5bd;
+    }
+    
+    .supplier-default {
+        background: #fff3cd;
+        border-left: 3px solid #ffc107;
+    }
+    
+    .highlight-card {
+        background: #f8fbff;
+        color: #2c5282;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .highlight-card:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+    
+    .highlight-price {
+        font-size: 1.75rem;
+        font-weight: 600;
+        color: #2c5282;
+        margin: 0.75rem 0;
+    }
+    
+    .highlight-stock {
+        background: #f6fdf8;
+        color: #2d5f3f;
+        border: 1px solid #e2e8f0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        transition: all 0.3s ease;
+    }
+    
+    .highlight-stock:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        transform: translateY(-2px);
+    }
+    
+    .highlight-stock .highlight-price {
+        color: #2d5f3f;
+    }
+    
+    .product-image {
+        max-width: 100%;
+        height: 300px;
+        object-fit: cover;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    
+    .warehouse-link {
+        color: #0d6efd;
+        text-decoration: none;
+        font-weight: 500;
+    }
+    
+    .warehouse-link:hover {
+        color: #0a58ca;
+        text-decoration: underline;
+    }
+    
+    .main-image {
+        transition: all 0.3s ease;
+        border: 2px solid #dee2e6;
+    }
+    
+    .main-image:hover {
+        transform: scale(1.02);
+        border-color: #0d6efd;
+    }
+    
+    .secondary-image {
+        transition: all 0.3s ease;
+        opacity: 0.8;
+    }
+    
+    .secondary-image:hover {
+        opacity: 1;
+        transform: scale(1.05);
+        border-color: #0d6efd;
+    }
+    
+    .primary-badge {
+        margin-top: 0.5rem;
+        color: #ffc107;
+        font-size: 0.875rem;
+    }
+    
+    .image-gallery {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+    
+    /* إحصائيات المبيعات */
+    .sales-stat-card {
+        min-height: 200px;
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 1.5rem 1rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .sales-stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: #0d6efd;
+    }
+    
+    .stat-icon {
+        font-size: 2rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #212529;
+        margin-bottom: 0.25rem;
+    }
+    
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    /* بطاقات العملاء */
+    .customer-card {
+        background: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .customer-card:hover {
+        background: #e3f2fd;
+        border-color: #bbdefb;
+    }
+    
+    .customer-quantity {
+        font-size: 1.25rem;
+        font-weight: bold;
+        color: #1976d2;
+    }
+    
+    /* الرسم البياني الشهري */
+    .monthly-sales-chart {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        height: 200px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .month-bar {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0 0.25rem;
+    }
+    
+    .bar-container {
+        height: 120px;
+        width: 100%;
+        display: flex;
+        align-items: end;
+        justify-content: center;
+        margin-bottom: 0.5rem;
+    }
+    
+    .bar {
+        width: 80%;
+        background: linear-gradient(to top, #1976d2, #42a5f5);
+        border-radius: 4px 4px 0 0;
+        min-height: 5px;
+        transition: all 0.3s ease;
+    }
+    
+    .bar:hover {
+        background: linear-gradient(to top, #1565c0, #1976d2);
+        transform: scaleY(1.1);
+    }
+    
+    .month-info {
+        text-align: center;
+        font-size: 0.75rem;
+    }
+    
+    .month-name {
+        font-weight: bold;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .month-quantity {
+        color: #1976d2;
+        font-weight: 600;
+    }
+    
+    .month-value {
+        color: #6c757d;
+    }
+    
+    /* تحسينات إضافية */
+    .badge.bg-success {
+        background-color: #28a745 !important;
+    }
+    
+    .text-primary { color: #1976d2 !important; }
+    .text-success { color: #28a745 !important; }
+    .text-info { color: #17a2b8 !important; }
+    .text-warning { color: #ffc107 !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item">
+                <a href="{% url 'core:dashboard' %}">
+                    <i class="fas fa-home me-1"></i>الرئيسية
+                </a>
+            </li>
+            <li class="breadcrumb-item">
+                <a href="{% url 'product:product_list' %}">
+                    <i class="fas fa-box me-1"></i>المنتجات
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">{{ product.name }}</li>
+        </ol>
+    </nav>
+
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm mb-4">
+        <div class="d-flex align-items-center">
+            <div class="me-3">
+                <i class="fas fa-box fa-2x text-primary"></i>
+            </div>
+            <div>
+                <h1 class="h3 mb-1">{{ product.name }}</h1>
+                <p class="text-muted mb-0">{{ product.sku }} • {{ product.category.name }}</p>
+            </div>
+        </div>
+        <div>
+            <a href="{% url 'product:product_edit' product.pk %}" class="btn btn-primary me-2">
+                <i class="fas fa-edit me-2"></i>تعديل
+            </a>
+            <a href="{% url 'product:product_delete' product.pk %}" class="btn btn-outline-danger">
+                <i class="fas fa-trash me-2"></i>حذف
+            </a>
+        </div>
+    </div>
+
+    <!-- البطاقات المميزة للسعر والمخزون والمبيعات -->
+    {% if sales_stats.period_name %}
+    <div class="alert alert-info mb-3" style="background: #f0f9ff; border: 1px solid #bae6fd; color: #0c4a6e; padding: 0.75rem 1rem;">
+        <i class="fas fa-calendar-alt me-2"></i>
+        <strong>الإحصائيات للفترة المالية:</strong> {{ sales_stats.period_name }}
+        {% if sales_stats.period_dates %}
+        <small class="me-2">({{ sales_stats.period_dates }})</small>
+        {% endif %}
+    </div>
+    {% endif %}
+    <div class="row mb-4">
+        <div class="col-md-3 d-flex">
+            <div class="info-card highlight-card text-center flex-fill">
+                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
+                    <i class="fas fa-tag me-2" style="color: #94a3b8;"></i>سعر البيع
+                </h5>
+                <div class="highlight-price">{{ product.selling_price|custom_number_format }} <small style="font-size: 1rem; color: #64748b;">ج.م</small></div>
+                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|floatformat:1 }}%</small>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex">
+            <div class="info-card highlight-stock text-center flex-fill">
+                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
+                    <i class="fas fa-boxes me-2" style="color: #86a889;"></i>المخزون
+                </h5>
+                <div class="highlight-price">{{ product.current_stock|floatformat:"0" }}</div>
+                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|floatformat:"0" }}</small>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex">
+            <div class="info-card text-center flex-fill" style="background: #fafcfe; color: #475569; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
+                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
+                    <i class="fas fa-chart-line me-2" style="color: #94a3b8;"></i>إجمالي المبيعات
+                </h5>
+                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sales_value|custom_number_format|default:"0" }} <small style="font-size: 1rem; color: #64748b;">ج.م</small></div>
+                <small style="color: #94a3b8;">{{ sales_stats.total_sales_count|default:"0" }} فاتورة</small>
+            </div>
+        </div>
+        <div class="col-md-3 d-flex">
+            <div class="info-card text-center flex-fill" style="background: #fafcfe; color: #475569; border: 1px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05); transition: all 0.3s ease;">
+                <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
+                    <i class="fas fa-shopping-cart me-2" style="color: #94a3b8;"></i>الكمية المباعة
+                </h5>
+                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|floatformat:"0"|default:"0" }}</div>
+                <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|custom_number_format|default:"0" }} ج.م</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- العمود الأيسر -->
+        <div class="col-md-8">
+            <!-- صور المنتج -->
+            <div class="info-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5><i class="fas fa-images me-2"></i>صور المنتج</h5>
+                    <span class="badge bg-primary">{{ product.images_count }} صورة</span>
+                </div>
+                
+                {% if product.has_images %}
+                <!-- الصورة الرئيسية -->
+                {% with primary_image=product.get_primary_image %}
+                <div class="text-center mb-3">
+                    <img src="{{ primary_image.image.url }}" 
+                         alt="{{ primary_image.alt_text|default:product.name }}" 
+                         class="product-image main-image"
+                         id="mainProductImage"
+                         data-original-src="{{ primary_image.image.url }}"
+                         data-original-alt="{{ primary_image.alt_text|default:product.name }}">
+                    <div class="image-controls mt-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="resetToMainImage()" id="resetImageBtn" style="display: none;">
+                            <i class="fas fa-undo me-1"></i>الرجوع للصورة الرئيسية
+                        </button>
+                        <div class="primary-badge mt-1">
+                            <i class="fas fa-star text-warning"></i>
+                            <small id="imageStatus">الصورة الرئيسية</small>
+                        </div>
+                    </div>
+                </div>
+                {% endwith %}
+                
+                <!-- الصور الثانوية -->
+                {% with secondary_images=product.get_secondary_images %}
+                {% if secondary_images %}
+                <div class="secondary-images">
+                    <h6 class="mb-2">الصور الإضافية:</h6>
+                    <div class="row g-2">
+                        {% for image in secondary_images %}
+                        <div class="col-3">
+                            <img src="{{ image.image.url }}" 
+                                 alt="{{ image.alt_text|default:product.name }}" 
+                                 class="img-thumbnail secondary-image"
+                                 onclick="changeMainImage('{{ image.image.url }}', '{{ image.alt_text|default:product.name }}')"
+                                 style="cursor: pointer; height: 80px; object-fit: cover;">
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+                {% endwith %}
+                
+                {% else %}
+                <!-- حالة عدم وجود صور -->
+                <div class="product-image d-flex align-items-center justify-content-center bg-light">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-image fa-3x mb-2"></i>
+                        <p>لا توجد صور للمنتج</p>
+                        <button class="btn btn-sm btn-outline-primary" onclick="uploadImage()">
+                            <i class="fas fa-upload me-1"></i>رفع صورة
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- المعلومات الأساسية -->
+            <div class="info-card">
+                <h5><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">كود المنتج</span>
+                    <span class="info-value">{{ product.sku }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">الباركود</span>
+                    <span class="info-value">{{ product.barcode|default:"غير محدد" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">التصنيف</span>
+                    <span class="info-value">{{ product.category.name }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">النوع</span>
+                    <span class="info-value">{{ product.brand.name|default:"غير محدد" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">وحدة القياس</span>
+                    <span class="info-value">{{ product.unit.name }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">الحالة</span>
+                    <span class="info-value">
+                        {% if product.is_active %}
+                        <span class="stock-badge stock-good">نشط</span>
+                        {% else %}
+                        <span class="stock-badge stock-out">غير نشط</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <!-- أسعار الموردين -->
+            <div class="info-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5><i class="fas fa-truck me-2"></i>أسعار الموردين</h5>
+                    <button class="btn btn-sm btn-primary" onclick="addSupplierPrice()">
+                        <i class="fas fa-plus me-1"></i>إضافة سعر
+                    </button>
+                </div>
+                
+                {% if supplier_prices %}
+                <div class="table-responsive">
+                    <table class="table table-simple">
+                        <thead>
+                            <tr>
+                                <th>المورد</th>
+                                <th>التكلفة</th>
+                                <th>آخر شراء</th>
+                                <th>الكمية</th>
+                                <th>الحالة</th>
+                                <th>إجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for sp in supplier_prices %}
+                            <tr {% if sp.is_default %}class="supplier-default"{% endif %}>
+                                <td>
+                                    <strong>{{ sp.supplier.name }}</strong>
+                                    {% if sp.is_default %}
+                                    <span class="badge bg-warning ms-2">افتراضي</span>
+                                    {% endif %}
+                                </td>
+                                <td><strong>{{ sp.cost_price|custom_number_format }} ج.م</strong></td>
+                                <td>
+                                    {% if sp.last_purchase_date %}
+                                    {{ sp.last_purchase_date|date:"d/m/Y" }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sp.last_purchase_quantity %}
+                                    {{ sp.last_purchase_quantity|floatformat:"0" }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if sp.is_active %}
+                                    <span class="stock-badge stock-good">نشط</span>
+                                    {% else %}
+                                    <span class="stock-badge stock-out">معطل</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <button class="btn btn-outline-primary btn-sm" onclick="editSupplierPrice({{ sp.id }})" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        {% if not sp.is_default %}
+                                        <button class="btn btn-outline-warning btn-sm" onclick="setDefaultSupplier({{ sp.id }})" title="تعيين كافتراضي">
+                                            <i class="fas fa-star"></i>
+                                        </button>
+                                        {% endif %}
+                                        <button class="btn btn-outline-info btn-sm" onclick="viewPriceHistory({{ sp.id }})" title="تاريخ الأسعار">
+                                            <i class="fas fa-history"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">لا يوجد موردين مسجلين لهذا المنتج</p>
+                    <button class="btn btn-primary" onclick="addSupplierPrice()">
+                        <i class="fas fa-plus me-2"></i>إضافة أول مورد
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- إحصائيات المبيعات -->
+            <div class="info-card">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5><i class="fas fa-chart-line me-2"></i>إحصائيات المبيعات</h5>
+                    <span class="badge bg-success">{{ sales_stats.total_sales_count }} فاتورة</span>
+                </div>
+                
+                {% if sales_stats.total_sales_count > 0 %}
+                <!-- الإحصائيات الأساسية -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="sales-stat-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-boxes text-primary"></i>
+                            </div>
+                            <div class="stat-value">{{ sales_stats.total_sold_quantity|floatformat:"0" }}</div>
+                            <div class="stat-label">إجمالي الكمية المباعة</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="sales-stat-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-money-bill-wave text-success"></i>
+                            </div>
+                            <div class="stat-value">{{ sales_stats.total_sales_value|custom_number_format }}</div>
+                            <div class="stat-label">إجمالي قيمة المبيعات</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="sales-stat-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-receipt text-info"></i>
+                            </div>
+                            <div class="stat-value">{{ sales_stats.total_sales_count }}</div>
+                            <div class="stat-label">عدد الفواتير</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="sales-stat-card text-center">
+                            <div class="stat-icon">
+                                <i class="fas fa-calculator text-warning"></i>
+                            </div>
+                            <div class="stat-value">{{ sales_stats.average_sale_price|custom_number_format }}</div>
+                            <div class="stat-label">متوسط سعر البيع</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- آخر المبيعات -->
+                {% if sales_stats.last_sales %}
+                <div class="mb-4">
+                    <h6 class="mb-3"><i class="fas fa-clock me-2"></i>آخر المبيعات</h6>
+                    <div class="table-responsive">
+                        <table class="table table-simple table-sm">
+                            <thead>
+                                <tr>
+                                    <th>رقم الفاتورة</th>
+                                    <th>العميل</th>
+                                    <th>التاريخ</th>
+                                    <th>الكمية</th>
+                                    <th>السعر</th>
+                                    <th>الإجمالي</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for sale_item in sales_stats.last_sales %}
+                                <tr>
+                                    <td>
+                                        <a href="{% url 'sale:sale_detail' sale_item.sale.pk %}" class="text-decoration-none">
+                                            {{ sale_item.sale.number }}
+                                        </a>
+                                    </td>
+                                    <td>{{ sale_item.sale.customer.name }}</td>
+                                    <td>{{ sale_item.sale.date|date:"d/m/Y" }}</td>
+                                    <td>{{ sale_item.quantity|floatformat:"0" }}</td>
+                                    <td>{{ sale_item.unit_price|custom_number_format }} ج.م</td>
+                                    <td><strong>{{ sale_item.total|custom_number_format }} ج.م</strong></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- أفضل العملاء -->
+                {% if sales_stats.top_customers %}
+                <div class="mb-4">
+                    <h6 class="mb-3"><i class="fas fa-users me-2"></i>أفضل العملاء</h6>
+                    <div class="row">
+                        {% for customer in sales_stats.top_customers %}
+                        <div class="col-md-6 mb-2">
+                            <div class="customer-card">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong>{{ customer.sale__customer__name }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ customer.sales_count }} فاتورة</small>
+                                    </div>
+                                    <div class="text-end">
+                                        <div class="customer-quantity">{{ customer.total_quantity|floatformat:"0" }}</div>
+                                        <small class="text-muted">{{ customer.total_value|custom_number_format }} ج.م</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- المبيعات الشهرية -->
+                {% if sales_stats.monthly_sales %}
+                <div class="mb-3">
+                    <h6 class="mb-3"><i class="fas fa-chart-bar me-2"></i>المبيعات الشهرية (آخر 6 شهور)</h6>
+                    <div class="monthly-sales-chart">
+                        {% for month in sales_stats.monthly_sales %}
+                        <div class="month-bar">
+                            <div class="bar-container">
+                                {% if sales_stats.max_monthly_quantity > 0 %}
+                                    {% widthratio month.quantity sales_stats.max_monthly_quantity 100 as bar_height %}
+                                    <div class="bar" style="height: {{ bar_height }}%"></div>
+                                {% else %}
+                                    <div class="bar" style="height: 0%"></div>
+                                {% endif %}
+                            </div>
+                            <div class="month-info">
+                                <div class="month-name">{{ month.month }}</div>
+                                <div class="month-quantity">{{ month.quantity|floatformat:"0" }}</div>
+                                <div class="month-value">{{ month.value|custom_number_format }}</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- معلومات إضافية -->
+                <div class="row">
+                    {% if sales_stats.last_sale_date %}
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="info-label">آخر بيعة</span>
+                            <span class="info-value">{{ sales_stats.last_sale_date|date:"d/m/Y" }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if sales_stats.best_selling_month %}
+                    <div class="col-md-6">
+                        <div class="info-row">
+                            <span class="info-label">أفضل شهر</span>
+                            <span class="info-value">{{ sales_stats.best_selling_month.month_name }}</span>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% else %}
+                <!-- حالة عدم وجود مبيعات -->
+                <div class="text-center py-4">
+                    <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">لا توجد مبيعات لهذا المنتج بعد</p>
+                    <a href="{% url 'sale:sale_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>إنشاء فاتورة مبيعات
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- المخزون في المخازن -->
+            <div class="info-card">
+                <h5><i class="fas fa-warehouse me-2"></i>المخزون في المخازن</h5>
+                
+                {% if product.stocks.exists %}
+                <div class="table-responsive">
+                    <table class="table table-simple">
+                        <thead>
+                            <tr>
+                                <th>المخزن</th>
+                                <th>الكمية المتاحة</th>
+                                <th>آخر تحديث</th>
+                                <th>الحالة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stock in product.stocks.all %}
+                            <tr>
+                                <td>
+                                    <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}" class="warehouse-link">
+                                        <i class="fas fa-warehouse me-1"></i>{{ stock.warehouse.name }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <strong>{{ stock.quantity|floatformat:"0" }}</strong>
+                                    {% if stock.quantity <= 0 %}
+                                    <span class="stock-badge stock-out ms-2">نفد</span>
+                                    {% elif stock.quantity < product.min_stock %}
+                                    <span class="stock-badge stock-low ms-2">منخفض</span>
+                                    {% else %}
+                                    <span class="stock-badge stock-good ms-2">متاح</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ stock.updated_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    {% if stock.warehouse.is_active %}
+                                    <span class="stock-badge stock-good">نشط</span>
+                                    {% else %}
+                                    <span class="stock-badge stock-out">معطل</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-warehouse fa-3x text-muted mb-3"></i>
+                    <p class="text-muted">لا يوجد مخزون متاح لهذا المنتج في أي مخزن</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- الشريط الجانبي -->
+        <div class="col-md-4">
+            <!-- ملخص سريع -->
+            <div class="info-card">
+                <h5><i class="fas fa-chart-bar me-2"></i>ملخص سريع</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">سعر التكلفة</span>
+                    <span class="info-value">{{ product.cost_price|custom_number_format }} ج.م</span>
+                </div>
+                
+                
+                
+                {% if supplier_prices %}
+                <div class="info-row">
+                    <span class="info-label">عدد الموردين</span>
+                    <span class="info-value">{{ supplier_prices|length }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">أقل سعر</span>
+                    <span class="info-value">{{ supplier_prices.0.cost_price|custom_number_format }} ج.م</span>
+                </div>
+                {% endif %}
+                
+                {% if product.stocks.exists %}
+                <div class="info-row">
+                    <span class="info-label">عدد المخازن</span>
+                    <span class="info-value">{{ product.stocks.count }}</span>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- ملخص المبيعات -->
+            {% if sales_stats.total_sales_count > 0 %}
+            <div class="info-card">
+                <h5><i class="fas fa-chart-pie me-2"></i>ملخص المبيعات</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">إجمالي المبيعات</span>
+                    <span class="info-value text-success">{{ sales_stats.total_sales_value|custom_number_format }} ج.م</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">الكمية المباعة</span>
+                    <span class="info-value">{{ sales_stats.total_sold_quantity|floatformat:"0" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">عدد الفواتير</span>
+                    <span class="info-value">{{ sales_stats.total_sales_count }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">متوسط السعر</span>
+                    <span class="info-value">{{ sales_stats.average_sale_price|custom_number_format }} ج.م</span>
+                </div>
+                
+                {% if sales_stats.last_sale_date %}
+                <div class="info-row">
+                    <span class="info-label">آخر بيعة</span>
+                    <span class="info-value">{{ sales_stats.last_sale_date|date:"d/m/Y" }}</span>
+                </div>
+                {% endif %}
+                
+                {% if sales_stats.top_customers %}
+                <div class="info-row">
+                    <span class="info-label">أفضل عميل</span>
+                    <span class="info-value">{{ sales_stats.top_customers.0.sale__customer__name }}</span>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- الوصف -->
+            {% if product.description %}
+            <div class="info-card">
+                <h5><i class="fas fa-align-left me-2"></i>الوصف</h5>
+                <p class="mb-0">{{ product.description|linebreaks }}</p>
+            </div>
+            {% endif %}
+
+            <!-- معلومات إضافية -->
+            <div class="info-card">
+                <h5><i class="fas fa-calendar me-2"></i>معلومات إضافية</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">تاريخ الإنشاء</span>
+                    <span class="info-value">{{ product.created_at|date:"d/m/Y" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">آخر تحديث</span>
+                    <span class="info-value">{{ product.updated_at|date:"d/m/Y" }}</span>
+                </div>
+                
+                {% if product.is_featured %}
+                <div class="info-row">
+                    <span class="info-label">منتج مميز</span>
+                    <span class="info-value">
+                        <span class="stock-badge stock-good">نعم</span>
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // استخدام المتغير المُمرر من Django
+    const productId = PRODUCT_ID;
+    
+    // دالة إضافة مورد جديد
+    function addSupplierPrice() {
+        showSupplierPriceModal();
+    }
+
+    // دالة تعديل سعر مورد
+    function editSupplierPrice(id) {
+        showSupplierPriceModal(id);
+    }
+    
+    // دالة تعيين مورد افتراضي
+    function setDefaultSupplier(id) {
+        if (confirm('هل تريد تعيين هذا المورد كافتراضي؟')) {
+            fetch(`/products/api/supplier-prices/${id}/set-default/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('success', data.message);
+                    setTimeout(() => location.reload(), 1500);
+                } else {
+                    showAlert('error', data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('error', 'حدث خطأ في النظام');
+            });
+        }
+    }
+    
+    // دالة عرض تاريخ الأسعار
+    function viewPriceHistory(id) {
+        fetch(`/products/api/supplier-prices/${id}/history/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showPriceHistoryModal(data.data);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'حدث خطأ في تحميل تاريخ الأسعار');
+        });
+    }
+    
+    // دالة عرض مودال إضافة/تعديل سعر المورد
+    function showSupplierPriceModal(supplierPriceId = null) {
+        const isEdit = supplierPriceId !== null;
+        const modalTitle = isEdit ? 'تعديل سعر المورد' : 'إضافة مورد جديد';
+        
+        const modalHtml = `
+            <div class="modal fade" id="supplierPriceModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">${modalTitle}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="supplierPriceForm">
+                                ${!isEdit ? `
+                                <div class="mb-3">
+                                    <label class="form-label">المورد</label>
+                                    <select class="form-select" id="supplierId" required>
+                                        <option value="">اختر المورد</option>
+                                    </select>
+                                </div>
+                                ` : ''}
+                                <div class="mb-3">
+                                    <label class="form-label">سعر التكلفة</label>
+                                    <input type="number" class="form-control" id="costPrice" step="0.01" min="0.01" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">ملاحظات</label>
+                                    <textarea class="form-control" id="notes" rows="3"></textarea>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                            <button type="button" class="btn btn-primary" onclick="saveSupplierPrice(${supplierPriceId})">
+                                ${isEdit ? 'تحديث' : 'إضافة'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // إزالة المودال السابق إن وجد
+        const existingModal = document.getElementById('supplierPriceModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // إضافة المودال الجديد
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // تحميل قائمة الموردين إذا كان إضافة جديدة
+        if (!isEdit) {
+            loadSuppliers();
+        }
+        
+        // إظهار المودال
+        const modal = new bootstrap.Modal(document.getElementById('supplierPriceModal'));
+        modal.show();
+    }
+    
+    // دالة تحميل قائمة الموردين
+    function loadSuppliers() {
+        // هنا يمكن إضافة API لتحميل الموردين
+        // مؤقتاً سنضع قائمة ثابتة
+        const supplierSelect = document.getElementById('supplierId');
+        supplierSelect.innerHTML = '<option value="">اختر المورد</option>';
+        
+        // يمكن استبدال هذا بـ API call حقيقي
+        fetch('/supplier/api/list/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                data.suppliers.forEach(supplier => {
+                    supplierSelect.innerHTML += `<option value="${supplier.id}">${supplier.name}</option>`;
+                });
+            }
+        })
+        .catch(error => {
+            console.log('تعذر تحميل قائمة الموردين');
+        });
+    }
+    
+    // دالة حفظ سعر المورد
+    function saveSupplierPrice(supplierPriceId = null) {
+        const isEdit = supplierPriceId !== null;
+        const costPrice = document.getElementById('costPrice').value;
+        const notes = document.getElementById('notes').value;
+        
+        if (!costPrice || parseFloat(costPrice) <= 0) {
+            showAlert('error', 'يرجى إدخال سعر صحيح');
+            return;
+        }
+        
+        const requestData = {
+            cost_price: parseFloat(costPrice),
+            notes: notes
+        };
+        
+        if (!isEdit) {
+            const supplierId = document.getElementById('supplierId').value;
+            if (!supplierId) {
+                showAlert('error', 'يرجى اختيار المورد');
+                return;
+            }
+            requestData.product_id = productId;
+            requestData.supplier_id = parseInt(supplierId);
+        }
+        
+        const url = isEdit 
+            ? `/products/api/supplier-prices/${supplierPriceId}/edit/`
+            : '/products/api/supplier-prices/add/';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify(requestData)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('success', data.message);
+                bootstrap.Modal.getInstance(document.getElementById('supplierPriceModal')).hide();
+                setTimeout(() => location.reload(), 1500);
+            } else {
+                showAlert('error', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('error', 'حدث خطأ في النظام');
+        });
+    }
+    
+    // دالة عرض مودال تاريخ الأسعار
+    function showPriceHistoryModal(data) {
+        let historyHtml = '';
+        
+        if (data.history.length === 0) {
+            historyHtml = '<p class="text-muted text-center">لا يوجد تاريخ تغيير أسعار</p>';
+        } else {
+            historyHtml = `
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>السعر القديم</th>
+                                <th>السعر الجديد</th>
+                                <th>التغيير</th>
+                                <th>السبب</th>
+                                <th>المستخدم</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            data.history.forEach(history => {
+                const changeClass = history.is_increase ? 'text-danger' : history.is_decrease ? 'text-success' : 'text-muted';
+                const changeIcon = history.is_increase ? '↑' : history.is_decrease ? '↓' : '=';
+                
+                historyHtml += `
+                    <tr>
+                        <td>${history.change_date}</td>
+                        <td>${history.old_price ? history.old_price.toFixed(2) : '-'}</td>
+                        <td>${history.new_price.toFixed(2)}</td>
+                        <td class="${changeClass}">
+                            ${changeIcon} ${Math.abs(history.change_amount).toFixed(2)}
+                            ${history.change_percentage ? `(${history.change_percentage.toFixed(1)}%)` : ''}
+                        </td>
+                        <td>${history.change_reason}</td>
+                        <td>${history.changed_by}</td>
+                    </tr>
+                `;
+            });
+            
+            historyHtml += '</tbody></table></div>';
+        }
+        
+        const modalHtml = `
+            <div class="modal fade" id="priceHistoryModal" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">تاريخ أسعار ${data.supplier_name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <strong>المنتج:</strong> ${data.product_name}<br>
+                                <strong>السعر الحالي:</strong> ${data.current_price.toFixed(2)} ج.م
+                            </div>
+                            ${historyHtml}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // إزالة المودال السابق إن وجد
+        const existingModal = document.getElementById('priceHistoryModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // إضافة المودال الجديد
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // إظهار المودال
+        const modal = new bootstrap.Modal(document.getElementById('priceHistoryModal'));
+        modal.show();
+    }
+    
+    // دالة عرض التنبيهات
+    function showAlert(type, message) {
+        // استخدام SweetAlert2 إذا كان متاحاً
+        if (typeof Swal !== 'undefined') {
+            const icon = type === 'success' ? 'success' : 'error';
+            Swal.fire({
+                icon: icon,
+                title: type === 'success' ? 'نجح!' : 'خطأ!',
+                text: message,
+                timer: 3000,
+                showConfirmButton: false,
+                toast: true,
+                position: 'top-end'
+            });
+        } else {
+            // fallback للتنبيهات العادية
+            const alertClass = type === 'success' ? 'alert-success' : 'alert-danger';
+            const alertHtml = `
+                <div class="alert ${alertClass} alert-dismissible fade show position-fixed" 
+                     style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            document.body.insertAdjacentHTML('beforeend', alertHtml);
+            
+            // إزالة التنبيه تلقائياً بعد 5 ثوان
+            setTimeout(() => {
+                const alerts = document.querySelectorAll('.alert');
+                alerts.forEach(alert => {
+                    if (alert.textContent.includes(message)) {
+                        alert.remove();
+                    }
+                });
+            }, 5000);
+        }
+    }
+    
+    // دالة الحصول على CSRF token
+    function getCookie(name) {
+        // محاولة الحصول على CSRF token من meta tag أولاً
+        if (name === 'csrftoken') {
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken) {
+                return metaToken.getAttribute('content');
+            }
+        }
+        
+        // fallback للطريقة التقليدية من الكوكيز
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    function changeMainImage(imageUrl, altText) {
+        const mainImage = document.getElementById('mainProductImage');
+        const resetBtn = document.getElementById('resetImageBtn');
+        const imageStatus = document.getElementById('imageStatus');
+        
+        if (mainImage) {
+            mainImage.src = imageUrl;
+            mainImage.alt = altText;
+            
+            // إظهار زر الرجوع وتغيير الحالة
+            if (resetBtn) resetBtn.style.display = 'inline-block';
+            if (imageStatus) imageStatus.textContent = 'صورة إضافية';
+            
+            // إضافة تأثير انتقال
+            mainImage.style.opacity = '0.5';
+            setTimeout(() => {
+                mainImage.style.opacity = '1';
+            }, 150);
+        }
+    }
+    
+    function resetToMainImage() {
+        const mainImage = document.getElementById('mainProductImage');
+        const resetBtn = document.getElementById('resetImageBtn');
+        const imageStatus = document.getElementById('imageStatus');
+        
+        if (mainImage) {
+            const originalSrc = mainImage.getAttribute('data-original-src');
+            const originalAlt = mainImage.getAttribute('data-original-alt');
+            
+            mainImage.src = originalSrc;
+            mainImage.alt = originalAlt;
+            
+            // إخفاء زر الرجوع وإعادة الحالة
+            if (resetBtn) resetBtn.style.display = 'none';
+            if (imageStatus) imageStatus.textContent = 'الصورة الرئيسية';
+            
+            // إضافة تأثير انتقال
+            mainImage.style.opacity = '0.5';
+            setTimeout(() => {
+                mainImage.style.opacity = '1';
+            }, 150);
+        }
+    }
+    
+    function uploadImage() {
+        alert('ميزة رفع الصور ستكون متاحة قريباً');
+    }
+    
+    // تفاعل مع الرسم البياني للمبيعات الشهرية
+    document.addEventListener('DOMContentLoaded', function() {
+        // إضافة تفاعل مع أعمدة الرسم البياني
+        const bars = document.querySelectorAll('.bar');
+        bars.forEach(bar => {
+            bar.addEventListener('mouseenter', function() {
+                const monthBar = this.closest('.month-bar');
+                const monthInfo = monthBar.querySelector('.month-info');
+                
+                // إضافة تأثير بصري
+                this.style.transform = 'scaleY(1.1)';
+                monthInfo.style.fontWeight = 'bold';
+                monthInfo.style.color = '#1976d2';
+            });
+            
+            bar.addEventListener('mouseleave', function() {
+                const monthBar = this.closest('.month-bar');
+                const monthInfo = monthBar.querySelector('.month-info');
+                
+                // إزالة التأثير
+                this.style.transform = 'scaleY(1)';
+                monthInfo.style.fontWeight = 'normal';
+                monthInfo.style.color = '';
+            });
+        });
+        
+        // تحريك بطاقات الإحصائيات عند التحميل
+        const statCards = document.querySelectorAll('.sales-stat-card');
+        statCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateY(20px)';
+                card.style.transition = 'all 0.5s ease';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateY(0)';
+                }, 100);
+            }, index * 100);
+        });
+        
+        // تحريك بطاقات العملاء
+        const customerCards = document.querySelectorAll('.customer-card');
+        customerCards.forEach((card, index) => {
+            setTimeout(() => {
+                card.style.opacity = '0';
+                card.style.transform = 'translateX(-20px)';
+                card.style.transition = 'all 0.5s ease';
+                
+                setTimeout(() => {
+                    card.style.opacity = '1';
+                    card.style.transform = 'translateX(0)';
+                }, 100);
+            }, (index * 150) + 500);
+        });
+        
+        // تحريك أعمدة الرسم البياني
+        const monthBars = document.querySelectorAll('.month-bar .bar');
+        monthBars.forEach((bar, index) => {
+            const originalHeight = bar.style.height;
+            bar.style.height = '0%';
+            bar.style.transition = 'height 0.8s ease';
+            
+            setTimeout(() => {
+                bar.style.height = originalHeight;
+            }, (index * 100) + 1000);
+        });
+    });
+    
+    // دالة لعرض تفاصيل الشهر عند النقر
+    function showMonthDetails(monthData) {
+        const modalHtml = `
+            <div class="modal fade" id="monthDetailsModal" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">تفاصيل مبيعات ${monthData.month_name}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="row">
+                                <div class="col-md-4 text-center">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-boxes text-primary"></i>
+                                    </div>
+                                    <div class="stat-value">${monthData.quantity}</div>
+                                    <div class="stat-label">الكمية المباعة</div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-money-bill-wave text-success"></i>
+                                    </div>
+                                    <div class="stat-value">${monthData.value.toLocaleString()} ج.م</div>
+                                    <div class="stat-label">قيمة المبيعات</div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="stat-icon">
+                                        <i class="fas fa-receipt text-info"></i>
+                                    </div>
+                                    <div class="stat-value">${monthData.count}</div>
+                                    <div class="stat-label">عدد الفواتير</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // إزالة المودال السابق إن وجد
+        const existingModal = document.getElementById('monthDetailsModal');
+        if (existingModal) {
+            existingModal.remove();
+        }
+        
+        // إضافة المودال الجديد
+        document.body.insertAdjacentHTML('beforeend', modalHtml);
+        
+        // إظهار المودال
+        const modal = new bootstrap.Modal(document.getElementById('monthDetailsModal'));
+        modal.show();
+    }
+</script>
+{% endblock %}
+ 

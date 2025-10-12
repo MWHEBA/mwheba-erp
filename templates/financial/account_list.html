@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">إدارة الحسابات المالية ومتابعة الأرصدة والمعاملات</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'financial:account_create' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "إضافة حساب جديد" %}
+              </a>
+          </div>
+      </div>
+  </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-coins"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الأصول" %}</div>
+            <div class="stats-card-value">{{ total_assets|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+            <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
+            <div class="stats-card-value">{{ total_expenses|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="account_type" class="form-label">{% trans "تصنيف الحساب" %}</label>
+          <select class="form-select" id="account_type" name="account_type">
+            <option value="">{% trans "جميع التصنيفات" %}</option>
+            <option value="asset" {% if request.GET.account_type == 'asset' %}selected{% endif %}>{% trans "أصول" %}</option>
+            <option value="liability" {% if request.GET.account_type == 'liability' %}selected{% endif %}>{% trans "خصوم" %}</option>
+            <option value="equity" {% if request.GET.account_type == 'equity' %}selected{% endif %}>{% trans "حقوق ملكية" %}</option>
+            <option value="income" {% if request.GET.account_type == 'income' %}selected{% endif %}>{% trans "إيرادات" %}</option>
+            <option value="expense" {% if request.GET.account_type == 'expense' %}selected{% endif %}>{% trans "مصروفات" %}</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="type" class="form-label">{% trans "نوع الحساب" %}</label>
+          <select class="form-select" id="type" name="type">
+            <option value="">{% trans "جميع الأنواع" %}</option>
+            <option value="cash" {% if request.GET.type == 'cash' %}selected{% endif %}>{% trans "نقدي" %}</option>
+            <option value="bank" {% if request.GET.type == 'bank' %}selected{% endif %}>{% trans "بنكي" %}</option>
+            <option value="wallet" {% if request.GET.type == 'wallet' %}selected{% endif %}>{% trans "محفظة إلكترونية" %}</option>
+            <option value="other" {% if request.GET.type == 'other' %}selected{% endif %}>{% trans "آخر" %}</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label for="search" class="form-label">{% trans "بحث" %}</label>
+          <input type="text" class="form-control" id="search" name="search" placeholder="{% trans 'اسم الحساب أو الكود' %}" value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- قائمة الحسابات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-university me-2"></i>{% trans "قائمة الحسابات" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'financial:account_create' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>{% trans "إضافة حساب" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- عرض الحسابات في شكل بطاقات -->
+        <div class="row">
+          {% if accounts %}
+            {% for account in accounts %}
+            <div class="col-md-6 col-lg-6 mb-4">
+              <div class="account-card card {{ account.type }} {{ account.account_type }}">
+                <div class="card-body">
+                  <div class="account-card-header">
+                    <div>
+                      {% if account.code %}
+                      <div class="card-code">{{ account.code }}</div>
+                      {% endif %}
+                      <h5 class="card-title" title="{{ account.name }}">{{ account.name }}</h5>
+                    </div>
+                    <div class="card-type-icon">
+                      {% if account.type == 'cash' %}
+                      <i class="fas fa-money-bill-wave"></i>
+                      {% elif account.type == 'bank' %}
+                      <i class="fas fa-university"></i>
+                      {% elif account.type == 'wallet' %}
+                      <i class="fas fa-wallet"></i>
+                      {% else %}
+                      <i class="fas fa-landmark"></i>
+                      {% endif %}
+                    </div>
+                  </div>
+                  
+                  <div class="account-balance {% if account.balance < 0 %}text-danger{% elif account.balance > 0 %}text-success{% endif %}">
+                    {{ account.balance|custom_number_format }} {% trans "ج.م" %}
+                  </div>
+                  
+                  <div class="account-details">
+                    <div class="row g-2">
+                      <div class="col-6">
+                        <div class="account-detail-label">{% trans "تصنيف الحساب" %}</div>
+                        <div class="account-detail-value">
+                          {% if account.account_type == 'asset' %}
+                          <span class="soft-badge soft-badge-primary">{% trans "أصول" %}</span>
+                          {% elif account.account_type == 'liability' %}
+                          <span class="soft-badge soft-badge-danger">{% trans "خصوم" %}</span>
+                          {% elif account.account_type == 'equity' %}
+                          <span class="soft-badge soft-badge-success">{% trans "حقوق ملكية" %}</span>
+                          {% elif account.account_type == 'income' %}
+                          <span class="soft-badge soft-badge-info">{% trans "إيرادات" %}</span>
+                          {% elif account.account_type == 'expense' %}
+                          <span class="soft-badge soft-badge-warning">{% trans "مصروفات" %}</span>
+                          {% else %}
+                          <span class="soft-badge soft-badge-secondary">{% trans "آخر" %}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="col-6">
+                        <div class="account-detail-label">{% trans "نوع الحساب" %}</div>
+                        <div class="account-detail-value">
+                          {% if account.type == 'cash' %}
+                          <span>{% trans "نقدي" %}</span>
+                          {% elif account.type == 'bank' %}
+                          <span>{% trans "بنكي" %}</span>
+                          {% elif account.type == 'wallet' %}
+                          <span>{% trans "محفظة إلكترونية" %}</span>
+                          {% else %}
+                          <span>{% trans "آخر" %}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div class="account-actions">
+                    <a href="{% url 'financial:account_detail' account.id %}" class="btn btn-sm btn-outline-primary">
+                      <i class="fas fa-info-circle me-1"></i>{% trans "التفاصيل" %}
+                    </a>
+                    <a href="{% url 'financial:account_transactions' account.id %}" class="btn btn-sm btn-outline-success">
+                      <i class="fas fa-exchange-alt me-1"></i>{% trans "المعاملات" %}
+                    </a>
+                    <a href="{% url 'financial:account_edit' account.id %}" class="btn btn-sm btn-outline-warning">
+                      <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          {% else %}
+            <div class="col-12">
+              <div class="empty-state">
+                <div class="empty-state-icon"><i class="fas fa-university"></i></div>
+                <h4 class="empty-state-title">{% trans "لا توجد حسابات" %}</h4>
+                <p class="empty-state-description">{% trans "لم يتم إضافة أي حسابات مالية بعد. يمكنك إضافة حساب جديد من خلال النقر على زر 'إضافة حساب جديد'." %}</p>
+                <a href="{% url 'financial:account_create' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "إضافة حساب جديد" %}
+                </a>
+              </div>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  $(document).ready(function() {
+    // تفعيل فلاتر الصفحة
+    $('.filter-dropdown').change(function() {
+      $(this).closest('form').submit();
+    });
+  });
+</script>
+{% endblock %} 

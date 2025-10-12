@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.calculator-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 0.5rem;
+    padding: 2rem;
+    margin-bottom: 2rem;
+}
+
+.result-card {
+    background: white;
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.price-display {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #28a745;
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.breakdown-item {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.breakdown-item:last-child {
+    border-bottom: none;
+    font-weight: bold;
+    font-size: 1.1rem;
+}
+
+.tier-badge {
+    background: linear-gradient(45deg, #17a2b8, #6f42c1);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 1rem;
+    font-size: 0.8rem;
+}
+
+.savings-highlight {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    color: white;
+    padding: 1rem;
+    border-radius: 0.35rem;
+    text-align: center;
+    margin: 1rem 0;
+}
+
+.service-selector {
+    background: #f8f9fc;
+    border-radius: 0.35rem;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.quantity-slider {
+    width: 100%;
+    margin: 1rem 0;
+}
+
+.slider-value {
+    background: #4e73df;
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 0.25rem;
+    font-weight: bold;
+}
+
+.service-info {
+    background: #f8f9fc;
+    border-radius: 0.35rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.quick-quantities {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 1rem;
+}
+
+.quick-qty-btn {
+    padding: 0.25rem 0.75rem;
+    border: 1px solid #4e73df;
+    background: white;
+    color: #4e73df;
+    border-radius: 0.25rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.quick-qty-btn:hover,
+.quick-qty-btn.active {
+    background: #4e73df;
+    color: white;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    
+    <!-- Page Header -->
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">
+            <i class="{{ page_icon }} fa-fw"></i> {{ page_title }}
+        </h1>
+        <div>
+            <a href="{% url 'supplier:price_comparison' %}" class="btn btn-primary">
+                <i class="fas fa-balance-scale fa-sm"></i> مقارنة الأسعار
+            </a>
+            <a href="{% url 'supplier:bulk_price_calculator' %}" class="btn btn-success">
+                <i class="fas fa-list fa-sm"></i> حاسبة مجمعة
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Service Selection -->
+        <div class="col-lg-4">
+            <div class="service-selector">
+                <h5 class="mb-3"><i class="fas fa-cogs"></i> اختيار الخدمة</h5>
+                
+                <form method="GET" id="calculatorForm">
+                    <div class="mb-3">
+                        <label for="service_id" class="form-label">الخدمة:</label>
+                        <select name="service_id" id="service_id" class="form-control" required>
+                            <option value="">اختر خدمة...</option>
+                            {% regroup services by category as services_by_category %}
+                            {% for category_group in services_by_category %}
+                            <optgroup label="{{ category_group.grouper.name }}">
+                                {% for service in category_group.list %}
+                                <option value="{{ service.id }}" 
+                                        {% if selected_service.id == service.id %}selected{% endif %}
+                                        data-supplier="{{ service.supplier.name }}"
+                                        data-base-price="{{ service.base_price }}"
+                                        data-setup-cost="{{ service.setup_cost }}">
+                                    {{ service.name }} - {{ service.supplier.name }}
+                                </option>
+                                {% endfor %}
+                            </optgroup>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="quantity" class="form-label">
+                            الكمية: <span class="slider-value" id="quantityValue">{{ quantity }}</span>
+                        </label>
+                        <input type="range" name="quantity" id="quantity" 
+                               class="quantity-slider" 
+                               min="1" max="10000" step="1" 
+                               value="{{ quantity }}">
+                        <input type="number" id="quantityInput" 
+                               class="form-control mt-2" 
+                               min="1" value="{{ quantity }}">
+                    </div>
+                    
+                    <!-- Quick Quantity Buttons -->
+                    <div class="quick-quantities">
+                        <button type="button" class="quick-qty-btn" data-qty="10">10</button>
+                        <button type="button" class="quick-qty-btn" data-qty="50">50</button>
+                        <button type="button" class="quick-qty-btn" data-qty="100">100</button>
+                        <button type="button" class="quick-qty-btn" data-qty="500">500</button>
+                        <button type="button" class="quick-qty-btn" data-qty="1000">1000</button>
+                        <button type="button" class="quick-qty-btn" data-qty="5000">5000</button>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary w-100 mt-3">
+                        <i class="fas fa-calculator"></i> حساب السعر
+                    </button>
+                </form>
+            </div>
+            
+            {% if selected_service %}
+            <!-- Service Info -->
+            <div class="service-info">
+                <h6><i class="fas fa-info-circle"></i> معلومات الخدمة</h6>
+                <p class="mb-2"><strong>الخدمة:</strong> {{ selected_service.name }}</p>
+                <p class="mb-2"><strong>المورد:</strong> 
+                    <a href="{% url 'supplier:supplier_detail' selected_service.supplier.id %}">
+                        {{ selected_service.supplier.name }}
+                    </a>
+                </p>
+                <p class="mb-2"><strong>الفئة:</strong> {{ selected_service.category.name }}</p>
+                <p class="mb-2"><strong>السعر الأساسي:</strong> {{ selected_service.base_price }} ج.م</p>
+                {% if selected_service.setup_cost > 0 %}
+                <p class="mb-2"><strong>تكلفة الإعداد:</strong> {{ selected_service.setup_cost }} ج.م</p>
+                {% endif %}
+                <p class="mb-0"><strong>الحد الأدنى:</strong> {{ selected_service.min_quantity }}</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Calculator Results -->
+        <div class="col-lg-8">
+            {% if calculation_result %}
+            <div class="calculator-card">
+                <div class="text-center">
+                    <h4><i class="fas fa-calculator"></i> نتيجة الحساب</h4>
+                    <div class="price-display">{{ calculation_result.total|floatformat:2 }} ج.م</div>
+                    <p class="mb-0">إجمالي التكلفة لـ {{ calculation_result.quantity }} وحدة</p>
+                </div>
+            </div>
+            
+            <!-- Price Breakdown -->
+            <div class="result-card">
+                <h5 class="mb-3"><i class="fas fa-list-ul"></i> تفصيل السعر</h5>
+                
+                <div class="breakdown-item">
+                    <span>سعر الوحدة الواحدة:</span>
+                    <span>{{ calculation_result.unit_price|floatformat:2 }} ج.م</span>
+                </div>
+                
+                <div class="breakdown-item">
+                    <span>الكمية:</span>
+                    <span>{{ calculation_result.quantity }} وحدة</span>
+                </div>
+                
+                <div class="breakdown-item">
+                    <span>المجموع الفرعي:</span>
+                    <span>{{ calculation_result.subtotal|floatformat:2 }} ج.م</span>
+                </div>
+                
+                {% if calculation_result.setup_cost > 0 %}
+                <div class="breakdown-item">
+                    <span>تكلفة الإعداد:</span>
+                    <span>{{ calculation_result.setup_cost|floatformat:2 }} ج.م</span>
+                </div>
+                {% endif %}
+                
+                <div class="breakdown-item">
+                    <span>الإجمالي النهائي:</span>
+                    <span class="text-success">{{ calculation_result.total|floatformat:2 }} ج.م</span>
+                </div>
+            </div>
+            
+            <!-- Tier Information -->
+            {% if calculation_result.tier %}
+            <div class="result-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-layer-group"></i> معلومات الشريحة السعرية
+                    <span class="tier-badge">{{ calculation_result.tier.tier_name }}</span>
+                </h5>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <p><strong>نطاق الكمية:</strong> {{ calculation_result.tier.get_quantity_range_display }}</p>
+                        <p><strong>سعر الوحدة:</strong> {{ calculation_result.tier.price_per_unit }} ج.م</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>نسبة الخصم:</strong> {{ calculation_result.tier.discount_percentage }}%</p>
+                        {% if calculation_result.savings > 0 %}
+                        <p class="text-success"><strong>التوفير:</strong> {{ calculation_result.savings|floatformat:2 }} ج.م</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Savings Highlight -->
+            {% if calculation_result.savings > 0 %}
+            <div class="savings-highlight">
+                <h5><i class="fas fa-piggy-bank"></i> مبروك! لقد وفرت</h5>
+                <div style="font-size: 1.5rem; font-weight: bold;">
+                    {{ calculation_result.savings|floatformat:2 }} ج.م
+                </div>
+                <small>مقارنة بالسعر الأساسي</small>
+            </div>
+            {% endif %}
+            
+            <!-- Actions -->
+            <div class="text-center">
+                <a href="{% url 'supplier:price_comparison' %}?category={{ selected_service.category.code }}&quantity={{ quantity }}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-balance-scale"></i> مقارنة مع خدمات أخرى
+                </a>
+                <a href="{% url 'supplier:supplier_detail' selected_service.supplier.id %}" 
+                   class="btn btn-info">
+                    <i class="fas fa-user"></i> تفاصيل المورد
+                </a>
+            </div>
+            
+            {% else %}
+            <!-- Welcome Message -->
+            <div class="text-center py-5">
+                <i class="fas fa-calculator fa-3x text-primary mb-3"></i>
+                <h4>حاسبة الخدمات المتقدمة</h4>
+                <p class="text-muted mb-4">اختر خدمة وحدد الكمية للحصول على حساب دقيق للتكلفة</p>
+                
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb"></i> نصائح للاستخدام:</h6>
+                            <ul class="mb-0 text-start">
+                                <li>اختر الخدمة المطلوبة من القائمة</li>
+                                <li>حدد الكمية باستخدام الشريط أو الأزرار السريعة</li>
+                                <li>احصل على تفصيل كامل للتكلفة مع الخصومات</li>
+                                <li>قارن مع خدمات أخرى للحصول على أفضل سعر</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const quantitySlider = document.getElementById('quantity');
+    const quantityInput = document.getElementById('quantityInput');
+    const quantityValue = document.getElementById('quantityValue');
+    const quickQtyBtns = document.querySelectorAll('.quick-qty-btn');
+    const form = document.getElementById('calculatorForm');
+    
+    // تحديث قيمة الكمية
+    function updateQuantity(value) {
+        quantitySlider.value = value;
+        quantityInput.value = value;
+        quantityValue.textContent = value;
+        
+        // تحديث الأزرار السريعة
+        quickQtyBtns.forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.qty == value);
+        });
+    }
+    
+    // مزامنة الشريط مع الحقل
+    quantitySlider.addEventListener('input', function() {
+        updateQuantity(this.value);
+    });
+    
+    quantityInput.addEventListener('input', function() {
+        updateQuantity(this.value);
+    });
+    
+    // الأزرار السريعة
+    quickQtyBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            updateQuantity(this.dataset.qty);
+        });
+    });
+    
+    // تحديث تلقائي عند تغيير الخدمة أو الكمية
+    document.getElementById('service_id').addEventListener('change', function() {
+        if (this.value) {
+            form.submit();
+        }
+    });
+    
+    // تحديث تلقائي عند تغيير الكمية (مع تأخير)
+    let quantityTimeout;
+    function autoSubmit() {
+        clearTimeout(quantityTimeout);
+        quantityTimeout = setTimeout(() => {
+            if (document.getElementById('service_id').value) {
+                form.submit();
+            }
+        }, 1000);
+    }
+    
+    quantitySlider.addEventListener('input', autoSubmit);
+    quantityInput.addEventListener('input', autoSubmit);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,40 @@
+{% load i18n %}
+
+<div class="modal-header">
+    <h5 class="modal-title text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {% translate "تأكيد الحذف" %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="deleteForm" method="post" action="{{ action_url }}">
+    <div class="modal-body">
+        {% csrf_token %}
+        
+        <div class="text-center mb-4">
+            <i class="fas fa-layer-group fa-4x text-danger mb-3"></i>
+            <h5>{% translate "هل أنت متأكد من حذف نوع الورق؟" %}</h5>
+            <p class="text-muted">
+                {% blocktranslate with name=paper_type.name %}
+                سيتم حذف نوع الورق "{{ name }}" نهائياً ولن يمكن استرداده.
+                {% endblocktranslate %}
+            </p>
+        </div>
+        
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "تحذير: قد يؤثر هذا على البيانات المرتبطة بهذا النوع" %}
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            {% translate "إلغاء" %}
+        </button>
+        <button type="button" class="btn btn-danger" onclick="submitForm('deleteForm')">
+            <i class="fas fa-trash me-2"></i>
+            {% translate "حذف" %}
+        </button>
+    </div>
+</form>

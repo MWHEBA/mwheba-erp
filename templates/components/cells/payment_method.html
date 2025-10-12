@@ -1,0 +1,22 @@
+{% load i18n %}
+{% if value == 'نقدي' or value == 'cash' %}
+  <span class="badge bg-success">
+    <i class="fas fa-money-bill-alt me-1"></i>{% trans "نقدي" %}
+  </span>
+{% elif value == 'تحويل بنكي' or value == 'bank_transfer' %}
+  <span class="badge bg-primary">
+    <i class="fas fa-university me-1"></i>{% trans "تحويل بنكي" %}
+  </span>
+{% elif value == 'شيك' or value == 'check' %}
+  <span class="badge bg-info">
+    <i class="fas fa-money-check me-1"></i>{% trans "شيك" %}
+  </span>
+{% elif value == 'بطاقة ائتمان' or value == 'credit_card' %}
+  <span class="badge bg-warning">
+    <i class="fas fa-credit-card me-1"></i>{% trans "بطاقة ائتمان" %}
+  </span>
+{% else %}
+  <span class="badge bg-light text-dark border">
+    <i class="fas fa-coins me-1"></i>{{ value|default:"غير محدد" }}
+  </span>
+{% endif %}

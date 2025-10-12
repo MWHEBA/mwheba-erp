@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#01578a;stop-opacity:0.05" />
+      <stop offset="100%" style="stop-color:#01578a;stop-opacity:0.2" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.05" />
+      <stop offset="100%" style="stop-color:#013e61;stop-opacity:0.1" />
+    </linearGradient>
+    <linearGradient id="grad3" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#01578a;stop-opacity:0.1" />
+      <stop offset="100%" style="stop-color:#0179b8;stop-opacity:0.1" />
+    </linearGradient>
+    <filter id="shadow1" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="20" />
+      <feOffset dx="0" dy="10" result="offsetblur" />
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.1" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- خلفية متدرجة -->
+  <rect width="100%" height="100%" fill="#f8f9fc" />
+  <rect width="100%" height="100%" fill="url(#grad1)" />
+
+  <!-- أشكال خلفية متموجة -->
+  <path d="M0,450 Q480,350 960,500 T1920,400 V1080 H0 Z" fill="url(#grad2)" opacity="0.5" />
+  <path d="M0,600 Q480,500 960,650 T1920,550 V1080 H0 Z" fill="url(#grad3)" opacity="0.3" />
+
+  <!-- أشكال زخرفية - مربعات متكررة بالخلفية -->
+  <g opacity="0.2">
+    <rect x="100" y="100" width="20" height="20" fill="#01578a" rx="5" />
+    <rect x="400" y="200" width="30" height="30" fill="#01578a" rx="5" />
+    <rect x="800" y="150" width="25" height="25" fill="#01578a" rx="5" />
+    <rect x="1200" y="250" width="15" height="15" fill="#01578a" rx="5" />
+    <rect x="1600" y="150" width="20" height="20" fill="#01578a" rx="5" />
+    <rect x="200" y="600" width="15" height="15" fill="#01578a" rx="5" />
+    <rect x="600" y="700" width="25" height="25" fill="#01578a" rx="5" />
+    <rect x="1000" y="650" width="20" height="20" fill="#01578a" rx="5" />
+    <rect x="1400" y="750" width="30" height="30" fill="#01578a" rx="5" />
+    <rect x="1700" y="680" width="15" height="15" fill="#01578a" rx="5" />
+  </g>
+
+  <!-- دوائر متناثرة -->
+  <g opacity="0.2">
+    <circle cx="250" cy="350" r="8" fill="#01578a" />
+    <circle cx="450" cy="150" r="5" fill="#01578a" />
+    <circle cx="650" cy="250" r="7" fill="#01578a" />
+    <circle cx="850" cy="450" r="6" fill="#01578a" />
+    <circle cx="1050" cy="200" r="9" fill="#01578a" />
+    <circle cx="1250" cy="350" r="7" fill="#01578a" />
+    <circle cx="1450" cy="150" r="5" fill="#01578a" />
+    <circle cx="1650" cy="250" r="8" fill="#01578a" />
+    <circle cx="350" cy="550" r="6" fill="#01578a" />
+    <circle cx="550" cy="650" r="9" fill="#01578a" />
+    <circle cx="750" cy="500" r="4" fill="#01578a" />
+    <circle cx="950" cy="700" r="8" fill="#01578a" />
+    <circle cx="1150" cy="550" r="6" fill="#01578a" />
+    <circle cx="1350" cy="650" r="5" fill="#01578a" />
+    <circle cx="1550" cy="500" r="7" fill="#01578a" />
+    <circle cx="1750" cy="600" r="9" fill="#01578a" />
+  </g>
+
+  <!-- خطوط متوازية -->
+  <g opacity="0.15" stroke="#01578a" stroke-width="1.5">
+    <line x1="100" y1="100" x2="300" y2="100" />
+    <line x1="120" y1="120" x2="280" y2="120" />
+    <line x1="140" y1="140" x2="260" y2="140" />
+    
+    <line x1="1600" y1="200" x2="1800" y2="200" />
+    <line x1="1620" y1="220" x2="1780" y2="220" />
+    <line x1="1640" y1="240" x2="1760" y2="240" />
+    
+    <line x1="300" y1="800" x2="500" y2="800" />
+    <line x1="320" y1="820" x2="480" y2="820" />
+    <line x1="340" y1="840" x2="460" y2="840" />
+    
+    <line x1="1400" y1="700" x2="1600" y2="700" />
+    <line x1="1420" y1="720" x2="1580" y2="720" />
+    <line x1="1440" y1="740" x2="1560" y2="740" />
+  </g>
+
+  <!-- شبكة معلمة بنقاط صغيرة -->
+  <g opacity="0.1">
+    <!-- الصف الأول -->
+    <circle cx="50" cy="50" r="1" fill="#01578a" />
+    <circle cx="100" cy="50" r="1" fill="#01578a" />
+    <circle cx="150" cy="50" r="1" fill="#01578a" />
+    <circle cx="200" cy="50" r="1" fill="#01578a" />
+    <!-- ... اكمل بقية النقاط حسب الحاجة -->
+    
+    <!-- الصف الثاني -->
+    <circle cx="50" cy="100" r="1" fill="#01578a" />
+    <circle cx="100" cy="100" r="1" fill="#01578a" />
+    <circle cx="150" cy="100" r="1" fill="#01578a" />
+    <circle cx="200" cy="100" r="1" fill="#01578a" />
+    <!-- ... اكمل بقية النقاط حسب الحاجة -->
+  </g>
+
+  <!-- شكل هندسي مميز في الزاوية العلوية اليمنى -->
+  <g transform="translate(1720, 100)" filter="url(#shadow1)">
+    <polygon points="0,0 100,20 80,100 20,80" fill="#01578a" opacity="0.1" />
+    <polygon points="20,20 80,30 70,80 30,70" fill="#0179b8" opacity="0.2" />
+  </g>
+
+  <!-- شكل هندسي مميز في الزاوية السفلية اليسرى -->
+  <g transform="translate(100, 900)" filter="url(#shadow1)">
+    <polygon points="0,0 100,20 80,100 20,80" fill="#01578a" opacity="0.1" />
+    <polygon points="20,20 80,30 70,80 30,70" fill="#0179b8" opacity="0.2" />
+  </g>
+</svg> 
