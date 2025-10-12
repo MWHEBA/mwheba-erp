@@ -53,11 +53,21 @@ jobs:
         python -c "import django; print(f'Django version: {django.get_version()}')"
 
     - name: 🗃️ Run migrations
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         python manage.py makemigrations --check --dry-run
         python manage.py migrate
 
     - name: 📊 Load fixtures
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         python manage.py loaddata core/fixtures/initial_data.json || true
         python manage.py loaddata client/fixtures/initial_data.json || true
@@ -65,11 +75,20 @@ jobs:
 
     - name: 🧪 Run tests
       env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
         REDIS_URL: redis://localhost:6379/0
       run: |
         python manage.py test --verbosity=2
 
     - name: 📈 Generate coverage report
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         pip install coverage
         coverage run --source='.' manage.py test

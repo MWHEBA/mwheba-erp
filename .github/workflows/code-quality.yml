@@ -95,24 +95,32 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: 🔧 Setup environment variables
-      run: |
-        echo "DEBUG=False" >> .env
-        echo "SECRET_KEY=django-insecure-test-key-for-ci-only" >> .env
-        echo "DB_ENGINE=sqlite" >> .env
-        echo "DB_NAME=test_db" >> .env
-
     - name: ✅ Django system check
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         echo "✅ Running Django system checks..."
         python manage.py check --deploy
 
     - name: 🔍 Check for missing migrations
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         echo "🔍 Checking for missing migrations..."
         python manage.py makemigrations --check --dry-run
 
     - name: 🛡️ Security check
+      env:
+        DEBUG: 'False'
+        SECRET_KEY: 'django-insecure-test-key-for-ci-only-12345678901234567890'
+        DB_ENGINE: 'sqlite'
+        DB_NAME: 'test_db'
       run: |
         echo "🛡️ Running Django security checks..."
         python manage.py check --deploy --fail-level WARNING
