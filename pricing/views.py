@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from django.http import JsonResponse, HttpResponse, HttpResponseRedirect
 from django.urls import reverse_lazy, reverse
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, View
@@ -1311,7 +1313,7 @@ def calculate_cost(request):
             print(f"خطأ عام في حساب التكلفة: {str(e)}")
             import traceback
             traceback.print_exc()
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'يجب استخدام طريقة POST لهذا الطلب'})
 
@@ -1341,7 +1343,7 @@ def get_plate_price(request):
                 return JsonResponse({'success': False, 'error': 'No plate service found for the given supplier and plate size'})
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
@@ -1409,7 +1411,7 @@ def get_paper_weights(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
@@ -1465,7 +1467,7 @@ def get_paper_sheet_types(request):
                 return JsonResponse({'success': False, 'error': 'Paper type not found'})
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
@@ -1596,7 +1598,7 @@ def get_paper_origins(request):
             import traceback
             print(f"خطأ في get_paper_origins: {str(e)}")
             print(traceback.format_exc())
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'Invalid request method'})
 
@@ -1727,7 +1729,7 @@ def get_paper_price(request):
     except Exception as e:
         # معالجة أي أخطاء أخرى غير متوقعة
         print(f"خطأ غير متوقع في get_paper_price: {str(e)}")
-        return JsonResponse({'success': False, 'error': f'حدث خطأ أثناء معالجة الطلب: {str(e)}'})
+        return JsonResponse({'success': False, 'error': 'حدث خطأ أثناء معالجة الطلب: خطأ في العملية'})
 
 
 def sanitize_for_json(data):
@@ -1784,7 +1786,7 @@ def get_suppliers_by_service(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -1823,7 +1825,7 @@ def coating_services_api(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -1853,7 +1855,7 @@ def folding_services_api(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -1883,7 +1885,7 @@ def die_cut_services_api(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -1913,7 +1915,7 @@ def spot_uv_services_api(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -1957,7 +1959,7 @@ def get_press_price(request):
             import traceback
             print(f"خطأ في get_press_price: {str(e)}")
             traceback.print_exc()
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -2027,7 +2029,7 @@ def get_press_details(request):
                 return JsonResponse({'success': False, 'error': 'الماكينة غير موجودة'})
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -2082,7 +2084,7 @@ def get_press_size(request):
             import traceback
             print(f"خطأ في get_press_size: {str(e)}")
             traceback.print_exc()
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -2112,7 +2114,7 @@ def get_paper_size_dimensions(request):
                 return JsonResponse({'success': False, 'error': 'مقاس الورق غير موجود'})
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -2133,7 +2135,7 @@ def get_paper_suppliers(request):
             })
                 
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
     
     return JsonResponse({'success': False, 'error': 'طريقة طلب غير صالحة'})
 
@@ -3056,9 +3058,12 @@ def get_paper_price(request):
         })
         
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'خطأ في حساب سعر الورق: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في حساب سعر الورق: {str(e)}'
+            'error': 'خطأ في حساب سعر الورق'
         })
 
 @login_required
@@ -3108,9 +3113,12 @@ def get_plate_price(request):
         })
         
     except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f'خطأ في حساب سعر الزنك: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في حساب سعر الزنك: {str(e)}'
+            'error': 'خطأ في حساب سعر الزنك'
         })
 
 @login_required
@@ -3174,9 +3182,11 @@ def get_press_price(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في حساب سعر الطباعة: {str(e)}'
+            'error': 'خطأ في حساب سعر الطباعة: خطأ في العملية'
         })
 
 @login_required
@@ -3204,9 +3214,11 @@ def get_paper_weights(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب أوزان الورق: {str(e)}'
+            'error': 'خطأ في جلب أوزان الورق: خطأ في العملية'
         })
 
 @login_required
@@ -3221,9 +3233,11 @@ def get_paper_sheet_types(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب أنواع الورق: {str(e)}'
+            'error': 'خطأ في جلب أنواع الورق: خطأ في العملية'
         })
 
 @login_required
@@ -3238,9 +3252,11 @@ def get_paper_origins(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب منشأ الورق: {str(e)}'
+            'error': 'خطأ في جلب منشأ الورق: خطأ في العملية'
         })
 
 @login_required
@@ -3292,9 +3308,11 @@ def get_plate_sizes(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب مقاسات الزنكات: {str(e)}'
+            'error': 'خطأ في جلب مقاسات الزنكات: خطأ في العملية'
         })
 
 @login_required
@@ -3328,9 +3346,11 @@ def get_paper_size_dimensions(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب أبعاد مقاس الورق: {str(e)}'
+            'error': 'خطأ في جلب أبعاد مقاس الورق: خطأ في العملية'
         })
 
 @login_required
@@ -3375,9 +3395,11 @@ def get_paper_suppliers(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب موردي الورق: {str(e)}'
+            'error': 'خطأ في جلب موردي الورق: خطأ في العملية'
         })
 
 @login_required
@@ -3413,9 +3435,11 @@ def get_suppliers_by_service(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب الموردين: {str(e)}'
+            'error': 'خطأ في جلب الموردين: خطأ في العملية'
         })
 
 @login_required
@@ -3515,9 +3539,11 @@ def calculate_cost(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في حساب التكلفة: {str(e)}'
+            'error': 'خطأ في حساب التكلفة: خطأ في العملية'
         })
 
 # دوال مساعدة داخلية
@@ -3545,7 +3571,7 @@ def get_paper_price_internal(paper_data, quantity):
             }
         }
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'خطأ في العملية'}
 
 def get_press_price_internal(printing_data, quantity):
     """دالة داخلية لحساب سعر الطباعة"""
@@ -3567,7 +3593,7 @@ def get_press_price_internal(printing_data, quantity):
             }
         }
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'خطأ في العملية'}
 
 def get_plate_price_internal(plate_data):
     """دالة داخلية لحساب سعر الزنكات"""
@@ -3592,7 +3618,7 @@ def get_plate_price_internal(plate_data):
             }
         }
     except Exception as e:
-        return {'success': False, 'error': str(e)}
+        return {'success': False, 'error': 'خطأ في العملية'}
 
 # ==================== APIs خدمات التشطيب ====================
 
@@ -3622,9 +3648,11 @@ def coating_services_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب خدمات التغطية: {str(e)}'
+            'error': 'خطأ في جلب خدمات التغطية: خطأ في العملية'
         })
 
 @login_required
@@ -3653,9 +3681,11 @@ def folding_services_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب خدمات الطي: {str(e)}'
+            'error': 'خطأ في جلب خدمات الطي: خطأ في العملية'
         })
 
 @login_required
@@ -3684,9 +3714,11 @@ def die_cut_services_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب خدمات القص: {str(e)}'
+            'error': 'خطأ في جلب خدمات القص: خطأ في العملية'
         })
 
 @login_required
@@ -3715,9 +3747,11 @@ def spot_uv_services_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب خدمات الورنيش الموضعي: {str(e)}'
+            'error': 'خطأ في جلب خدمات الورنيش الموضعي: خطأ في العملية'
         })
 
 @login_required
@@ -3810,7 +3844,7 @@ def get_presses(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب المطابع: {str(e)}',
+            'error': 'خطأ في جلب المطابع: خطأ في العملية',
             'presses': []
         })
 
@@ -3847,9 +3881,11 @@ def get_press_details(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب تفاصيل المطبعة: {str(e)}'
+            'error': 'خطأ في جلب تفاصيل المطبعة: خطأ في العملية'
         })
 
 @login_required
@@ -3865,9 +3901,11 @@ def clear_pricing_form_data(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في مسح البيانات: {str(e)}'
+            'error': 'خطأ في مسح البيانات: خطأ في العملية'
         })
 
 @require_http_methods(["GET"])
@@ -3877,9 +3915,11 @@ def get_paper_types(request):
         paper_types = PaperType.objects.filter(is_active=True).values('id', 'name', 'description')
         return JsonResponse(list(paper_types), safe=False)
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب أنواع الورق: {str(e)}'
+            'error': 'خطأ في جلب أنواع الورق: خطأ في العملية'
         })
 
 @require_http_methods(["POST"])
@@ -3942,9 +3982,11 @@ def calculate_cost_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في حساب التكلفة: {str(e)}'
+            'error': 'خطأ في حساب التكلفة: خطأ في العملية'
         })
 
 

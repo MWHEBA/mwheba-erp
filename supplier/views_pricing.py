@@ -1,3 +1,5 @@
+import logging
+logger = logging.getLogger(__name__)
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -150,7 +152,7 @@ def ajax_calculate_price(request):
         })
         
     except (SpecializedService.DoesNotExist, ValueError, json.JSONDecodeError) as e:
-        return JsonResponse({'error': str(e)}, status=400)
+        return JsonResponse({'error': 'خطأ في العملية'}, status=400)
 
 @login_required
 def supplier_services_comparison(request, supplier_id):
@@ -301,7 +303,7 @@ def bulk_price_calculator(request):
             })
             
         except (json.JSONDecodeError, ValueError) as e:
-            return JsonResponse({'error': str(e)}, status=400)
+            return JsonResponse({'error': 'خطأ في العملية'}, status=400)
     
     # GET request - عرض الصفحة
     services = SpecializedService.objects.filter(is_active=True).select_related('supplier', 'category')

@@ -1750,7 +1750,7 @@ def add_stock_movement(request):
         logger.warning('Validation error in add_stock_movement: %s', str(e))
         return JsonResponse({
             'success': False, 
-            'error': str(e)
+            'error': 'خطأ في العملية'
         })
     except Exception as e:
         # سجل الخطأ ولكن لا ترسل تفاصيل للمستخدم
@@ -2039,7 +2039,7 @@ def add_product_image(request):
             })
             
         except Exception as e:
-            return JsonResponse({'success': False, 'error': str(e)})
+            return JsonResponse({'success': False, 'error': 'خطأ في العملية'})
             
     return JsonResponse({'success': False, 'error': _('طلب غير صالح')})
 
@@ -2073,9 +2073,11 @@ def delete_product_image(request, pk):
                 'error': 'الصورة غير موجودة'
             })
         except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
-                'success': False, 
-                'error': f'حدث خطأ: {str(e)}'
+                'success': False,
+                'error': 'حدث خطأ: خطأ في العملية'
             })
     
     # دعم GET للاختبار
@@ -2429,7 +2431,7 @@ def add_supplier_price_api(request):
         logger.error(f"خطأ في إضافة سعر المورد: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في النظام: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -2487,7 +2489,7 @@ def edit_supplier_price_api(request, pk):
         logger.error(f"خطأ في تعديل سعر المورد: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في النظام: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -2530,7 +2532,7 @@ def set_default_supplier_api(request, pk):
         logger.error(f"خطأ في تعيين المورد الافتراضي: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في النظام: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -2583,7 +2585,7 @@ def supplier_price_history_api(request, pk):
         logger.error(f"خطأ في عرض تاريخ الأسعار: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في النظام: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -2631,5 +2633,5 @@ def product_price_comparison_api(request, product_id):
         logger.error(f"خطأ في مقارنة الأسعار: {e}")
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في النظام: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })

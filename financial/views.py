@@ -525,7 +525,7 @@ def chart_tree_api(request):
     except Exception as e:
         return JsonResponse({
             'success': False,
-            'error': str(e)
+            'error': 'خطأ في العملية'
         }, status=400)
 
 
@@ -1337,9 +1337,10 @@ def journal_entries_post(request, pk):
             })
             
         except Exception as e:
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
                 'success': False,
-                'message': f'حدث خطأ: {str(e)}'
+                'message': 'حدث خطأ غير متوقع'
             })
     
     context = {
@@ -3977,9 +3978,10 @@ def payment_sync_retry_failed_api(request):
             'message': 'نماذج التزامن غير متاحة'
         })
     except Exception as e:
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'حدث خطأ: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -4032,9 +4034,10 @@ def payment_sync_resolve_errors_api(request):
             'message': 'نماذج الأخطاء غير متاحة'
         })
     except Exception as e:
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'حدث خطأ: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -5415,9 +5418,10 @@ def payment_sync_check_pending_api(request):
             'message': 'نماذج التزامن غير متاحة'
         })
     except Exception as e:
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في فحص العمليات: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -5483,9 +5487,10 @@ def payment_sync_process_pending_api(request):
             'message': 'خدمة التزامن غير متاحة'
         })
     except Exception as e:
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في تشغيل العمليات: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 
@@ -5558,9 +5563,10 @@ def payment_sync_process_all_api(request):
             'message': 'خدمة التزامن غير متاحة'
         })
     except Exception as e:
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في معالجة العمليات: {str(e)}'
+            'message': 'حدث خطأ غير متوقع'
         })
 
 

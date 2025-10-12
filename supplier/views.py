@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -595,9 +596,11 @@ def supplier_list_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'message': f'خطأ في تحميل الموردين: {str(e)}'
+            'error': 'خطأ في تحميل الموردين: خطأ في العملية'
         })
 
 
@@ -1095,9 +1098,11 @@ def get_paper_sheet_sizes_api(request):
             from pricing.models import PaperType
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'نوع الورق غير موجود: {str(e)}'
+                'error': 'نوع الورق غير موجود: خطأ في العملية'
             })
         
         # الحصول على المورد
@@ -1141,9 +1146,11 @@ def get_paper_sheet_sizes_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب مقاسات الورق: {str(e)}'
+            'error': 'خطأ في جلب مقاسات الورق: خطأ في العملية'
         })
 
 
@@ -1169,9 +1176,11 @@ def get_paper_weights_api(request):
             from pricing.models import PaperType
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'نوع الورق غير موجود: {str(e)}'
+                'error': 'نوع الورق غير موجود: خطأ في العملية'
             })
         
         # الحصول على المورد
@@ -1212,9 +1221,11 @@ def get_paper_weights_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب جرامات الورق: {str(e)}'
+            'error': 'خطأ في جلب جرامات الورق: خطأ في العملية'
         })
 
 
@@ -1241,9 +1252,11 @@ def get_paper_origins_api(request):
             from pricing.models import PaperType
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'نوع الورق غير موجود: {str(e)}'
+                'error': 'نوع الورق غير موجود: خطأ في العملية'
             })
         
         # الحصول على المورد
@@ -1307,9 +1320,11 @@ def get_paper_origins_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب منشأ الورق: {str(e)}'
+            'error': 'خطأ في جلب منشأ الورق: خطأ في العملية'
         })
 
 
@@ -1337,9 +1352,11 @@ def get_paper_price_api(request):
             from pricing.models import PaperType
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
+            logger = logging.getLogger(__name__)
+            logger.error(f'Error in views.py: {str(e)}', exc_info=True)
             return JsonResponse({
                 'success': False,
-                'error': f'نوع الورق غير موجود: {str(e)}'
+                'error': 'نوع الورق غير موجود: خطأ في العملية'
             })
         
         # الحصول على المورد
@@ -1487,9 +1504,11 @@ def get_paper_price_api(request):
             })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في جلب سعر الورق: {str(e)}'
+            'error': 'خطأ في جلب سعر الورق: خطأ في العملية'
         })
 
 
@@ -1548,9 +1567,11 @@ def debug_paper_services_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في التشخيص: {str(e)}'
+            'error': 'خطأ في التشخيص: خطأ في العملية'
         })
 
 
@@ -1593,7 +1614,7 @@ def root_cause_analysis_api(request):
         except Exception as e:
             analysis['database_checks']['paper_type'] = {
                 'found': False,
-                'error': str(e)
+                'error': 'خطأ في العملية'
             }
             
         # 2. فحص المورد
@@ -1607,7 +1628,7 @@ def root_cause_analysis_api(request):
         except Exception as e:
             analysis['database_checks']['supplier'] = {
                 'found': False,
-                'error': str(e)
+                'error': 'خطأ في العملية'
             }
             
         # 3. فحص منشأ الورق
@@ -1632,7 +1653,7 @@ def root_cause_analysis_api(request):
         except Exception as e:
             analysis['database_checks']['paper_origin'] = {
                 'found': False,
-                'error': str(e),
+                'error': 'خطأ في العملية',
                 'fallback_name': paper_origin
             }
             
@@ -1730,8 +1751,10 @@ def root_cause_analysis_api(request):
         })
         
     except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f'Error in views.py: {str(e)}', exc_info=True)
         return JsonResponse({
             'success': False,
-            'error': f'خطأ في التحليل الجذري: {str(e)}'
+            'error': 'خطأ في التحليل الجذري: خطأ في العملية'
         })
 
