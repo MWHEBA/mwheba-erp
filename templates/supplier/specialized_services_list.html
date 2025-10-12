@@ -567,15 +567,31 @@ function highlightText($element, query) {
     
     $element.find('.service-name, .service-description').each(function() {
         const $this = $(this);
-        const text = $this.text();
+        const originalText = $this.text();
         const regex = new RegExp(`(${query})`, 'gi');
-        const highlightedText = text.replace(regex, '<mark>$1</mark>');
-        $this.html(highlightedText);
+        
+        if (regex.test(originalText)) {
+            // إنشاء محتوى آمن مع تمييز
+            const parts = originalText.split(regex);
+            $this.empty();
+            
+            for (let i = 0; i < parts.length; i++) {
+                if (i % 2 === 0) {
+                    // نص عادي
+                    $this.append(document.createTextNode(parts[i]));
+                } else {
+                    // نص مميز
+                    const $mark = $('<mark></mark>').text(parts[i]);
+                    $this.append($mark);
+                }
+            }
+        }
     });
 }
 
 // مسح تمييز البحث
 function clearSearchHighlights() {
+{{ ... }}
     $('.services-table tbody tr').show().removeClass('search-match');
     $('mark').each(function() {
         $(this).replaceWith($(this).text());

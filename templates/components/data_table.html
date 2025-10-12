@@ -395,9 +395,13 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // الحصول على ID من أول خلية أو من data attribute
             const itemId = row.getAttribute('data-id') || row.querySelector('td:first-child')?.textContent?.trim();
-            if (itemId) {
-                const url = '{{ row_click_url }}'.replace('0', itemId);
-                window.location.href = url;
+            if (itemId && /^\d+$/.test(itemId)) { // التحقق من أن ID رقمي فقط
+                const baseUrl = '{{ row_click_url|escapejs }}';
+                const url = baseUrl.replace('0', encodeURIComponent(itemId));
+                // التحقق من أن URL يبدأ بـ / أو domain صحيح
+                if (url.startsWith('/') || url.startsWith(window.location.origin)) {
+                    window.location.href = url;
+                }
             }
         });
         
