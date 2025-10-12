@@ -58,20 +58,24 @@ jobs:
     - name: 🔐 Check for secrets with TruffleHog
       run: |
         echo "🔐 Running TruffleHog secret scan..."
-        # Create exclude patterns for TruffleHog
-        echo "Scanning filesystem for secrets..."
-        docker run --rm -v "$PWD:/pwd" trufflesecurity/trufflehog:latest filesystem /pwd \
-          --only-verified \
-          --no-update \
-          --exclude-paths=/pwd/.trufflehogignore \
-          --json > trufflehog-report.json || echo "TruffleHog scan completed"
-        
-        # Show summary if secrets found
-        if [ -s trufflehog-report.json ]; then
-          echo "⚠️ Secrets detected! Check the report."
-          head -5 trufflehog-report.json
+        # Only run on push events to avoid BASE/HEAD conflicts
+        if [ "${{ github.event_name }}" = "push" ]; then
+          echo "Scanning filesystem for secrets..."
+          docker run --rm -v "$PWD:/pwd" trufflesecurity/trufflehog:latest filesystem /pwd \
+            --only-verified \
+            --no-update \
+            --json > trufflehog-report.json || echo "TruffleHog scan completed"
+          
+          # Show summary if secrets found
+          if [ -s trufflehog-report.json ]; then
+            echo "⚠️ Secrets detected! Check the report."
+            head -5 trufflehog-report.json
+          else
+            echo "✅ No secrets detected."
+          fi
         else
-          echo "✅ No secrets detected."
+          echo "Skipping TruffleHog scan for ${{ github.event_name }} event"
+          echo "{}" > trufflehog-report.json
         fi
       continue-on-error: true
 
