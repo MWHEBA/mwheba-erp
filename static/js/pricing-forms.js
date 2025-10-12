@@ -1,6 +1,7 @@
 /**
- * ملف JavaScript للتفاعل مع نماذج التسعير
+ * ملف JavaScript آمن للتفاعل مع نماذج التسعير
  * يحتوي على وظائف تحسين تجربة المستخدم في نماذج الموردين والعملاء
+ * محدث لمنع ثغرات XSS
  */
 
 $(document).ready(function() {
@@ -20,6 +21,25 @@ $(document).ready(function() {
     // تفعيل التأثيرات البصرية
     initializeVisualEffects();
 });
+
+/**
+ * دالة مساعدة لإنشاء عناصر HTML بشكل آمن
+ */
+function createSafeAlert(alertClass, iconClass, strongText, contentText, badgeText = null) {
+    const $alertDiv = $('<div></div>').addClass('alert py-2').addClass(alertClass);
+    const $icon = $('<i></i>').addClass('fas me-2').addClass(iconClass);
+    const $strong = $('<strong></strong>').text(strongText);
+    const $content = $('<span></span>').text(contentText);
+    
+    $alertDiv.append($icon).append($strong).append($content);
+    
+    if (badgeText) {
+        const $badge = $('<span></span>').addClass('badge bg-secondary ms-2').text(badgeText);
+        $alertDiv.append(' ').append($badge);
+    }
+    
+    return $alertDiv;
+}
 
 /**
  * تهيئة Select2 للقوائم المنسدلة
@@ -57,7 +77,6 @@ function initializeSupplierForm() {
     // تحديث تقييم المورد بصرياً
     $('#supplier_rating').on('change', function() {
         const rating = $(this).val();
-        const ratingText = $(this).find('option:selected').text();
         
         // إضافة تأثير بصري للتقييم
         const ratingCard = $('#rating-display');
@@ -67,12 +86,9 @@ function initializeSupplierForm() {
         
         if (rating) {
             const stars = '⭐'.repeat(parseInt(rating));
-            $('#rating-display').html(`
-                <div class="alert alert-info py-2">
-                    <i class="fas fa-star text-warning me-2"></i>
-                    <strong>التقييم المحدد:</strong> ${stars} (${rating}/5)
-                </div>
-            `).fadeIn();
+            const ratingText = stars + ' (' + rating + '/5)';
+            const $alert = createSafeAlert('alert-info', 'fa-star text-warning', 'التقييم المحدد: ', ratingText);
+            $('#rating-display').empty().append($alert).fadeIn();
         } else {
             $('#rating-display').fadeOut();
         }
@@ -105,14 +121,10 @@ function initializeSupplierForm() {
             
             const expectedDate = new Date();
             expectedDate.setDate(expectedDate.getDate() + days);
+            const dateText = expectedDate.toLocaleDateString('ar-EG');
             
-            $('#delivery-info').html(`
-                <div class="alert ${alertClass} py-2">
-                    <i class="fas ${icon} me-2"></i>
-                    <strong>التسليم المتوقع:</strong> ${expectedDate.toLocaleDateString('ar-EG')} 
-                    <span class="badge bg-secondary ms-2">${message}</span>
-                </div>
-            `).fadeIn();
+            const $alert = createSafeAlert(alertClass, icon, 'التسليم المتوقع: ', dateText, message);
+            $('#delivery-info').empty().append($alert).fadeIn();
         } else {
             $('#delivery-info').fadeOut();
         }
@@ -199,16 +211,6 @@ function initializeOrderSupplierForm() {
     $('#estimated_cost, #quoted_price').on('input', function() {
         calculateCostDifference();
     });
-    
-    // تحديث لون الكرت حسب دور المورد
-    $('#role').on('change', function() {
-        updateRoleCardColor($(this).val());
-    });
-    
-    // تحديث أيقونة نوع الخدمة
-    $('#service_type').on('change', function() {
-        updateServiceTypeIcon($(this).val());
-    });
 }
 
 /**
@@ -253,12 +255,9 @@ function updateServicesCount() {
     }
     
     if (selectedServices > 0) {
-        $('#services-counter').html(`
-            <div class="alert alert-info py-2">
-                <i class="fas fa-check-circle text-success me-2"></i>
-                <strong>تم تحديد ${selectedServices} خدمة</strong>
-            </div>
-        `).fadeIn();
+        const serviceText = 'تم تحديد ' + selectedServices + ' خدمة';
+        const $alert = createSafeAlert('alert-info', 'fa-check-circle text-success', '', serviceText);
+        $('#services-counter').empty().append($alert).fadeIn();
     } else {
         $('#services-counter').fadeOut();
     }
@@ -275,20 +274,16 @@ function updateClientTypeInfo(clientType) {
     }
     
     const typeInfo = {
-        'regular': { icon: 'fa-user', color: 'primary', text: 'عميل عادي - خصومات قياسية' },
-        'vip': { icon: 'fa-crown', color: 'warning', text: 'عميل مميز - خصومات إضافية' },
-        'corporate': { icon: 'fa-building', color: 'success', text: 'شركة - أسعار خاصة' },
-        'government': { icon: 'fa-university', color: 'info', text: 'جهة حكومية - إجراءات خاصة' }
+        'regular': { icon: 'fa-user', color: 'alert-primary', text: 'عميل عادي - خصومات قياسية' },
+        'vip': { icon: 'fa-crown', color: 'alert-warning', text: 'عميل مميز - خصومات إضافية' },
+        'corporate': { icon: 'fa-building', color: 'alert-success', text: 'شركة - أسعار خاصة' },
+        'government': { icon: 'fa-university', color: 'alert-info', text: 'جهة حكومية - إجراءات خاصة' }
     };
     
     if (clientType && typeInfo[clientType]) {
         const info = typeInfo[clientType];
-        $('#client-type-info').html(`
-            <div class="alert alert-${info.color} py-2">
-                <i class="fas ${info.icon} me-2"></i>
-                <strong>${info.text}</strong>
-            </div>
-        `).fadeIn();
+        const $alert = createSafeAlert(info.color, info.icon, '', info.text);
+        $('#client-type-info').empty().append($alert).fadeIn();
     } else {
         $('#client-type-info').fadeOut();
     }
@@ -321,12 +316,9 @@ function updateDiscountInfo(discountRate) {
             message = 'خصم عالي - يحتاج موافقة';
         }
         
-        $('#discount-info').html(`
-            <div class="alert ${alertClass} py-2">
-                <i class="fas fa-percentage me-2"></i>
-                <strong>${message}:</strong> خصم ${discountRate}%
-            </div>
-        `).fadeIn();
+        const discountText = message + ': خصم ' + discountRate + '%';
+        const $alert = createSafeAlert(alertClass, 'fa-percentage', '', discountText);
+        $('#discount-info').empty().append($alert).fadeIn();
     } else {
         $('#discount-info').fadeOut();
     }
@@ -344,12 +336,9 @@ function updateInterestsCount() {
     }
     
     if (selectedInterests > 0) {
-        $('#interests-counter').html(`
-            <div class="alert alert-success py-2">
-                <i class="fas fa-heart text-danger me-2"></i>
-                <strong>اهتمامات العميل:</strong> ${selectedInterests} مجال محدد
-            </div>
-        `).fadeIn();
+        const interestText = 'اهتمامات العميل: ' + selectedInterests + ' مجال محدد';
+        const $alert = createSafeAlert('alert-success', 'fa-heart text-danger', '', interestText);
+        $('#interests-counter').empty().append($alert).fadeIn();
     } else {
         $('#interests-counter').fadeOut();
     }
@@ -377,19 +366,16 @@ function calculateCostDifference() {
         if (difference > 0) {
             alertClass = 'alert-success';
             icon = 'fa-arrow-up';
-            message = `ربح: ${difference.toFixed(2)} ج.م`;
+            message = 'ربح: ' + difference.toFixed(2) + ' ج.م';
         } else if (difference < 0) {
             alertClass = 'alert-danger';
             icon = 'fa-arrow-down';
-            message = `خسارة: ${Math.abs(difference).toFixed(2)} ج.م`;
+            message = 'خسارة: ' + Math.abs(difference).toFixed(2) + ' ج.م';
         }
         
-        $('#cost-difference').html(`
-            <div class="alert ${alertClass} py-2">
-                <i class="fas ${icon} me-2"></i>
-                <strong>الفرق:</strong> ${message}
-            </div>
-        `).fadeIn();
+        const diffText = 'الفرق: ' + message;
+        const $alert = createSafeAlert(alertClass, icon, '', diffText);
+        $('#cost-difference').empty().append($alert).fadeIn();
     } else {
         $('#cost-difference').fadeOut();
     }
@@ -437,12 +423,9 @@ function showCodeGenerated(type, code) {
         $('#id_code').after('<div id="code-generated" class="mt-2"></div>');
     }
     
-    $('#code-generated').html(`
-        <div class="alert alert-success py-2">
-            <i class="fas fa-magic me-2"></i>
-            <strong>تم إنشاء كود ${type} تلقائياً:</strong> ${code}
-        </div>
-    `).fadeIn().delay(3000).fadeOut();
+    const codeText = 'تم إنشاء كود ' + type + ' تلقائياً: ' + code;
+    const $alert = createSafeAlert('alert-success', 'fa-magic', '', codeText);
+    $('#code-generated').empty().append($alert).fadeIn().delay(3000).fadeOut();
 }
 
 /**
@@ -456,56 +439,21 @@ function updatePaymentTermsInfo(paymentTerms) {
     }
     
     const termsInfo = {
-        'cash': { icon: 'fa-money-bill-wave', color: 'success', text: 'دفع نقدي فوري' },
-        '30_days': { icon: 'fa-calendar-alt', color: 'info', text: 'دفع خلال 30 يوم' },
-        '60_days': { icon: 'fa-calendar-alt', color: 'warning', text: 'دفع خلال 60 يوم' },
-        '90_days': { icon: 'fa-calendar-alt', color: 'danger', text: 'دفع خلال 90 يوم' },
-        'custom': { icon: 'fa-cog', color: 'secondary', text: 'شروط دفع مخصصة' }
+        'cash': { icon: 'fa-money-bill-wave', color: 'alert-success', text: 'دفع نقدي فوري' },
+        '30_days': { icon: 'fa-calendar-alt', color: 'alert-info', text: 'دفع خلال 30 يوم' },
+        '60_days': { icon: 'fa-calendar-alt', color: 'alert-warning', text: 'دفع خلال 60 يوم' },
+        '90_days': { icon: 'fa-calendar-alt', color: 'alert-danger', text: 'دفع خلال 90 يوم' },
+        'custom': { icon: 'fa-cog', color: 'alert-secondary', text: 'شروط دفع مخصصة' }
     };
     
     if (paymentTerms && termsInfo[paymentTerms]) {
         const info = termsInfo[paymentTerms];
-        $('#payment-terms-info').html(`
-            <div class="alert alert-${info.color} py-2">
-                <i class="fas ${info.icon} me-2"></i>
-                <strong>${info.text}</strong>
-            </div>
-        `).fadeIn();
+        const $alert = createSafeAlert(info.color, info.icon, '', info.text);
+        $('#payment-terms-info').empty().append($alert).fadeIn();
     } else {
         $('#payment-terms-info').fadeOut();
     }
 }
-
-/**
- * دوال إدارة موردي الطلب
- */
-function editSupplier(supplierId) {
-    // تنفيذ تعديل المورد
-    console.log('تعديل المورد رقم:', supplierId);
-    // يمكن إضافة modal أو redirect للتعديل
-}
-
-function deleteSupplier(supplierId) {
-    if (confirm('هل أنت متأكد من حذف هذا المورد من الطلب؟')) {
-        // تنفيذ حذف المورد
-        console.log('حذف المورد رقم:', supplierId);
-        // يمكن إضافة AJAX request للحذف
-    }
-}
-
-function editService(serviceId) {
-    // تنفيذ تعديل الخدمة
-    console.log('تعديل الخدمة رقم:', serviceId);
-}
-
-function deleteService(serviceId) {
-    if (confirm('هل أنت متأكد من حذف هذه الخدمة؟')) {
-        // تنفيذ حذف الخدمة
-        console.log('حذف الخدمة رقم:', serviceId);
-    }
-}
-
-// تم نقل CSS إلى نهاية الملف
 
 /**
  * تحديث قائمة موردي الورق بناءً على نوع الورق المختار
@@ -515,7 +463,6 @@ function updatePaperSuppliers() {
     const paperSupplierSelect = $('#id_paper_supplier');
     
     if (!paperTypeId) {
-        // إذا لم يتم اختيار نوع ورق، أعرض جميع الموردين النشطين
         resetPaperSuppliers();
         return;
     }
@@ -533,15 +480,14 @@ function updatePaperSuppliers() {
         },
         success: function(response) {
             if (response.success) {
-                // مسح القائمة الحالية
                 paperSupplierSelect.html('<option value="">-- اختر مورد الورق --</option>');
                 
-                // إضافة الموردين الجدد
                 if (response.suppliers && response.suppliers.length > 0) {
                     $.each(response.suppliers, function(index, supplier) {
-                        paperSupplierSelect.append(
-                            '<option value="' + supplier.id + '">' + supplier.name + '</option>'
-                        );
+                        const $option = $('<option></option>')
+                            .attr('value', supplier.id)
+                            .text(supplier.name);
+                        paperSupplierSelect.append($option);
                     });
                 } else {
                     paperSupplierSelect.append('<option value="">لا توجد موردين متاحين لهذا النوع</option>');
@@ -556,7 +502,6 @@ function updatePaperSuppliers() {
             paperSupplierSelect.html('<option value="">خطأ في الاتصال</option>');
         },
         complete: function() {
-            // إعادة تفعيل القائمة
             paperSupplierSelect.prop('disabled', false);
         }
     });
@@ -568,7 +513,6 @@ function updatePaperSuppliers() {
 function resetPaperSuppliers() {
     const paperSupplierSelect = $('#id_paper_supplier');
     
-    // استدعاء API لجلب جميع موردي الورق النشطين
     $.ajax({
         url: '/pricing/api/paper-suppliers/',
         method: 'GET',
@@ -578,9 +522,10 @@ function resetPaperSuppliers() {
                 
                 if (response.suppliers && response.suppliers.length > 0) {
                     $.each(response.suppliers, function(index, supplier) {
-                        paperSupplierSelect.append(
-                            '<option value="' + supplier.id + '">' + supplier.name + '</option>'
-                        );
+                        const $option = $('<option></option>')
+                            .attr('value', supplier.id)
+                            .text(supplier.name);
+                        paperSupplierSelect.append($option);
                     });
                 }
             }
@@ -591,12 +536,16 @@ function resetPaperSuppliers() {
     });
 }
 
-// إضافة CSS للصفحة
-var customCSS = '<style>' +
-    '.field-focused {' +
-        'transform: scale(1.02);' +
-        'transition: transform 0.2s ease;' +
-    '}' +
-'</style>';
-
-$('head').append(customCSS);
+// إضافة CSS للصفحة بشكل آمن
+$(document).ready(function() {
+    const customCSS = $('<style></style>').text(`
+        .field-focused {
+            transform: scale(1.02);
+            transition: transform 0.2s ease;
+        }
+        .btn-clicked {
+            transform: scale(0.95);
+        }
+    `);
+    $('head').append(customCSS);
+});
