@@ -1091,13 +1091,25 @@ def unit_list(request):
         },
     ]
 
-    # أزرار الإجراءات
+    # أزرار الإجراءات - إزالة زر الإضافة لأنه موجود في الـ header
     unit_actions = [
         {
-            "url": "product:unit_create",
-            "icon": "fa-plus",
-            "label": "إضافة",
-            "class": "action-create",
+            "url": "product:unit_detail",
+            "icon": "fa-eye",
+            "label": "عرض",
+            "class": "action-view",
+        },
+        {
+            "url": "product:unit_edit",
+            "icon": "fa-edit",
+            "label": "تعديل",
+            "class": "action-edit",
+        },
+        {
+            "url": "product:unit_delete",
+            "icon": "fa-trash",
+            "label": "حذف",
+            "class": "action-delete",
         },
     ]
 

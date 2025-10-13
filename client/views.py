@@ -300,9 +300,9 @@ def customer_detail(request, pk):
                     entry.lines.aggregate(total=Sum("debit"))["total"] or 0
                 )
 
-        print(f"عدد القيود المحاسبية للعميل: {journal_entries_count}")
+        # عدد القيود المحاسبية للعميل: {journal_entries_count}
     except Exception as e:
-        print(f"خطأ في جلب القيود المحاسبية: {e}")
+        # خطأ في جلب القيود المحاسبية: {e}
         import traceback
 
         traceback.print_exc()
@@ -334,11 +334,9 @@ def customer_detail(request, pk):
                 account_type=receivables_type, is_active=True
             ).first()
 
-        print(
-            f"حساب العميل المالي: {financial_account.name if financial_account else 'لا يوجد'}"
-        )
+        # حساب العميل المالي: {financial_account.name if financial_account else 'لا يوجد'}
     except Exception as e:
-        print(f"خطأ في جلب الحساب المالي: {e}")
+        # خطأ في جلب الحساب المالي: {e}
         import traceback
 
         traceback.print_exc()

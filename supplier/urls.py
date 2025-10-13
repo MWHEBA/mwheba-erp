@@ -59,10 +59,6 @@ urlpatterns = [
         api_views.get_field_mapping_api,
         name="get_field_mapping_api",
     ),
-    # الخدمات المتخصصة الجديدة
-    path(
-        "services/", views.specialized_services_list, name="specialized_services_list"
-    ),
     path("by-type/", views.suppliers_by_type, name="suppliers_by_type"),
     path("service-comparison/", views.service_comparison, name="service_comparison"),
     path(

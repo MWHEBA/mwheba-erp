@@ -71,7 +71,7 @@
             <p class="mb-0 text-muted">استعرض الموردين مصنفين حسب نوع الخدمة المقدمة</p>
         </div>
         <div>
-            <a href="{% url 'supplier:specialized_services_list' %}" class="btn btn-primary">
+            <a href="{% url 'services:services_home' %}" class="btn btn-primary">
                 <i class="fas fa-cogs fa-sm"></i> جميع الخدمات
             </a>
         </div>
@@ -166,7 +166,7 @@
                         <a href="{% url 'supplier:service_comparison' %}?category={{ supplier_type.code }}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-balance-scale fa-fw"></i> مقارنة
                         </a>
-                        <a href="{% url 'supplier:specialized_services_list' %}?supplier_type={{ supplier_type.code }}" class="btn btn-primary btn-sm">
+                        <a href="{% url 'services:services_home' %}" class="btn btn-primary btn-sm">
                             <i class="fas fa-eye fa-fw"></i> عرض الخدمات
                         </a>
                     </div>

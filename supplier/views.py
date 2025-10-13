@@ -404,9 +404,9 @@ def supplier_detail(request, pk):
                 )
 
         # Debug: طباعة عدد القيود
-        print(f"عدد القيود المحاسبية للمورد: {journal_entries_count}")
+        # عدد القيود المحاسبية للمورد
     except Exception as e:
-        print(f"خطأ في جلب القيود المحاسبية: {e}")
+        # خطأ في جلب القيود المحاسبية
         import traceback
 
         traceback.print_exc()
@@ -440,11 +440,9 @@ def supplier_detail(request, pk):
             ).first()
 
         # Debug
-        print(
-            f"حساب المورد المالي: {financial_account.name if financial_account else 'لا يوجد'}"
-        )
+        # حساب المورد المالي
     except Exception as e:
-        print(f"خطأ في جلب الحساب المالي: {e}")
+        # خطأ في جلب الحساب المالي
         import traceback
 
         traceback.print_exc()
@@ -510,7 +508,8 @@ def supplier_detail(request, pk):
             .count()
         )
     except Exception as e:
-        print(f"خطأ في حساب عدد أنواع الخدمات: {e}")
+        # خطأ في حساب عدد أنواع الخدمات
+        pass
 
     # تعريف أعمدة جدول المشتريات للنظام المحسن
     purchase_headers = [
@@ -1171,264 +1170,6 @@ def supplier_change_account(request, pk):
 
 
 @login_required
-def specialized_services_list(request):
-    """عرض قائمة الخدمات المتخصصة مع تصميم Accordion محسن"""
-
-    # فلترة
-    category_filter = request.GET.get("category", "")
-    supplier_type_filter = request.GET.get("supplier_type", "")
-    search = request.GET.get("search", "")
-
-    # استعلام محسن مع العلاقات المطلوبة
-    services = (
-        SpecializedService.objects.filter(is_active=True)
-        .select_related("supplier", "category", "supplier__primary_type")
-        .prefetch_related("supplier__supplier_types")
-    )
-
-    # تطبيق الفلاتر
-    if category_filter:
-        services = services.filter(category__code=category_filter)
-
-    if supplier_type_filter:
-        services = services.filter(supplier__primary_type__code=supplier_type_filter)
-
-    if search:
-        services = services.filter(
-            Q(name__icontains=search)
-            | Q(supplier__name__icontains=search)
-            | Q(description__icontains=search)
-            | Q(category__name__icontains=search)
-        )
-
-    # ترتيب الخدمات حسب الفئة ثم الاسم
-    services = services.order_by("category__name", "name")
-
-    # البيانات للفلاتر - فقط الفئات التي لها خدمات
-    categories = (
-        SupplierType.objects.filter(
-            is_active=True, specialized_services__is_active=True
-        )
-        .distinct()
-        .order_by("name")
-    )
-
-    supplier_types = (
-        SupplierType.objects.filter(
-            is_active=True, suppliers__specialized_services__is_active=True
-        )
-        .distinct()
-        .order_by("name")
-    )
-
-    # إحصائيات إضافية
-    total_services = services.count()
-    total_suppliers = (
-        services.values("supplier").distinct().count() if services.exists() else 0
-    )
-    total_categories = (
-        services.values("category").distinct().count() if services.exists() else 0
-    )
-
-    # متوسط التقييم
-    avg_rating = 0
-    if services.exists():
-        ratings = [
-            s.supplier.supplier_rating
-            for s in services
-            if s.supplier.supplier_rating and s.supplier.supplier_rating > 0
-        ]
-        if ratings:
-            avg_rating = sum(ratings) / len(ratings)
-
-    # تعريف عناوين أعمدة الجدول (العرض العام)
-    general_service_headers = [
-        {"key": "name", "label": "اسم الخدمة", "sortable": True, "class": "text-start"},
-        {
-            "key": "category.name",
-            "label": "الفئة",
-            "sortable": True,
-            "class": "text-center",
-        },
-        {
-            "key": "supplier.name",
-            "label": "المورد",
-            "sortable": True,
-            "format": "link",
-            "url": "supplier:supplier_detail",
-        },
-        {
-            "key": "setup_cost",
-            "label": "تكلفة التجهيز",
-            "sortable": True,
-            "class": "text-center",
-            "format": "currency",
-        },
-        {
-            "key": "supplier.supplier_rating",
-            "label": "التقييم",
-            "sortable": True,
-            "class": "text-center",
-            "format": "rating",
-        },
-        {
-            "key": "supplier.is_preferred",
-            "label": "مفضل",
-            "sortable": True,
-            "class": "text-center",
-            "format": "boolean_badge",
-        },
-    ]
-
-    # تعريف headers لصفحة المورد (بدون عمود المورد)
-    supplier_service_headers = [
-        {"key": "name", "label": "اسم الخدمة", "sortable": True, "class": "text-start"},
-        {
-            "key": "category.name",
-            "label": "الفئة",
-            "sortable": True,
-            "class": "text-center",
-        },
-        {
-            "key": "setup_cost",
-            "label": "تكلفة التجهيز",
-            "sortable": True,
-            "class": "text-center",
-            "format": "currency",
-        },
-        {
-            "key": "description",
-            "label": "الوصف",
-            "sortable": False,
-            "class": "text-start",
-            "ellipsis": True,
-        },
-    ]
-
-    # تعريف headers لصفحة الفئة (مع عمود المورد)
-    category_service_headers = [
-        {"key": "name", "label": "اسم الخدمة", "sortable": True, "class": "text-start"},
-        {
-            "key": "supplier.name",
-            "label": "المورد",
-            "sortable": True,
-            "format": "link",
-            "url": "supplier:supplier_detail",
-        },
-        {
-            "key": "setup_cost",
-            "label": "تكلفة التجهيز",
-            "sortable": True,
-            "class": "text-center",
-            "format": "currency",
-        },
-        {
-            "key": "supplier.supplier_rating",
-            "label": "التقييم",
-            "sortable": True,
-            "class": "text-center",
-            "format": "rating",
-        },
-        {
-            "key": "supplier.is_preferred",
-            "label": "مفضل",
-            "sortable": True,
-            "class": "text-center",
-            "format": "boolean_badge",
-        },
-    ]
-
-    # تعريف أزرار الإجراءات للجدول
-    general_service_actions = [
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-eye",
-            "label": "عرض المورد",
-            "class": "action-view",
-        },
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-info-circle",
-            "label": "تفاصيل الخدمة",
-            "class": "action-info",
-        },
-    ]
-
-    supplier_service_actions = [
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-edit",
-            "label": "تعديل الخدمة",
-            "class": "action-edit",
-        },
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-info-circle",
-            "label": "تفاصيل الخدمة",
-            "class": "action-info",
-        },
-    ]
-
-    category_service_actions = [
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-eye",
-            "label": "عرض المورد",
-            "class": "action-view",
-        },
-        {
-            "url": "supplier:supplier_detail",
-            "icon": "fa-info-circle",
-            "label": "تفاصيل الخدمة",
-            "class": "action-info",
-        },
-    ]
-
-    context = {
-        "services": services,
-        "categories": categories,
-        "supplier_types": supplier_types,
-        "current_category": category_filter,
-        "current_supplier_type": supplier_type_filter,
-        "current_search": search,
-        "page_title": "الخدمات المتخصصة",
-        "page_icon": "fas fa-cogs",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {
-                "title": "الموردين",
-                "url": reverse("supplier:supplier_list"),
-                "icon": "fas fa-truck",
-            },
-            {"title": "الخدمات المتخصصة", "active": True},
-        ],
-        # إحصائيات للواجهة الجديدة
-        "stats": {
-            "total_services": total_services,
-            "total_suppliers": total_suppliers,
-            "total_categories": total_categories,
-            "avg_rating": round(avg_rating, 1) if avg_rating else 0,
-        },
-        # معلومات إضافية للتصميم المحسن
-        "has_filters": bool(category_filter or supplier_type_filter or search),
-        "results_count": total_services,
-        # بيانات الجدول الموحد
-        "general_service_headers": general_service_headers,
-        "general_service_actions": general_service_actions,
-        "supplier_service_headers": supplier_service_headers,
-        "supplier_service_actions": supplier_service_actions,
-        "category_service_headers": category_service_headers,
-        "category_service_actions": category_service_actions,
-    }
-
-    return render(request, "supplier/specialized_services_list.html", context)
-
-
-@login_required
 def suppliers_by_type(request):
     """عرض الموردين مصنفين حسب النوع"""
 
@@ -2082,10 +1823,10 @@ def get_paper_price_api(request):
 
                 paper_origin_obj = PaperOrigin.objects.get(id=int(paper_origin))
                 origin_name = paper_origin_obj.name
-                print(f"تم تحويل ID {paper_origin} إلى اسم: {origin_name}")
+                # تم تحويل ID إلى اسم
             else:
                 origin_name = paper_origin
-                print(f"استخدام الاسم مباشرة: {origin_name}")
+                # استخدام الاسم مباشرة
 
             # البحث بالاسم أولاً
             paper_service = PaperServiceDetails.objects.filter(
@@ -2097,10 +1838,6 @@ def get_paper_price_api(request):
                 country_of_origin__icontains=origin_name,
             ).first()
 
-            print(
-                f"البحث الأول بالاسم: paper_type={paper_type.name}, sheet_size={paper_sheet_size}, gsm={paper_weight}, origin={origin_name}"
-            )
-            print(f"نتيجة البحث الأول: {paper_service}")
 
             # إذا لم نجد، نحاول البحث بكود الدولة
             if not paper_service and paper_origin.isdigit():
@@ -2123,10 +1860,10 @@ def get_paper_price_api(request):
                             gsm=int(paper_weight),
                             country_of_origin__iexact=origin_code,
                         ).first()
-                        print(f"البحث الثاني بكود الدولة: {origin_code}")
-                        print(f"نتيجة البحث الثاني: {paper_service}")
+                        # البحث الثاني بكود الدولة ونتيجته
                 except Exception as e:
-                    print(f"خطأ في البحث بكود الدولة: {str(e)}")
+                    # خطأ في البحث بكود الدولة
+                    pass
 
             # إذا لم نجد، نحاول البحث بالقيمة الأصلية
             if not paper_service:
@@ -2138,8 +1875,7 @@ def get_paper_price_api(request):
                     gsm=int(paper_weight),
                     country_of_origin=paper_origin,
                 ).first()
-                print(f"البحث الثالث بالقيمة الأصلية: {paper_origin}")
-                print(f"نتيجة البحث الثالث: {paper_service}")
+                # البحث الثالث بالقيمة الأصلية ونتيجته
 
             # البحث الأخير: بدون منشأ الورق (كما نجح في التحليل)
             if not paper_service:
@@ -2150,11 +1886,10 @@ def get_paper_price_api(request):
                     sheet_size=paper_sheet_size,
                     gsm=int(paper_weight),
                 ).first()
-                print(f"البحث الرابع بدون منشأ الورق")
-                print(f"نتيجة البحث الرابع: {paper_service}")
+                # البحث الرابع بدون منشأ الورق ونتيجته
 
         except Exception as e:
-            print(f"خطأ في البحث: {str(e)}")
+            # خطأ في البحث
             # في حالة الخطأ، نحاول البحث بالقيمة الأصلية
             paper_service = PaperServiceDetails.objects.filter(
                 service__supplier=supplier,
@@ -2164,7 +1899,7 @@ def get_paper_price_api(request):
                 gsm=int(paper_weight),
                 country_of_origin=paper_origin,
             ).first()
-            print(f"البحث الاحتياطي: {paper_service}")
+            # البحث الاحتياطي
 
         # طباعة جميع الخدمات المتاحة للمورد للتشخيص
         all_services = PaperServiceDetails.objects.filter(
@@ -2172,9 +1907,9 @@ def get_paper_price_api(request):
         ).values(
             "paper_type", "sheet_size", "gsm", "country_of_origin", "price_per_sheet"
         )
-        print(f"جميع خدمات الورق للمورد {supplier.name}:")
+        # جميع خدمات الورق للمورد
         for service in all_services:
-            print(f"  - {service}")
+            pass  # للتصحيح فقط
 
         if paper_service:
             # تحضير معلومات السعر

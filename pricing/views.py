@@ -350,7 +350,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 request.session["pricing_form_data"][key] = value
 
             # طباعة البيانات للتأكد من تخزينها بشكل صحيح (للتصحيح فقط)
-            print("تم تخزين البيانات في الجلسة:", request.session["pricing_form_data"])
+            # تم تخزين البيانات في الجلسة
 
             # التأكد من تعديل الجلسة
             request.session.modified = True
@@ -360,22 +360,20 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             )
 
         # إذا لم يكن طلب AJAX، استمر في المعالجة العادية للنموذج
-        print("===== معالجة طلب POST العادي لحفظ التسعيرة =====")
-        print("نوع الطلب:", request.content_type)
-        print("البيانات المرسلة:", request.POST)
+        # معالجة طلب POST العادي لحفظ التسعيرة
 
         try:
             # محاولة معالجة النموذج بشكل عادي
             form = self.get_form()
             if form.is_valid():
-                print("النموذج صالح - جاري حفظ التسعيرة")
+                # النموذج صالح - جاري حفظ التسعيرة
                 return self.form_valid(form)
             else:
-                print("النموذج غير صالح - أخطاء التحقق:", form.errors)
+                # النموذج غير صالح - أخطاء التحقق
                 return self.form_invalid(form)
         except Exception as e:
             # التقاط أي أخطاء قد تحدث أثناء معالجة النموذج
-            print(f"خطأ أثناء معالجة النموذج: {e}")
+            # خطأ أثناء معالجة النموذج
             import traceback
 
             traceback.print_exc()
@@ -393,7 +391,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         # التأكد من أن العميل محدد بشكل صحيح
         if not form.instance.client_id and form.cleaned_data.get("client"):
             form.instance.client = form.cleaned_data.get("client")
-            print(f"تم تعيين العميل: {form.instance.client}")
+            # تم تعيين العميل
 
         # حفظ النموذج أولاً لإنشاء الكائن (self.object)
         response = super().form_valid(form)
@@ -402,10 +400,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         order_object = self.object
 
         # طباعة معلومات التصحيح عن الكائن المحفوظ
-        print(f"تم حفظ طلب التسعير بنجاح (ID: {order_object.id})")
-        print(f"عنوان الطلب: {order_object.title}")
-        print(f"العميل: {order_object.client}")
-        print(f"المستخدم الحالي: {self.request.user}")
+        # تم حفظ طلب التسعير بنجاح
 
         # استخراج البيانات الإضافية من النموذج
         product_type = form.cleaned_data.get("product_type")
@@ -430,8 +425,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         ctp_transportation = self.request.POST.get("ctp_transportation")
 
         # طباعة معلومات التصحيح
-        print(f"المستخدم الحالي: {self.request.user}")
-        print(f"تم حفظ طلب التسعير بنجاح: {order_object.id}")
+        # تم حفظ طلب التسعير بنجاح
 
         # إنشاء سجل زنكات إذا توفرت البيانات اللازمة
         if (
@@ -463,7 +457,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 )
             except (Supplier.DoesNotExist, PlateSize.DoesNotExist, ValueError) as e:
                 # يمكن إضافة سجل خطأ هنا
-                print(f"خطأ في إنشاء سجل الزنكات: {e}")
+                # خطأ في إنشاء سجل الزنكات
 
         # استخراج بيانات خدمات ما بعد الطباعة
         finishing_services = {}
@@ -547,7 +541,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 )
             except Exception as e:
                 # يمكن إضافة سجل خطأ هنا
-                print(f"خطأ في إنشاء سجل المحتوى الداخلي: {e}")
+                # خطأ في إنشاء سجل المحتوى الداخلي
 
         # تحديث الوصف بالبيانات الإضافية إذا لم يكن مضبوطًا بالفعل
         if not form.instance.description:
@@ -555,9 +549,8 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 order_object.description = json.dumps(additional_data)
                 order_object.save()
             except TypeError as e:
-                print(f"خطأ في تحويل البيانات إلى JSON: {e}")
+                # خطأ في تحويل البيانات إلى JSON
                 # لا نحتاج إلى معالجة إضافية بعد استخدام sanitize_for_json
-                print(f"البيانات التي سببت الخطأ: {additional_data}")
 
         # إنشاء خدمات الطباعة في قاعدة البيانات
         self.create_finishing_services(finishing_services, order_object)
@@ -574,7 +567,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         """إنشاء خدمات الطباعة في قاعدة البيانات"""
         # استخدام order_object المرسل بدلاً من self.object
         if not order_object:
-            print("تحذير: order_object غير موجود، لا يمكن إنشاء خدمات الطباعة")
+            # تحذير: order_object غير موجود، لا يمكن إنشاء خدمات الطباعة
             return
 
         # قائمة بأنواع خدمات مابعد الطباعة وأسمائها
@@ -631,17 +624,15 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                         supplier = Supplier.objects.get(pk=supplier_id)
                         finishing_service.supplier = supplier
                     except (ValueError, Supplier.DoesNotExist) as e:
-                        print(
-                            f"تحذير: لم يتم العثور على مورد الخدمة لـ {service_type}: {e}"
-                        )
+                        # تحذير: لم يتم العثور على مورد الخدمة
 
                 # حفظ خدمة خدمات مابعد الطباعة
                 finishing_service.save()
-                print(f"تم إنشاء خدمة خدمات مابعد الطباعة {service_type} بنجاح")
+                # تم إنشاء خدمة خدمات مابعد الطباعة بنجاح
 
             except Exception as e:
                 # يمكن إضافة سجل خطأ هنا
-                print(f"خطأ في إنشاء خدمة خدمات مابعد الطباعة {service_type}: {e}")
+                # خطأ في إنشاء خدمة خدمات مابعد الطباعة
                 import traceback
 
                 traceback.print_exc()
@@ -653,19 +644,18 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
     def form_invalid(self, form):
         """حفظ البيانات في الجلسة عند فشل التحقق من صحة النموذج"""
         # طباعة أخطاء النموذج للتشخيص
-        print("====== أخطاء النموذج ======")
+        # أخطاء النموذج
         for field, errors in form.errors.items():
-            print(f"الحقل: {field}, الأخطاء: {errors}")
             # إضافة رسائل خطأ للمستخدم
             for error in errors:
                 field_name = form.fields[field].label if field in form.fields else field
                 messages.error(self.request, f"خطأ في حقل '{field_name}': {error}")
 
         # طباعة البيانات التي تم إرسالها
-        print("====== البيانات المرسلة ======")
+        # البيانات المرسلة
         for key, value in form.data.items():
             if key != "csrfmiddlewaretoken":
-                print(f"{key}: {value}")
+                pass  # للتصحيح فقط
 
         # حفظ البيانات المدخلة في الجلسة
         form_data = {}
@@ -942,7 +932,7 @@ class PricingOrderUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
                     # نستخدم additional_data فقط
                     form.instance.description = json.dumps(additional_data)
             except Exception as e:
-                print(f"خطأ في تحميل أو تحديث البيانات JSON: {e}")
+                # خطأ في تحميل أو تحديث البيانات JSON
                 form.instance.description = json.dumps(additional_data)
         else:
             # إذا كان الوصف نصياً عادياً، نحتفظ به ونضيف البيانات الإضافية
@@ -1430,11 +1420,11 @@ def calculate_cost(request):
     """حساب تكلفة الطباعة"""
     if request.method == "POST":
         try:
-            print("استقبال طلب حساب التكلفة")
+            # استقبال طلب حساب التكلفة
             data = json.loads(request.body)
 
             # طباعة البيانات المستلمة للتصحيح
-            print("البيانات المستلمة:", data)
+            # البيانات المستلمة
 
             # استخراج البيانات الأساسية
             order_type = data.get("order_type", "")
