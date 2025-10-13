@@ -152,8 +152,8 @@ class EnhancedDataTable {
     
     exportToExcel(filename) {
         if (!this.table || !window.XLSX) {
-            console.error('XLSX library not found');
-            alert('مكتبة Excel غير متوفرة');
+            console.warn('XLSX library not found - استخدام CSV بدلاً من ذلك');
+            this.exportToCSV(filename.replace('.xlsx', '.csv'));
             return;
         }
         

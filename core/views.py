@@ -12,7 +12,7 @@ from client.models import Customer
 from supplier.models import Supplier
 from product.models import Product, Stock
 from .models import SystemSetting, Notification
-from utils import create_breadcrumb_item
+# from utils.helpers import create_breadcrumb_item  # غير مستخدم
 
 
 @login_required

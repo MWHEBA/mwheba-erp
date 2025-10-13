@@ -9,7 +9,7 @@ function checkRequiredLibraries() {
         'jQuery': typeof $ !== 'undefined',
         'DataTables': typeof $.fn.DataTable !== 'undefined',
         'DataTables Buttons': typeof $.fn.dataTable !== 'undefined' && typeof $.fn.dataTable.Buttons !== 'undefined',
-        'XLSX': typeof XLSX !== 'undefined'
+        'XLSX': typeof XLSX !== 'undefined' // اختياري للتصدير
     };
     
     let allLoaded = true;
@@ -259,8 +259,8 @@ function exportToCSV(tableId, filename = 'export.csv') {
 // تصدير Excel
 function exportToExcel(tableId, filename = 'export.xlsx') {
     if (typeof XLSX === 'undefined') {
-        console.error('مكتبة XLSX غير متوفرة');
-        alert('مكتبة التصدير غير متوفرة');
+        console.warn('مكتبة XLSX غير متوفرة - استخدام تصدير CSV بدلاً من ذلك');
+        exportToCSV(tableId, filename.replace('.xlsx', '.csv'));
         return;
     }
     

@@ -21,13 +21,11 @@ from django.db.models import Q
 from django.utils import timezone
 from decimal import Decimal
 from django.shortcuts import render, redirect
-from django.http import JsonResponse
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import PermissionDenied
 from django.conf import settings
 from django.template.loader import get_template
-from django.contrib import messages
 import json
 
 from supplier.models import Supplier, PaperServiceDetails
@@ -382,189 +380,188 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
 
     def form_valid(self, form):
         """تعيين المستخدم الحالي كمنشئ للطلب وحفظ البيانات الإضافية"""
-        # تعيين المستخدم الحالي كمنشئ للطلب
-        form.instance.created_by = self.request.user
+        try:
+            # تعيين المستخدم الحالي كمنشئ للطلب
+            form.instance.created_by = self.request.user
 
-        # تعيين حالة الطلب إلى 'pending' بشكل تلقائي
-        form.instance.status = "pending"
+            # تعيين حالة الطلب إلى 'pending' بشكل تلقائي
+            form.instance.status = "pending"
 
-        # التأكد من أن العميل محدد بشكل صحيح
-        if not form.instance.client_id and form.cleaned_data.get("client"):
-            form.instance.client = form.cleaned_data.get("client")
-            # تم تعيين العميل
+            # التأكد من أن العميل محدد بشكل صحيح
+            if not form.instance.client_id and form.cleaned_data.get("client"):
+                form.instance.client = form.cleaned_data.get("client")
 
-        # حفظ النموذج أولاً لإنشاء الكائن (self.object)
-        response = super().form_valid(form)
+            # حفظ النموذج أولاً لإنشاء الكائن (self.object)
+            response = super().form_valid(form)
 
-        # الآن يمكننا استخدام self.object بأمان لأنه تم تعيينه بواسطة super().form_valid(form)
-        order_object = self.object
+            # الآن يمكننا استخدام self.object بأمان لأنه تم تعيينه بواسطة super().form_valid(form)
+            order_object = self.object
 
-        # طباعة معلومات التصحيح عن الكائن المحفوظ
-        # تم حفظ طلب التسعير بنجاح
+            # استخراج البيانات الإضافية من النموذج
+            product_type = form.cleaned_data.get("product_type")
+            custom_size_width = form.cleaned_data.get("custom_size_width")
+            custom_size_height = form.cleaned_data.get("custom_size_height")
+            open_size_width = form.cleaned_data.get("open_size_width")
+            open_size_height = form.cleaned_data.get("open_size_height")
+            binding_type = form.cleaned_data.get("binding_type")
+            binding_side = form.cleaned_data.get("binding_side")
+            paper_weight = form.cleaned_data.get("paper_weight")
+            paper_supplier = form.cleaned_data.get("paper_supplier")
+            paper_price = form.cleaned_data.get("paper_price")
+            zinc_plates_count = form.cleaned_data.get("zinc_plates_count")
+            internal_page_count = form.cleaned_data.get("internal_page_count")
+            design_price = self.request.POST.get("design_price")
 
-        # استخراج البيانات الإضافية من النموذج
-        product_type = form.cleaned_data.get("product_type")
-        custom_size_width = form.cleaned_data.get("custom_size_width")
-        custom_size_height = form.cleaned_data.get("custom_size_height")
-        open_size_width = form.cleaned_data.get("open_size_width")
-        open_size_height = form.cleaned_data.get("open_size_height")
-        binding_type = form.cleaned_data.get("binding_type")
-        binding_side = form.cleaned_data.get("binding_side")
-        paper_weight = form.cleaned_data.get("paper_weight")
-        paper_supplier = form.cleaned_data.get("paper_supplier")
-        paper_price = form.cleaned_data.get("paper_price")
-        zinc_plates_count = form.cleaned_data.get("zinc_plates_count")
-        internal_page_count = form.cleaned_data.get("internal_page_count")
-        design_price = self.request.POST.get("design_price")
+            # استخراج بيانات الزنكات من الطلب
+            ctp_supplier_id = self.request.POST.get("ctp_supplier")
+            ctp_plate_size_id = self.request.POST.get("ctp_plate_size")
+            ctp_plates_count = self.request.POST.get("ctp_plates_count")
+            ctp_plate_price = self.request.POST.get("ctp_plate_price")
+            ctp_transportation = self.request.POST.get("ctp_transportation")
 
-        # استخراج بيانات الزنكات من الطلب
-        ctp_supplier_id = self.request.POST.get("ctp_supplier")
-        ctp_plate_size_id = self.request.POST.get("ctp_plate_size")
-        ctp_plates_count = self.request.POST.get("ctp_plates_count")
-        ctp_plate_price = self.request.POST.get("ctp_plate_price")
-        ctp_transportation = self.request.POST.get("ctp_transportation")
+            # إنشاء سجل زنكات إذا توفرت البيانات اللازمة
+            if (
+                ctp_supplier_id
+                and ctp_plate_size_id
+                and ctp_plates_count
+                and ctp_plate_price
+            ):
+                try:
+                    supplier = Supplier.objects.get(pk=ctp_supplier_id)
+                    plate_size = (
+                        PlateSize.objects.get(pk=ctp_plate_size_id)
+                        if hasattr(PlateSize, "objects")
+                        else None
+                    )
 
-        # طباعة معلومات التصحيح
-        # تم حفظ طلب التسعير بنجاح
+                    # إنشاء سجل الزنكات
+                    CtpPlates.objects.create(
+                        order=order_object,
+                        is_internal=False,
+                        supplier=supplier,
+                        plate_size=plate_size,
+                        plates_count=int(ctp_plates_count),
+                        plate_price=Decimal(ctp_plate_price),
+                        transportation_cost=Decimal(ctp_transportation or "0.00"),
+                        total_cost=(Decimal(ctp_plate_price) * int(ctp_plates_count))
+                        + Decimal(ctp_transportation or "0.00"),
+                        notes="تم إنشاؤه تلقائيًا من نموذج التسعير",
+                    )
+                except (Supplier.DoesNotExist, PlateSize.DoesNotExist, ValueError) as e:
+                    logger.error(f"خطأ في إنشاء سجل الزنكات: {str(e)}")
+                    pass
 
-        # إنشاء سجل زنكات إذا توفرت البيانات اللازمة
-        if (
-            ctp_supplier_id
-            and ctp_plate_size_id
-            and ctp_plates_count
-            and ctp_plate_price
-        ):
-            try:
-                supplier = Supplier.objects.get(pk=ctp_supplier_id)
-                plate_size = (
-                    PlateSize.objects.get(pk=ctp_plate_size_id)
-                    if hasattr(PlateSize, "objects")
-                    else None
-                )
+            # استخراج بيانات خدمات ما بعد الطباعة
+            finishing_services = {}
 
-                # إنشاء سجل الزنكات
-                CtpPlates.objects.create(
-                    order=order_object,
-                    is_internal=False,
-                    supplier=supplier,
-                    plate_size=plate_size,
-                    plates_count=int(ctp_plates_count),
-                    plate_price=Decimal(ctp_plate_price),
-                    transportation_cost=Decimal(ctp_transportation or "0.00"),
-                    total_cost=(Decimal(ctp_plate_price) * int(ctp_plates_count))
-                    + Decimal(ctp_transportation or "0.00"),
-                    notes="تم إنشاؤه تلقائيًا من نموذج التسعير",
-                )
-            except (Supplier.DoesNotExist, PlateSize.DoesNotExist, ValueError) as e:
-                # يمكن إضافة سجل خطأ هنا
-                # خطأ في إنشاء سجل الزنكات
-                pass
+            # التغطية
+            if self.request.POST.get("coating_service"):
+                finishing_services["coating"] = {
+                    "type": self.request.POST.get("coating_type"),
+                    "supplier": self.request.POST.get("coating_supplier"),
+                    "price": self.request.POST.get("coating_price"),
+                    "notes": self.request.POST.get("coating_notes"),
+                }
 
-        # استخراج بيانات خدمات ما بعد الطباعة
-        finishing_services = {}
+            # الريجة
+            if self.request.POST.get("folding_service"):
+                finishing_services["folding"] = {
+                    "count": self.request.POST.get("folding_count"),
+                    "supplier": self.request.POST.get("folding_supplier"),
+                    "price": self.request.POST.get("folding_price"),
+                    "notes": self.request.POST.get("folding_notes"),
+                }
 
-        # التغطية
-        if self.request.POST.get("coating_service"):
-            finishing_services["coating"] = {
-                "type": self.request.POST.get("coating_type"),
-                "supplier": self.request.POST.get("coating_supplier"),
-                "price": self.request.POST.get("coating_price"),
-                "notes": self.request.POST.get("coating_notes"),
+            # التكسير
+            if self.request.POST.get("die_cut_service"):
+                finishing_services["die_cut"] = {
+                    "type": self.request.POST.get("die_cut_type"),
+                    "supplier": self.request.POST.get("die_cut_supplier"),
+                    "price": self.request.POST.get("die_cut_price"),
+                    "notes": self.request.POST.get("die_cut_notes"),
+                }
+
+            # سبوت يوفي
+            if self.request.POST.get("spot_uv_service"):
+                finishing_services["spot_uv"] = {
+                    "coverage": self.request.POST.get("spot_uv_coverage"),
+                    "supplier": self.request.POST.get("spot_uv_supplier"),
+                    "price": self.request.POST.get("spot_uv_price"),
+                    "notes": self.request.POST.get("spot_uv_notes"),
+                }
+
+            # تخزين هذه البيانات في حقل الوصف
+            additional_data = {
+                "product_type": product_type,
+                "custom_size": {
+                    "width": str(custom_size_width),
+                    "height": str(custom_size_height),
+                }
+                if custom_size_width and custom_size_height
+                else None,
+                "open_size": {
+                    "width": str(open_size_width),
+                    "height": str(open_size_height),
+                }
+                if open_size_width and open_size_height
+                else None,
+                "binding_type": binding_type,
+                "binding_side": binding_side,
+                "paper_weight": paper_weight,
+                "paper_supplier": paper_supplier,
+                "paper_price": paper_price,
+                "zinc_plates_count": zinc_plates_count,
+                "internal_page_count": internal_page_count,
+                "finishing_services": finishing_services,
+                "design_price": design_price,
             }
 
-        # الريجة
-        if self.request.POST.get("folding_service"):
-            finishing_services["folding"] = {
-                "count": self.request.POST.get("folding_count"),
-                "supplier": self.request.POST.get("folding_supplier"),
-                "price": self.request.POST.get("folding_price"),
-                "notes": self.request.POST.get("folding_notes"),
-            }
+            # تحويل البيانات إلى تنسيق قابل للتحويل إلى JSON
+            additional_data = sanitize_for_json(additional_data)
 
-        # التكسير
-        if self.request.POST.get("die_cut_service"):
-            finishing_services["die_cut"] = {
-                "type": self.request.POST.get("die_cut_type"),
-                "supplier": self.request.POST.get("die_cut_supplier"),
-                "price": self.request.POST.get("die_cut_price"),
-                "notes": self.request.POST.get("die_cut_notes"),
-            }
+            # إذا كان هناك محتوى داخلي، نقوم بإنشاء كائن InternalContent
+            if form.instance.has_internal_content and internal_page_count:
+                try:
+                    InternalContent.objects.create(
+                        order=order_object,
+                        paper_type=form.instance.paper_type,
+                        paper_size=form.instance.paper_size,
+                        page_count=internal_page_count,
+                        print_sides=form.instance.print_sides,
+                        colors_front=form.instance.colors_front,
+                        colors_back=form.instance.colors_back,
+                    )
+                except Exception as e:
+                    logger.error(f"خطأ في إنشاء سجل المحتوى الداخلي: {str(e)}")
+                    pass
 
-        # سبوت يوفي
-        if self.request.POST.get("spot_uv_service"):
-            finishing_services["spot_uv"] = {
-                "coverage": self.request.POST.get("spot_uv_coverage"),
-                "supplier": self.request.POST.get("spot_uv_supplier"),
-                "price": self.request.POST.get("spot_uv_price"),
-                "notes": self.request.POST.get("spot_uv_notes"),
-            }
+            # تحديث الوصف بالبيانات الإضافية إذا لم يكن مضبوطًا بالفعل
+            if not form.instance.description:
+                try:
+                    order_object.description = json.dumps(additional_data)
+                    order_object.save()
+                except TypeError as e:
+                    logger.error(f"خطأ في تحويل البيانات إلى JSON: {str(e)}")
+                    pass
 
-        # تخزين هذه البيانات في حقل الوصف
-        additional_data = {
-            "product_type": product_type,
-            "custom_size": {
-                "width": str(custom_size_width),
-                "height": str(custom_size_height),
-            }
-            if custom_size_width and custom_size_height
-            else None,
-            "open_size": {
-                "width": str(open_size_width),
-                "height": str(open_size_height),
-            }
-            if open_size_width and open_size_height
-            else None,
-            "binding_type": binding_type,
-            "binding_side": binding_side,
-            "paper_weight": paper_weight,
-            "paper_supplier": paper_supplier,
-            "paper_price": paper_price,
-            "zinc_plates_count": zinc_plates_count,
-            "internal_page_count": internal_page_count,
-            "finishing_services": finishing_services,
-            "design_price": design_price,
-        }
+            # إنشاء خدمات الطباعة في قاعدة البيانات
+            self.create_finishing_services(finishing_services, order_object)
 
-        # تحويل البيانات إلى تنسيق قابل للتحويل إلى JSON
-        additional_data = sanitize_for_json(additional_data)
+            # مسح البيانات المحفوظة من الجلسة بعد الإنشاء الناجح
+            if "pricing_form_data" in self.request.session:
+                del self.request.session["pricing_form_data"]
+                self.request.session.modified = True
 
-        # إذا كان هناك محتوى داخلي، نقوم بإنشاء كائن InternalContent
-        if form.instance.has_internal_content and internal_page_count:
-            try:
-                InternalContent.objects.create(
-                    order=order_object,
-                    paper_type=form.instance.paper_type,
-                    paper_size=form.instance.paper_size,
-                    page_count=internal_page_count,
-                    print_sides=form.instance.print_sides,
-                    colors_front=form.instance.colors_front,
-                    colors_back=form.instance.colors_back,
-                )
-            except Exception as e:
-                # يمكن إضافة سجل خطأ هنا
-                # خطأ في إنشاء سجل المحتوى الداخلي
-                pass
+            messages.success(self.request, "تم إنشاء طلب التسعير بنجاح.")
+            return response
 
-        # تحديث الوصف بالبيانات الإضافية إذا لم يكن مضبوطًا بالفعل
-        if not form.instance.description:
-            try:
-                order_object.description = json.dumps(additional_data)
-                order_object.save()
-            except TypeError as e:
-                # خطأ في تحويل البيانات إلى JSON
-                # لا نحتاج إلى معالجة إضافية بعد استخدام sanitize_for_json
-                pass
-
-        # إنشاء خدمات الطباعة في قاعدة البيانات
-        self.create_finishing_services(finishing_services, order_object)
-
-        # مسح البيانات المحفوظة من الجلسة بعد الإنشاء الناجح
-        if "pricing_form_data" in self.request.session:
-            del self.request.session["pricing_form_data"]
-            self.request.session.modified = True
-
-        messages.success(self.request, "تم إنشاء طلب التسعير بنجاح.")
-        return response
+        except Exception as e:
+            # معالجة شاملة للأخطاء
+            logger.error(f"خطأ في form_valid: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            messages.error(self.request, f"حدث خطأ أثناء حفظ التسعيرة: {str(e)}")
+            return self.form_invalid(form)
 
     def create_finishing_services(self, finishing_services, order_object=None):
         """إنشاء خدمات الطباعة في قاعدة البيانات"""
