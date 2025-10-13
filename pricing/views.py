@@ -458,6 +458,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             except (Supplier.DoesNotExist, PlateSize.DoesNotExist, ValueError) as e:
                 # يمكن إضافة سجل خطأ هنا
                 # خطأ في إنشاء سجل الزنكات
+                pass
 
         # استخراج بيانات خدمات ما بعد الطباعة
         finishing_services = {}
@@ -542,6 +543,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             except Exception as e:
                 # يمكن إضافة سجل خطأ هنا
                 # خطأ في إنشاء سجل المحتوى الداخلي
+                pass
 
         # تحديث الوصف بالبيانات الإضافية إذا لم يكن مضبوطًا بالفعل
         if not form.instance.description:
@@ -551,6 +553,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             except TypeError as e:
                 # خطأ في تحويل البيانات إلى JSON
                 # لا نحتاج إلى معالجة إضافية بعد استخدام sanitize_for_json
+                pass
 
         # إنشاء خدمات الطباعة في قاعدة البيانات
         self.create_finishing_services(finishing_services, order_object)
@@ -625,6 +628,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                         finishing_service.supplier = supplier
                     except (ValueError, Supplier.DoesNotExist) as e:
                         # تحذير: لم يتم العثور على مورد الخدمة
+                        pass
 
                 # حفظ خدمة خدمات مابعد الطباعة
                 finishing_service.save()
