@@ -14,7 +14,7 @@ import uuid
 class StockReservation(models.Model):
     """
     نموذج حجز المخزون
-    يحجز كمية معينة من منتج في مستودع لطلب معين
+    يحجز كمية معينة من منتج في مخزن لطلب معين
     """
 
     RESERVATION_STATUS = (
@@ -36,7 +36,7 @@ class StockReservation(models.Model):
         _("معرف الحجز"), default=uuid.uuid4, unique=True, editable=False
     )
 
-    # المنتج والمستودع
+    # المنتج والمخزن
     product = models.ForeignKey(
         "product.Product",
         on_delete=models.CASCADE,
@@ -47,7 +47,7 @@ class StockReservation(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="reservations",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     # تفاصيل الحجز
@@ -302,7 +302,7 @@ class ReservationRule(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     # إعدادات القاعدة

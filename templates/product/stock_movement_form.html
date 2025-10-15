@@ -31,7 +31,7 @@
 {% block page_js %}
 <script>
     $(document).ready(function() {
-        // إظهار/إخفاء حقل المستودع المستلم بناءً على نوع الحركة
+        // إظهار/إخفاء حقل المخزن المستلم بناءً على نوع الحركة
         const movementType = $('#id_movement_type');
         const destinationWarehouse = $('.destination-warehouse');
         
@@ -47,13 +47,13 @@
         toggleDestinationWarehouse();
         movementType.change(toggleDestinationWarehouse);
         
-        // تحقق من عدم اختيار نفس المستودع كمصدر ووجهة للتحويل
+        // تحقق من عدم اختيار نفس المخزن كمصدر ووجهة للتحويل
         $('#id_destination_warehouse').change(function() {
             const sourceWarehouse = $('#id_warehouse').val();
             const destWarehouse = $(this).val();
             
             if (sourceWarehouse == destWarehouse) {
-                alert('{% trans "لا يمكن اختيار نفس المستودع كمصدر ووجهة للتحويل" %}');
+                alert('{% trans "لا يمكن اختيار نفس المخزن كمصدر ووجهة للتحويل" %}');
                 $(this).val('').trigger('change');
             }
         });

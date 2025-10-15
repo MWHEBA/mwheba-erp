@@ -12,15 +12,7 @@
         {% else %}
             <span class="badge bg-primary fw-bold">
                 <i class="fas fa-ruler-combined me-1"></i>
-                {% if item.offset_details.sheet_size == '35x50' %}
-                    35×50 سم
-                {% elif item.offset_details.sheet_size == '50x70' %}
-                    50×70 سم
-                {% elif item.offset_details.sheet_size == '70x100' %}
-                    70×100 سم
-                {% else %}
-                    {{ item.offset_details.get_sheet_size_display }}
-                {% endif %}
+                {{ item.offset_details.get_sheet_size_display }}
             </span>
         {% endif %}
     </div>

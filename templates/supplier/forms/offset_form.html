@@ -115,3 +115,59 @@
 
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديث اسم الخدمة تلقائياً عند تغيير الحقول
+    function updateServiceName() {
+        const machineSelect = document.getElementById('machine-type');
+        const sizeSelect = document.getElementById('sheet-size');
+        const colorsInput = document.getElementById('max-colors');
+        const nameInput = document.getElementById('service-name');
+        
+        if (!machineSelect || !sizeSelect || !colorsInput || !nameInput) return;
+        
+        const machineValue = machineSelect.value;
+        const sizeValue = sizeSelect.value;
+        const colorsValue = colorsInput.value || '4';
+        
+        if (machineValue && sizeValue) {
+            // الحصول على النص المعروض للخيارات
+            const machineText = machineSelect.options[machineSelect.selectedIndex]?.text || '';
+            const sizeText = sizeSelect.options[sizeSelect.selectedIndex]?.text || '';
+            
+            if (machineText && sizeText) {
+                // استخراج اسم الماكينة (الجزء الأخير بعد " - ")
+                const machineName = machineText.includes(' - ') ? 
+                    machineText.split(' - ').pop() : machineText;
+                
+                // تبسيط اسم المقاس (الجزء قبل " (")
+                const sizeSimple = sizeText.includes(' (') ? 
+                    sizeText.split(' (')[0] : sizeText;
+                
+                // إنشاء الاسم الجديد
+                const newName = `ماكينة ${sizeSimple} - ${colorsValue} لون - ${machineName}`;
+                nameInput.value = newName;
+                
+                // إضافة تأثير بصري للإشارة للتحديث
+                nameInput.classList.add('border-success');
+                setTimeout(() => {
+                    nameInput.classList.remove('border-success');
+                }, 1000);
+            }
+        }
+    }
+    
+    // ربط الأحداث
+    const machineSelect = document.getElementById('machine-type');
+    const sizeSelect = document.getElementById('sheet-size');
+    const colorsInput = document.getElementById('max-colors');
+    
+    if (machineSelect) machineSelect.addEventListener('change', updateServiceName);
+    if (sizeSelect) sizeSelect.addEventListener('change', updateServiceName);
+    if (colorsInput) colorsInput.addEventListener('input', updateServiceName);
+    
+    // تحديث الاسم عند تحميل الصفحة إذا كانت الحقول معبأة
+    setTimeout(updateServiceName, 500);
+});
+</script>
+

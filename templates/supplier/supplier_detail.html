@@ -524,7 +524,7 @@
                 {% endfor %}
               </div>
             {% endif %}
-            <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="btn btn-success me-2 mb-2" style="font-weight: 700;">
+            <a href="{% url 'purchase:purchase_create_for_supplier' supplier_id=supplier.pk %}" class="btn btn-success me-2 mb-2" style="font-weight: 700;">
               <i class="fas fa-shopping-cart me-1"></i> {% trans "فاتورة شراء" %}
             </a>
             <a href="#" class="btn btn-outline-secondary mb-2" data-bs-toggle="modal" data-bs-target="#actionsModal" style="font-weight: 600;">
@@ -716,7 +716,7 @@
       <div class="tab-pane fade" id="purchases-tab-pane" role="tabpanel" aria-labelledby="purchases-tab" tabindex="0">
         <div class="section-container">
           <div class="d-flex justify-content-end mb-3">
-            <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="btn btn-primary">
+            <a href="{% url 'purchase:purchase_create_for_supplier' supplier_id=supplier.pk %}" class="btn btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إضافة فاتورة جديدة" %}
             </a>
           </div>
@@ -801,7 +801,6 @@
           <!-- تابات فرعية للخدمات حسب الفئة -->
           {% load supplier_extras %}
           {% get_all_service_categories supplier as all_categories %}
-          {% regroup supplier.specialized_services.all by category as services_by_category %}
           
           <!-- التابات الفرعية - تظهر دائماً -->
           <div class="services-sub-tabs">
@@ -966,17 +965,14 @@
                       {% endwith %}
                     {% endif %}
                   {% endif %}
-                {% endfor %}
-                
-                <!-- إذا لم توجد خدمات لهذه الفئة -->
-                {% has_services_for_category services_by_category category.id as has_services %}
-                {% if not has_services %}
+                {% empty %}
+                  <!-- إذا لم توجد خدمات لهذه الفئة -->
                   <div class="text-center py-4">
                     <i class="fas fa-tools fa-2x text-muted mb-3"></i>
                     <h6 class="text-muted">لا توجد خدمات من فئة {{ category.name }}</h6>
                     <p class="text-muted small">ابدأ بإضافة خدمات {{ category.name }} لهذا المورد</p>
                   </div>
-                {% endif %}
+                {% endfor %}
 
               </div>
             {% empty %}

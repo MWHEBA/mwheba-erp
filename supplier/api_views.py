@@ -73,40 +73,9 @@ def get_category_form_api(request):
         form_choices = {}
 
         if category_code == "offset_printing":
-            # جلب أنواع ماكينات الأوفست من الإعدادات
-            try:
-                from pricing.models import OffsetMachineType, OffsetSheetSize
-
-                machine_types = OffsetMachineType.objects.filter(
-                    is_active=True
-                ).order_by("name")
-                sheet_sizes = OffsetSheetSize.objects.filter(is_active=True).order_by(
-                    "name"
-                )
-
-                if machine_types.exists() and sheet_sizes.exists():
-                    form_choices.update(
-                        {
-                            "machine_types": [
-                                (mt.code if mt.code else f"mt_{mt.id}", mt.name)
-                                for mt in machine_types
-                            ],
-                            "sheet_sizes": [
-                                (
-                                    ss.code if ss.code else f"ss_{ss.id}",
-                                    f"{ss.name} ({int(ss.width_cm)}×{int(ss.height_cm)} سم)",
-                                )
-                                for ss in sheet_sizes
-                            ],
-                        }
-                    )
-                else:
-                    # لا توجد بيانات في قاعدة البيانات
-                    form_choices.update({"machine_types": [], "sheet_sizes": []})
-
-            except ImportError:
-                # النماذج غير متوفرة
-                form_choices.update({"machine_types": [], "sheet_sizes": []})
+            # استخدام النظام الموحد لجلب بيانات الأوفست
+            from .forms.dynamic_forms import ServiceFormFactory
+            form_choices.update(ServiceFormFactory.get_unified_offset_choices())
 
         elif category_code == "digital_printing":
             # جلب أنواع ماكينات الديجيتال من الإعدادات
@@ -169,26 +138,9 @@ def get_category_form_api(request):
             )
 
         elif category_code == "paper":
-            # إعداد خيارات أنواع الورق
-            form_choices.update(
-                {
-                    "paper_types": [
-                        ("coated", "ورق كوشيه"),
-                        ("offset", "ورق أوفست"),
-                        ("cardboard", "كرتون"),
-                        ("art_paper", "ورق فني"),
-                    ],
-                    "paper_weights": [
-                        ("80", "80 جرام"),
-                        ("90", "90 جرام"),
-                        ("120", "120 جرام"),
-                        ("150", "150 جرام"),
-                        ("200", "200 جرام"),
-                        ("250", "250 جرام"),
-                        ("300", "300 جرام"),
-                    ],
-                }
-            )
+            # استخدام النظام الموحد لجلب بيانات الورق
+            from .forms.dynamic_forms import ServiceFormFactory
+            form_choices.update(ServiceFormFactory.get_unified_paper_choices())
 
         elif category_code == "finishing":
             # إعداد خيارات خدمات التشطيب
@@ -277,7 +229,8 @@ def save_service_data_universal(request):
             data = json.loads(request.body)
             supplier_id = data.get("supplier_id")
             service_type = data.get("service_type")
-
+            
+            
             # التحقق من البيانات الأساسية
             if not supplier_id or not service_type:
                 return JsonResponse(
@@ -301,9 +254,8 @@ def save_service_data_universal(request):
             # إنشاء التفاصيل المتخصصة
             _create_service_details(service, service_type)
 
-            # إنشاء loader وحفظ البيانات
-            loader = ServiceDataLoader(service_type)
-            loader.save_service_data(service.id, data)
+            # حفظ التفاصيل المتخصصة بالبيانات الفعلية
+            _save_category_details(service, service_type, data)
 
             # حفظ الشرائح السعرية إذا وجدت
             if data.get("price_tiers"):
@@ -416,6 +368,18 @@ def _create_service_details(service, service_type):
         PlateServiceDetails.objects.create(
             service=service, plate_size="", price_per_plate=0
         )
+    elif service_type == "paper":
+        PaperServiceDetails.objects.create(
+            service=service,
+            paper_type="",
+            gsm=80,  # قيمة افتراضية
+            sheet_size="",
+            custom_width=None,
+            custom_height=None,
+            country_of_origin="",
+            brand="",
+            price_per_sheet=0,
+        )
 
 
 @login_required
@@ -499,11 +463,30 @@ def get_service_details_api(request, service_id):
                     else None,
                 }
             )
+        elif category_code == "paper" and hasattr(service, "paper_details"):
+            details = service.paper_details
+            
+            # تحويل القيم القديمة للجديدة
+            from .forms.dynamic_forms import ServiceFormFactory
+            converted_sheet_size = ServiceFormFactory.convert_legacy_sheet_size(details.sheet_size)
+            converted_paper_type = ServiceFormFactory.convert_legacy_paper_type(details.paper_type)
+            
+            service_data.update(
+                {
+                    "paper_type": converted_paper_type,
+                    "gsm": details.gsm,
+                    "sheet_size": converted_sheet_size,
+                    "custom_width": float(details.custom_width) if details.custom_width else None,
+                    "custom_height": float(details.custom_height) if details.custom_height else None,
+                    "country_of_origin": details.country_of_origin,
+                    "brand": details.brand,
+                    "price_per_sheet": float(details.price_per_sheet),
+                }
+            )
 
         # الشرائح السعرية
         price_tiers = []
         tiers_queryset = service.price_tiers.all().order_by("min_quantity")
-        print(f"DEBUG: Service {service.id} has {tiers_queryset.count()} price tiers")
 
         for tier in tiers_queryset:
             tier_data = {
@@ -516,10 +499,8 @@ def get_service_details_api(request, service_id):
                 "discount_percentage": float(tier.discount_percentage),
             }
             price_tiers.append(tier_data)
-            print(f"DEBUG: Added tier: {tier_data}")
 
         service_data["price_tiers"] = price_tiers
-        print(f"DEBUG: Final service_data contains {len(price_tiers)} price tiers")
 
         return JsonResponse({"success": True, "service_data": service_data})
 
@@ -541,17 +522,27 @@ def _save_category_details(service, category_code, data):
             except (ValueError, TypeError):
                 return default
 
-        PaperServiceDetails.objects.create(
-            service=service,
-            paper_type=data.get("paper_type", ""),
-            gsm=data.get("gsm", ""),
-            sheet_size=data.get("sheet_size", ""),
-            custom_width=safe_float(data.get("custom_width")),
-            custom_height=safe_float(data.get("custom_height")),
-            country_of_origin=data.get("country_of_origin", ""),
-            brand=data.get("brand", ""),
-            price_per_sheet=safe_float(data.get("price_per_sheet")),
-        )
+        def safe_int(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        paper_details = service.paper_details
+        
+        
+        paper_details.paper_type = data.get("paper_type", "")
+        paper_details.gsm = safe_int(data.get("gsm"), 80)
+        paper_details.sheet_size = data.get("sheet_size", "")
+        paper_details.custom_width = safe_float(data.get("custom_width"))
+        paper_details.custom_height = safe_float(data.get("custom_height"))
+        paper_details.country_of_origin = data.get("country_of_origin", "")
+        paper_details.brand = data.get("brand", "")
+        paper_details.price_per_sheet = safe_float(data.get("price_per_sheet"))
+        paper_details.save()
 
     elif category_code == "offset_printing":
         # التحقق من الحقول المطلوبة
@@ -579,10 +570,56 @@ def _save_category_details(service, category_code, data):
             except (ValueError, TypeError):
                 return default
 
-        # الدوال المساعدة القديمة - محذوفة لصالح ServiceDataLoader
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        offset_details = service.offset_details
+        
+        offset_details.machine_type = machine_type
+        offset_details.sheet_size = sheet_size
+        offset_details.max_colors = safe_int(data.get("max_colors"), 4)
+        offset_details.impression_cost_per_1000 = safe_float(impression_cost)
+        offset_details.special_impression_cost = safe_float(data.get("special_impression_cost"))
+        offset_details.break_impression_cost = safe_float(data.get("break_impression_cost"))
+        offset_details.setup_cost = safe_float(data.get("setup_cost"))
+        offset_details.has_uv_coating = data.get("has_uv_coating", False)
+        offset_details.has_aqueous_coating = data.get("has_aqueous_coating", False)
+        offset_details.save()
 
-
-# دالة جلب التفاصيل القديمة - محذوفة لصالح ServiceDataLoader
+        # تحديث اسم الخدمة تلقائياً (للخدمات الجديدة والمحدثة)
+        def should_update_name():
+            """تحديد ما إذا كان يجب تحديث اسم الخدمة"""
+            # إذا كان الاسم فارغ، حدثه
+            if not service.name or service.name.strip() == "":
+                return True
+            
+            # إذا كان الاسم يحتوي على نمط الاسم التلقائي، حدثه
+            auto_name_patterns = [
+                "ماكينة", "خدمة أوفست", "لون", "SM", "GTO", "LS", "ريوبي", "كوموري", "هايدلبرج"
+            ]
+            return any(pattern in service.name for pattern in auto_name_patterns)
+        
+        if should_update_name():
+            try:
+                machine_display = offset_details.get_machine_type_display()
+                size_display = offset_details.get_sheet_size_display()
+                colors = offset_details.max_colors
+                
+                if machine_display and size_display:
+                    # استخراج اسم الماكينة فقط (بدون الشركة)
+                    machine_name = machine_display.split(' - ')[-1] if ' - ' in machine_display else machine_display
+                    # تبسيط اسم المقاس
+                    size_simple = size_display.split(' (')[0] if ' (' in size_display else size_display
+                    
+                    new_name = f"ماكينة {size_simple} - {colors} لون - {machine_name}"
+                    
+                    # تحديث الاسم فقط إذا تغير
+                    if service.name != new_name:
+                        service.name = new_name
+                        service.save()
+            except Exception as e:
+                # في حالة فشل إنشاء الاسم، استخدم اسم افتراضي
+                if not service.name or service.name.strip() == "":
+                    service.name = f"خدمة أوفست - {machine_type}"
+                    service.save()
 
 
 def _save_price_tiers(service, tiers_data):

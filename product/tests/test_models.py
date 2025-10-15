@@ -253,7 +253,7 @@ class ProductModelTest(TestCase):
 
 class WarehouseModelTest(TestCase):
     """
-    اختبارات نموذج المستودعات
+    اختبارات نموذج المخازن
     """
 
     def setUp(self):
@@ -261,33 +261,33 @@ class WarehouseModelTest(TestCase):
             username="testuser", password="testpass123", email="test@example.com"
         )
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار",
+            name="مخزن اختبار",
             code="WH001",
-            address="عنوان المستودع",
-            description="وصف المستودع",
+            address="عنوان المخزن",
+            description="وصف المخزن",
             created_by=self.user,
         )
 
     def test_warehouse_creation(self):
         """
-        اختبار إنشاء مستودع بشكل صحيح
+        اختبار إنشاء مخزن بشكل صحيح
         """
-        self.assertEqual(self.warehouse.name, "مستودع اختبار")
+        self.assertEqual(self.warehouse.name, "مخزن اختبار")
         self.assertEqual(self.warehouse.code, "WH001")
-        self.assertEqual(self.warehouse.address, "عنوان المستودع")
-        self.assertEqual(self.warehouse.description, "وصف المستودع")
+        self.assertEqual(self.warehouse.address, "عنوان المخزن")
+        self.assertEqual(self.warehouse.description, "وصف المخزن")
         self.assertEqual(self.warehouse.created_by, self.user)
         self.assertIsNotNone(self.warehouse.created_at)
 
     def test_warehouse_str(self):
         """
-        اختبار تمثيل المستودع كنص
+        اختبار تمثيل المخزن كنص
         """
-        self.assertEqual(str(self.warehouse), "مستودع اختبار")
+        self.assertEqual(str(self.warehouse), "مخزن اختبار")
 
     def test_warehouse_soft_delete(self):
         """
-        اختبار الحذف الناعم للمستودع
+        اختبار الحذف الناعم للمخزن
         """
         warehouse_id = self.warehouse.id
         self.warehouse.delete()
@@ -326,7 +326,7 @@ class StockModelTest(TestCase):
             created_by=self.user,
         )
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001", created_by=self.user
         )
         self.stock = Stock.objects.create(
             product=self.product,
@@ -349,7 +349,7 @@ class StockModelTest(TestCase):
         """
         اختبار تمثيل المخزون كنص
         """
-        expected_str = f"منتج اختبار - مستودع اختبار: 50 قطعة"
+        expected_str = f"منتج اختبار - مخزن اختبار: 50 قطعة"
         self.assertEqual(str(self.stock), expected_str)
 
     def test_stock_update_quantity(self):
@@ -391,7 +391,7 @@ class StockMovementModelTest(TestCase):
             created_by=self.user,
         )
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001", created_by=self.user
         )
         self.stock = Stock.objects.create(
             product=self.product,

@@ -18,7 +18,7 @@ class SaleForm(forms.ModelForm):
     )
 
     warehouse = forms.ModelChoiceField(
-        queryset=Warehouse.objects.filter(is_active=True), label="المستودع"
+        queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
     )
 
     # حقل الخزينة للفواتير النقدية
@@ -57,7 +57,7 @@ class SaleForm(forms.ModelForm):
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
 
-        # تعيين أول مستودع بشكل افتراضي
+        # تعيين أول مخزن بشكل افتراضي
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
@@ -136,7 +136,7 @@ class SaleItemForm(forms.ModelForm):
 
         if quantity > available_stock:
             raise ValidationError(
-                f"الكمية المتوفرة من {product.name} في المستودع هي {available_stock} فقط"
+                f"الكمية المتوفرة من {product.name} في المخزن هي {available_stock} فقط"
             )
 
         return cleaned_data

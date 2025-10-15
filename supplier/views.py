@@ -1015,8 +1015,38 @@ def supplier_detail(request, pk):
         },
     ]
 
+    # أزرار الإجراءات السريعة للمورد
+    quick_action_buttons = [
+        {
+            "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
+            "icon": "fas fa-plus-circle",
+            "label": "إنشاء فاتورة مشتريات",
+            "class": "btn btn-success",
+            "title": "إنشاء فاتورة مشتريات جديدة من هذا المورد"
+        },
+        {
+            "url": reverse("supplier:supplier_edit", kwargs={"pk": supplier.pk}),
+            "icon": "fas fa-edit",
+            "label": "تعديل بيانات المورد",
+            "class": "btn btn-primary",
+            "title": "تعديل بيانات المورد"
+        },
+    ]
+
+    # تجميع الخدمات المتخصصة حسب الفئة للعرض (نفس طريقة regroup)
+    from itertools import groupby
+    specialized_services = supplier.specialized_services.filter(is_active=True).select_related('category').order_by('category__name')
+    services_by_category = []
+    
+    for category, services_group in groupby(specialized_services, key=lambda x: x.category):
+        services_by_category.append({
+            'grouper': category,
+            'list': list(services_group)
+        })
+
     context = {
         "supplier": supplier,
+        "quick_action_buttons": quick_action_buttons,
         "payments": payments,
         "purchases": purchases,
         "purchases_count": purchases_count,
@@ -1031,6 +1061,7 @@ def supplier_detail(request, pk):
         "financial_account": financial_account,
         "supplier_services_count": supplier.get_specialized_services_count(),  # عدد الخدمات الإجمالي
         "supplier_service_categories_count": supplier_service_categories_count,  # عدد أنواع الخدمات (الفئات)
+        "services_by_category": services_by_category,  # الخدمات مجمعة حسب الفئة
         "purchase_headers": purchase_headers,  # أعمدة جدول المشتريات
         "purchase_action_buttons": purchase_action_buttons,  # أزرار إجراءات المشتريات
         "products_headers": products_headers,  # أعمدة جدول المنتجات
@@ -1250,6 +1281,8 @@ def service_comparison(request):
         # إضافة التفاصيل المتخصصة
         if category.code == "paper" and hasattr(service, "paper_details"):
             service_data["details"] = service.paper_details
+        elif category.code == "offset_printing" and hasattr(service, "offset_details"):
+            service_data["details"] = service.offset_details
         elif category.code == "digital_printing" and hasattr(
             service, "digital_details"
         ):
@@ -1306,6 +1339,8 @@ def supplier_services_detail(request, pk):
         # إضافة التفاصيل المتخصصة
         if hasattr(service, "paper_details"):
             service_data["details"] = service.paper_details
+        elif hasattr(service, "offset_details"):
+            service_data["details"] = service.offset_details
         elif hasattr(service, "digital_details"):
             service_data["details"] = service.digital_details
         elif hasattr(service, "finishing_details"):
@@ -1407,6 +1442,10 @@ def add_specialized_service(request, supplier_id, service_id=None):
                 ("custom", "مقاس مخصوص"),
             ]
         }
+    elif category_code == "paper":
+        # استخدام النظام الموحد لجلب بيانات الورق
+        from .forms.dynamic_forms import ServiceFormFactory
+        form_choices = ServiceFormFactory.get_unified_paper_choices()
 
     context = {
         "supplier": supplier,

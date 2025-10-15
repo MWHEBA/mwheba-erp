@@ -98,7 +98,7 @@ def sale_list(request):
             "format": "datetime_12h",
         },
         {"key": "customer.name", "label": _("العميل"), "sortable": True},
-        {"key": "warehouse.name", "label": _("المستودع"), "sortable": True},
+        {"key": "warehouse.name", "label": _("المخزن"), "sortable": True},
         {
             "key": "total",
             "label": _("الإجمالي"),
@@ -188,11 +188,21 @@ def sale_list(request):
 
 
 @login_required
-def sale_create(request):
+def sale_create(request, customer_id=None):
     """
     إنشاء فاتورة مبيعات جديدة
+    يمكن تمرير معرف العميل لاختياره تلقائياً
     """
     products = Product.objects.filter(is_active=True).order_by("name")
+    
+    # التحقق من وجود العميل إذا تم تمرير معرفه
+    selected_customer = None
+    if customer_id:
+        try:
+            selected_customer = Customer.objects.get(id=customer_id, is_active=True)
+        except Customer.DoesNotExist:
+            messages.error(request, "العميل المحدد غير موجود أو غير نشط")
+            return redirect("sale:sale_list")
 
     if request.method == "POST":
         form = SaleForm(request.POST)
@@ -433,6 +443,15 @@ def sale_create(request):
         initial_data = {
             "date": timezone.now().date(),  # تعيين تاريخ اليوم كتاريخ افتراضي للفاتورة
         }
+        # إضافة العميل المحدد إلى البيانات الافتراضية
+        if selected_customer:
+            initial_data["customer"] = selected_customer
+        
+        # إضافة أول مخزن متاح كافتراضي
+        warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+        if warehouses.exists():
+            initial_data["warehouse"] = warehouses.first()
+            
         form = SaleForm(initial=initial_data)
 
     # محاولة الحصول على الرقم التسلسلي التالي للفاتورة
@@ -461,9 +480,10 @@ def sale_create(request):
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي للفاتورة: {str(e)}")
 
-    # جلب العملاء والمستودعات النشطة
+    # جلب العملاء والمخازن النشطة
     customers = Customer.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    if 'warehouses' not in locals():
+        warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
 
     # إضافة متغيرات عنوان الصفحة
     context = {
@@ -471,8 +491,10 @@ def sale_create(request):
         "form": form,
         "next_sale_number": next_sale_number,  # إضافة رقم الفاتورة التالي للسياق
         "customers": customers,  # إضافة قائمة العملاء للسياق
-        "warehouses": warehouses,  # إضافة قائمة المستودعات للسياق
-        "page_title": "إضافة فاتورة مبيعات",
+        "warehouses": warehouses,  # إضافة قائمة المخازن للسياق
+        "selected_customer": selected_customer,  # إضافة العميل المحدد للسياق
+        "default_warehouse": warehouses.first() if warehouses.exists() else None,  # المخزن الافتراضي
+        "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
         "page_icon": "fas fa-plus-circle",
         "breadcrumb_items": [
             {
@@ -485,6 +507,11 @@ def sale_create(request):
                 "url": reverse("sale:sale_list"),
                 "icon": "fas fa-shopping-cart",
             },
+        ] + ([{
+            "title": selected_customer.name,
+            "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}),
+            "icon": "fas fa-user",
+        }] if selected_customer else []) + [
             {"title": "إضافة فاتورة", "active": True},
         ],
     }
@@ -736,7 +763,7 @@ def sale_edit(request, pk):
 
     sale_number = sale.number
 
-    # جلب العملاء والمستودعات النشطة
+    # جلب العملاء والمخازن النشطة
     customers = Customer.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
 
@@ -746,7 +773,7 @@ def sale_edit(request, pk):
         "form": form,  # إضافة النموذج للسياق
         "products": products,
         "customers": customers,  # إضافة قائمة العملاء للسياق
-        "warehouses": warehouses,  # إضافة قائمة المستودعات للسياق
+        "warehouses": warehouses,  # إضافة قائمة المخازن للسياق
         "page_title": f"تعديل فاتورة مبيعات",
         "page_icon": "fas fa-edit",
         "breadcrumb_items": [
@@ -1051,7 +1078,7 @@ def sale_return(request, pk):
         return_form = SaleReturnForm(
             initial={
                 "date": timezone.now().date(),  # تاريخ اليوم كقيمة افتراضية
-                "warehouse": sale.warehouse,  # استخدام نفس مستودع الفاتورة
+                "warehouse": sale.warehouse,  # استخدام نفس مخزن الفاتورة
             }
         )
 

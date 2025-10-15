@@ -286,7 +286,7 @@ class ExpiryService:
                     f"الدفعة '{batch.batch_number}' من المنتج '{batch.product.name}' "
                     f"منتهية الصلاحية منذ {abs(alert.days_to_expiry)} يوم.\n"
                     f"الكمية المتبقية: {batch.current_quantity} {batch.product.unit.symbol}\n"
-                    f"المستودع: {batch.warehouse.name}\n"
+                    f"المخزن: {batch.warehouse.name}\n"
                     f"يجب سحب المنتج فوراً من المخزون."
                 )
             elif alert.alert_type == "critical":
@@ -296,7 +296,7 @@ class ExpiryService:
                     f"الدفعة '{batch.batch_number}' من المنتج '{batch.product.name}' "
                     f"ستنتهي صلاحيتها خلال {alert.days_to_expiry} يوم.\n"
                     f"الكمية المتبقية: {batch.current_quantity} {batch.product.unit.symbol}\n"
-                    f"المستودع: {batch.warehouse.name}\n"
+                    f"المخزن: {batch.warehouse.name}\n"
                     f"يُرجى اتخاذ إجراء عاجل."
                 )
             else:  # near_expiry
@@ -306,7 +306,7 @@ class ExpiryService:
                     f"الدفعة '{batch.batch_number}' من المنتج '{batch.product.name}' "
                     f"ستنتهي صلاحيتها خلال {alert.days_to_expiry} يوم.\n"
                     f"الكمية المتبقية: {batch.current_quantity} {batch.product.unit.symbol}\n"
-                    f"المستودع: {batch.warehouse.name}\n"
+                    f"المخزن: {batch.warehouse.name}\n"
                     f"يُرجى التخطيط للبيع أو التصريف."
                 )
 

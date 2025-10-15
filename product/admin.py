@@ -138,7 +138,7 @@ class ProductVariantAdmin(admin.ModelAdmin):
 @admin.register(Warehouse)
 class WarehouseAdmin(admin.ModelAdmin):
     """
-    إدارة المستودعات
+    إدارة المخازن
     """
 
     list_display = ("name", "code", "location", "manager", "is_active")

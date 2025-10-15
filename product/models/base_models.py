@@ -167,7 +167,7 @@ class Product(models.Model):
     @property
     def current_stock(self):
         """
-        حساب المخزون الحالي في جميع المستودعات
+        حساب المخزون الحالي في جميع المخازن
         """
         from django.db.models import Sum
 

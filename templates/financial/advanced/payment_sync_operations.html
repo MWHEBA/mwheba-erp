@@ -67,9 +67,9 @@
                       </a>
                   </li>
                   <li class="breadcrumb-item">
-                      <a href="{% url 'financial:payment_sync_dashboard' %}">
+                      <span class="text-muted">
                           <i class="fas fa-sync-alt me-1"></i>{% trans "تزامن المدفوعات" %}
-                      </a>
+                      </span>
                   </li>
                   <li class="breadcrumb-item active" aria-current="page">
                       <i class="fas fa-cogs me-1"></i>{% trans "عمليات التزامن" %}
@@ -90,9 +90,6 @@
               </div>
           </div>
           <div>
-              <a href="{% url 'financial:payment_sync_dashboard' %}" class="btn btn-outline-secondary me-2">
-                  <i class="fas fa-arrow-left me-2"></i>{% trans "العودة للوحة التحكم" %}
-              </a>
               <a href="{% url 'financial:payment_sync_logs' %}" class="btn btn-outline-info">
                   <i class="fas fa-list-alt me-2"></i>{% trans "سجلات التزامن" %}
               </a>

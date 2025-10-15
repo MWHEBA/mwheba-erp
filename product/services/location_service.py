@@ -1,5 +1,5 @@
 """
-خدمة إدارة المواقع داخل المستودعات
+خدمة إدارة المواقع داخل المخازن
 تتعامل مع الأرفف والممرات ومواقع المنتجات
 """
 from django.db import models, transaction
@@ -25,13 +25,13 @@ logger = logging.getLogger(__name__)
 
 class LocationService:
     """
-    خدمة شاملة لإدارة المواقع داخل المستودعات
+    خدمة شاملة لإدارة المواقع داخل المخازن
     """
 
     @staticmethod
     def create_warehouse_structure(warehouse, zones_data, user=None):
         """
-        إنشاء هيكل كامل للمستودع (مناطق، ممرات، أرفف)
+        إنشاء هيكل كامل للمخزن (مناطق، ممرات، أرفف)
         """
         try:
             with transaction.atomic():
@@ -79,12 +79,12 @@ class LocationService:
                     created_zones.append(zone)
 
                 logger.info(
-                    f"تم إنشاء {len(created_zones)} منطقة في المستودع {warehouse.name}"
+                    f"تم إنشاء {len(created_zones)} منطقة في المخزن {warehouse.name}"
                 )
                 return created_zones
 
         except Exception as e:
-            logger.error(f"خطأ في إنشاء هيكل المستودع: {e}")
+            logger.error(f"خطأ في إنشاء هيكل المخزن: {e}")
             raise
 
     @staticmethod
@@ -256,7 +256,7 @@ class LocationService:
     @staticmethod
     def get_location_utilization(warehouse):
         """
-        حساب معدل استغلال المواقع في المستودع
+        حساب معدل استغلال المواقع في المخزن
         """
         try:
             # إجمالي المواقع

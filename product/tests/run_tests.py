@@ -169,7 +169,7 @@ def create_test_data():
         inventory_data = TestScenarios.setup_basic_inventory_scenario()
         print(f"✅ تم إنشاء سيناريو المخزون الأساسي")
         print(f"   - المستخدم: {inventory_data['user'].username}")
-        print(f"   - المستودع: {inventory_data['warehouse'].name}")
+        print(f"   - المخزن: {inventory_data['warehouse'].name}")
         print(f"   - المنتجات: {len(inventory_data['products'])}")
 
         # إنشاء سيناريو تسعير الموردين
@@ -213,7 +213,7 @@ def clean_test_data():
         # حذف البيانات بالترتيب الصحيح
         models_to_clean = [
             (Product, "المنتجات"),
-            (Warehouse, "المستودعات"),
+            (Warehouse, "المخازن"),
             (Supplier, "الموردين"),
             (Category, "التصنيفات"),
             (Brand, "الأنواع"),

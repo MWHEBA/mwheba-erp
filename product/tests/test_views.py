@@ -61,7 +61,7 @@ class ProductViewsTest(TestCase):
         )
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="TST001", created_by=self.user
+            name="مخزن اختبار", code="TST001", created_by=self.user
         )
 
         self.stock = Stock.objects.create(
@@ -269,7 +269,7 @@ class CategoryViewsTest(TestCase):
 
 class WarehouseViewsTest(TestCase):
     """
-    اختبارات عروض صفحات المستودعات
+    اختبارات عروض صفحات المخازن
     """
 
     def setUp(self):
@@ -284,36 +284,36 @@ class WarehouseViewsTest(TestCase):
 
         # إنشاء بيانات اختبار
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار",
+            name="مخزن اختبار",
             code="TST001",
             location="موقع اختبار",
             manager="مدير اختبار",
-            description="وصف مستودع الاختبار",
+            description="وصف مخزن الاختبار",
             created_by=self.user,
         )
 
     def test_warehouse_list_view(self):
         """
-        اختبار صفحة قائمة المستودعات
+        اختبار صفحة قائمة المخازن
         """
         url = reverse("product:warehouse_list")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "product/warehouse_list.html")
-        self.assertContains(response, "مستودع اختبار")
+        self.assertContains(response, "مخزن اختبار")
         self.assertContains(response, "TST001")
 
     def test_warehouse_detail_view(self):
         """
-        اختبار صفحة تفاصيل المستودع
+        اختبار صفحة تفاصيل المخزن
         """
         url = reverse("product:warehouse_detail", args=[self.warehouse.pk])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "product/warehouse_detail.html")
-        self.assertContains(response, "مستودع اختبار")
+        self.assertContains(response, "مخزن اختبار")
         self.assertContains(response, "TST001")
         self.assertContains(response, "مدير اختبار")
 
@@ -353,7 +353,7 @@ class StockViewsTest(TestCase):
         )
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="TST001", created_by=self.user
+            name="مخزن اختبار", code="TST001", created_by=self.user
         )
 
         self.stock = Stock.objects.create(
@@ -373,7 +373,7 @@ class StockViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "product/stock_list.html")
         self.assertContains(response, "منتج اختبار")
-        self.assertContains(response, "مستودع اختبار")
+        self.assertContains(response, "مخزن اختبار")
 
     def test_stock_detail_view(self):
         """
@@ -385,7 +385,7 @@ class StockViewsTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "product/stock_detail.html")
         self.assertContains(response, "منتج اختبار")
-        self.assertContains(response, "مستودع اختبار")
+        self.assertContains(response, "مخزن اختبار")
         self.assertContains(response, "50")  # الكمية
 
     def test_stock_adjust_view(self):

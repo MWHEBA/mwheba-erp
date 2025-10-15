@@ -437,7 +437,7 @@ def product_detail(request, pk):
         pk=pk,
     )
 
-    # الحصول على المخزون الحالي للمنتج في كل مستودع
+    # الحصول على المخزون الحالي للمنتج في كل مخزن
     stock_items = Stock.objects.filter(product=product).select_related("warehouse")
 
     # آخر حركات المخزون
@@ -1272,18 +1272,18 @@ def warehouse_list(request):
     total_warehouses = Warehouse.objects.count()
     active_warehouses = Warehouse.objects.filter(is_active=True).count()
 
-    # تعريف أعمدة جدول المستودعات
+    # تعريف أعمدة جدول المخازن
     warehouse_headers = [
         {
             "key": "code",
-            "label": "كود المستودع",
+            "label": "كود المخزن",
             "sortable": True,
             "class": "text-center",
             "width": "120px",
         },
         {
             "key": "name",
-            "label": "اسم المستودع",
+            "label": "اسم المخزن",
             "sortable": True,
             "class": "text-start",
         },
@@ -1347,7 +1347,7 @@ def warehouse_list(request):
         "primary_key": "id",
         "total_warehouses": total_warehouses,
         "active_warehouses": active_warehouses,
-        "page_title": "المستودعات",
+        "page_title": "المخازن",
         "page_icon": "fas fa-warehouse",
         "breadcrumb_items": [
             {
@@ -1356,7 +1356,7 @@ def warehouse_list(request):
                 "icon": "fas fa-home",
             },
             {"title": "المخزون", "url": "#", "icon": "fas fa-boxes"},
-            {"title": "المستودعات", "active": True},
+            {"title": "المخازن", "active": True},
         ],
     }
 
@@ -1704,7 +1704,7 @@ def stock_list(request):
         },
         {
             "key": "warehouse.name",
-            "label": "المستودع",
+            "label": "المخزن",
             "sortable": True,
             "class": "text-center",
             "width": "120px",
@@ -2717,24 +2717,24 @@ def delete_product_image(request, pk):
 @login_required
 def get_stock_by_warehouse(request):
     """
-    API للحصول على المخزون المتاح في مستودع معين
+    API للحصول على المخزون المتاح في مخزن معين
     """
     warehouse_id = request.GET.get("warehouse")
 
     # تسجيل معلومات الطلب للتشخيص
     logger.info(
-        f"طلب API للمخزون - المستودع: {warehouse_id}, الطريقة: {request.method}"
+        f"طلب API للمخزون - المخزن: {warehouse_id}, الطريقة: {request.method}"
     )
 
     if not warehouse_id:
-        logger.warning("API المخزون: لم يتم توفير معرف المستودع")
+        logger.warning("API المخزون: لم يتم توفير معرف المخزن")
         return JsonResponse({}, status=400)
 
     try:
-        # التحقق من وجود المستودع
+        # التحقق من وجود المخزن
         warehouse = get_object_or_404(Warehouse, id=warehouse_id)
 
-        # الحصول على المخزون المتاح في المستودع المحدد
+        # الحصول على المخزون المتاح في المخزن المحدد
         stocks = Stock.objects.filter(warehouse=warehouse).values(
             "product_id", "quantity"
         )
@@ -2745,7 +2745,7 @@ def get_stock_by_warehouse(request):
             stock_data[str(stock["product_id"])] = stock["quantity"]
 
         logger.info(
-            f"API المخزون: تم استرجاع {len(stock_data)} من المنتجات للمستودع {warehouse.name}"
+            f"API المخزون: تم استرجاع {len(stock_data)} من المنتجات للمخزن {warehouse.name}"
         )
         return JsonResponse(stock_data)
 
@@ -2993,7 +2993,7 @@ def product_stock_view(request, pk):
         Product.objects.select_related("category", "brand", "unit"), pk=pk
     )
 
-    # الحصول على المخزون الحالي للمنتج في كل مستودع
+    # الحصول على المخزون الحالي للمنتج في كل مخزن
     stock_items = Stock.objects.filter(product=product).select_related("warehouse")
 
     # آخر حركات المخزون

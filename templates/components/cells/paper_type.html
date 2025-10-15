@@ -1,7 +1,7 @@
 <!-- خلية نوع الورق -->
 {% if object.paper_details and object.paper_details.paper_type %}
     <span class="badge bg-primary">
-        {{ object.paper_details.get_paper_type_display|default:object.paper_details.paper_type }}
+        {{ object.paper_details.paper_type }}
     </span>
 {% else %}
     <span class="text-muted">-</span>

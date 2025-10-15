@@ -39,7 +39,7 @@ class ProductBatch(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="product_batches",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     # كميات الدفعة
@@ -99,7 +99,7 @@ class ProductBatch(models.Model):
         max_length=50,
         blank=True,
         null=True,
-        help_text=_("موقع الدفعة داخل المستودع"),
+        help_text=_("موقع الدفعة داخل المخزن"),
     )
 
     # تتبع المستخدمين
@@ -424,7 +424,7 @@ class ExpiryRule(models.Model):
         on_delete=models.CASCADE,
         null=True,
         blank=True,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     # إعدادات التنبيهات

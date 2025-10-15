@@ -80,9 +80,9 @@ class SaleModelTest(TestCase):
             name="عميل اختبار", phone="01234567890", created_by=self.user
         )
 
-        # إنشاء المستودع
+        # إنشاء المخزن
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001", created_by=self.user
         )
 
         # إنشاء المنتجات للاختبار
@@ -231,9 +231,9 @@ class SaleReturnModelTest(TestCase):
             name="عميل اختبار", phone="01234567890", created_by=self.user
         )
 
-        # إنشاء المستودع
+        # إنشاء المخزن
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001", created_by=self.user
         )
 
         # إنشاء المنتجات للاختبار

@@ -26,7 +26,7 @@ class SaleReturn(models.Model):
     warehouse = models.ForeignKey(
         "product.Warehouse",
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         related_name="sale_returns",
     )
     subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2)

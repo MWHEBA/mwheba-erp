@@ -201,7 +201,7 @@ class StockAdjustmentFormTest(TestCase):
         )
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001", created_by=self.user
         )
 
         self.stock = Stock.objects.create(

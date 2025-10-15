@@ -173,8 +173,7 @@ urlpatterns = [
         views.enhanced_balances_audit,
         name="enhanced_balances_audit",
     ),
-    # تزامن المدفوعات
-    path("payment-sync/", views.payment_sync_dashboard, name="payment_sync_dashboard"),
+    # تزامن المدفوعات - تم حذف dashboard (مجرد عرض بدون وظائف فعلية)
     path(
         "payment-sync/operations/",
         views.payment_sync_operations,
@@ -239,4 +238,10 @@ urlpatterns = [
     ),
     # سجل التدقيق
     path("audit-trail/", views.audit_trail_list, name="audit_trail_list"),
+    # API endpoints
+    path(
+        "api/journal-entry/<int:journal_entry_id>/summary/",
+        views.journal_entry_summary_api,
+        name="journal_entry_summary_api",
+    ),
 ]

@@ -220,7 +220,7 @@ def _create_low_stock_alert(product, stock):
 
         title = f"تنبيه مخزون {alert_type}: {product.name}"
         message = (
-            f"المنتج '{product.name}' في المستودع '{stock.warehouse.name}' {alert_type}.\n"
+            f"المنتج '{product.name}' في المخزن '{stock.warehouse.name}' {alert_type}.\n"
             f"الكمية الحالية: {stock.quantity} {product.unit.symbol}\n"
             f"الحد الأدنى: {stock.min_stock_level} {product.unit.symbol}\n"
             f"يُرجى إعادة التزويد فوراً."

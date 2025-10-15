@@ -58,7 +58,7 @@ __all__ = [
     "SerialNumber",
     "SupplierProductPrice",
     "PriceHistory",
-    # النماذج المحسنة - المستودعات
+    # النماذج المحسنة - المخازن
     "ProductStock",
     "StockTransfer",
     "StockSnapshot",

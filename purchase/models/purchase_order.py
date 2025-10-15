@@ -29,7 +29,7 @@ class PurchaseOrder(models.Model):
     warehouse = models.ForeignKey(
         "product.Warehouse",
         on_delete=models.PROTECT,
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         related_name="purchase_orders",
     )
     expected_date = models.DateField(

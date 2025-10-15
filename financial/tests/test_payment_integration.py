@@ -82,9 +82,9 @@ class PaymentIntegrationTestCase(TransactionTestCase):
             name="عميل تجريبي", email="customer@test.com", is_active=True
         )
 
-        # إنشاء مستودع
+        # إنشاء مخزن
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", is_active=True
+            name="المخزن الرئيسي", is_active=True
         )
 
         # إنشاء فاتورة مشتريات
@@ -348,7 +348,7 @@ class PaymentSignalsTestCase(TransactionTestCase):
         self.supplier = Supplier.objects.create(name="مورد الإشارات", is_active=True)
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع الإشارات", is_active=True
+            name="مخزن الإشارات", is_active=True
         )
 
         self.purchase = Purchase.objects.create(

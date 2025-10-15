@@ -25,7 +25,7 @@ class PurchaseOrderForm(forms.ModelForm):
     )
 
     warehouse = forms.ModelChoiceField(
-        queryset=Warehouse.objects.filter(is_active=True), label="المستودع"
+        queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
     )
 
     class Meta:
@@ -44,7 +44,7 @@ class PurchaseOrderForm(forms.ModelForm):
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
 
-        # تعيين أول مستودع بشكل افتراضي
+        # تعيين أول مخزن بشكل افتراضي
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
@@ -89,7 +89,7 @@ class PurchaseForm(forms.ModelForm):
     )
 
     warehouse = forms.ModelChoiceField(
-        queryset=Warehouse.objects.filter(is_active=True), label="المستودع"
+        queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
     )
 
     purchase_order = forms.ModelChoiceField(
@@ -135,7 +135,7 @@ class PurchaseForm(forms.ModelForm):
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
 
-        # تعيين أول مستودع بشكل افتراضي
+        # تعيين أول مخزن بشكل افتراضي
         warehouses = Warehouse.objects.filter(is_active=True)
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
@@ -191,7 +191,7 @@ class PurchaseUpdateForm(forms.ModelForm):
         widget=forms.TextInput(attrs={"readonly": "readonly"}),
     )
     warehouse_display = forms.CharField(
-        label="المستودع",
+        label="المخزن",
         required=False,
         widget=forms.TextInput(attrs={"readonly": "readonly"}),
     )

@@ -58,7 +58,7 @@ class BaseInventoryTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", code="MAIN", location="الرياض", manager=self.user
+            name="المخزن الرئيسي", code="MAIN", location="الرياض", manager=self.user
         )
 
         self.product = Product.objects.create(
@@ -126,12 +126,12 @@ class ProductStockTestCase(BaseInventoryTestCase):
         self.assertTrue(stock.is_low_stock)
 
     def test_unique_product_warehouse_constraint(self):
-        """اختبار قيد الفرادة للمنتج والمستودع"""
+        """اختبار قيد الفرادة للمنتج والمخزن"""
         ProductStock.objects.create(
             product=self.product, warehouse=self.warehouse, quantity=100
         )
 
-        # محاولة إنشاء مخزون آخر لنفس المنتج والمستودع
+        # محاولة إنشاء مخزون آخر لنفس المنتج والمخزن
         with self.assertRaises(IntegrityError):
             ProductStock.objects.create(
                 product=self.product, warehouse=self.warehouse, quantity=50
@@ -437,10 +437,10 @@ class InventoryServiceTestCase(BaseInventoryTestCase):
         self.assertEqual(self.stock.quantity, 150)
 
     def test_transfer_stock(self):
-        """اختبار تحويل المخزون بين المستودعات"""
-        # إنشاء مستودع ثاني
+        """اختبار تحويل المخزون بين المخازن"""
+        # إنشاء مخزن ثاني
         warehouse2 = Warehouse.objects.create(
-            name="المستودع الثانوي", code="SEC", location="جدة", manager=self.user
+            name="المخزن الثانوي", code="SEC", location="جدة", manager=self.user
         )
 
         # تحويل 30 قطعة
@@ -661,7 +661,7 @@ class IntegrationTestCase(TransactionTestCase):
         self.brand = Brand.objects.create(name="آبل")
         self.unit = Unit.objects.create(name="جهاز", symbol="جهاز")
         self.warehouse = Warehouse.objects.create(
-            name="المستودع المركزي",
+            name="المخزن المركزي",
             code="CENTRAL",
             location="الرياض",
             manager=self.user,
@@ -763,12 +763,12 @@ class IntegrationTestCase(TransactionTestCase):
 
     def test_stock_transfer_workflow(self):
         """اختبار سير عمل تحويل المخزون"""
-        # إنشاء مستودعين
+        # إنشاء مخزنين
         warehouse2 = Warehouse.objects.create(
-            name="مستودع فرعي", code="BRANCH", location="جدة", manager=self.user
+            name="مخزن فرعي", code="BRANCH", location="جدة", manager=self.user
         )
 
-        # إنشاء مخزون في المستودع الأول
+        # إنشاء مخزون في المخزن الأول
         stock1 = ProductStock.objects.create(
             product=self.product, warehouse=self.warehouse, quantity=100
         )

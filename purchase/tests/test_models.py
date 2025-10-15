@@ -82,9 +82,9 @@ class PurchaseModelTest(TestCase):
             name="مورد المنتجات", phone="01234567890", created_by=self.user
         )
 
-        # إنشاء مستودع
+        # إنشاء مخزن
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", location="موقع المستودع", created_by=self.user
+            name="المخزن الرئيسي", location="موقع المخزن", created_by=self.user
         )
 
         # إنشاء فئة ووحدة وعلامة تجارية
@@ -220,9 +220,9 @@ class PurchaseReturnModelTest(TestCase):
             name="مورد المنتجات", phone="01234567890", created_by=self.user
         )
 
-        # إنشاء مستودع
+        # إنشاء مخزن
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", location="موقع المستودع", created_by=self.user
+            name="المخزن الرئيسي", location="موقع المخزن", created_by=self.user
         )
 
         # إنشاء فئة ووحدة وعلامة تجارية

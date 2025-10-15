@@ -48,11 +48,11 @@ class InventoryService:
         """
         try:
             with transaction.atomic():
-                # التأكد من وجود مستودع
+                # التأكد من وجود مخزن
                 if not warehouse:
                     warehouse = Warehouse.get_main_warehouse()
                     if not warehouse:
-                        raise ValueError("لا يوجد مستودع متاح")
+                        raise ValueError("لا يوجد مخزن متاح")
 
                 # الحصول على أو إنشاء مخزون المنتج
                 stock, created = ProductStock.objects.get_or_create(
@@ -136,7 +136,7 @@ class InventoryService:
                 status = "نفد" if stock.is_out_of_stock else "منخفض"
                 title = f"تنبيه مخزون {status}: {product.name}"
                 message = (
-                    f"المنتج '{product.name}' في المستودع '{stock.warehouse.name}' {status}.\n"
+                    f"المنتج '{product.name}' في المخزن '{stock.warehouse.name}' {status}.\n"
                     f"الكمية الحالية: {stock.quantity} {product.unit.symbol}\n"
                     f"الحد الأدنى: {product.min_stock} {product.unit.symbol}"
                 )
@@ -297,11 +297,11 @@ class InventoryService:
         product, from_warehouse, to_warehouse, quantity, user, notes=None
     ):
         """
-        تحويل مخزون بين المستودعات
+        تحويل مخزون بين المخازن
         """
         try:
             with transaction.atomic():
-                # التحقق من توفر الكمية في المستودع المصدر
+                # التحقق من توفر الكمية في المخزن المصدر
                 from_stock = ProductStock.objects.get(
                     product=product, warehouse=from_warehouse
                 )
@@ -323,7 +323,7 @@ class InventoryService:
                     status="completed",  # تحويل فوري
                 )
 
-                # تسجيل حركة خروج من المستودع المصدر
+                # تسجيل حركة خروج من المخزن المصدر
                 InventoryService.record_movement(
                     product=product,
                     movement_type="out",
@@ -336,7 +336,7 @@ class InventoryService:
                     user=user,
                 )
 
-                # تسجيل حركة دخول للمستودع الهدف
+                # تسجيل حركة دخول للمخزن الهدف
                 InventoryService.record_movement(
                     product=product,
                     movement_type="in",

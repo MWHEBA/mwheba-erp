@@ -48,6 +48,7 @@
                     {% for choice in form_choices.sheet_sizes %}
                         <option value="{{ choice.0 }}">{{ choice.1 }}</option>
                     {% endfor %}
+                    <option value="custom">مقاس مخصص</option>
                 </select>
                 <label for="sheet-size">مقاس الفرخ *</label>
             </div>
@@ -169,6 +170,4 @@ function toggleCustomSize(selectElement) {
     }
 }
 
-// ملاحظة: تم نقل منطق تحديث اسم الخدمة إلى النظام الموحد universal_form_handler.js
-// لتجنب التضارب والحصول على تنسيق موحد مع باقي النماذج
 </script>

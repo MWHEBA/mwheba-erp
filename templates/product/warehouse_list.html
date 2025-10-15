@@ -269,7 +269,7 @@
                 {% with headers=warehouse_headers %}
                   {% with data=warehouses %}
                     {% with action_buttons=warehouse_actions %}
-                      {% with empty_message="لا توجد مستودعات متاحة" %}
+                      {% with empty_message="لا توجد مخزنات متاحة" %}
                         {% with clickable_rows=True row_click_url="/products/warehouses/0/" %}
                           {% with show_export=True export_filename="warehouses" %}
                             {% include "components/data_table.html" %}
@@ -281,7 +281,7 @@
                 {% endwith %}
               {% endwith %}
             {% else %}
-              {% include 'partials/empty_state.html' with message="لا توجد مستودعات متاحة" icon="warehouse" %}
+              {% include 'partials/empty_state.html' with message="لا توجد مخزنات متاحة" icon="warehouse" %}
             {% endif %}
         </div>
     </div>

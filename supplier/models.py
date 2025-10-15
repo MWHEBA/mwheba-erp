@@ -531,6 +531,40 @@ class SpecializedService(models.Model):
             "savings": 0,  # سيتم حسابها من الشرائح السعرية
         }
 
+    # Properties للأوفست - للتوافق مع Templates
+    @property
+    def sheet_size(self):
+        """مقاس الماكينة للأوفست"""
+        if hasattr(self, 'offset_details'):
+            return self.offset_details.get_sheet_size_display()
+        return ""
+
+    @property
+    def machine_type(self):
+        """نوع الماكينة للأوفست"""
+        if hasattr(self, 'offset_details'):
+            return self.offset_details.get_machine_type_display()
+        return ""
+
+    @property
+    def colors_capacity(self):
+        """عدد الألوان للأوفست"""
+        if hasattr(self, 'offset_details'):
+            return self.offset_details.max_colors
+        return 0
+
+    @property
+    def impression_cost(self):
+        """سعر التراج للأوفست"""
+        if hasattr(self, 'offset_details'):
+            return self.offset_details.impression_cost_per_1000
+        return 0
+
+    @property
+    def has_tiers(self):
+        """وجود شرائح سعرية"""
+        return self.has_price_tiers()
+
 
 class PaperServiceDetails(models.Model):
     """تفاصيل خدمات الورق"""
@@ -556,11 +590,11 @@ class PaperServiceDetails(models.Model):
         SpecializedService, on_delete=models.CASCADE, related_name="paper_details"
     )
     paper_type = models.CharField(
-        _("نوع الورق"), max_length=20, choices=PAPER_TYPE_CHOICES
+        _("نوع الورق"), max_length=100  # إزالة choices للمرونة
     )
     gsm = models.PositiveIntegerField(_("وزن الورق (جرام)"))
     sheet_size = models.CharField(
-        _("مقاس الفرخ"), max_length=20, choices=SHEET_SIZE_CHOICES
+        _("مقاس الفرخ"), max_length=50  # إزالة choices وزيادة الطول للمرونة
     )
 
     # أبعاد مخصصة
@@ -577,6 +611,21 @@ class PaperServiceDetails(models.Model):
     price_per_sheet = models.DecimalField(
         _("سعر الفرخ"), max_digits=10, decimal_places=2
     )
+
+    def __str__(self):
+        parts = []
+        if self.paper_type:
+            parts.append(self.paper_type)
+        if self.country_of_origin:
+            parts.append(self.country_of_origin)
+        if self.gsm:
+            parts.append(f"{self.gsm}جم")
+        if self.sheet_size:
+            parts.append(self.sheet_size)
+        
+        if parts:
+            return " - ".join(parts)
+        return f"خدمة ورق #{self.id}"
 
     class Meta:
         verbose_name = _("تفاصيل خدمة ورق")
@@ -789,33 +838,16 @@ class ServicePriceTier(models.Model):
 class OffsetPrintingDetails(models.Model):
     """تفاصيل خدمات الطباعة الأوفست"""
 
-    MACHINE_TYPE_CHOICES = (
-        ("heidelberg_sm52", _("هايدلبرج SM52")),
-        ("heidelberg_sm74", _("هايدلبرج SM74")),
-        ("heidelberg_sm102", _("هايدلبرج SM102")),
-        ("komori_ls40", _("كوموري LS40")),
-        ("komori_ls29", _("كوموري LS29")),
-        ("ryobi_524", _("ريوبي 524")),
-        ("gto_52", _("GTO 52")),
-        ("other", _("أخرى")),
-    )
-
-    # الخيارات الأساسية - يتم تحميل الخيارات الكاملة من field_registry.py
-    SHEET_SIZE_CHOICES = (
-        ("quarter_sheet", _("ربع (35×50 سم)")),
-        ("half_sheet", _("نص (50×70 سم)")),
-        ("full_sheet", _("فرخ (70×100 سم)")),
-        ("custom", _("مقاس مخصوص")),
-    )
+    # تم إزالة الخيارات الثابتة - يتم جلب البيانات من pricing app فقط
 
     service = models.OneToOneField(
         SpecializedService, on_delete=models.CASCADE, related_name="offset_details"
     )
     machine_type = models.CharField(
-        _("نوع الماكينة"), max_length=30, choices=MACHINE_TYPE_CHOICES
+        _("نوع الماكينة"), max_length=30
     )
     sheet_size = models.CharField(
-        _("مقاس الفرخ"), max_length=20, choices=SHEET_SIZE_CHOICES
+        _("مقاس الفرخ"), max_length=20
     )
 
     # أبعاد مخصصة
@@ -850,6 +882,47 @@ class OffsetPrintingDetails(models.Model):
     class Meta:
         verbose_name = _("تفاصيل طباعة أوفست")
         verbose_name_plural = _("تفاصيل طباعة أوفست")
+
+    def get_machine_type_display(self):
+        """عرض نوع الماكينة من المرجعية"""
+        try:
+            from pricing.models import OffsetMachineType
+            machine = OffsetMachineType.objects.filter(code=self.machine_type, is_active=True).first()
+            if machine:
+                return str(machine)
+        except ImportError:
+            pass
+        return self.machine_type
+
+    def get_sheet_size_display(self):
+        """عرض مقاس الماكينة من المرجعية"""
+        try:
+            from pricing.models import OffsetSheetSize
+            size = OffsetSheetSize.objects.filter(code=self.sheet_size, is_active=True).first()
+            if size:
+                return str(size)
+        except ImportError:
+            pass
+        return self.sheet_size
+
+    def get_main_price_display(self):
+        """عرض السعر الأساسي"""
+        if self.impression_cost_per_1000:
+            return f"{self.impression_cost_per_1000} ج.م/1000 تراج"
+        return "غير محدد"
+
+    def get_capabilities_display(self):
+        """عرض إمكانيات الماكينة"""
+        capabilities = []
+        capabilities.append(f"{self.max_colors} ألوان")
+        if self.has_uv_coating:
+            capabilities.append("طلاء UV")
+        if self.has_aqueous_coating:
+            capabilities.append("طلاء مائي")
+        return " - ".join(capabilities)
+
+    def __str__(self):
+        return f"{self.get_machine_type_display()} - {self.get_sheet_size_display()}"
 
 
 class PlateServiceDetails(models.Model):

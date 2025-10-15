@@ -61,9 +61,9 @@ class ProductSerializersTestCase(APITestCase):
         )
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع المتسلسلات",
+            name="مخزن المتسلسلات",
             code="SER-WH",
-            location="موقع مستودع المتسلسلات",
+            location="موقع مخزن المتسلسلات",
             created_by=self.user,
         )
 
@@ -263,28 +263,28 @@ class ProductSerializersTestCase(APITestCase):
 
     def test_warehouse_serializer(self):
         """
-        اختبار متسلسل المستودع
+        اختبار متسلسل المخزن
         """
         serializer = WarehouseSerializer(self.warehouse)
         data = serializer.data
 
         # التحقق من البيانات المتسلسلة
-        self.assertEqual(data["name"], "مستودع المتسلسلات")
+        self.assertEqual(data["name"], "مخزن المتسلسلات")
         self.assertEqual(data["code"], "SER-WH")
-        self.assertEqual(data["location"], "موقع مستودع المتسلسلات")
+        self.assertEqual(data["location"], "موقع مخزن المتسلسلات")
 
-        # اختبار إنشاء مستودع جديد
+        # اختبار إنشاء مخزن جديد
         warehouse_data = {
-            "name": "مستودع جديد",
+            "name": "مخزن جديد",
             "code": "NEW-WH",
-            "location": "موقع المستودع الجديد",
+            "location": "موقع المخزن الجديد",
         }
 
         serializer = WarehouseSerializer(data=warehouse_data)
         self.assertTrue(serializer.is_valid())
 
         new_warehouse = serializer.save(created_by=self.user)
-        self.assertEqual(new_warehouse.name, "مستودع جديد")
+        self.assertEqual(new_warehouse.name, "مخزن جديد")
         self.assertEqual(new_warehouse.code, "NEW-WH")
 
     def test_stock_serializer(self):

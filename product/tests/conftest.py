@@ -107,7 +107,7 @@ def unit():
 
 @pytest.fixture
 def warehouse(user):
-    """مستودع للاختبار"""
+    """مخزن للاختبار"""
     return TestDataFactory.create_warehouse(manager=user)
 
 
@@ -249,13 +249,13 @@ def multiple_products(category, brand, unit, user):
 
 @pytest.fixture
 def multiple_warehouses(user):
-    """عدة مستودعات للاختبار"""
+    """عدة مخزنات للاختبار"""
     warehouses = []
     locations = ["الرياض", "جدة", "الدمام", "المدينة", "مكة"]
 
     for i, location in enumerate(locations):
         warehouse = TestDataFactory.create_warehouse(
-            name=f"مستودع {location}",
+            name=f"مخزن {location}",
             code=f"WH{i+1:02d}",
             location=location,
             manager=user,

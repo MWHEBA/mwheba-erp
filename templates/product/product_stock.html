@@ -144,8 +144,8 @@
       </div>
     </div>
     
-    <!-- المخزون في كل مستودع -->
-    <h4 class="mb-4">{% trans "المخزون حسب المستودع" %}</h4>
+    <!-- المخزون في كل مخزن -->
+    <h4 class="mb-4">{% trans "المخزون حسب المخزن" %}</h4>
     <div class="row">
       {% for stock in stock_items %}
       <div class="col-md-4 mb-4">
@@ -179,7 +179,7 @@
           </div>
           <div class="card-footer bg-white d-flex justify-content-between">
             <a href="{% url 'product:warehouse_detail' stock.warehouse.id %}" class="btn btn-sm btn-outline-secondary">
-              <i class="fas fa-warehouse me-1"></i>{% trans "المستودع" %}
+              <i class="fas fa-warehouse me-1"></i>{% trans "المخزن" %}
             </a>
             <a href="#" class="btn btn-sm btn-primary" onclick="openAdjustModal('{{ stock.warehouse.id }}', '{{ stock.warehouse.name }}', {{ stock.quantity }})">
               <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
@@ -190,7 +190,7 @@
       {% empty %}
       <div class="col-12">
         <div class="alert alert-info">
-          <i class="fas fa-info-circle me-2"></i>{% trans "لا يوجد مخزون لهذا المنتج في أي مستودع." %}
+          <i class="fas fa-info-circle me-2"></i>{% trans "لا يوجد مخزون لهذا المنتج في أي مخزن." %}
         </div>
       </div>
       {% endfor %}
@@ -207,7 +207,7 @@
               <th>{% trans "التاريخ" %}</th>
               <th>{% trans "النوع" %}</th>
               <th>{% trans "الكمية" %}</th>
-              <th>{% trans "المستودع" %}</th>
+              <th>{% trans "المخزن" %}</th>
               <th>{% trans "الوجهة" %}</th>
               <th>{% trans "ملاحظات" %}</th>
               <th>{% trans "خيارات" %}</th>
@@ -274,9 +274,9 @@
           <input type="hidden" name="movement_type" value="in">
           
           <div class="mb-3">
-            <label for="warehouse" class="form-label">{% trans "المستودع" %}</label>
+            <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
             <select class="form-select" id="warehouse" name="warehouse_id" required>
-              <option value="">{% trans "اختر المستودع..." %}</option>
+              <option value="">{% trans "اختر المخزن..." %}</option>
               {% for wh in warehouses %}
               <option value="{{ wh.id }}">{{ wh.name }}</option>
               {% endfor %}
@@ -318,7 +318,7 @@
           <input type="hidden" id="adjust_warehouse_id" name="warehouse_id">
           
           <div class="mb-3">
-            <label for="warehouse_name" class="form-label">{% trans "المستودع" %}</label>
+            <label for="warehouse_name" class="form-label">{% trans "المخزن" %}</label>
             <input type="text" class="form-control" id="warehouse_name" readonly>
           </div>
           

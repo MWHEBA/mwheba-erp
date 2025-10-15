@@ -1,0 +1,206 @@
+[
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 1,
+    "fields": {
+      "name": "SM52",
+      "code": "sm52",
+      "description": "ماكينة طباعة أوفست متوسطة الحجم مناسبة للأعمال التجارية",
+      "manufacturer": "هايدلبرج",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 2,
+    "fields": {
+      "name": "GTO52",
+      "code": "gto52",
+      "description": "ماكينة طباعة أوفست صغيرة الحجم مناسبة للأعمال السريعة",
+      "manufacturer": "هايدلبرج",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 3,
+    "fields": {
+      "name": "SM74",
+      "code": "sm74",
+      "description": "ماكينة طباعة أوفست كبيرة الحجم عالية الإنتاجية",
+      "manufacturer": "هايدلبرج",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 4,
+    "fields": {
+      "name": "SM102",
+      "code": "sm102",
+      "description": "ماكينة طباعة أوفست كبيرة جداً للإنتاج الضخم",
+      "manufacturer": "هايدلبرج",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 5,
+    "fields": {
+      "name": "LS40",
+      "code": "ls40",
+      "description": "ماكينة طباعة أوفست يابانية عالية الجودة",
+      "manufacturer": "كوموري",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 6,
+    "fields": {
+      "name": "LS29",
+      "code": "ls29",
+      "description": "ماكينة طباعة أوفست صغيرة يابانية",
+      "manufacturer": "كوموري",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 7,
+    "fields": {
+      "name": "524",
+      "code": "ryobi_524",
+      "description": "ماكينة طباعة أوفست اقتصادية",
+      "manufacturer": "ريوبي",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 8,
+    "fields": {
+      "name": "520",
+      "code": "ryobi_520",
+      "description": "ماكينة طباعة أوفست صغيرة اقتصادية",
+      "manufacturer": "ريوبي",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 9,
+    "fields": {
+      "name": "750",
+      "code": "ryobi_750",
+      "description": "ماكينة طباعة أوفست متوسطة اقتصادية",
+      "manufacturer": "ريوبي",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetmachinetype",
+    "pk": 10,
+    "fields": {
+      "name": "أخرى",
+      "code": "other",
+      "description": "أنواع أخرى من ماكينات الأوفست",
+      "manufacturer": "متنوع",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetsheetsize",
+    "pk": 1,
+    "fields": {
+      "name": "ربع فرخ",
+      "code": "quarter_sheet",
+      "width_cm": "35.00",
+      "height_cm": "50.00",
+      "description": "مقاس ربع فرخ - الأكثر استخداماً في الأعمال التجارية",
+      "is_active": true,
+      "is_default": true,
+      "is_custom_size": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetsheetsize",
+    "pk": 2,
+    "fields": {
+      "name": "نصف فرخ",
+      "code": "half_sheet",
+      "width_cm": "50.00",
+      "height_cm": "70.00",
+      "description": "مقاس نصف فرخ - مناسب للكتيبات والمطبوعات المتوسطة",
+      "is_active": true,
+      "is_default": false,
+      "is_custom_size": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetsheetsize",
+    "pk": 3,
+    "fields": {
+      "name": "فرخ كامل",
+      "code": "full_sheet",
+      "width_cm": "70.00",
+      "height_cm": "100.00",
+      "description": "مقاس فرخ كامل - للمطبوعات الكبيرة والملصقات",
+      "is_active": true,
+      "is_default": false,
+      "is_custom_size": false,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  },
+  {
+    "model": "pricing.offsetsheetsize",
+    "pk": 4,
+    "fields": {
+      "name": "مقاس مخصص",
+      "code": "custom",
+      "width_cm": "0.00",
+      "height_cm": "0.00",
+      "description": "مقاس مخصص يحدده المستخدم",
+      "is_active": true,
+      "is_default": false,
+      "is_custom_size": true,
+      "created_at": "2024-01-01T10:00:00Z",
+      "updated_at": "2024-01-01T10:00:00Z"
+    }
+  }
+]

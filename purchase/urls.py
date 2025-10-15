@@ -19,6 +19,7 @@ urlpatterns = [
     # فواتير المشتريات
     path("", views.purchase_list, name="purchase_list"),
     path("create/", views.purchase_create, name="purchase_create"),
+    path("create/supplier/<int:supplier_id>/", views.purchase_create, name="purchase_create_for_supplier"),
     path("<int:pk>/", views.purchase_detail, name="purchase_detail"),
     path("<int:pk>/edit/", views.purchase_update, name="purchase_edit"),
     path("<int:pk>/delete/", views.purchase_delete, name="purchase_delete"),

@@ -1,7 +1,7 @@
 # استيراد النماذج الأساسية من models.py
 from ..models import Category, Product, Brand, Unit
 
-# استيراد نماذج المستودعات والمخزون
+# استيراد نماذج المخازن والمخزون
 from .warehouse import Warehouse, ProductStock, StockTransfer
 
 # استيراد نماذج حركات المخزون
@@ -13,7 +13,7 @@ __all__ = [
     "Product",
     "Brand",
     "Unit",
-    # نماذج المستودعات والمخزون
+    # نماذج المخازن والمخزون
     "Warehouse",
     "ProductStock",
     "StockTransfer",

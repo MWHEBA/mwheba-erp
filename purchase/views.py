@@ -104,7 +104,7 @@ def purchase_list(request):
             "format": "datetime_12h",
         },
         {"key": "supplier.name", "label": _("المورد"), "sortable": True},
-        {"key": "warehouse.name", "label": _("المستودع"), "sortable": True},
+        {"key": "warehouse.name", "label": _("المخزن"), "sortable": True},
         {
             "key": "total",
             "label": _("الإجمالي"),
@@ -194,11 +194,21 @@ def purchase_list(request):
 
 
 @login_required
-def purchase_create(request):
+def purchase_create(request, supplier_id=None):
     """
     إنشاء فاتورة مشتريات جديدة
+    يمكن تمرير معرف المورد لاختياره تلقائياً
     """
     products = Product.objects.filter(is_active=True).order_by("name")
+    
+    # التحقق من وجود المورد إذا تم تمرير معرفه
+    selected_supplier = None
+    if supplier_id:
+        try:
+            selected_supplier = Supplier.objects.get(id=supplier_id, is_active=True)
+        except Supplier.DoesNotExist:
+            messages.error(request, "المورد المحدد غير موجود أو غير نشط")
+            return redirect("purchase:purchase_list")
 
     if request.method == "POST":
         form = PurchaseForm(request.POST)
@@ -318,11 +328,20 @@ def purchase_create(request):
             "date": timezone.now().date(),
             "number": next_number,
         }
+        # إضافة المورد المحدد إلى البيانات الافتراضية
+        if selected_supplier:
+            initial_data["supplier"] = selected_supplier
+        
+        # إضافة أول مخزن متاح كافتراضي
+        warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+        if warehouses.exists():
+            initial_data["warehouse"] = warehouses.first()
+            
         form = PurchaseForm(initial=initial_data)
 
     # جلب البيانات المطلوبة للقوائم المنسدلة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    # المخازن تم جلبها بالفعل أعلاه، لا حاجة لإعادة جلبها
     purchase_orders = PurchaseOrder.objects.filter(status="pending").order_by(
         "-date", "-id"
     )
@@ -336,10 +355,12 @@ def purchase_create(request):
         "form": form,
         "products": products,
         "suppliers": suppliers,  # إضافة قائمة الموردين للقالب
-        "warehouses": warehouses,  # إضافة قائمة المستودعات للقالب
+        "warehouses": warehouses,  # إضافة قائمة المخازن للقالب
         "purchase_orders": purchase_orders,  # إضافة قائمة طلبات الشراء للقالب
         "next_purchase_number": next_purchase_number,  # إضافة رقم الفاتورة التالي للقالب
-        "page_title": "إضافة فاتورة مشتريات",
+        "selected_supplier": selected_supplier,  # إضافة المورد المحدد للسياق
+        "default_warehouse": warehouses.first() if warehouses.exists() else None,  # المخزن الافتراضي
+        "page_title": "إضافة فاتورة مشتريات" + (f" - {selected_supplier.name}" if selected_supplier else ""),
         "page_icon": "fas fa-plus-circle",
         "breadcrumb_items": [
             {
@@ -352,6 +373,11 @@ def purchase_create(request):
                 "url": reverse("purchase:purchase_list"),
                 "icon": "fas fa-shopping-bag",
             },
+        ] + ([{
+            "title": selected_supplier.name,
+            "url": reverse("supplier:supplier_detail", kwargs={"pk": selected_supplier.pk}),
+            "icon": "fas fa-truck",
+        }] if selected_supplier else []) + [
             {"title": "إضافة فاتورة", "active": True},
         ],
     }
@@ -724,7 +750,7 @@ def purchase_update(request, pk):
         "purchase": purchase,
         "products": products,
         "suppliers": suppliers,  # إضافة قائمة الموردين للقالب
-        "warehouses": warehouses,  # إضافة قائمة المستودعات للقالب
+        "warehouses": warehouses,  # إضافة قائمة المخازن للقالب
         "purchase_orders": purchase_orders,  # إضافة قائمة طلبات الشراء للقالب
         "title": "تعديل فاتورة مشتريات",
         "page_title": f"تعديل فاتورة مشتريات - {purchase.number}",

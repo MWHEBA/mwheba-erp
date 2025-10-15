@@ -377,7 +377,7 @@
         </div>
         <div class="col-md-5">
           <div class="d-flex flex-wrap justify-content-md-end">
-            <a href="{% url 'sale:sale_create' %}?customer={{ customer.pk }}" class="btn btn-success me-2 mb-2" style="font-weight: 700;">
+            <a href="{% url 'sale:sale_create_for_customer' customer_id=customer.pk %}" class="btn btn-success me-2 mb-2" style="font-weight: 700;">
               <i class="fas fa-file-invoice-dollar me-1"></i> {% trans "فاتورة بيع" %}
             </a>
             <a href="#" class="btn btn-outline-secondary mb-2" data-bs-toggle="modal" data-bs-target="#actionsModal" style="font-weight: 600;">
@@ -542,7 +542,7 @@
       <div class="tab-pane fade" id="invoices-tab-pane" role="tabpanel" aria-labelledby="invoices-tab" tabindex="0">
         <div class="section-container">
           <div class="d-flex justify-content-end mb-3">
-            <a href="{% url 'sale:sale_create' %}?customer={{ customer.pk }}" class="btn btn-primary">
+            <a href="{% url 'sale:sale_create_for_customer' customer_id=customer.pk %}" class="btn btn-primary">
               <i class="fas fa-plus me-1"></i>{% trans "إضافة فاتورة جديدة" %}
             </a>
           </div>
@@ -568,7 +568,7 @@
             <i class="fas fa-info-circle fa-2x me-3"></i>
             <div>
               {% trans "لا توجد فواتير مبيعات مسجلة لهذا العميل." %}
-              <a href="{% url 'sale:sale_create' %}?customer={{ customer.pk }}" class="alert-link">
+              <a href="{% url 'sale:sale_create_for_customer' customer_id=customer.pk %}" class="alert-link">
                 {% trans "إضافة فاتورة جديدة" %}
               </a>
             </div>

@@ -43,7 +43,7 @@ FIELD_REGISTRY = {
             "db_field": "offset_details.sheet_size",
             "input_type": "select",
             "required": True,
-            "choices_source": "sheet_sizes",
+            "choices_source": "offset_sheet_sizes",
         },
         "max_colors": {
             "db_field": "offset_details.max_colors",
@@ -107,6 +107,78 @@ FIELD_REGISTRY = {
             "input_type": "select",
             "required": True,
             "choices_source": "digital_paper_sizes",
+        },
+    },
+    "paper": {
+        # الحقول الأساسية
+        "name": {
+            "db_field": "name",
+            "input_type": "text",
+            "required": True,
+            "readonly": True,
+            "auto_generated": True,
+        },
+        "description": {
+            "db_field": "description",
+            "input_type": "textarea",
+            "required": False,
+        },
+        "is_active": {
+            "db_field": "is_active",
+            "input_type": "checkbox",
+            "required": False,
+            "default": True,
+        },
+        # حقول تفاصيل الورق
+        "paper_type": {
+            "db_field": "paper_details.paper_type",
+            "input_type": "select",
+            "required": True,
+            "choices_source": "paper_types",
+        },
+        "gsm": {
+            "db_field": "paper_details.gsm",
+            "input_type": "select",
+            "required": True,
+            "choices_source": "paper_weights",
+        },
+        "sheet_size": {
+            "db_field": "paper_details.sheet_size",
+            "input_type": "select",
+            "required": True,
+            "choices_source": "sheet_sizes",
+        },
+        "custom_width": {
+            "db_field": "paper_details.custom_width",
+            "input_type": "number",
+            "required": False,
+            "step": "0.1",
+            "validation": "positive_number",
+        },
+        "custom_height": {
+            "db_field": "paper_details.custom_height",
+            "input_type": "number",
+            "required": False,
+            "step": "0.1",
+            "validation": "positive_number",
+        },
+        "country_of_origin": {
+            "db_field": "paper_details.country_of_origin",
+            "input_type": "select",
+            "required": False,
+            "choices_source": "paper_origins",
+        },
+        "brand": {
+            "db_field": "paper_details.brand",
+            "input_type": "text",
+            "required": False,
+        },
+        "price_per_sheet": {
+            "db_field": "paper_details.price_per_sheet",
+            "input_type": "number",
+            "required": True,
+            "step": "0.01",
+            "validation": "positive_number",
         },
     },
     "plates": {
@@ -203,14 +275,16 @@ FIELD_CHOICES = {
         ("a3", "A3 (29×42 سم)"),
         ("a3_plus", "A3+ (32×45 سم)"),
         ("sra3", "SRA3 (32×45 سم)"),
-        ("a2", "A2 (42×59.4 سم)"),
         ("a1", "A1 (59.4×84.1 سم)"),
         ("a0", "A0 (84.1×118.9 سم)"),
         ("custom", "مقاس مخصص"),
     ],
+    # خيارات الورق - سيتم جلبها من النظام الموحد
+    "paper_types": [],  # سيتم ملؤها ديناميكياً من pricing app
+    "paper_weights": [],  # سيتم ملؤها ديناميكياً من pricing app
+    "paper_origins": [],  # سيتم ملؤها ديناميكياً من pricing app
     "plate_sizes": [
         ("quarter_sheet", "ربع (35×50 سم)"),
-        ("half_sheet", "نص (50×70 سم)"),
         ("full_sheet", "فرخ (70×100 سم)"),
         ("custom", "مقاس مخصوص"),
     ],
@@ -238,6 +312,27 @@ def get_field_choices(choices_source):
     """
     جلب خيارات حقل معين
     """
+    # للورق، استخدم النظام الموحد
+    if choices_source in ["paper_types", "paper_weights", "paper_origins", "sheet_sizes"]:
+        try:
+            from .forms.dynamic_forms import ServiceFormFactory
+            unified_choices = ServiceFormFactory.get_unified_paper_choices()
+            return unified_choices.get(choices_source, [])
+        except ImportError:
+            pass
+    
+    # للأوفست، استخدم النظام الموحد
+    elif choices_source in ["machine_types", "offset_sheet_sizes"]:
+        try:
+            from .forms.dynamic_forms import ServiceFormFactory
+            unified_choices = ServiceFormFactory.get_unified_offset_choices()
+            if choices_source == "machine_types":
+                return unified_choices.get("machine_types", [])
+            elif choices_source == "offset_sheet_sizes":
+                return unified_choices.get("sheet_sizes", [])
+        except ImportError:
+            pass
+    
     return FIELD_CHOICES.get(choices_source, [])
 
 

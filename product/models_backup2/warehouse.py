@@ -1,5 +1,5 @@
 """
-نماذج المستودعات وإدارة المخزون
+نماذج المخازن وإدارة المخزون
 """
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -13,12 +13,12 @@ User = get_user_model()
 
 class Warehouse(models.Model):
     """
-    نموذج المستودعات
+    نموذج المخازن
     """
 
-    name = models.CharField(_("اسم المستودع"), max_length=255)
+    name = models.CharField(_("اسم المخزن"), max_length=255)
 
-    code = models.CharField(_("كود المستودع"), max_length=50, unique=True)
+    code = models.CharField(_("كود المخزن"), max_length=50, unique=True)
 
     description = models.TextField(_("الوصف"), blank=True, null=True)
 
@@ -32,13 +32,13 @@ class Warehouse(models.Model):
         null=True,
         blank=True,
         related_name="managed_warehouses",
-        verbose_name=_("مدير المستودع"),
+        verbose_name=_("مدير المخزن"),
     )
 
     is_active = models.BooleanField(_("نشط"), default=True)
 
     is_main = models.BooleanField(
-        _("مستودع رئيسي"), default=False, help_text=_("المستودع الرئيسي للشركة")
+        _("مخزن رئيسي"), default=False, help_text=_("المخزن الرئيسي للشركة")
     )
 
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -54,15 +54,15 @@ class Warehouse(models.Model):
 
     class Meta:
         app_label = "product"
-        verbose_name = _("مستودع")
-        verbose_name_plural = _("المستودعات")
+        verbose_name = _("مخزن")
+        verbose_name_plural = _("المخازن")
         ordering = ["name"]
 
     def __str__(self):
         return f"{self.name} ({self.code})"
 
     def save(self, *args, **kwargs):
-        # التأكد من وجود مستودع رئيسي واحد فقط
+        # التأكد من وجود مخزن رئيسي واحد فقط
         if self.is_main:
             Warehouse.objects.filter(is_main=True).exclude(pk=self.pk).update(
                 is_main=False
@@ -73,23 +73,23 @@ class Warehouse(models.Model):
     @classmethod
     def get_main_warehouse(cls):
         """
-        الحصول على المستودع الرئيسي
+        الحصول على المخزن الرئيسي
         """
         try:
             return cls.objects.get(is_main=True, is_active=True)
         except cls.DoesNotExist:
-            # إذا لم يوجد مستودع رئيسي، إرجاع أول مستودع نشط
+            # إذا لم يوجد مخزن رئيسي، إرجاع أول مخزن نشط
             return cls.objects.filter(is_active=True).first()
 
     def get_total_products(self):
         """
-        الحصول على إجمالي عدد المنتجات في المستودع
+        الحصول على إجمالي عدد المنتجات في المخزن
         """
         return self.stocks.filter(quantity__gt=0).count()
 
     def get_total_value(self):
         """
-        الحصول على إجمالي قيمة المخزون في المستودع
+        الحصول على إجمالي قيمة المخزون في المخزن
         """
         from django.db.models import Sum, F
 
@@ -101,7 +101,7 @@ class Warehouse(models.Model):
 
 class ProductStock(models.Model):
     """
-    نموذج مخزون المنتجات في المستودعات
+    نموذج مخزون المنتجات في المخازن
     """
 
     product = models.ForeignKey(
@@ -115,7 +115,7 @@ class ProductStock(models.Model):
         Warehouse,
         on_delete=models.CASCADE,
         related_name="stocks",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     quantity = models.DecimalField(
@@ -168,11 +168,11 @@ class ProductStock(models.Model):
         decimal_places=3,
         default=0,
         validators=[MinValueValidator(0)],
-        help_text=_("الحد الأقصى للكمية في المستودع"),
+        help_text=_("الحد الأقصى للكمية في المخزن"),
     )
 
     location = models.CharField(
-        _("الموقع في المستودع"),
+        _("الموقع في المخزن"),
         max_length=100,
         blank=True,
         null=True,
@@ -215,7 +215,7 @@ class ProductStock(models.Model):
 
 class StockTransfer(models.Model):
     """
-    نموذج نقل المخزون بين المستودعات
+    نموذج نقل المخزون بين المخازن
     """
 
     TRANSFER_STATUS_CHOICES = [
@@ -242,14 +242,14 @@ class StockTransfer(models.Model):
         Warehouse,
         on_delete=models.CASCADE,
         related_name="outgoing_transfers",
-        verbose_name=_("من المستودع"),
+        verbose_name=_("من المخزن"),
     )
 
     to_warehouse = models.ForeignKey(
         Warehouse,
         on_delete=models.CASCADE,
         related_name="incoming_transfers",
-        verbose_name=_("إلى المستودع"),
+        verbose_name=_("إلى المخزن"),
     )
 
     quantity = models.DecimalField(

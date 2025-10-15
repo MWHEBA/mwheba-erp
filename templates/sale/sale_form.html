@@ -7,46 +7,82 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
 <style>
+    /* تصميم نظيف وبسيط */
+    .form-label {
+        font-weight: 500;
+        color: #2c3e50;
+        margin-bottom: 8px;
+    }
+    
+    .form-control {
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.2s ease;
+    }
+    
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.1);
+    }
+    
+    .card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+    }
+    
     .item-row {
         background-color: #f8f9fa;
-        border-radius: 5px;
-        margin-bottom: 10px;
-        padding: 10px;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        padding: 20px;
     }
     
     .total-section {
-        background-color: #f1f1f1;
-        border-radius: 5px;
-        padding: 15px;
-        margin-top: 20px;
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 20px;
+        margin-top: 24px;
     }
     
     .remove-item {
         color: #dc3545;
         cursor: pointer;
+        font-size: 18px;
+    }
+    
+    .remove-item:hover {
+        color: #c82333;
     }
     
     .add-more-btn {
-        margin-top: 10px;
-    }
-    
-    .form-label {
-        font-weight: bold;
-    }
-    
-    .required-field::after {
-        content: " *";
-        color: red;
+        margin-top: 16px;
     }
     
     .stock-info {
         font-size: 12px;
         color: #6c757d;
-        margin-top: 5px;
+        margin-top: 4px;
     }
     
     .stock-warning {
         color: #dc3545;
+        font-weight: 500;
+    }
+    
+    /* تحسين المساحات */
+    .row.g-4 > * {
+        padding-right: 12px;
+        padding-left: 12px;
+    }
+    
+    /* تحسين الأزرار */
+    .btn {
+        border-radius: 6px;
+        font-weight: 500;
+        padding: 10px 20px;
     }
 </style>
 {% endblock %}
@@ -95,133 +131,142 @@
             </div>
             
             <div>
-                <a href="{% url 'sale:sale_list' %}" class="btn btn-secondary">
-                    <i class="fas fa-arrow-right me-1"></i> العودة للقائمة
-                </a>
+                {% if selected_customer %}
+                    <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-1"></i> العودة لتفاصيل العميل
+                    </a>
+                {% else %}
+                    <a href="{% url 'sale:sale_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-1"></i> العودة للقائمة
+                    </a>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
-        <div class="row">
-            <div class="col">
-                <form method="post" id="sale-form">
-                    {% csrf_token %}
-                    
-                    {% if form.errors %}
-                    <div class="alert alert-danger">
-                        <strong>يرجى تصحيح الأخطاء التالية:</strong>
-                        <ul>
-                            {% for field, errors in form.errors.items %}
-                                {% for error in errors %}
-                                    <li>{{ error }}</li>
-                                {% endfor %}
+    <!-- نموذج الفاتورة -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body p-4">
+            <form method="post" id="sale-form">
+                {% csrf_token %}
+                
+                {% if form.errors %}
+                <div class="alert alert-danger border-0 mb-4">
+                    <h6 class="alert-heading mb-2">يرجى تصحيح الأخطاء التالية:</h6>
+                    <ul class="mb-0">
+                        {% for field, errors in form.errors.items %}
+                            {% for error in errors %}
+                                <li>{{ error }}</li>
                             {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">رقم الفاتورة</label>
-                                {% if sale.id %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                <!-- بيانات الفاتورة الأساسية -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3 fw-medium">بيانات الفاتورة</h6>
+                    <div class="row g-4">
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label text-dark">رقم الفاتورة <span class="text-danger">*</span></label>
+                            {% if sale.id %}
                                 <input type="text" id="id_number" value="{{ sale.number }}" class="form-control" readonly>
                                 <input type="hidden" name="number" value="{{ sale.number }}">
-                                {% else %}
-                                <input type="text" id="id_number" value="{{ next_sale_number|default:'' }}" class="form-control" readonly>
+                            {% else %}
+                                <input type="text" id="id_number" value="{{ next_sale_number|default:'' }}" class="form-control bg-light" readonly>
                                 <input type="hidden" name="number" value="{{ next_sale_number|default:'' }}">
-                                {% if not next_sale_number %}
-                                <small class="text-danger">سيتم إنشاء رقم فاتورة جديد تلقائياً عند الحفظ</small>
-                                {% endif %}
-                                {% endif %}
-                            </div>
+                            {% endif %}
                         </div>
                         
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">تاريخ الفاتورة</label>
-                                <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
-                            </div>
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label text-dark">تاريخ الفاتورة <span class="text-danger">*</span></label>
+                            <input type="date" name="date" id="id_date" class="form-control" value="{{ form.date.value|date:'Y-m-d'|default:'' }}" required>
                         </div>
                         
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">العميل</label>
-                                {% if sale.id %}
-                                    <input type="text" class="form-control" value="{{ sale.customer.name }}" readonly>
-                                    <input type="hidden" name="customer" value="{{ sale.customer.id }}">
-                                {% else %}
-                                    <select name="customer" id="id_customer" class="form-control" required>
-                                        <option value="">اختر العميل</option>
-                                        {% for customer in customers %}
-                                            <option value="{{ customer.id }}" {% if form.customer.value == customer.id|stringformat:'s' %}selected{% endif %}>{{ customer.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-3">
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">المستودع</label>
-                                {% if sale.id %}
-                                    <input type="text" class="form-control" value="{{ sale.warehouse.name }}" readonly>
-                                    <input type="hidden" name="warehouse" value="{{ sale.warehouse.id }}">
-                                {% else %}
-                                    <select name="warehouse" id="id_warehouse" class="form-control" required>
-                                        <option value="">اختر المستودع</option>
-                                        {% for warehouse in warehouses %}
-                                            <option value="{{ warehouse.id }}" {% if form.warehouse.value == warehouse.id|stringformat:'s' %}selected{% endif %}>{{ warehouse.name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                {% endif %}
-                            </div>
+                        <div class="col-lg-6 col-md-12">
+                            <label class="form-label text-dark">طريقة الدفع <span class="text-danger">*</span></label>
+                            <select name="payment_method" id="id_payment_method" class="form-control" required>
+                                <option value="">اختر طريقة الدفع</option>
+                                <option value="cash" {% if form.payment_method.value == 'cash' %}selected{% endif %}>نقداً</option>
+                                <option value="credit" {% if form.payment_method.value == 'credit' %}selected{% endif %}>آجل</option>
+                                <option value="bank_transfer" {% if form.payment_method.value == 'bank_transfer' %}selected{% endif %}>تحويل بنكي</option>
+                            </select>
                         </div>
                     </div>
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">طريقة الدفع</label>
-                                <select name="payment_method" id="id_payment_method" class="form-control" required>
-                                    <option value="">اختر طريقة الدفع</option>
-                                    <option value="cash" {% if form.payment_method.value == 'cash' %}selected{% endif %}>نقداً</option>
-                                    <option value="credit" {% if form.payment_method.value == 'credit' %}selected{% endif %}>آجل</option>
-                                    <option value="bank_transfer" {% if form.payment_method.value == 'bank_transfer' %}selected{% endif %}>تحويل بنكي</option>
+                </div>
+
+                <!-- بيانات العميل والمخزن -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3 fw-medium">العميل والمخزن</h6>
+                    <div class="row g-4">
+                        <div class="col-lg-6">
+                            <label class="form-label text-dark">العميل <span class="text-danger">*</span></label>
+                            {% if sale.id %}
+                                <input type="text" class="form-control bg-light" value="{{ sale.customer.name }}" readonly>
+                                <input type="hidden" name="customer" value="{{ sale.customer.id }}">
+                            {% else %}
+                                <select name="customer" id="id_customer" class="form-control" required>
+                                    <option value="">اختر العميل</option>
+                                    {% for customer in customers %}
+                                        <option value="{{ customer.id }}" 
+                                            {% if form.customer.value == customer.id|stringformat:'s' or selected_customer.id == customer.id %}selected{% endif %}>
+                                            {{ customer.name }}
+                                        </option>
+                                    {% endfor %}
                                 </select>
-                            </div>
+                            {% endif %}
                         </div>
                         
-                        <div class="col-md-6">
-                            <div class="form-group mb-3">
-                                <label class="form-label">خصم على كامل الفاتورة</label>
-                                <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" step="0.01">
-                            </div>
+                        <div class="col-lg-6">
+                            <label class="form-label text-dark">المخزن <span class="text-danger">*</span></label>
+                            {% if sale.id %}
+                                <input type="text" class="form-control bg-light" value="{{ sale.warehouse.name }}" readonly>
+                                <input type="hidden" name="warehouse" value="{{ sale.warehouse.id }}">
+                            {% else %}
+                                <select name="warehouse" id="id_warehouse" class="form-control" required>
+                                <option value="">اختر المخزن</option>
+                                {% for warehouse in warehouses %}
+                                    <option value="{{ warehouse.id }}" 
+                                        {% if form.warehouse.value == warehouse.id|stringformat:'s' or default_warehouse.id == warehouse.id %}selected{% endif %}>
+                                        {{ warehouse.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        {% endif %}
                         </div>
                     </div>
-                    
-                    <!-- حقل الخزينة للفواتير النقدية -->
-                    <div class="row mb-4" id="financial_account_wrapper" style="display: none;">
-                        <div class="col-md-12">
-                            <div class="alert alert-warning" role="alert">
-                                <i class="fas fa-exclamation-triangle me-2"></i>
-                                <strong>تنبيه هام:</strong> عند اختيار الدفع النقدي، سيتم:
-                                <ul class="mb-0 mt-2">
-                                    <li>إنشاء دفعة تلقائية بالمبلغ الكامل</li>
-                                    <li>تسجيل الفاتورة كمدفوعة بالكامل</li>
-                                    <li>إضافة المبلغ إلى الخزينة المختارة</li>
-                                </ul>
-                            </div>
-                            <div class="form-group mb-3">
-                                <label class="form-label required-field">الخزينة/البنك</label>
+                </div>
+                
+                <!-- حقل الخزينة للفواتير النقدية -->
+                <div class="mb-4" id="financial_account_wrapper" style="display: none;">
+                    <h6 class="text-muted mb-3 fw-medium">إعدادات الدفع النقدي</h6>
+                    <div class="alert alert-info border-0 mb-3">
+                        <div class="row g-4">
+                            <div class="col-lg-5 col-md-6">
+                                <label class="form-label text-dark fw-medium">الخزينة/البنك <span class="text-danger">*</span></label>
                                 {{ form.financial_account }}
                                 <small class="form-text text-muted">اختر الخزينة التي سيتم استلام المبلغ فيها</small>
                             </div>
+                            <div class="col-lg-7 col-md-6">
+                                <div class="d-flex align-items-start">
+                                    <i class="fas fa-info-circle me-3 text-info mt-1"></i>
+                                    <div>
+                                        <strong>تنبيه:</strong> عند اختيار الدفع النقدي، سيتم:
+                                        <ul class="mb-0 mt-2 small">
+                                            <li>إنشاء دفعة تلقائية بالمبلغ الكامل</li>
+                                            <li>تسجيل الفاتورة كمدفوعة بالكامل</li>
+                                            <li>إضافة المبلغ إلى الخزينة المختارة</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    
-                    <h5 class="mb-3">بنود الفاتورة</h5>
+                </div>
+                
+                <!-- بنود الفاتورة -->
+                <div class="mb-4">
+                    <h6 class="text-muted mb-3 fw-medium">بنود الفاتورة</h6>
                     <div id="items-container">
                         {% if sale.id and sale.items.exists %}
                             {% for item in sale.items.all %}
@@ -326,14 +371,17 @@
                     </button>
                     
                     <div class="row total-section mt-4">
-                        <div class="col-md-8">
-                            <div class="form-group mb-3">
-                                <label class="form-label">ملاحظات</label>
-                                {{ form.notes }}
-                            </div>
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label text-dark">ملاحظات</label>
+                            <textarea name="notes" id="id_notes" class="form-control" rows="4" placeholder="أضف ملاحظات إضافية هنا...">{{ form.notes.value|default:'' }}</textarea>
                         </div>
                         
-                        <div class="col-md-4">
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label text-dark">خصم على كامل الفاتورة</label>
+                            <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        
+                        <div class="col-lg-4 col-md-12">
                             <div class="row mb-2">
                                 <div class="col-6 text-end">
                                     <strong>المجموع الفرعي:</strong>
@@ -367,12 +415,27 @@
                         </div>
                     </div>
                     
-                    <div class="text-center mt-4">
-                        <button type="submit" class="btn btn-primary">حفظ الفاتورة</button>
-                        <a href="{% url 'sale:sale_list' %}" class="btn btn-secondary">إلغاء</a>
-                    </div>
-                </form>
-            </div>
+                    <button type="button" id="add-item" class="btn btn-sm btn-primary add-more-btn">
+                        <i class="fa fa-plus"></i> إضافة بند
+                    </button>
+                </div>
+                
+                <!-- أزرار الحفظ -->
+                <div class="text-center mt-4 pt-3 border-top">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-save me-1"></i> حفظ الفاتورة
+                    </button>
+                    {% if selected_customer %}
+                        <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> إلغاء
+                        </a>
+                    {% else %}
+                        <a href="{% url 'sale:sale_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i> إلغاء
+                        </a>
+                    {% endif %}
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -396,7 +459,7 @@
         });
         
         $('#id_warehouse').select2({
-            placeholder: "اختر المستودع",
+            placeholder: "اختر المخزن",
             width: '100%',
             allowClear: true
         });
@@ -407,17 +470,17 @@
             loadStockData(initialWarehouseId);
         }
         
-        // تغيير المستودع يتطلب إعادة تحميل معلومات المخزون
+        // تغيير المخزن يتطلب إعادة تحميل معلومات المخزون
         $('#id_warehouse').on('change', function() {
-            // الحصول على المستودع المحدد
+            // الحصول على المخزن المحدد
             var warehouseId = $(this).val();
             
-            // إذا تم اختيار مستودع
+            // إذا تم اختيار مخزن
             if (warehouseId) {
                 loadStockData(warehouseId);
             }
             
-            // إعادة تعيين جميع بنود الفاتورة عند تغيير المستودع
+            // إعادة تعيين جميع بنود الفاتورة عند تغيير المخزن
             $('.item-row:not(:first)').remove();
             $('.item-row:first').find('select').val('').trigger('change');
             $('.item-row:first').find('input').val('');
@@ -428,7 +491,7 @@
         
         // دالة تحميل بيانات المخزون
         function loadStockData(warehouseId) {
-            console.log('جاري تحميل بيانات المخزون للمستودع:', warehouseId);
+            console.log('جاري تحميل بيانات المخزون للمخزن:', warehouseId);
             $.ajax({
                 url: '/products/api/stock/',
                 method: 'GET',

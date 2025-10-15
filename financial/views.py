@@ -4443,26 +4443,8 @@ def payment_sync_resolve_errors_api(request):
         return JsonResponse({"success": False, "message": "حدث خطأ غير متوقع"})
 
 
-@login_required
-def payment_sync_dashboard(request):
-    """
-    لوحة تحكم تزامن المدفوعات
-    """
-    try:
-        from .services.payment_sync_service import PaymentSyncService
-
-        service = PaymentSyncService()
-        stats = service.get_sync_statistics()
-    except ImportError:
-        stats = {}
-        messages.warning(request, "خدمة تزامن المدفوعات غير متاحة حالياً.")
-
-    context = {
-        "stats": stats,
-        "page_title": "تزامن المدفوعات",
-        "page_icon": "fas fa-sync-alt",
-    }
-    return render(request, "financial/advanced/payment_sync_dashboard.html", context)
+# تم حذف payment_sync_dashboard - كانت مجرد صفحة عرض بدون وظائف فعلية
+# الخدمات الفعلية تعمل عبر APIs والـ management commands
 
 
 @login_required
@@ -6174,3 +6156,222 @@ def payment_sync_reset_all_api(request):
         logger = logging.getLogger(__name__)
         logger.error(f"خطأ في مسح البيانات: {str(e)}", exc_info=True)
         return JsonResponse({"success": False, "message": "حدث خطأ أثناء مسح البيانات"})
+
+
+@login_required
+def journal_entry_summary_api(request, journal_entry_id):
+    """
+    API لجلب ملخص القيد المحاسبي
+    """
+    try:
+        journal_entry = get_object_or_404(JournalEntry, id=journal_entry_id)
+        
+        # جلب بيانات القيد
+        data = {
+            'id': journal_entry.id,
+            'number': journal_entry.number,
+            'reference': journal_entry.reference,
+            'date': journal_entry.date.strftime('%Y-%m-%d') if journal_entry.date else '',
+            'description': journal_entry.description,
+            'status': journal_entry.status,
+            'created_by': journal_entry.created_by.get_full_name() if journal_entry.created_by else 'غير محدد',
+            'lines': []
+        }
+        
+        # جلب بنود القيد
+        for line in journal_entry.lines.all():
+            data['lines'].append({
+                'account_name': line.account.name,
+                'account_code': line.account.code,
+                'debit': float(line.debit) if line.debit else 0,
+                'credit': float(line.credit) if line.credit else 0,
+                'description': line.description or ''
+            })
+        
+        # معلومات المصدر إذا كانت متوفرة
+        
+        # محاولة أخرى للبحث عن المصدر بناءً على رقم القيد إذا لم تكن البيانات متوفرة
+        source_found = False
+        if journal_entry.reference_type and journal_entry.reference_id:
+            source_found = True
+        elif journal_entry.number and 'PAYMENT' in journal_entry.number:
+            # محاولة البحث عن الدفعة بناءً على رقم القيد
+            try:
+                # استخراج معرف الدفعة من رقم القيد
+                payment_parts = journal_entry.number.split('-')
+                if len(payment_parts) >= 2:
+                    payment_id = payment_parts[1]
+                    
+                    # البحث في دفعات المبيعات أولاً
+                    try:
+                        from sale.models import SalePayment
+                        payment = SalePayment.objects.get(id=payment_id)
+                        journal_entry.reference_type = 'sale_payment'
+                        journal_entry.reference_id = payment.id
+                        source_found = True
+                    except:
+                        try:
+                            from purchase.models import PurchasePayment
+                            payment = PurchasePayment.objects.get(id=payment_id)
+                            journal_entry.reference_type = 'purchase_payment'
+                            journal_entry.reference_id = payment.id
+                            source_found = True
+                        except:
+                            pass
+            except Exception:
+                pass
+        
+        if source_found and journal_entry.reference_type and journal_entry.reference_id:
+            source_data = {
+                'type': journal_entry.reference_type,
+                'type_display': 'مصدر القيد',
+                'url': '#'
+            }
+            
+            try:
+                # البحث عن المصدر حسب النوع
+                if journal_entry.reference_type in ['sale_payment', 'purchase_payment']:
+                    # محاولة جلب الدفعة
+                    try:
+                        if journal_entry.reference_type == 'sale_payment':
+                            from sale.models import SalePayment
+                            payment = SalePayment.objects.get(id=journal_entry.reference_id)
+                            payment_type = 'sale'
+                        else:
+                            from purchase.models import PurchasePayment  
+                            payment = PurchasePayment.objects.get(id=journal_entry.reference_id)
+                            payment_type = 'purchase'
+                        
+                        source_data.update({
+                            'payment_url': f'/sales/payments/{payment.id}/' if payment_type == 'sale' else f'/purchases/payments/{payment.id}/',
+                            'payment_amount': float(payment.amount) if hasattr(payment, 'amount') else 0,
+                            'payment_date': payment.payment_date.strftime('%Y-%m-%d') if hasattr(payment, 'payment_date') and payment.payment_date else '',
+                            'payment_method': getattr(payment, 'payment_method', 'غير محدد'),
+                            'reference_number': getattr(payment, 'reference_number', ''),
+                        })
+                        
+                        # البحث عن الفاتورة والعميل بطرق مختلفة
+                        invoice = None
+                        customer = None
+                        supplier = None
+                        
+                        # محاولة 1: من خصائص الدفعة المباشرة
+                        for attr in ['sale', 'purchase', 'invoice', 'sale_invoice', 'purchase_invoice']:
+                            if hasattr(payment, attr):
+                                invoice = getattr(payment, attr)
+                                if invoice:
+                                    break
+                        
+                        # محاولة 2: البحث في قاعدة البيانات
+                        if not invoice:
+                            try:
+                                if payment_type == 'sale':
+                                    from sale.models import Sale
+                                    # البحث بناءً على العلاقة المباشرة
+                                    if hasattr(payment, 'sale') and payment.sale:
+                                        invoice = payment.sale
+                                    else:
+                                        # محاولة البحث بناءً على المرجع
+                                        ref = journal_entry.reference
+                                        if 'SALE' in ref:
+                                            invoice_num = ref.split('SALE')[1].split()[0]
+                                            invoice = Sale.objects.filter(number__icontains=invoice_num).first()
+                                else:
+                                    from purchase.models import Purchase
+                                    if hasattr(payment, 'purchase') and payment.purchase:
+                                        invoice = payment.purchase
+                            except:
+                                pass
+                        
+                        # إضافة معلومات الفاتورة
+                        if invoice:
+                            source_data.update({
+                                'invoice_url': f'/sales/invoices/{invoice.id}/' if payment_type == 'sale' else f'/purchases/invoices/{invoice.id}/',
+                                'invoice_number': getattr(invoice, 'number', ''),
+                                'invoice_date': invoice.date.strftime('%Y-%m-%d') if hasattr(invoice, 'date') and invoice.date else '',
+                                'invoice_amount': float(getattr(invoice, 'total_amount', 0) or 0),
+                            })
+                            
+                            # الحصول على العميل/المورد من الفاتورة
+                            if payment_type == 'sale' and hasattr(invoice, 'customer') and invoice.customer:
+                                customer = invoice.customer
+                            elif payment_type == 'purchase' and hasattr(invoice, 'supplier') and invoice.supplier:
+                                supplier = invoice.supplier
+                        
+                        # محاولة الحصول على العميل/المورد مباشرة من الدفعة
+                        if not customer and not supplier:
+                            if payment_type == 'sale' and hasattr(payment, 'customer'):
+                                customer = payment.customer
+                            elif payment_type == 'purchase' and hasattr(payment, 'supplier'):
+                                supplier = payment.supplier
+                        
+                        # إضافة معلومات العميل/المورد
+                        if customer:
+                            source_data.update({
+                                'customer_url': f'/client/{customer.id}/',
+                                'customer_name': customer.name,
+                                'is_customer': True
+                            })
+                        elif supplier:
+                            source_data.update({
+                                'supplier_url': f'/supplier/{supplier.id}/',
+                                'supplier_name': supplier.name,
+                                'is_supplier': True
+                            })
+                    except ImportError:
+                        pass
+                    except Exception:
+                        pass
+                
+                elif journal_entry.reference_type in ['sale_invoice', 'purchase_invoice']:
+                    # محاولة جلب الفاتورة مباشرة
+                    try:
+                        if journal_entry.reference_type == 'sale_invoice':
+                            from sale.models import SaleInvoice
+                            invoice = SaleInvoice.objects.get(id=journal_entry.reference_id)
+                            invoice_type = 'sale'
+                        else:
+                            from purchase.models import PurchaseInvoice
+                            invoice = PurchaseInvoice.objects.get(id=journal_entry.reference_id)
+                            invoice_type = 'purchase'
+                        
+                        source_data.update({
+                            'invoice_url': f'/sales/invoices/{invoice.id}/' if invoice_type == 'sale' else f'/purchases/invoices/{invoice.id}/',
+                            'invoice_number': getattr(invoice, 'number', ''),
+                            'invoice_date': invoice.date.strftime('%Y-%m-%d') if hasattr(invoice, 'date') and invoice.date else '',
+                            'invoice_amount': float(invoice.total_amount) if hasattr(invoice, 'total_amount') else 0,
+                        })
+                        
+                        # معلومات العميل أو المورد
+                        if invoice_type == 'sale' and hasattr(invoice, 'customer') and invoice.customer:
+                            source_data.update({
+                                'customer_url': f'/client/{invoice.customer.id}/',
+                                'customer_name': invoice.customer.name,
+                                'is_customer': True
+                            })
+                        elif invoice_type == 'purchase' and hasattr(invoice, 'supplier') and invoice.supplier:
+                            source_data.update({
+                                'supplier_url': f'/supplier/{invoice.supplier.id}/',
+                                'supplier_name': invoice.supplier.name,
+                                'is_supplier': True
+                            })
+                    except ImportError:
+                        pass
+                    except Exception:
+                        pass
+                        
+            except Exception as e:
+                # في حالة حدوث خطأ، نتجاهل المعلومات الإضافية
+                pass
+                
+            data['source'] = source_data
+        
+        return JsonResponse(data)
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"خطأ في جلب ملخص القيد {journal_entry_id}: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'error': 'حدث خطأ أثناء جلب تفاصيل القيد'
+        }, status=500)

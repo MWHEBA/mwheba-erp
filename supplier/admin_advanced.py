@@ -53,7 +53,7 @@ class PaperServiceDetailsInline(admin.StackedInline):
             },
         ),
         ("معلومات المورد", {"fields": ("country_of_origin", "brand")}),
-        ("التسعير", {"fields": ("price_per_sheet", "price_per_kg")}),
+        ("السعر الأساسي", {"fields": ("price_per_sheet",)}),
     )
 
 
@@ -76,8 +76,6 @@ class DigitalPrintingDetailsInline(admin.StackedInline):
             "المقاسات والقدرات",
             {
                 "fields": (
-                    "max_width_cm",
-                    "max_height_cm",
                     "max_paper_weight_gsm",
                     "supports_heavy_paper",
                 )
@@ -131,17 +129,16 @@ class OffsetPrintingDetailsInline(admin.StackedInline):
             {
                 "fields": (
                     "machine_type",
-                    "machine_model",
                     "sheet_size",
                     "custom_width_cm",
                     "custom_height_cm",
                 )
             },
         ),
-        ("تكاليف الإعداد", {"fields": ("plate_cost", "color_calibration_cost")}),
+        ("تكاليف الإعداد", {"fields": ("color_calibration_cost",)}),
         (
             "التسعير بالتراج",
-            {"fields": ("impression_cost_per_1000", "min_impressions")},
+            {"fields": ("impression_cost_per_1000", "special_impression_cost", "break_impression_cost")},
         ),
         (
             "إمكانيات الماكينة",
@@ -159,15 +156,12 @@ class PlateServiceDetailsInline(admin.StackedInline):
             {
                 "fields": (
                     "plate_size",
-                    "plate_type",
                     "custom_width_cm",
                     "custom_height_cm",
                 )
             },
         ),
-        ("التسعير", {"fields": ("price_per_plate", "transportation_cost")}),
-        ("قيود الخدمة", {"fields": ("min_plates_count", "turnaround_time_hours")}),
-        ("خدمات إضافية", {"fields": ("includes_proofing", "digital_proof_cost")}),
+        ("التسعير", {"fields": ("price_per_plate", "set_price")}),
     )
 
 
@@ -336,6 +330,7 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
         "name",
         "supplier",
         "category",
+        "get_main_price",
         "setup_cost",
         "has_tiers",
         "is_active",
@@ -346,8 +341,7 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
 
     fieldsets = (
         ("معلومات أساسية", {"fields": ("supplier", "category", "name", "description")}),
-        ("معلومات السعر", {"fields": ("setup_cost",)}),
-        ("معلومات إضافية", {"fields": ("is_active",)}),
+        ("إعدادات الخدمة", {"fields": ("setup_cost", "is_active")}),
     )
 
     inlines = [
@@ -370,6 +364,31 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
         return format_html('<span class="badge badge-secondary">لا</span>')
 
     has_tiers.short_description = "شرائح سعرية"
+
+    def get_main_price(self, obj):
+        """عرض السعر الأساسي حسب نوع الخدمة"""
+        if obj.category.code == "paper" and hasattr(obj, "paper_details"):
+            price = obj.paper_details.price_per_sheet
+            return format_html('<span class="badge badge-success">{} ج.م/فرخ</span>', price)
+        elif obj.category.code == "digital_printing" and hasattr(obj, "digital_details"):
+            if obj.digital_details.price_per_page_color:
+                return format_html('<span class="badge badge-info">{} ج.م/صفحة ملونة</span>', 
+                                 obj.digital_details.price_per_page_color)
+        elif obj.category.code == "offset_printing" and hasattr(obj, "offset_details"):
+            if obj.offset_details.impression_cost_per_1000:
+                return format_html('<span class="badge badge-warning">{} ج.م/1000 تراج</span>', 
+                                 obj.offset_details.impression_cost_per_1000)
+        elif obj.category.code == "finishing" and hasattr(obj, "finishing_details"):
+            price = obj.finishing_details.price_per_unit
+            return format_html('<span class="badge badge-primary">{} ج.م/وحدة</span>', price)
+        elif obj.category.code == "laser" and hasattr(obj, "laser_details"):
+            if obj.laser_details.price_per_minute:
+                return format_html('<span class="badge badge-dark">{} ج.م/دقيقة</span>', 
+                                 obj.laser_details.price_per_minute)
+        
+        return format_html('<span class="text-muted">غير محدد</span>')
+
+    get_main_price.short_description = "السعر الأساسي"
 
     def get_inline_instances(self, request, obj=None):
         """عرض الـ inline المناسب حسب فئة الخدمة"""
@@ -427,79 +446,22 @@ class ServicePriceTierAdmin(admin.ModelAdmin):
 # ========================================
 
 
-@admin.register(PaperServiceDetails)
-class PaperServiceDetailsAdmin(admin.ModelAdmin):
-    list_display = (
-        "service",
-        "paper_type",
-        "gsm",
-        "sheet_size",
-        "brand",
-        "price_per_sheet",
-    )
-    list_filter = ("paper_type", "sheet_size", "country_of_origin")
-    search_fields = ("service__name", "brand", "country_of_origin")
+# تم حذف PaperServiceDetails من Admin لتجنب التكرار
+# البيانات متاحة من خلال SpecializedService مع inline
 
+# تم حذف جميع النماذج التفصيلية من Admin لتجنب التكرار
+# جميع البيانات متاحة من خلال SpecializedService مع inlines
 
-@admin.register(DigitalPrintingDetails)
-class DigitalPrintingDetailsAdmin(admin.ModelAdmin):
-    list_display = (
-        "service",
-        "machine_type",
-        "paper_size",
-        "price_per_page_color",
-        "has_price_tiers",
-        "duplex_printing",
-    )
-    list_filter = ("machine_type", "paper_size", "has_price_tiers", "duplex_printing")
-    search_fields = ("service__name", "machine_model")
+# @admin.register(DigitalPrintingDetails) - محذوف
+# @admin.register(OffsetPrintingDetails) - محذوف
+# جميع النماذج التفصيلية محذوفة من Admin لتجنب التكرار
+# البيانات متاحة من خلال SpecializedService مع inlines المناسبة
 
-
-@admin.register(OffsetPrintingDetails)
-class OffsetPrintingDetailsAdmin(admin.ModelAdmin):
-    list_display = (
-        "service",
-        "machine_type",
-        "sheet_size",
-        "max_colors",
-        "impression_cost_per_1000",
-        "has_uv_coating",
-    )
-    list_filter = ("machine_type", "sheet_size", "max_colors", "has_uv_coating")
-    search_fields = ("service__name", "machine_model")
-
-
-@admin.register(LaserServiceDetails)
-class LaserServiceDetailsAdmin(admin.ModelAdmin):
-    list_display = (
-        "service",
-        "laser_type",
-        "service_type",
-        "material_type",
-        "price_per_minute",
-        "includes_design",
-    )
-    list_filter = ("laser_type", "service_type", "material_type", "includes_design")
-    search_fields = ("service__name",)
-
-
-@admin.register(VIPGiftDetails)
-class VIPGiftDetailsAdmin(admin.ModelAdmin):
-    list_display = (
-        "service",
-        "gift_category",
-        "product_name",
-        "brand",
-        "base_price",
-        "includes_gift_box",
-    )
-    list_filter = (
-        "gift_category",
-        "customization_type",
-        "includes_gift_box",
-        "includes_delivery",
-    )
-    search_fields = ("service__name", "product_name", "brand")
+# الفوائد:
+# 1. تجنب التكرار في واجهة الإدارة
+# 2. إدارة موحدة للخدمات من مكان واحد
+# 3. عرض أفضل للعلاقات بين البيانات
+# 4. تقليل التعقيد للمستخدمين
 
 
 # تخصيص العنوان

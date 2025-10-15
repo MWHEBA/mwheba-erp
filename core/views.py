@@ -12,7 +12,7 @@ from client.models import Customer
 from supplier.models import Supplier
 from product.models import Product, Stock
 from .models import SystemSetting, Notification
-# from utils.helpers import create_breadcrumb_item  # غير مستخدم
+# تم حذف create_breadcrumb_item واستبدالها بـ dict مباشر
 
 
 @login_required
@@ -222,10 +222,17 @@ def notifications_list(request):
         "unread_count": unread_notifications.count(),
         "action_buttons": action_buttons,
         "breadcrumb_items": [
-            create_breadcrumb_item(
-                "الرئيسية", reverse("core:dashboard"), "fas fa-home"
-            ),
-            create_breadcrumb_item("إشعاراتي", active=True, icon="fas fa-bell"),
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+                "active": False
+            },
+            {
+                "title": "إشعاراتي",
+                "icon": "fas fa-bell",
+                "active": True
+            },
         ],
     }
 

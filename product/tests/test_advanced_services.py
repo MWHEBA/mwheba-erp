@@ -199,7 +199,7 @@ class AdvancedReportsServiceTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", code="MAIN", location="الرياض", manager=self.user
+            name="المخزن الرئيسي", code="MAIN", location="الرياض", manager=self.user
         )
 
         # إنشاء منتجات متعددة
@@ -360,7 +360,7 @@ class PerformanceTestCase(TestCase):
         self.unit = Unit.objects.create(name="وحدة", symbol="وحدة")
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع الأداء", code="PERF", location="اختبار", manager=self.user
+            name="مخزن الأداء", code="PERF", location="اختبار", manager=self.user
         )
 
     def test_bulk_stock_operations(self):
@@ -481,7 +481,7 @@ class SecurityTestCase(TestCase):
         self.unit = Unit.objects.create(name="وحدة", symbol="وحدة")
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع آمن", code="SECURE", location="آمن", manager=self.admin_user
+            name="مخزن آمن", code="SECURE", location="آمن", manager=self.admin_user
         )
 
         self.product = Product.objects.create(

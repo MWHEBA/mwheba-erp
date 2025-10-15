@@ -4,21 +4,21 @@
 <div class="d-flex flex-column align-items-center">
     <!-- الوزن والمقاس -->
     <div class="fw-bold text-primary mb-1">
-        {% if row.paperservicedetails.gsm %}
-            {{ row.paperservicedetails.gsm }}جم
+        {% if row.paper_details.gsm %}
+            {{ row.paper_details.gsm }}جم
         {% else %}
             -
         {% endif %}
-        {% if row.paperservicedetails.sheet_size %}
-            • {{ row.paperservicedetails.sheet_size }}
+        {% if row.paper_details.sheet_size %}
+            • {{ row.paper_details.sheet_size }}
         {% endif %}
     </div>
     
     <!-- الماركة إذا وجدت -->
-    {% if row.paperservicedetails.brand %}
+    {% if row.paper_details.brand %}
         <div class="small text-muted">
             <i class="fas fa-trademark me-1"></i>
-            {{ row.paperservicedetails.brand }}
+            {{ row.paper_details.brand }}
         </div>
     {% endif %}
 </div>

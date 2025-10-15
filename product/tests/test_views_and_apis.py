@@ -45,7 +45,7 @@ class ProductViewsTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="المستودع الرئيسي", code="MAIN", location="الرياض", manager=self.user
+            name="المخزن الرئيسي", code="MAIN", location="الرياض", manager=self.user
         )
 
         self.product = Product.objects.create(
@@ -152,7 +152,7 @@ class InventoryAPITestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع API", code="API", location="اختبار", manager=self.user
+            name="مخزن API", code="API", location="اختبار", manager=self.user
         )
 
         self.product = Product.objects.create(
@@ -171,7 +171,7 @@ class InventoryAPITestCase(TestCase):
         )
 
     def test_get_stock_by_warehouse_api(self):
-        """اختبار API الحصول على المخزون حسب المستودع"""
+        """اختبار API الحصول على المخزون حسب المخزن"""
         url = reverse("product:get_stock_by_warehouse")
 
         response = self.client.get(
@@ -465,7 +465,7 @@ class ExpirySystemTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع الصلاحية", code="EXPIRY", location="اختبار", manager=self.user
+            name="مخزن الصلاحية", code="EXPIRY", location="اختبار", manager=self.user
         )
 
         self.product = Product.objects.create(
@@ -601,7 +601,7 @@ class ReservationSystemTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="مستودع الحجوزات", code="RESERVE", location="اختبار", manager=self.user
+            name="مخزن الحجوزات", code="RESERVE", location="اختبار", manager=self.user
         )
 
         self.product = Product.objects.create(
@@ -706,7 +706,7 @@ class ErrorHandlingTestCase(TestCase):
         unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         warehouse = Warehouse.objects.create(
-            name="مستودع الخطأ", code="ERROR", location="اختبار", manager=self.user
+            name="مخزن الخطأ", code="ERROR", location="اختبار", manager=self.user
         )
 
         product = Product.objects.create(

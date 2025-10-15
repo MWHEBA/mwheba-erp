@@ -285,7 +285,7 @@ def create_transfer(request):
                 return redirect("product:create_transfer")
 
             if from_warehouse_id == to_warehouse_id:
-                messages.error(request, "لا يمكن التحويل لنفس المستودع")
+                messages.error(request, "لا يمكن التحويل لنفس المخزن")
                 return redirect("product:create_transfer")
 
             if quantity <= 0:
@@ -324,7 +324,7 @@ def create_transfer(request):
 @require_http_methods(["GET"])
 def get_product_stock_api(request, product_id):
     """
-    API للحصول على مخزون منتج في جميع المستودعات
+    API للحصول على مخزون منتج في جميع المخازن
     """
     try:
         product = get_object_or_404(Product, id=product_id)
@@ -599,7 +599,7 @@ def inventory_turnover_report(request):
                     "category_class": category_class,
                     "warehouse_name": warehouse.name
                     if warehouse
-                    else "جميع المستودعات",
+                    else "جميع المخازن",
                 }
             )
 
@@ -898,7 +898,7 @@ def reorder_point_report(request):
                 "days_remaining": days_remaining,
                 "status": status,
                 "urgency": urgency,
-                "warehouse_name": warehouse.name if warehouse else "جميع المستودعات",
+                "warehouse_name": warehouse.name if warehouse else "جميع المخازن",
                 # حقول إضافية للتوافق مع Template
                 "max_stock": current_stock * 2,  # افتراضي
                 "stock_percentage": min(

@@ -278,11 +278,11 @@
     <form method="get" class="row g-3">
       <div class="col-md-3">
         <label for="date_from" class="form-label">من تاريخ</label>
-        <input type="date" class="form-control" id="date_from" name="date_from" value="{{ date_from }}">
+        <input type="date" class="form-control" id="date_from" name="date_from" value="{% if date_from and date_from != 'None' %}{{ date_from }}{% endif %}">
       </div>
       <div class="col-md-3">
         <label for="date_to" class="form-label">إلى تاريخ</label>
-        <input type="date" class="form-control" id="date_to" name="date_to" value="{{ date_to }}">
+        <input type="date" class="form-control" id="date_to" name="date_to" value="{% if date_to and date_to != 'None' %}{{ date_to }}{% endif %}">
       </div>
       <div class="col-md-4">
         <label for="search" class="form-label">بحث</label>
@@ -457,12 +457,26 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-          <i class="fas fa-times me-1"></i>إغلاق
-        </button>
-        <a href="#" id="viewFullJournalEntry" class="btn btn-primary" target="_blank">
-          <i class="fas fa-external-link-alt me-1"></i>عرض كامل
-        </a>
+        <div class="me-auto">
+          <!-- الأزرار الإضافية للدفعة والفاتورة والعميل/المورد -->
+          <a href="#" id="viewPaymentBtn" class="btn btn-outline-success btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-money-bill-wave me-1"></i>عرض الدفعة
+          </a>
+          <a href="#" id="viewInvoiceBtn" class="btn btn-outline-info btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-file-invoice me-1"></i>عرض الفاتورة
+          </a>
+          <a href="#" id="viewClientBtn" class="btn btn-outline-warning btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-user me-1"></i><span id="clientBtnText">عرض العميل</span>
+          </a>
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>إغلاق
+          </button>
+          <a href="#" id="viewFullJournalEntry" class="btn btn-primary" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>عرض كامل
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -477,11 +491,18 @@
     $('input[type="date"]').addClass('form-control');
     
     // تحديد التاريخ الافتراضي للبحث
-    if (!$('#date_from').val()) {
+    if (!$('#date_from').val() || $('#date_from').val() === 'None') {
       var lastMonth = new Date();
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       $('#date_from').val(lastMonth.toISOString().split('T')[0]);
     }
+    
+    // التأكد من أن حقول التاريخ لا تحتوي على قيم غير صالحة
+    $('input[type="date"]').each(function() {
+      if ($(this).val() === 'None' || $(this).val() === 'null') {
+        $(this).val('');
+      }
+    });
     
     // إضافة event listener للصفوف القابلة للنقر
     $(document).on('click', '.clickable-row', function(e) {
@@ -510,23 +531,44 @@
     document.getElementById('viewFullJournalEntry').href = 
       `/financial/journal-entries/${journalEntryId}/`;
     
+    // إخفاء جميع الأزرار الإضافية في البداية
+    document.getElementById('viewPaymentBtn').style.display = 'none';
+    document.getElementById('viewInvoiceBtn').style.display = 'none';
+    document.getElementById('viewClientBtn').style.display = 'none';
+    
     // جلب تفاصيل القيد
     fetch(`/financial/api/journal-entry/${journalEntryId}/summary/`)
       .then(response => {
         if (!response.ok) {
-          throw new Error('فشل في تحميل البيانات');
+          if (response.status === 404) {
+            throw new Error('القيد المحاسبي غير موجود');
+          } else if (response.status === 403) {
+            throw new Error('ليس لديك صلاحية للوصول إلى هذا القيد');
+          } else {
+            throw new Error(`خطأ في الخادم: ${response.status}`);
+          }
         }
         return response.json();
       })
       .then(data => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
         displayJournalEntrySummary(data);
+        updateActionButtons(data);
       })
       .catch(error => {
         console.error('خطأ:', error);
         document.getElementById('journalEntryContent').innerHTML = `
           <div class="alert alert-danger text-center">
             <i class="fas fa-exclamation-triangle me-2"></i>
-            حدث خطأ أثناء تحميل تفاصيل القيد. يرجى المحاولة مرة أخرى.
+            <strong>خطأ في تحميل القيد:</strong><br>
+            ${error.message}
+            <div class="mt-3">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="showJournalEntryModal(${journalEntryId})">
+                <i class="fas fa-redo me-1"></i>إعادة المحاولة
+              </button>
+            </div>
           </div>
         `;
       });
@@ -563,112 +605,6 @@
           </div>
         </div>`;
     
-    // إضافة معلومات المصدر إذا كانت متوفرة
-    if (data.source) {
-      const isPayment = data.source.type.includes('_payment');
-      const isInvoice = data.source.type.includes('_invoice');
-      const isPurchase = data.source.type.includes('purchase');
-      
-      html += `
-        <div class="row mt-3">
-          <div class="col-12">
-            <div class="alert alert-info">
-              <h6 class="mb-2">
-                <i class="fas fa-link me-2"></i>مصدر القيد: ${data.source.type_display}
-              </h6>`;
-      
-      if (isPayment) {
-        // عرض معلومات الدفعة
-        html += `
-              <div class="row">
-                <div class="col-md-6">
-                  <strong>المبلغ:</strong> ${formatNumber(data.source.amount)} جنيه
-                </div>
-                <div class="col-md-6">
-                  <strong>تاريخ الدفع:</strong> ${data.source.payment_date}
-                </div>
-              </div>
-              <div class="row mt-2">
-                <div class="col-md-6">
-                  <strong>طريقة الدفع:</strong> ${data.source.payment_method}
-                </div>
-                <div class="col-md-6">
-                  <strong>رقم المرجع:</strong> ${data.source.reference_number || 'غير محدد'}
-                </div>
-              </div>
-              <div class="row mt-2">
-                <div class="col-md-6">
-                  <strong>رقم الفاتورة:</strong> 
-                  <a href="${data.source.invoice_url}" target="_blank" class="text-decoration-none">
-                    ${data.source.invoice_number}
-                    <i class="fas fa-external-link-alt ms-1"></i>
-                  </a>
-                </div>
-                <div class="col-md-6">
-                  <strong>${isPurchase ? 'المورد' : 'العميل'}:</strong> 
-                  <a href="${isPurchase ? data.source.supplier_url : data.source.customer_url}" target="_blank" class="text-decoration-none">
-                    ${isPurchase ? data.source.supplier_name : data.source.customer_name}
-                    <i class="fas fa-external-link-alt ms-1"></i>
-                  </a>
-                </div>
-              </div>
-              <div class="mt-2">
-                <a href="${data.source.url}" target="_blank" class="btn btn-sm btn-outline-primary">
-                  <i class="fas fa-eye me-1"></i>عرض تفاصيل الدفعة
-                </a>
-              </div>`;
-      } else if (isInvoice) {
-        // عرض معلومات الفاتورة
-        html += `
-              <div class="row">
-                <div class="col-md-6">
-                  <strong>المبلغ الإجمالي:</strong> ${formatNumber(data.source.amount)} جنيه
-                </div>
-                <div class="col-md-6">
-                  <strong>تاريخ الفاتورة:</strong> ${data.source.invoice_date}
-                </div>
-              </div>
-              <div class="row mt-2">
-                <div class="col-md-6">
-                  <strong>رقم الفاتورة:</strong> ${data.source.invoice_number}
-                </div>
-                <div class="col-md-6">
-                  <strong>الحالة:</strong> 
-                  <span class="badge bg-secondary">${data.source.status}</span>
-                </div>
-              </div>
-              <div class="row mt-2">
-                <div class="col-12">
-                  <strong>${isPurchase ? 'المورد' : 'العميل'}:</strong> 
-                  <a href="${isPurchase ? data.source.supplier_url : data.source.customer_url}" target="_blank" class="text-decoration-none">
-                    ${isPurchase ? data.source.supplier_name : data.source.customer_name}
-                    <i class="fas fa-external-link-alt ms-1"></i>
-                  </a>
-                </div>
-              </div>`;
-        
-        if (data.source.notes) {
-          html += `
-              <div class="row mt-2">
-                <div class="col-12">
-                  <strong>ملاحظات:</strong> ${data.source.notes}
-                </div>
-              </div>`;
-        }
-        
-        html += `
-              <div class="mt-2">
-                <a href="${data.source.url}" target="_blank" class="btn btn-sm btn-outline-primary">
-                  <i class="fas fa-file-invoice me-1"></i>عرض الفاتورة
-                </a>
-              </div>`;
-      }
-      
-      html += `
-            </div>
-          </div>
-        </div>`;
-    }
     
     html += `
       </div>
@@ -749,6 +685,55 @@
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     });
+  }
+
+  // دالة تحديث أزرار الإجراءات حسب توفر البيانات
+  function updateActionButtons(data) {
+    
+    const paymentBtn = document.getElementById('viewPaymentBtn');
+    const invoiceBtn = document.getElementById('viewInvoiceBtn');
+    const clientBtn = document.getElementById('viewClientBtn');
+    const clientBtnText = document.getElementById('clientBtnText');
+    
+    
+    // إخفاء جميع الأزرار في البداية
+    paymentBtn.style.display = 'none';
+    invoiceBtn.style.display = 'none';
+    clientBtn.style.display = 'none';
+    
+    // التحقق من وجود معلومات المصدر
+    if (data.source) {
+      console.log('Available source data:', Object.keys(data.source)); // للتصحيح
+      console.log('Source data values:', data.source); // للتصحيح
+      
+      // زر عرض الدفعة
+      if (data.source.payment_url) {
+        paymentBtn.href = data.source.payment_url;
+        paymentBtn.style.display = 'inline-block';
+        paymentBtn.style.visibility = 'visible';
+      }
+      
+      // زر عرض الفاتورة
+      if (data.source.invoice_url) {
+        console.log('Setting invoice button:', data.source.invoice_url); // للتصحيح
+        invoiceBtn.href = data.source.invoice_url;
+        invoiceBtn.style.display = 'inline-block';
+      }
+      
+      // زر عرض العميل أو المورد
+      if (data.source.customer_url) {
+        console.log('Setting customer button:', data.source.customer_url); // للتصحيح
+        clientBtn.href = data.source.customer_url;
+        clientBtnText.textContent = 'عرض العميل';
+        clientBtn.style.display = 'inline-block';
+      } else if (data.source.supplier_url) {
+        console.log('Setting supplier button:', data.source.supplier_url); // للتصحيح
+        clientBtn.href = data.source.supplier_url;
+        clientBtnText.textContent = 'عرض المورد';
+        clientBtn.style.display = 'inline-block';
+      }
+    }
+    
   }
 </script>
 {% endblock %}

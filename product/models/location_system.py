@@ -1,5 +1,5 @@
 """
-نظام إدارة المواقع داخل المستودعات
+نظام إدارة المواقع داخل المخازن
 يدير الأرفف والممرات والمواقع التفصيلية للمنتجات
 """
 from django.db import models
@@ -12,7 +12,7 @@ from decimal import Decimal
 
 class LocationZone(models.Model):
     """
-    نموذج المناطق داخل المستودع
+    نموذج المناطق داخل المخزن
     مثل: منطقة التبريد، منطقة الأدوية، منطقة المواد الغذائية
     """
 
@@ -29,7 +29,7 @@ class LocationZone(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="zones",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     name = models.CharField(_("اسم المنطقة"), max_length=100)
@@ -90,8 +90,8 @@ class LocationZone(models.Model):
     )
 
     class Meta:
-        verbose_name = _("منطقة مستودع")
-        verbose_name_plural = _("مناطق المستودعات")
+        verbose_name = _("منطقة مخزن")
+        verbose_name_plural = _("مناطق المخازن")
         unique_together = ("warehouse", "code")
         ordering = ["warehouse", "name"]
 
@@ -197,7 +197,7 @@ class LocationShelf(models.Model):
 class ProductLocation(models.Model):
     """
     نموذج مواقع المنتجات
-    يربط المنتج بموقع محدد في المستودع
+    يربط المنتج بموقع محدد في المخزن
     """
 
     LOCATION_TYPE = (
@@ -280,7 +280,7 @@ class ProductLocation(models.Model):
 
     @property
     def warehouse(self):
-        """المستودع المرتبط بهذا الموقع"""
+        """المخزن المرتبط بهذا الموقع"""
         return self.shelf.aisle.zone.warehouse
 
     @property

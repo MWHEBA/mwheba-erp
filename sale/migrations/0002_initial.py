@@ -44,7 +44,7 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sale_returns",
                 to="product.warehouse",
-                verbose_name="المستودع",
+                verbose_name="المخزن",
             ),
         ),
         migrations.AddField(
@@ -113,7 +113,7 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="sales",
                 to="product.warehouse",
-                verbose_name="المستودع",
+                verbose_name="المخزن",
             ),
         ),
     ]

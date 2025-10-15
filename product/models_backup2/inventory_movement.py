@@ -30,7 +30,7 @@ class InventoryMovement(models.Model):
         ("purchase", _("فاتورة شراء")),
         ("sale", _("فاتورة بيع")),
         ("manual", _("يدوي")),
-        ("transfer", _("تحويل بين المستودعات")),
+        ("transfer", _("تحويل بين المخازن")),
         ("adjustment", _("تسوية جرد")),
         ("return_in", _("إرجاع من عميل")),
         ("return_out", _("إرجاع لمورد")),
@@ -50,7 +50,7 @@ class InventoryMovement(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="movements",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
         null=True,
         blank=True,
     )
@@ -147,7 +147,7 @@ class StockSnapshot(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="snapshots",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     snapshot_date = models.DateField(_("تاريخ اللقطة"), default=timezone.now)
@@ -206,7 +206,7 @@ class InventoryAdjustment(models.Model):
         "product.Warehouse",
         on_delete=models.CASCADE,
         related_name="adjustments",
-        verbose_name=_("المستودع"),
+        verbose_name=_("المخزن"),
     )
 
     adjustment_type = models.CharField(

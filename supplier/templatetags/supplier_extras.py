@@ -39,6 +39,13 @@ def filter_by_category(services, category):
 def has_services_for_category(services_by_category, category_id):
     """التحقق من وجود خدمات لفئة معينة"""
     for category_group in services_by_category:
-        if category_group.grouper and category_group.grouper.id == category_id:
-            return True
+        # دعم كل من regroup و groupby structures
+        if hasattr(category_group, 'grouper'):
+            # structure من regroup
+            if category_group.grouper and category_group.grouper.id == category_id:
+                return True
+        elif isinstance(category_group, dict) and 'grouper' in category_group:
+            # structure من groupby (dict)
+            if category_group['grouper'] and category_group['grouper'].id == category_id:
+                return True
     return False

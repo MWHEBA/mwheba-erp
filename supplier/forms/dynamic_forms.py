@@ -40,42 +40,234 @@ class ServiceFormFactory:
         return form_class(*args, **kwargs)
 
     @staticmethod
+    def convert_legacy_sheet_size(old_value):
+        """تحويل قيم مقاسات الورق القديمة للجديدة"""
+        legacy_mapping = {
+            "full_70x100": "70.00x100.00",
+            "half_50x70": "50.00x70.00", 
+            "quarter_35x50": "35.00x50.00",
+            "a3": "29.70x42.00",
+            "a4": "21.00x29.70",
+            "custom": "custom"
+        }
+        return legacy_mapping.get(old_value, old_value)
+
+    @staticmethod
+    def convert_legacy_paper_type(old_value):
+        """تحويل قيم أنواع الورق القديمة للجديدة"""
+        try:
+            from pricing.models import PaperType
+            # البحث عن نوع الورق بالاسم
+            paper_type = PaperType.objects.filter(name__icontains=old_value, is_active=True).first()
+            if paper_type:
+                return paper_type.name
+        except ImportError:
+            pass
+        
+        # تطبيع القيم القديمة المعروفة
+        type_mapping = {
+            'coated': 'كوشيه',
+            'offset': 'طبع',
+        }
+        return type_mapping.get(old_value, old_value)
+
+    @staticmethod
+    def normalize_legacy_data(paper_type=None, sheet_size=None, country_of_origin=None):
+        """تطبيع البيانات القديمة لتتطابق مع المرجعية"""
+        normalized = {}
+        
+        # تطبيع نوع الورق
+        if paper_type:
+            normalized['paper_type'] = ServiceFormFactory.convert_legacy_paper_type(paper_type)
+        
+        # تطبيع مقاس الورق
+        if sheet_size:
+            normalized['sheet_size'] = ServiceFormFactory.convert_legacy_sheet_size(sheet_size)
+        
+        # تطبيع منشأ الورق (يبقى كما هو لأنه يستخدم الكود)
+        if country_of_origin:
+            normalized['country_of_origin'] = country_of_origin
+        
+        return normalized
+
+    @staticmethod
+    def validate_data(paper_type=None, gsm=None, sheet_size=None, country_of_origin=None):
+        """التحقق من صحة البيانات مقابل المرجعية"""
+        errors = []
+        
+        try:
+            from pricing.models import PaperType, PaperWeight, PaperOrigin, PaperSize
+            
+            # التحقق من نوع الورق
+            if paper_type:
+                valid_types = [pt.name for pt in PaperType.objects.filter(is_active=True)]
+                if paper_type not in valid_types:
+                    errors.append(f"نوع الورق '{paper_type}' غير موجود في المرجعية")
+            
+            # التحقق من الوزن
+            if gsm:
+                valid_weights = [pw.gsm for pw in PaperWeight.objects.filter(is_active=True)]
+                if gsm not in valid_weights:
+                    errors.append(f"وزن الورق '{gsm}' غير موجود في المرجعية")
+            
+            # التحقق من المقاس
+            if sheet_size and sheet_size != 'custom':
+                valid_sizes = [f"{ps.width}x{ps.height}" for ps in PaperSize.objects.filter(is_active=True)]
+                if sheet_size not in valid_sizes:
+                    errors.append(f"مقاس الورق '{sheet_size}' غير موجود في المرجعية")
+            
+            # التحقق من المنشأ
+            if country_of_origin:
+                valid_origins = [po.code for po in PaperOrigin.objects.filter(is_active=True)]
+                if country_of_origin not in valid_origins:
+                    errors.append(f"منشأ الورق '{country_of_origin}' غير موجود في المرجعية")
+        
+        except ImportError:
+            errors.append("لا يمكن الوصول لنماذج المرجعية")
+        
+        return errors
+
+    @staticmethod
+    def get_unified_paper_choices():
+        """جلب خيارات الورق الموحدة من المرجعية الوحيدة"""
+        try:
+            from pricing.models import PaperType, PaperWeight, PaperOrigin, PaperSize
+
+            return {
+                "paper_types": [
+                    (pt.name, pt.name) 
+                    for pt in PaperType.objects.filter(is_active=True).order_by("name")
+                ],
+                "paper_weights": [
+                    (pw.gsm, f"{pw.name} ({pw.gsm} جم)") 
+                    for pw in PaperWeight.objects.filter(is_active=True).order_by("gsm")
+                ],
+                "sheet_sizes": [
+                    (f"{ps.width}x{ps.height}", str(ps)) 
+                    for ps in PaperSize.objects.filter(is_active=True).order_by("name")
+                ],
+                "paper_origins": [
+                    (po.code, f"{po.name} ({po.code})") 
+                    for po in PaperOrigin.objects.filter(is_active=True).order_by("name")
+                ]
+            }
+        except ImportError:
+            # في حالة عدم وجود النماذج، استخدم خيارات افتراضية
+            return {
+                "paper_types": [("كوشيه", "كوشيه"), ("طبع", "طبع")],
+                "paper_weights": [(80, "80 جرام"), (120, "120 جرام")],
+                "sheet_sizes": [("70x100", "فرخ كامل"), ("50x70", "نصف فرخ")],
+                "paper_origins": [("EG", "مصر"), ("CN", "الصين")]
+            }
+
+    @staticmethod
+    def get_unified_offset_choices():
+        """جلب خيارات الأوفست الموحدة من المرجعية الوحيدة"""
+        try:
+            from pricing.models import OffsetMachineType, OffsetSheetSize
+
+            return {
+                "machine_types": [
+                    (mt.code, str(mt)) 
+                    for mt in OffsetMachineType.objects.filter(is_active=True).order_by("manufacturer", "name")
+                ],
+                "sheet_sizes": [
+                    (ss.code, str(ss)) 
+                    for ss in OffsetSheetSize.objects.filter(is_active=True).order_by("width_cm", "height_cm")
+                ]
+            }
+        except ImportError:
+            # في حالة عدم وجود النماذج، استخدم خيارات افتراضية
+            return {
+                "machine_types": [
+                    ("sm52", "هايدلبرج - SM52"),
+                    ("gto52", "هايدلبرج - GTO52")
+                ],
+                "sheet_sizes": [
+                    ("quarter_sheet", "ربع فرخ (35×50 سم)"),
+                    ("half_sheet", "نصف فرخ (50×70 سم)"),
+                    ("full_sheet", "فرخ كامل (70×100 سم)")
+                ]
+            }
+
+    @staticmethod
+    def convert_legacy_machine_type(old_value):
+        """تحويل أنواع ماكينات الأوفست القديمة للجديدة"""
+        legacy_mapping = {
+            'heidelberg_sm52': 'sm52',
+            'heidelberg_sm74': 'sm74',
+            'heidelberg_sm102': 'sm102',
+            'komori_ls40': 'ls40',
+            'komori_ls29': 'ls29',
+            'ryobi_524': 'ryobi_524',
+            'ryobi_520': 'ryobi_520',
+            'ryobi_750': 'ryobi_750',
+            'gto_52': 'gto52',
+            'other': 'other'
+        }
+        return legacy_mapping.get(old_value, old_value)
+
+    @staticmethod
+    def convert_legacy_offset_sheet_size(old_value):
+        """تحويل مقاسات الأوفست القديمة للجديدة"""
+        legacy_mapping = {
+            "35x50": "quarter_sheet",
+            "50x70": "half_sheet", 
+            "70x100": "full_sheet",
+            "custom": "custom"
+        }
+        return legacy_mapping.get(old_value, old_value)
+
+    @staticmethod
+    def normalize_legacy_offset_data(machine_type=None, sheet_size=None):
+        """تطبيع بيانات الأوفست القديمة لتتطابق مع المرجعية"""
+        normalized = {}
+        
+        # تطبيع نوع الماكينة
+        if machine_type:
+            normalized['machine_type'] = ServiceFormFactory.convert_legacy_machine_type(machine_type)
+        
+        # تطبيع مقاس الماكينة
+        if sheet_size:
+            normalized['sheet_size'] = ServiceFormFactory.convert_legacy_offset_sheet_size(sheet_size)
+        
+        return normalized
+
+    @staticmethod
+    def validate_offset_data(machine_type=None, sheet_size=None):
+        """التحقق من صحة بيانات الأوفست مقابل المرجعية"""
+        errors = []
+        
+        try:
+            from pricing.models import OffsetMachineType, OffsetSheetSize
+            
+            # التحقق من نوع الماكينة
+            if machine_type:
+                if not OffsetMachineType.objects.filter(code=machine_type, is_active=True).exists():
+                    errors.append(f"نوع الماكينة '{machine_type}' غير موجود في المرجعية")
+            
+            # التحقق من مقاس الماكينة
+            if sheet_size:
+                if not OffsetSheetSize.objects.filter(code=sheet_size, is_active=True).exists():
+                    errors.append(f"مقاس الماكينة '{sheet_size}' غير موجود في المرجعية")
+                    
+        except ImportError:
+            # في حالة عدم وجود النماذج، لا نتحقق
+            pass
+        
+        return errors
+
+    @staticmethod
     def get_form_choices_for_category(category_code):
-        """إرجاع الخيارات المناسبة لكل تصنيف"""
+        """جلب خيارات النموذج لتصنيف معين"""
 
-        # للطباعة الأوفست، استخدم البيانات من الإعدادات
-        if category_code == "offset_printing":
-            try:
-                from pricing.models import OffsetMachineType, OffsetSheetSize
+        # للورق، استخدم النظام الموحد
+        if category_code == "paper":
+            return ServiceFormFactory.get_unified_paper_choices()
 
-                # أنواع الماكينات من الإعدادات
-                machine_types = OffsetMachineType.objects.filter(
-                    is_active=True
-                ).order_by("manufacturer", "name")
-                machine_choices = [
-                    (machine.code, str(machine))  # استخدام __str__ method من النموذج
-                    for machine in machine_types
-                ]
-
-                # مقاسات الماكينات من الإعدادات
-                sheet_sizes = OffsetSheetSize.objects.filter(is_active=True).order_by(
-                    "width_cm", "height_cm"
-                )
-                size_choices = [
-                    (
-                        size.code,
-                        f"{size.name} ({int(size.width_cm)}×{int(size.height_cm)})",
-                    )
-                    for size in sheet_sizes
-                ]
-
-                return {
-                    "machine_types": machine_choices,
-                    "sheet_sizes": size_choices,
-                }
-            except ImportError:
-                # في حالة عدم وجود النماذج، استخدم الخيارات الافتراضية
-                pass
+        # للطباعة الأوفست، استخدم النظام الموحد
+        elif category_code == "offset_printing":
+            return ServiceFormFactory.get_unified_offset_choices()
 
         # للطباعة الديجيتال، استخدم البيانات من الإعدادات
         if category_code == "digital_printing":
@@ -111,70 +303,9 @@ class ServiceFormFactory:
                 # في حالة عدم وجود النماذج، استخدم الخيارات الافتراضية
                 pass
 
-        # للورق، استخدم البيانات من الإعدادات
-        if category_code == "paper":
-            try:
-                from pricing.models import PaperType, PaperWeight, PaperOrigin
-
-                # أنواع الورق من الإعدادات
-                paper_types = PaperType.objects.filter(is_active=True).order_by("name")
-                type_choices = [
-                    (paper_type.name.lower(), paper_type.name)
-                    for paper_type in paper_types
-                ]
-
-                # أوزان الورق من الإعدادات
-                paper_weights = PaperWeight.objects.filter(is_active=True).order_by(
-                    "gsm"
-                )
-                weight_choices = [
-                    (weight.gsm, f"{weight.name} ({weight.gsm} جم)")
-                    for weight in paper_weights
-                ]
-
-                # منشأ الورق من الإعدادات
-                paper_origins = PaperOrigin.objects.filter(is_active=True).order_by(
-                    "name"
-                )
-                origin_choices = [
-                    (origin.code, f"{origin.name} ({origin.code})")
-                    for origin in paper_origins
-                ]
-
-                return {
-                    "paper_types": type_choices,
-                    "sheet_sizes": PaperServiceDetails.SHEET_SIZE_CHOICES,
-                    "paper_weights": weight_choices,
-                    "paper_origins": origin_choices,
-                }
-            except ImportError:
-                # في حالة عدم وجود النماذج، استخدم الخيارات الافتراضية
-                return {
-                    "paper_types": PaperServiceDetails.PAPER_TYPE_CHOICES,
-                    "sheet_sizes": PaperServiceDetails.SHEET_SIZE_CHOICES,
-                    "paper_weights": [
-                        (80, "80 جم"),
-                        (90, "90 جم"),
-                        (120, "120 جم"),
-                        (160, "160 جم"),
-                        (200, "200 جم"),
-                        (250, "250 جم"),
-                        (300, "300 جم"),
-                    ],
-                    "paper_origins": [
-                        ("eg", "مصر (EG)"),
-                        ("cn", "الصين (CN)"),
-                        ("de", "ألمانيا (DE)"),
-                        ("fi", "فنلندا (FI)"),
-                    ],
-                }
 
         # الخيارات الافتراضية للتصنيفات الأخرى
         choices_mapping = {
-            "paper": {
-                "paper_types": PaperServiceDetails.PAPER_TYPE_CHOICES,
-                "sheet_sizes": PaperServiceDetails.SHEET_SIZE_CHOICES,
-            },
             "offset_printing": {
                 "machine_types": OffsetPrintingDetails.MACHINE_TYPE_CHOICES,
                 "sheet_sizes": OffsetPrintingDetails.SHEET_SIZE_CHOICES,
@@ -257,7 +388,7 @@ class PaperServiceForm(BaseServiceForm):
 
     sheet_size = forms.ChoiceField(
         label=_("مقاس الفرخ"),
-        choices=PaperServiceDetails.SHEET_SIZE_CHOICES,
+        choices=[],  # سيتم تحديثها ديناميكياً
         widget=forms.Select(
             attrs={"class": "form-select", "onchange": "toggleCustomSize(this)"}
         ),
@@ -305,62 +436,22 @@ class PaperServiceForm(BaseServiceForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # تحديث خيارات أنواع الورق من الإعدادات
-        try:
-            from pricing.models import PaperType
-
-            paper_types = PaperType.objects.filter(is_active=True).order_by("name")
-            self.fields["paper_type"].choices = [("", "-- اختر نوع الورق --")] + [
-                (paper_type.name.lower(), paper_type.name) for paper_type in paper_types
-            ]
-        except ImportError:
-            # في حالة عدم وجود النموذج، استخدم خيارات افتراضية
-            self.fields["paper_type"].choices = PaperServiceDetails.PAPER_TYPE_CHOICES
-
-        # تحديث خيارات أوزان الورق من الإعدادات
-        try:
-            from pricing.models import PaperWeight
-
-            paper_weights = PaperWeight.objects.filter(is_active=True).order_by("gsm")
-            self.fields["gsm"].choices = [("", "-- اختر وزن الورق --")] + [
-                (weight.gsm, f"{weight.name} ({weight.gsm} جم)")
-                for weight in paper_weights
-            ]
-        except ImportError:
-            # في حالة عدم وجود النموذج، استخدم خيارات افتراضية
-            self.fields["gsm"].choices = [("", "-- اختر وزن الورق --")] + [
-                (80, "80 جم"),
-                (90, "90 جم"),
-                (120, "120 جم"),
-                (160, "160 جم"),
-                (200, "200 جم"),
-                (250, "250 جم"),
-                (300, "300 جم"),
-            ]
-
-        # تحديث خيارات منشأ الورق من الإعدادات
-        try:
-            from pricing.models import PaperOrigin
-
-            paper_origins = PaperOrigin.objects.filter(is_active=True).order_by("name")
-            origin_choices = [("", "-- اختر المنشأ --")]
-            origin_choices.extend(
-                [
-                    (origin.code, f"{origin.name} ({origin.code})")
-                    for origin in paper_origins
-                ]
-            )
-            self.fields["country_of_origin"].choices = origin_choices
-        except ImportError:
-            # في حالة عدم وجود النموذج، استخدم خيارات افتراضية
-            self.fields["country_of_origin"].choices = [
-                ("", "-- اختر المنشأ --"),
-                ("EG", "مصر (EG)"),
-                ("CN", "الصين (CN)"),
-                ("DE", "ألمانيا (DE)"),
-                ("FI", "فنلندا (FI)"),
-                ("SE", "السويد (SE)"),
-            ]
+        # استخدام النظام الموحد لجلب جميع الخيارات من المرجعية الوحيدة
+        unified_choices = ServiceFormFactory.get_unified_paper_choices()
+        
+        # تحديث خيارات أنواع الورق
+        self.fields["paper_type"].choices = [("", "-- اختر نوع الورق --")] + unified_choices["paper_types"]
+        
+        # تحديث خيارات أوزان الورق
+        self.fields["gsm"].choices = [("", "-- اختر وزن الورق --")] + unified_choices["paper_weights"]
+        
+        # تحديث خيارات مقاسات الورق مع إضافة المقاس المخصص
+        size_choices = [("", "-- اختر مقاس الفرخ --")] + unified_choices["sheet_sizes"]
+        size_choices.append(("custom", "مقاس مخصص"))
+        self.fields["sheet_size"].choices = size_choices
+        
+        # تحديث خيارات منشأ الورق
+        self.fields["country_of_origin"].choices = [("", "-- اختر المنشأ --")] + unified_choices["paper_origins"]
 
 
 class OffsetPrintingForm(BaseServiceForm):
@@ -381,37 +472,14 @@ class OffsetPrintingForm(BaseServiceForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # تحديث خيارات أنواع الماكينات من الإعدادات
-        try:
-            from pricing.models import OffsetMachineType
-
-            machine_types = OffsetMachineType.objects.filter(is_active=True).order_by(
-                "manufacturer", "name"
-            )
-            self.fields["machine_type"].choices = [
-                (machine.code, str(machine))  # استخدام __str__ method من النموذج
-                for machine in machine_types
-            ]
-        except ImportError:
-            # في حالة عدم وجود النموذج، استخدم الخيارات الافتراضية
-            self.fields[
-                "machine_type"
-            ].choices = OffsetPrintingDetails.MACHINE_TYPE_CHOICES
-
-        # تحديث خيارات مقاسات الماكينات من الإعدادات
-        try:
-            from pricing.models import OffsetSheetSize
-
-            sheet_sizes = OffsetSheetSize.objects.filter(is_active=True).order_by(
-                "width_cm", "height_cm"
-            )
-            self.fields["sheet_size"].choices = [
-                (size.code, f"{size.name} ({int(size.width_cm)}×{int(size.height_cm)})")
-                for size in sheet_sizes
-            ]
-        except ImportError:
-            # في حالة عدم وجود النموذج، استخدم الخيارات الافتراضية
-            self.fields["sheet_size"].choices = OffsetPrintingDetails.SHEET_SIZE_CHOICES
+        # استخدام النظام الموحد لجلب خيارات الأوفست
+        unified_choices = ServiceFormFactory.get_unified_offset_choices()
+        
+        # تحديث خيارات أنواع الماكينات
+        self.fields["machine_type"].choices = [("", "-- اختر نوع الماكينة --")] + unified_choices["machine_types"]
+        
+        # تحديث خيارات مقاسات الماكينات  
+        self.fields["sheet_size"].choices = [("", "-- اختر مقاس الماكينة --")] + unified_choices["sheet_sizes"]
 
     max_colors = forms.IntegerField(
         label=_("عدد الألوان"),

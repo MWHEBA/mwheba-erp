@@ -77,9 +77,9 @@ class TestDataFactory:
 
     @staticmethod
     def create_warehouse(name=None, code=None, manager=None, **kwargs):
-        """إنشاء مستودع للاختبار"""
+        """إنشاء مخزن للاختبار"""
         if not name:
-            name = f"مستودع {TestDataFactory._random_string(4)}"
+            name = f"مخزن {TestDataFactory._random_string(4)}"
         if not code:
             code = TestDataFactory._random_string(4).upper()
         if not manager:
@@ -249,7 +249,7 @@ class TestAssertions:
             test_case.assertEqual(stock.quantity, expected_quantity)
         except ProductStock.DoesNotExist:
             test_case.fail(
-                f"لا يوجد مخزون للمنتج {product.name} في المستودع {warehouse.name}"
+                f"لا يوجد مخزون للمنتج {product.name} في المخزن {warehouse.name}"
             )
 
     @staticmethod

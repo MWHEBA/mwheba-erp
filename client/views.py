@@ -702,8 +702,27 @@ def customer_detail(request, pk):
         },
     ]
 
+    # أزرار الإجراءات السريعة للعميل
+    quick_action_buttons = [
+        {
+            "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
+            "icon": "fas fa-plus-circle",
+            "label": "إنشاء فاتورة مبيعات",
+            "class": "btn btn-success",
+            "title": "إنشاء فاتورة مبيعات جديدة لهذا العميل"
+        },
+        {
+            "url": reverse("client:customer_edit", kwargs={"pk": customer.pk}),
+            "icon": "fas fa-edit",
+            "label": "تعديل بيانات العميل",
+            "class": "btn btn-primary",
+            "title": "تعديل بيانات العميل"
+        },
+    ]
+
     context = {
         "customer": customer,
+        "quick_action_buttons": quick_action_buttons,
         "payments": payments,
         "invoices": invoices,
         "invoices_count": invoices_count,
