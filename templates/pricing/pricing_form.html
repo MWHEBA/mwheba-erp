@@ -154,6 +154,7 @@
 <script src="{% static 'js/pricing/montage-handlers.js' %}"></script>
 <script src="{% static 'js/pricing/ctp-handlers.js' %}"></script>
 <script src="{% static 'js/pricing/finishing-handlers.js' %}"></script>
+<script src="{% static 'js/pricing/coating-dynamic.js' %}"></script>
 <script src="{% static 'js/pricing/pricing-calculator.js' %}"></script>
 <script src="{% static 'js/pricing/session-handlers.js' %}"></script>
 <script src="{% static 'js/pricing/ui-handlers.js' %}"></script>
@@ -227,6 +228,98 @@ $(document).ready(function() {
     // معالجة إزالة الاختيار
     $('#id_client').on('select2:clear', function() {
         console.log('تم إزالة اختيار العميل');
+    });
+    
+    // تعيين القيمة الافتراضية لنوع الورق إذا لم تكن محددة
+    if (!$('#id_paper_type').val()) {
+        var firstOption = $('#id_paper_type option:not([value=""])').first();
+        if (firstOption.length) {
+            $('#id_paper_type').val(firstOption.val()).trigger('change');
+        }
+    }
+    
+    // إضافة معالج لتنظيف القيم عند تغيير نوع الورق
+    $('#id_paper_type').on('change', function() {
+        var value = $(this).val();
+        if (value === '' || value === 'undefined' || value === 'null' || value === 'None') {
+            $(this).prop('selectedIndex', 0); // العودة للخيار الأول (فارغ)
+            console.log('تم تنظيف قيمة نوع الورق غير الصحيحة:', value);
+        }
+    });
+    
+    // معالج إضافي لمنع القيم غير الصحيحة عند التركيز على الحقل
+    $('#id_paper_type').on('focus', function() {
+        var value = $(this).val();
+        if (value === 'undefined' || value === 'null' || value === 'None') {
+            $(this).val('');
+            console.log('تم تنظيف قيمة نوع الورق عند التركيز:', value);
+        }
+    });
+    
+    // معالجة إرسال النموذج للتحقق من الحقول المطلوبة
+    $('#pricing-form').on('submit', function(e) {
+        var paperType = $('#id_paper_type').val();
+        
+        // تنظيف القيم الفارغة أو غير الصحيحة لحقل نوع الورق
+        if (!paperType || paperType === '' || paperType === 'undefined' || paperType === 'null') {
+            // تعيين قيمة فارغة بدلاً من إزالة الحقل
+            $('#id_paper_type').val('');
+            console.log('تم تنظيف حقل نوع الورق الفارغ');
+        }
+        
+        // التحقق من الحقول الأخرى المطلوبة
+        var hasErrors = false;
+        var errorMessages = [];
+        
+        // التحقق من العميل
+        if (!$('#id_client').val()) {
+            errorMessages.push('يجب اختيار العميل');
+            hasErrors = true;
+        }
+        
+        // التحقق من العنوان
+        if (!$('#id_title').val().trim()) {
+            errorMessages.push('يجب إدخال عنوان الطلب');
+            hasErrors = true;
+        }
+        
+        // التحقق من الكمية
+        var quantity = parseInt($('#id_quantity').val()) || 0;
+        if (quantity <= 0) {
+            errorMessages.push('يجب إدخال كمية صحيحة');
+            hasErrors = true;
+        }
+        
+        // إذا كانت هناك أخطاء، منع الإرسال وعرض رسالة
+        if (hasErrors) {
+            e.preventDefault();
+            
+            // إنشاء رسالة خطأ أنيقة بدلاً من alert
+            let errorHtml = '<div class="alert alert-danger alert-dismissible fade show" role="alert">';
+            errorHtml += '<h6><i class="fas fa-exclamation-triangle"></i> يرجى تصحيح الأخطاء التالية:</h6>';
+            errorHtml += '<ul class="mb-0">';
+            errorMessages.forEach(function(message) {
+                errorHtml += '<li>' + message + '</li>';
+            });
+            errorHtml += '</ul>';
+            errorHtml += '<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>';
+            errorHtml += '</div>';
+            
+            // إزالة أي رسائل خطأ سابقة
+            $('.form-error-alert').remove();
+            
+            // إضافة رسالة الخطأ في أعلى النموذج
+            $('#pricing-form').prepend('<div class="form-error-alert">' + errorHtml + '</div>');
+            
+            // التمرير لأعلى لعرض رسالة الخطأ
+            $('html, body').animate({
+                scrollTop: $('#pricing-form').offset().top - 20
+            }, 500);
+            
+            return false;
+        }
+        
+        console.log('إرسال النموذج مع نوع الورق:', $('#id_paper_type').val());
     });
     
     // تحديث قائمة موردي الورق عند تغيير نوع الورق
@@ -314,22 +407,26 @@ function updatePaperSuppliers() {
                 // إضافة الموردين الجدد
                 if (response.suppliers && response.suppliers.length > 0) {
                     $.each(response.suppliers, function(index, supplier) {
-                        paperSupplierSelect.append(
-                            '<option value="' + supplier.id + '">' + supplier.name + '</option>'
-                        );
+                        if (supplier.id && supplier.name) {
+                            paperSupplierSelect.append(
+                                '<option value="' + supplier.id + '">' + supplier.name + '</option>'
+                            );
+                        }
                     });
                     
-                    // اختيار أول مورد تلقائياً
-                    paperSupplierSelect.val(response.suppliers[0].id);
-                    
-                    // إضافة تأثير بصري للإشارة للتحديث
-                    paperSupplierSelect.addClass('updated');
-                    setTimeout(function() {
-                        paperSupplierSelect.removeClass('updated');
-                    }, 2000);
-                    
-                    // تحديث مقاسات الورق بعد اختيار المورد تلقائياً
-                    updatePaperSheetSizes();
+                    // اختيار أول مورد تلقائياً فقط إذا كان له ID صحيح
+                    if (response.suppliers[0] && response.suppliers[0].id) {
+                        paperSupplierSelect.val(response.suppliers[0].id);
+                        
+                        // إضافة تأثير بصري للإشارة للتحديث
+                        paperSupplierSelect.addClass('updated');
+                        setTimeout(function() {
+                            paperSupplierSelect.removeClass('updated');
+                        }, 2000);
+                        
+                        // تحديث مقاسات الورق بعد اختيار المورد تلقائياً
+                        updatePaperSheetSizes();
+                    }
                 } else {
                     paperSupplierSelect.append('<option value="">لا توجد موردين متاحين لهذا النوع</option>');
                 }
@@ -416,13 +513,17 @@ function updatePaperSheetSizes() {
                 // إضافة المقاسات الجديدة
                 if (response.sizes && response.sizes.length > 0) {
                     $.each(response.sizes, function(index, size) {
-                        paperSheetSizeSelect.append(
-                            '<option value="' + size.id + '">' + size.name + '</option>'
-                        );
+                        if (size.id && size.name) {
+                            paperSheetSizeSelect.append(
+                                '<option value="' + size.id + '">' + size.name + '</option>'
+                            );
+                        }
                     });
                     
-                    // اختيار أول مقاس تلقائياً
-                    paperSheetSizeSelect.val(response.sizes[0].id);
+                    // اختيار أول مقاس تلقائياً فقط إذا كان له ID صحيح
+                    if (response.sizes[0] && response.sizes[0].id) {
+                        paperSheetSizeSelect.val(response.sizes[0].id);
+                    }
                     
                     // إضافة تأثير بصري للإشارة للتحديث
                     paperSheetSizeSelect.addClass('updated');
@@ -490,13 +591,17 @@ function updatePaperWeights() {
                 // إضافة الجرامات الجديدة
                 if (response.weights && response.weights.length > 0) {
                     $.each(response.weights, function(index, weight) {
-                        paperWeightSelect.append(
-                            '<option value="' + weight.id + '">' + weight.name + '</option>'
-                        );
+                        if (weight.id && weight.name) {
+                            paperWeightSelect.append(
+                                '<option value="' + weight.id + '">' + weight.name + '</option>'
+                            );
+                        }
                     });
                     
-                    // اختيار أول جرام تلقائياً
-                    paperWeightSelect.val(response.weights[0].id);
+                    // اختيار أول جرام تلقائياً فقط إذا كان له ID صحيح
+                    if (response.weights[0] && response.weights[0].id) {
+                        paperWeightSelect.val(response.weights[0].id);
+                    }
                     
                     // إضافة تأثير بصري للإشارة للتحديث
                     paperWeightSelect.addClass('updated');
@@ -566,13 +671,17 @@ function updatePaperOrigins() {
                 // إضافة منشأ الورق الجديد
                 if (response.origins && response.origins.length > 0) {
                     $.each(response.origins, function(index, origin) {
-                        paperOriginSelect.append(
-                            '<option value="' + origin.id + '">' + origin.name + '</option>'
-                        );
+                        if (origin.id && origin.name) {
+                            paperOriginSelect.append(
+                                '<option value="' + origin.id + '">' + origin.name + '</option>'
+                            );
+                        }
                     });
                     
-                    // اختيار أول منشأ تلقائياً
-                    paperOriginSelect.val(response.origins[0].id);
+                    // اختيار أول منشأ تلقائياً فقط إذا كان له ID صحيح
+                    if (response.origins[0] && response.origins[0].id) {
+                        paperOriginSelect.val(response.origins[0].id);
+                    }
                     
                     // إضافة تأثير بصري للإشارة للتحديث
                     paperOriginSelect.addClass('updated');
@@ -647,26 +756,8 @@ function updatePaperPrice() {
                     paperPriceInput.removeClass('updated');
                 }, 2000);
                 
-                // عرض معلومات السعر
-                const priceInfoHtml = `
-                    <div class="alert alert-success">
-                        <h6><i class="fas fa-tag"></i> معلومات السعر</h6>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <strong>السعر:</strong> ${response.formatted_price}<br>
-                                <strong>المورد:</strong> ${response.price_info.supplier_name}<br>
-                                <strong>النوع:</strong> ${response.price_info.paper_type}
-                            </div>
-                            <div class="col-md-6">
-                                <strong>المقاس:</strong> ${response.price_info.sheet_size}<br>
-                                <strong>الوزن:</strong> ${response.price_info.weight}<br>
-                                <strong>المنشأ:</strong> ${response.price_info.origin}
-                            </div>
-                        </div>
-                        ${response.price_info.brand !== 'غير محدد' ? '<small><strong>الماركة:</strong> ' + response.price_info.brand + '</small>' : ''}
-                    </div>
-                `;
-                paperPriceInfo.html(priceInfoHtml);
+
+
                 
                 
                 // حساب إجمالي تكلفة الورق بعد تحديث السعر

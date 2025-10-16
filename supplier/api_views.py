@@ -63,6 +63,8 @@ def get_category_form_api(request):
             "digital_printing": "supplier/forms/digital_form.html",
             "finishing": "supplier/forms/finishing_form.html",
             "plates": "supplier/forms/plates_form.html",
+            "packaging": "supplier/forms/packaging_form.html",
+            "coating": "supplier/forms/coating_form.html",
         }
 
         template_name = template_map.get(category_code)
@@ -150,11 +152,68 @@ def get_category_form_api(request):
                         ("cutting", "قص"),
                         ("folding", "طي"),
                         ("binding", "تجليد"),
-                        ("lamination", "تغليف"),
+                        ("lamination", "تقفيل"),
                         ("varnish", "ورنيش"),
                     ]
                 }
             )
+
+        elif category_code == "packaging":
+            # إعداد خيارات خدمات التقفيل
+            form_choices.update(
+                {
+                    "packaging_types": [
+                        ("lamination", "تقفيل"),
+                        ("cellophane", "سيلوفان"),
+                        ("shrink_wrap", "تغليف حراري"),
+                        ("box_packaging", "تعبئة في صناديق"),
+                        ("custom_packaging", "تعبئة مخصصة"),
+                    ]
+                }
+            )
+
+        elif category_code == "coating":
+            # جلب أنواع التغطية من الإعدادات
+            try:
+                from pricing.models import CoatingType
+                
+                coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
+                
+                if coating_types.exists():
+                    form_choices.update(
+                        {
+                            "coating_types": [
+                                (ct.id, ct.name) for ct in coating_types
+                            ]
+                        }
+                    )
+                else:
+                    # بيانات افتراضية في حالة عدم وجود بيانات
+                    form_choices.update(
+                        {
+                            "coating_types": [
+                                ("varnish", "ورنيش"),
+                                ("uv_coating", "طلاء UV"),
+                                ("aqueous_coating", "طلاء مائي"),
+                                ("spot_uv", "UV نقطي"),
+                                ("matte_coating", "طلاء مطفي"),
+                            ]
+                        }
+                    )
+            except Exception as e:
+                # في حالة الخطأ، استخدام البيانات الافتراضية
+                print(f"ERROR in coating types: {e}")
+                form_choices.update(
+                    {
+                        "coating_types": [
+                            ("varnish", "ورنيش"),
+                            ("uv_coating", "طلاء UV"),
+                            ("aqueous_coating", "طلاء مائي"),
+                            ("spot_uv", "UV نقطي"),
+                            ("matte_coating", "طلاء مطفي"),
+                        ]
+                    }
+                )
 
         # إعداد البيانات للنموذج
         context = {
@@ -224,57 +283,73 @@ def save_service_data_universal(request):
     if request.method != "POST":
         return JsonResponse({"error": "POST method required"}, status=405)
 
-    try:
-        with transaction.atomic():
-            data = json.loads(request.body)
-            supplier_id = data.get("supplier_id")
-            service_type = data.get("service_type")
-            
-            
-            # التحقق من البيانات الأساسية
-            if not supplier_id or not service_type:
-                return JsonResponse(
-                    {"error": "بيانات المورد ونوع الخدمة مطلوبة"}, status=400
+    import time
+    from django.db import OperationalError
+    
+    # محاولة حفظ البيانات مع إعادة المحاولة في حالة قفل قاعدة البيانات
+    max_retries = 3
+    retry_delay = 0.1  # 100ms
+    
+    for attempt in range(max_retries):
+        try:
+            with transaction.atomic():
+                data = json.loads(request.body)
+                supplier_id = data.get("supplier_id")
+                service_type = data.get("service_type")
+                
+                # التحقق من البيانات الأساسية
+                if not supplier_id or not service_type:
+                    return JsonResponse(
+                        {"error": "بيانات المورد ونوع الخدمة مطلوبة"}, status=400
+                    )
+
+                # التحقق من وجود المورد والتصنيف
+                supplier = get_object_or_404(Supplier, id=supplier_id)
+                category = get_object_or_404(SupplierType, code=service_type)
+
+                # إنشاء الخدمة الأساسية
+                service = SpecializedService.objects.create(
+                    supplier=supplier,
+                    category=category,
+                    name=data.get("name", ""),
+                    description=data.get("description", ""),
+                    setup_cost=data.get("setup_cost", 0),
+                    is_active=data.get("is_active", True),
                 )
 
-            # التحقق من وجود المورد والتصنيف
-            supplier = get_object_or_404(Supplier, id=supplier_id)
-            category = get_object_or_404(SupplierType, code=service_type)
+                # إنشاء التفاصيل المتخصصة
+                _create_service_details(service, service_type)
 
-            # إنشاء الخدمة الأساسية
-            service = SpecializedService.objects.create(
-                supplier=supplier,
-                category=category,
-                name=data.get("name", ""),
-                description=data.get("description", ""),
-                setup_cost=data.get("setup_cost", 0),
-                is_active=data.get("is_active", True),
-            )
+                # حفظ التفاصيل المتخصصة بالبيانات الفعلية
+                _save_category_details(service, service_type, data)
 
-            # إنشاء التفاصيل المتخصصة
-            _create_service_details(service, service_type)
+                # حفظ الشرائح السعرية إذا وجدت
+                if data.get("price_tiers"):
+                    _save_price_tiers(service, data["price_tiers"])
 
-            # حفظ التفاصيل المتخصصة بالبيانات الفعلية
-            _save_category_details(service, service_type, data)
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "service_id": service.id,
+                        "service_name": service.name,
+                        "message": "تم حفظ الخدمة بنجاح",
+                        "redirect_url": reverse(
+                            "supplier:supplier_detail", args=[supplier_id]
+                        ),
+                    }
+                )
 
-            # حفظ الشرائح السعرية إذا وجدت
-            if data.get("price_tiers"):
-                _save_price_tiers(service, data["price_tiers"])
-
-            return JsonResponse(
-                {
-                    "success": True,
-                    "service_id": service.id,
-                    "service_name": service.name,
-                    "message": "تم حفظ الخدمة بنجاح",
-                    "redirect_url": reverse(
-                        "supplier:supplier_detail", args=[supplier_id]
-                    ),
-                }
-            )
-
-    except Exception as e:
-        return JsonResponse({"error": f"خطأ في حفظ البيانات: {str(e)}"}, status=500)
+        except OperationalError as e:
+            if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                # انتظار قصير ثم إعادة المحاولة
+                time.sleep(retry_delay * (attempt + 1))
+                continue
+            else:
+                return JsonResponse({"error": f"خطأ في قاعدة البيانات: {str(e)}"}, status=500)
+        except Exception as e:
+            return JsonResponse({"error": f"خطأ في حفظ البيانات: {str(e)}"}, status=500)
+    
+    return JsonResponse({"error": "فشل في حفظ البيانات بعد عدة محاولات"}, status=500)
 
 
 @login_required
@@ -285,38 +360,55 @@ def update_service_data_universal(request, service_id):
     if request.method != "POST":
         return JsonResponse({"error": "POST method required"}, status=405)
 
-    try:
-        with transaction.atomic():
-            data = json.loads(request.body)
+    import time
+    from django.db import OperationalError
+    
+    # محاولة تحديث البيانات مع إعادة المحاولة في حالة قفل قاعدة البيانات
+    max_retries = 3
+    retry_delay = 0.1  # 100ms
+    
+    for attempt in range(max_retries):
+        try:
+            with transaction.atomic():
+                data = json.loads(request.body)
 
-            # إنشاء loader مناسب للخدمة
-            loader = ServiceDataLoader.get_loader_for_service(service_id)
+                # إنشاء loader مناسب للخدمة
+                loader = ServiceDataLoader.get_loader_for_service(service_id)
 
-            # حفظ البيانات
-            loader.save_service_data(service_id, data)
+                # حفظ البيانات
+                loader.save_service_data(service_id, data)
 
-            # تحديث الشرائح السعرية إذا وجدت
-            service = get_object_or_404(SpecializedService, id=service_id)
-            if data.get("price_tiers") is not None:
-                # حذف الشرائح القديمة وإنشاء جديدة
-                service.price_tiers.all().delete()
-                if data["price_tiers"]:
-                    _save_price_tiers(service, data["price_tiers"])
+                # تحديث الشرائح السعرية إذا وجدت
+                service = get_object_or_404(SpecializedService, id=service_id)
+                if data.get("price_tiers") is not None:
+                    # حذف الشرائح القديمة وإنشاء جديدة
+                    service.price_tiers.all().delete()
+                    if data["price_tiers"]:
+                        _save_price_tiers(service, data["price_tiers"])
 
-            return JsonResponse(
-                {
-                    "success": True,
-                    "service_id": service.id,
-                    "service_name": service.name,
-                    "message": "تم تحديث الخدمة بنجاح",
-                    "redirect_url": reverse(
-                        "supplier:supplier_detail", args=[service.supplier.id]
-                    ),
-                }
-            )
+                return JsonResponse(
+                    {
+                        "success": True,
+                        "service_id": service.id,
+                        "service_name": service.name,
+                        "message": "تم تحديث الخدمة بنجاح",
+                        "redirect_url": reverse(
+                            "supplier:supplier_detail", args=[service.supplier.id]
+                        ),
+                    }
+                )
 
-    except Exception as e:
-        return JsonResponse({"error": f"خطأ في تحديث البيانات: {str(e)}"}, status=500)
+        except OperationalError as e:
+            if "database is locked" in str(e).lower() and attempt < max_retries - 1:
+                # انتظار قصير ثم إعادة المحاولة
+                time.sleep(retry_delay * (attempt + 1))
+                continue
+            else:
+                return JsonResponse({"error": f"خطأ في قاعدة البيانات: {str(e)}"}, status=500)
+        except Exception as e:
+            return JsonResponse({"error": f"خطأ في تحديث البيانات: {str(e)}"}, status=500)
+    
+    return JsonResponse({"error": "فشل في تحديث البيانات بعد عدة محاولات"}, status=500)
 
 
 @login_required
@@ -379,6 +471,27 @@ def _create_service_details(service, service_type):
             country_of_origin="",
             brand="",
             price_per_sheet=0,
+        )
+    elif service_type == "packaging":
+        # إنشاء تفاصيل التقفيل كخدمة تشطيب
+        FinishingServiceDetails.objects.create(
+            service=service,
+            finishing_type="lamination",
+            calculation_method="per_piece",
+            price_per_unit=0,
+            setup_time_minutes=15,
+            turnaround_time_hours=4,
+        )
+    elif service_type == "coating":
+        # إنشاء تفاصيل التغطية كخدمة تشطيب - بدون قيم افتراضية
+        # سيتم تحديث البيانات لاحقاً في _save_category_details
+        FinishingServiceDetails.objects.create(
+            service=service,
+            finishing_type="varnish",  # مؤقت - سيتم تحديثه
+            calculation_method="per_piece",  # مؤقت - سيتم تحديثه
+            price_per_unit=0,
+            setup_time_minutes=30,
+            turnaround_time_hours=6,
         )
 
 
@@ -481,6 +594,28 @@ def get_service_details_api(request, service_id):
                     "country_of_origin": details.country_of_origin,
                     "brand": details.brand,
                     "price_per_sheet": float(details.price_per_sheet),
+                }
+            )
+        elif category_code == "packaging" and hasattr(service, "finishing_details"):
+            details = service.finishing_details
+            service_data.update(
+                {
+                    "packaging_type": details.finishing_type,
+                    "calculation_method": details.calculation_method,
+                    "price_per_unit": float(details.price_per_unit),
+                    "setup_time_minutes": details.setup_time_minutes,
+                    "turnaround_time_hours": details.turnaround_time_hours,
+                }
+            )
+        elif category_code == "coating" and hasattr(service, "finishing_details"):
+            details = service.finishing_details
+            service_data.update(
+                {
+                    "coating_type": details.finishing_type,
+                    "calculation_method": details.calculation_method,
+                    "price_per_unit": float(details.price_per_unit),
+                    "setup_time_minutes": details.setup_time_minutes,
+                    "turnaround_time_hours": details.turnaround_time_hours,
                 }
             )
 
@@ -620,6 +755,154 @@ def _save_category_details(service, category_code, data):
                 if not service.name or service.name.strip() == "":
                     service.name = f"خدمة أوفست - {machine_type}"
                     service.save()
+
+    elif category_code == "plates":
+        # دالة مساعدة لتحويل القيم الآمن
+        def safe_float(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        plate_details = service.plate_details
+        
+        # استخدام النظام الموحد لتطبيع البيانات
+        from .forms.dynamic_forms import ServiceFormFactory
+        normalized_data = ServiceFormFactory.normalize_legacy_ctp_data(
+            plate_size=data.get("plate_size")
+        )
+        
+        plate_details.plate_size = normalized_data.get("plate_size", data.get("plate_size", ""))
+        plate_details.custom_width_cm = safe_float(data.get("custom_width_cm"))
+        plate_details.custom_height_cm = safe_float(data.get("custom_height_cm"))
+        plate_details.price_per_plate = safe_float(data.get("price_per_plate"))
+        plate_details.set_price = safe_float(data.get("set_price"))
+        plate_details.save()
+
+        # تحديث اسم الخدمة تلقائياً
+        if not service.name or service.name.strip() == "":
+            plate_size_display = plate_details.plate_size
+            if plate_size_display == "35.00x50.00":
+                size_name = "ربع فرخ"
+            elif plate_size_display == "50.00x70.00":
+                size_name = "نصف فرخ"
+            elif plate_size_display == "70.00x100.00":
+                size_name = "فرخ كامل"
+            elif plate_size_display == "custom":
+                size_name = "مقاس مخصص"
+            else:
+                size_name = plate_size_display
+            
+            service.name = f"زنك CTP - {size_name}"
+            service.save()
+
+    elif category_code == "packaging":
+        # دالة مساعدة لتحويل القيم الآمن
+        def safe_float(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        def safe_int(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        finishing_details = service.finishing_details
+        
+        finishing_details.finishing_type = data.get("packaging_type", "lamination")
+        finishing_details.calculation_method = data.get("calculation_method", "per_piece")
+        finishing_details.price_per_unit = safe_float(data.get("price_per_unit"))
+        finishing_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 15)
+        finishing_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 4)
+        finishing_details.save()
+
+        # تحديث اسم الخدمة تلقائياً
+        if not service.name or service.name.strip() == "":
+            packaging_type_display = dict([
+                ("lamination", "تقفيل"),
+                ("cellophane", "سيلوفان"),
+                ("shrink_wrap", "تغليف حراري"),
+                ("box_packaging", "تعبئة في صناديق"),
+                ("custom_packaging", "تعبئة مخصصة"),
+            ]).get(finishing_details.finishing_type, finishing_details.finishing_type)
+            
+            service.name = f"خدمة {packaging_type_display}"
+            service.save()
+
+    elif category_code == "coating":
+        # دالة مساعدة لتحويل القيم الآمن
+        def safe_float(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        def safe_int(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        finishing_details = service.finishing_details
+        
+        # استخدام البيانات الفعلية من النموذج بدون قيم افتراضية خاطئة
+        print(f"DEBUG: coating data received: {data}")  # للتشخيص
+        print(f"DEBUG: all keys in data: {list(data.keys())}")  # للتشخيص
+        
+        coating_type = data.get("coating_type")
+        if not coating_type or str(coating_type).strip() == "":
+            # محاولة البحث عن أسماء بديلة للحقل
+            coating_type = data.get("finishing_type") or data.get("type")
+            if not coating_type or str(coating_type).strip() == "":
+                raise ValueError(f"نوع التغطية مطلوب. البيانات المستلمة: {data}")
+            
+        calculation_method = data.get("calculation_method")
+        if not calculation_method or str(calculation_method).strip() == "":
+            raise ValueError(f"طريقة الحساب مطلوبة. البيانات المستلمة: calculation_method='{calculation_method}'")
+            
+        finishing_details.finishing_type = coating_type
+        finishing_details.calculation_method = calculation_method
+        # استخدام base_price من النموذج
+        finishing_details.price_per_unit = safe_float(data.get("base_price", data.get("price_per_unit", 0)))
+        finishing_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 30)
+        finishing_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 6)
+        finishing_details.save()
+
+        # تحديث اسم الخدمة تلقائياً
+        if not service.name or service.name.strip() == "":
+            # محاولة جلب اسم نوع التغطية من CoatingType model
+            try:
+                from pricing.models import CoatingType
+                coating_type_obj = CoatingType.objects.get(id=coating_type)
+                coating_type_display = coating_type_obj.name
+            except (CoatingType.DoesNotExist, ValueError):
+                # في حالة عدم وجود النوع، استخدام قاموس الأسماء الافتراضية
+                coating_type_display = dict([
+                    ("varnish", "ورنيش"),
+                    ("uv_coating", "طلاء UV"),
+                    ("aqueous_coating", "طلاء مائي"),
+                    ("spot_uv", "UV نقطي"),
+                    ("matte_coating", "طلاء مطفي"),
+                ]).get(coating_type, coating_type)
+            
+            service.name = f"خدمة {coating_type_display}"
+            service.save()
 
 
 def _save_price_tiers(service, tiers_data):

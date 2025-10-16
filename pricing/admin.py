@@ -10,6 +10,7 @@ from .models import (
     OffsetSheetSize,
     DigitalMachineType,
     DigitalSheetSize,
+    PlateSize,
 )
 
 

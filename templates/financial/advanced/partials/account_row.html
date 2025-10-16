@@ -1,3 +1,4 @@
+{% load pricing_filters %}
 <!-- صف الحساب مع الأطفال (عرض هرمي) -->
 <tr class="{% if not account.is_active %}table-secondary{% endif %}">
     <td>
@@ -29,7 +30,7 @@
     <td class="text-end">
         {% if account.current_balance %}
             <strong class="{% if account.current_balance < 0 %}text-danger{% endif %}">
-                {{ account.current_balance|floatformat:2 }}
+                {{ account.current_balance|remove_trailing_zeros }}
             </strong>
         {% else %}
             <span class="text-muted">0.00</span>

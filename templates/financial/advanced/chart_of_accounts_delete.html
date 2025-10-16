@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -83,7 +84,7 @@
                                     <div class="mb-3">
                                         <label class="form-label fw-bold">الرصيد الافتتاحي:</label>
                                         <p class="form-control-plaintext">
-                                            {{ account.opening_balance|floatformat:2 }} ج.م
+                                            {{ account.opening_balance|remove_trailing_zeros }} ج.م
                                         </p>
                                     </div>
                                 </div>

@@ -26,7 +26,6 @@ class StockReservation(models.Model):
 
     RESERVATION_TYPE = (
         ("sale_order", _("طلب مبيعات")),
-        ("purchase_order", _("طلب شراء")),
         ("transfer_order", _("طلب تحويل")),
         ("manual", _("حجز يدوي")),
     )
@@ -67,9 +66,6 @@ class StockReservation(models.Model):
     # ربط بالطلبات
     sale_order_id = models.PositiveIntegerField(
         _("رقم طلب المبيعات"), null=True, blank=True
-    )
-    purchase_order_id = models.PositiveIntegerField(
-        _("رقم طلب الشراء"), null=True, blank=True
     )
     reference_number = models.CharField(
         _("رقم المرجع"), max_length=100, blank=True, null=True

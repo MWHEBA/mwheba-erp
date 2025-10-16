@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load app_tags %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
@@ -25,7 +26,6 @@
         border: 1px solid #e9ecef;
         border-radius: 8px;
         margin-bottom: 1.5rem;
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
         overflow: hidden;
     }
     
@@ -110,7 +110,7 @@
     }
     
     .party-title {
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 600;
         color: var(--primary-color);
         margin-bottom: var(--spacing-3);
@@ -129,7 +129,7 @@
     }
     
     .party-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
     
     .invoice-items {
@@ -155,7 +155,7 @@
     
     .invoice-items table tbody tr {
         transition: all 0.2s ease;
-        font-size: 1.2rem;
+        font-size: 1rem;
         line-height: 1.5;
     }
     
@@ -478,6 +478,13 @@
                                     {% else %}invoice-status-unpaid{% endif %}">
                                     {{ sale.get_payment_status_display }}
                                 </span>
+                                {% if sale.is_returned %}
+                                    {% if sale.return_status == 'full' %}
+                                    <span class="badge bg-danger ms-2">{% trans "مرتجع كلي" %}</span>
+                                    {% elif sale.return_status == 'partial' %}
+                                    <span class="badge bg-warning ms-2">{% trans "مرتجع جزئي" %}</span>
+                                    {% endif %}
+                                {% endif %}
                             </div>
                         </div>
                         
@@ -499,26 +506,13 @@
                                                 <i class="fas fa-money-bill-wave text-success me-2"></i>
                                                 <div>
                                                     <small class="text-muted d-block">الإجمالي</small>
-                                                    <span class="fw-medium text-primary">{{ sale.total|floatformat:2 }} ج.م</span>
+                                                    <span class="fw-medium text-primary">{{ sale.total|remove_trailing_zeros }} ج.م</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                    </div>
-                                {% if sale.is_returned %}
-                                    {% if sale.return_status == 'full' %}
-                                    <span class="badge bg-danger">{% trans "مرتجع كلي" %}</span>
-                                    {% elif sale.return_status == 'partial' %}
-                                    <span class="badge bg-warning">{% trans "مرتجع جزئي" %}</span>
-                                    {% endif %}
-                                {% endif %}
-                            </div>
-                        </div>
-                        <div class="text-end">
-                            <div><small class="opacity-75">{% trans "إنشاء:" %}</small> {{ sale.created_at|date:"d-m-Y H:i" }}</div>
                         </div>
                     </div>
                 </div>
@@ -598,7 +592,7 @@
                                     <tr>
                                         <td>{{ forloop.counter }}</td>
                                         <td class="fw-bold">{{ item.product.name }}</td>
-                                        <td class="fw-bold">{{ item.quantity|floatformat:"0" }}</td>
+                                        <td class="fw-bold">{{ item.quantity|remove_trailing_zeros }}</td>
                                         <td>{{ item.unit_price|custom_number_format }} <small class="text-muted">{{ sale.currency|default:"ج.م" }}</small></td>
                                         <td>{{ item.discount|custom_number_format }} <small class="text-muted">{{ sale.currency|default:"ج.م" }}</small></td>
                                         <td class="fw-bold">{{ item.total|custom_number_format }} <small class="text-muted">{{ sale.currency|default:"ج.م" }}</small></td>

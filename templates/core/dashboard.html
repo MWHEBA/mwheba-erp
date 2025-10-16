@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load humanize %}
 {% load static %}
+{% load pricing_filters %}
 
 {% block title %}لوحة التحكم | نظام موهبة للمبيعات والمخازن{% endblock %}
 
@@ -380,7 +381,7 @@
                                 <i class="fas fa-shopping-cart"></i>
                             </div>
                             <div class="stat-card-title">المبيعات اليوم</div>
-                            <div class="stat-card-value">{{ sales_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="stat-card-value">{{ sales_today.total|default:0|remove_trailing_zeros }} ج.م</div>
                             <div class="stat-card-subtitle">
                                 <span>إجمالي الفواتير: {{ sales_today.count|default:0 }}</span>
                             </div>
@@ -396,7 +397,7 @@
                                 <i class="fas fa-truck"></i>
                             </div>
                             <div class="stat-card-title">المشتريات اليوم</div>
-                            <div class="stat-card-value">{{ purchases_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="stat-card-value">{{ purchases_today.total|default:0|remove_trailing_zeros }} ج.م</div>
                             <div class="stat-card-subtitle">
                                 <span>عدد الفواتير: {{ purchases_today.count|default:0 }}</span>
                             </div>
@@ -467,7 +468,7 @@
                                     <td><a href="#" class="fw-medium">{{ sale.invoice_number }}</a></td>
                                     <td>{{ sale.customer.name }}</td>
                                     <td>{{ sale.date|date:"d-m-Y" }}</td>
-                                    <td class="fw-bold">{{ sale.total|floatformat:2 }} ج.م</td>
+                                    <td class="fw-bold">{{ sale.total|remove_trailing_zeros }} ج.م</td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
@@ -513,7 +514,7 @@
                                     <td><a href="#" class="fw-medium">{{ purchase.invoice_number }}</a></td>
                                     <td>{{ purchase.supplier.name }}</td>
                                     <td>{{ purchase.date|date:"d-m-Y" }}</td>
-                                    <td class="fw-bold">{{ purchase.total|floatformat:2 }} ج.م</td>
+                                    <td class="fw-bold">{{ purchase.total|remove_trailing_zeros }} ج.م</td>
                                 </tr>
                                 {% endfor %}
                             {% else %}
@@ -585,7 +586,7 @@
                                 <div class="text-muted">إجمالي المبيعات</div>
                                 <i class="fas fa-arrow-up text-success"></i>
                             </div>
-                            <div class="h4 mb-0">{{ sales_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="h4 mb-0">{{ sales_today.total|default:0|remove_trailing_zeros }} ج.م</div>
                             <div class="text-muted small">آخر 30 يوم</div>
                         </div>
                     </div>
@@ -595,7 +596,7 @@
                                 <div class="text-muted">إجمالي المشتريات</div>
                                 <i class="fas fa-arrow-down text-danger"></i>
                             </div>
-                            <div class="h4 mb-0">{{ purchases_today.total|default:0|floatformat:2 }} ج.م</div>
+                            <div class="h4 mb-0">{{ purchases_today.total|default:0|remove_trailing_zeros }} ج.م</div>
                             <div class="text-muted small">آخر 30 يوم</div>
                         </div>
                     </div>
@@ -668,7 +669,7 @@
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small text-muted">إجمالي المبيعات</span>
-                                    <span class="fw-bold">{{ sales_month.total|default:0|floatformat:2 }} ج.م</span>
+                                    <span class="fw-bold">{{ sales_month.total|default:0|remove_trailing_zeros }} ج.م</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar bg-primary" role="progressbar" style="width: 75%"></div>
@@ -677,7 +678,7 @@
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small text-muted">إجمالي المشتريات</span>
-                                    <span class="fw-bold">{{ purchases_month.total|default:0|floatformat:2 }} ج.م</span>
+                                    <span class="fw-bold">{{ purchases_month.total|default:0|remove_trailing_zeros }} ج.م</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar bg-warning" role="progressbar" style="width: 45%"></div>
@@ -686,7 +687,7 @@
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small text-muted">صافي الربح</span>
-                                    <span class="fw-bold text-success">{{ profit_month|default:0|floatformat:2 }} ج.م</span>
+                                    <span class="fw-bold text-success">{{ profit_month|default:0|remove_trailing_zeros }} ج.م</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
                                     <div class="progress-bar bg-success" role="progressbar" style="width: 65%"></div>

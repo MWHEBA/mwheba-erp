@@ -1,7 +1,9 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load pricing_filters %}
 {% block title %}{% if sale.id %}تعديل فاتورة مبيعات - {{ sale.number }}{% else %}إضافة فاتورة مبيعات جديدة{% endif %}{% endblock %}
 
 {% block extra_css %}
@@ -287,21 +289,21 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label required-field">الكمية</label>
-                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|floatformat:'0' }}" required oninput="this.value = this.value <= 0 ? 1 : this.value">
+                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|remove_trailing_zeros }}" required oninput="this.value = this.value <= 0 ? 1 : this.value">
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label required-field">سعر الوحدة</label>
-                                        <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" value="{{ item.unit_price }}" required>
+                                        <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" value="{{ item.unit_price }}" required>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label">الخصم</label>
-                                        <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                                        <input type="number" name="discount[]" class="form-control item-discount" min="0" value="{{ item.discount|default:0 }}">
                                     </div>
                                 </div>
                                 
@@ -345,14 +347,14 @@
                             <div class="col-md-2">
                                 <div class="form-group mb-2">
                                     <label class="form-label required-field">سعر الوحدة</label>
-                                    <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" required>
+                                    <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" required>
                                 </div>
                             </div>
                             
                             <div class="col-md-2">
                                 <div class="form-group mb-2">
                                     <label class="form-label">الخصم</label>
-                                    <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="0">
+                                    <input type="number" name="discount[]" class="form-control item-discount" min="0" value="0">
                                 </div>
                             </div>
                             
@@ -378,7 +380,7 @@
                         
                         <div class="col-lg-4 col-md-6">
                             <label class="form-label text-dark">خصم على كامل الفاتورة</label>
-                            <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" step="0.01" placeholder="0.00">
+                            <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
                         </div>
                         
                         <div class="col-lg-4 col-md-12">

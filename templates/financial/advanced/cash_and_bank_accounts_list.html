@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -384,9 +385,9 @@
                             <div class="balance-display">
                                 <div class="balance-amount">
                                     {% if account.calculated_balance is not None %}
-                                        {{ account.calculated_balance|floatformat:2 }}
+                                        {{ account.calculated_balance|remove_trailing_zeros }}
                                     {% else %}
-                                        {{ account.opening_balance|default:0|floatformat:2 }}
+                                        {{ account.opening_balance|default:0|remove_trailing_zeros }}
                                     {% endif %}
                                 </div>
                                 <div class="balance-currency">جنيه مصري</div>
@@ -399,7 +400,7 @@
                                 <div class="info-item">
                                     <div class="info-label">الرصيد الافتتاحي</div>
                                     <div class="info-value">
-                                        {{ account.opening_balance|default:0|floatformat:2 }}
+                                        {{ account.opening_balance|default:0|remove_trailing_zeros }}
                                     </div>
                                 </div>
                                 <div class="info-item">
@@ -446,7 +447,7 @@
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <div class="stat-number">{{ total_balance|floatformat:2 }}</div>
+                                <div class="stat-number">{{ total_balance|remove_trailing_zeros }}</div>
                                 <div class="stat-label">إجمالي الأرصدة (جنيه)</div>
                             </div>
                         </div>

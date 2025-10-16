@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load payment_status_tags %}
 {% load dict_tags %}
 {% load app_tags %}
@@ -316,7 +317,7 @@
                       </a>
                     </h6>
                     <p class="mb-1 text-muted">
-                      {{ payment.amount|floatformat:2 }} {% trans "ج.م" %}
+                      {{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}
                       | {{ payment.payment_date }}
                     </p>
                     <small class="text-muted">
@@ -355,7 +356,7 @@
                       </a>
                     </h6>
                     <p class="mb-1 text-muted">
-                      {{ payment.amount|floatformat:2 }} {% trans "ج.م" %}
+                      {{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}
                       | {{ payment.payment_date }}
                     </p>
                     <small class="text-muted">
@@ -405,7 +406,7 @@
                     {{ payment.sale.number }}
                   </a>
                   <br>
-                  <small class="text-muted">{{ payment.amount|floatformat:2 }} {% trans "ج.م" %}</small>
+                  <small class="text-muted">{{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}</small>
                 </div>
                 <span class="badge bg-danger">{% trans "فاشل" %}</span>
               </div>
@@ -420,7 +421,7 @@
                     {{ payment.purchase.number }}
                   </a>
                   <br>
-                  <small class="text-muted">{{ payment.amount|floatformat:2 }} {% trans "ج.م" %}</small>
+                  <small class="text-muted">{{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}</small>
                 </div>
                 <span class="badge bg-danger">{% trans "فاشل" %}</span>
               </div>
@@ -443,7 +444,7 @@
                     {{ payment.sale.number }}
                   </a>
                   <br>
-                  <small class="text-muted">{{ payment.amount|floatformat:2 }} {% trans "ج.م" %}</small>
+                  <small class="text-muted">{{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}</small>
                 </div>
                 <span class="badge bg-warning">{% trans "معلق" %}</span>
               </div>
@@ -458,7 +459,7 @@
                     {{ payment.purchase.number }}
                   </a>
                   <br>
-                  <small class="text-muted">{{ payment.amount|floatformat:2 }} {% trans "ج.م" %}</small>
+                  <small class="text-muted">{{ payment.amount|remove_trailing_zeros }} {% trans "ج.م" %}</small>
                 </div>
                 <span class="badge bg-warning">{% trans "معلق" %}</span>
               </div>

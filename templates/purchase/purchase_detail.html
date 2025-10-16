@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load app_tags %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
@@ -110,7 +111,7 @@
     }
     
     .party-title {
-        font-size: 1.25rem;
+        font-size: 1.2rem;
         font-weight: 600;
         color: var(--primary-color);
         margin-bottom: var(--spacing-3);
@@ -129,7 +130,7 @@
     }
     
     .party-value {
-        font-size: 1.1rem;
+        font-size: 1rem;
     }
     
     .invoice-items {
@@ -155,7 +156,7 @@
     
     .invoice-items table tbody tr {
         transition: all 0.2s ease;
-        font-size: 1.2rem;
+        font-size: 1rem;
         line-height: 1.5;
     }
     
@@ -507,7 +508,7 @@
                                                 <i class="fas fa-money-bill-wave text-success me-2"></i>
                                                 <div>
                                                     <small class="text-muted d-block">الإجمالي</small>
-                                                    <span class="fw-medium text-primary">{{ purchase.total|floatformat:2 }} ج.م</span>
+                                                    <span class="fw-medium text-primary">{{ purchase.total|remove_trailing_zeros }} ج.م</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -593,7 +594,7 @@
                                     <tr>
                                         <td>{{ forloop.counter }}</td>
                                         <td class="fw-bold">{{ item.product.name }}</td>
-                                        <td class="fw-bold">{{ item.quantity|floatformat:"0" }}</td>
+                                        <td class="fw-bold">{{ item.quantity|remove_trailing_zeros }}</td>
                                         <td>{{ item.unit_price|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
                                         <td>{{ item.discount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
                                         <td class="fw-bold">{{ item.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>

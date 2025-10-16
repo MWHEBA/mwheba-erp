@@ -752,25 +752,8 @@ PricingSystem.CTP = {
      * إعداد معالجات الأحداث للزنكات
      */
     setupEventHandlers: function() {
-        // معالج تغيير مورد الزنكات للغلاف
-        const ctpSupplierSelect = document.getElementById('id_ctp_supplier');
-        if (ctpSupplierSelect) {
-            ctpSupplierSelect.addEventListener('change', () => {
-                const ctpPlateSizeSelect = document.getElementById('id_ctp_plate_size');
-                if (ctpPlateSizeSelect) {
-                    // تحميل مقاسات الزنكات للمورد المختار
-                    this.loadPlateSizes(ctpSupplierSelect.value, ctpPlateSizeSelect);
-                }
-            });
-        }
-        
-        // معالج تغيير مقاس الزنك للغلاف
-        const ctpPlateSizeSelect = document.getElementById('id_ctp_plate_size');
-        if (ctpPlateSizeSelect) {
-            ctpPlateSizeSelect.addEventListener('change', () => {
-                this.updatePlatePrice();
-            });
-        }
+        // تم نقل معالجات الزنكات إلى setupCoverCTPHandlers و setupInternalCTPHandlers
+        // لتجنب الربط المكرر
         
         // معالج تغيير مورد الزنكات للمحتوى الداخلي
         const internalCtpSupplierSelect = document.getElementById('id_internal_ctp_supplier');

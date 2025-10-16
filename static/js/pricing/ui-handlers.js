@@ -321,20 +321,33 @@ PricingSystem.UI = {
      * إعداد معالجات أحداث حقول المقاس المخصص
      */
     setupCustomSizeFields: function() {
-        const paperSizeSelect = document.getElementById('id_paper_size');
+        const productSizeSelect = document.getElementById('id_product_size');
         const customSizeFields = document.getElementById('custom-size-fields');
         
-        if (paperSizeSelect && customSizeFields) {
-            // إضافة مستمع حدث لتغيير مقاس الورق
-            paperSizeSelect.addEventListener('change', function() {
-                // التحقق مما إذا كان المقاس المخصص هو المحدد
-                const isCustomSize = this.options[this.selectedIndex].text === 'مقاس مخصص';
-                customSizeFields.style.display = isCustomSize ? 'flex' : 'none';
+        if (productSizeSelect && customSizeFields) {
+            // إخفاء حقول المقاس المخصص في البداية
+            customSizeFields.style.display = 'none';
+            
+            // إضافة مستمع حدث لتغيير القائمة المنسدلة
+            productSizeSelect.addEventListener('change', function() {
+                if (this.value === 'custom') {
+                    customSizeFields.style.display = 'flex';
+                    console.log('تم اختيار مقاس مخصص');
+                } else {
+                    customSizeFields.style.display = 'none';
+                    // مسح القيم عند الإخفاء
+                    const widthInput = document.getElementById('id_custom_size_width');
+                    const heightInput = document.getElementById('id_custom_size_height');
+                    if (widthInput) widthInput.value = '';
+                    if (heightInput) heightInput.value = '';
+                    console.log('تم إلغاء اختيار المقاس المخصص');
+                }
             });
             
-            // التحقق عند تحميل الصفحة
-            const isCustomSize = paperSizeSelect.options[paperSizeSelect.selectedIndex].text === 'مقاس مخصص';
-            customSizeFields.style.display = isCustomSize ? 'flex' : 'none';
+            // التحقق من الحالة عند تحميل الصفحة
+            if (productSizeSelect.value === 'custom') {
+                customSizeFields.style.display = 'flex';
+            }
         }
     },
     

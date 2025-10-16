@@ -1,5 +1,7 @@
-{% extends 'financial/advanced/base_advanced.html' %}
+{% extends 'base.html' %}
+{% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{% trans "ترحيل قيد" %} - {{ journal_entry.number }}{% endblock %}
 
@@ -92,14 +94,14 @@
                                         <td>{{ line.description }}</td>
                                         <td class="text-end">
                                             {% if line.debit > 0 %}
-                                                <strong class="text-success">{{ line.debit|floatformat:2 }}</strong>
+                                                <strong class="text-success">{{ line.debit|remove_trailing_zeros }}</strong>
                                             {% else %}
                                                 -
                                             {% endif %}
                                         </td>
                                         <td class="text-end">
                                             {% if line.credit > 0 %}
-                                                <strong class="text-danger">{{ line.credit|floatformat:2 }}</strong>
+                                                <strong class="text-danger">{{ line.credit|remove_trailing_zeros }}</strong>
                                             {% else %}
                                                 -
                                             {% endif %}
@@ -112,10 +114,10 @@
                                         <th colspan="2">{% trans "الإجمالي" %}</th>
                                         <th class="text-end">
                                             {% widthratio journal_entry.lines.all|length 1 1 as total_debit %}
-                                            {{ journal_entry.total_debit|floatformat:2 }}
+                                            {{ journal_entry.total_debit|remove_trailing_zeros }}
                                         </th>
                                         <th class="text-end">
-                                            {{ journal_entry.total_credit|floatformat:2 }}
+                                            {{ journal_entry.total_credit|remove_trailing_zeros }}
                                         </th>
                                     </tr>
                                 </tfoot>

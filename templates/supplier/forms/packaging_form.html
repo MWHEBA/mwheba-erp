@@ -1,0 +1,161 @@
+<!-- نموذج خدمات التقفيل -->
+<div class="packaging-service-form">
+    
+    <!-- معلومات الخدمة الأساسية -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                معلومات الخدمة الأساسية
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <input type="text" class="form-control" name="name" id="service-name" 
+                               placeholder="اسم الخدمة" required>
+                        <label for="service-name">اسم الخدمة *</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <select name="packaging_type" class="form-select" id="packaging-type" required>
+                            <option value="">اختر نوع التقفيل</option>
+                            {% for choice in form_choices.packaging_types %}
+                                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                            {% endfor %}
+                        </select>
+                        <label for="packaging-type">نوع التقفيل *</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إعدادات التسعير -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-dollar-sign me-2"></i>
+                إعدادات التسعير
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <select name="calculation_method" class="form-select" id="calculation-method" required>
+                            <option value="">اختر طريقة الحساب</option>
+                            <option value="per_piece">بالقطعة</option>
+                            <option value="per_thousand">بالألف</option>
+                        </select>
+                        <label for="calculation-method">طريقة الحساب *</label>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="price_per_unit" 
+                               id="price-per-unit" placeholder="سعر الوحدة" min="0" step="0.01" required>
+                        <label for="price-per-unit">سعر الوحدة *</label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="base_price" 
+                               id="base-price" placeholder="السعر الأساسي" min="0" step="0.01" required>
+                        <label for="base-price">السعر الأساسي (ج.م) *</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="setup_cost" 
+                               id="setup-cost" placeholder="تكلفة التجهيز" min="0" step="0.01" value="0">
+                        <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="min_quantity" 
+                               id="min-quantity" placeholder="الحد الأدنى" min="1" value="100" required>
+                        <label for="min-quantity">الحد الأدنى للكمية *</label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات إضافية وإعدادات -->
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-cog me-2"></i>
+                معلومات إضافية وإعدادات
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-8">
+                    <div class="form-floating">
+                        <textarea class="form-control" name="description" id="description" 
+                                  placeholder="وصف الخدمة" style="height: 100px;"></textarea>
+                        <label for="description">وصف الخدمة</label>
+                    </div>
+                </div>
+                <div class="col-md-4 d-flex align-items-center justify-content-center">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="is_active" 
+                               id="is-active" checked style="transform: scale(1.5);">
+                        <label class="form-check-label ms-2" for="is-active">
+                            <strong class="text-success">الخدمة نشطة</strong>
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+// تحديث السعر الأساسي من سعر الوحدة
+document.getElementById('price-per-unit').addEventListener('input', function() {
+    const basePriceField = document.getElementById('base-price');
+    if (!basePriceField.value) {
+        basePriceField.value = this.value;
+    }
+});
+
+// تحديث اسم الخدمة تلقائياً
+document.getElementById('packaging-type').addEventListener('change', function() {
+    const nameField = document.getElementById('service-name');
+    if (!nameField.value) {
+        const selectedOption = this.options[this.selectedIndex];
+        if (selectedOption.value) {
+            nameField.value = `خدمة ${selectedOption.text}`;
+        }
+    }
+});
+
+// تحديث الحد الأدنى حسب نوع التقفيل
+document.getElementById('packaging-type').addEventListener('change', function() {
+    const minQuantityField = document.getElementById('min-quantity');
+    const packagingType = this.value;
+    
+    // تحديد الحد الأدنى المناسب لكل نوع
+    const minQuantities = {
+        'lamination': 100,
+        'cellophane': 500,
+        'shrink_wrap': 50,
+        'box_packaging': 10,
+        'custom_packaging': 1
+    };
+    
+    if (packagingType && minQuantities[packagingType]) {
+        minQuantityField.value = minQuantities[packagingType];
+    }
+});
+</script>

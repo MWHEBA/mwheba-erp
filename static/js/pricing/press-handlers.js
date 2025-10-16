@@ -226,6 +226,11 @@ PricingSystem.Press = {
         if (hiddenInput) {
             hiddenInput.value = value;
             
+            // إعادة تعيين رسائل الخطأ عند تغيير الماكينة
+            if (PricingSystem.Montage && typeof PricingSystem.Montage.resetErrorFlags === 'function') {
+                PricingSystem.Montage.resetErrorFlags();
+            }
+            
             if (typeof this.updatePressInfo === 'function') {
                 this.updatePressInfo(value);
             }
@@ -454,14 +459,7 @@ PricingSystem.Press = {
                     
                     if (data && data.success) {
                         // تحديث سعر الماكينة
-                        var price = null;
-                        if (data.price_per_1000 !== undefined) {
-                            price = data.price_per_1000;
-                        } else if (data.price !== undefined) {
-                            price = data.price;
-                        } else if (data.unit_price !== undefined) {
-                            price = data.unit_price;
-                        }
+                        var price = data.price_per_1000 || data.price || data.unit_price;
                         
                         if (price !== null && pressPriceInput) {
                             pressPriceInput.value = price;
@@ -593,11 +591,20 @@ PricingSystem.Press = {
                 PricingSystem.Press.fetchPressPriceDirectly(pressId, pressPriceInput);
             };
             
+            window.updatePressInfo = function(pressValue) {
+                if (pressValue && pressValue !== '') {
+                    // جلب سعر الماكينة
+                    if (pressPriceInput) {
+                        this.fetchPressPriceDirectly(pressValue, pressPriceInput);
+                    }
+                }
+            };
+            
             // لا نقوم بإعادة تعريف calculatePressTotalCost لتجنب التعارض مع PricingSystem.Print.calculatePressCost
             // بدلاً من ذلك، نستخدم دائمًا PricingSystem.Print.calculatePressCost
             
         } catch (e) {
-            console.error('خطأ في إعداد معالجات أحداث الماكينات:', e);
+            
         }
     },
     

@@ -31,7 +31,7 @@ class ExpenseForm(forms.Form):
         decimal_places=2,
         min_value=Decimal("0.01"),
         widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "0.00", "step": "0.01"}
+            attrs={"class": "form-control", "placeholder": "0", "step": "any"}
         ),
     )
 
@@ -228,7 +228,7 @@ class ExpenseFilterForm(forms.Form):
         required=False,
         min_value=Decimal("0"),
         widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "0.00", "step": "0.01"}
+            attrs={"class": "form-control", "placeholder": "0", "step": "any"}
         ),
     )
 
@@ -237,7 +237,7 @@ class ExpenseFilterForm(forms.Form):
         required=False,
         min_value=Decimal("0"),
         widget=forms.NumberInput(
-            attrs={"class": "form-control", "placeholder": "0.00", "step": "0.01"}
+            attrs={"class": "form-control", "placeholder": "0", "step": "any"}
         ),
     )
 

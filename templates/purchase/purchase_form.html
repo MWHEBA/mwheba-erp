@@ -1,8 +1,9 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load custom_filters %}
 {% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}{% if purchase.id %}تعديل فاتورة مشتريات - {{ purchase.number }}{% else %}إضافة فاتورة مشتريات جديدة{% endif %}{% endblock %}
 
@@ -259,21 +260,6 @@
                 <div class="mb-4">
                     <h6 class="text-muted mb-3 fw-medium">بنود الفاتورة</h6>
                     
-                    {% if not purchase.id %}
-                    <div class="row mb-3">
-                        <div class="col-lg-4">
-                            <label class="form-label text-dark">طلب شراء (اختياري)</label>
-                            <select name="purchase_order" id="id_purchase_order" class="form-control">
-                                <option value="">اختر طلب الشراء (اختياري)</option>
-                                {% for po in purchase_orders %}
-                                        <option value="{{ po.id }}" {% if form.purchase_order.value|stringformat:'s' == po.id|stringformat:'s' %}selected{% endif %}>
-                                            {{ po.number }} - {{ po.supplier.name }} ({{ po.date|date:'d-m-Y' }})
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                        </div>
-                    </div>
-                    {% endif %}
                     
                     <div id="items-container">
                         {% if purchase.id and purchase.items.exists %}
@@ -294,21 +280,21 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label required-field">الكمية</label>
-                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|floatformat:'0' }}" required>
+                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|remove_trailing_zeros }}" required>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label required-field">سعر الوحدة</label>
-                                        <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" value="{{ item.unit_price }}" required>
+                                        <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" value="{{ item.unit_price }}" required>
                                     </div>
                                 </div>
                                 
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label">الخصم</label>
-                                        <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="{{ item.discount|default:0 }}">
+                                        <input type="number" name="discount[]" class="form-control item-discount" min="0" value="{{ item.discount|default:0 }}">
                                     </div>
                                 </div>
                                 
@@ -353,14 +339,14 @@
                             <div class="col-md-2">
                                 <div class="form-group mb-2">
                                     <label class="form-label required-field">سعر الوحدة</label>
-                                    <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" step="0.01" required>
+                                    <input type="number" name="unit_price[]" class="form-control unit-price" min="0.01" required>
                                 </div>
                             </div>
                             
                             <div class="col-md-2">
                                 <div class="form-group mb-2">
                                     <label class="form-label">الخصم</label>
-                                    <input type="number" name="discount[]" class="form-control item-discount" min="0" step="0.01" value="0">
+                                    <input type="number" name="discount[]" class="form-control item-discount" min="0" value="0">
                                 </div>
                             </div>
                             
@@ -386,7 +372,7 @@
                         
                         <div class="col-lg-4 col-md-6">
                             <label class="form-label text-dark">خصم على كامل الفاتورة</label>
-                            <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" step="0.01" placeholder="0.00">
+                            <input type="number" name="discount" id="id_discount" class="form-control" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
                         </div>
                         
                         <div class="col-lg-4 col-md-12">
@@ -468,11 +454,6 @@
             allowClear: true
         });
         
-        $('#id_purchase_order').select2({
-            placeholder: "اختر طلب الشراء (اختياري)",
-            width: '100%',
-            allowClear: true
-        });
         
         // التحكم في إظهار/إخفاء حقل الخزينة بناءً على طريقة الدفع
         function toggleFinancialAccount() {

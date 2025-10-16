@@ -334,7 +334,7 @@ PricingSystem.EventBus = {
         ]);
         
         // تبعيات حقل مقاس الورق
-        this.setupFieldDependencies('id_paper_size', [
+        this.setupFieldDependencies('id_product_size', [
             { 
                 fieldId: 'id_montage_info', 
                 directUpdate: true 

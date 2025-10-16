@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
@@ -355,7 +356,7 @@
               <i class="fas fa-star"></i>
             </div>
             <div class="stats-card-title">متوسط التقييم</div>
-            <div class="stats-card-value">{{ stats.avg_rating|floatformat:1 }}</div>
+            <div class="stats-card-value">{{ stats.avg_rating|remove_trailing_zeros }}</div>
             <div class="stats-card-unit">من 5</div>
           </div>
         </div>

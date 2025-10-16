@@ -7,10 +7,19 @@ window.PricingSystem = window.PricingSystem || {};
 
 // تعريف وحدة معالجة المونتاج
 PricingSystem.Montage = {
+    // إنشاء instance من الحاسبة الجديدة
+    calculator: null,
+    
     /**
-     * إعداد معالجات المونتاج
+     * إعداد معالجات المونتاج الشاملة
      */
     setupMontageHandlers: function() {
+        // إنشاء الحاسبة الجديدة إذا كانت متاحة
+        if (typeof MontageCalculator !== 'undefined') {
+            this.calculator = new MontageCalculator();
+            console.log('تم تحميل النظام الاحترافي الجديد للمونتاج');
+        }
+        
         // تسجيل معالجات الأحداث مع ناقل الأحداث إذا كان متاحًا
         if (PricingSystem.EventBus) {
             this.registerEventHandlers();
@@ -25,7 +34,7 @@ PricingSystem.Montage = {
      */
     registerEventHandlers: function() {
         // الاستماع لتغييرات مقاس الورق وماكينة الطباعة للغلاف
-        const coverFields = ['id_paper_size', 'id_press', 'id_custom_size_width', 'id_custom_size_height'];
+        const coverFields = ['id_product_size', 'id_press', 'id_custom_size_width', 'id_custom_size_height'];
         coverFields.forEach(fieldId => {
             PricingSystem.EventBus.on(`field:${fieldId}:changed`, (data) => {
                 const montageInfoField = document.getElementById('id_montage_info');
@@ -71,7 +80,7 @@ PricingSystem.Montage = {
         // الاستماع لتحديثات الحقول المتعلقة بالمونتاج
         PricingSystem.EventBus.on('fields:updated', (data) => {
             const montageRelatedFields = [
-                'id_paper_size', 'id_press', 'id_custom_size_width', 'id_custom_size_height',
+                'id_product_size', 'id_press', 'id_custom_size_width', 'id_custom_size_height',
                 'press_selector'
             ];
             
@@ -105,8 +114,13 @@ PricingSystem.Montage = {
         
         // الاستماع لتغييرات عدد المونتاج لتحديث عدد أفرخ الورق
         PricingSystem.EventBus.on(`field:id_montage_count:changed`, (data) => {
-            if (PricingSystem.Paper && typeof PricingSystem.Paper.calculatePaperSheetsDirectly === 'function') {
+            // التحقق من وجود نوع الورق قبل حساب كمية الورق
+            const paperTypeSelect = document.getElementById('id_paper_type');
+            if (paperTypeSelect && paperTypeSelect.value && 
+                PricingSystem.Paper && typeof PricingSystem.Paper.calculatePaperSheetsDirectly === 'function') {
                 PricingSystem.Paper.calculatePaperSheetsDirectly();
+            } else {
+                console.log('نوع الورق غير محدد - تخطي حساب كمية الورق من تغيير المونتاج');
             }
         });
         
@@ -122,26 +136,61 @@ PricingSystem.Montage = {
      * إعداد معالجات الأحداث التقليدية (بدون ناقل الأحداث)
      */
     setupTraditionalEventHandlers: function() {
-        // إعداد معالجات أحداث التصميم لحساب المونتاج
-        const paperSizeSelect = document.getElementById('id_paper_size');
+        console.log('إعداد معالجات الأحداث التقليدية...');
+        
+        // الحصول على القيم من النموذج
+        const quantity = parseInt(document.getElementById('id_quantity')?.value) || 1000;
+        const designWidth = parseFloat(document.getElementById('id_custom_size_width')?.value) || 0;
+        const designHeight = parseFloat(document.getElementById('id_custom_size_height')?.value) || 0;
+        
+        const pressSelect = document.getElementById('id_press');
+        const paperSizeSelect = document.getElementById('id_product_size');
         const customSizeWidthInput = document.getElementById('id_custom_size_width');
         const customSizeHeightInput = document.getElementById('id_custom_size_height');
-        const pressSelect = document.getElementById('id_press');
         const montageInfoField = document.getElementById('id_montage_info');
         
-        if (paperSizeSelect && pressSelect && montageInfoField) {
+        if (pressSelect && montageInfoField) {
             // عند تغيير مقاس الورق أو ماكينة الطباعة، قم بتحديث معلومات المونتاج
             const updateMontageOnChange = () => {
+                console.log('تم تشغيل updateMontageOnChange');
                 this.updateMontageInfo(montageInfoField);
             };
             
-            paperSizeSelect.addEventListener('change', updateMontageOnChange);
+            if (paperSizeSelect) {
+                paperSizeSelect.addEventListener('change', updateMontageOnChange);
+            }
             pressSelect.addEventListener('change', updateMontageOnChange);
             
             // إذا كان هناك مقاس مخصص، أضف مستمعات الأحداث له أيضًا
             if (customSizeWidthInput && customSizeHeightInput) {
                 customSizeWidthInput.addEventListener('change', updateMontageOnChange);
                 customSizeHeightInput.addEventListener('change', updateMontageOnChange);
+                customSizeWidthInput.addEventListener('input', updateMontageOnChange);
+                customSizeHeightInput.addEventListener('input', updateMontageOnChange);
+            }
+            
+            // إضافة معالجات لحقول أخرى قد تؤثر على المونتاج
+            const designWidthInput = document.getElementById('id_design_width');
+            const designHeightInput = document.getElementById('id_design_height');
+            
+            if (designWidthInput) {
+                designWidthInput.addEventListener('change', updateMontageOnChange);
+                designWidthInput.addEventListener('input', updateMontageOnChange);
+            }
+            
+            if (designHeightInput) {
+                designHeightInput.addEventListener('change', updateMontageOnChange);
+                designHeightInput.addEventListener('input', updateMontageOnChange);
+            }
+            
+            // معالج لـ press_selector إذا كان موجوداً
+            const pressSelectorSelect = document.getElementById('press_selector');
+            if (pressSelectorSelect) {
+                pressSelectorSelect.addEventListener('change', () => {
+                    setTimeout(() => {
+                        updateMontageOnChange();
+                    }, 100);
+                });
             }
         }
         
@@ -169,20 +218,75 @@ PricingSystem.Montage = {
      * @param {boolean} isInternal - هل هو للمحتوى الداخلي
      */
     updateMontageInfo: function(montageInfoField, isInternal = false) {
+        console.log('تم استدعاء updateMontageInfo، isInternal:', isInternal);
+        
         if (!montageInfoField) {
             console.warn('حقل معلومات المونتاج غير موجود');
             return;
         }
         
         if (isInternal) {
+            console.log('تحويل إلى updateInternalMontageInfo');
             this.updateInternalMontageInfo(montageInfoField);
             return;
         }
         
+        console.log('بدء معالجة المونتاج الرئيسي...');
+        
         const pressSelect = document.getElementById('id_press');
-        const paperSizeSelect = document.getElementById('id_paper_size');
-        const customSizeWidthInput = document.getElementById('id_custom_size_width');
-        const customSizeHeightInput = document.getElementById('id_custom_size_height');
+        let paperSizeSelect = document.getElementById('id_product_size');
+        
+        // البحث عن حقول مقاس الورق البديلة
+        if (!paperSizeSelect) {
+            const possiblePaperFields = [
+                'id_paper_sheet_type',
+                'id_paper_type', 
+                'id_sheet_type',
+                'paper_size',
+                'paper_sheet_type',
+                'sheet_type'
+            ];
+            
+            console.log('البحث عن حقول مقاس الورق البديلة...');
+            for (const fieldId of possiblePaperFields) {
+                paperSizeSelect = document.getElementById(fieldId);
+                if (paperSizeSelect) {
+                    console.log('تم العثور على حقل مقاس الورق:', fieldId);
+                    break;
+                }
+            }
+        }
+        
+        let customSizeWidthInput = document.getElementById('id_custom_size_width');
+        let customSizeHeightInput = document.getElementById('id_custom_size_height');
+        
+        // البحث عن حقول أبعاد التصميم البديلة
+        if (!customSizeWidthInput || !customSizeHeightInput) {
+            const possibleWidthFields = ['id_design_width', 'design_width', 'width'];
+            const possibleHeightFields = ['id_design_height', 'design_height', 'height'];
+            
+            console.log('البحث عن حقول أبعاد التصميم البديلة...');
+            
+            if (!customSizeWidthInput) {
+                for (const fieldId of possibleWidthFields) {
+                    customSizeWidthInput = document.getElementById(fieldId);
+                    if (customSizeWidthInput) {
+                        console.log('تم العثور على حقل العرض:', fieldId);
+                        break;
+                    }
+                }
+            }
+            
+            if (!customSizeHeightInput) {
+                for (const fieldId of possibleHeightFields) {
+                    customSizeHeightInput = document.getElementById(fieldId);
+                    if (customSizeHeightInput) {
+                        console.log('تم العثور على حقل الارتفاع:', fieldId);
+                        break;
+                    }
+                }
+            }
+        }
         
         if (!pressSelect) {
             console.warn('حقل ماكينة الطباعة غير موجود');
@@ -190,14 +294,33 @@ PricingSystem.Montage = {
             return;
         }
         
-        if (!paperSizeSelect) {
-            console.warn('حقل مقاس الورق غير موجود');
-            montageInfoField.value = 'يرجى اختيار مقاس الورق';
-            return;
-        }
-        
         const pressId = pressSelect.value;
+        
+        if (!paperSizeSelect) {
+            console.warn('حقل مقاس الورق غير موجود - محاولة استخدام أبعاد التصميم مباشرة');
+            
+            // محاولة استخدام أبعاد التصميم مباشرة
+            if (customSizeWidthInput && customSizeHeightInput) {
+                const designWidth = parseFloat(customSizeWidthInput.value);
+                const designHeight = parseFloat(customSizeHeightInput.value);
+                
+                if (designWidth && designHeight && designWidth > 0 && designHeight > 0) {
+                    console.log('استخدام أبعاد التصميم مباشرة:', designWidth, 'x', designHeight);
+                    this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    return;
+                } else {
+                    montageInfoField.value = 'يرجى إدخال أبعاد التصميم';
+                    return;
+                }
+            } else {
+                montageInfoField.value = 'حقول مقاس الورق وأبعاد التصميم غير متاحة';
+                return;
+            }
+        }
+        console.log('معرف الماكينة المحددة:', pressId);
+        
         if (!pressId) {
+            console.warn('لم يتم اختيار ماكينة طباعة');
             montageInfoField.value = 'يجب اختيار ماكينة الطباعة أولاً';
             return;
         }
@@ -206,55 +329,190 @@ PricingSystem.Montage = {
         let designWidth, designHeight;
         
         // التحقق مما إذا كان المقاس المخصص محدد
-        if (paperSizeSelect.value === 'custom' && customSizeWidthInput && customSizeHeightInput) {
+        console.log('مقاس الورق المحدد:', paperSizeSelect ? paperSizeSelect.value : 'حقل مقاس الورق غير موجود');
+        
+        // أولاً: التحقق من اختيار المقاس المخصص
+        if (paperSizeSelect && paperSizeSelect.value === 'custom' && 
+            customSizeWidthInput && customSizeHeightInput && 
+            customSizeWidthInput.value && customSizeHeightInput.value &&
+            parseFloat(customSizeWidthInput.value) > 0 && parseFloat(customSizeHeightInput.value) > 0) {
+            
             designWidth = parseFloat(customSizeWidthInput.value);
             designHeight = parseFloat(customSizeHeightInput.value);
-        } else {
-            // الحصول على أبعاد مقاس الورق المحدد من API
-            this.getPaperSizeDimensions(paperSizeSelect.value)
-                .then(dimensions => {
-                    if (!dimensions || !dimensions.width || !dimensions.height) {
-                        montageInfoField.value = 'لا يمكن الحصول على أبعاد مقاس الورق';
+            console.log('استخدام المقاس المخصص من الحقول - العرض:', designWidth, 'الارتفاع:', designHeight);
+            this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+            return;
+            
+        } else if (paperSizeSelect && paperSizeSelect.value && paperSizeSelect.value.trim() !== '') {
+            console.log('استخدام مقاس ورق معياري، جاري الحصول على الأبعاد...');
+            
+            // استخدام مقاس الورق المحدد كمقاس التصميم (الحالة الافتراضية)
+            console.log('معرف مقاس الورق المرسل للAPI:', paperSizeSelect.value);
+            console.log('نص مقاس الورق المحدد:', paperSizeSelect.options[paperSizeSelect.selectedIndex]?.text);
+            
+            // التحقق من التضارب بين النص والقيمة
+            const selectedText = paperSizeSelect.options[paperSizeSelect.selectedIndex]?.text || '';
+            console.log('فحص التضارب - النص المحدد:', selectedText, 'القيمة المرسلة:', paperSizeSelect.value);
+            
+            // معالجة المقاسات الشائعة بناءً على النص المعروض
+            if (selectedText.includes('A3')) {
+                console.log('تم اكتشاف A3 - استخدام أبعاد A3 مباشرة (30×42)');
+                designWidth = 30;
+                designHeight = 42;
+                this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                return;
+            } else if (selectedText.includes('A4')) {
+                console.log('تم اكتشاف A4 - استخدام أبعاد A4 مباشرة (21×30)');
+                designWidth = 21;
+                designHeight = 30;
+                this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                return;
+                } else if (selectedText.includes('A5')) {
+                    console.log('تم اكتشاف A5 - استخدام أبعاد A5 مباشرة (15×21)');
+                    designWidth = 15;
+                    designHeight = 21;
+                    this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    return;
+                } else if (selectedText.includes('A6')) {
+                    console.log('تم اكتشاف A6 - استخدام أبعاد A6 مباشرة (10.5×15)');
+                    designWidth = 10.5;
+                    designHeight = 15;
+                    this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    return;
+                } else if (selectedText.includes('بزنس كارد') || selectedText.includes('business card')) {
+                    console.log('تم اكتشاف بزنس كارد - استخدام أبعاد البزنس كارد (5.5×9)');
+                    designWidth = 5.5;
+                    designHeight = 9;
+                    this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    return;
+                } else if (selectedText.includes('فلاير') || selectedText.includes('flyer')) {
+                    console.log('تم اكتشاف فلاير - استخدام أبعاد الفلاير الشائع (15×21)');
+                    designWidth = 15;
+                    designHeight = 21;
+                    this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    return;
+                } else if (selectedText.includes('مخصص') || selectedText.includes('custom')) {
+                    // التحقق من حقول المقاس المخصص
+                    if (customSizeWidthInput && customSizeHeightInput && 
+                        customSizeWidthInput.value && customSizeHeightInput.value &&
+                        parseFloat(customSizeWidthInput.value) > 0 && parseFloat(customSizeHeightInput.value) > 0) {
+                        
+                        designWidth = parseFloat(customSizeWidthInput.value);
+                        designHeight = parseFloat(customSizeHeightInput.value);
+                        console.log('استخدام المقاس المخصص:', designWidth, 'x', designHeight);
+                        this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                        return;
+                    } else {
+                        montageInfoField.value = 'يرجى إدخال أبعاد المقاس المخصص';
                         return;
                     }
-                    
-                    designWidth = dimensions.width;
-                    designHeight = dimensions.height;
-                    
-                    // بعد الحصول على أبعاد الورق، نستمر في حساب المونتاج
+                }
+                
+                this.getPaperSizeDimensions(paperSizeSelect.value)
+                    .then(dimensions => {
+                        console.log('استخدام مقاس الورق كمقاس التصميم:', dimensions);
+                        console.log('تحقق: هل هذا A4؟', dimensions.name, dimensions.width, dimensions.height);
+                        designWidth = dimensions.width;
+                        designHeight = dimensions.height;
+                        
+                        // بعد الحصول على أبعاد الورق، نستمر في حساب المونتاج
+                        this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
+                    })
+                    .catch(error => {
+                        console.error('خطأ في الحصول على أبعاد مقاس الورق:', error.message);
+                        montageInfoField.value = error.message;
+                    });
+        } else {
+            console.warn('مقاس الورق فارغ - محاولة استخدام أبعاد التصميم مباشرة');
+            
+            // محاولة استخدام أبعاد التصميم مباشرة
+            if (customSizeWidthInput && customSizeHeightInput) {
+                designWidth = parseFloat(customSizeWidthInput.value);
+                designHeight = parseFloat(customSizeHeightInput.value);
+                
+                if (designWidth && designHeight && designWidth > 0 && designHeight > 0) {
+                    console.log('استخدام أبعاد التصميم مباشرة (مقاس ورق فارغ):', designWidth, 'x', designHeight);
                     this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
-                })
-                .catch(error => {
-                    console.error('خطأ في الحصول على أبعاد مقاس الورق:', error);
-                    montageInfoField.value = 'حدث خطأ أثناء حساب المونتاج';
-                });
-            return;
+                    return;
+                } else {
+                    montageInfoField.value = 'يرجى إدخال أبعاد التصميم';
+                    return;
+                }
+            } else {
+                montageInfoField.value = 'يرجى اختيار مقاس الورق أو إدخال أبعاد التصميم';
+                return;
+            }
         }
-        
-        if (!designWidth || !designHeight) {
-            montageInfoField.value = 'يرجى إدخال أبعاد التصميم';
-            return;
-        }
-        
-        // استمرار حساب المونتاج بعد الحصول على أبعاد التصميم
-        this.calculateMontageWithPressAndDesign(pressId, designWidth, designHeight, montageInfoField);
     },
     
     /**
      * دالة مساعدة لحساب المونتاج بعد الحصول على أبعاد الماكينة والتصميم
      */
     calculateMontageWithPressAndDesign: function(pressId, designWidth, designHeight, montageInfoField) {
-        // الحصول على مقاس ماكينة الطباعة
-        this.getPressSize(pressId)
-            .then(pressSize => {
-                if (!pressSize || !pressSize.width || !pressSize.height) {
-                    montageInfoField.value = 'لا يمكن الحصول على مقاس ماكينة الطباعة';
+        console.log('بدء حساب المونتاج - معرف الماكينة:', pressId, 'أبعاد التصميم:', designWidth, 'x', designHeight);
+        
+        // الحصول على مقاس الورق المحدد
+        const paperSizeSelect = document.getElementById('id_product_size');
+        if (!paperSizeSelect || !paperSizeSelect.value) {
+            montageInfoField.value = 'يرجى اختيار مقاس الورق أولاً';
+            return;
+        }
+        
+        // الحصول على مقاس الورق ومقاس الماكينة
+        Promise.all([
+            this.getPaperSizeDimensions(paperSizeSelect.value),
+            this.getPressSize(pressId)
+        ])
+            .then(([paperSize, pressSize]) => {
+                console.log('مقاس الورق المسترجع:', paperSize);
+                console.log('مقاس الماكينة المسترجع:', pressSize);
+                
+                // معالجة خاصة للمقاس المخصص
+                if (paperSizeSelect.value === 'custom') {
+                    console.log('معالجة مقاس مخصص - أبعاد التصميم:', designWidth, 'x', designHeight);
+                    
+                    // للمقاس المخصص، نستخدم أبعاد التصميم مباشرة
+                    const montageResult = this.calculateMontageForCustomSize(designWidth, designHeight, pressSize);
+                    montageInfoField.value = montageResult;
                     return;
                 }
                 
-                // حساب المونتاج
+                // تحديد مقاس الطباعة الفعلي بناءً على نوع الورق والماكينة (للمقاسات المعيارية فقط)
+                let actualPrintSize;
+                
+                // التحقق من نوع الورق (جاير أم كامل)
+                const isJayerPaper = paperSize.width === 70 && paperSize.height === 100; // فرخ جاير
+                
+                // تحديد مقاس الماكينة الفعلي
+                if (isJayerPaper && pressSize.width === 35 && pressSize.height === 50) {
+                    // ورق جاير + ماكينة ربع فرخ = ربع جاير (33×44)
+                    actualPrintSize = {
+                        width: 33,
+                        height: 44
+                    };
+                    console.log('تم اكتشاف ورق جاير مع ماكينة ربع فرخ - استخدام ربع جاير (33×44)');
+                } else if (isJayerPaper && pressSize.width === 50 && pressSize.height === 70) {
+                    // ورق جاير + ماكينة نصف فرخ = نصف جاير (33×50)
+                    actualPrintSize = {
+                        width: 33,
+                        height: 50
+                    };
+                    console.log('تم اكتشاف ورق جاير مع ماكينة نصف فرخ - استخدام نصف جاير (33×50)');
+                } else {
+                    // الحالة العادية: الأصغر بين الورق والماكينة
+                    actualPrintSize = {
+                        width: Math.min(paperSize.width, pressSize.width),
+                        height: Math.min(paperSize.height, pressSize.height)
+                    };
+                }
+                
+                console.log('مقاس الطباعة الفعلي:', actualPrintSize);
+                
+                // حساب المونتاج بناءً على مقاس الطباعة الفعلي
                 const designSize = { width: designWidth, height: designHeight };
-                const montageResult = this.calculateMontage(pressSize, designSize);
+                console.log('بدء حساب المونتاج بالبيانات:', { actualPrintSize, designSize });
+                const montageResult = this.calculateMontage(actualPrintSize, designSize);
+                console.log('نتيجة حساب المونتاج:', montageResult);
                 
                 // الحصول على نوع الماكينة المكتوب بين القوسين
                 let pressSheetType = montageResult.sheetType; // القيمة الافتراضية
@@ -318,17 +576,22 @@ PricingSystem.Montage = {
                 if (montageCountField) {
                     montageCountField.value = montageResult.count;
                     
-                    // تحديث كمية الورق المطلوبة
-                    if (typeof PricingSystem.Paper !== 'undefined' && typeof PricingSystem.Paper.calculatePaperSheetsDirectly === 'function') {
+                    // تحديث كمية الورق المطلوبة فقط إذا كان نوع الورق محدد
+                    const paperTypeSelect = document.getElementById('id_paper_type');
+                    if (paperTypeSelect && paperTypeSelect.value && 
+                        typeof PricingSystem.Paper !== 'undefined' && 
+                        typeof PricingSystem.Paper.calculatePaperSheetsDirectly === 'function') {
                         PricingSystem.Paper.calculatePaperSheetsDirectly();
+                    } else {
+                        console.log('نوع الورق غير محدد - تخطي حساب كمية الورق من المونتاج');
                     }
                 } else {
                     console.warn('حقل عدد المونتاج غير موجود');
                 }
             })
             .catch(error => {
-                console.error('خطأ في الحصول على مقاس ماكينة الطباعة:', error);
-                montageInfoField.value = 'حدث خطأ أثناء حساب المونتاج';
+                console.error('خطأ في الحصول على بيانات الطباعة:', error.message);
+                montageInfoField.value = error.message;
             });
     },
     
@@ -339,13 +602,34 @@ PricingSystem.Montage = {
      */
     getPaperSizeDimensions: function(paperSizeId) {
         return new Promise((resolve, reject) => {
-            // القيم الافتراضية في حالة عدم نجاح الاستدعاء
-            const defaultDimensions = { width: 21, height: 29.7 }; // A4 افتراضي
-            
-            // إذا لم يتم تمرير معرف مقاس الورق، أرجع القيم الافتراضية
-            if (!paperSizeId) {
-                resolve(defaultDimensions);
+            // التحقق من وجود معرف مقاس الورق
+            if (!paperSizeId || paperSizeId === '' || paperSizeId === 'undefined' || paperSizeId === 'null') {
+                reject(new Error('معرف مقاس الورق مطلوب - يرجى اختيار مقاس الورق من القائمة'));
                 return;
+            }
+            
+            // معالجة خاصة للمقاس المخصص
+            if (paperSizeId === 'custom') {
+                const widthInput = document.getElementById('id_custom_size_width');
+                const heightInput = document.getElementById('id_custom_size_height');
+                
+                if (widthInput && heightInput && widthInput.value && heightInput.value) {
+                    const width = parseFloat(widthInput.value);
+                    const height = parseFloat(heightInput.value);
+                    
+                    if (width > 0 && height > 0) {
+                        const dimensions = { width: width, height: height };
+                        console.log('استخدام المقاس المخصص:', dimensions);
+                        resolve(dimensions);
+                        return;
+                    } else {
+                        reject(new Error('يرجى إدخال أبعاد صحيحة للمقاس المخصص'));
+                        return;
+                    }
+                } else {
+                    reject(new Error('يرجى إدخال العرض والارتفاع للمقاس المخصص'));
+                    return;
+                }
             }
             
             // مخزن للقيم المسترجعة من الخادم (لتجنب استدعاء API متكرر)
@@ -359,8 +643,18 @@ PricingSystem.Montage = {
                 return;
             }
             
+            // تحديد API المناسب بناءً على نوع المعرف
+            let apiUrl;
+            if (paperSizeId.match(/^\d+$/)) {
+                // إذا كان رقم، استخدم API مقاسات الورق
+                apiUrl = `/pricing/api/paper-size-dimensions/?paper_size_id=${paperSizeId}`;
+            } else {
+                // إذا كان نص (مثل full_70x100)، استخدم API تحويل مقاس الورق
+                apiUrl = `/pricing/api/convert-sheet-type-to-dimensions/?sheet_type=${paperSizeId}`;
+            }
+            
             // استدعاء API للحصول على أبعاد مقاس الورق
-            fetch(`/pricing/api/paper-size-dimensions/?paper_size_id=${paperSizeId}`)
+            fetch(apiUrl)
                 .then(response => {
                     if (!response.ok) {
                         throw new Error(`فشل الطلب بكود الحالة: ${response.status}`);
@@ -368,25 +662,74 @@ PricingSystem.Montage = {
                     return response.json();
                 })
                 .then(data => {
-                    if (data.success) {
+                    if (data.success && data.width && data.height) {
                         const dimensions = {
                             width: parseFloat(data.width),
                             height: parseFloat(data.height)
                         };
-                        window.paperSizeDimensionsCache[paperSizeId] = dimensions;
-                        resolve(dimensions);
+                        
+                        // التحقق من صحة الأبعاد
+                        if (dimensions.width > 0 && dimensions.height > 0) {
+                            window.paperSizeDimensionsCache[paperSizeId] = dimensions;
+                            resolve(dimensions);
+                        } else {
+                            reject(new Error(`أبعاد مقاس الورق غير صحيحة: ${dimensions.width}×${dimensions.height}`));
+                        }
                     } else {
-                        console.error('خطأ من الخادم:', data.error || 'خطأ غير معروف');
-                        resolve(defaultDimensions);
+                        reject(new Error(`مقاس الورق ${paperSizeId} غير موجود في قاعدة البيانات - يرجى إضافته في إعدادات النظام`));
                     }
                 })
                 .catch(error => {
-                    console.error('خطأ في الحصول على أبعاد مقاس الورق:', error);
-                    resolve(defaultDimensions);
+                    reject(new Error(`فشل في الاتصال بخادم البيانات: ${error.message}`));
                 });
         });
     },
     
+    /**
+     * حساب المونتاج للمقاس المخصص
+     */
+    calculateMontageForCustomSize: function(designWidth, designHeight, pressSize) {
+        console.log('حساب المونتاج للمقاس المخصص:', designWidth, 'x', designHeight, 'على ماكينة:', pressSize);
+        
+        // التحقق من أن أبعاد التصميم تدخل في الماكينة
+        if (designWidth > pressSize.width || designHeight > pressSize.height) {
+            return `التصميم (${designWidth}×${designHeight}) أكبر من مقاس الماكينة (${pressSize.width}×${pressSize.height})`;
+        }
+        
+        // حساب عدد القطع في الاتجاه الأفقي والعمودي
+        const piecesHorizontal = Math.floor(pressSize.width / designWidth);
+        const piecesVertical = Math.floor(pressSize.height / designHeight);
+        const totalPieces = piecesHorizontal * piecesVertical;
+        
+        if (totalPieces === 0) {
+            return `لا يمكن طباعة التصميم بهذا المقاس على الماكينة المحددة`;
+        }
+        
+        // حساب المساحة المستغلة
+        const usedWidth = piecesHorizontal * designWidth;
+        const usedHeight = piecesVertical * designHeight;
+        const wasteWidth = pressSize.width - usedWidth;
+        const wasteHeight = pressSize.height - usedHeight;
+        
+        // تحديد نوع الماكينة بناءً على مساحتها (مثل باقي المقاسات)
+        const pressType = this.determinePressTypeFromSize(pressSize);
+        
+        // تنسيق النتيجة بنفس طريقة المقاسات المعيارية
+        return `${totalPieces} / ${pressType}`;
+    },
+    
+    /**
+     * إعادة تعيين رسائل الخطأ المسجلة (فقط عند تغيير الماكينة)
+     */
+    resetErrorFlags: function() {
+        // إعادة تعيين رسائل الخطأ المرتبطة بمعرفات الماكينات المحددة
+        Object.keys(window).forEach(key => {
+            if (key.startsWith('pressApiError_') || key.startsWith('pressFetchError_')) {
+                delete window[key];
+            }
+        });
+    },
+
     /**
      * دالة للحصول على مقاس ماكينة الطباعة
      * @param {number} pressId - معرف ماكينة الطباعة
@@ -394,12 +737,9 @@ PricingSystem.Montage = {
      */
     getPressSize: function(pressId) {
         return new Promise((resolve, reject) => {
-            // القيم الافتراضية في حالة عدم نجاح الاستدعاء
-            const defaultPressSize = { width: 70, height: 100 }; // مقاس افتراضي للماكينة
-            
-            if (!pressId) {
-                console.warn('لم يتم تمرير معرف ماكينة الطباعة');
-                reject(new Error('معرف ماكينة الطباعة غير محدد'));
+            // التحقق من وجود معرف الماكينة
+            if (!pressId || pressId === '' || pressId === 'undefined' || pressId === 'null') {
+                reject(new Error('معرف الماكينة مطلوب - يرجى اختيار ماكينة الطباعة'));
                 return;
             }
                         
@@ -470,115 +810,79 @@ PricingSystem.Montage = {
                     return response.json();
                 })
                 .then(data => {
-                    if (data.success) {
-                        resolve({
-                            width: parseFloat(data.width),
-                            height: parseFloat(data.height)
-                        });
+                    if (data.success && data.press_size && data.press_size.width && data.press_size.height) {
+                        const pressSize = {
+                            width: parseFloat(data.press_size.width),
+                            height: parseFloat(data.press_size.height)
+                        };
+                        
+                        // التحقق من صحة الأبعاد
+                        if (pressSize.width > 0 && pressSize.height > 0) {
+                            resolve(pressSize);
+                        } else {
+                            reject(new Error(`أبعاد الماكينة غير صحيحة: ${pressSize.width}×${pressSize.height}`));
+                        }
                     } else {
-                        console.warn('خطأ في الحصول على مقاس الماكينة من API:', data.error || 'خطأ غير معروف');
-                        // استخدام القيم الافتراضية في حالة الخطأ
-                        resolve(defaultPressSize);
+                        reject(new Error(`الماكينة ID ${pressId} غير موجودة أو غير مكتملة البيانات - يرجى التحقق من إعدادات المورد`));
                     }
                 })
                 .catch(error => {
-                    console.error('خطأ في استدعاء API لمقاس الماكينة:', error);
-                    // استخدام القيم الافتراضية في حالة الخطأ
-                    resolve(defaultPressSize);
+                    reject(new Error(`فشل في الاتصال بخادم البيانات: ${error.message}`));
                 });
         });
     },
     
     /**
-     * دالة لحساب المونتاج
-     * @param {Object} pressSize - مقاس ماكينة الطباعة
+     * دالة لحساب المونتاج - كم تصميم يدخل في مساحة الطباعة
+     * @param {Object} printSize - مقاس الطباعة الفعلي (الأصغر بين الورق والماكينة)
      * @param {Object} designSize - مقاس التصميم
      * @returns {Object} نتيجة حساب المونتاج
      */
-    calculateMontage: function(pressSize, designSize) {
-        // الحصول على مقاس ماكينة الطباعة ومقاس التصميم
-        const pressWidth = pressSize.width;
-        const pressHeight = pressSize.height;
+    calculateMontage: function(printSize, designSize) {
+        // حساب المونتاج = كم تصميم يدخل في مساحة الطباعة الفعلية
+        console.log('حساب المونتاج - مقاس الطباعة:', printSize.width, 'x', printSize.height);
+        console.log('حساب المونتاج - مقاس التصميم:', designSize.width, 'x', designSize.height);
+        
+        // الحصول على أبعاد الطباعة والتصميم
+        const printWidth = printSize.width;
+        const printHeight = printSize.height;
         const designWidth = designSize.width;
         const designHeight = designSize.height;
         
-        // حساب عدد التصاميم التي يمكن وضعها في العرض والطول
-        const widthCount = Math.floor(pressWidth / designWidth);
-        const heightCount = Math.floor(pressHeight / designHeight);
+        // المعادلة الصحيحة حسب طلبك:
         
-        // حساب عدد التصاميم التي يمكن وضعها في العرض والطول بعد تدوير التصميم
-        const rotatedWidthCount = Math.floor(pressWidth / designHeight);
-        const rotatedHeightCount = Math.floor(pressHeight / designWidth);
+        // الحالة العادية (بدون تدوير)
+        const عدد_بالعرض = Math.floor(printWidth / designWidth);
+        const عدد_بالطول = Math.floor(printHeight / designHeight);
+        const عدد_عادي = عدد_بالعرض * عدد_بالطول;
         
-        // حساب إجمالي عدد التصاميم في كل حالة
-        const normalCount = widthCount * heightCount;
-        const rotatedCount = rotatedWidthCount * rotatedHeightCount;
+        // الحالة المدورة (مع تدوير التصميم 90 درجة)
+        const عدد_مدور_بالعرض = Math.floor(printWidth / designHeight);
+        const عدد_مدور_بالطول = Math.floor(printHeight / designWidth);
+        const عدد_مدور = عدد_مدور_بالعرض * عدد_مدور_بالطول;
         
-        // اختيار الحالة التي تعطي أكبر عدد من التصاميم
-        let montageCount, message, sheetType;
-        if (normalCount >= rotatedCount) {
-            montageCount = normalCount;
-            message = `${widthCount} × ${heightCount} = ${montageCount} / فرخ كامل`;
-            sheetType = 'فرخ كامل';
+        // العدد النهائي = الأكبر(عدد_عادي, عدد_مدور)
+        const العدد_النهائي = Math.max(عدد_عادي, عدد_مدور);
+        
+        console.log(`الحالة العادية: ${عدد_بالعرض} × ${عدد_بالطول} = ${عدد_عادي}`);
+        console.log(`الحالة المدورة: ${عدد_مدور_بالعرض} × ${عدد_مدور_بالطول} = ${عدد_مدور}`);
+        console.log(`العدد النهائي: ${العدد_النهائي}`);
+        
+        // تحديد نوع الورق بناءً على مقاس الطباعة الفعلي
+        const actualSheetType = this.determinePaperTypeFromSize({ width: printWidth, height: printHeight });
+        
+        // تحديد الرسالة والحالة المستخدمة
+        let message, sheetType;
+        if (عدد_عادي >= عدد_مدور) {
+            message = `${عدد_بالعرض} × ${عدد_بالطول} = ${العدد_النهائي} / ${actualSheetType}`;
+            sheetType = actualSheetType;
         } else {
-            montageCount = rotatedCount;
-            message = `${rotatedWidthCount} × ${rotatedHeightCount} = ${montageCount} / فرخ كامل (مع تدوير التصميم)`;
-            sheetType = 'فرخ كامل';
-        }
-        
-        // التحقق مما إذا كان يمكن استخدام نصف فرخ
-        if (montageCount <= 1) {
-            // حساب المونتاج لنصف فرخ
-            const halfPressWidth = pressWidth / 2;
-            const halfWidthCount = Math.floor(halfPressWidth / designWidth);
-            const halfHeightCount = heightCount;
-            const halfCount = halfWidthCount * halfHeightCount;
-            
-            const halfRotatedWidthCount = Math.floor(halfPressWidth / designHeight);
-            const halfRotatedHeightCount = rotatedHeightCount;
-            const halfRotatedCount = halfRotatedWidthCount * halfRotatedHeightCount;
-            
-            if (halfCount >= montageCount || halfRotatedCount >= montageCount) {
-                if (halfCount >= halfRotatedCount) {
-                    montageCount = halfCount;
-                    message = `${halfWidthCount} × ${halfHeightCount} = ${montageCount} / نصف فرخ`;
-                    sheetType = 'نصف فرخ';
-                } else {
-                    montageCount = halfRotatedCount;
-                    message = `${halfRotatedWidthCount} × ${halfRotatedHeightCount} = ${montageCount} / نصف فرخ (مع تدوير التصميم)`;
-                    sheetType = 'نصف فرخ';
-                }
-            }
-        }
-        
-        // التحقق مما إذا كان يمكن استخدام ربع فرخ
-        if (montageCount <= 1) {
-            // حساب المونتاج لربع فرخ
-            const quarterPressWidth = pressWidth / 2;
-            const quarterPressHeight = pressHeight / 2;
-            const quarterWidthCount = Math.floor(quarterPressWidth / designWidth);
-            const quarterHeightCount = Math.floor(quarterPressHeight / designHeight);
-            const quarterCount = quarterWidthCount * quarterHeightCount;
-            
-            const quarterRotatedWidthCount = Math.floor(quarterPressWidth / designHeight);
-            const quarterRotatedHeightCount = Math.floor(quarterPressHeight / designWidth);
-            const quarterRotatedCount = quarterRotatedWidthCount * quarterRotatedHeightCount;
-            
-            if (quarterCount >= montageCount || quarterRotatedCount >= montageCount) {
-                if (quarterCount >= quarterRotatedCount) {
-                    montageCount = quarterCount;
-                    message = `${quarterWidthCount} × ${quarterHeightCount} = ${montageCount} / ربع فرخ`;
-                    sheetType = 'ربع فرخ';
-                } else {
-                    montageCount = quarterRotatedCount;
-                    message = `${quarterRotatedWidthCount} × ${quarterRotatedHeightCount} = ${montageCount} / ربع فرخ (مع تدوير التصميم)`;
-                    sheetType = 'ربع فرخ';
-                }
-            }
+            message = `${عدد_مدور_بالعرض} × ${عدد_مدور_بالطول} = ${العدد_النهائي} / ${actualSheetType} (مع تدوير التصميم)`;
+            sheetType = actualSheetType;
         }
         
         return {
-            count: montageCount,
+            count: العدد_النهائي,
             message: message,
             sheetType: sheetType
         };
@@ -662,5 +966,130 @@ PricingSystem.Montage = {
                 console.error('خطأ في الحصول على مقاس ماكينة الطباعة للمحتوى الداخلي:', error);
                 montageInfoField.value = 'حدث خطأ أثناء حساب المونتاج';
             });
+    },
+    
+    /**
+     * تحديد نوع الماكينة بناءً على مقاسها (ديناميكي)
+     */
+    determinePressTypeFromSize: function(pressSize) {
+        const area = pressSize.width * pressSize.height;
+        
+        // تصنيف ديناميكي بناءً على المساحة
+        if (area <= 1750) {  // 35×50 = 1750
+            return 'الربع';
+        } else if (area <= 3500) {  // 50×70 = 3500
+            return 'النصف';
+        } else if (area <= 7000) {  // 70×100 = 7000
+            return 'الفرخ';
+        } else {
+            return `مقاس كبير (${pressSize.width}×${pressSize.height})`;
+        }
+    },
+    
+    /**
+     * البحث عن حقل مقاس الورق في النموذج
+     */
+    findPaperSizeField: function() {
+        // البحث عن حقول مقاس الورق المختلفة
+        const possibleFields = [
+            'id_product_size',
+            'id_paper_sheet_type', 
+            'paper_size',
+            'paper_sheet_type'
+        ];
+        
+        for (const fieldId of possibleFields) {
+            const field = document.getElementById(fieldId);
+            if (field && field.value) {
+                console.log('تم العثور على حقل مقاس الورق:', fieldId, 'القيمة:', field.value);
+                return field;
+            }
+        }
+        
+        console.log('لم يتم العثور على حقل مقاس الورق');
+        return null;
+    },
+    
+    /**
+     * تحديد نوع الورق بناءً على مقاسه (ديناميكي)
+     */
+    determinePaperTypeFromSize: function(paperSize) {
+        const area = paperSize.width * paperSize.height;
+        
+        // تصنيف ديناميكي بناءً على المساحة
+        if (area <= 625) {  // A4: 21×29.7 = 623
+            return 'A4';
+        } else if (area <= 1250) {  // A3: 29.7×42 = 1247
+            return 'A3';
+        } else if (area <= 1750) {  // ربع فرخ: 35×50 = 1750
+            return 'ربع فرخ';
+        } else if (area <= 3500) {  // نصف فرخ: 50×70 = 3500
+            return 'نصف فرخ';
+        } else if (area <= 7000) {  // فرخ كامل: 70×100 = 7000
+            return 'فرخ كامل';
+        } else {
+            return `مقاس كبير (${paperSize.width}×${paperSize.height})`;
+        }
+    },
+    
+    /**
+     * تحويل مقاس الماكينة إلى نوع مدعوم في النظام الجديد (ديناميكي)
+     */
+    mapPressSizeToType: function(pressSize) {
+        const area = pressSize.width * pressSize.height;
+        
+        // تصنيف ديناميكي بناءً على المساحة
+        if (area <= 1750) {  // 35×50 = 1750
+            return 'quarter';
+        } else if (area <= 3500) {  // 50×70 = 3500
+            return 'half';
+        } else {
+            return 'full';
+        }
+    },
+    
+    /**
+     * استخراج نوع الماكينة من النص بين القوسين
+     */
+    extractPressSheetType: function(pressId) {
+        // البحث في جميع قوائم الاختيار
+        const selectors = ['id_press', 'id_internal_press', 'press_selector', 'internal_press_selector'];
+        
+        for (const selectorId of selectors) {
+            const select = document.getElementById(selectorId);
+            if (select) {
+                const option = select.querySelector(`option[value="${pressId}"]`);
+                if (option) {
+                    const pressName = option.textContent || '';
+                    // محاولة استخراج النص بين قوسين
+                    const match = pressName.match(/\(([^)]+)\)/);
+                    if (match && match[1]) {
+                        return match[1].trim();
+                    }
+                }
+            }
+        }
+        
+        // البحث في جميع قوائم الاختيار في الصفحة
+        const allSelects = document.querySelectorAll('select');
+        for (const select of allSelects) {
+            const option = select.querySelector(`option[value="${pressId}"]`);
+            if (option) {
+                const pressName = option.textContent || '';
+                const match = pressName.match(/\(([^)]+)\)/);
+                if (match && match[1]) {
+                    return match[1].trim();
+                }
+            }
+        }
+        
+        return null;
     }
-}; 
+};
+
+// تهيئة النظام عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    if (PricingSystem && PricingSystem.Montage) {
+        PricingSystem.Montage.setupMontageHandlers();
+    }
+}); 

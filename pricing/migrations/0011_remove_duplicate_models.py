@@ -65,7 +65,7 @@ class Migration(migrations.Migration):
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="coating_orders",
                 to="supplier.specializedservice",
-                verbose_name="خدمة التغليف",
+                verbose_name="خدمة التقفيل",
             ),
         ),
         migrations.DeleteModel(

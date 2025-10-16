@@ -55,7 +55,7 @@
                     <div class="col-md-3">
                         <div class="card border-primary">
                             <div class="card-body text-center py-3">
-                                <h5 class="text-primary mb-1">{{ service.base_price }} ج.م</h5>
+                                <h5 class="text-primary mb-1">{{ service.base_price|remove_trailing_zeros }} ج.م</h5>
                                 <small class="text-muted">السعر الحالي</small>
                             </div>
                         </div>
@@ -71,7 +71,7 @@
                     <div class="col-md-3">
                         <div class="card border-success">
                             <div class="card-body text-center py-3">
-                                <h5 class="text-success mb-1">{{ service.min_quantity }}</h5>
+                                <h5 class="text-success mb-1">{{ service.min_quantity|remove_trailing_zeros }}</h5>
                                 <small class="text-muted">الحد الأدنى</small>
                             </div>
                         </div>
@@ -142,7 +142,7 @@
                                     {% if form.base_price.errors %}
                                         <div class="text-danger small">{{ form.base_price.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">السعر الحالي: {{ service.base_price }} ج.م</div>
+                                    <div class="help-text">السعر الحالي: {{ service.base_price|remove_trailing_zeros }} ج.م</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -152,7 +152,7 @@
                                     {% if form.setup_cost.errors %}
                                         <div class="text-danger small">{{ form.setup_cost.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">التكلفة الحالية: {{ service.setup_cost }} ج.م</div>
+                                    <div class="help-text">التكلفة الحالية: {{ service.setup_cost|remove_trailing_zeros }} ج.م</div>
                                 </div>
                             </div>
                         </div>
@@ -194,7 +194,7 @@
                                     {% if form.min_quantity.errors %}
                                         <div class="text-danger small">{{ form.min_quantity.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">الحد الحالي: {{ service.min_quantity }}</div>
+                                    <div class="help-text">الحد الحالي: {{ service.min_quantity|remove_trailing_zeros }}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -266,9 +266,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحديد الحقول المتغيرة
     const originalValues = {
         name: '{{ service.name|escapejs }}',
-        base_price: '{{ service.base_price }}',
-        setup_cost: '{{ service.setup_cost }}',
-        min_quantity: '{{ service.min_quantity }}'
+        base_price: '{{ service.base_price|remove_trailing_zeros }}',
+        setup_cost: '{{ service.setup_cost|remove_trailing_zeros }}',
+        min_quantity: '{{ service.min_quantity|remove_trailing_zeros }}'
     };
     
     // مراقبة التغييرات

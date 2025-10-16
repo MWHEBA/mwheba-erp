@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -273,14 +274,14 @@
                                     <td>{{ line.description|default:"-" }}</td>
                                     <td class="text-end">
                                         {% if line.debit %}
-                                            <span class="text-success fw-bold">{{ line.debit|floatformat:2 }}</span>
+                                            <span class="text-success fw-bold">{{ line.debit|remove_trailing_zeros }}</span>
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
                                         {% if line.credit %}
-                                            <span class="text-danger fw-bold">{{ line.credit|floatformat:2 }}</span>
+                                            <span class="text-danger fw-bold">{{ line.credit|remove_trailing_zeros }}</span>
                                         {% else %}
                                             -
                                         {% endif %}
@@ -292,10 +293,10 @@
                                 <tr>
                                     <th colspan="2">الإجمالي</th>
                                     <th class="text-end">
-                                        <span class="text-success fw-bold">{{ total_debits|floatformat:2 }}</span>
+                                        <span class="text-success fw-bold">{{ total_debits|remove_trailing_zeros }}</span>
                                     </th>
                                     <th class="text-end">
-                                        <span class="text-danger fw-bold">{{ total_credits|floatformat:2 }}</span>
+                                        <span class="text-danger fw-bold">{{ total_credits|remove_trailing_zeros }}</span>
                                     </th>
                                 </tr>
                             </tfoot>
@@ -311,7 +312,7 @@
                     {% else %}
                     <div class="alert alert-danger mt-3" role="alert">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        القيد غير متوازن - الفرق: {{ difference|floatformat:2 }} ج.م
+                        القيد غير متوازن - الفرق: {{ difference|remove_trailing_zeros }} ج.م
                     </div>
                     {% endif %}
                     
@@ -360,7 +361,7 @@
                             <div class="mb-0">
                                 <small class="text-muted d-block">إجمالي المدين</small>
                                 <h5 class="mb-0 text-success">
-                                    {{ total_debits|floatformat:2 }}
+                                    {{ total_debits|remove_trailing_zeros }}
                                     <small class="text-muted">ج.م</small>
                                 </h5>
                             </div>
@@ -370,7 +371,7 @@
                             <div class="mb-0">
                                 <small class="text-muted d-block">إجمالي الدائن</small>
                                 <h5 class="mb-0 text-danger">
-                                    {{ total_credits|floatformat:2 }}
+                                    {{ total_credits|remove_trailing_zeros }}
                                     <small class="text-muted">ج.م</small>
                                 </h5>
                             </div>

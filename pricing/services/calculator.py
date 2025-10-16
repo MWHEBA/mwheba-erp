@@ -67,7 +67,18 @@ class PricingCalculatorService:
 
     def calculate_material_cost(self):
         """حساب تكلفة المواد"""
-        if not self.order.paper_type or not self.order.paper_size:
+        if not self.order.paper_type or not self.order.product_size:
+            return Decimal("0.00")
+        
+        # التحقق من صحة المعرفات
+        try:
+            paper_type_id = getattr(self.order.paper_type, 'id', None)
+            product_size_id = getattr(self.order.product_size, 'id', None)
+            
+            if not paper_type_id or not product_size_id:
+                return Decimal("0.00")
+        except Exception as e:
+            print(f"خطأ في الحصول على معرفات المواد: {e}")
             return Decimal("0.00")
 
         try:
@@ -75,7 +86,7 @@ class PricingCalculatorService:
             paper_service = PaperServiceDetails.find_paper_service(
                 supplier_id=self.order.supplier.id if self.order.supplier else None,
                 paper_type_id=self.order.paper_type.id,
-                paper_size_id=self.order.paper_size.id,
+                paper_size_id=self.order.product_size.id,
                 weight=self.order.paper_weight,
             )
 
@@ -88,15 +99,22 @@ class PricingCalculatorService:
                     cost = sheets_needed * paper_service.price_per_sheet
                 else:  # roll
                     # حساب الوزن المطلوب
-                    paper_area = (
-                        self.order.paper_size.width
-                        * self.order.paper_size.height
-                        / 10000
-                    )  # متر مربع
-                    weight_needed = (
-                        sheets_needed * paper_area * self.order.paper_weight / 1000
-                    )  # كيلو
-                    cost = weight_needed * paper_service.price_per_kg
+                    if (hasattr(self.order.product_size, 'width') and 
+                        hasattr(self.order.product_size, 'height') and
+                        self.order.product_size.width and 
+                        self.order.product_size.height):
+                        paper_area = (
+                            self.order.product_size.width
+                            * self.order.product_size.height
+                            / 10000
+                        )  # متر مربع
+                        weight_needed = (
+                            sheets_needed * paper_area * self.order.paper_weight / 1000
+                        )  # كيلو
+                        cost = weight_needed * paper_service.price_per_kg
+                    else:
+                        # إذا لم تكن الأبعاد متوفرة، استخدم سعر الورقة
+                        cost = sheets_needed * paper_service.price_per_sheet
 
                 return cost
 
@@ -139,6 +157,20 @@ class PricingCalculatorService:
 
     def _calculate_digital_printing_cost(self):
         """حساب تكلفة الطباعة الرقمية"""
+        # التحقق من وجود البيانات المطلوبة
+        if not self.order.supplier or not self.order.product_size:
+            return Decimal("0.00")
+        
+        # التحقق من صحة المعرفات
+        try:
+            product_size_id = getattr(self.order.product_size, 'id', None)
+            
+            if not product_size_id:
+                return Decimal("0.00")
+        except Exception as e:
+            print(f"خطأ في الحصول على معرف product_size في الطباعة الرقمية: {e}")
+            return Decimal("0.00")
+            
         # البحث عن خدمة الطباعة الرقمية
         color_type = (
             "color" if (self.order.colors_front + self.order.colors_back) > 1 else "bw"
@@ -146,7 +178,7 @@ class PricingCalculatorService:
 
         digital_service = DigitalPrintingDetails.objects.filter(
             supplier=self.order.supplier,
-            paper_size=self.order.paper_size,
+            paper_size=self.order.product_size,
             color_type=color_type,
         ).first()
 

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 {% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
@@ -145,7 +147,7 @@
                     <span class="info-value text-danger fw-bold">
                         {% for line in journal_entry.lines.all %}
                             {% if line.debit_amount > 0 %}
-                                {{ line.debit_amount|floatformat:2 }} ج.م
+                                {{ line.debit_amount|remove_trailing_zeros }} ج.م
                                 {% break %}
                             {% endif %}
                         {% endfor %}
@@ -210,14 +212,14 @@
                         </td>
                         <td class="text-center">
                             {% if line.debit_amount > 0 %}
-                                <span class="text-success fw-bold">{{ line.debit_amount|floatformat:2 }}</span>
+                                <span class="text-success fw-bold">{{ line.debit_amount|remove_trailing_zeros }}</span>
                             {% else %}
                                 -
                             {% endif %}
                         </td>
                         <td class="text-center">
                             {% if line.credit_amount > 0 %}
-                                <span class="text-danger fw-bold">{{ line.credit_amount|floatformat:2 }}</span>
+                                <span class="text-danger fw-bold">{{ line.credit_amount|remove_trailing_zeros }}</span>
                             {% else %}
                                 -
                             {% endif %}

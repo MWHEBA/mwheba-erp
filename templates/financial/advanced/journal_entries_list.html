@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load dict_tags %}
 {% load app_tags %}
 
@@ -308,7 +309,7 @@
               <i class="fas fa-calculator"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المبالغ" %}</div>
-            <div class="stats-card-value">{{ total_amount|floatformat:0|default:"0" }}</div>
+            <div class="stats-card-value">{{ total_amount|remove_trailing_zeros|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "جنيه" %}</div>
           </div>
         </div>

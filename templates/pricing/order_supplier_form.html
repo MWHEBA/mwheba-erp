@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load crispy_forms_tags %}
 
 {% block title %}إدارة موردي الطلب{% endblock %}
@@ -147,13 +148,13 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="estimated_cost" class="form-label">التكلفة المقدرة</label>
-                                    <input type="number" class="form-control cost-input" id="estimated_cost" name="estimated_cost" step="0.01" min="0" placeholder="0.00">
+                                    <input type="number" class="form-control cost-input" id="estimated_cost" name="estimated_cost" min="0" placeholder="0.00">
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="quoted_price" class="form-label">السعر المعروض</label>
-                                    <input type="number" class="form-control cost-input" id="quoted_price" name="quoted_price" step="0.01" min="0" placeholder="0.00">
+                                    <input type="number" class="form-control cost-input" id="quoted_price" name="quoted_price" min="0" placeholder="0.00">
                                 </div>
                             </div>
                         </div>
@@ -242,11 +243,11 @@
                                             <div class="row text-center">
                                                 <div class="col-6">
                                                     <small class="text-muted">التكلفة المقدرة</small>
-                                                    <div class="fw-bold text-primary">{{ order_supplier.estimated_cost|floatformat:2 }} ج.م</div>
+                                                    <div class="fw-bold text-primary">{{ order_supplier.estimated_cost|remove_trailing_zeros }} ج.م</div>
                                                 </div>
                                                 <div class="col-6">
                                                     <small class="text-muted">السعر المعروض</small>
-                                                    <div class="fw-bold text-success">{{ order_supplier.quoted_price|floatformat:2 }} ج.م</div>
+                                                    <div class="fw-bold text-success">{{ order_supplier.quoted_price|remove_trailing_zeros }} ج.م</div>
                                                 </div>
                                             </div>
                                             
@@ -284,18 +285,18 @@
                                 <div class="row text-center">
                                     <div class="col-md-4">
                                         <div class="border-end">
-                                            <div class="h4 text-primary mb-1">{{ total_estimated_cost|floatformat:2 }}</div>
+                                            <div class="h4 text-primary mb-1">{{ total_estimated_cost|remove_trailing_zeros }}</div>
                                             <small class="text-muted">إجمالي التكلفة المقدرة</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
                                         <div class="border-end">
-                                            <div class="h4 text-success mb-1">{{ total_quoted_price|floatformat:2 }}</div>
+                                            <div class="h4 text-success mb-1">{{ total_quoted_price|remove_trailing_zeros }}</div>
                                             <small class="text-muted">إجمالي الأسعار المعروضة</small>
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <div class="h4 text-warning mb-1">{{ price_difference|floatformat:2 }}</div>
+                                        <div class="h4 text-warning mb-1">{{ price_difference|remove_trailing_zeros }}</div>
                                         <small class="text-muted">الفرق</small>
                                     </div>
                                 </div>

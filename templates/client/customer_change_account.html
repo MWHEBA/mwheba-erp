@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load pricing_filters %}
 
 {% block extra_css %}
 <!-- Select2 CSS -->
@@ -55,7 +56,7 @@
                         </div>
                         <div class="col-md-3">
                             <strong>الرصيد الحالي:</strong>
-                            <p class="mb-0">{{ customer.actual_balance|floatformat:2 }} ج.م</p>
+                            <p class="mb-0">{{ customer.actual_balance|remove_trailing_zeros }} ج.م</p>
                         </div>
                     </div>
                 </div>

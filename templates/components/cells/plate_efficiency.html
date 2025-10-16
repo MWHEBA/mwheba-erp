@@ -1,6 +1,7 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
+{% load pricing_filters %}
 
 {% if item.category.code == 'plates' and item.plate_details %}
     <div class="plate-efficiency-cell text-center">
@@ -14,7 +15,7 @@
                             ممتاز
                         </span>
                         <small class="text-success d-block mt-1">
-                            وفر {{ savings|floatformat:0 }} ج.م
+                            وفر {{ savings|remove_trailing_zeros }} ج.م
                         </small>
                     {% elif savings > 20 %}
                         <span class="badge bg-primary">
@@ -22,7 +23,7 @@
                             جيد
                         </span>
                         <small class="text-primary d-block mt-1">
-                            وفر {{ savings|floatformat:0 }} ج.م
+                            وفر {{ savings|remove_trailing_zeros }} ج.م
                         </small>
                     {% elif savings > 0 %}
                         <span class="badge bg-info">
@@ -30,7 +31,7 @@
                             مقبول
                         </span>
                         <small class="text-info d-block mt-1">
-                            وفر {{ savings|floatformat:0 }} ج.م
+                            وفر {{ savings|remove_trailing_zeros }} ج.م
                         </small>
                     {% else %}
                         <span class="badge bg-warning text-dark">

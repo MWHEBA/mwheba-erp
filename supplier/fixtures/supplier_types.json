@@ -68,13 +68,26 @@
     "model": "supplier.suppliertype",
     "pk": 6,
     "fields": {
-      "name": "تغطية",
+      "name": "تقفيل",
       "code": "packaging",
-      "description": "موردين خدمات التغطية والتعبئة",
-      "icon": "fas fa-box-open",
+      "description": "موردين خدمات التقفيل (تقفيل سلك، هارد كوفر، تجليد)",
+      "icon": "fas fa-book",
       "color": "#20c997",
       "is_active": true,
       "display_order": 6
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 7,
+    "fields": {
+      "name": "تغطية",
+      "code": "coating",
+      "description": "موردين خدمات التغطية (سيلوفان، ورنيش، طلاء)",
+      "icon": "fas fa-layer-group",
+      "color": "#17a2b8",
+      "is_active": true,
+      "display_order": 7
     }
   },
   {
@@ -87,7 +100,7 @@
       "icon": "fas fa-bullhorn",
       "color": "#e83e8c",
       "is_active": true,
-      "display_order": 8
+      "display_order": 9
     }
   },
   {
@@ -100,7 +113,7 @@
       "icon": "fas fa-cut",
       "color": "#dc3545",
       "is_active": true,
-      "display_order": 9
+      "display_order": 10
     }
   },
   {
@@ -113,7 +126,7 @@
       "icon": "fas fa-gift",
       "color": "#ffc107",
       "is_active": true,
-      "display_order": 10
+      "display_order": 11
     }
   },
   {
@@ -126,7 +139,7 @@
       "icon": "fas fa-industry",
       "color": "#6c757d",
       "is_active": true,
-      "display_order": 11
+      "display_order": 12
     }
   }
 ]

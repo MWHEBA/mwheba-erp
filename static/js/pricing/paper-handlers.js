@@ -474,6 +474,13 @@ PricingSystem.Paper = {
         
         if (!paperTypeSelect || !paperSupplierSelect || !paperSheetTypeSelect || 
             !paperWeightSelect || !paperOriginSelect) return;
+            
+        // التحقق من وجود نوع الورق أولاً
+        if (!paperTypeSelect.value) {
+            console.log('لم يتم اختيار نوع الورق - تخطي تحديث منشأ الورق');
+            paperOriginSelect.innerHTML = '<option value="">---------</option>';
+            return;
+        }
         
         const selectedType = paperTypeSelect.value;
         const selectedSupplierId = paperSupplierSelect.value;
@@ -540,7 +547,7 @@ PricingSystem.Paper = {
                         console.warn('لم يتم العثور على بلاد منشأ للمعايير المحددة');
                     }
                 } else {
-                    console.warn('لم يتم العثور على بلاد منشأ:', data.error || 'سبب غير معروف');
+                    console.warn('لم يتم العثور على بلاد منشأ:', data.error || 'لا توجد بيانات متاحة للمعايير المحددة');
                 }
             })
             .catch(error => {
@@ -614,6 +621,18 @@ PricingSystem.Paper = {
      * دالة لتحديث إجمالي تكلفة الورق
      */
     updateTotalPaperCost: function() {
+        // التحقق من وجود نوع الورق قبل المتابعة
+        const paperTypeSelect = document.getElementById('id_paper_type');
+        if (!paperTypeSelect || !paperTypeSelect.value) {
+            console.log('لم يتم اختيار نوع الورق - تخطي حساب تكلفة الورق');
+            // مسح قيم التكلفة
+            const paperTotalCostInput = document.getElementById('id_paper_total_cost');
+            const paperCostSummaryInput = document.getElementById('id_material_cost');
+            if (paperTotalCostInput) paperTotalCostInput.value = '0.00';
+            if (paperCostSummaryInput) paperCostSummaryInput.value = '0.00';
+            return;
+        }
+        
         const paperSheetsCountInput = document.getElementById('id_paper_sheets_count');
         const paperPriceInput = document.getElementById('id_paper_price');
         const paperTotalCostInput = document.getElementById('id_paper_total_cost');
@@ -660,6 +679,13 @@ PricingSystem.Paper = {
      * حساب عدد أفرخ الورق المطلوبة بناءً على الكمية وعدد المونتاج
      */
     calculatePaperSheetsDirectly: function() {
+        // التحقق من وجود نوع الورق قبل المتابعة
+        const paperTypeSelect = document.getElementById('id_paper_type');
+        if (!paperTypeSelect || !paperTypeSelect.value) {
+            console.log('لم يتم اختيار نوع الورق - تخطي حساب عدد الأفرخ');
+            return;
+        }
+        
         // الحصول على العناصر المطلوبة
         const elements = {
             quantityInput: document.getElementById('id_quantity'),
@@ -735,10 +761,25 @@ PricingSystem.Paper = {
             paperQuantityInput.value = sheetsCount;
         }
         
-        // استخدام API لتحديث سعر الورق وإجمالي التكلفة
-        if (typeof PricingSystem.API !== 'undefined' && typeof PricingSystem.API.updatePaperPrice === 'function') {
-            PricingSystem.API.updatePaperPrice();
+        // التحقق من توفر جميع معاملات الورق قبل تحديث السعر
+        const paperSupplierSelect = document.getElementById('id_paper_supplier');
+        const paperSheetTypeSelect = document.getElementById('id_paper_sheet_type');
+        const paperWeightSelect = document.getElementById('id_paper_weight');
+        
+        const hasAllPaperParams = paperSupplierSelect && paperSupplierSelect.value &&
+                                 paperSheetTypeSelect && paperSheetTypeSelect.value &&
+                                 paperWeightSelect && paperWeightSelect.value;
+        
+        if (hasAllPaperParams) {
+            // استخدام API لتحديث سعر الورق وإجمالي التكلفة
+            if (typeof PricingSystem.API !== 'undefined' && typeof PricingSystem.API.updatePaperPrice === 'function') {
+                PricingSystem.API.updatePaperPrice();
+            } else {
+                this.updateTotalPaperCost();
+            }
         } else {
+            console.log('بعض معاملات الورق مفقودة - تخطي تحديث السعر');
+            // فقط تحديث إجمالي التكلفة بدون سعر الورق
             this.updateTotalPaperCost();
         }
     },

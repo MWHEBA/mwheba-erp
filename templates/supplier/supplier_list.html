@@ -415,11 +415,9 @@
           <select class="form-select" id="supplier_type" name="supplier_type">
             <option value="">جميع الأنواع</option>
             {% for type in supplier_types %}
-            {% if type.code != 'design' %}
             <option value="{{ type.id }}" {% if request.GET.supplier_type == type.id|stringformat:"s" %}selected{% endif %}>
               {{ type.name }}
             </option>
-            {% endif %}
             {% endfor %}
           </select>
         </div>
@@ -453,13 +451,11 @@
           <i class="fas fa-list me-1"></i>الكل
         </button>
         {% for type in supplier_types %}
-        {% if type.code != 'design' %}
         <button type="button" data-url="?supplier_type={{ type.id }}" 
            class="btn btn-sm supplier-type-filter {% if request.GET.supplier_type == type.id|stringformat:'s' %}btn-primary{% else %}btn-outline-primary{% endif %}"
            style="{% if request.GET.supplier_type == type.id|stringformat:'s' %}background-color: {{ type.color }}; border-color: {{ type.color }};{% else %}color: {{ type.color }}; border-color: {{ type.color }};{% endif %}">
           <i class="{{ type.icon }} me-1"></i>{{ type.name }}
         </button>
-        {% endif %}
         {% endfor %}
       </div>
     </div>

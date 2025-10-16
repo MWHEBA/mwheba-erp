@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
@@ -267,7 +268,7 @@
     <!-- مؤشرات الحالة -->
     <div class="account-status-indicators">
         <div class="status-card {% if analytics.current_balance > 0 %}positive{% elif analytics.current_balance < 0 %}negative{% else %}neutral{% endif %}">
-            <div class="status-value">{{ analytics.current_balance|floatformat:2 }}</div>
+            <div class="status-value">{{ analytics.current_balance|remove_trailing_zeros }}</div>
             <div class="status-label">الرصيد الحالي</div>
         </div>
         
@@ -275,7 +276,7 @@
             <div class="status-value">
                 <span class="trend-indicator bg-{{ analytics.trend_color }} text-white">
                     <i class="fas {{ analytics.trend_icon }}"></i>
-                    {{ analytics.balance_change|floatformat:2 }}
+                    {{ analytics.balance_change|remove_trailing_zeros }}
                 </span>
             </div>
             <div class="status-label">التغيير (آخر {{ analytics.period_days }} يوم)</div>
@@ -380,24 +381,24 @@
                         <table class="table table-borderless">
                             <tr>
                                 <td><strong>إجمالي المدين:</strong></td>
-                                <td class="text-success">{{ analytics.total_debit|floatformat:2 }}</td>
+                                <td class="text-success">{{ analytics.total_debit|remove_trailing_zeros }}</td>
                             </tr>
                             <tr>
                                 <td><strong>إجمالي الدائن:</strong></td>
-                                <td class="text-danger">{{ analytics.total_credit|floatformat:2 }}</td>
+                                <td class="text-danger">{{ analytics.total_credit|remove_trailing_zeros }}</td>
                             </tr>
                             <tr>
                                 <td><strong>الرصيد السابق:</strong></td>
-                                <td>{{ analytics.previous_balance|floatformat:2 }}</td>
+                                <td>{{ analytics.previous_balance|remove_trailing_zeros }}</td>
                             </tr>
                             <tr>
                                 <td><strong>متوسط المعاملات اليومية:</strong></td>
-                                <td>{{ analytics.avg_daily_transactions|floatformat:1 }}</td>
+                                <td>{{ analytics.avg_daily_transactions|remove_trailing_zeros }}</td>
                             </tr>
                             {% if account.opening_balance %}
                             <tr>
                                 <td><strong>الرصيد الافتتاحي:</strong></td>
-                                <td>{{ account.opening_balance|floatformat:2 }}</td>
+                                <td>{{ account.opening_balance|remove_trailing_zeros }}</td>
                             </tr>
                             {% endif %}
                         </table>
@@ -470,14 +471,14 @@
                                 {% endif %}
                                 <td class="text-center">
                                     {% if transaction.debit > 0 %}
-                                        <span class="text-success fw-bold">{{ transaction.debit|floatformat:2 }}</span>
+                                        <span class="text-success fw-bold">{{ transaction.debit|remove_trailing_zeros }}</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
                                     {% if transaction.credit > 0 %}
-                                        <span class="text-danger fw-bold">{{ transaction.credit|floatformat:2 }}</span>
+                                        <span class="text-danger fw-bold">{{ transaction.credit|remove_trailing_zeros }}</span>
                                     {% else %}
                                         <span class="text-muted">-</span>
                                     {% endif %}
@@ -543,7 +544,7 @@
                                     <div class="text-center p-2 border rounded">
                                         <small class="text-muted d-block">الرصيد الحالي</small>
                                         <span class="fw-bold {% if sub_account.current_balance > 0 %}text-success{% elif sub_account.current_balance < 0 %}text-danger{% else %}text-muted{% endif %}">
-                                            {{ sub_account.current_balance|floatformat:2 }}
+                                            {{ sub_account.current_balance|remove_trailing_zeros }}
                                         </span>
                                     </div>
                                     <div class="btn-group btn-group-sm">

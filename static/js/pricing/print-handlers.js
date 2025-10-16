@@ -351,8 +351,9 @@ PricingSystem.Print = {
         const selectedValue = printSidesSelect.value;
         
         // تحديث حقول الألوان حسب عدد الأوجه
+        // القيم: 1 = وجه واحد، 2 = وجهين، 3 = طبع وقلب
         if (selectedValue === '1' || selectedValue === '3') {
-            // وجه واحد أو وجهين متطابقين
+            // وجه واحد أو طبع وقلب (تصميم واحد)
             singleSideColors.style.display = 'block';
             doubleSideColors.style.display = 'none';
         } else if (selectedValue === '2') {
@@ -376,8 +377,9 @@ PricingSystem.Print = {
         const selectedValue = printSidesSelect.value;
         
         // تحديث حقول الألوان حسب عدد الأوجه
+        // القيم: 1 = وجه واحد، 2 = وجهين، 3 = طبع وقلب
         if (selectedValue === '1' || selectedValue === '3') {
-            // وجه واحد أو وجهين متطابقين
+            // وجه واحد أو طبع وقلب (تصميم واحد)
             singleSideColors.style.display = 'block';
             doubleSideColors.style.display = 'none';
         } else if (selectedValue === '2') {

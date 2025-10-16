@@ -1,0 +1,92 @@
+<!-- نموذج خدمات التغطية -->
+<div class="coating-service-form">
+    <!-- الصف الأول: نوع التغطية وطريقة الحساب -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="form-floating">
+                <select name="coating_type" class="form-select" id="coating-type" required>
+                    <option value="">اختر نوع التغطية</option>
+                    {% for value, label in form_choices.coating_types %}
+                        <option value="{{ value }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <label for="coating-type">نوع التغطية *</label>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="form-floating">
+                <select name="calculation_method" class="form-select" id="calculation-method" required>
+                    <option value="">اختر طريقة الحساب</option>
+                    <option value="per_piece">بالقطعة</option>
+                    <option value="per_thousand">بالألف</option>
+                    <option value="per_square_meter">بالمتر المربع</option>
+                    <option value="per_sheet">بالفرخ</option>
+                    <option value="per_hour">بالساعة</option>
+                </select>
+                <label for="calculation-method">طريقة الحساب *</label>
+            </div>
+        </div>
+        <!-- حقل مخفي لاسم الخدمة سيتم ملؤه تلقائياً -->
+        <input type="hidden" name="name" id="service-name" required>
+    </div>
+
+    <!-- الصف الثاني: التسعير والكمية (3 حقول) -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="base_price" 
+                       id="base-price" placeholder="السعر الأساسي" min="0" step="0.01" required>
+                <label for="base-price">السعر الأساسي (ج.م) *</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="setup_cost" 
+                       id="setup-cost" placeholder="تكلفة التجهيز" min="0" step="0.01">
+                <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="form-floating">
+                <input type="number" class="form-control" name="min_quantity" 
+                       id="min-quantity" placeholder="الحد الأدنى" min="1">
+                <label for="min-quantity">الحد الأدنى للكمية</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- الصف الثالث: الوصف والحالة -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-8">
+            <div class="form-floating">
+                <textarea class="form-control" name="description" id="description" 
+                          placeholder="وصف الخدمة" style="height: 70px;"></textarea>
+                <label for="description">وصف الخدمة (اختياري)</label>
+            </div>
+        </div>
+        <div class="col-md-4 d-flex align-items-center justify-content-center">
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" 
+                       id="is-active" checked>
+                <label class="form-check-label fw-medium" for="is-active">
+                    الخدمة نشطة ومتاحة
+                </label>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// تحديث اسم الخدمة تلقائياً من نوع التغطية
+document.getElementById('coating-type').addEventListener('change', function() {
+    const nameField = document.getElementById('service-name');
+    const selectedOption = this.options[this.selectedIndex];
+    
+    if (selectedOption.value) {
+        // استخدام نص نوع التغطية مباشرة كاسم للخدمة
+        nameField.value = selectedOption.text;
+    } else {
+        nameField.value = '';
+    }
+});
+</script>

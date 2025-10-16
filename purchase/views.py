@@ -12,8 +12,6 @@ from purchase.models import (
     PurchaseItem,
     PurchaseReturn,
     PurchaseReturnItem,
-    PurchaseOrder,
-    PurchaseOrderItem,
 )
 from .forms import (
     PurchaseForm,
@@ -342,9 +340,6 @@ def purchase_create(request, supplier_id=None):
     # جلب البيانات المطلوبة للقوائم المنسدلة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
     # المخازن تم جلبها بالفعل أعلاه، لا حاجة لإعادة جلبها
-    purchase_orders = PurchaseOrder.objects.filter(status="pending").order_by(
-        "-date", "-id"
-    )
 
     # إنشاء رقم فاتورة مشتريات جديد
     last_purchase = Purchase.objects.order_by("-id").first()
@@ -356,7 +351,6 @@ def purchase_create(request, supplier_id=None):
         "products": products,
         "suppliers": suppliers,  # إضافة قائمة الموردين للقالب
         "warehouses": warehouses,  # إضافة قائمة المخازن للقالب
-        "purchase_orders": purchase_orders,  # إضافة قائمة طلبات الشراء للقالب
         "next_purchase_number": next_purchase_number,  # إضافة رقم الفاتورة التالي للقالب
         "selected_supplier": selected_supplier,  # إضافة المورد المحدد للسياق
         "default_warehouse": warehouses.first() if warehouses.exists() else None,  # المخزن الافتراضي
@@ -385,61 +379,6 @@ def purchase_create(request, supplier_id=None):
     return render(request, "purchase/purchase_form.html", context)
 
 
-@login_required
-def purchase_order_list(request):
-    """
-    عرض قائمة طلبات الشراء
-    """
-    purchase_orders = PurchaseOrder.objects.all().order_by("-date", "-id")
-
-    # إضافة متغيرات عنوان الصفحة
-    context = {
-        "purchase_orders": purchase_orders,
-        "page_title": "طلبات الشراء",
-        "page_icon": "fas fa-clipboard-list",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "المشتريات", "url": "#", "icon": "fas fa-shopping-bag"},
-            {"title": "طلبات الشراء", "active": True},
-        ],
-    }
-
-    return render(request, "purchase/purchase_order_list.html", context)
-
-
-@login_required
-def purchase_order_detail(request, pk):
-    """
-    عرض تفاصيل طلب الشراء
-    """
-    purchase_order = get_object_or_404(PurchaseOrder, pk=pk)
-
-    # إضافة متغيرات عنوان الصفحة
-    context = {
-        "purchase_order": purchase_order,
-        "page_title": f"طلب شراء - {purchase_order.number}",
-        "page_icon": "fas fa-clipboard-list",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "المشتريات", "url": "#", "icon": "fas fa-shopping-bag"},
-            {
-                "title": "طلبات الشراء",
-                "url": reverse("purchase:purchase_order_list"),
-                "icon": "fas fa-clipboard-list",
-            },
-            {"title": f"طلب شراء {purchase_order.number}", "active": True},
-        ],
-    }
-
-    return render(request, "purchase/purchase_order_detail.html", context)
 
 
 @login_required
@@ -471,33 +410,6 @@ def purchase_payment_list(request):
     return render(request, "purchase/payment_list.html", context)
 
 
-@login_required
-def purchase_order_create(request):
-    """
-    إنشاء أمر شراء جديد
-    """
-    products = Product.objects.filter(is_active=True).order_by("name")
-
-    if request.method == "POST":
-        # هنا سيتم إضافة منطق معالجة النموذج
-        pass
-    else:
-        # إنشاء رقم أمر شراء جديد
-        last_order = PurchaseOrder.objects.order_by("-id").first()
-        next_number = f"PO{(last_order.id + 1 if last_order else 1):04d}"
-
-        initial_data = {
-            "date": timezone.now().date(),
-            "number": next_number,
-        }
-        # هنا سيتم إضافة منطق عرض النموذج
-
-    context = {
-        "products": products,
-        "title": "إضافة أمر شراء جديد",
-    }
-
-    return render(request, "purchase/purchase_order_form.html", context)
 
 
 @login_required
@@ -741,9 +653,6 @@ def purchase_update(request, pk):
     # جلب البيانات المطلوبة للقوائم المنسدلة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
-    purchase_orders = PurchaseOrder.objects.filter(status="pending").order_by(
-        "-date", "-id"
-    )
 
     context = {
         "form": form,
@@ -751,7 +660,6 @@ def purchase_update(request, pk):
         "products": products,
         "suppliers": suppliers,  # إضافة قائمة الموردين للقالب
         "warehouses": warehouses,  # إضافة قائمة المخازن للقالب
-        "purchase_orders": purchase_orders,  # إضافة قائمة طلبات الشراء للقالب
         "title": "تعديل فاتورة مشتريات",
         "page_title": f"تعديل فاتورة مشتريات - {purchase.number}",
         "page_icon": "fas fa-edit",

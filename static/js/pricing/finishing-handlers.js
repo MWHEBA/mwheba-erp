@@ -1094,25 +1094,142 @@ PricingSystem.Finishing = {
             sidesMultiplier = selectedValue === 'both_sides' ? 2 : 1;
         }
         
-        // حساب إجمالي تكلفة التغطية للمحتوى الداخلي
-        const sheetsCount = parseFloat(internalPaperSheetsCount.value) || 0;
-        const price = parseFloat(internalCoatingPrice.value) || 0;
-        const total = sheetsCount * price * sidesMultiplier;
+        console.log(`تم تحديث تكلفة التغطية للمحتوى الداخلي: ${total.toFixed(2)} بناءً على ${sheetsCount} فرخ × ${price} × ${sidesMultiplier} جانب`);
+    },
+
+    /**
+     * إعداد التحديث الديناميكي لخدمات التغطية
+     */
+    setupDynamicCoatingServices: function() {
+        const coatingSupplierSelect = document.getElementById('coating_supplier');
+        const coatingServiceSelect = document.getElementById('coating_service_select');
+        const coatingPriceInput = document.getElementById('coating_price');
+        const coatingTotalInput = document.getElementById('coating_total');
+        const coatingSidesSelect = document.getElementById('coating_sides');
+
+        if (!coatingSupplierSelect || !coatingServiceSelect || !coatingPriceInput) {
+            console.log('عناصر خدمة التغطية غير موجودة');
+            return;
+        }
+
+        // عند تغيير المورد، جلب الخدمات المتاحة
+        coatingSupplierSelect.addEventListener('change', function() {
+            const supplierId = this.value;
+            
+            // مسح الخدمات الحالية
+            coatingServiceSelect.innerHTML = '<option value="">-- اختر نوع التغطية --</option>';
+            coatingPriceInput.value = '';
+            if (coatingTotalInput) coatingTotalInput.value = '';
+
+            if (!supplierId) return;
+
+            // جلب خدمات التغطية للمورد المحدد
+            fetch(`/pricing/api/coating-services-by-supplier/?supplier_id=${supplierId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.services) {
+                        data.services.forEach(service => {
+                            const option = document.createElement('option');
+                            option.value = service.id;
+                            option.textContent = service.name;
+                            option.dataset.price = service.price_per_unit;
+                            option.dataset.calculationMethod = service.calculation_method;
+                            option.dataset.finishingType = service.finishing_type;
+                            coatingServiceSelect.appendChild(option);
+                        });
+                    } else {
+                        console.error('فشل في جلب خدمات التغطية:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في جلب خدمات التغطية:', error);
+                });
+        }.bind(this));
+
+        // عند تغيير نوع الخدمة، جلب السعر وحساب الإجمالي
+        coatingServiceSelect.addEventListener('change', function() {
+            const serviceId = this.value;
+            
+            coatingPriceInput.value = '';
+            if (coatingTotalInput) coatingTotalInput.value = '';
+            
+            if (!serviceId) return;
+
+            // جلب سعر الخدمة
+            const quantity = this.getQuantityForCoating();
+            
+            fetch(`/pricing/api/coating-service-price/?service_id=${serviceId}&quantity=${quantity}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        coatingPriceInput.value = data.price_per_unit;
+                        
+                        // حساب الإجمالي
+                        this.calculateCoatingTotal();
+                    } else {
+                        console.error('فشل في جلب سعر الخدمة:', data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('خطأ في جلب سعر الخدمة:', error);
+                });
+        }.bind(this));
+
+        // عند تغيير عدد الأوجه، إعادة حساب الإجمالي
+        if (coatingSidesSelect) {
+            coatingSidesSelect.addEventListener('change', () => {
+                this.calculateCoatingTotal();
+            });
+        }
+
+        // عند تغيير السعر يدوياً، إعادة حساب الإجمالي
+        coatingPriceInput.addEventListener('input', () => {
+            this.calculateCoatingTotal();
+        });
+    },
+    
+    /**
+     * حساب إجمالي تكلفة التغطية
+     */
+    calculateCoatingTotal: function() {
+        const coatingPriceInput = document.getElementById('coating_price');
+        const coatingTotalInput = document.getElementById('coating_total');
+        const coatingSidesSelect = document.getElementById('coating_sides');
         
-        // تحديث حقل إجمالي تكلفة التغطية للمحتوى الداخلي
-        const internalCoatingTotal = document.getElementById('internal_coating_total');
-        if (internalCoatingTotal) {
-            internalCoatingTotal.value = total.toFixed(2);
-            
-            // إطلاق حدث تغيير لتحديث التكلفة الإجمالية
-            if (PricingSystem.EventBus) {
-                PricingSystem.EventBus.fieldChanged('internal_coating_total', internalCoatingTotal.value, true, true);
-            }
-            
-            // تحديث التكلفة الإجمالية لخدمات ما بعد الطباعة
-            this.calculateTotalFinishingCost();
+        if (!coatingPriceInput || !coatingTotalInput) return;
+
+        const pricePerUnit = parseFloat(coatingPriceInput.value) || 0;
+        const sides = parseInt(coatingSidesSelect?.value || 1);
+        const quantity = this.getQuantityForCoating();
+        
+        // حساب الإجمالي (السعر × الكمية × عدد الأوجه)
+        const total = pricePerUnit * quantity * sides;
+        
+        coatingTotalInput.value = total.toFixed(2);
+        
+        console.log(`تم حساب إجمالي التغطية: ${total.toFixed(2)} (${pricePerUnit} × ${quantity} × ${sides})`);
+        
+        // تحديث التكلفة الإجمالية لخدمات ما بعد الطباعة
+        this.calculateTotalFinishingCost();
+    },
+    
+    /**
+     * الحصول على الكمية المناسبة لحساب تكلفة التغطية
+     */
+    getQuantityForCoating: function() {
+        // محاولة الحصول على عدد أفرخ الورق أولاً
+        const paperSheetsInput = document.getElementById('id_paper_sheets_count');
+        if (paperSheetsInput && paperSheetsInput.value) {
+            return parseInt(paperSheetsInput.value) || 1;
         }
         
-        console.log(`تم تحديث تكلفة التغطية للمحتوى الداخلي: ${total.toFixed(2)} بناءً على ${sheetsCount} فرخ × ${price} × ${sidesMultiplier} جانب`);
+        // إذا لم يتوفر، استخدم الكمية العامة
+        const quantityInput = document.getElementById('id_quantity');
+        if (quantityInput && quantityInput.value) {
+            return parseInt(quantityInput.value) || 1;
+        }
+        
+        // القيمة الافتراضية
+        return 1;
     }
-}; 
+};

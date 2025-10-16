@@ -207,21 +207,5 @@
       "created_at": "2024-01-01T00:00:00Z",
       "updated_at": "2024-01-01T00:00:00Z"
     }
-  },
-  {
-    "model": "supplier.supplierservicetag",
-    "pk": 10,
-    "fields": {
-      "name": "تصميم وإخراج",
-      "description": "خدمات التصميم والإخراج الفني",
-      "category": "design",
-      "color_code": "#FF6348",
-      "display_order": 10,
-      "estimated_duration": 3,
-      "is_active": true,
-      "requires_approval": true,
-      "created_at": "2024-01-01T00:00:00Z",
-      "updated_at": "2024-01-01T00:00:00Z"
-    }
   }
 ]

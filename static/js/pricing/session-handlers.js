@@ -70,8 +70,13 @@ PricingSystem.Session = {
             
             // تعيين القيم للحقول المناسبة (باستثناء المورد وماكينة الطباعة التي تم معالجتها بالفعل)
             Object.keys(sessionData).forEach(key => {
-                // تخطي المورد وماكينة الطباعة لأننا عالجناهما بالفعل
-                if (key === 'supplier' || key === 'press') return;
+                // تخطي بعض الحقول التي تحتاج معالجة خاصة أو قد تسبب مشاكل
+                if (key === 'supplier' || key === 'press' || 
+                    key === 'paper_supplier' || key === 'paper_sheet_type' || 
+                    key === 'paper_weight' || key === 'paper_origin' || 
+                    key === 'ctp_supplier' || key === 'ctp_plate_size' || 
+                    key === 'ctp_plates_count' || key === 'ctp_plate_price' || 
+                    key === 'ctp_transportation') return;
                 
                 const value = sessionData[key];
                 if (value === undefined || value === null) return;
@@ -81,10 +86,13 @@ PricingSystem.Session = {
                 if (element) {
                     // تعيين القيمة حسب نوع العنصر
                     if (element.tagName === 'SELECT') {
-                        element.value = value;
-                        // إطلاق حدث change لتحديث أي حقول مرتبطة
-                        const event = new Event('change', { bubbles: true });
-                        element.dispatchEvent(event);
+                        // تحقق من أن القيمة ليست فارغة قبل تعيينها
+                        if (value && value !== '' && value !== 'undefined' && value !== 'null') {
+                            element.value = value;
+                            // إطلاق حدث change لتحديث أي حقول مرتبطة
+                            const event = new Event('change', { bubbles: true });
+                            element.dispatchEvent(event);
+                        }
                     } else if (element.type === 'checkbox') {
                         element.checked = value === 'on' || value === 'true' || value === true;
                         // إطلاق حدث change لتحديث أي حقول مرتبطة

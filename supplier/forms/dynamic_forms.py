@@ -258,6 +258,73 @@ class ServiceFormFactory:
         return errors
 
     @staticmethod
+    def get_unified_ctp_choices():
+        """جلب خيارات الزنكات CTP الموحدة من المرجعية الوحيدة"""
+        try:
+            from pricing.models import PlateSize
+
+            return {
+                "plate_sizes": [
+                    (f"{ps.width}x{ps.height}", str(ps)) 
+                    for ps in PlateSize.objects.filter(is_active=True).order_by("name")
+                ]
+            }
+        except ImportError:
+            # في حالة عدم وجود النماذج، استخدم خيارات افتراضية
+            return {
+                "plate_sizes": [
+                    ("35.00x50.00", "ربع فرخ (35×50 سم)"),
+                    ("50.00x70.00", "نصف فرخ (50×70 سم)"),
+                    ("70.00x100.00", "فرخ كامل (70×100 سم)")
+                ]
+            }
+
+    @staticmethod
+    def convert_legacy_plate_size(old_value):
+        """تحويل مقاسات الزنكات القديمة للجديدة"""
+        legacy_mapping = {
+            "quarter_sheet": "35.00x50.00",
+            "half_sheet": "50.00x70.00", 
+            "full_sheet": "70.00x100.00",
+            "35x50": "35.00x50.00",
+            "50x70": "50.00x70.00",
+            "70x100": "70.00x100.00",
+            "custom": "custom"
+        }
+        return legacy_mapping.get(old_value, old_value)
+
+    @staticmethod
+    def normalize_legacy_ctp_data(plate_size=None):
+        """تطبيع بيانات الزنكات القديمة لتتطابق مع المرجعية"""
+        normalized = {}
+        
+        # تطبيع مقاس الزنك
+        if plate_size:
+            normalized['plate_size'] = ServiceFormFactory.convert_legacy_plate_size(plate_size)
+        
+        return normalized
+
+    @staticmethod
+    def validate_ctp_data(plate_size=None):
+        """التحقق من صحة بيانات الزنكات مقابل المرجعية"""
+        errors = []
+        
+        try:
+            from pricing.models import PlateSize
+            
+            # التحقق من مقاس الزنك
+            if plate_size and plate_size != 'custom':
+                valid_sizes = [f"{ps.width}x{ps.height}" for ps in PlateSize.objects.filter(is_active=True)]
+                if plate_size not in valid_sizes:
+                    errors.append(f"مقاس الزنك '{plate_size}' غير موجود في المرجعية")
+                    
+        except ImportError:
+            # في حالة عدم وجود النماذج، لا نتحقق
+            pass
+        
+        return errors
+
+    @staticmethod
     def get_form_choices_for_category(category_code):
         """جلب خيارات النموذج لتصنيف معين"""
 
@@ -268,6 +335,10 @@ class ServiceFormFactory:
         # للطباعة الأوفست، استخدم النظام الموحد
         elif category_code == "offset_printing":
             return ServiceFormFactory.get_unified_offset_choices()
+
+        # للزنكات CTP، استخدم النظام الموحد
+        elif category_code == "plates":
+            return ServiceFormFactory.get_unified_ctp_choices()
 
         # للطباعة الديجيتال، استخدم البيانات من الإعدادات
         if category_code == "digital_printing":
@@ -318,9 +389,7 @@ class ServiceFormFactory:
                 "finishing_types": FinishingServiceDetails.FINISHING_TYPE_CHOICES,
                 "calculation_methods": FinishingServiceDetails.CALCULATION_METHOD_CHOICES,
             },
-            "plates": {
-                "plate_sizes": PlateServiceDetails.PLATE_SIZE_CHOICES,
-            },
+            # تم إزالة plates - يستخدم النظام الموحد الآن
             "outdoor": {
                 "material_types": OutdoorPrintingDetails.MATERIAL_TYPE_CHOICES,
                 "printing_types": OutdoorPrintingDetails.PRINTING_TYPE_CHOICES,
@@ -614,8 +683,26 @@ class PlateServiceForm(BaseServiceForm):
 
     plate_size = forms.ChoiceField(
         label=_("مقاس الزنك"),
-        choices=PlateServiceDetails.PLATE_SIZE_CHOICES,
-        widget=forms.Select(attrs={"class": "form-select"}),
+        choices=[],  # سيتم تحديثها ديناميكياً
+        widget=forms.Select(
+            attrs={"class": "form-select", "onchange": "toggleCustomSize(this)"}
+        ),
+    )
+
+    custom_width_cm = forms.DecimalField(
+        label=_("العرض المخصص (سم)"),
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.1"}),
+    )
+
+    custom_height_cm = forms.DecimalField(
+        label=_("الارتفاع المخصص (سم)"),
+        max_digits=8,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.1"}),
     )
 
     price_per_plate = forms.DecimalField(
@@ -632,6 +719,17 @@ class PlateServiceForm(BaseServiceForm):
         required=False,
         widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # استخدام النظام الموحد لجلب خيارات الزنكات
+        unified_choices = ServiceFormFactory.get_unified_ctp_choices()
+        
+        # تحديث خيارات مقاسات الزنكات مع إضافة المقاس المخصص
+        size_choices = [("", "-- اختر مقاس الزنك --")] + unified_choices["plate_sizes"]
+        size_choices.append(("custom", "مقاس مخصص"))
+        self.fields["plate_size"].choices = size_choices
 
 
 class OutdoorPrintingForm(BaseServiceForm):

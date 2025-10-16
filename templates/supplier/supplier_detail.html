@@ -4,6 +4,7 @@
 {% load app_tags %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}{{ supplier.name }} - {% trans "تفاصيل المورد" %}{% endblock %}
 
@@ -938,6 +939,23 @@
                               {% with action_buttons=services_action_buttons %}
                                 {% with empty_message="لا توجد خدمات من فئة "|add:category.name|add:" حتى الآن" %}
                                   {% with show_export=True export_filename="supplier_services_"|add:category.name %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% elif category.code == 'coating' %}
+                      {% with current_headers=coating_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات تغطية حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_coating_services" %}
                                     {% include "components/data_table.html" %}
                                   {% endwith %}
                                 {% endwith %}

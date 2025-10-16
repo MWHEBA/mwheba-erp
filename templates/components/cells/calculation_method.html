@@ -1,0 +1,31 @@
+{% comment %}
+عرض طريقة الحساب للخدمات
+{% endcomment %}
+
+{% comment %}
+يدعم calculation_method من مصادر مختلفة:
+- item.calculation_method (مباشر)
+- item.finishing_details.calculation_method (للتشطيب)
+- item.digital_details.calculation_method (للديجيتال)
+- item.offset_details.calculation_method (للأوفست)
+{% endcomment %}
+
+{% if item.calculation_method %}
+    {% with method=item.calculation_method %}
+        {% include "components/cells/calculation_method_display.html" %}
+    {% endwith %}
+{% elif item.finishing_details.calculation_method %}
+    {% with method=item.finishing_details.calculation_method %}
+        {% include "components/cells/calculation_method_display.html" %}
+    {% endwith %}
+{% elif item.digital_details.calculation_method %}
+    {% with method=item.digital_details.calculation_method %}
+        {% include "components/cells/calculation_method_display.html" %}
+    {% endwith %}
+{% elif item.offset_details.calculation_method %}
+    {% with method=item.offset_details.calculation_method %}
+        {% include "components/cells/calculation_method_display.html" %}
+    {% endwith %}
+{% else %}
+    <span class="text-muted">غير محدد</span>
+{% endif %}

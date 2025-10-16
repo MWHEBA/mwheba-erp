@@ -52,7 +52,7 @@ const PricingIntegration = {
         }
         
         // معالج تغيير مقاس الورق
-        const paperSizeSelect = document.getElementById('id_paper_size');
+        const paperSizeSelect = document.getElementById('id_product_size');
         if (paperSizeSelect) {
             paperSizeSelect.addEventListener('change', () => {
                 this.handlePaperSizeChange();
@@ -79,7 +79,7 @@ const PricingIntegration = {
         const calculateButton = document.getElementById('calculate-cost-btn');
         if (calculateButton) {
             calculateButton.addEventListener('click', () => {
-                this.calculateTotalCost();
+                this.calculateTotalCost(true); // عرض رسالة النجاح عند الضغط على الزر
             });
         }
     },
@@ -129,7 +129,7 @@ const PricingIntegration = {
             const result = await PricingSystem.API.getPaperSizes();
             
             if (result.success) {
-                const select = document.getElementById('id_paper_size');
+                const select = document.getElementById('id_product_size');
                 if (select) {
                     this.populatePaperSizeSelect(select, result.paper_sizes);
                 }
@@ -200,6 +200,12 @@ const PricingIntegration = {
             option.textContent = `${size.name} (${width}×${height})`;
             selectElement.appendChild(option);
         });
+        
+        // إضافة خيار "مقاس مخصص" في النهاية
+        const customOption = document.createElement('option');
+        customOption.value = 'custom';
+        customOption.textContent = 'مقاس مخصص';
+        selectElement.appendChild(customOption);
     },
     
     /**
@@ -263,7 +269,7 @@ const PricingIntegration = {
         try {
             const supplierElement = document.getElementById('id_supplier');
             const paperTypeElement = document.getElementById('id_paper_type');
-            const paperSizeElement = document.getElementById('id_paper_size');
+            const paperSizeElement = document.getElementById('id_product_size');
             const paperWeightElement = document.getElementById('id_paper_weight');
             
             if (!supplierElement?.value || !paperTypeElement?.value || !paperSizeElement?.value) {
@@ -311,8 +317,9 @@ const PricingIntegration = {
     
     /**
      * حساب التكلفة الإجمالية
+     * @param {boolean} showSuccessMessage - هل تريد عرض رسالة النجاح (افتراضي: false)
      */
-    async calculateTotalCost() {
+    async calculateTotalCost(showSuccessMessage = false) {
         try {
             // تجنب الحسابات أثناء التحميل الأولي
             if (this.isInitialLoading) {
@@ -335,7 +342,10 @@ const PricingIntegration = {
             
             if (result.success) {
                 this.updateCostFields(result);
-                this.showSuccessMessage('تم حساب التكلفة بنجاح');
+                // عرض رسالة النجاح فقط إذا طُلب ذلك صراحة
+                if (showSuccessMessage) {
+                    this.showSuccessMessage('تم حساب التكلفة بنجاح');
+                }
             } else {
                 this.showErrorMessage(result.error);
             }
@@ -355,7 +365,7 @@ const PricingIntegration = {
             const orderTypeElement = document.getElementById('id_order_type');
             const quantityElement = document.getElementById('id_quantity');
             const paperTypeElement = document.getElementById('id_paper_type');
-            const paperSizeElement = document.getElementById('id_paper_size');
+            const paperSizeElement = document.getElementById('id_product_size');
             const paperWeightElement = document.getElementById('id_paper_weight');
             const supplierElement = document.getElementById('id_supplier');
             const colorsFrontElement = document.getElementById('id_colors_front');
@@ -366,19 +376,28 @@ const PricingIntegration = {
                 return null; // العناصر غير موجودة في الصفحة
             }
             
-            // التحقق من وجود القيم الأساسية
-            if (!orderTypeElement.value || !quantityElement.value || 
-                !paperTypeElement.value || !paperSizeElement.value) {
+            // التحقق من وجود القيم الأساسية (مع تنظيف القيم)
+            const orderTypeValue = orderTypeElement.value && orderTypeElement.value.trim();
+            const quantityValue = quantityElement.value && quantityElement.value.trim();
+            const paperTypeValueCheck = paperTypeElement.value && paperTypeElement.value.trim();
+            const paperSizeValueCheck = paperSizeElement.value && paperSizeElement.value.trim();
+            
+            if (!orderTypeValue || !quantityValue || !paperTypeValueCheck || !paperSizeValueCheck) {
                 return null; // البيانات غير مكتملة
             }
+            
+            // التحقق من صحة القيم قبل الإرسال
+            const productSizeValue = paperSizeElement.value && paperSizeElement.value.trim() ? paperSizeElement.value.trim() : null;
+            const paperTypeValue = paperTypeElement.value && paperTypeElement.value.trim() ? paperTypeElement.value.trim() : null;
+            const supplierValue = supplierElement && supplierElement.value && supplierElement.value.trim() ? supplierElement.value.trim() : null;
             
             return {
                 order_type: orderTypeElement.value,
                 quantity: parseInt(quantityElement.value) || 0,
-                paper_type: paperTypeElement.value,
-                paper_size: paperSizeElement.value,
+                paper_type: paperTypeValue,
+                product_size: productSizeValue, // قيمة آمنة ومنظفة
                 paper_weight: paperWeightElement ? parseInt(paperWeightElement.value) || 80 : 80,
-                supplier: supplierElement ? supplierElement.value : null,
+                supplier: supplierValue,
                 colors_front: colorsFrontElement ? parseInt(colorsFrontElement.value) || 4 : 4,
                 colors_back: colorsBackElement ? parseInt(colorsBackElement.value) || 0 : 0
             };

@@ -398,7 +398,7 @@ PricingSystem.setupSupplierPressHandlers = function() {
 
 // تنفيذ التهيئة عند اكتمال تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
-    PricingSystem.init();
+    // تم نقل PricingSystem.init() إلى main.js لتجنب التكرار
     
     // إطلاق حدث تحميل النموذج عبر ناقل الأحداث
     if (PricingSystem.EventBus) {

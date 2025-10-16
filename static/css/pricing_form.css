@@ -66,7 +66,7 @@
   /* تنسيق checkbox المحتوى الداخلي */
   #id_has_internal_content {
     transform: scale(1.2);
-    margin-right: 0.5rem;
+    margin-left: 0.5rem;
   }
   
   .form-check-label[for="id_has_internal_content"] {
@@ -126,7 +126,7 @@
   }
   
   .select2-container[dir="rtl"] .select2-selection--single .select2-selection__clear {
-    float: left;
+    right: unset;
   }
   
   .select2-container[dir="rtl"] .select2-selection--single .select2-selection__placeholder {

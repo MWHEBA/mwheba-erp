@@ -115,7 +115,7 @@
                     {% if service.setup_cost > 0 %}
                     <div class="info-item">
                         <span class="info-label">تكلفة الإعداد:</span>
-                        <span class="info-value">{{ service.setup_cost }} ج.م</span>
+                        <span class="info-value">{{ service.setup_cost|remove_trailing_zeros }} ج.م</span>
                     </div>
                     {% endif %}
                     

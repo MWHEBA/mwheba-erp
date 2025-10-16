@@ -105,6 +105,7 @@ urlpatterns = [
     path("calculate-cost/", views.calculate_cost, name="calculate_cost"),
     path("api/plate-price/", views.get_plate_price, name="get_plate_price"),
     path("api/plate-sizes/", views.get_plate_sizes, name="get_plate_sizes"),
+    path("api/press-size/", views.get_press_size, name="get_press_size"),
     path("api/paper-weights/", views.get_paper_weights, name="get_paper_weights"),
     path(
         "api/paper-sheet-types/",
@@ -127,6 +128,12 @@ urlpatterns = [
         "api/coating-services/", views.coating_services_api, name="coating_services_api"
     ),
     path(
+        "api/coating-services-by-supplier/", views.get_coating_services_by_supplier, name="get_coating_services_by_supplier"
+    ),
+    path(
+        "api/coating-service-price/", views.get_coating_service_price, name="get_coating_service_price"
+    ),
+    path(
         "api/folding-services/", views.folding_services_api, name="folding_services_api"
     ),
     path(
@@ -144,6 +151,11 @@ urlpatterns = [
         "api/paper-size-dimensions/",
         views.get_paper_size_dimensions,
         name="get_paper_size_dimensions",
+    ),
+    path(
+        "api/convert-sheet-type-to-dimensions/",
+        views.convert_sheet_type_to_dimensions,
+        name="convert_sheet_type_to_dimensions",
     ),
     # مسارات API لتصفية الموردين
     path(
@@ -357,6 +369,7 @@ urlpatterns = [
     ),
     # إعدادات أنواع التغطية
     path("settings/coating-types/", views.coating_type_list, name="coating_type_list"),
+    path("api/coating-types/", views.coating_types_api, name="coating_types_api"),
     path(
         "settings/coating-types/add/",
         views.coating_type_create,
@@ -578,5 +591,22 @@ urlpatterns = [
         "settings/product-sizes/<int:pk>/delete/",
         views.product_size_delete,
         name="product_size_delete",
+    ),
+    # إعدادات مقاسات الزنكات
+    path("settings/plate-sizes/", views.plate_size_list, name="plate_size_list"),
+    path(
+        "settings/plate-sizes/create/",
+        views.plate_size_create,
+        name="plate_size_create",
+    ),
+    path(
+        "settings/plate-sizes/<int:pk>/edit/",
+        views.plate_size_edit,
+        name="plate_size_edit",
+    ),
+    path(
+        "settings/plate-sizes/<int:pk>/delete/",
+        views.plate_size_delete,
+        name="plate_size_delete",
     ),
 ]

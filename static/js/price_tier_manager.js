@@ -236,7 +236,7 @@ class PriceTierManager {
                     <div class="col-md-2">
                         <div class="form-floating">
                             <input type="number" class="form-control" name="price_per_unit_${tier.id}" 
-                                   placeholder="السعر" step="0.01" min="0" value="${tier.price_per_unit || ''}" required
+                                   placeholder="السعر" min="0" value="${tier.price_per_unit || ''}" required
                                    onchange="priceTierManager.updateTier(${tier.id}, 'price_per_unit', this.value)">
                             <label>سعر الوحدة *</label>
                         </div>
@@ -244,7 +244,7 @@ class PriceTierManager {
                     <div class="col-md-2">
                         <div class="form-floating">
                             <input type="number" class="form-control" name="discount_percentage_${tier.id}" 
-                                   placeholder="الخصم" step="0.01" min="0" max="100" value="${tier.discount_percentage || 0}"
+                                   placeholder="الخصم" min="0" max="100" value="${tier.discount_percentage || 0}"
                                    onchange="priceTierManager.updateTier(${tier.id}, 'discount_percentage', this.value)">
                             <label>نسبة الخصم (%)</label>
                         </div>

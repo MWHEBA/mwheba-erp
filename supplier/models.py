@@ -19,7 +19,8 @@ class SupplierType(models.Model):
         ("digital_printing", _("مطبعة ديجيتال")),
         ("finishing", _("خدمات الطباعة")),
         ("plates", _("مكتب فصل")),
-        ("packaging", _("تغليف")),
+        ("packaging", _("تقفيل")),
+        ("coating", _("تغطية")),
         ("outdoor", _("أوت دور")),
         ("laser", _("ليزر")),
         ("vip_gifts", _("هدايا VIP")),
@@ -67,8 +68,7 @@ class SupplierServiceTag(models.Model):
         ("printing", _("طباعة")),
         ("paper", _("ورق")),
         ("finishing", _("تشطيب")),
-        ("design", _("تصميم")),
-        ("packaging", _("تغليف")),
+        ("packaging", _("تقفيل")),
         ("binding", _("تجليد")),
         ("cutting", _("قص")),
         ("coating", _("تغطية")),
@@ -621,11 +621,50 @@ class PaperServiceDetails(models.Model):
         if self.gsm:
             parts.append(f"{self.gsm}جم")
         if self.sheet_size:
-            parts.append(self.sheet_size)
+            # استخدام get_sheet_size_display للحصول على العرض المناسب
+            size_display = self.get_sheet_size_display()
+            parts.append(size_display)
         
         if parts:
             return " - ".join(parts)
         return f"خدمة ورق #{self.id}"
+
+    def get_sheet_size_display(self):
+        """عرض مقاس الفرخ مع التنسيق المناسب"""
+        if self.sheet_size == "custom" and self.custom_width and self.custom_height:
+            from pricing.templatetags.pricing_filters import remove_trailing_zeros
+            width_clean = remove_trailing_zeros(self.custom_width)
+            height_clean = remove_trailing_zeros(self.custom_height)
+            return f"مخصص ({width_clean}×{height_clean} سم)"
+        else:
+            # التحقق من الأكواد المحددة مسبقاً
+            size_display = dict(self.SHEET_SIZE_CHOICES).get(self.sheet_size)
+            if size_display:
+                return size_display
+            
+            # إذا كان المقاس مخزون كأرقام، حاول تحويله لاسم مفهوم
+            if self.sheet_size:
+                # تنظيف الأرقام وإزالة الأصفار
+                from pricing.templatetags.pricing_filters import remove_trailing_zeros
+                
+                # التحقق من المقاسات الشائعة
+                if "70" in self.sheet_size and "100" in self.sheet_size:
+                    return "فرخ كامل (70×100 سم)"
+                elif "50" in self.sheet_size and "70" in self.sheet_size:
+                    return "نصف فرخ (50×70 سم)"
+                elif "35" in self.sheet_size and "50" in self.sheet_size:
+                    return "ربع فرخ (35×50 سم)"
+                else:
+                    # للمقاسات الأخرى، نظف الأرقام فقط
+                    import re
+                    # استخراج الأرقام من النص
+                    numbers = re.findall(r'\d+\.?\d*', self.sheet_size)
+                    if len(numbers) >= 2:
+                        width = remove_trailing_zeros(float(numbers[0]))
+                        height = remove_trailing_zeros(float(numbers[1]))
+                        return f"مقاس ({width}×{height} سم)"
+            
+            return self.sheet_size
 
     class Meta:
         verbose_name = _("تفاصيل خدمة ورق")
@@ -723,7 +762,7 @@ class FinishingServiceDetails(models.Model):
         ("folding", _("طي")),
         ("binding_spiral", _("تجليد حلزوني")),
         ("binding_perfect", _("تجليد كعب")),
-        ("lamination", _("تغليف")),
+        ("lamination", _("تقفيل")),
         ("uv_coating", _("طلاء UV")),
         ("embossing", _("نقش بارز")),
         ("die_cutting", _("تكسير")),
@@ -819,8 +858,11 @@ class ServicePriceTier(models.Model):
         unique_together = ["service", "min_quantity"]
 
     def __str__(self):
+        from pricing.templatetags.pricing_filters import remove_trailing_zeros
+        
         max_qty = self.max_quantity if self.max_quantity else "∞"
-        return f"{self.service.name} - {self.min_quantity}-{max_qty}: {self.price_per_unit} ج.م"
+        price_clean = remove_trailing_zeros(self.price_per_unit)
+        return f"{self.service.name} - {self.min_quantity}-{max_qty}: {price_clean} ج.م"
 
     def get_quantity_range_display(self):
         """عرض نطاق الكمية"""
@@ -928,13 +970,7 @@ class OffsetPrintingDetails(models.Model):
 class PlateServiceDetails(models.Model):
     """تفاصيل خدمات مكتب الفصل (الزنكات)"""
 
-    PLATE_SIZE_CHOICES = (
-        ("quarter_sheet", _("ربع (35×50 سم)")),
-        ("half_sheet", _("نص (50×70 سم)")),
-        ("full_sheet", _("فرخ (70×100 سم)")),
-        ("custom", _("مقاس مخصوص")),
-    )
-
+    # تم إزالة PLATE_SIZE_CHOICES - يتم جلب البيانات من pricing app
     PLATE_TYPE_CHOICES = (
         ("positive", _("زنك موجب")),
         ("negative", _("زنك سالب")),
@@ -946,7 +982,7 @@ class PlateServiceDetails(models.Model):
         SpecializedService, on_delete=models.CASCADE, related_name="plate_details"
     )
     plate_size = models.CharField(
-        _("مقاس الزنك"), max_length=20, choices=PLATE_SIZE_CHOICES
+        _("مقاس الزنك"), max_length=50  # زيادة الطول لاستيعاب القيم الجديدة
     )
 
     # أبعاد مخصصة
@@ -1113,10 +1149,6 @@ class LaserServiceDetails(models.Model):
     turnaround_time_hours = models.PositiveIntegerField(
         _("وقت التسليم (ساعات)"), default=24
     )
-    includes_design = models.BooleanField(_("يشمل التصميم"), default=False)
-    design_cost_per_hour = models.DecimalField(
-        _("تكلفة التصميم للساعة"), max_digits=10, decimal_places=2, default=0
-    )
 
     class Meta:
         verbose_name = _("تفاصيل خدمة ليزر")
@@ -1142,7 +1174,7 @@ class VIPGiftDetails(models.Model):
         ("embossing", _("نقش بارز")),
         ("embroidery", _("تطريز")),
         ("laser_cutting", _("قص ليزر")),
-        ("packaging", _("تغليف مخصص")),
+        ("packaging", _("تقفيل")),
     )
 
     service = models.OneToOneField(

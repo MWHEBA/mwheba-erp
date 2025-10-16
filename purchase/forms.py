@@ -5,8 +5,6 @@ from .models import (
     Purchase,
     PurchaseItem,
     PurchasePayment,
-    PurchaseOrder,
-    PurchaseOrderItem,
     PurchaseReturn,
     PurchaseReturnItem,
 )
@@ -15,68 +13,6 @@ from product.models import Product, Warehouse
 from django.utils import timezone
 
 
-class PurchaseOrderForm(forms.ModelForm):
-    """
-    نموذج إنشاء طلب شراء جديد
-    """
-
-    supplier = forms.ModelChoiceField(
-        queryset=Supplier.objects.filter(is_active=True), label="المورد"
-    )
-
-    warehouse = forms.ModelChoiceField(
-        queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
-    )
-
-    class Meta:
-        model = PurchaseOrder
-        fields = ["supplier", "warehouse", "date", "number", "expected_date", "notes"]
-        widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
-            "expected_date": forms.DateInput(attrs={"type": "date"}),
-            "notes": forms.Textarea(attrs={"rows": 2}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
-        if not self.initial.get("date"):
-            self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
-
-        # تعيين أول مخزن بشكل افتراضي
-        warehouses = Warehouse.objects.filter(is_active=True)
-        if warehouses.exists() and not self.initial.get("warehouse"):
-            self.initial["warehouse"] = warehouses.first().pk
-
-    def clean_number(self):
-        number = self.cleaned_data.get("number")
-        if (
-            not self.instance.pk
-            and PurchaseOrder.objects.filter(number=number).exists()
-        ):
-            raise ValidationError("رقم الطلب موجود بالفعل")
-        return number
-
-
-class PurchaseOrderItemForm(forms.ModelForm):
-    """
-    نموذج إضافة عنصر لطلب الشراء
-    """
-
-    product = forms.ModelChoiceField(
-        queryset=Product.objects.filter(is_active=True), label="المنتج"
-    )
-
-    class Meta:
-        model = PurchaseOrderItem
-        fields = ["product", "quantity", "unit_price"]
-
-    def clean_quantity(self):
-        quantity = self.cleaned_data.get("quantity")
-        if quantity <= 0:
-            raise ValidationError("الكمية يجب أن تكون أكبر من صفر")
-        return quantity
 
 
 class PurchaseForm(forms.ModelForm):
@@ -92,11 +28,6 @@ class PurchaseForm(forms.ModelForm):
         queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
     )
 
-    purchase_order = forms.ModelChoiceField(
-        queryset=PurchaseOrder.objects.filter(status="pending"),
-        label="طلب الشراء",
-        required=False,
-    )
 
     # حقل الخزينة للفواتير النقدية
     financial_account = forms.ModelChoiceField(
@@ -115,7 +46,6 @@ class PurchaseForm(forms.ModelForm):
         fields = [
             "supplier",
             "warehouse",
-            "purchase_order",
             "date",
             "number",
             "discount",

@@ -4,18 +4,6 @@ from . import views
 app_name = "purchase"
 
 urlpatterns = [
-    # طلبات الشراء
-    path("purchase-orders/", views.purchase_order_list, name="purchase_order_list"),
-    path(
-        "purchase-orders/create/",
-        views.purchase_order_create,
-        name="purchase_order_create",
-    ),
-    path(
-        "purchase-orders/<int:pk>/",
-        views.purchase_order_detail,
-        name="purchase_order_detail",
-    ),
     # فواتير المشتريات
     path("", views.purchase_list, name="purchase_list"),
     path("create/", views.purchase_create, name="purchase_create"),

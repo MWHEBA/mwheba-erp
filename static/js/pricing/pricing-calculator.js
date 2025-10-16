@@ -75,24 +75,11 @@ PricingSystem.Pricing = {
         }
         
         // إضافة معالج حدث لتغيير سعر البيع
-        const sellingPriceInput = document.getElementById('id_sale_price');
         if (sellingPriceInput) {
-            sellingPriceInput.addEventListener('input', this.updateProfitMarginFromSellingPrice.bind(this));
-            sellingPriceInput.addEventListener('change', this.updateProfitMarginFromSellingPrice.bind(this));
+            sellingPriceInput.addEventListener('input', (event) => this.updateProfitMarginFromSellingPrice(event));
+            sellingPriceInput.addEventListener('change', (event) => this.updateProfitMarginFromSellingPrice(event));
         }
         
-        // إضافة معالجات أحداث لحقول التصميم
-        const designPriceInput = document.getElementById('id_design_price');
-        if (designPriceInput) {
-            designPriceInput.addEventListener('input', this.updateDesignCost.bind(this));
-            designPriceInput.addEventListener('change', this.updateDesignCost.bind(this));
-        }
-        
-        const internalDesignPriceInput = document.getElementById('id_internal_design_price');
-        if (internalDesignPriceInput) {
-            internalDesignPriceInput.addEventListener('input', this.updateDesignCost.bind(this));
-            internalDesignPriceInput.addEventListener('change', this.updateDesignCost.bind(this));
-        }
         
         // إضافة معالج حدث لتغيير معدل ضريبة القيمة المضافة
         const vatRateInput = document.getElementById('id_vat_rate');

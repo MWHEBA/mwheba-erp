@@ -232,6 +232,68 @@ FIELD_REGISTRY = {
             "step": "0.01",
         },
     },
+    "coating": {
+        # الحقول الأساسية
+        "name": {
+            "db_field": "name",
+            "input_type": "text",
+            "required": True,
+            "readonly": True,
+            "auto_generated": True,
+        },
+        "description": {
+            "db_field": "description",
+            "input_type": "textarea",
+            "required": False,
+        },
+        "setup_cost": {
+            "db_field": "setup_cost",
+            "input_type": "number",
+            "required": False,
+            "validation": "positive_number",
+            "step": "0.01",
+        },
+        "is_active": {
+            "db_field": "is_active",
+            "input_type": "checkbox",
+            "required": False,
+            "default": True,
+        },
+        # حقول تفاصيل التغطية
+        "coating_type": {
+            "db_field": "finishing_details.finishing_type",
+            "input_type": "select",
+            "required": True,
+            "choices_source": "coating_types",
+        },
+        "calculation_method": {
+            "db_field": "finishing_details.calculation_method",
+            "input_type": "select",
+            "required": True,
+            "choices_source": "calculation_methods",
+        },
+        "base_price": {
+            "db_field": "finishing_details.price_per_unit",
+            "input_type": "number",
+            "required": True,
+            "validation": "positive_number",
+            "step": "0.01",
+        },
+        "setup_time_minutes": {
+            "db_field": "finishing_details.setup_time_minutes",
+            "input_type": "number",
+            "required": False,
+            "validation": "positive_number",
+            "default": 30,
+        },
+        "turnaround_time_hours": {
+            "db_field": "finishing_details.turnaround_time_hours",
+            "input_type": "number",
+            "required": False,
+            "validation": "positive_number",
+            "default": 6,
+        },
+    },
 }
 
 # خيارات الحقول المختلفة
@@ -283,11 +345,17 @@ FIELD_CHOICES = {
     "paper_types": [],  # سيتم ملؤها ديناميكياً من pricing app
     "paper_weights": [],  # سيتم ملؤها ديناميكياً من pricing app
     "paper_origins": [],  # سيتم ملؤها ديناميكياً من pricing app
-    "plate_sizes": [
-        ("quarter_sheet", "ربع (35×50 سم)"),
-        ("full_sheet", "فرخ (70×100 سم)"),
-        ("custom", "مقاس مخصوص"),
-    ],
+    "plate_sizes": [],  # سيتم ملؤها ديناميكياً من pricing app
+    
+    # خيارات التغطية
+    "coating_types": [],  # سيتم ملؤها ديناميكياً من CoatingType model
+    "calculation_methods": [
+        ("per_piece", "بالقطعة"),
+        ("per_thousand", "بالألف"),
+        ("per_square_meter", "بالمتر المربع"),
+        ("per_sheet", "بالفرخ"),
+        ("per_hour", "بالساعة"),
+    ]
 }
 
 
@@ -330,6 +398,24 @@ def get_field_choices(choices_source):
                 return unified_choices.get("machine_types", [])
             elif choices_source == "offset_sheet_sizes":
                 return unified_choices.get("sheet_sizes", [])
+        except ImportError:
+            pass
+    
+    # للزنكات، استخدم النظام الموحد
+    elif choices_source == "plate_sizes":
+        try:
+            from .forms.dynamic_forms import ServiceFormFactory
+            unified_choices = ServiceFormFactory.get_unified_ctp_choices()
+            return unified_choices.get("plate_sizes", [])
+        except ImportError:
+            pass
+    
+    # للتغطية، جلب من CoatingType model
+    elif choices_source == "coating_types":
+        try:
+            from pricing.models import CoatingType
+            coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
+            return [(ct.id, ct.name) for ct in coating_types]
         except ImportError:
             pass
     

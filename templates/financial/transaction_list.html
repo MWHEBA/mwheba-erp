@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load dict_tags %}
 {% load app_tags %}
 
@@ -280,7 +281,7 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الدائن" %}</div>
-            <div class="stats-card-value">{{ total_credit|floatformat:2 }}</div>
+            <div class="stats-card-value">{{ total_credit|remove_trailing_zeros }}</div>
             <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
           </div>
         </div>
@@ -293,7 +294,7 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المدين" %}</div>
-            <div class="stats-card-value">{{ total_debit|floatformat:2 }}</div>
+            <div class="stats-card-value">{{ total_debit|remove_trailing_zeros }}</div>
             <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
           </div>
         </div>
@@ -445,13 +446,13 @@
               <td class="text-end fw-bold">
                 {% with lines=entry.journalentryline_set.all %}
                   {% if lines.0.debit > 0 %}
-                    <span class="text-primary">{{ lines.0.debit|floatformat:2 }} ج.م</span>
+                    <span class="text-primary">{{ lines.0.debit|remove_trailing_zeros }} ج.م</span>
                   {% elif lines.0.credit > 0 %}
-                    <span class="text-primary">{{ lines.0.credit|floatformat:2 }} ج.م</span>
+                    <span class="text-primary">{{ lines.0.credit|remove_trailing_zeros }} ج.م</span>
                   {% elif lines.1.debit > 0 %}
-                    <span class="text-primary">{{ lines.1.debit|floatformat:2 }} ج.م</span>
+                    <span class="text-primary">{{ lines.1.debit|remove_trailing_zeros }} ج.م</span>
                   {% elif lines.1.credit > 0 %}
-                    <span class="text-primary">{{ lines.1.credit|floatformat:2 }} ج.م</span>
+                    <span class="text-primary">{{ lines.1.credit|remove_trailing_zeros }} ج.م</span>
                   {% else %}
                     <span class="text-muted">0.00 ج.م</span>
                   {% endif %}
@@ -534,8 +535,8 @@
       // الإحصائيات
       data.push(['الإحصائيات:']);
       data.push(['إجمالي القيود', '{{ total_transactions|default:"0" }}', 'قيد محاسبي']);
-      data.push(['إجمالي الدائن', '{{ total_credit|floatformat:2|default:"0.00" }}', 'جنيه مصري']);
-      data.push(['إجمالي المدين', '{{ total_debit|floatformat:2|default:"0.00" }}', 'جنيه مصري']);
+      data.push(['إجمالي الدائن', '{{ total_credit|remove_trailing_zeros|default:"0" }}', 'جنيه مصري']);
+      data.push(['إجمالي المدين', '{{ total_debit|remove_trailing_zeros|default:"0" }}', 'جنيه مصري']);
       data.push(['حالة التوازن', '{% if total_debit == total_credit %}متوازن{% else %}غير متوازن{% endif %}', '']);
       data.push([]);
       

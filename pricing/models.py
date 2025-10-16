@@ -113,7 +113,7 @@ class PrintSide(models.Model):
         app_label = "pricing"
         verbose_name = _("جانب الطباعة")
         verbose_name_plural = _("جوانب الطباعة")
-        ordering = ["name"]
+        ordering = ["id"]
 
     def __str__(self):
         return self.name
@@ -308,12 +308,16 @@ class PricingOrder(models.Model):
         on_delete=models.PROTECT,
         related_name="orders",
         verbose_name=_("نوع الورق"),
+        null=True,
+        blank=True,
     )
-    paper_size = models.ForeignKey(
+    product_size = models.ForeignKey(
         "ProductSize",
         on_delete=models.PROTECT,
         related_name="orders",
         verbose_name=_("مقاس المنتج"),
+        null=True,
+        blank=True,
     )
     print_direction = models.ForeignKey(
         PrintDirection,
@@ -490,7 +494,7 @@ class PricingOrder(models.Model):
 
     def calculate_material_cost(self):
         """حساب تكلفة الخامات"""
-        if not self.paper_type or not self.paper_size:
+        if not self.paper_type or not self.product_size:
             return Decimal("0.00")
 
         try:
@@ -500,7 +504,7 @@ class PricingOrder(models.Model):
             paper_service = PaperServiceDetails.objects.filter(
                 supplier=self.supplier,
                 paper_type=self.paper_type,
-                paper_size=self.paper_size,
+                paper_size=self.product_size,
                 gsm=80,  # وزن افتراضي
                 is_active=True,
             ).first()
@@ -531,7 +535,7 @@ class PricingOrder(models.Model):
 
                 digital_service = DigitalPrintingDetails.objects.filter(
                     supplier=self.supplier,
-                    paper_size=self.paper_size,
+                    paper_size=self.product_size,
                     color_type="color"
                     if (self.colors_front + self.colors_back) > 1
                     else "bw",
@@ -654,11 +658,13 @@ class InternalContent(models.Model):
         related_name="internal_contents",
         verbose_name=_("نوع الورق"),
     )
-    paper_size = models.ForeignKey(
+    product_size = models.ForeignKey(
         PaperSize,
         on_delete=models.PROTECT,
         related_name="internal_contents",
         verbose_name=_("مقاس المنتج"),
+        null=True,
+        blank=True,
     )
     page_count = models.PositiveIntegerField(
         _("عدد الصفحات"), validators=[MinValueValidator(1)]
@@ -1702,7 +1708,11 @@ class OffsetSheetSize(models.Model):
         ordering = ["width_cm", "height_cm"]
 
     def __str__(self):
-        return f"{self.name} ({self.width_cm}×{self.height_cm} سم)"
+        from .templatetags.pricing_filters import remove_trailing_zeros
+        
+        width_clean = remove_trailing_zeros(self.width_cm)
+        height_clean = remove_trailing_zeros(self.height_cm)
+        return f"{self.name} ({width_clean}×{height_clean} سم)"
 
     @property
     def area_cm2(self):
@@ -1773,7 +1783,11 @@ class DigitalSheetSize(models.Model):
         ordering = ["width_cm", "height_cm"]
 
     def __str__(self):
-        return f"{self.name} ({self.width_cm}×{self.height_cm} سم)"
+        from .templatetags.pricing_filters import remove_trailing_zeros
+        
+        width_clean = remove_trailing_zeros(self.width_cm)
+        height_clean = remove_trailing_zeros(self.height_cm)
+        return f"{self.name} ({width_clean}×{height_clean} سم)"
 
     @property
     def area_cm2(self):

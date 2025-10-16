@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
@@ -227,7 +228,7 @@
                                     <small class="text-muted">#{{ movement.reference_number }}</small>
                                 </div>
                                 <div class="text-end">
-                                    <div class="fw-bold">{{ movement.quantity|floatformat:"0" }}</div>
+                                    <div class="fw-bold">{{ movement.quantity|remove_trailing_zeros }}</div>
                                     <small class="text-muted">{{ movement.timestamp|date:"d-m-Y H:i" }}</small>
                                 </div>
                             </div>

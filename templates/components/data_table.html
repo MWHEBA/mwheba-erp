@@ -1,6 +1,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% comment %}
 مكون جدول بيانات للعرض في صفحات القوائم مع دعم الترتيب والفلترة
@@ -252,7 +253,7 @@
                                     {% elif header.format == 'rating' %}
                                         <div class="rating-display text-center">
                                             <div class="rating-stars text-warning mb-1">
-                                                {% with rating=field_value|default:0|floatformat:0 %}
+                                                {% with rating=field_value|default:0|remove_trailing_zeros %}
                                                     {% for i in "12345" %}
                                                         {% if forloop.counter <= rating|add:0 %}
                                                             <i class="fas fa-star"></i>

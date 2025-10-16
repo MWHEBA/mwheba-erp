@@ -1,5 +1,7 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
+{% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load django_bootstrap5 %}
 {% load static %}
 {% load custom_filters %}
@@ -632,7 +634,7 @@
                             </div>
                         </div>
                         <div class="col-6 mb-3">
-                            <h4 class="text-success mb-1">{{ this_month_revenue|floatformat:0|default:0 }}</h4>
+                            <h4 class="text-success mb-1">{{ this_month_revenue|remove_trailing_zeros|default:0 }}</h4>
                             <small class="text-muted">إيرادات الشهر</small>
                         </div>
                         <div class="col-6">
@@ -663,7 +665,7 @@
                                 <small class="text-muted">{{ client.orders_count }} طلب</small>
                             </div>
                             <div class="text-end">
-                                <div class="fw-bold text-success">{{ client.total_value|floatformat:0 }} ج.م</div>
+                                <div class="fw-bold text-success">{{ client.total_value|remove_trailing_zeros }} ج.م</div>
                             </div>
                         </div>
                         {% if not forloop.last %}<hr class="my-2">{% endif %}

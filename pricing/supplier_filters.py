@@ -66,3 +66,21 @@ def get_ctp_suppliers():
     except Exception as e:
         # في حالة الخطأ، إرجاع جميع الموردين النشطين
         return Supplier.objects.filter(is_active=True).order_by("name")
+
+
+def get_coating_suppliers():
+    """جلب موردي التغطية (ورنيش، طلاء، سيلوفان)"""
+    try:
+        from supplier.models import SupplierType
+
+        # موردين من نوع تغطية (ID = 12)
+        coating_type = SupplierType.objects.get(pk=12, code="coating")
+        
+        return Supplier.objects.filter(
+            supplier_types=coating_type, 
+            is_active=True
+        ).order_by("name")
+
+    except Exception as e:
+        # في حالة الخطأ، إرجاع جميع الموردين النشطين
+        return Supplier.objects.filter(is_active=True).order_by("name")

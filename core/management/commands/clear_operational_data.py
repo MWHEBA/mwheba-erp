@@ -21,8 +21,6 @@ from purchase.models import (
     PurchasePayment,
     PurchaseReturn,
     PurchaseReturnItem,
-    PurchaseOrder,
-    PurchaseOrderItem,
 )
 
 # استيراد آمن للنماذج المالية
@@ -156,8 +154,6 @@ class Command(BaseCommand):
             "مدفوعات المشتريات": PurchasePayment.objects.count(),
             "مرتجعات المشتريات": PurchaseReturn.objects.count(),
             "بنود مرتجعات المشتريات": PurchaseReturnItem.objects.count(),
-            "أوامر الشراء": PurchaseOrder.objects.count(),
-            "بنود أوامر الشراء": PurchaseOrderItem.objects.count(),
             "القيود المحاسبية": JournalEntry.objects.count(),
             "بنود القيود": JournalEntryLine.objects.count(),
             "لقطات الأرصدة": BalanceSnapshot.objects.count(),
@@ -321,9 +317,6 @@ class Command(BaseCommand):
         deleted_purchases = Purchase.objects.all().delete()[0]
         self.stdout.write(f"  - تم حذف {deleted_purchases} فاتورة مشتريات")
 
-        # حذف أوامر الشراء
-        PurchaseOrderItem.objects.all().delete()
-        PurchaseOrder.objects.all().delete()
 
         self.stdout.write("  ✅ تم حذف بيانات المبيعات والمشتريات")
 

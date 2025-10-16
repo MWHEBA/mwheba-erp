@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -200,7 +201,7 @@
                 {% if data.service.setup_cost > 0 %}
                 <div class="feature-row">
                     <span class="feature-label">تكلفة التجهيز:</span>
-                    <span class="feature-value">{{ data.service.setup_cost }} ج.م</span>
+                    <span class="feature-value">{{ data.service.setup_cost|remove_trailing_zeros }} ج.م</span>
                 </div>
                 {% endif %}
                 
@@ -238,7 +239,7 @@
                         </div>
                         <div class="feature-row">
                             <span class="feature-label">أقصى مقاس:</span>
-                            <span class="feature-value">{{ data.details.max_width_cm }}×{{ data.details.max_height_cm }} سم</span>
+                            <span class="feature-value">{{ data.details.max_width_cm|remove_trailing_zeros }}×{{ data.details.max_height_cm|remove_trailing_zeros }} سم</span>
                         </div>
                         <div class="feature-row">
                             <span class="feature-label">أبيض/أسود:</span>

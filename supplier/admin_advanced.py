@@ -365,6 +365,28 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
 
     has_tiers.short_description = "شرائح سعرية"
 
+    def get_service_type(self, obj):
+        """عرض نوع الخدمة التفصيلي للتغطية والتقفيل"""
+        if obj.category.code == "coating" and hasattr(obj, "finishing_details"):
+            try:
+                from pricing.models import CoatingType
+                coating_type = CoatingType.objects.get(id=obj.finishing_details.finishing_type)
+                return format_html('<span class="badge badge-success">{}</span>', coating_type.name)
+            except:
+                return format_html('<span class="text-muted">نوع غير معروف</span>')
+        elif obj.category.code == "packaging" and hasattr(obj, "finishing_details"):
+            type_display = {
+                'lamination': 'تقفيل',
+                'cellophane': 'سيلوفان',
+                'thermal_packaging': 'تغليف حراري',
+                'box_packaging': 'تعبئة في صناديق',
+                'custom_packaging': 'تعبئة مخصصة'
+            }.get(obj.finishing_details.finishing_type, obj.finishing_details.finishing_type)
+            return format_html('<span class="badge badge-info">{}</span>', type_display)
+        return "-"
+
+    get_service_type.short_description = "نوع الخدمة"
+
     def get_main_price(self, obj):
         """عرض السعر الأساسي حسب نوع الخدمة"""
         if obj.category.code == "paper" and hasattr(obj, "paper_details"):
@@ -381,6 +403,28 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
         elif obj.category.code == "finishing" and hasattr(obj, "finishing_details"):
             price = obj.finishing_details.price_per_unit
             return format_html('<span class="badge badge-primary">{} ج.م/وحدة</span>', price)
+        elif obj.category.code == "coating" and hasattr(obj, "finishing_details"):
+            price = obj.finishing_details.price_per_unit
+            method = obj.finishing_details.calculation_method
+            method_display = {
+                'per_piece': 'قطعة',
+                'per_thousand': '1000',
+                'per_square_meter': 'م²',
+                'per_sheet': 'فرخ',
+                'per_hour': 'ساعة'
+            }.get(method, 'وحدة')
+            return format_html('<span class="badge badge-success">{} ج.م/{}</span>', price, method_display)
+        elif obj.category.code == "packaging" and hasattr(obj, "finishing_details"):
+            price = obj.finishing_details.price_per_unit
+            method = obj.finishing_details.calculation_method
+            method_display = {
+                'per_piece': 'قطعة',
+                'per_thousand': '1000',
+                'per_square_meter': 'م²',
+                'per_sheet': 'فرخ',
+                'per_hour': 'ساعة'
+            }.get(method, 'وحدة')
+            return format_html('<span class="badge badge-info">{} ج.م/{}</span>', price, method_display)
         elif obj.category.code == "laser" and hasattr(obj, "laser_details"):
             if obj.laser_details.price_per_minute:
                 return format_html('<span class="badge badge-dark">{} ج.م/دقيقة</span>', 
@@ -402,6 +446,10 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
         elif obj.category.code == "digital_printing":
             inlines.append(DigitalPrintingDetailsInline)
         elif obj.category.code == "finishing":
+            inlines.append(FinishingServiceDetailsInline)
+        elif obj.category.code == "coating":
+            inlines.append(FinishingServiceDetailsInline)
+        elif obj.category.code == "packaging":
             inlines.append(FinishingServiceDetailsInline)
         elif obj.category.code == "offset_printing":
             inlines.append(OffsetPrintingDetailsInline)

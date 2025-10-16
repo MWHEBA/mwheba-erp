@@ -625,6 +625,15 @@ PricingSystem.API = {
         
         if (!paperTypeSelect || !paperSupplierSelect || !paperSheetTypeSelect || 
             !paperWeightSelect || !paperPriceInput) {
+            console.log('عناصر النموذج المطلوبة لحساب سعر الورق غير موجودة');
+            return;
+        }
+        
+        // التحقق من وجود نوع الورق أولاً
+        if (!paperTypeSelect.value) {
+            console.log('لم يتم اختيار نوع الورق - تخطي حساب السعر');
+            paperPriceInput.value = '';
+            if (paperTotalCostInput) paperTotalCostInput.value = '';
             return;
         }
         
@@ -638,6 +647,12 @@ PricingSystem.API = {
         if (!selectedType || !selectedSupplierId || !selectedSheetType || !selectedWeight) {
             paperPriceInput.value = '';
             if (paperTotalCostInput) paperTotalCostInput.value = '';
+            console.log('معاملات مفقودة لحساب سعر الورق:', {
+                paperType: selectedType || 'مفقود',
+                supplier: selectedSupplierId || 'مفقود', 
+                sheetType: selectedSheetType || 'مفقود',
+                weight: selectedWeight || 'مفقود'
+            });
             return;
         }
         
@@ -671,7 +686,7 @@ PricingSystem.API = {
                 } else {
                     paperPriceInput.value = '';
                     if (paperTotalCostInput) paperTotalCostInput.value = '';
-                    console.warn('لم يتم العثور على سعر للورق المحدد:', data.error || 'سبب غير معروف');
+                    console.log('لم يتم العثور على سعر للورق المحدد:', data.error || 'سبب غير معروف');
                 }
             })
             .catch(error => {

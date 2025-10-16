@@ -1,5 +1,6 @@
 {% load i18n %}
 {% load pricing_filters %}
+{% load pricing_filters %}
 
 <div class="modal-header">
     <h5 class="modal-title text-danger">
@@ -25,7 +26,7 @@
                 <p class="card-text">
                     <strong>الكود:</strong> <code>{{ sheet_size.code }}</code><br>
                     <strong>الأبعاد:</strong> {{ sheet_size.width_cm|remove_trailing_zeros }}×{{ sheet_size.height_cm|remove_trailing_zeros }} سم<br>
-                    <strong>المساحة:</strong> {{ sheet_size.area_m2|floatformat:2 }} م²<br>
+                    <strong>المساحة:</strong> {{ sheet_size.area_m2|remove_trailing_zeros }} م²<br>
                     {% if sheet_size.description %}
                         <strong>الوصف:</strong> {{ sheet_size.description|truncatewords:10 }}
                     {% endif %}

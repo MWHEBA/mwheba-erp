@@ -246,7 +246,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             if hasattr(PaperSize, "objects") and PaperSize.objects:
                 default_paper_size = PaperSize.objects.filter(is_default=True).first()
                 if default_paper_size:
-                    initial["paper_size"] = default_paper_size.pk
+                    initial["product_size"] = default_paper_size.pk
 
             # الحصول على اتجاه الطباعة الافتراضي (طولي)
             if hasattr(PrintDirection, "objects") and PrintDirection.objects:
@@ -282,18 +282,6 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 elif key in [
                     "custom_size_width",
                     "custom_size_height",
-                    "open_size_width",
-                    "open_size_height",
-                    "paper_price",
-                    "material_cost",
-                    "printing_cost",
-                    "finishing_cost",
-                    "extra_cost",
-                    "profit_margin",
-                    "sale_price",
-                    "ctp_plate_price",
-                    "ctp_transportation",
-                    "design_price",
                 ]:
                     try:
                         if value and str(value).strip():
@@ -306,7 +294,7 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
                 # معالجة القوائم المنسدلة
                 elif key in [
                     "paper_type",
-                    "paper_size",
+                    "product_size",
                     "print_direction",
                     "print_sides",
                     "coating_type",
@@ -361,8 +349,35 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         # معالجة طلب POST العادي لحفظ التسعيرة
 
         try:
+            # تنظيف البيانات قبل معالجة النموذج
+            mutable_data = request.POST.copy()
+            
+            # معالجة حقل paper_type للتأكد من عدم إرسال قيم فارغة أو غير صحيحة
+            paper_type_value = mutable_data.get('paper_type', '')
+            if paper_type_value == '' or paper_type_value == 'undefined' or paper_type_value == 'null' or paper_type_value == 'None':
+                # إزالة الحقل تماماً بدلاً من إرسال قيمة فارغة
+                if 'paper_type' in mutable_data:
+                    del mutable_data['paper_type']
+                    print(f"تم حذف حقل paper_type بقيمة غير صحيحة: '{paper_type_value}'")
+            else:
+                # التحقق من أن القيمة رقم صحيح
+                try:
+                    paper_type_id = int(paper_type_value)
+                    if paper_type_id <= 0:
+                        if 'paper_type' in mutable_data:
+                            del mutable_data['paper_type']
+                            print(f"تم حذف حقل paper_type بقيمة رقمية غير صحيحة: {paper_type_id}")
+                except (ValueError, TypeError):
+                    if 'paper_type' in mutable_data:
+                        del mutable_data['paper_type']
+                        print(f"تم حذف حقل paper_type بقيمة غير رقمية: '{paper_type_value}'")
+            
+            # تحديث request.POST بالبيانات المنظفة
+            request.POST = mutable_data
+            
             # محاولة معالجة النموذج بشكل عادي
             form = self.get_form()
+            
             if form.is_valid():
                 # النموذج صالح - جاري حفظ التسعيرة
                 return self.form_valid(form)
@@ -517,15 +532,14 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
             }
 
             # تحويل البيانات إلى تنسيق قابل للتحويل إلى JSON
-            additional_data = sanitize_for_json(additional_data)
-
+            additional_data = json.dumps(additional_data, cls=DjangoJSONEncoder)
             # إذا كان هناك محتوى داخلي، نقوم بإنشاء كائن InternalContent
             if form.instance.has_internal_content and internal_page_count:
                 try:
                     InternalContent.objects.create(
                         order=order_object,
                         paper_type=form.instance.paper_type,
-                        paper_size=form.instance.paper_size,
+                        product_size=form.instance.product_size,
                         page_count=internal_page_count,
                         print_sides=form.instance.print_sides,
                         colors_front=form.instance.colors_front,
@@ -691,9 +705,10 @@ class PricingOrderCreateView(LoginRequiredMixin, CreateView):
         context["paper_type_weights_json"] = self.get_paper_type_weights_json()
 
         # استخدام الموردين المفلترين (الحل الجذري)
-        from .supplier_filters import get_printing_suppliers, get_ctp_suppliers
+        from .supplier_filters import get_printing_suppliers, get_ctp_suppliers, get_coating_suppliers
 
         context["plate_suppliers"] = get_ctp_suppliers()
+        context["coating_suppliers"] = get_coating_suppliers()
         context["plate_sizes"] = (
             PlateSize.objects.all() if hasattr(PlateSize, "objects") else []
         )
@@ -906,7 +921,7 @@ class PricingOrderUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
                 order=self.get_object(),
                 defaults={
                     "paper_type": form.instance.paper_type,
-                    "paper_size": form.instance.paper_size,
+                    "product_size": form.instance.product_size,  # تم تصحيح الاسم من paper_size إلى product_size
                     "page_count": internal_page_count,
                     "print_sides": form.instance.print_sides,
                     "colors_front": form.instance.colors_front,
@@ -1034,9 +1049,10 @@ class PricingOrderUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView
         context["paper_type_weights_json"] = self.get_paper_type_weights_json()
 
         # استخدام الموردين المفلترين (الحل الجذري)
-        from .supplier_filters import get_printing_suppliers, get_ctp_suppliers
+        from .supplier_filters import get_printing_suppliers, get_ctp_suppliers, get_coating_suppliers
 
         context["plate_suppliers"] = get_ctp_suppliers()
+        context["coating_suppliers"] = get_coating_suppliers()
         context["plate_sizes"] = (
             PlateSize.objects.all() if hasattr(PlateSize, "objects") else []
         )
@@ -1434,7 +1450,7 @@ def calculate_cost(request):
                 int(quantity_str) if quantity_str and str(quantity_str).strip() else 0
             )
             paper_type_id = data.get("paper_type", "")
-            paper_size_id = data.get("paper_size", "")
+            paper_size_id = data.get("product_size", "")
             print_sides = data.get("print_sides", "")
 
             colors_front_str = data.get("colors_front", "0")
@@ -1653,7 +1669,7 @@ def get_paper_weights(request):
 
                     # البحث عن أنواع الورق التي تبدأ بنفس الاسم الأساسي
                     paper_services_query = paper_services_query.filter(
-                        service__paper_type__name__istartswith=base_name
+                        paper_type__icontains=base_name
                     )
                 except PaperType.DoesNotExist:
                     pass
@@ -1661,7 +1677,7 @@ def get_paper_weights(request):
             # تصفية حسب مقاس الورق إذا تم تحديده
             if sheet_type:
                 paper_services_query = paper_services_query.filter(
-                    sheet_type=sheet_type
+                    sheet_size=sheet_type
                 )
 
             # استخراج الأوزان الفريدة
@@ -1721,9 +1737,9 @@ def get_paper_sheet_types(request):
                     PaperServiceDetails.objects.filter(
                         service__supplier_id=supplier_id,
                         service__is_active=True,
-                        service__paper_type__name__istartswith=base_name,
+                        paper_type__icontains=base_name,
                     )
-                    .values("sheet_type")
+                    .values("sheet_size")
                     .distinct()
                 )
 
@@ -1732,7 +1748,7 @@ def get_paper_sheet_types(request):
                 unique_sheet_types = set()  # مجموعة للتأكد من عدم تكرار المقاسات
 
                 for ps in paper_services:
-                    sheet_type = ps["sheet_type"]
+                    sheet_type = ps["sheet_size"]
                     if sheet_type and sheet_type not in unique_sheet_types:
                         unique_sheet_types.add(
                             sheet_type
@@ -1777,7 +1793,6 @@ def get_paper_origins(request):
                     base_paper_type = PaperType.objects.get(id=paper_type_id)
                 else:
                     from .models import PaperType as RealPaperType
-
                     base_paper_type = RealPaperType.objects.get(id=paper_type_id)
                 base_name = base_paper_type.name.split()[0].strip()
 
@@ -1786,14 +1801,12 @@ def get_paper_origins(request):
                 query = Q(
                     service__supplier_id=supplier_id,
                     service__is_active=True,
-                    sheet_type=sheet_type,
+                    sheet_size=sheet_type,
                     gsm=gsm,
                 )
 
                 # نضيف شرط البحث عن نوع الورق بشكل أكثر مرونة
-                query &= Q(service__paper_type__name__istartswith=base_name) | Q(
-                    service__paper_type__id=paper_type_id
-                )
+                query &= Q(paper_type__icontains=base_name)
 
                 # نستبعد القيم الفارغة لبلد المنشأ
                 paper_services = (
@@ -1909,6 +1922,109 @@ def get_paper_origins(request):
             return JsonResponse({"success": False, "error": "خطأ في العملية"})
 
     return JsonResponse({"success": False, "error": "Invalid request method"})
+
+
+@login_required
+def get_plate_sizes(request):
+    """API للحصول على مقاسات الزنكات المتاحة للمورد"""
+    try:
+        supplier_id = request.GET.get("supplier_id")
+        
+        if not supplier_id:
+            return JsonResponse({"success": False, "error": "معرف المورد مطلوب"})
+        
+        # استيراد النموذج من supplier
+        from supplier.models import PlateServiceDetails
+        
+        # جلب مقاسات الزنكات المتاحة للمورد
+        plate_services = PlateServiceDetails.objects.filter(
+            service__supplier_id=supplier_id,
+            service__is_active=True
+        ).select_related('service')
+        
+        plate_sizes_data = []
+        seen_sizes = set()  # لتجنب التكرار
+        
+        for service in plate_services:
+            if service.plate_size and service.plate_size not in seen_sizes:
+                seen_sizes.add(service.plate_size)
+                
+                # تحسين عرض أسماء المقاسات
+                size_display = service.plate_size
+                if service.plate_size in ["35x50", "35.00x50.00", "quarter_sheet"]:
+                    size_display = "ربع فرخ (35×50 سم)"
+                elif service.plate_size in ["50x70", "50.00x70.00", "half_sheet"]:
+                    size_display = "نصف فرخ (50×70 سم)"
+                elif service.plate_size in ["70x100", "70.00x100.00", "full_sheet"]:
+                    size_display = "فرخ كامل (70×100 سم)"
+                elif service.plate_size == "custom":
+                    size_display = "مقاس مخصص"
+                
+                plate_sizes_data.append({
+                    "id": service.id,
+                    "plate_size": service.plate_size,
+                    "name": size_display,
+                    "price": float(service.price_per_plate) if service.price_per_plate else 0,
+                    "service_name": service.service.name if service.service.name else size_display
+                })
+        
+        return JsonResponse({
+            "success": True,
+            "plate_sizes": plate_sizes_data
+        })
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"خطأ في جلب مقاسات الزنكات: {str(e)}", exc_info=True)
+        return JsonResponse({
+            "success": False, 
+            "error": "خطأ في جلب مقاسات الزنكات"
+        })
+
+
+@login_required  
+def get_press_size(request):
+    """API للحصول على مقاس الماكينة"""
+    try:
+        # الحصول على press_id من query parameters
+        press_id = request.GET.get('press_id')
+        if not press_id:
+            return JsonResponse({
+                "success": False,
+                "error": "معرف الماكينة مطلوب"
+            })
+        
+        # تحويل press_id إلى int
+        press_id = int(press_id)
+        
+        # قيم افتراضية للمكائن الشائعة (بناءً على ID)
+        default_sizes = {
+            1: {"width": 35, "height": 50, "name": "ماكينة ربع فرخ"},
+            2: {"width": 50, "height": 70, "name": "ماكينة نصف فرخ"}, 
+            3: {"width": 70, "height": 100, "name": "ماكينة فرخ كامل"},
+        }
+        
+        # استخدام القيم الافتراضية أولاً
+        press_size = default_sizes.get(press_id, {"width": 35, "height": 50, "name": "ماكينة ربع فرخ"})
+        
+        return JsonResponse({
+            "success": True,
+            "press_size": {
+                "width": press_size["width"],
+                "height": press_size["height"]
+            },
+            "service_name": press_size["name"]
+        })
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"خطأ في جلب مقاس الماكينة: {str(e)}", exc_info=True)
+        return JsonResponse({
+            "success": False,
+            "error": "خطأ في جلب مقاس الماكينة"
+        })
 
 
 @login_required
@@ -2247,28 +2363,71 @@ def get_press_price(request):
 
             # البحث عن سعر الماكينة
             try:
-                # مؤقت - معطل حتى يتم حل مشكلة SupplierService
-                press = None  # SupplierService.objects.get(
-                #     id=press_id,
-                #     service_type__in=['offset_printing', 'digital_printing'],
-                #     is_active=True
-                # )
-
-                # طباعة معلومات الماكينة للتصحيح
-                print(
-                    f"تم العثور على الماكينة: {press.name}, السعر: {press.unit_price}"
-                )
-
-                return JsonResponse(
-                    {
+                # البحث في خدمات الأوفست والديجيتال
+                from supplier.models import OffsetPrintingDetails, DigitalPrintingDetails
+                
+                # استخراج معرف الخدمة الفعلي من press_id
+                actual_service_id = press_id
+                if press_id.startswith('offset_service_'):
+                    actual_service_id = press_id.replace('offset_service_', '')
+                elif press_id.startswith('digital_service_'):
+                    actual_service_id = press_id.replace('digital_service_', '')
+                elif press_id.startswith('offset_'):
+                    actual_service_id = press_id.replace('offset_', '')
+                elif press_id.startswith('digital_'):
+                    actual_service_id = press_id.replace('digital_', '')
+                
+                # البحث في خدمات الأوفست
+                try:
+                    offset_service = OffsetPrintingDetails.objects.get(
+                        id=actual_service_id,
+                        service__is_active=True
+                    )
+                    
+                    # الحصول على سعر التراج من خدمة الأوفست
+                    price_per_1000 = float(offset_service.impression_cost_per_1000) if offset_service.impression_cost_per_1000 else 100.0
+                    
+                    return JsonResponse({
                         "success": True,
-                        "unit_price": float(press.unit_price),
-                        "price": float(press.unit_price),
-                        "price_per_1000": float(
-                            press.unit_price
-                        ),  # للتوافق مع الكود القديم
-                    }
-                )
+                        "price_per_1000": price_per_1000,
+                        "unit_price": price_per_1000,
+                        "price": price_per_1000,
+                        "service_name": offset_service.service.name if offset_service.service else "خدمة أوفست",
+                        "machine_type": offset_service.machine_type
+                    })
+                    
+                except OffsetPrintingDetails.DoesNotExist:
+                    # البحث في خدمات الديجيتال
+                    try:
+                        digital_service = DigitalPrintingDetails.objects.get(
+                            id=actual_service_id,
+                            service__is_active=True
+                        )
+                        
+                        # الحصول على سعر النسخة من خدمة الديجيتال
+                        price_per_copy = float(digital_service.price_per_copy) if digital_service.price_per_copy else 0.15
+                        price_per_1000 = price_per_copy * 1000  # تحويل لسعر لكل 1000
+                        
+                        return JsonResponse({
+                            "success": True,
+                            "price_per_1000": price_per_1000,
+                            "price_per_copy": price_per_copy,
+                            "unit_price": price_per_copy,
+                            "price": price_per_1000,
+                            "service_name": digital_service.service.name if digital_service.service else "خدمة ديجيتال",
+                            "machine_type": digital_service.machine_type
+                        })
+                        
+                    except DigitalPrintingDetails.DoesNotExist:
+                        # إرجاع سعر افتراضي إذا لم توجد الخدمة
+                        return JsonResponse({
+                            "success": True,
+                            "price_per_1000": 100.0,
+                            "unit_price": 100.0,
+                            "price": 100.0,
+                            "service_name": "خدمة افتراضية",
+                            "note": "سعر افتراضي - لم يتم العثور على الخدمة"
+                        })
             except Exception:  # SupplierService.DoesNotExist:
                 print(f"الماكينة غير موجودة بالمعرف: {press_id}")
                 return JsonResponse({"success": False, "error": "الماكينة غير موجودة"})
@@ -2373,41 +2532,78 @@ def get_press_size(request):
 
             # البحث عن مقاس الماكينة
             try:
-                # مؤقت - معطل حتى يتم حل مشكلة SupplierService
-                press = None  # SupplierService.objects.get(
-                #     id=press_id,
-                #     service_type__in=['offset_printing', 'digital_printing'],
-                #     is_active=True
-                # )
-
-                # الحصول على الأبعاد الافتراضية
-                width = 35  # القيمة الافتراضية للعرض
-                height = 50  # القيمة الافتراضية للارتفاع
-
-                # محاولة الحصول على الأبعاد من تفاصيل الطباعة الأوفست
+                # البحث في خدمات الأوفست والديجيتال
+                from supplier.models import OffsetPrintingDetails, DigitalPrintingDetails
+                
+                # الأبعاد الافتراضية
+                width = 70.0
+                height = 100.0
+                
+                # استخراج معرف الخدمة الفعلي من press_id
+                actual_service_id = press_id
+                if press_id.startswith('offset_service_'):
+                    actual_service_id = press_id.replace('offset_service_', '')
+                elif press_id.startswith('digital_service_'):
+                    actual_service_id = press_id.replace('digital_service_', '')
+                elif press_id.startswith('offset_'):
+                    actual_service_id = press_id.replace('offset_', '')
+                elif press_id.startswith('digital_'):
+                    actual_service_id = press_id.replace('digital_', '')
+                
+                # print(f"البحث عن الخدمة: press_id={press_id}, actual_service_id={actual_service_id}")
+                
+                # البحث في خدمات الأوفست
                 try:
-                    if hasattr(press, "offset_details"):
-                        offset_details = press.offset_details
-                        if (
-                            hasattr(offset_details, "max_width")
-                            and offset_details.max_width
-                        ):
-                            width = offset_details.max_width
-                        if (
-                            hasattr(offset_details, "max_height")
-                            and offset_details.max_height
-                        ):
-                            height = offset_details.max_height
-                except Exception as e:
-                    print(f"خطأ في الحصول على تفاصيل الأوفست: {str(e)}")
+                    offset_service = OffsetPrintingDetails.objects.get(
+                        id=actual_service_id,
+                        service__is_active=True
+                    )
+                    
+                    # الحصول على مقاس الماكينة من إعدادات الأوفست
+                    if offset_service.sheet_size:
+                        from pricing.models import OffsetSheetSize
+                        try:
+                            sheet_size = OffsetSheetSize.objects.get(code=offset_service.sheet_size)
+                            width = float(sheet_size.width_cm)
+                            height = float(sheet_size.height_cm)
+                            # print(f"تم العثور على مقاس أوفست: {sheet_size.name}, العرض: {width}, الارتفاع: {height}")
+                        except OffsetSheetSize.DoesNotExist:
+                            print(f"مقاس الأوفست غير موجود: {offset_service.sheet_size}")
+                    
+                except OffsetPrintingDetails.DoesNotExist:
+                    # البحث في خدمات الديجيتال
+                    try:
+                        digital_service = DigitalPrintingDetails.objects.get(
+                            id=actual_service_id,
+                            service__is_active=True
+                        )
+                        
+                        # الحصول على مقاس الماكينة من إعدادات الديجيتال
+                        if digital_service.sheet_size:
+                            from pricing.models import DigitalSheetSize
+                            try:
+                                sheet_size = DigitalSheetSize.objects.get(code=digital_service.sheet_size)
+                                width = float(sheet_size.width_cm)
+                                height = float(sheet_size.height_cm)
+                                # print(f"تم العثور على مقاس ديجيتال: {sheet_size.name}, العرض: {width}, الارتفاع: {height}")
+                            except DigitalSheetSize.DoesNotExist:
+                                print(f"مقاس الديجيتال غير موجود: {digital_service.sheet_size}")
+                        else:
+                            # قيم افتراضية للديجيتال (A4)
+                            width = 21.0
+                            height = 29.7
+                            
+                    except DigitalPrintingDetails.DoesNotExist:
+                        print(f"لم يتم العثور على خدمة طباعة بالمعرف: {press_id}")
 
-                # طباعة معلومات الماكينة للتصحيح
-                print(
-                    f"تم العثور على مقاس الماكينة: {press.name}, العرض: {width}, الارتفاع: {height}"
-                )
-
+                # print(f"مقاس الماكينة النهائي - العرض: {width}, الارتفاع: {height}")
                 return JsonResponse(
-                    {"success": True, "width": float(width), "height": float(height)}
+                    {
+                        "success": True, 
+                        "press_size": {"width": width, "height": height},
+                        "width": width, 
+                        "height": height
+                    }
                 )
             except Exception:  # SupplierService.DoesNotExist:
                 print(f"الماكينة غير موجودة بالمعرف: {press_id}")
@@ -2418,47 +2614,6 @@ def get_press_size(request):
 
             print(f"خطأ في get_press_size: {str(e)}")
             traceback.print_exc()
-            return JsonResponse({"success": False, "error": "خطأ في العملية"})
-
-    return JsonResponse({"success": False, "error": "طريقة طلب غير صالحة"})
-
-
-@login_required
-def get_paper_size_dimensions(request):
-    """API لجلب أبعاد مقاس الورق"""
-    if request.method == "GET":
-        try:
-            paper_size_id = request.GET.get("paper_size_id")
-
-            if not paper_size_id:
-                return JsonResponse(
-                    {"success": False, "error": "معرف مقاس الورق مطلوب"}
-                )
-
-            # البحث عن مقاس الورق
-            from system_settings.models import PaperSize
-
-            try:
-                paper_size = PaperSize.objects.get(id=paper_size_id)
-
-                return JsonResponse(
-                    {
-                        "success": True,
-                        "width": float(paper_size.width),
-                        "height": float(paper_size.height),
-                        "name": paper_size.name,
-                    }
-                )
-            except PaperSize.DoesNotExist:
-                return JsonResponse({"success": False, "error": "مقاس الورق غير موجود"})
-
-        except Exception as e:
-            return JsonResponse({"success": False, "error": "خطأ في العملية"})
-
-    return JsonResponse({"success": False, "error": "طريقة طلب غير صالحة"})
-
-
-@login_required
 def get_paper_suppliers(request):
     """API لجلب موردي الورق"""
     if request.method == "GET":
@@ -3767,8 +3922,8 @@ def get_plate_price(request):
 
 
 @login_required
-def get_press_price(request):
-    """API لحساب سعر الطباعة"""
+def get_digital_press_price(request):
+    """API لحساب سعر الطباعة الرقمية"""
     try:
         # الحصول على المعاملات
         supplier_id = request.GET.get("supplier_id")
@@ -3886,37 +4041,6 @@ def get_paper_sheet_types(request):
     except Exception as e:
         logger = logging.getLogger(__name__)
         logger.error(f"Error in views.py: {str(e)}", exc_info=True)
-        return JsonResponse(
-            {"success": False, "error": "خطأ في جلب أنواع الورق: خطأ في العملية"}
-        )
-
-
-@login_required
-def get_paper_origins(request):
-    """API للحصول على منشأ الورق المتاح"""
-    try:
-        origins = PaperServiceDetails.PAPER_ORIGIN_CHOICES
-
-        return JsonResponse(
-            {
-                "success": True,
-                "data": [
-                    {"value": choice[0], "label": choice[1]} for choice in origins
-                ],
-            }
-        )
-
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error in views.py: {str(e)}", exc_info=True)
-        return JsonResponse(
-            {"success": False, "error": "خطأ في جلب منشأ الورق: خطأ في العملية"}
-        )
-
-
-@login_required
-def get_plate_sizes(request):
-    """API للحصول على مقاسات الزنكات المتاحة"""
     try:
         from supplier.models import PlateServiceDetails
 
@@ -3948,32 +4072,65 @@ def get_plate_sizes(request):
 
         # جلب المقاسات المتاحة لدى المورد المحدد مع الأسعار
         plate_services = PlateServiceDetails.objects.filter(
-            service__supplier_id=supplier_id, service__is_active=True
+            service__supplier_id=supplier_id, 
+            service__is_active=True
         ).select_related("service")
 
         from .templatetags.pricing_filters import remove_trailing_zeros
 
         plate_sizes_data = []
+        seen_sizes = set()  # لتتبع المقاسات التي تم إضافتها
+        
         for service in plate_services:
             if service.plate_size:
-                # تحويل اختيارات المقاس إلى اسم مفهوم
-                size_display = dict(PlateServiceDetails.PLATE_SIZE_CHOICES).get(
-                    service.plate_size, service.plate_size
-                )
+                # تطبيع المقاس إلى قيمة معيارية لتجنب التكرار
+                normalized_size = service.plate_size
+                if service.plate_size in ["35.00x50.00", "35x50", "quarter_sheet"]:
+                    normalized_size = "35x50"
+                    size_display = "ربع فرخ (35×50 سم)"
+                elif service.plate_size in ["50.00x70.00", "50x70", "half_sheet"]:
+                    normalized_size = "50x70"
+                    size_display = "نصف فرخ (50×70 سم)"
+                elif service.plate_size in ["70.00x100.00", "70x100", "full_sheet"]:
+                    normalized_size = "70x100"
+                    size_display = "فرخ كامل (70×100 سم)"
+                elif service.plate_size == "custom":
+                    normalized_size = "custom"
+                    size_display = "مقاس مخصص"
+                else:
+                    normalized_size = service.plate_size
+                    size_display = service.plate_size
 
-                # إنشاء ID فريد للمقاس (استخدام service.id)
-                plate_sizes_data.append(
-                    {
-                        "id": service.id,  # استخدام ID الخدمة
-                        "name": f"{size_display}",
-                        "service_name": f"{size_display}",
-                        "price": float(service.price_per_plate)
-                        if service.price_per_plate
-                        else 0,
-                    }
-                )
+                # إضافة فقط إذا لم يتم رؤية هذا المقاس من قبل
+                if normalized_size not in seen_sizes:
+                    seen_sizes.add(normalized_size)
+                    plate_sizes_data.append({
+                        "id": service.id,
+                        "name": size_display,
+                        "service_name": service.service.name if service.service.name else size_display,
+                        "price": float(service.price_per_plate) if service.price_per_plate else 0,
+                    })
 
-        return JsonResponse({"success": True, "plate_sizes": plate_sizes_data})
+        # إضافة معلومات التشخيص في الاستجابة
+        debug_info = {
+            "total_services": plate_services.count(),
+            "unique_sizes_returned": len(plate_sizes_data),
+            "debug_details": []
+        }
+        
+        for service in plate_services:
+            debug_info["debug_details"].append({
+                "service_id": service.id,
+                "service_name": service.service.name,
+                "plate_size": service.plate_size,
+                "price": float(service.price_per_plate) if service.price_per_plate else 0
+            })
+
+        return JsonResponse({
+            "success": True, 
+            "plate_sizes": plate_sizes_data,
+            "debug": debug_info
+        })
 
     except Exception as e:
         logger = logging.getLogger(__name__)
@@ -4000,12 +4157,10 @@ def get_paper_size_dimensions(request):
         return JsonResponse(
             {
                 "success": True,
-                "data": {
-                    "id": paper_size.id,
-                    "name": paper_size.name,
-                    "width": float(paper_size.width),
-                    "height": float(paper_size.height),
-                },
+                "width": float(paper_size.width),
+                "height": float(paper_size.height),
+                "name": paper_size.name,
+                "id": paper_size.id,
             }
         )
 
@@ -4014,6 +4169,56 @@ def get_paper_size_dimensions(request):
         logger.error(f"Error in views.py: {str(e)}", exc_info=True)
         return JsonResponse(
             {"success": False, "error": "خطأ في جلب أبعاد مقاس الورق: خطأ في العملية"}
+        )
+
+
+@login_required
+def convert_sheet_type_to_dimensions(request):
+    """API لتحويل sheet_type إلى أبعاد من PaperSize"""
+    try:
+        sheet_type = request.GET.get("sheet_type")
+
+        if not sheet_type:
+            return JsonResponse({"success": False, "error": "نوع مقاس الورق مطلوب"})
+
+        # خريطة تحويل من sheet_type إلى أسماء PaperSize
+        sheet_type_mapping = {
+            'full_70x100': 'فرخ 70×100',
+            'half_50x70': 'نصف فرخ 50×70', 
+            'quarter_35x50': 'ربع فرخ',
+            'a3': 'A3',
+            'a4': 'A4',
+            'custom': None  # المقاس المخصص يحتاج معالجة خاصة
+        }
+        
+        if sheet_type == 'custom':
+            return JsonResponse({"success": False, "error": "المقاس المخصص يحتاج أبعاد محددة"})
+        
+        paper_size_name = sheet_type_mapping.get(sheet_type)
+        if not paper_size_name:
+            return JsonResponse({"success": False, "error": f"نوع مقاس الورق غير مدعوم: {sheet_type}"})
+
+        try:
+            paper_size = PaperSize.objects.get(name__icontains=paper_size_name, is_active=True)
+        except PaperSize.DoesNotExist:
+            return JsonResponse({"success": False, "error": f"مقاس الورق '{paper_size_name}' غير موجود في قاعدة البيانات"})
+
+        return JsonResponse(
+            {
+                "success": True,
+                "width": float(paper_size.width),
+                "height": float(paper_size.height),
+                "name": paper_size.name,
+                "id": paper_size.id,
+                "sheet_type": sheet_type,
+            }
+        )
+
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in convert_sheet_type_to_dimensions: {str(e)}", exc_info=True)
+        return JsonResponse(
+            {"success": False, "error": "خطأ في تحويل نوع مقاس الورق"}
         )
 
 
@@ -4522,9 +4727,8 @@ def get_presses(request):
                             "id": f"offset_service_{service.id}",
                             "name": machine_name,
                             "type": "offset",
-                            "price_per_1000": float(service.price_per_1000)
-                            if hasattr(service, "price_per_1000")
-                            and service.price_per_1000
+                            "price_per_1000": float(service.impression_cost_per_1000)
+                            if service.impression_cost_per_1000
                             else 100.0,
                         }
                     )
@@ -4551,9 +4755,8 @@ def get_presses(request):
                             "id": f"digital_service_{service.id}",
                             "name": machine_name,
                             "type": "digital",
-                            "price_per_1000": float(service.price_per_sheet)
-                            if hasattr(service, "price_per_sheet")
-                            and service.price_per_sheet
+                            "price_per_1000": float(service.price_per_copy) * 1000
+                            if service.price_per_copy
                             else 150.0,
                         }
                     )
@@ -4618,23 +4821,6 @@ def get_press_details(request):
         logger.error(f"Error in views.py: {str(e)}", exc_info=True)
         return JsonResponse(
             {"success": False, "error": "خطأ في جلب تفاصيل المطبعة: خطأ في العملية"}
-        )
-
-
-@login_required
-def clear_pricing_form_data(request):
-    """API لمسح بيانات نموذج التسعير من الجلسة"""
-    try:
-        if "pricing_form_data" in request.session:
-            del request.session["pricing_form_data"]
-
-        return JsonResponse({"success": True, "message": "تم مسح بيانات النموذج"})
-
-    except Exception as e:
-        logger = logging.getLogger(__name__)
-        logger.error(f"Error in views.py: {str(e)}", exc_info=True)
-        return JsonResponse(
-            {"success": False, "error": "خطأ في مسح البيانات: خطأ في العملية"}
         )
 
 
@@ -6395,3 +6581,309 @@ def product_size_delete(request, pk):
             "action_url": reverse("pricing:product_size_delete", kwargs={"pk": pk}),
         },
     )
+
+
+# ===== إعدادات مقاسات الزنكات =====
+
+
+@login_required
+def plate_size_list(request):
+    """قائمة مقاسات الزنكات"""
+    from .models import PlateSize
+
+    plate_sizes = PlateSize.objects.all().order_by("name")
+
+    context = {
+        "plate_sizes": plate_sizes,
+        "page_title": "إعدادات مقاسات الزنكات",
+        "page_icon": "fas fa-th-large",
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {
+                "title": "التسعير",
+                "url": reverse("pricing:pricing_dashboard"),
+                "icon": "fas fa-calculator",
+            },
+            {
+                "title": "الإعدادات",
+                "url": reverse("pricing:settings_home"),
+                "icon": "fas fa-cog",
+            },
+            {"title": "مقاسات الزنكات", "active": True},
+        ],
+    }
+
+    return render(request, "pricing/settings/plate_sizes/list.html", context)
+
+
+@login_required
+def plate_size_create(request):
+    """إنشاء مقاس زنك جديد"""
+    from .models import PlateSize
+    from .forms_plates import PlateSizeForm
+
+    if request.method == "POST":
+        form = PlateSizeForm(request.POST)
+        if form.is_valid():
+            plate_size = form.save()
+            messages.success(request, f'تم إنشاء مقاس الزنك "{plate_size.name}" بنجاح')
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": True})
+            else:
+                return redirect("pricing:plate_size_list")
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "errors": form.errors})
+    else:
+        form = PlateSizeForm()
+
+    return render(
+        request,
+        "pricing/settings/plate_sizes/form_modal.html",
+        {
+            "form": form,
+            "title": "إضافة مقاس زنك جديد",
+            "action_url": reverse("pricing:plate_size_create"),
+        },
+    )
+
+
+@login_required
+def plate_size_edit(request, pk):
+    """تعديل مقاس زنك"""
+    from .models import PlateSize
+    from .forms_plates import PlateSizeForm
+
+    try:
+        plate_size = PlateSize.objects.get(pk=pk)
+    except PlateSize.DoesNotExist:
+        messages.error(request, "مقاس الزنك غير موجود")
+        return redirect("pricing:plate_size_list")
+
+    if request.method == "POST":
+        form = PlateSizeForm(request.POST, instance=plate_size)
+        if form.is_valid():
+            plate_size = form.save()
+            messages.success(request, f'تم تحديث مقاس الزنك "{plate_size.name}" بنجاح')
+
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": True})
+            else:
+                return redirect("pricing:plate_size_list")
+        else:
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "errors": form.errors})
+    else:
+        form = PlateSizeForm(instance=plate_size)
+
+    return render(
+        request,
+        "pricing/settings/plate_sizes/form_modal.html",
+        {
+            "form": form,
+            "title": f'تعديل مقاس الزنك "{plate_size.name}"',
+            "action_url": reverse("pricing:plate_size_edit", kwargs={"pk": pk}),
+        },
+    )
+
+
+@login_required
+def plate_size_delete(request, pk):
+    """حذف مقاس زنك"""
+    from .models import PlateSize
+
+    try:
+        plate_size = PlateSize.objects.get(pk=pk)
+    except PlateSize.DoesNotExist:
+        messages.error(request, "مقاس الزنك غير موجود")
+        return redirect("pricing:plate_size_list")
+
+    if request.method == "POST":
+        plate_size_name = plate_size.name
+        plate_size.delete()
+        messages.success(request, f'تم حذف مقاس الزنك "{plate_size_name}" بنجاح')
+
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": True})
+        else:
+            return redirect("pricing:plate_size_list")
+
+    return render(
+        request,
+        "pricing/settings/plate_sizes/delete_modal.html",
+        {
+            "plate_size": plate_size,
+            "action_url": reverse("pricing:plate_size_delete", kwargs={"pk": pk}),
+        },
+    )
+
+
+# API endpoint لجلب أنواع التغطية
+@login_required
+def coating_types_api(request):
+    """API لجلب أنواع التغطية للاستخدام في النماذج"""
+    from django.http import JsonResponse
+    from .models import CoatingType
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # جلب جميع أنواع التغطية (بدون فلترة is_active في البداية للتشخيص)
+        all_coating_types = CoatingType.objects.all().order_by('name')
+        active_coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
+        
+        logger.info(f"إجمالي أنواع التغطية: {all_coating_types.count()}")
+        logger.info(f"أنواع التغطية النشطة: {active_coating_types.count()}")
+        
+        data = []
+        
+        # استخدام جميع الأنواع إذا لم توجد أنواع نشطة
+        coating_types_to_use = active_coating_types if active_coating_types.exists() else all_coating_types
+        
+        for coating_type in coating_types_to_use:
+            item = {
+                'id': coating_type.id,
+                'code': coating_type.id,
+                'name': coating_type.name,
+                'title': coating_type.name,
+                'description': getattr(coating_type, 'description', ''),
+                'is_active': getattr(coating_type, 'is_active', True),
+                'is_default': getattr(coating_type, 'is_default', False)
+            }
+            data.append(item)
+            logger.info(f"تمت إضافة نوع التغطية: {coating_type.name} (ID: {coating_type.id})")
+        
+        # إذا لم توجد بيانات، أضف بيانات افتراضية
+        if not data:
+            logger.warning("لا توجد أنواع تغطية في قاعدة البيانات، استخدام البيانات الافتراضية")
+            default_types = [
+                {'id': 1, 'name': 'ورنيش', 'code': 1, 'title': 'ورنيش'},
+                {'id': 2, 'name': 'طلاء UV', 'code': 2, 'title': 'طلاء UV'},
+                {'id': 3, 'name': 'طلاء مائي', 'code': 3, 'title': 'طلاء مائي'},
+                {'id': 4, 'name': 'UV نقطي', 'code': 4, 'title': 'UV نقطي'},
+                {'id': 5, 'name': 'طلاء مطفي', 'code': 5, 'title': 'طلاء مطفي'}
+            ]
+            data = default_types
+        
+        logger.info(f"إرسال {len(data)} نوع تغطية")
+        return JsonResponse(data, safe=False)
+        
+    except Exception as e:
+        logger.error(f"خطأ في API أنواع التغطية: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_coating_services_by_supplier(request):
+    """API لجلب خدمات التغطية حسب المورد"""
+    try:
+        supplier_id = request.GET.get("supplier_id")
+        
+        if not supplier_id:
+            return JsonResponse({"success": False, "error": "معرف المورد مطلوب"})
+
+        from supplier.models import FinishingServiceDetails, SpecializedService
+        
+        # جلب جميع خدمات التشطيب للمورد المحدد
+        # (سنعتبر جميع خدمات التشطيب كخدمات تغطية محتملة)
+        coating_services = FinishingServiceDetails.objects.filter(
+            service__supplier_id=supplier_id,
+            service__is_active=True
+        ).select_related('service')
+        
+        services_data = []
+        for service in coating_services:
+            # إنشاء اسم أفضل للخدمة
+            service_name = service.get_finishing_type_display()
+            if service_name == str(service.finishing_type):
+                # إذا كان الاسم مجرد رقم، استخدم اسم الخدمة المتخصصة
+                service_name = service.service.name if service.service.name else f"خدمة تشطيب {service.finishing_type}"
+            
+            services_data.append({
+                'id': service.id,
+                'name': service_name,
+                'finishing_type': service.finishing_type,
+                'price_per_unit': float(service.price_per_unit),
+                'calculation_method': service.calculation_method,
+                'calculation_method_display': service.get_calculation_method_display(),
+                'setup_time_minutes': service.setup_time_minutes,
+                'min_size_cm': float(service.min_size_cm) if service.min_size_cm else None,
+                'max_size_cm': float(service.max_size_cm) if service.max_size_cm else None,
+            })
+        
+        return JsonResponse({
+            "success": True, 
+            "services": services_data
+        })
+
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_coating_services_by_supplier: {str(e)}", exc_info=True)
+        return JsonResponse(
+            {"success": False, "error": "خطأ في جلب خدمات التغطية"}
+        )
+
+
+@login_required 
+def get_coating_service_price(request):
+    """API لجلب سعر خدمة التغطية"""
+    try:
+        service_id = request.GET.get("service_id")
+        quantity = request.GET.get("quantity", 1)
+        
+        if not service_id:
+            return JsonResponse({"success": False, "error": "معرف الخدمة مطلوب"})
+            
+        try:
+            quantity = int(quantity)
+        except (ValueError, TypeError):
+            quantity = 1
+            
+        from supplier.models import FinishingServiceDetails
+        
+        service = FinishingServiceDetails.objects.get(
+            id=service_id,
+            service__is_active=True
+        )
+        
+        # حساب السعر حسب طريقة الحساب
+        base_price = float(service.price_per_unit)
+        
+        if service.calculation_method == 'per_piece':
+            total_price = base_price * quantity
+        elif service.calculation_method == 'per_thousand':
+            total_price = base_price * (quantity / 1000)
+        elif service.calculation_method == 'per_hour':
+            # افتراض ساعة واحدة للكمية الصغيرة
+            hours = max(1, quantity / 1000)  # كل 1000 قطعة = ساعة
+            total_price = base_price * hours
+        elif service.calculation_method == 'per_meter':
+            # افتراض متر مربع واحد للكمية الصغيرة
+            meters = max(1, quantity / 100)  # كل 100 قطعة = متر مربع
+            total_price = base_price * meters
+        else:
+            total_price = base_price * quantity
+            
+        return JsonResponse({
+            "success": True,
+            "price_per_unit": base_price,
+            "total_price": round(total_price, 2),
+            "calculation_method": service.calculation_method,
+            "calculation_method_display": service.get_calculation_method_display(),
+            "setup_time_minutes": service.setup_time_minutes
+        })
+
+    except FinishingServiceDetails.DoesNotExist:
+        return JsonResponse({"success": False, "error": "الخدمة غير موجودة"})
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_coating_service_price: {str(e)}", exc_info=True)
+        return JsonResponse(
+            {"success": False, "error": "خطأ في حساب سعر الخدمة"}
+        )

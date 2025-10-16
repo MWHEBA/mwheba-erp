@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -202,7 +203,7 @@
                 <p class="mb-2"><strong>الفئة:</strong> {{ selected_service.category.name }}</p>
                 <p class="mb-2"><strong>السعر الأساسي:</strong> {{ selected_service.base_price }} ج.م</p>
                 {% if selected_service.setup_cost > 0 %}
-                <p class="mb-2"><strong>تكلفة الإعداد:</strong> {{ selected_service.setup_cost }} ج.م</p>
+                <p class="mb-2"><strong>تكلفة الإعداد:</strong> {{ selected_service.setup_cost|remove_trailing_zeros }} ج.م</p>
                 {% endif %}
                 <p class="mb-0"><strong>الحد الأدنى:</strong> {{ selected_service.min_quantity }}</p>
             </div>
@@ -215,7 +216,7 @@
             <div class="calculator-card">
                 <div class="text-center">
                     <h4><i class="fas fa-calculator"></i> نتيجة الحساب</h4>
-                    <div class="price-display">{{ calculation_result.total|floatformat:2 }} ج.م</div>
+                    <div class="price-display">{{ calculation_result.total|remove_trailing_zeros }} ج.م</div>
                     <p class="mb-0">إجمالي التكلفة لـ {{ calculation_result.quantity }} وحدة</p>
                 </div>
             </div>
@@ -226,7 +227,7 @@
                 
                 <div class="breakdown-item">
                     <span>سعر الوحدة الواحدة:</span>
-                    <span>{{ calculation_result.unit_price|floatformat:2 }} ج.م</span>
+                    <span>{{ calculation_result.unit_price|remove_trailing_zeros }} ج.م</span>
                 </div>
                 
                 <div class="breakdown-item">
@@ -236,19 +237,19 @@
                 
                 <div class="breakdown-item">
                     <span>المجموع الفرعي:</span>
-                    <span>{{ calculation_result.subtotal|floatformat:2 }} ج.م</span>
+                    <span>{{ calculation_result.subtotal|remove_trailing_zeros }} ج.م</span>
                 </div>
                 
                 {% if calculation_result.setup_cost > 0 %}
                 <div class="breakdown-item">
                     <span>تكلفة الإعداد:</span>
-                    <span>{{ calculation_result.setup_cost|floatformat:2 }} ج.م</span>
+                    <span>{{ calculation_result.setup_cost|remove_trailing_zeros }} ج.م</span>
                 </div>
                 {% endif %}
                 
                 <div class="breakdown-item">
                     <span>الإجمالي النهائي:</span>
-                    <span class="text-success">{{ calculation_result.total|floatformat:2 }} ج.م</span>
+                    <span class="text-success">{{ calculation_result.total|remove_trailing_zeros }} ج.م</span>
                 </div>
             </div>
             
@@ -268,7 +269,7 @@
                     <div class="col-md-6">
                         <p><strong>نسبة الخصم:</strong> {{ calculation_result.tier.discount_percentage }}%</p>
                         {% if calculation_result.savings > 0 %}
-                        <p class="text-success"><strong>التوفير:</strong> {{ calculation_result.savings|floatformat:2 }} ج.م</p>
+                        <p class="text-success"><strong>التوفير:</strong> {{ calculation_result.savings|remove_trailing_zeros }} ج.م</p>
                         {% endif %}
                     </div>
                 </div>
@@ -280,7 +281,7 @@
             <div class="savings-highlight">
                 <h5><i class="fas fa-piggy-bank"></i> مبروك! لقد وفرت</h5>
                 <div style="font-size: 1.5rem; font-weight: bold;">
-                    {{ calculation_result.savings|floatformat:2 }} ج.م
+                    {{ calculation_result.savings|remove_trailing_zeros }} ج.م
                 </div>
                 <small>مقارنة بالسعر الأساسي</small>
             </div>

@@ -1,3 +1,4 @@
+{% load pricing_filters %}
 <!-- صف الحساب في الجدول مع ديناميكية -->
 <tr class="account-row level-{{ level }} {% if account.is_leaf %}leaf-row{% endif %} {% if not account.is_active %}text-muted{% endif %} {% if account.children.exists %}expandable-row{% endif %}" 
     data-account-id="{{ account.id }}" 
@@ -55,7 +56,7 @@
         {% if account.is_leaf %}
             {% if account.current_balance %}
                 <span class="{% if account.current_balance > 0 %}text-success{% elif account.current_balance < 0 %}text-danger{% endif %}">
-                    {{ account.current_balance|floatformat:2 }}
+                    {{ account.current_balance|remove_trailing_zeros }}
                 </span>
             {% else %}
                 <span class="text-muted">0.00</span>

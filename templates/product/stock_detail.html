@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load custom_filters %}
 
 {% block title %}{{ stock.product.name }} - {{ stock.warehouse.name }}{% endblock %}
@@ -121,9 +122,9 @@
                     
                     <div class="progress mb-3">
                         {% if stock.product.min_stock > 0 %}
-                            {% with percentage=stock.quantity|floatformat:"0"|default:"0"|stringformat:"i"|add:"0" %}
-                                {% with min_stock=stock.product.min_stock|floatformat:"0"|default:"0"|stringformat:"i"|add:"0" %}
-                                    {% with percent=percentage|divide:min_stock|multiply:100|floatformat:"0" %}
+                            {% with percentage=stock.quantity|remove_trailing_zeros|default:"0"|stringformat:"i"|add:"0" %}
+                                {% with min_stock=stock.product.min_stock|remove_trailing_zeros|default:"0"|stringformat:"i"|add:"0" %}
+                                    {% with percent=percentage|divide:min_stock|multiply:100|remove_trailing_zeros %}
                                         <div class="progress-bar 
                                             {% if stock.quantity <= 0 %}bg-danger
                                             {% elif stock.quantity < stock.product.min_stock %}bg-warning

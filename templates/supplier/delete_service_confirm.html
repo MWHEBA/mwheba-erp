@@ -1,13 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 
-{% block title %}حذف خدمة - {{ service.name }}{% endblock %}
+{% block title %}
+حذف خدمة - {{ service.name }}
+{% endblock %}
 
 {% block extra_css %}
 <link href="{% static 'css/components.css' %}" rel="stylesheet">
 <link href="{% static 'css/dynamic_services.css' %}" rel="stylesheet">
 <style>
-.delete-confirmation {
+{{ ... }}
     background: var(--danger-color);
     color: var(--white);
     border-radius: var(--border-radius-lg);
@@ -128,7 +132,7 @@
                         </div>
                         <div class="col-md-6">
                             <strong>السعر الأساسي:</strong><br>
-                            <span class="text-success">{{ service.base_price|floatformat:2 }} ج.م</span>
+                            <span class="text-success">{{ service.base_price|remove_trailing_zeros }} ج.م</span>
                         </div>
                         <div class="col-md-6">
                             <strong>الحالة:</strong><br>

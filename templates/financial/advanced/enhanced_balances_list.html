@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load humanize %}
 
 {% block title %}{{ page_title|default:"الأرصدة المحسنة" }}{% endblock %}
@@ -287,7 +288,7 @@
                   </td>
                   <td class="text-end">
                     <span class="fw-bold {% if balance.balance > 0 %}text-success{% elif balance.balance < 0 %}text-danger{% else %}text-muted{% endif %}">
-                      {{ balance.balance|floatformat:2 }} {% trans "ج.م" %}
+                      {{ balance.balance|remove_trailing_zeros }} {% trans "ج.م" %}
                     </span>
                   </td>
                 </tr>

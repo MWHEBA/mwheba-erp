@@ -151,6 +151,8 @@ class ServiceDataLoader:
                 service.digital_details.save()
             elif self.service_type == "plates" and hasattr(service, "plate_details"):
                 service.plate_details.save()
+            elif self.service_type == "coating" and hasattr(service, "finishing_details"):
+                service.finishing_details.save()
         except Exception as e:
             print(f"Error saving related details: {e}")
 

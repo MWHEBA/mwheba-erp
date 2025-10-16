@@ -1,11 +1,13 @@
 {% extends 'base.html' %}
-{% load i18n %}
 {% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 {% load number_filters %}
 
 {% block title %}{% translate "تفاصيل الطلب" %} #{{ order.id }}{% endblock %}
 
 {% block content %}
+{{ ... }}
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">{% translate "تفاصيل الطلب" %} #{{ order.id }}</h1>
@@ -56,7 +58,7 @@
                     <div class="row">
                         <div class="col-md-6">
                             <p><strong>{% translate "نوع الورق:" %}</strong> {{ order.paper_type.name|default:"-" }}</p>
-                            <p><strong>{% translate "حجم الورق:" %}</strong> {{ order.paper_size.name|default:"-" }}</p>
+                            <p><strong>{% translate "حجم الورق:" %}</strong> {{ order.product_size.name|default:"-" }}</p>
                             <p><strong>{% translate "نوع الطباعة:" %}</strong> {{ order.print_type|default:"-" }}</p>
                             <p><strong>{% translate "جهة الطباعة:" %}</strong> {{ order.print_side.name|default:"-" }}</p>
                         </div>
@@ -88,23 +90,23 @@
                         <table class="table table-sm">
                             <tr>
                                 <td>{% translate "تكلفة الخامات" %}</td>
-                                <td class="text-end">{{ order.material_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.material_cost|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                             <tr>
                                 <td>{% translate "تكلفة الطباعة" %}</td>
-                                <td class="text-end">{{ order.printing_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.printing_cost|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                             <tr>
                                 <td>{% translate "تكلفة التشطيبات" %}</td>
-                                <td class="text-end">{{ order.finishing_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.finishing_cost|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                             <tr>
                                 <td>{% translate "تكاليف إضافية" %}</td>
-                                <td class="text-end">{{ order.extra_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.extra_cost|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                             <tr class="fw-bold">
                                 <td>{% translate "إجمالي التكلفة" %}</td>
-                                <td class="text-end">{{ order.total_cost|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.total_cost|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                         </table>
                     </div>
@@ -118,11 +120,11 @@
                             </tr>
                             <tr class="fw-bold">
                                 <td>{% translate "سعر البيع" %}</td>
-                                <td class="text-end">{{ order.sale_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.sale_price|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                             <tr>
                                 <td>{% translate "سعر الوحدة" %}</td>
-                                <td class="text-end">{{ order.unit_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                                <td class="text-end">{{ order.unit_price|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                             </tr>
                         </table>
                     </div>
@@ -137,7 +139,7 @@
                                 </tr>
                                 <tr class="fw-bold">
                                     <td>{% translate "قيمة العمولة" %}</td>
-                                    <td class="text-end">{{ order.commission_amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                    <td class="text-end">{{ order.commission_amount|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                                 </tr>
                             </table>
                         </div>
@@ -170,8 +172,8 @@
                                         <tr>
                                             <td>{{ material.name }}</td>
                                             <td>{{ material.quantity|smart_number }}</td>
-                                            <td>{{ material.unit_price|floatformat:2 }} {% translate "ج.م" %}</td>
-                                            <td>{{ material.total_price|floatformat:2 }} {% translate "ج.م" %}</td>
+                                            <td>{{ material.unit_price|remove_trailing_zeros }} {% translate "ج.م" %}</td>
+                                            <td>{{ material.total_price|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -205,7 +207,7 @@
                                     {% for payment in order.payments.all %}
                                         <tr>
                                             <td>{{ payment.payment_date|date:"Y-m-d" }}</td>
-                                            <td>{{ payment.amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                            <td>{{ payment.amount|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                                             <td>{{ payment.get_payment_method_display }}</td>
                                             <td>{{ payment.notes|default:"-" }}</td>
                                         </tr>
@@ -214,12 +216,12 @@
                                 <tfoot>
                                     <tr class="fw-bold">
                                         <td colspan="1">{% translate "إجمالي المدفوعات" %}</td>
-                                        <td>{{ order.total_payments|floatformat:2 }} {% translate "ج.م" %}</td>
+                                        <td>{{ order.total_payments|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                                         <td colspan="2"></td>
                                     </tr>
                                     <tr class="fw-bold {% if order.remaining_amount > 0 %}text-danger{% else %}text-success{% endif %}">
                                         <td colspan="1">{% translate "المبلغ المتبقي" %}</td>
-                                        <td>{{ order.remaining_amount|floatformat:2 }} {% translate "ج.م" %}</td>
+                                        <td>{{ order.remaining_amount|remove_trailing_zeros }} {% translate "ج.م" %}</td>
                                         <td colspan="2"></td>
                                     </tr>
                                 </tfoot>

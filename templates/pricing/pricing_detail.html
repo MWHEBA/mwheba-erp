@@ -89,7 +89,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <p><strong>{% trans "نوع الورق" %}:</strong> {{ order.paper_type.name }}</p>
-                        <p><strong>{% trans "حجم الورق" %}:</strong> {{ order.paper_size.name }}</p>
+                        <p><strong>{% trans "حجم الورق" %}:</strong> {{ order.product_size.name }}</p>
                         <p><strong>{% trans "اتجاه الطباعة" %}:</strong> {{ order.print_direction.name }}</p>
                     </div>
                     <div class="col-md-6">
@@ -140,7 +140,7 @@
                 <div class="row mb-3">
                     <div class="col-md-6">
                         <p><strong>{% trans "نوع الورق" %}:</strong> {{ internal_content.paper_type.name }}</p>
-                        <p><strong>{% trans "حجم الورق" %}:</strong> {{ internal_content.paper_size.name }}</p>
+                        <p><strong>{% trans "حجم الورق" %}:</strong> {{ internal_content.product_size.name }}</p>
                         <p><strong>{% trans "عدد الصفحات" %}:</strong> {{ internal_content.page_count }}</p>
                     </div>
                     <div class="col-md-6">

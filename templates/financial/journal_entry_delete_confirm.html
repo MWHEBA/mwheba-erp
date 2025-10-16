@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
-{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}تأكيد حذف القيد{% endblock %}
 
@@ -45,7 +46,7 @@
                                 </tr>
                                 <tr>
                                     <th>إجمالي المبلغ:</th>
-                                    <td><strong>{{ entry.total_debit|floatformat:2 }} جنيه</strong></td>
+                                    <td><strong>{{ entry.total_debit|remove_trailing_zeros }} جنيه</strong></td>
                                 </tr>
                             </table>
                         </div>

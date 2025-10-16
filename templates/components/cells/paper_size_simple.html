@@ -1,6 +1,6 @@
 <!-- خلية مقاس الورق البسيطة -->
 {% if object.paper_details and object.paper_details.sheet_size %}
-    {{ object.paper_details.sheet_size }}
+    {{ object.paper_details.get_sheet_size_display }}
 {% else %}
     <span class="text-muted">-</span>
 {% endif %}

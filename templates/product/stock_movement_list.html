@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
@@ -147,7 +148,7 @@
                                 <span class="text-muted">{% trans "إجمالي الحركات" %}</span>
                             </div>
                             <div class="col-6">
-                                <h4>{{ total_quantity|default:"0"|floatformat:"0" }}</h4>
+                                <h4>{{ total_quantity|default:"0"|remove_trailing_zeros }}</h4>
                                 <span class="text-muted">{% trans "إجمالي الكميات" %}</span>
                             </div>
                         </div>

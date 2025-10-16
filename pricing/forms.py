@@ -9,6 +9,7 @@ from .models import (
     CtpPlates,
     PaperType,
     PaperSize,
+    PlateSize,
     OrderSupplier,
     PricingQuotation,
     PricingApprovalWorkflow,
@@ -161,7 +162,7 @@ class PricingOrderForm(forms.ModelForm):
             "has_internal_content",
             "product_type",
             "paper_type",
-            "paper_size",
+            "product_size",
             "print_direction",
             "print_sides",
             "colors_front",
@@ -212,10 +213,10 @@ class PricingOrderForm(forms.ModelForm):
 
         # ربط مقاس المنتج بالإعدادات
         try:
-            # تحديث حقل paper_size ليكون مربوط بـ ProductSize
+            # تحديث حقل product_size ليكون مربوط بـ ProductSize
             from .models import ProductSize
 
-            self.fields["paper_size"].queryset = ProductSize.objects.filter(
+            self.fields["product_size"].queryset = ProductSize.objects.filter(
                 is_active=True
             ).order_by("name")
         except:
@@ -237,8 +238,23 @@ class PricingOrderForm(forms.ModelForm):
             self.fields["paper_type"].queryset = PaperType.objects.filter(
                 is_active=True
             ).order_by("name")
-        except:
+            self.fields["paper_type"].empty_label = "اختر نوع الورق"
+            
+            # إضافة قيمة افتراضية إذا لم تكن موجودة
+            if not self.instance.pk and not self.initial.get("paper_type"):
+                default_paper_type = PaperType.objects.filter(
+                    is_active=True, is_default=True
+                ).first()
+                if default_paper_type and default_paper_type.pk:
+                    self.initial["paper_type"] = default_paper_type.pk
+                else:
+                    # إذا لم يوجد نوع افتراضي، اختر الأول
+                    first_paper_type = PaperType.objects.filter(is_active=True).first()
+                    if first_paper_type and first_paper_type.pk:
+                        self.initial["paper_type"] = first_paper_type.pk
+        except Exception as e:
             # fallback في حالة عدم وجود النموذج
+            print(f"خطأ في تحديد نوع الورق الافتراضي: {e}")
             pass
 
         # إعداد اختيارات جرام الورق من قاعدة البيانات
@@ -271,10 +287,33 @@ class PricingOrderForm(forms.ModelForm):
     def clean(self):
         """التحقق من صحة البيانات المدخلة والعلاقة بين الحقول"""
         cleaned_data = super().clean()
+        
+        # التحقق من نوع الورق
+        paper_type = cleaned_data.get("paper_type")
+        
+        # التحقق من القيم الفارغة أو غير الصحيحة
+        if paper_type == '' or paper_type == 'undefined' or paper_type == 'null' or paper_type == 'None':
+            paper_type = None
+            cleaned_data["paper_type"] = None
+        
+        # إذا لم يتم اختيار نوع ورق، نتركه فارغاً (الحقل اختياري)
+        if not paper_type:
+            cleaned_data["paper_type"] = None
+            
+        # التحقق من صحة نوع الورق إذا تم تحديده
+        elif paper_type:
+            try:
+                # التأكد من أن نوع الورق موجود وفعال
+                if hasattr(paper_type, 'is_active') and not paper_type.is_active:
+                    self.add_error("paper_type", "نوع الورق المحدد غير فعال")
+                    cleaned_data["paper_type"] = None
+            except Exception as e:
+                # في حالة حدوث خطأ، نتجاهل نوع الورق
+                cleaned_data["paper_type"] = None
+        
         print_sides = cleaned_data.get("print_sides")
         colors_front = cleaned_data.get("colors_front")
         colors_back = cleaned_data.get("colors_back")
-
         # التحقق من أن جوانب الطباعة محددة
         if not print_sides:
             self.add_error("print_sides", _("يجب تحديد جوانب الطباعة"))
@@ -324,7 +363,7 @@ class InternalContentForm(forms.ModelForm):
         model = InternalContent
         fields = [
             "paper_type",
-            "paper_size",
+            "product_size",
             "page_count",
             "print_sides",
             "colors_front",

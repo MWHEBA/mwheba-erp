@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 {% load dict_tags %}
 {% load app_tags %}
 
@@ -398,12 +400,12 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <strong>{{ item.current_stock|floatformat:0 }}</strong>
+                                <strong>{{ item.current_stock|remove_trailing_zeros }}</strong>
                                 {% if item.unit %}
                                     <small class="text-muted">{{ item.unit.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.reorder_point|floatformat:0 }}</td>
+                            <td class="text-end">{{ item.reorder_point|remove_trailing_zeros }}</td>
                             <td class="text-end">-</td>
                             <td>
                                 <div class="progress progress-stock">
@@ -412,25 +414,25 @@
                                         {% elif item.stock_percentage <= 50 %}bg-warning
                                         {% elif item.stock_percentage <= 100 %}bg-success
                                         {% else %}bg-info{% endif %}" 
-                                        style="width: {{ item.stock_percentage|floatformat:0 }}%">
+                                        style="width: {{ item.stock_percentage|remove_trailing_zeros }}%">
                                     </div>
                                 </div>
-                                <small class="text-muted">{{ item.stock_percentage|floatformat:1 }}%</small>
+                                <small class="text-muted">{{ item.stock_percentage|remove_trailing_zeros }}%</small>
                             </td>
                             <td class="text-end">
                                 {% if item.days_supply %}
-                                    {{ item.days_supply|floatformat:0 }} يوم
+                                    {{ item.days_supply|remove_trailing_zeros }} يوم
                                 {% else %}
                                     <span class="text-muted">غير محدد</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
                                 {% if item.suggested_quantity > 0 %}
-                                    <strong class="text-primary">{{ item.suggested_quantity|floatformat:0 }}</strong>
+                                    <strong class="text-primary">{{ item.suggested_quantity|remove_trailing_zeros }}</strong>
                                     <div class="reorder-suggestion">
                                         <small>
                                             <i class="fas fa-lightbulb text-warning"></i>
-                                            اطلب {{ item.suggested_quantity|floatformat:0 }} وحدة
+                                            اطلب {{ item.suggested_quantity|remove_trailing_zeros }} وحدة
                                         </small>
                                     </div>
                                 {% else %}
@@ -522,12 +524,12 @@
         '{% if item.urgency == "critical" %}عاجل{% elif item.urgency == "high" %}عالي{% elif item.urgency == "medium" %}متوسط{% else %}منخفض{% endif %}',
         '{{ item.product.code }}',
         '{{ item.product.name }}',
-        '{{ item.current_stock|floatformat:"0" }}',
-        '{{ item.reorder_point|floatformat:"0" }}',
+        '{{ item.current_stock|remove_trailing_zeros }}',
+        '{{ item.reorder_point|remove_trailing_zeros }}',
         '-',
-        '{{ item.stock_percentage|floatformat:"1" }}%',
-        '{% if item.days_supply %}{{ item.days_supply|floatformat:"0" }} يوم{% else %}غير محدد{% endif %}',
-        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|floatformat:"0" }}{% else %}غير مطلوب{% endif %}',
+        '{{ item.stock_percentage|remove_trailing_zeros }}%',
+        '{% if item.days_supply %}{{ item.days_supply|remove_trailing_zeros }} يوم{% else %}غير محدد{% endif %}',
+        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|remove_trailing_zeros }}{% else %}غير مطلوب{% endif %}',
         '{% if item.current_stock <= 0 %}نفد{% elif item.current_stock <= item.reorder_point %}حرج{% elif item.current_stock <= item.reorder_point_threshold %}منخفض{% else %}طبيعي{% endif %}'
       ]);
       {% endfor %}

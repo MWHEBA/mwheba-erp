@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load humanize %}
 
 {% block title %}{{ title }}{% endblock %}
@@ -88,7 +89,7 @@
                                 <p><strong>{% trans "الحالة:" %}</strong> <span class="badge bg-primary">{{ income.get_status_display }}</span></p>
                                 <p><strong>{% trans "تاريخ الإنشاء:" %}</strong> {{ income.created_at|date }}</p>
                                 <p><strong>{% trans "بواسطة:" %}</strong> {{ income.created_by.get_full_name }}</p>
-                                <p><strong>{% trans "المبلغ:" %}</strong> <span class="income-amount">{{ income.amount|floatformat:2 }} {% trans "جنيه" %}</span></p>
+                                <p><strong>{% trans "المبلغ:" %}</strong> <span class="income-amount">{{ income.amount|remove_trailing_zeros }} {% trans "جنيه" %}</span></p>
                             </div>
                         </div>
                     </div>
@@ -113,7 +114,7 @@
                                     <div class="card-body">
                                         <h5 class="card-title">{{ account.name }}</h5>
                                         <p class="card-text">{{ account.get_type_display }}</p>
-                                        <p class="account-balance">{{ account.balance|floatformat:2 }} {% trans "جنيه" %}</p>
+                                        <p class="account-balance">{{ account.balance|remove_trailing_zeros }} {% trans "جنيه" %}</p>
                                         
                                         <!-- إضافة زر اختيار أو راديو بوتون واضح -->
                                         <div class="form-check mt-2">

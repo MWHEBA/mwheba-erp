@@ -168,12 +168,12 @@ class UniversalFormHandler {
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
                             <input type="number" class="form-control text-center" name="tier_1_price" 
-                                   step="0.01" min="0" placeholder="0.00" required>
+                                   min="0" placeholder="0.00" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
                             <input type="number" class="form-control text-center" name="tier_1_floor_price" 
-                                   step="0.01" min="0" placeholder="0.00">
+                                   min="0" placeholder="0.00">
                         </div>
                         <div class="col"></div>
                         <div class="col-auto">
@@ -405,12 +405,12 @@ class UniversalFormHandler {
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
                             <input type="number" class="form-control text-center" name="tier_${tierNumber}_price" 
-                                   value="${tier.price_per_unit}" step="0.01" min="0" required>
+                                   value="${tier.price_per_unit}" min="0" required>
                         </div>
                         <div class="col-md-2">
                             <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
                             <input type="number" class="form-control text-center" name="tier_${tierNumber}_floor_price" 
-                                   value="${tier.floor_price || ''}" step="0.01" min="0">
+                                   value="${tier.floor_price || ''}" min="0">
                         </div>
                         <div class="col"></div>
                         <div class="col-auto">
@@ -575,6 +575,12 @@ class UniversalFormHandler {
             if (country) {
                 country.addEventListener('change', () => this.updateServiceName());
             }
+        } else if (this.serviceType === 'plates') {
+            const plateSize = document.getElementById('plate-size');
+            
+            if (plateSize) {
+                plateSize.addEventListener('change', () => this.updateServiceName());
+            }
         }
         
         // تحديث أولي
@@ -711,12 +717,12 @@ class UniversalFormHandler {
                     <div class="col-md-2">
                         <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
                         <input type="number" class="form-control text-center" name="tier_${tierNumber}_price" 
-                               step="0.01" min="0" placeholder="0.00" required>
+                               min="0" placeholder="0.00" required>
                     </div>
                     <div class="col-md-2">
                         <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
                         <input type="number" class="form-control text-center" name="tier_${tierNumber}_floor_price" 
-                               step="0.01" min="0" placeholder="0.00">
+                               min="0" placeholder="0.00">
                     </div>
                     <div class="col"></div>
                     <div class="col-auto">

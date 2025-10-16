@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
@@ -382,7 +383,7 @@
                     <i class="fas fa-tag me-2" style="color: #94a3b8;"></i>سعر البيع
                 </h5>
                 <div class="highlight-price">{{ product.selling_price|custom_number_format }} <small style="font-size: 1rem; color: #64748b;">ج.م</small></div>
-                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|floatformat:1 }}%</small>
+                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|remove_trailing_zeros }}%</small>
             </div>
         </div>
         <div class="col-md-3 d-flex">
@@ -390,8 +391,8 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-boxes me-2" style="color: #86a889;"></i>المخزون
                 </h5>
-                <div class="highlight-price">{{ product.current_stock|floatformat:"0" }}</div>
-                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|floatformat:"0" }}</small>
+                <div class="highlight-price">{{ product.current_stock|remove_trailing_zeros }}</div>
+                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|remove_trailing_zeros }}</small>
             </div>
         </div>
         <div class="col-md-3 d-flex">
@@ -408,7 +409,7 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-shopping-cart me-2" style="color: #94a3b8;"></i>الكمية المباعة
                 </h5>
-                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|floatformat:"0"|default:"0" }}</div>
+                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|remove_trailing_zeros|default:"0" }}</div>
                 <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|custom_number_format|default:"0" }} ج.م</small>
             </div>
         </div>
@@ -562,7 +563,7 @@
                                 </td>
                                 <td>
                                     {% if sp.last_purchase_quantity %}
-                                    {{ sp.last_purchase_quantity|floatformat:"0" }}
+                                    {{ sp.last_purchase_quantity|remove_trailing_zeros }}
                                     {% else %}
                                     -
                                     {% endif %}
@@ -620,7 +621,7 @@
                             <div class="stat-icon">
                                 <i class="fas fa-boxes text-primary"></i>
                             </div>
-                            <div class="stat-value">{{ sales_stats.total_sold_quantity|floatformat:"0" }}</div>
+                            <div class="stat-value">{{ sales_stats.total_sold_quantity|remove_trailing_zeros }}</div>
                             <div class="stat-label">إجمالي الكمية المباعة</div>
                         </div>
                     </div>
@@ -679,7 +680,7 @@
                                     </td>
                                     <td>{{ sale_item.sale.customer.name }}</td>
                                     <td>{{ sale_item.sale.date|date:"d/m/Y" }}</td>
-                                    <td>{{ sale_item.quantity|floatformat:"0" }}</td>
+                                    <td>{{ sale_item.quantity|remove_trailing_zeros }}</td>
                                     <td>{{ sale_item.unit_price|custom_number_format }} ج.م</td>
                                     <td><strong>{{ sale_item.total|custom_number_format }} ج.م</strong></td>
                                 </tr>
@@ -705,7 +706,7 @@
                                         <small class="text-muted">{{ customer.sales_count }} فاتورة</small>
                                     </div>
                                     <div class="text-end">
-                                        <div class="customer-quantity">{{ customer.total_quantity|floatformat:"0" }}</div>
+                                        <div class="customer-quantity">{{ customer.total_quantity|remove_trailing_zeros }}</div>
                                         <small class="text-muted">{{ customer.total_value|custom_number_format }} ج.م</small>
                                     </div>
                                 </div>
@@ -733,7 +734,7 @@
                             </div>
                             <div class="month-info">
                                 <div class="month-name">{{ month.month }}</div>
-                                <div class="month-quantity">{{ month.quantity|floatformat:"0" }}</div>
+                                <div class="month-quantity">{{ month.quantity|remove_trailing_zeros }}</div>
                                 <div class="month-value">{{ month.value|custom_number_format }}</div>
                             </div>
                         </div>
@@ -798,7 +799,7 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <strong>{{ stock.quantity|floatformat:"0" }}</strong>
+                                    <strong>{{ stock.quantity|remove_trailing_zeros }}</strong>
                                     {% if stock.quantity <= 0 %}
                                     <span class="stock-badge stock-out ms-2">نفد</span>
                                     {% elif stock.quantity < product.min_stock %}
@@ -874,7 +875,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">الكمية المباعة</span>
-                    <span class="info-value">{{ sales_stats.total_sold_quantity|floatformat:"0" }}</span>
+                    <span class="info-value">{{ sales_stats.total_sold_quantity|remove_trailing_zeros }}</span>
                 </div>
                 
                 <div class="info-row">
@@ -1021,7 +1022,7 @@
                                 ` : ''}
                                 <div class="mb-3">
                                     <label class="form-label">سعر التكلفة</label>
-                                    <input type="number" class="form-control" id="costPrice" step="0.01" min="0.01" required>
+                                    <input type="number" class="form-control" id="costPrice" min="0.01" required>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label">ملاحظات</label>

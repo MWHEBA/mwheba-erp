@@ -35,7 +35,6 @@ class ReservationService:
         reservation_type="manual",
         user=None,
         sale_order_id=None,
-        purchase_order_id=None,
         reference_number=None,
         expires_in_days=7,
         priority=5,
@@ -67,7 +66,6 @@ class ReservationService:
                     quantity_reserved=quantity,
                     reservation_type=reservation_type,
                     sale_order_id=sale_order_id,
-                    purchase_order_id=purchase_order_id,
                     reference_number=reference_number,
                     expires_at=expires_at,
                     priority=priority,
@@ -383,9 +381,6 @@ class ReservationService:
                                 user=user,
                                 sale_order_id=order_id
                                 if order_type == "sale_order"
-                                else None,
-                                purchase_order_id=order_id
-                                if order_type == "purchase_order"
                                 else None,
                                 reference_number=f"{order_type.upper()}-{order_id}",
                                 expires_in_days=expiry_days,

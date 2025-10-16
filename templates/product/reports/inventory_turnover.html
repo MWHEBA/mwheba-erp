@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
-{% load dict_tags %}
 {% load i18n %}
+{% load pricing_filters %}
+{% load dict_tags %}
 {% load app_tags %}
 
 {% block title %}تقرير دوران المخزون{% endblock %}
-
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
@@ -235,7 +235,7 @@
               <i class="fas fa-sync-alt"></i>
             </div>
             <div class="stats-card-title">{% trans "متوسط معدل الدوران" %}</div>
-            <div class="stats-card-value">{{ summary.average_turnover|floatformat:2|default:"0.00" }}</div>
+            <div class="stats-card-value">{{ summary.average_turnover|remove_trailing_zeros|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "مرة في السنة" %}</div>
           </div>
         </div>
@@ -330,11 +330,11 @@
                                     <br><small class="text-muted">{{ item.product.category.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.current_stock|floatformat:0 }}</td>
-                            <td class="text-end">{{ item.average_inventory|floatformat:2 }}</td>
-                            <td class="text-end">{{ item.cogs|floatformat:2 }} ج.م</td>
+                            <td class="text-end">{{ item.current_stock|remove_trailing_zeros }}</td>
+                            <td class="text-end">{{ item.average_inventory|remove_trailing_zeros }}</td>
+                            <td class="text-end">{{ item.cogs|remove_trailing_zeros }} ج.م</td>
                             <td class="text-end">
-                                <strong>{{ item.turnover_ratio|floatformat:2 }}</strong>
+                                <strong>{{ item.turnover_ratio|remove_trailing_zeros }}</strong>
                                 <div class="progress progress-thin mt-1">
                                     <div class="progress-bar 
                                         {% if item.turnover_ratio >= 6 %}bg-success
@@ -344,7 +344,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-end">{{ item.days_in_inventory|floatformat:0 }} يوم</td>
+                            <td class="text-end">{{ item.days_in_inventory|remove_trailing_zeros }} يوم</td>
                             <td>
                                 {% if item.turnover_ratio >= 6 %}
                                     <span class="turnover-indicator turnover-high">عالي</span>

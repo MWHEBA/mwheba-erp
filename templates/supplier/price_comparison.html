@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -183,11 +184,11 @@
                 <span class="stat-label">الكمية المطلوبة</span>
             </div>
             <div class="col-md-3 stat-item">
-                <span class="stat-number">{% if services %}{{ services.0.total_cost|floatformat:0 }}{% else %}0{% endif %}</span>
+                <span class="stat-number">{% if services %}{{ services.0.total_cost|remove_trailing_zeros }}{% else %}0{% endif %}</span>
                 <span class="stat-label">أفضل سعر (ج.م)</span>
             </div>
             <div class="col-md-3 stat-item">
-                <span class="stat-number">{% if services %}{% with services|last as last_service %}{{ last_service.total_cost|floatformat:0 }}{% endwith %}{% else %}0{% endif %}</span>
+                <span class="stat-number">{% if services %}{% with services|last as last_service %}{{ last_service.total_cost|remove_trailing_zeros }}{% endwith %}{% else %}0{% endif %}</span>
                 <span class="stat-label">أعلى سعر (ج.م)</span>
             </div>
         </div>
@@ -240,13 +241,13 @@
                         
                         <div class="d-flex justify-content-between mb-2">
                             <span>المجموع الفرعي:</span>
-                            <span>{{ service.subtotal|floatformat:2 }} ج.م</span>
+                            <span>{{ service.subtotal|remove_trailing_zeros }} ج.م</span>
                         </div>
                         
                         {% if service.setup_cost > 0 %}
                         <div class="d-flex justify-content-between mb-2">
                             <span>تكلفة الإعداد:</span>
-                            <span>{{ service.setup_cost }} ج.م</span>
+                            <span>{{ service.setup_cost|remove_trailing_zeros }} ج.م</span>
                         </div>
                         {% endif %}
                         
@@ -269,7 +270,7 @@
                         <div class="mt-1">
                             <span class="savings-badge">
                                 <i class="fas fa-piggy-bank"></i>
-                                توفير {{ service.savings|floatformat:0 }} ج.م
+                                توفير {{ service.savings|remove_trailing_zeros }} ج.م
                             </span>
                         </div>
                         {% endif %}

@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load pricing_filters %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
@@ -123,7 +124,7 @@
                     <p class="mb-0 opacity-75">تفاصيل المصروف والقيد المحاسبي المرتبط</p>
                 </div>
                 <div class="text-end">
-                    <div class="expense-amount">{{ expense_amount|floatformat:2 }} ج.م</div>
+                    <div class="expense-amount">{{ expense_amount|remove_trailing_zeros }} ج.م</div>
                     <span class="status-badge status-{{ journal_entry.status }}">
                         {% if journal_entry.status == 'draft' %}
                             <i class="fas fa-edit me-1"></i>مسودة
@@ -161,7 +162,7 @@
                 
                 <div class="info-item">
                     <span class="info-label">المبلغ:</span>
-                    <span class="info-value expense-amount">{{ expense_amount|floatformat:2 }} ج.م</span>
+                    <span class="info-value expense-amount">{{ expense_amount|remove_trailing_zeros }} ج.م</span>
                 </div>
                 
                 {% if journal_entry.notes %}
@@ -208,14 +209,14 @@
                                 </td>
                                 <td class="text-center">
                                     {% if line.debit_amount > 0 %}
-                                        <span class="debit-amount">{{ line.debit_amount|floatformat:2 }}</span>
+                                        <span class="debit-amount">{{ line.debit_amount|remove_trailing_zeros }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
                                     {% if line.credit_amount > 0 %}
-                                        <span class="credit-amount">{{ line.credit_amount|floatformat:2 }}</span>
+                                        <span class="credit-amount">{{ line.credit_amount|remove_trailing_zeros }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
@@ -226,8 +227,8 @@
                         <tfoot class="table-header">
                             <tr>
                                 <th>الإجمالي</th>
-                                <th class="text-center debit-amount">{{ expense_amount|floatformat:2 }}</th>
-                                <th class="text-center credit-amount">{{ expense_amount|floatformat:2 }}</th>
+                                <th class="text-center debit-amount">{{ expense_amount|remove_trailing_zeros }}</th>
+                                <th class="text-center credit-amount">{{ expense_amount|remove_trailing_zeros }}</th>
                             </tr>
                         </tfoot>
                     </table>

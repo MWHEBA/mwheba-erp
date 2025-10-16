@@ -25,21 +25,68 @@ def remove_trailing_zeros(value):
                 # تحويل إلى float ثم إلى string
                 result = f"{float(normalized):g}"
             return result
+        
+        # التعامل مع float
+        elif isinstance(value, float):
+            return f"{value:g}"
+        
+        # التعامل مع int
+        elif isinstance(value, int):
+            return str(value)
+        
+        # التعامل مع string
+        else:
+            try:
+                decimal_value = Decimal(str(value))
+                normalized = decimal_value.normalize()
+                result = str(normalized)
+                if "E" in result.upper():
+                    result = f"{float(normalized):g}"
+                return result
+            except:
+                return str(value)
+    
+    except Exception:
+        return str(value) if value is not None else ""
 
-        # التعامل مع الأنواع الأخرى
-        if isinstance(value, (int, float, str)):
-            # تحويل إلى Decimal أولاً للحصول على دقة أفضل
-            decimal_value = Decimal(str(value))
-            normalized = decimal_value.normalize()
-            result = str(normalized)
-            # التأكد من عدم وجود تدوين علمي
-            if "E" in result.upper():
-                result = f"{float(normalized):g}"
-            return result
 
-        return str(value)
-    except (ValueError, TypeError, Exception):
-        return str(value)
+@register.filter
+def format_phone(value):
+    """تنسيق رقم الهاتف"""
+    if not value:
+        return "لا يوجد"
+    
+    # إزالة المسافات والرموز الإضافية
+    phone = str(value).strip().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+    
+    # إذا كان الرقم يبدأ بـ +20، قم بإزالته
+    if phone.startswith("+20"):
+        phone = phone[3:]
+    elif phone.startswith("20"):
+        phone = phone[2:]
+    
+    # إذا كان الرقم يبدأ بـ 0، قم بإزالته
+    if phone.startswith("0"):
+        phone = phone[1:]
+    
+    # تنسيق الرقم
+    if len(phone) == 10:
+        return f"{phone[:3]} {phone[3:6]} {phone[6:]}"
+    elif len(phone) == 11:
+        return f"{phone[:4]} {phone[4:7]} {phone[7:]}"
+    else:
+        return value
+
+
+@register.simple_tag
+def get_coating_type_name(coating_type_id):
+    """جلب اسم نوع التغطية من ID"""
+    try:
+        from pricing.models import CoatingType
+        coating_type = CoatingType.objects.get(id=coating_type_id)
+        return coating_type.name
+    except (CoatingType.DoesNotExist, ValueError, TypeError):
+        return None
 
 
 @register.filter

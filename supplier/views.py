@@ -951,6 +951,65 @@ def supplier_detail(request, pk):
         },
     ]
 
+    # أعمدة التغطية
+    coating_services_headers = [
+        {
+            "key": "name",
+            "label": "اسم الخدمة",
+            "sortable": True,
+            "class": "text-start fw-bold",
+            "width": "20%",
+        },
+        {
+            "key": "finishing_details.finishing_type",
+            "label": "نوع التغطية",
+            "sortable": True,
+            "class": "text-center",
+            "template": "components/cells/finishing_type.html",
+            "width": "15%",
+        },
+        {
+            "key": "finishing_details.calculation_method",
+            "label": "طريقة الحساب",
+            "sortable": True,
+            "class": "text-center",
+            "template": "components/cells/calculation_method.html",
+            "width": "15%",
+        },
+        {
+            "key": "finishing_details.price_per_unit",
+            "label": "سعر الوحدة",
+            "sortable": True,
+            "class": "text-center",
+            "format": "currency",
+            "decimals": 2,
+            "width": "15%",
+        },
+        {
+            "key": "setup_cost",
+            "label": "تكلفة التجهيز",
+            "sortable": True,
+            "class": "text-center",
+            "format": "currency",
+            "decimals": 2,
+            "width": "15%",
+        },
+        {
+            "key": "is_active",
+            "label": "الحالة",
+            "class": "text-center",
+            "template": "components/cells/active_status.html",
+            "width": "10%",
+        },
+        {
+            "key": "actions",
+            "label": "الإجراءات",
+            "class": "text-center",
+            "template": "components/cells/service_actions.html",
+            "width": "10%",
+        },
+    ]
+
     # Headers افتراضية (للأوفست)
     services_headers = offset_services_headers
 
@@ -1035,7 +1094,9 @@ def supplier_detail(request, pk):
 
     # تجميع الخدمات المتخصصة حسب الفئة للعرض (نفس طريقة regroup)
     from itertools import groupby
-    specialized_services = supplier.specialized_services.filter(is_active=True).select_related('category').order_by('category__name')
+    specialized_services = supplier.specialized_services.filter(is_active=True).select_related(
+        'category', 'finishing_details', 'digital_details', 'offset_details', 'paper_details', 'plate_details'
+    ).order_by('category__name')
     services_by_category = []
     
     for category, services_group in groupby(specialized_services, key=lambda x: x.category):
@@ -1074,6 +1135,7 @@ def supplier_detail(request, pk):
         "digital_services_headers": digital_services_headers,  # أعمدة جدول الديجيتال
         "paper_services_headers": paper_services_headers,  # أعمدة جدول الورق
         "plates_services_headers": plates_services_headers,  # أعمدة جدول الزنكات CTP
+        "coating_services_headers": coating_services_headers,  # أعمدة جدول التغطية
         "services_action_buttons": services_action_buttons,  # أزرار إجراءات الخدمات
         "statement_headers": statement_headers,  # أعمدة جدول كشف الحساب
         "primary_key": "id",  # المفتاح الأساسي للجداول
@@ -1430,22 +1492,53 @@ def add_specialized_service(request, supplier_id, service_id=None):
             form_template = "supplier/forms/finishing_form.html"
         elif category_code == "plates":
             form_template = "supplier/forms/plates_form.html"
+        elif category_code == "packaging":
+            form_template = "supplier/forms/packaging_form.html"
+        elif category_code == "coating":
+            form_template = "supplier/forms/coating_form.html"
 
     # إضافة form_choices للنماذج
     form_choices = {}
     if category_code == "plates":
-        form_choices = {
-            "plate_sizes": [
-                ("quarter_sheet", "ربع (35×50 سم)"),
-                ("half_sheet", "نص (50×70 سم)"),
-                ("full_sheet", "فرخ (70×100 سم)"),
-                ("custom", "مقاس مخصوص"),
-            ]
-        }
+        # استخدام النظام الموحد لجلب بيانات الزنكات
+        from .forms.dynamic_forms import ServiceFormFactory
+        form_choices = ServiceFormFactory.get_unified_ctp_choices()
     elif category_code == "paper":
         # استخدام النظام الموحد لجلب بيانات الورق
         from .forms.dynamic_forms import ServiceFormFactory
         form_choices = ServiceFormFactory.get_unified_paper_choices()
+    elif category_code == "coating":
+        # جلب أنواع التغطية من الإعدادات
+        try:
+            from pricing.models import CoatingType
+            coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
+            
+            if coating_types.exists():
+                form_choices.update({
+                    "coating_types": [(ct.id, ct.name) for ct in coating_types]
+                })
+            else:
+                # بيانات افتراضية في حالة عدم وجود بيانات
+                form_choices.update({
+                    "coating_types": [
+                        ("varnish", "ورنيش"),
+                        ("uv_coating", "طلاء UV"),
+                        ("aqueous_coating", "طلاء مائي"),
+                        ("spot_uv", "UV نقطي"),
+                        ("matte_coating", "طلاء مطفي"),
+                    ]
+                })
+        except Exception as e:
+            # في حالة الخطأ، استخدام البيانات الافتراضية
+            form_choices.update({
+                "coating_types": [
+                    ("varnish", "ورنيش"),
+                    ("uv_coating", "طلاء UV"),
+                    ("aqueous_coating", "طلاء مائي"),
+                    ("spot_uv", "UV نقطي"),
+                    ("matte_coating", "طلاء مطفي"),
+                ]
+            })
 
     context = {
         "supplier": supplier,

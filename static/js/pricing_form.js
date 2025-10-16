@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const internalOffsetFields = document.getElementById('internal-offset-fields');
     
     // متغيرات المقاس المخصص
-    const paperSizeSelect = document.getElementById('id_paper_size');
+    const paperSizeSelect = document.getElementById('id_product_size');
     const customSizeFields = document.getElementById('custom-size-fields');
     
     // متغيرات المقاس المفتوح
@@ -213,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('id_quantity')?.addEventListener('change', function() {
             updateMontageInfo(montageInfoField);
         });
-        document.getElementById('id_paper_size')?.addEventListener('change', function() {
+        document.getElementById('id_product_size')?.addEventListener('change', function() {
             updateMontageInfo(montageInfoField);
         });
     }
@@ -479,7 +479,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateMontageInfo(montageInfoField) {
         if (montageInfoField) {
             const quantity = document.getElementById('id_quantity')?.value || 0;
-            const paperSize = document.getElementById('id_paper_size');
+            const paperSize = document.getElementById('id_product_size');
             const paperSizeText = paperSize ? paperSize.options[paperSize.selectedIndex].text : '';
             
             montageInfoField.value = `${quantity} / ${paperSizeText}`;
@@ -534,7 +534,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 order_type: document.getElementById('id_order_type').value,
                 quantity: document.getElementById('id_quantity').value,
                 paper_type: document.getElementById('id_paper_type').value,
-                paper_size: document.getElementById('id_paper_size').value,
+                paper_size: document.getElementById('id_product_size').value,
                 print_sides: document.getElementById('id_print_sides').value,
                 colors_front: document.getElementById('id_colors_front').value,
                 colors_back: document.getElementById('id_colors_back').value,

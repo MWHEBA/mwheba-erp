@@ -1,11 +1,14 @@
 {% extends 'base.html' %}
 {% load static %}
+{% load i18n %}
+{% load pricing_filters %}
 {% load dict_tags %}
 
 {% block title %}تحليل ABC للمخزون{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/reports.css' %}">
+{{ ... }}
 <style>
 .abc-category {
     padding: 8px 16px;
@@ -104,7 +107,7 @@
                                 {{ summary.category_a_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_a_percentage|floatformat:1 }}% من المنتجات
+                                {{ summary.category_a_percentage|remove_trailing_zeros }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -127,7 +130,7 @@
                                 {{ summary.category_b_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_b_percentage|floatformat:1 }}% من المنتجات
+                                {{ summary.category_b_percentage|remove_trailing_zeros }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -150,7 +153,7 @@
                                 {{ summary.category_c_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_c_percentage|floatformat:1 }}% من المنتجات
+                                {{ summary.category_c_percentage|remove_trailing_zeros }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -214,9 +217,9 @@
                                     <br><small class="text-muted">{{ item.product.category.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.quantity_sold|floatformat:0 }}</td>
-                            <td class="text-end">{{ item.sales_value|floatformat:2 }} ج.م</td>
-                            <td class="text-end">{{ item.cumulative_percentage|floatformat:1 }}%</td>
+                            <td class="text-end">{{ item.quantity_sold|remove_trailing_zeros }}</td>
+                            <td class="text-end">{{ item.sales_value|remove_trailing_zeros }} ج.م</td>
+                            <td class="text-end">{{ item.cumulative_percentage|remove_trailing_zeros }}%</td>
                             <td>
                                 {% if item.category == 'A' %}
                                     <span class="badge bg-success">عالية</span>
