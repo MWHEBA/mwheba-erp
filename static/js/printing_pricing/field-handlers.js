@@ -38,6 +38,8 @@ PrintingPricingSystem.FieldHandlers = {
             'has_internal_content', 'open_size_width', 'open_size_height',
             'internal_page_count', 'binding_side'
         ],
+        // حقول خاصة بمعرفات مخصصة (ليس id_*)
+        specialFields: ['use-open-size'],
         // إعدادات Select2
         select2Config: {
             theme: 'bootstrap-5',
@@ -835,8 +837,9 @@ PrintingPricingSystem.FieldHandlers = {
             return;
         }
 
-        // إخفاء القسم افتراضياً
+        // إخفاء القسم والخطوة افتراضياً
         targetSection.hide();
+        $('.step[data-step="3"]').hide();
         
         // معالج تغيير الحالة
         checkbox.on('change', (e) => {
@@ -845,9 +848,11 @@ PrintingPricingSystem.FieldHandlers = {
             if (isChecked) {
                 targetSection.slideDown(300);
                 console.log('📖 تم إظهار قسم المحتوى الداخلي');
+                this.updateSectionLabels(true);
             } else {
                 targetSection.slideUp(300);
                 console.log('📖 تم إخفاء قسم المحتوى الداخلي');
+                this.updateSectionLabels(false);
             }
             
             // إطلاق حدث مخصص
@@ -857,10 +862,60 @@ PrintingPricingSystem.FieldHandlers = {
         // تطبيق الحالة الأولية إذا كان محدد مسبقاً
         if (checkbox.prop('checked')) {
             targetSection.show();
+            this.updateSectionLabels(true);
             console.log('📖 قسم المحتوى الداخلي مفعل مسبقاً');
+        } else {
+            this.updateSectionLabels(false);
         }
         
         console.log('✅ تم تهيئة معالج المحتوى الداخلي');
+    },
+
+    /**
+     * تحديث تسميات وأرقام الأقسام حسب حالة المحتوى الداخلي
+     */
+    updateSectionLabels: function(hasInternalContent) {
+        // تحديث تسمية القسم الثاني (data-step="2")
+        const section2Title = $('.step[data-step="2"] .step-title');
+        if (section2Title.length) {
+            if (hasInternalContent) {
+                section2Title.text('تفاصيل الغلاف');
+            } else {
+                section2Title.text('تفاصيل الطباعة');
+            }
+        }
+
+        // إظهار/إخفاء القسم الثالث وتحديث أرقام الخطوات
+        const step3 = $('.step[data-step="3"]');
+        const step4 = $('.step[data-step="4"]');
+        const section3Content = $('#internal-content-section');
+        
+        if (hasInternalContent) {
+            // إظهار القسم الثالث
+            step3.show();
+            section3Content.show();
+            
+            // تحديث أرقام الخطوات: 1, 2, 3, 4
+            $('.step[data-step="1"] .step-number').text('1');
+            $('.step[data-step="2"] .step-number').text('2');
+            $('.step[data-step="3"] .step-number').text('3');
+            $('.step[data-step="4"] .step-number').text('4');
+            
+            console.log('🏷️ تم تفعيل المحتوى الداخلي - 4 خطوات');
+        } else {
+            // إخفاء القسم الثالث
+            step3.hide();
+            section3Content.hide();
+            
+            // تحديث أرقام الخطوات: 1, 2, 3 (بدون القسم الثالث)
+            $('.step[data-step="1"] .step-number').text('1');
+            $('.step[data-step="2"] .step-number').text('2');
+            $('.step[data-step="4"] .step-number').text('3'); // القسم الرابع يصبح الثالث
+            
+            console.log('🏷️ تم تعطيل المحتوى الداخلي - 3 خطوات');
+        }
+
+        console.log(`🏷️ تم تحديث تسميات الأقسام - المحتوى الداخلي: ${hasInternalContent ? 'مفعل' : 'معطل'}`);
     },
 
     /**
@@ -1199,6 +1254,28 @@ PrintingPricingSystem.FieldHandlers = {
                     });
                 }
                 
+                // معالجة الحقول الخاصة (بمعرفات مخصصة)
+                self.config.specialFields.forEach(function(fieldName) {
+                    const element = $(`#${fieldName}`);
+                    if (element.length) {
+                        let saveTimeout;
+                        element.on('change input', function() {
+                            self.autoSave.isDirty = true;
+                            
+                            // إلغاء المؤقت السابق
+                            clearTimeout(saveTimeout);
+                            
+                            // تأخير إظهار المؤشر لتجنب الإزعاج
+                            saveTimeout = setTimeout(() => {
+                                if (self.autoSave.isDirty) {
+                                    self.showSaveIndicator();
+                                }
+                            }, 500);
+                        });
+                        console.log(`✅ تم تفعيل الحفظ التلقائي للحقل الخاص: ${fieldName}`);
+                    }
+                });
+                
                 console.log('✅ تم تفعيل الحفظ التلقائي');
             }
         };
@@ -1232,12 +1309,49 @@ PrintingPricingSystem.FieldHandlers = {
                             };
                         }
                     } else {
-                        // الحقول العادية
+                        // معالجة خاصة للـ checkboxes
+                        if (element.is(':checkbox')) {
+                            const isChecked = element.prop('checked');
+                            formData[fieldName] = {
+                                value: isChecked,
+                                isSelect2: false,
+                                isCheckbox: true
+                            };
+                            console.log(`💾 حفظ checkbox ${fieldName}:`, isChecked);
+                        } else {
+                            // الحقول العادية الأخرى
+                            const value = element.val();
+                            if (value !== null && value !== undefined && value !== '') {
+                                formData[fieldName] = {
+                                    value: value,
+                                    isSelect2: false
+                                };
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // معالجة الحقول الخاصة (بمعرفات مخصصة)
+            this.config.specialFields.forEach(fieldName => {
+                const element = $(`#${fieldName}`);
+                if (element.length) {
+                    if (element.is(':checkbox')) {
+                        const isChecked = element.prop('checked');
+                        formData[fieldName] = {
+                            value: isChecked,
+                            isSelect2: false,
+                            isCheckbox: true,
+                            isSpecial: true
+                        };
+                        console.log(`💾 حفظ special checkbox ${fieldName}:`, isChecked);
+                    } else {
                         const value = element.val();
-                        if (value) {
+                        if (value !== null && value !== undefined && value !== '') {
                             formData[fieldName] = {
                                 value: value,
-                                isSelect2: false
+                                isSelect2: false,
+                                isSpecial: true
                             };
                         }
                     }
@@ -1291,6 +1405,7 @@ PrintingPricingSystem.FieldHandlers = {
                     // إعطاء أولوية لاستعادة الحقول التي لا تعتمد على APIs
                     const priorityFields = ['title', 'quantity', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side'];
                     const apiDependentFields = ['client', 'product_type', 'product_size'];
+                    const hiddenFields = ['use-open-size']; // الحقول المخفية داخل أقسام
                     
                     // استعادة الحقول ذات الأولوية أولاً
                     priorityFields.forEach(fieldName => {
@@ -1307,6 +1422,15 @@ PrintingPricingSystem.FieldHandlers = {
                             }
                         });
                     }, 1000);
+                    
+                    // تأخير أكبر لاستعادة الحقول المخفية داخل الأقسام
+                    setTimeout(() => {
+                        hiddenFields.forEach(fieldName => {
+                            if (draft.data[fieldName]) {
+                                this.restoreSpecialField(fieldName, draft.data[fieldName]);
+                            }
+                        });
+                    }, 2000); // تأخير أكبر لضمان ظهور الأقسام
                     
                     // استعادة حقل الوصف (معالجة خاصة)
                     if (draft.data['description']) {
@@ -1355,22 +1479,85 @@ PrintingPricingSystem.FieldHandlers = {
                 // تحديث Select2
                 element.trigger('change');
             } else {
-                // استعادة الحقول العادية
-                element.val(fieldData.value);
-                
-                // التحقق من نجاح الاستعادة
-                if (element.val() !== fieldData.value) {
-                    console.warn(`⚠️ فشل في استعادة ${fieldName}، الخيار غير متاح:`, fieldData.value);
-                    return; // تخطي trigger إذا فشلت الاستعادة
+                // معالجة خاصة للـ checkboxes
+                if (fieldData.isCheckbox) {
+                    element.prop('checked', fieldData.value);
+                    console.log(`🔄 استعادة checkbox ${fieldName}:`, fieldData.value);
+                } else {
+                    // استعادة الحقول العادية
+                    element.val(fieldData.value);
+                    
+                    // التحقق من نجاح الاستعادة
+                    if (element.val() !== fieldData.value) {
+                        console.warn(`⚠️ فشل في استعادة ${fieldName}، الخيار غير متاح:`, fieldData.value);
+                        return; // تخطي trigger إذا فشلت الاستعادة
+                    }
                 }
                 
                 // تأخير trigger لضمان تحميل البيانات أولاً
                 setTimeout(() => {
                     element.trigger('change');
+                    
+                    // معالجة خاصة لحقل المحتوى الداخلي
+                    if (fieldName === 'has_internal_content') {
+                        const isChecked = element.prop('checked');
+                        this.updateSectionLabels(isChecked);
+                        
+                        // إظهار/إخفاء القسم مع الرسوم المتحركة
+                        const targetSection = $('#internal-content-section');
+                        if (isChecked) {
+                            targetSection.slideDown(300);
+                        } else {
+                            targetSection.slideUp(300);
+                        }
+                    }
                 }, 300);
             }
         } catch (error) {
             console.warn(`⚠️ تعذر استعادة حقل ${fieldName}:`, error);
+        }
+    },
+
+    /**
+     * استعادة حقل خاص (بمعرف مخصص)
+     */
+    restoreSpecialField: function(fieldName, fieldData) {
+        const element = $(`#${fieldName}`);
+        
+        if (!element.length || !fieldData) {
+            console.warn(`⚠️ لم يتم العثور على الحقل الخاص: ${fieldName}`);
+            return;
+        }
+        
+        try {
+            if (fieldData.isCheckbox) {
+                element.prop('checked', fieldData.value);
+                console.log(`🔄 استعادة special checkbox ${fieldName}:`, fieldData.value);
+                
+                // تأخير trigger لضمان تحميل البيانات أولاً
+                setTimeout(() => {
+                    element.trigger('change');
+                    
+                    // معالجة خاصة لـ use-open-size
+                    if (fieldName === 'use-open-size') {
+                        const isChecked = element.prop('checked');
+                        const targetFields = $('#open-size-fields');
+                        if (isChecked) {
+                            targetFields.slideDown(300);
+                        } else {
+                            targetFields.slideUp(300);
+                        }
+                        console.log(`🔄 تم تطبيق حالة المقاس المفتوح: ${isChecked}`);
+                    }
+                }, 300);
+            } else {
+                element.val(fieldData.value);
+                setTimeout(() => {
+                    element.trigger('change');
+                }, 300);
+            }
+        } catch (error) {
+            console.warn(`⚠️ تعذر استعادة الحقل الخاص ${fieldName}:`, error);
         }
     },
 
