@@ -1,0 +1,354 @@
+/* أنماط نموذج طلبات التسعير - Order Form Styles */
+/* يستخدم متغيرات النظام الأساسي من variables.css */
+
+/* مؤشر الخطوات البسيط */
+.steps-indicator {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--white);
+  padding: 1.5rem;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--box-shadow-sm);
+  position: relative;
+}
+
+.steps-indicator::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  right: 10%;
+  height: 2px;
+  background: var(--gray-300);
+  z-index: 1;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+  background: var(--white);
+  padding: 0 1rem;
+}
+
+.step-number {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  color: var(--gray-600);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  transition: var(--transition-base);
+}
+
+.step-title {
+  font-size: 0.875rem;
+  color: var(--gray-600);
+  text-align: center;
+  font-weight: 500;
+}
+
+.step.active .step-number {
+  background: var(--primary-color);
+  color: var(--white);
+}
+
+.step.active .step-title {
+  color: var(--primary-color);
+  font-weight: 600;
+}
+
+.step.completed .step-number {
+  background: var(--success-color);
+  color: var(--white);
+}
+
+.step.completed .step-title {
+  color: var(--success-color);
+}
+
+/* أقسام النموذج */
+.sub-section {
+    margin-bottom: 2rem;
+}
+
+.sub-section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+/* خدمات ما بعد الطباعة */
+.finishing-service {
+    border: 1px solid var(--gray-200);
+    border-radius: var(--border-radius);
+    transition: var(--transition-base);
+}
+
+.finishing-service:hover {
+    border-color: var(--primary-color);
+    box-shadow: var(--box-shadow-sm);
+}
+
+.finishing-service .card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 1rem;
+}
+
+.finishing-service .card-body {
+    padding: 1.5rem;
+}
+
+.finishing-service .form-check-label {
+    cursor: pointer;
+    user-select: none;
+}
+
+.finishing-service .form-check-input:checked + .form-check-label {
+    color: var(--primary-color);
+}
+
+/* حقول مخفية شرطياً */
+#custom-size-fields,
+#open-size-fields,
+#internal-content-section,
+#internal-content-details {
+    transition: all 0.3s ease;
+}
+
+/* تحسين مظهر checkboxes التبديل */
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-check-label {
+    font-weight: var(--font-weight-medium, 500);
+    color: var(--text-color);
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+/* تأثير hover للـ checkboxes */
+.form-check:hover .form-check-label {
+    color: var(--primary-color);
+}
+
+.form-check:hover .form-check-input {
+    border-color: var(--primary-color);
+}
+
+/* تأثيرات سلسة للأقسام المخفية */
+.toggle-section {
+    overflow: hidden;
+    transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+}
+
+.toggle-section.hidden {
+    max-height: 0;
+    opacity: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+
+.toggle-section.visible {
+    max-height: 2000px;
+    opacity: 1;
+}
+
+/* تأثير تمييز الحقل المطلوب */
+.field-highlight {
+    border-color: var(--warning-color) !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+    animation: field-pulse 2s ease-in-out;
+}
+
+/* تأثير النبض للحقل المميز */
+@keyframes field-pulse {
+    0% {
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    }
+    50% {
+        box-shadow: 0 0 0 0.4rem rgba(255, 193, 7, 0.4);
+    }
+    100% {
+        box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25);
+    }
+}
+
+/* تحسين مظهر Select2 عند التمييز */
+.select2-container .select2-selection.field-highlight,
+.field-highlight + .select2-container .select2-selection {
+    border-color: var(--warning-color) !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 193, 7, 0.25) !important;
+}
+
+/* مؤشر الحفظ التلقائي */
+#auto-save-indicator {
+    transition: all 0.3s ease;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-sm);
+}
+
+#auto-save-indicator .badge {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+/* تحسينات الإشعارات */
+.toast-container {
+    z-index: 1060;
+}
+
+.toast-top-right {
+    top: 80px;
+    right: 20px;
+}
+
+/* مؤشرات التحميل المحسنة */
+.loading-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid var(--gray-300);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* تحسين مظهر Select2 أثناء التحميل */
+.select2-container--loading .select2-selection__arrow {
+    display: none;
+}
+
+.select2-container--loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    right: 10px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--gray-300);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s linear infinite;
+}
+
+/* تحسين مظهر رسائل الخطأ */
+.error-details {
+    font-size: 0.875rem;
+    color: var(--gray-600);
+    margin-top: 0.25rem;
+}
+
+.error-actions {
+    margin-top: 0.5rem;
+}
+
+.error-actions .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+/* تحسين مظهر مؤشر الاتصال */
+.connection-status {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    z-index: 1050;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: 0.875rem;
+    transition: all 0.3s ease;
+}
+
+.connection-status.online {
+    background-color: var(--success-color);
+    color: white;
+}
+
+.connection-status.offline {
+    background-color: var(--danger-color);
+    color: white;
+}
+
+/* تحسين مظهر مؤشر التقدم */
+.progress-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--primary-color);
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1070;
+}
+
+.progress-indicator.active {
+    animation: progress-slide 2s ease-in-out infinite;
+}
+
+@keyframes progress-slide {
+    0% { transform: translateX(-100%); }
+    50% { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+}
+
+/* حقول التكلفة المميزة */
+.form-control-lg.text-primary {
+    font-weight: 700;
+    background: var(--gray-50);
+}
+
+.form-control-lg.text-success {
+    font-weight: 700;
+    background: var(--success-light, #f0f9ff);
+    border-color: var(--success-color);
+}
+
+/* ملخص الطلب */
+.card.bg-light {
+    background: var(--gray-50) !important;
+    border: 1px solid var(--gray-200);
+}
+
+/* تحسينات للأجهزة المحمولة */
+@media (max-width: 768px) {
+    .steps-indicator {
+        flex-direction: column;
+        gap: 1rem;
+    }
+    
+    .steps-indicator::before {
+        display: none;
+    }
+    
+    .step-title {
+        font-size: 0.75rem;
+    }
+    
+    .sub-section-title {
+        font-size: 1rem;
+    }
+    
+    .finishing-service .card-body {
+        padding: 1rem;
+    }
+}

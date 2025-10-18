@@ -6,6 +6,63 @@
 
 /**
  * ===========================
+ * Select2 RTL Fixes
+ * ===========================
+ */
+/* إصلاح موضع زر المسح في Select2 */
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear, 
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    right: unset !important;
+}
+
+/* تحسينات إضافية للـ RTL */
+.select2-container--bootstrap-5[dir="rtl"] .select2-selection--single .select2-selection__arrow {
+    left: 1px;
+    right: auto;
+}
+
+.select2-container--bootstrap-5[dir="rtl"] .select2-selection--single .select2-selection__rendered {
+    padding-left: 20px;
+    padding-right: 12px;
+}
+
+/* تحسين عرض النتائج في RTL */
+.select2-container--bootstrap-5 .select2-dropdown {
+    direction: rtl;
+}
+
+.select2-container--bootstrap-5 .select2-search--dropdown .select2-search__field {
+    text-align: right;
+}
+
+/* تحسين عرض العناصر المختارة في Multi-select */
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice {
+    direction: rtl;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__choice__remove {
+    margin-left: 2px;
+    margin-right: auto;
+}
+
+/* تحسين placeholder في RTL */
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__placeholder {
+    text-align: right;
+}
+
+/* تحسين Loading state */
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered[title*="جاري"] {
+    text-align: right;
+}
+
+/* تحسين رسائل "لا توجد نتائج" */
+.select2-container--bootstrap-5 .select2-results__option[aria-live="polite"] {
+    text-align: right;
+    direction: rtl;
+}
+
+/**
+ * ===========================
  * Card Styles
  * ===========================
  */

@@ -1,0 +1,409 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+
+{% block title %}{% trans "تفاصيل الطلب" %} - {{ object.order_number }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'printing_pricing:dashboard' %}">
+                          <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'printing_pricing:order_list' %}">
+                          <i class="fas fa-list me-1"></i>{% trans "الطلبات" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-file-invoice me-1"></i>{{ object.order_number }}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-file-invoice fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% trans "تفاصيل الطلب" %} - {{ object.order_number }}</h1>
+                  <div class="d-flex align-items-center gap-3">
+                    <span class="badge bg-{{ object.status|default:'secondary' }}">
+                        {{ object.get_status_display }}
+                    </span>
+                    <span class="text-muted">
+                        {% trans "تم الإنشاء في" %} {{ object.created_at|date:"d/m/Y H:i" }}
+                    </span>
+                  </div>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'printing_pricing:order_update' object.pk %}" class="btn btn-warning">
+                  <i class="fas fa-edit me-2"></i>{% trans "تحرير" %}
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تفاصيل الطلب -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-info-circle me-2"></i>{% trans "معلومات الطلب" %}</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <div class="pp-detail-item">
+              <span class="pp-detail-label">{% trans "عنوان الطلب" %}</span>
+              <div class="pp-detail-value">{{ object.title }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="pp-detail-item">
+              <span class="pp-detail-label">{% trans "العميل" %}</span>
+              <div class="pp-detail-value">{{ object.customer }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="pp-detail-item">
+              <span class="pp-detail-label">{% trans "نوع الطلب" %}</span>
+              <div class="pp-detail-value">{{ object.get_order_type_display }}</div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="pp-detail-item">
+              <span class="pp-detail-label">{% trans "الكمية" %}</span>
+              <div class="pp-detail-value">{{ object.quantity|floatformat:0 }}</div>
+            </div>
+          </div>
+          {% if object.description %}
+          <div class="col-12">
+            <div class="pp-detail-item">
+              <span class="pp-detail-label">{% trans "الوصف" %}</span>
+              <div class="pp-detail-value">{{ object.description|linebreaks }}</div>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ملخص التكلفة -->
+  {% if object.total_cost %}
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-calculator me-2"></i>{% trans "ملخص التكلفة" %}</h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-8">
+            <div class="pp-cost-item">
+              <span class="pp-cost-label">{% trans "التكلفة الإجمالية" %}</span>
+              <span class="pp-cost-value">{{ object.total_cost|floatformat:2 }} {% trans "ج.م" %}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/printing_pricing/order-detail.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.OrderDetail) {
+        PrintingPricing.OrderDetail.init({
+            orderId: {{ object.pk }},
+            orderNumber: '{{ object.order_number }}',
+            status: '{{ object.status }}'
+        });
+    }
+});
+</script>
+{% endblock %}
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                <h5 class="pp-card-title">
+                    <i class="fas fa-cogs"></i>
+                    {% trans "المواصفات الفنية" %}
+                </h5>
+            </div>
+            <div class="pp-card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "نوع الورق" %}</label>
+                            <div class="pp-detail-value">
+                                {% if object.paper_type %}
+                                    {{ object.paper_type.name }}
+                                    <small class="text-muted">({{ object.paper_type.weight }}جم)</small>
+                                {% else %}
+                                    <span class="text-muted">{% trans "غير محدد" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "مقاس المنتج" %}</label>
+                            <div class="pp-detail-value">
+                                {% if object.product_size %}
+                                    {{ object.product_size.name }}
+                                    <small class="text-muted">({{ object.product_size.width }}×{{ object.product_size.height }}سم)</small>
+                                {% else %}
+                                    <span class="text-muted">{% trans "غير محدد" %}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "نوع التجليد" %}</label>
+                            <div class="pp-detail-value">{{ object.get_binding_type_display|default:"غير محدد" }}</div>
+                        </div>
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "نوع الغلاف" %}</label>
+                            <div class="pp-detail-value">{{ object.get_cover_type_display|default:"غير محدد" }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- الخدمات الإضافية -->
+        {% if object.design_price or object.internal_design_price %}
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                <h5 class="pp-card-title">
+                    <i class="fas fa-palette"></i>
+                    {% trans "خدمات التصميم" %}
+                </h5>
+            </div>
+            <div class="pp-card-body">
+                <div class="row">
+                    {% if object.design_price %}
+                    <div class="col-md-6">
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "تصميم الغلاف" %}</label>
+                            <div class="pp-detail-value text-success fw-bold">
+                                {{ object.design_price|floatformat:2 }} {% trans "جنيه" %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% if object.internal_design_price %}
+                    <div class="col-md-6">
+                        <div class="pp-detail-item">
+                            <label class="pp-detail-label">{% trans "تصميم المحتوى الداخلي" %}</label>
+                            <div class="pp-detail-value text-success fw-bold">
+                                {{ object.internal_design_price|floatformat:2 }} {% trans "جنيه" %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- سجل الأنشطة -->
+        <div class="pp-card">
+            <div class="pp-card-header">
+                <h5 class="pp-card-title">
+                    <i class="fas fa-history"></i>
+                    {% trans "سجل الأنشطة" %}
+                </h5>
+            </div>
+            <div class="pp-card-body">
+                <div class="pp-activity-timeline" id="activity-timeline">
+                    <div class="pp-activity-item">
+                        <div class="pp-activity-icon pp-activity-create">
+                            <i class="fas fa-plus"></i>
+                        </div>
+                        <div class="pp-activity-content">
+                            <div class="pp-activity-text">تم إنشاء الطلب</div>
+                            <div class="pp-activity-time">{{ object.created_at|date:"d/m/Y H:i" }}</div>
+                            <div class="pp-activity-user">بواسطة: {{ object.created_by|default:"النظام" }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if object.updated_at != object.created_at %}
+                    <div class="pp-activity-item">
+                        <div class="pp-activity-icon pp-activity-update">
+                            <i class="fas fa-edit"></i>
+                        </div>
+                        <div class="pp-activity-content">
+                            <div class="pp-activity-text">تم تحديث الطلب</div>
+                            <div class="pp-activity-time">{{ object.updated_at|date:"d/m/Y H:i" }}</div>
+                            <div class="pp-activity-user">بواسطة: {{ object.updated_by|default:"النظام" }}</div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الشريط الجانبي -->
+    <div class="col-lg-4">
+        <!-- ملخص التكلفة -->
+        <div class="pp-calculation-panel mb-4">
+            <div class="pp-calculation-header">
+                <i class="fas fa-calculator"></i>
+                {% trans "ملخص التكلفة" %}
+                <button type="button" class="pp-btn pp-btn-sm pp-btn-outline ms-auto" onclick="PrintingPricing.OrderDetail.recalculateCost()">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            <div class="pp-calculation-body">
+                <div class="pp-cost-item">
+                    <span class="pp-cost-label">{% trans "تكلفة المواد" %}</span>
+                    <span class="pp-cost-value">{{ object.material_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                </div>
+                <div class="pp-cost-item">
+                    <span class="pp-cost-label">{% trans "تكلفة الطباعة" %}</span>
+                    <span class="pp-cost-value">{{ object.printing_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                </div>
+                <div class="pp-cost-item">
+                    <span class="pp-cost-label">{% trans "تكلفة الخدمات" %}</span>
+                    <span class="pp-cost-value">{{ object.services_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                </div>
+                {% if object.design_price or object.internal_design_price %}
+                <div class="pp-cost-item">
+                    <span class="pp-cost-label">{% trans "تكلفة التصميم" %}</span>
+                    <span class="pp-cost-value">
+                        {% widthratio object.design_price|default:0|add:object.internal_design_price|default:0 1 1 %} {% trans "جنيه" %}
+                    </span>
+                </div>
+                {% endif %}
+                <div class="pp-cost-item">
+                    <span class="pp-cost-label pp-total-cost">{% trans "إجمالي التكلفة" %}</span>
+                    <span class="pp-cost-value pp-total-cost">{{ object.total_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- معلومات إضافية -->
+        <div class="pp-card mb-4">
+            <div class="pp-card-header">
+                <h5 class="pp-card-title">
+                    <i class="fas fa-info"></i>
+                    {% trans "معلومات إضافية" %}
+                </h5>
+            </div>
+            <div class="pp-card-body">
+                <div class="pp-detail-item">
+                    <label class="pp-detail-label">{% trans "رقم الطلب" %}</label>
+                    <div class="pp-detail-value">
+                        <code>{{ object.order_number }}</code>
+                        <button class="btn btn-sm btn-outline-secondary ms-2" onclick="PrintingPricing.OrderDetail.copyOrderNumber()" title="{% trans 'نسخ' %}">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="pp-detail-item">
+                    <label class="pp-detail-label">{% trans "الحالة" %}</label>
+                    <div class="pp-detail-value">
+                        <span class="pp-status-badge pp-status-{{ object.status }}">
+                            {{ object.get_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="pp-detail-item">
+                    <label class="pp-detail-label">{% trans "تاريخ الإنشاء" %}</label>
+                    <div class="pp-detail-value">{{ object.created_at|date:"d/m/Y H:i" }}</div>
+                </div>
+                {% if object.updated_at != object.created_at %}
+                <div class="pp-detail-item">
+                    <label class="pp-detail-label">{% trans "آخر تحديث" %}</label>
+                    <div class="pp-detail-value">{{ object.updated_at|date:"d/m/Y H:i" }}</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- إجراءات سريعة -->
+        <div class="pp-card">
+            <div class="pp-card-header">
+                <h5 class="pp-card-title">
+                    <i class="fas fa-bolt"></i>
+                    {% trans "إجراءات سريعة" %}
+                </h5>
+            </div>
+            <div class="pp-card-body">
+                <div class="d-grid gap-2">
+                    {% if object.status == 'draft' or object.status == 'pending' %}
+                    <button class="pp-btn pp-btn-success" onclick="PrintingPricing.OrderDetail.approveOrder()">
+                        <i class="fas fa-check"></i>
+                        {% trans "اعتماد الطلب" %}
+                    </button>
+                    <button class="pp-btn pp-btn-danger" onclick="PrintingPricing.OrderDetail.rejectOrder()">
+                        <i class="fas fa-times"></i>
+                        {% trans "رفض الطلب" %}
+                    </button>
+                    {% endif %}
+                    
+                    <button class="pp-btn pp-btn-info" onclick="PrintingPricing.OrderDetail.duplicateOrder()">
+                        <i class="fas fa-copy"></i>
+                        {% trans "نسخ الطلب" %}
+                    </button>
+                    
+                    <button class="pp-btn pp-btn-secondary" onclick="PrintingPricing.OrderDetail.exportToPDF()">
+                        <i class="fas fa-file-pdf"></i>
+                        {% trans "تصدير PDF" %}
+                    </button>
+                    
+                    <button class="pp-btn pp-btn-outline" onclick="PrintingPricing.OrderDetail.printOrder()">
+                        <i class="fas fa-print"></i>
+                        {% trans "طباعة" %}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% comment %} CSS moved to components.css {% endcomment %}
+
+{% block extra_js %}
+<script src="{% static 'js/printing_pricing/order-detail.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.OrderDetail) {
+        PrintingPricing.OrderDetail.init({
+            orderId: {{ object.pk }},
+            orderNumber: '{{ object.order_number }}',
+            status: '{{ object.status }}'
+        });
+    }
+});
+</script>
+{% endblock %}
+
+</div> <!-- إغلاق printing-pricing-wrapper -->

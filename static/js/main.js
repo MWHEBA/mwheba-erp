@@ -3,6 +3,9 @@
  * 
  * Contains all custom scripts for the ERP system
  * 
+ * ملاحظة: تم تحديث وظائف الإشعارات (notify, showAlert) لتستخدم 
+ * نظام Toastr الموحد أولاً، مع الاحتفاظ بـ SweetAlert كبديل
+ * 
  * @author MWHEBA ERP Team
  * @version 1.0.0
  */
@@ -439,9 +442,16 @@ function initFilters() {
 }
 
 /**
- * عرض إشعار للمستخدم
+ * عرض إشعار للمستخدم - محدث ليستخدم Toastr
  */
 function notify(message, type = 'success', title = null) {
+    // استخدام نظام Toastr الموحد إذا كان متوفراً
+    if (typeof showToastr !== 'undefined') {
+        showToastr(message, type, title);
+        return;
+    }
+    
+    // البديل: SweetAlert2 (للتوافق مع الكود القديم)
     if (!title) {
         if (type === 'success') title = 'تم بنجاح';
         else if (type === 'error') title = 'خطأ';
@@ -454,7 +464,7 @@ function notify(message, type = 'success', title = null) {
         text: message,
         icon: type,
         toast: true,
-        position: 'top-end',
+        position: 'top-start', // تغيير للجهة اليمنى للعربية
         showConfirmButton: false,
         timer: 3000,
         timerProgressBar: true,
@@ -517,16 +527,23 @@ function formatFileSize(bytes) {
  */
 
 /**
- * عرض رسالة تنبيه باستخدام SweetAlert2
+ * عرض رسالة تنبيه - محدث ليستخدم Toastr أولاً
  * @param {string} message - نص الرسالة
  * @param {string} type - نوع التنبيه (success, error, warning, info)
  * @param {string} title - عنوان التنبيه (اختياري)
  * @param {number} timer - وقت إخفاء التنبيه بالمللي ثانية (اختياري، الافتراضي 3000)
  */
 function showAlert(message, type = 'info', title = '', timer = 3000) {
+    // استخدام نظام Toastr الموحد إذا كان متوفراً
+    if (typeof showToastr !== 'undefined') {
+        showToastr(message, type, title);
+        return;
+    }
+    
+    // البديل: SweetAlert2 (للتوافق مع الكود القديم)
     const Toast = Swal.mixin({
         toast: true,
-        position: 'top-end',
+        position: 'top-start', // تغيير للجهة اليمنى للعربية
         showConfirmButton: false,
         timer: timer,
         timerProgressBar: true,

@@ -1,0 +1,46 @@
+/**
+ * إخفاء Bootstrap Alerts وإظهار Toastr فقط
+ * يتم تضمين هذا الملف في الصفحات التي تحتاج تحويل كامل للإشعارات
+ * يمكن استخدامه في جميع وحدات النظام
+ */
+
+/* إخفاء رسائل Bootstrap فورًا قبل أي تحميل */
+.alert {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* السماح فقط للتوستر بالظهور */
+#toast-container {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* لا نفرض opacity على .toast لنسمح لـ toastr بالتحكم في الإخفاء */
+.toast-container .toast {
+    display: block !important;
+    visibility: visible !important;
+}
+
+/* تحسينات إضافية للتوستر */
+#toast-container {
+    z-index: 9999 !important;
+}
+
+/* التأكد من أن التوستر يظهر فوق كل شيء */
+.toast {
+    z-index: 10000 !important;
+}
+
+/* تحسينات للعربية */
+.toast-container .toast {
+    text-align: right;
+    direction: rtl;
+}
+
+/* تحسين موضع الأزرار */
+.toast .toast-close-button {
+    left: 0.75em;
+    right: auto;
+}

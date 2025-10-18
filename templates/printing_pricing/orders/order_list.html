@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+
+{% block title %}{% trans "طلبات التسعير" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'printing_pricing:dashboard' %}">
+                          <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-list me-1"></i>{% trans "الطلبات" %}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-list fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% trans "طلبات التسعير" %}</h1>
+                  <p class="text-muted mb-0">{% trans "عرض وإدارة جميع طلبات التسعير" %}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'printing_pricing:order_create' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "طلب جديد" %}
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="search" class="form-label">{% trans "البحث" %}</label>
+          <input type="text" class="form-control" id="search" name="search" 
+                 placeholder="{% trans 'البحث في الطلبات...' %}" 
+                 value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-2">
+          <label for="status" class="form-label">{% trans "الحالة" %}</label>
+          <select class="form-select" id="status" name="status">
+            <option value="">{% trans "جميع الحالات" %}</option>
+            <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
+            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "قيد المراجعة" %}</option>
+            <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>{% trans "معتمد" %}</option>
+            <option value="completed" {% if request.GET.status == 'completed' %}selected{% endif %}>{% trans "مكتمل" %}</option>
+            <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="order_type" class="form-label">{% trans "النوع" %}</label>
+          <select class="form-select" id="order_type" name="order_type">
+            <option value="">{% trans "جميع الأنواع" %}</option>
+            <option value="book" {% if request.GET.order_type == 'book' %}selected{% endif %}>{% trans "كتاب" %}</option>
+            <option value="magazine" {% if request.GET.order_type == 'magazine' %}selected{% endif %}>{% trans "مجلة" %}</option>
+            <option value="brochure" {% if request.GET.order_type == 'brochure' %}selected{% endif %}>{% trans "بروشور" %}</option>
+            <option value="flyer" {% if request.GET.order_type == 'flyer' %}selected{% endif %}>{% trans "فلاير" %}</option>
+            <option value="other" {% if request.GET.order_type == 'other' %}selected{% endif %}>{% trans "أخرى" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+          <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- قائمة الطلبات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة طلبات التسعير" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'printing_pricing:order_create' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>{% trans "طلب جديد" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if orders %}
+        <div class="table-responsive">
+          <table class="table table-hover" id="orders-table">
+            <thead>
+              <tr>
+                <th>{% trans "رقم الطلب" %}</th>
+                <th>{% trans "العنوان" %}</th>
+                <th>{% trans "العميل" %}</th>
+                <th>{% trans "النوع" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "التكلفة" %}</th>
+                <th>{% trans "التاريخ" %}</th>
+                <th>{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in orders %}
+              <tr>
+                <td>
+                  <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="text-primary">
+                    {{ order.order_number }}
+                  </a>
+                </td>
+                <td>{{ order.title|truncatechars:30 }}</td>
+                <td>{{ order.customer|truncatechars:20 }}</td>
+                <td>{{ order.get_order_type_display }}</td>
+                <td>
+                  <span class="badge bg-{{ order.status|default:'secondary' }}">
+                    {{ order.get_status_display }}
+                  </span>
+                </td>
+                <td>{{ order.total_cost|default:"0.00"|floatformat:2 }} {% trans "ج.م" %}</td>
+                <td>{{ order.created_at|date:"d/m/Y H:i" }}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'printing_pricing:order_detail' order.pk %}" 
+                       class="btn btn-outline-primary btn-sm" title="{% trans 'عرض' %}">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{% url 'printing_pricing:order_update' order.pk %}" 
+                       class="btn btn-outline-warning btn-sm" title="{% trans 'تحرير' %}">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد طلبات تسعير متاحة" icon="file-invoice" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/printing_pricing/orders.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.Orders) {
+        PrintingPricing.Orders.init();
+    }
+});
+</script>
+{% endblock %}

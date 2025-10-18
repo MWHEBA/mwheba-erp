@@ -37,6 +37,7 @@ urlpatterns = [
     path("services/", include("services.urls")),  # الخدمات المتخصصة الجديدة
     path("products/", include("product.urls")),
     path("pricing/", include("pricing.urls")),  # نظام التسعير المتكامل
+    path("printing-pricing/", include("printing_pricing.urls")),  # نظام التسعير الجديد والمحسن
     path("sales/", include("sale.urls")),
     path("purchases/", include("purchase.urls")),
     path("financial/", include("financial.urls")),

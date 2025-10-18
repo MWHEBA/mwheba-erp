@@ -1,0 +1,1358 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+
+{% block title %}
+{% if object %}{% trans "تحرير الطلب" %} - {{ object.order_number }}{% else %}{% trans "طلب جديد" %}{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/printing_pricing/order-form.css' %}">
+<link rel="stylesheet" href="{% static 'css/toastr-override.css' %}">
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'printing_pricing:dashboard' %}">
+                          <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'printing_pricing:order_list' %}">
+                          <i class="fas fa-list me-1"></i>{% trans "الطلبات" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} me-1"></i>
+                      {% if object %}{% trans "تحرير الطلب" %}{% else %}{% trans "طلب جديد" %}{% endif %}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">
+                    {% if object %}
+                        {% trans "تحرير الطلب" %} - {{ object.order_number }}
+                    {% else %}
+                        {% trans "إنشاء طلب جديد" %}
+                    {% endif %}
+                  </h1>
+                  <p class="text-muted mb-0">
+                    {% if object %}
+                        {% trans "تحرير بيانات الطلب وإعادة حساب التكلفة" %}
+                    {% else %}
+                        {% trans "إنشاء طلب تسعير جديد مع حساب التكلفة التلقائي" %}
+                    {% endif %}
+                  </p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>{% trans "العودة للقائمة" %}
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- مؤشر الخطوات -->
+  <div class="section-container mb-4">
+    <div class="steps-indicator">
+      <div class="step active" data-step="1">
+        <div class="step-number">1</div>
+        <div class="step-title">{% trans "البيانات الأساسية" %}</div>
+      </div>
+      <div class="step" data-step="2">
+        <div class="step-number">2</div>
+        <div class="step-title">{% trans "تفاصيل الطباعة / الغلاف" %}</div>
+      </div>
+      <div class="step" data-step="3">
+        <div class="step-number">3</div>
+        <div class="step-title">{% trans "تفاصيل المحتوى الداخلي" %}</div>
+      </div>
+      <div class="step" data-step="4">
+        <div class="step-number">4</div>
+        <div class="step-title">{% trans "التسعير والحسابات" %}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- نموذج الطلب -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-body">
+        <form method="post" id="order-form" class="needs-validation" novalidate>
+          {% csrf_token %}
+          
+          <!-- قسم 1: البيانات الأساسية -->
+          <div class="form-section active" data-section="1">
+            <!-- معلومات العميل والطلب -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-info-circle me-2"></i>{% trans "معلومات الطلب" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="id_client" class="form-label">
+                    {% trans "العميل" %} <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select" id="id_client" name="client" required>
+                    <option value="">{% trans "اختر العميل..." %}</option>
+                  </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label class="form-label">{% trans "تاريخ التسعير" %}</label>
+                  <input type="date" class="form-control" value="{% now 'Y-m-d' %}" readonly>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  {% if form.description %}
+                  <label for="{{ form.description.id_for_label }}" class="form-label">
+                    {{ form.description.label }}
+                  </label>
+                  <textarea class="form-control" id="{{ form.description.id_for_label }}" name="{{ form.description.name }}" rows="3" placeholder="أضف ملاحظات داخلية للطلب هنا...">{{ form.description.value|default:'' }}</textarea>
+                  {% if form.description.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ form.description.errors.0 }}
+                    </div>
+                  {% endif %}
+                  {% endif %}
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label class="form-label">{% trans "المندوب المسؤول" %}</label>
+                  <input type="text" class="form-control" value="{{ request.user.get_full_name }}" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات المنتج والكمية -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-box me-2"></i>{% trans "معلومات المنتج" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="{{ form.title.id_for_label }}" class="form-label">
+                    {{ form.title.label }} <span class="text-danger">*</span>
+                  </label>
+                  <input type="text" class="form-control" id="{{ form.title.id_for_label }}" name="{{ form.title.name }}" value="{{ form.title.value|default:'' }}" required>
+                  {% if form.title.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ form.title.errors.0 }}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_product_type" class="form-label">
+                    {% trans "نوع المنتج" %}
+                  </label>
+                  <select class="form-select" id="id_product_type" name="product_type">
+                    <option value="">{% trans "اختر نوع المنتج" %}</option>
+                    <!-- سيتم ملء الخيارات من JavaScript -->
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="{{ form.quantity.id_for_label }}" class="form-label">
+                    {{ form.quantity.label }} <span class="text-danger">*</span>
+                  </label>
+                  <input type="number" class="form-control" id="{{ form.quantity.id_for_label }}" name="{{ form.quantity.name }}" value="{{ form.quantity.value|default:'' }}" min="1" required>
+                  {% if form.quantity.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ form.quantity.errors.0 }}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_product_size" class="form-label">
+                    {% trans "مقاس المنتج" %}
+                  </label>
+                  <select class="form-select" id="id_product_size" name="product_size">
+                    <option value="">{% trans "اختر المقاس" %}</option>
+                    <!-- سيتم ملء الخيارات من JavaScript -->
+                  </select>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_print_direction" class="form-label">
+                    {% trans "اتجاه الطباعة" %}
+                  </label>
+                  <select class="form-select" id="id_print_direction" name="print_direction">
+                    <option value="portrait">{% trans "عمودي" %}</option>
+                    <option value="landscape">{% trans "أفقي" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <!-- حقول أبعاد المنتج -->
+              <div class="row" id="product-size-fields">
+                <div class="col-md-6 mb-3">
+                  <label for="id_product_width" class="form-label">
+                    {% trans "العرض (سم)" %}
+                  </label>
+                  <input type="number" class="form-control" id="id_product_width" name="product_width" step="0.1" min="0.1" readonly>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_product_height" class="form-label">
+                    {% trans "الطول (سم)" %}
+                  </label>
+                  <input type="number" class="form-control" id="id_product_height" name="product_height" step="0.1" min="0.1" readonly>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <div class="form-check mt-4">
+                    <input type="checkbox" class="form-check-input" id="id_has_internal_content" name="has_internal_content">
+                    <label for="id_has_internal_content" class="form-check-label">
+                      {% trans "يحتوي على محتوى داخلي" %}
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- حقول المحتوى الداخلي الأساسية -->
+            <div id="internal-content-section" class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-file-alt me-2"></i>{% trans "معلومات أساسية للمحتوى الداخلي" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <div class="form-check">
+                    <input type="checkbox" id="use-open-size" class="form-check-input">
+                    <label for="use-open-size" class="form-check-label">{% trans "تحديد مقاس مفتوح" %}</label>
+                  </div>
+                </div>
+              </div>
+              
+              <div class="row" id="open-size-fields">
+                <div class="col-md-6 mb-3">
+                  <label for="id_open_size_width" class="form-label">
+                    {% trans "عرض المقاس المفتوح (سم)" %}
+                  </label>
+                  <input type="number" class="form-control" id="id_open_size_width" name="open_size_width" step="0.1" min="0.1">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_open_size_height" class="form-label">
+                    {% trans "ارتفاع المقاس المفتوح (سم)" %}
+                  </label>
+                  <input type="number" class="form-control" id="id_open_size_height" name="open_size_height" step="0.1" min="0.1">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_page_count" class="form-label">
+                    {% trans "عدد صفحات المحتوى الداخلي" %}
+                  </label>
+                  <input type="number" class="form-control" id="id_internal_page_count" name="internal_page_count" min="1" value="1">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_binding_side" class="form-label">
+                    {% trans "جهة التجليد" %}
+                  </label>
+                  <select class="form-select" id="id_binding_side" name="binding_side">
+                    <option value="">{% trans "اختر جهة التجليد" %}</option>
+                    <option value="right">{% trans "يمين" %}</option>
+                    <option value="left">{% trans "يسار" %}</option>
+                    <option value="top">{% trans "أعلى" %}</option>
+                    <option value="bottom">{% trans "أسفل" %}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-end mb-3">
+              <button type="button" class="btn btn-primary btn-next">
+                {% trans "التالي" %} <i class="fas fa-arrow-left ms-2"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- قسم 2: المواصفات الفنية -->
+          <div class="form-section" data-section="2">
+            <!-- بيانات عامة للطباعة -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-cogs me-2"></i>{% trans "بيانات عامة" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_order_type" class="form-label">
+                    {% trans "نوع الطباعة" %} <span class="text-danger">*</span>
+                  </label>
+                  <select class="form-select" id="id_order_type" name="order_type" required>
+                    <option value="">{% trans "اختر نوع الطباعة" %}</option>
+                    <option value="offset">{% trans "أوفست" %}</option>
+                    <option value="digital">{% trans "ديجيتال" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_print_sides" class="form-label">
+                    {% trans "عدد الأوجه" %}
+                  </label>
+                  <select class="form-select" id="id_print_sides" name="print_sides">
+                    <option value="1">{% trans "وجه" %}</option>
+                    <option value="2">{% trans "وجهين" %}</option>
+                    <option value="3">{% trans "طبع وقلب" %}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <!-- التصميم -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-palette me-2"></i>{% trans "التصميم" %}
+              </h6>
+              <!-- حقول ألوان التصميم -->
+              <div class="row" id="single-side-colors">
+                <div class="col-md-6 mb-3">
+                  <label for="id_colors_design" class="form-label">
+                    {% trans "عدد ألوان التصميم" %}
+                  </label>
+                  <input type="number" id="id_colors_design" name="colors_design" class="form-control" min="0" value="0">
+                </div>
+              </div>
+              
+              <div class="row" id="double-side-colors">
+                <div class="col-md-3 mb-3">
+                  <label for="id_colors_front" class="form-label">
+                    {% trans "عدد ألوان الوجه" %}
+                  </label>
+                  <input type="number" id="id_colors_front" name="colors_front" class="form-control" min="0" value="0">
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_colors_back" class="form-label">
+                    {% trans "عدد ألوان الظهر" %}
+                  </label>
+                  <input type="number" id="id_colors_back" name="colors_back" class="form-control" min="0" value="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_design_price" class="form-label">
+                    {% trans "سعر التصميم" %}
+                  </label>
+                  <input type="number" id="id_design_price" name="design_price" class="form-control" step="0.01" min="0">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_montage_info" class="form-label">
+                    {% trans "العدد / المونتاج" %}
+                  </label>
+                  <input type="text" id="id_montage_info" class="form-control" readonly>
+                  <input type="hidden" id="id_montage_count" name="montage_count" value="1">
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات الزنكات (CTP) -->
+            <div class="sub-section mb-4" id="ctp-fields">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-layer-group me-2"></i>{% trans "معلومات الزنكات (CTP)" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_ctp_supplier" class="form-label">
+                    {% trans "مورد الزنكات" %}
+                  </label>
+                  <select id="id_ctp_supplier" name="ctp_supplier" class="form-select">
+                    <option value="">{% trans "اختر المورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_ctp_plate_size" class="form-label">
+                    {% trans "مقاس الزنك" %}
+                  </label>
+                  <select id="id_ctp_plate_size" name="ctp_plate_size" class="form-select">
+                    <option value="">{% trans "اختر المقاس" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_ctp_plates_count" class="form-label">
+                    {% trans "عدد الزنكات" %}
+                  </label>
+                  <input type="number" id="id_ctp_plates_count" name="ctp_plates_count" class="form-control" min="1">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_ctp_plate_price" class="form-label">
+                    {% trans "سعر الزنك" %}
+                  </label>
+                  <input type="number" id="id_ctp_plate_price" name="ctp_plate_price" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "يتم تحديثه تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_ctp_transportation" class="form-label">
+                    {% trans "تكلفة الانتقالات" %}
+                  </label>
+                  <input type="number" id="id_ctp_transportation" name="ctp_transportation" class="form-control" value="0.00" step="0.01" min="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="id_ctp_notes" class="form-label">
+                    {% trans "ملاحظات" %}
+                  </label>
+                  <textarea id="id_ctp_notes" name="ctp_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_ctp_total_cost" class="form-label">
+                    {% trans "إجمالي التكلفة" %}
+                  </label>
+                  <input type="number" id="id_ctp_total_cost" class="form-control form-control-lg text-primary fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات المطبعة -->
+            <div class="sub-section mb-4" id="press-fields">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-print me-2"></i>{% trans "الطباعة الأوفست" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_supplier" class="form-label">
+                    {% trans "المطبعة" %}
+                  </label>
+                  <select id="id_supplier" name="supplier" class="form-select">
+                    <option value="">{% trans "اختر المطبعة" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_press" class="form-label">
+                    {% trans "ماكينة الطباعة" %}
+                  </label>
+                  <select id="id_press" name="press" class="form-select">
+                    <option value="">{% trans "اختر الماكينة" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_press_price_per_1000" class="form-label">
+                    {% trans "سعر التراج" %}
+                  </label>
+                  <input type="number" id="id_press_price_per_1000" name="press_price_per_1000" class="form-control" readonly>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_press_runs" class="form-label">
+                    {% trans "عدد التراجات" %}
+                  </label>
+                  <input type="number" id="id_press_runs" name="press_runs" class="form-control" min="1" value="1">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_press_transportation" class="form-label">
+                    {% trans "تكلفة الانتقالات" %}
+                  </label>
+                  <input type="number" id="id_press_transportation" name="press_transportation" class="form-control" value="0.00" step="0.01" min="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="id_press_notes" class="form-label">
+                    {% trans "ملاحظات" %}
+                  </label>
+                  <textarea id="id_press_notes" name="press_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_press_total_cost" class="form-label">
+                    {% trans "إجمالي التكلفة" %}
+                  </label>
+                  <input type="number" id="id_press_total_cost" class="form-control form-control-lg text-primary fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات الورق -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-file me-2"></i>{% trans "معلومات الورق" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_type" class="form-label">
+                    {% trans "نوع الورق" %}
+                  </label>
+                  <select id="id_paper_type" name="paper_type" class="form-select">
+                    <option value="">{% trans "اختر نوع الورق" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_supplier" class="form-label">
+                    {% trans "مورد الورق" %}
+                  </label>
+                  <select id="id_paper_supplier" name="paper_supplier" class="form-select">
+                    <option value="">{% trans "اختر المورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_sheet_type" class="form-label">
+                    {% trans "مقاس الفرخ" %}
+                  </label>
+                  <select id="id_paper_sheet_type" name="paper_sheet_type" class="form-select">
+                    <option value="">{% trans "اختر مقاس الفرخ" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_weight" class="form-label">
+                    {% trans "جرام الورق" %}
+                  </label>
+                  <select id="id_paper_weight" name="paper_weight" class="form-select">
+                    <option value="">{% trans "اختر الجرام" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_origin" class="form-label">
+                    {% trans "بلد المنشأ" %}
+                  </label>
+                  <select id="id_paper_origin" name="paper_origin" class="form-select">
+                    <option value="">{% trans "اختر بلد المنشأ" %}</option>
+                    <option value="local">{% trans "محلي" %}</option>
+                    <option value="imported">{% trans "مستورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_paper_price" class="form-label">
+                    {% trans "سعر الفرخ" %}
+                  </label>
+                  <input type="number" id="id_paper_price" name="paper_price" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "يتم تحديثه تلقائياً" %}</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_paper_sheets_count" class="form-label">
+                    {% trans "عدد الأفرخ" %}
+                  </label>
+                  <input type="number" id="id_paper_sheets_count" name="paper_sheets_count" class="form-control" min="1">
+                  <small id="paper-sheets-info" class="form-text text-muted"></small>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_paper_total_cost" class="form-label">
+                    {% trans "إجمالي تكلفة الورق" %}
+                  </label>
+                  <input type="number" id="id_paper_total_cost" name="paper_total_cost" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "السعر × عدد الأفرخ" %}</small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- خدمات ما بعد الطباعة للغلاف -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-magic me-2"></i>{% trans "خدمات ما بعد الطباعة للغلاف" %}
+              </h6>
+              
+              <!-- خدمة التغطية -->
+              <div class="finishing-service mb-4" id="cover-coating-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_cover_coating" name="enable_cover_coating">
+                      <label class="form-check-label fw-bold" for="enable_cover_coating">
+                        <i class="fas fa-brush me-2"></i>{% trans "خدمة التغطية" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="cover-coating-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_coating_supplier" class="form-label">{% trans "مورد التغطية" %}</label>
+                        <select id="id_cover_coating_supplier" name="cover_coating_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_coating_type" class="form-label">{% trans "نوع التغطية" %}</label>
+                        <select id="id_cover_coating_type" name="cover_coating_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="varnish">{% trans "ورنيش" %}</option>
+                          <option value="uv">{% trans "طلاء UV" %}</option>
+                          <option value="aqueous">{% trans "طلاء مائي" %}</option>
+                          <option value="spot_uv">{% trans "UV نقطي" %}</option>
+                          <option value="matte">{% trans "طلاء مطفي" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_coating_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_cover_coating_cost" name="cover_coating_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة الطي -->
+              <div class="finishing-service mb-4" id="cover-folding-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_cover_folding" name="enable_cover_folding">
+                      <label class="form-check-label fw-bold" for="enable_cover_folding">
+                        <i class="fas fa-compress me-2"></i>{% trans "خدمة الطي" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="cover-folding-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_folding_supplier" class="form-label">{% trans "مورد الطي" %}</label>
+                        <select id="id_cover_folding_supplier" name="cover_folding_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_folding_type" class="form-label">{% trans "نوع الطي" %}</label>
+                        <select id="id_cover_folding_type" name="cover_folding_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="half_fold">{% trans "طي نصف" %}</option>
+                          <option value="tri_fold">{% trans "طي ثلاثي" %}</option>
+                          <option value="z_fold">{% trans "طي زد" %}</option>
+                          <option value="gate_fold">{% trans "طي بوابة" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_folding_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_cover_folding_cost" name="cover_folding_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة القص -->
+              <div class="finishing-service mb-4" id="cover-die-cut-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_cover_die_cut" name="enable_cover_die_cut">
+                      <label class="form-check-label fw-bold" for="enable_cover_die_cut">
+                        <i class="fas fa-cut me-2"></i>{% trans "خدمة القص" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="cover-die-cut-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_die_cut_supplier" class="form-label">{% trans "مورد القص" %}</label>
+                        <select id="id_cover_die_cut_supplier" name="cover_die_cut_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_die_cut_type" class="form-label">{% trans "نوع القص" %}</label>
+                        <select id="id_cover_die_cut_type" name="cover_die_cut_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="straight_cut">{% trans "قص مستقيم" %}</option>
+                          <option value="round_corner">{% trans "قص زوايا دائرية" %}</option>
+                          <option value="custom_shape">{% trans "قص شكل مخصص" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_die_cut_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_cover_die_cut_cost" name="cover_die_cut_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة التقفيل -->
+              <div class="finishing-service mb-4" id="cover-packaging-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_cover_packaging" name="enable_cover_packaging">
+                      <label class="form-check-label fw-bold" for="enable_cover_packaging">
+                        <i class="fas fa-box me-2"></i>{% trans "خدمة التقفيل" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="cover-packaging-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_packaging_supplier" class="form-label">{% trans "مورد التقفيل" %}</label>
+                        <select id="id_cover_packaging_supplier" name="cover_packaging_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_packaging_type" class="form-label">{% trans "نوع التقفيل" %}</label>
+                        <select id="id_cover_packaging_type" name="cover_packaging_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="lamination">{% trans "تقفيل" %}</option>
+                          <option value="cellophane">{% trans "سيلوفان" %}</option>
+                          <option value="thermal_wrap">{% trans "تغليف حراري" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_cover_packaging_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_cover_packaging_cost" name="cover_packaging_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- إجمالي تكلفة خدمات ما بعد الطباعة للغلاف -->
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_cover_total_finishing_cost" class="form-label fw-bold">
+                    {% trans "إجمالي تكلفة خدمات ما بعد الطباعة للغلاف" %}
+                  </label>
+                  <input type="number" id="id_cover_total_finishing_cost" name="cover_total_finishing_cost" class="form-control form-control-lg text-success fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+              <button type="button" class="btn btn-secondary btn-prev">
+                <i class="fas fa-arrow-right me-2"></i> {% trans "السابق" %}
+              </button>
+              <button type="button" class="btn btn-primary btn-next">
+                {% trans "التالي" %} <i class="fas fa-arrow-left ms-2"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- قسم 3: تفاصيل المحتوى الداخلي -->
+          <div class="form-section" data-section="3">
+            <!-- بيانات عامة للمحتوى الداخلي -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-cogs me-2"></i>{% trans "بيانات عامة للمحتوى الداخلي" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_order_type" class="form-label">{% trans "نوع الطباعة" %}</label>
+                  <select id="id_internal_order_type" name="internal_order_type" class="form-select">
+                    <option value="offset">{% trans "أوفست" %}</option>
+                    <option value="digital">{% trans "ديجيتال" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_print_sides" class="form-label">{% trans "عدد الأوجه" %}</label>
+                  <select id="id_internal_print_sides" name="internal_print_sides" class="form-select">
+                    <option value="1">{% trans "وجه" %}</option>
+                    <option value="2">{% trans "وجهين" %}</option>
+                    <option value="3">{% trans "طبع وقلب" %}</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            
+            <!-- التصميم للمحتوى الداخلي -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-palette me-2"></i>{% trans "التصميم" %}
+              </h6>
+              <!-- حقول ألوان التصميم -->
+              <div class="row" id="internal-single-side-colors">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_colors_design" class="form-label">{% trans "عدد ألوان التصميم" %}</label>
+                  <input type="number" id="id_internal_colors_design" name="internal_colors_design" class="form-control" min="0" value="0">
+                </div>
+              </div>
+              
+              <div class="row" id="internal-double-side-colors">
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_colors_front" class="form-label">{% trans "عدد ألوان الوجه" %}</label>
+                  <input type="number" id="id_internal_colors_front" name="internal_colors_front" class="form-control" min="0" value="0">
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_colors_back" class="form-label">{% trans "عدد ألوان الظهر" %}</label>
+                  <input type="number" id="id_internal_colors_back" name="internal_colors_back" class="form-control" min="0" value="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_design_price" class="form-label">{% trans "سعر التصميم" %}</label>
+                  <input type="number" id="id_internal_design_price" name="internal_design_price" class="form-control" step="0.01" min="0">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_montage_info" class="form-label">{% trans "العدد / المونتاج" %}</label>
+                  <input type="text" id="id_internal_montage_info" class="form-control" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات الزنكات (CTP) للمحتوى الداخلي -->
+            <div class="sub-section mb-4" id="internal-ctp-fields">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-layer-group me-2"></i>{% trans "معلومات الزنكات (CTP)" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_ctp_supplier" class="form-label">{% trans "مورد الزنكات" %}</label>
+                  <select id="id_internal_ctp_supplier" name="internal_ctp_supplier" class="form-select">
+                    <option value="">{% trans "اختر المورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_ctp_plate_size" class="form-label">{% trans "مقاس الزنك" %}</label>
+                  <select id="id_internal_ctp_plate_size" name="internal_ctp_plate_size" class="form-select">
+                    <option value="">{% trans "اختر المقاس" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_ctp_plates_count" class="form-label">{% trans "عدد الزنكات" %}</label>
+                  <input type="number" id="id_internal_ctp_plates_count" name="internal_ctp_plates_count" class="form-control" min="1">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_ctp_plate_price" class="form-label">{% trans "سعر الزنك" %}</label>
+                  <input type="number" id="id_internal_ctp_plate_price" name="internal_ctp_plate_price" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "يتم تحديثه تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_ctp_transportation" class="form-label">{% trans "تكلفة الانتقالات" %}</label>
+                  <input type="number" id="id_internal_ctp_transportation" name="internal_ctp_transportation" class="form-control" value="0.00" step="0.01" min="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="id_internal_ctp_notes" class="form-label">{% trans "ملاحظات" %}</label>
+                  <textarea id="id_internal_ctp_notes" name="internal_ctp_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_ctp_total_cost" class="form-label">{% trans "إجمالي التكلفة" %}</label>
+                  <input type="number" id="id_internal_ctp_total_cost" class="form-control form-control-lg text-primary fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات المطبعة للمحتوى الداخلي -->
+            <div class="sub-section mb-4" id="internal-press-fields">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-print me-2"></i>{% trans "الطباعة الأوفست" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_supplier" class="form-label">{% trans "المطبعة" %}</label>
+                  <select id="id_internal_supplier" name="internal_supplier" class="form-select">
+                    <option value="">{% trans "اختر المطبعة" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_press" class="form-label">{% trans "ماكينة الطباعة" %}</label>
+                  <select id="id_internal_press" name="internal_press" class="form-select">
+                    <option value="">{% trans "اختر الماكينة" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_press_price_per_1000" class="form-label">{% trans "سعر التراج" %}</label>
+                  <input type="number" id="id_internal_press_price_per_1000" name="internal_press_price_per_1000" class="form-control" readonly>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_press_runs" class="form-label">{% trans "عدد التراجات" %}</label>
+                  <input type="number" id="id_internal_press_runs" name="internal_press_runs" class="form-control" min="1" value="1">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_press_transportation" class="form-label">{% trans "تكلفة الانتقالات" %}</label>
+                  <input type="number" id="id_internal_press_transportation" name="internal_press_transportation" class="form-control" value="0.00" step="0.01" min="0">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-8 mb-3">
+                  <label for="id_internal_press_notes" class="form-label">{% trans "ملاحظات" %}</label>
+                  <textarea id="id_internal_press_notes" name="internal_press_notes" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_internal_press_total_cost" class="form-label">{% trans "إجمالي التكلفة" %}</label>
+                  <input type="number" id="id_internal_press_total_cost" class="form-control form-control-lg text-primary fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <!-- معلومات الورق للمحتوى الداخلي -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-file me-2"></i>{% trans "معلومات الورق" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_type" class="form-label">{% trans "نوع الورق" %}</label>
+                  <select id="id_internal_paper_type" name="internal_paper_type" class="form-select">
+                    <option value="">{% trans "اختر نوع الورق" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_supplier" class="form-label">{% trans "مورد الورق" %}</label>
+                  <select id="id_internal_paper_supplier" name="internal_paper_supplier" class="form-select">
+                    <option value="">{% trans "اختر المورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_sheet_type" class="form-label">{% trans "مقاس الفرخ" %}</label>
+                  <select id="id_internal_paper_sheet_type" name="internal_paper_sheet_type" class="form-select">
+                    <option value="">{% trans "اختر مقاس الفرخ" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_weight" class="form-label">{% trans "جرام الورق" %}</label>
+                  <select id="id_internal_paper_weight" name="internal_paper_weight" class="form-select">
+                    <option value="">{% trans "اختر الجرام" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_origin" class="form-label">{% trans "بلد المنشأ" %}</label>
+                  <select id="id_internal_paper_origin" name="internal_paper_origin" class="form-select">
+                    <option value="">{% trans "اختر بلد المنشأ" %}</option>
+                    <option value="local">{% trans "محلي" %}</option>
+                    <option value="imported">{% trans "مستورد" %}</option>
+                  </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_paper_price" class="form-label">{% trans "سعر الفرخ" %}</label>
+                  <input type="number" id="id_internal_paper_price" name="internal_paper_price" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "يتم تحديثه تلقائياً" %}</small>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_paper_sheets_count" class="form-label">{% trans "عدد الأفرخ" %}</label>
+                  <input type="number" id="id_internal_paper_sheets_count" name="internal_paper_sheets_count" class="form-control" min="1">
+                  <small id="internal-paper-sheets-info" class="form-text text-muted"></small>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_paper_total_cost" class="form-label">{% trans "إجمالي تكلفة الورق" %}</label>
+                  <input type="number" id="id_internal_paper_total_cost" name="internal_paper_total_cost" class="form-control" readonly>
+                  <small class="form-text text-muted">{% trans "السعر × عدد الأفرخ" %}</small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- خدمات ما بعد الطباعة للمحتوى الداخلي -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-magic me-2"></i>{% trans "خدمات ما بعد الطباعة للمحتوى الداخلي" %}
+              </h6>
+              
+              <!-- خدمة التغطية للمحتوى الداخلي -->
+              <div class="finishing-service mb-4" id="internal-coating-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_internal_coating" name="enable_internal_coating">
+                      <label class="form-check-label fw-bold" for="enable_internal_coating">
+                        <i class="fas fa-brush me-2"></i>{% trans "خدمة التغطية" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="internal-coating-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_coating_supplier" class="form-label">{% trans "مورد التغطية" %}</label>
+                        <select id="id_internal_coating_supplier" name="internal_coating_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_coating_type" class="form-label">{% trans "نوع التغطية" %}</label>
+                        <select id="id_internal_coating_type" name="internal_coating_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="varnish">{% trans "ورنيش" %}</option>
+                          <option value="uv">{% trans "طلاء UV" %}</option>
+                          <option value="aqueous">{% trans "طلاء مائي" %}</option>
+                          <option value="spot_uv">{% trans "UV نقطي" %}</option>
+                          <option value="matte">{% trans "طلاء مطفي" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_coating_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_internal_coating_cost" name="internal_coating_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة الطي للمحتوى الداخلي -->
+              <div class="finishing-service mb-4" id="internal-folding-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_internal_folding" name="enable_internal_folding">
+                      <label class="form-check-label fw-bold" for="enable_internal_folding">
+                        <i class="fas fa-compress me-2"></i>{% trans "خدمة الطي" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="internal-folding-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_folding_supplier" class="form-label">{% trans "مورد الطي" %}</label>
+                        <select id="id_internal_folding_supplier" name="internal_folding_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_folding_type" class="form-label">{% trans "نوع الطي" %}</label>
+                        <select id="id_internal_folding_type" name="internal_folding_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="half_fold">{% trans "طي نصف" %}</option>
+                          <option value="tri_fold">{% trans "طي ثلاثي" %}</option>
+                          <option value="z_fold">{% trans "طي زد" %}</option>
+                          <option value="gate_fold">{% trans "طي بوابة" %}</option>
+                          <option value="accordion_fold">{% trans "طي أكورديون" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_folding_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_internal_folding_cost" name="internal_folding_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة القص للمحتوى الداخلي -->
+              <div class="finishing-service mb-4" id="internal-die-cut-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_internal_die_cut" name="enable_internal_die_cut">
+                      <label class="form-check-label fw-bold" for="enable_internal_die_cut">
+                        <i class="fas fa-cut me-2"></i>{% trans "خدمة القص" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="internal-die-cut-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_die_cut_supplier" class="form-label">{% trans "مورد القص" %}</label>
+                        <select id="id_internal_die_cut_supplier" name="internal_die_cut_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_die_cut_type" class="form-label">{% trans "نوع القص" %}</label>
+                        <select id="id_internal_die_cut_type" name="internal_die_cut_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="straight_cut">{% trans "قص مستقيم" %}</option>
+                          <option value="round_corner">{% trans "قص زوايا دائرية" %}</option>
+                          <option value="custom_shape">{% trans "قص شكل مخصص" %}</option>
+                          <option value="perforation">{% trans "تثقيب" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_die_cut_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_internal_die_cut_cost" name="internal_die_cut_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- خدمة التقفيل للمحتوى الداخلي -->
+              <div class="finishing-service mb-4" id="internal-packaging-service">
+                <div class="card">
+                  <div class="card-header">
+                    <div class="form-check">
+                      <input type="checkbox" class="form-check-input" id="enable_internal_packaging" name="enable_internal_packaging">
+                      <label class="form-check-label fw-bold" for="enable_internal_packaging">
+                        <i class="fas fa-box me-2"></i>{% trans "خدمة التقفيل" %}
+                      </label>
+                    </div>
+                  </div>
+                  <div class="card-body" id="internal-packaging-fields">
+                    <div class="row">
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_packaging_supplier" class="form-label">{% trans "مورد التقفيل" %}</label>
+                        <select id="id_internal_packaging_supplier" name="internal_packaging_supplier" class="form-select">
+                          <option value="">{% trans "اختر المورد" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_packaging_type" class="form-label">{% trans "نوع التقفيل" %}</label>
+                        <select id="id_internal_packaging_type" name="internal_packaging_type" class="form-select">
+                          <option value="">{% trans "اختر النوع" %}</option>
+                          <option value="lamination">{% trans "تقفيل" %}</option>
+                          <option value="cellophane">{% trans "سيلوفان" %}</option>
+                          <option value="thermal_wrap">{% trans "تغليف حراري" %}</option>
+                          <option value="box_packing">{% trans "تعبئة في صناديق" %}</option>
+                          <option value="custom_pack">{% trans "تعبئة مخصصة" %}</option>
+                        </select>
+                      </div>
+                      <div class="col-md-4 mb-3">
+                        <label for="id_internal_packaging_cost" class="form-label">{% trans "التكلفة" %}</label>
+                        <input type="number" id="id_internal_packaging_cost" name="internal_packaging_cost" class="form-control" step="0.01" min="0">
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- إجمالي تكلفة خدمات ما بعد الطباعة للمحتوى الداخلي -->
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_internal_total_finishing_cost" class="form-label fw-bold">
+                    {% trans "إجمالي تكلفة خدمات ما بعد الطباعة للمحتوى الداخلي" %}
+                  </label>
+                  <input type="number" id="id_internal_total_finishing_cost" name="internal_total_finishing_cost" class="form-control form-control-lg text-success fw-bold" readonly>
+                </div>
+              </div>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-3">
+              <button type="button" class="btn btn-secondary btn-prev">
+                <i class="fas fa-arrow-right me-2"></i> {% trans "السابق" %}
+              </button>
+              <button type="button" class="btn btn-primary btn-next">
+                {% trans "التالي" %} <i class="fas fa-arrow-left ms-2"></i>
+              </button>
+            </div>
+          </div>
+          
+          <!-- قسم 4: المراجعة والحفظ -->
+          <div class="form-section" data-section="4">
+            <!-- التكاليف -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-primary mb-3">
+                <i class="fas fa-calculator me-2"></i>{% trans "التكاليف" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_printing_cost" class="form-label">
+                    {% trans "تكلفة الطباعة" %}
+                  </label>
+                  <input type="number" id="id_printing_cost" name="printing_cost" class="form-control" readonly step="0.01">
+                  <small class="form-text text-muted">{% trans "يتم حسابها تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3" id="plates-cost-field">
+                  <label for="id_plates_cost" class="form-label">
+                    {% trans "تكلفة الزنكات" %}
+                  </label>
+                  <input type="number" id="id_plates_cost" name="plates_cost" class="form-control" readonly step="0.01">
+                  <small class="form-text text-muted">{% trans "يتم حسابها تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_material_cost" class="form-label">
+                    {% trans "تكلفة الورق" %}
+                  </label>
+                  <input type="number" id="id_material_cost" name="material_cost" class="form-control" readonly step="0.01">
+                  <small class="form-text text-muted">{% trans "يتم حسابها تلقائياً" %}</small>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="id_finishing_cost" class="form-label">
+                    {% trans "تكلفة خدمات ما بعد الطباعة" %}
+                  </label>
+                  <input type="number" id="id_finishing_cost" name="finishing_cost" class="form-control" readonly step="0.01">
+                  <small class="form-text text-muted">{% trans "يتم حسابها تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_design_price_summary" class="form-label">
+                    {% trans "تكلفة التصميم" %}
+                  </label>
+                  <input type="number" id="id_design_price_summary" name="design_price_summary" class="form-control" readonly step="0.01">
+                  <small class="form-text text-muted">{% trans "يتم حسابها تلقائياً" %}</small>
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_extra_cost" class="form-label">
+                    {% trans "تكاليف إضافية" %}
+                  </label>
+                  <input type="number" id="id_extra_cost" name="extra_cost" class="form-control" step="0.01" min="0" value="0">
+                  <small class="form-text text-muted">{% trans "تكاليف إضافية اختيارية" %}</small>
+                </div>
+              </div>
+            </div>
+            
+            <!-- التسعير -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-success mb-3">
+                <i class="fas fa-money-bill-wave me-2"></i>{% trans "التسعير" %}
+              </h6>
+              <div class="row">
+                <div class="col-md-6 mb-3">
+                  <label for="id_total_cost" class="form-label fw-bold">
+                    {% trans "إجمالي التكلفة" %}
+                  </label>
+                  <input type="number" id="id_total_cost" name="total_cost" class="form-control form-control-lg text-primary fw-bold" readonly step="0.01">
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="id_unit_price" class="form-label fw-bold">
+                    {% trans "سعر الوحدة" %}
+                  </label>
+                  <input type="number" id="id_unit_price" name="unit_price" class="form-control form-control-lg text-primary fw-bold" readonly step="0.01">
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-4 mb-3">
+                  <label for="{{ form.profit_margin.id_for_label }}" class="form-label">
+                    {{ form.profit_margin.label }}
+                  </label>
+                  <div class="input-group">
+                    <input type="number" class="form-control" id="{{ form.profit_margin.id_for_label }}" name="{{ form.profit_margin.name }}" value="{{ form.profit_margin.value|default:'20' }}" step="0.01" min="0" max="100">
+                    <span class="input-group-text">%</span>
+                  </div>
+                  {% if form.profit_margin.errors %}
+                    <div class="invalid-feedback d-block">
+                      {{ form.profit_margin.errors.0 }}
+                    </div>
+                  {% endif %}
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_sale_price" class="form-label fw-bold text-success">
+                    {% trans "سعر البيع" %}
+                  </label>
+                  <input type="number" id="id_sale_price" name="sale_price" class="form-control form-control-lg text-success fw-bold" readonly step="0.01">
+                </div>
+                <div class="col-md-4 mb-3">
+                  <label for="id_profit_amount" class="form-label fw-bold text-success">
+                    {% trans "مبلغ الربح" %}
+                  </label>
+                  <input type="number" id="id_profit_amount" name="profit_amount" class="form-control form-control-lg text-success fw-bold" readonly step="0.01">
+                </div>
+              </div>
+            </div>
+            
+            <!-- ملخص الطلب -->
+            <div class="sub-section mb-4">
+              <h6 class="sub-section-title text-info mb-3">
+                <i class="fas fa-clipboard-list me-2"></i>{% trans "ملخص الطلب" %}
+              </h6>
+              <div class="card bg-light">
+                <div class="card-body">
+                  <div class="row">
+                    <div class="col-md-6">
+                      <h6 class="text-muted">{% trans "معلومات أساسية" %}</h6>
+                      <p class="mb-1"><strong>{% trans "العميل:" %}</strong> <span id="summary-customer">-</span></p>
+                      <p class="mb-1"><strong>{% trans "عنوان الطلب:" %}</strong> <span id="summary-title">-</span></p>
+                      <p class="mb-1"><strong>{% trans "نوع الطباعة:" %}</strong> <span id="summary-order-type">-</span></p>
+                      <p class="mb-1"><strong>{% trans "الكمية:" %}</strong> <span id="summary-quantity">-</span></p>
+                    </div>
+                    <div class="col-md-6">
+                      <h6 class="text-muted">{% trans "التكلفة النهائية" %}</h6>
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{% trans "إجمالي التكلفة:" %}</span>
+                        <span class="fw-bold" id="summary-total-cost">0.00</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{% trans "هامش الربح:" %}</span>
+                        <span class="fw-bold text-info" id="summary-profit-margin">20%</span>
+                      </div>
+                      <div class="d-flex justify-content-between align-items-center border-top pt-2">
+                        <span class="fw-bold text-success">{% trans "سعر البيع النهائي:" %}</span>
+                        <span class="fw-bold text-success fs-5" id="summary-final-price">0.00</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- أزرار الحفظ -->
+            
+            <div class="d-flex justify-content-between mb-3">
+              <button type="button" class="btn btn-secondary btn-prev">
+                <i class="fas fa-arrow-right me-2"></i> {% trans "السابق" %}
+              </button>
+              <div class="d-flex gap-2">
+                <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-outline-secondary">
+                  <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                </a>
+                <button type="submit" class="btn btn-success">
+                  <i class="fas fa-save me-2"></i>
+                  {% if object %}{% trans "حفظ التغييرات" %}{% else %}{% trans "إنشاء الطلب" %}{% endif %}
+                </button>
+              </div>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Select2 JavaScript -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<!-- نظام الإشعارات الموحد -->
+<script src="{% static 'js/toastr-system.js' %}"></script>
+
+<!-- نظام التنقل بين الخطوات -->
+<script src="{% static 'js/printing_pricing/steps-navigation.js' %}"></script>
+
+<!-- JavaScript للنظام الجديد -->
+<script src="{% static 'js/printing_pricing/field-handlers.js' %}"></script>
+
+<!-- تفعيل النظام المتقدم للتحويل الكامل -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل النظام المتقدم للتحويل الكامل
+    if (typeof initAdvancedToastrMode !== 'undefined') {
+        initAdvancedToastrMode();
+    }
+    
+    console.log('🎯 تم تحميل نظام التسعير الجديد بنجاح');
+    
+    
+    // إشعار بالتحسينات الجديدة باستخدام النظام الموحد
+    setTimeout(function() {
+        if (typeof showPricingNotification !== 'undefined') {
+            showPricingNotification('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'success', 'تم التحميل');
+        } else if (typeof showSuccess !== 'undefined') {
+            showSuccess('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'تم التحميل');
+        } else if (typeof toastr !== 'undefined') {
+            toastr.success('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'تم التحميل');
+        }
+    }, 2000);
+});
+</script>
+{% endblock %}

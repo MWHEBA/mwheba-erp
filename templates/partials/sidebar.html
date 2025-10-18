@@ -275,6 +275,38 @@
                     </ul>
                 </li>
 
+                <!-- التسعير الجديد -->
+                <li class="sidebar-item">
+                    <a href="#printingPricingMenu" class="sidebar-link collapsed {% if active_menu == 'printing_pricing' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-print sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "التسعير الجديد" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'printing_pricing' %}show{% endif %}" id="printingPricingMenu">
+                        <!-- لوحة التحكم -->
+                        <li>
+                            <a href="{% url 'printing_pricing:dashboard' %}" class="submenu-link">
+                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة التحكم" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- الطلبات -->
+                        <li class="submenu-title">طلبات التسعير</li>
+                        <li>
+                            <a href="{% url 'printing_pricing:order_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة الطلبات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'printing_pricing:order_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "طلب جديد" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
                 <!-- المخازن والمخزون -->
                 <li class="sidebar-item">
                     <a href="#warehousesMenu" class="sidebar-link collapsed {% if active_menu == 'warehouses' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">

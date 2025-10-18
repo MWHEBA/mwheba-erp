@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+
+{% block title %}{% trans "لوحة التحكم - نظام التسعير" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- عنوان الصفحة -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-tachometer-alt fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% trans "لوحة التحكم - نظام التسعير" %}</h1>
+                  <p class="text-muted mb-0">{% trans "نظرة عامة على نشاط نظام التسعير المحسن" %}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'printing_pricing:order_create' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>{% trans "طلب جديد" %}
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الطلبات" %}</div>
+            <div class="stats-card-value">{{ stats.total_orders|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "طلب تسعير" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-card-title">{% trans "قيد المراجعة" %}</div>
+            <div class="stats-card-value">{{ stats.pending_orders|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "طلب" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-card-title">{% trans "طلبات مكتملة" %}</div>
+            <div class="stats-card-value">{{ stats.completed_orders|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "طلب" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+            <div class="stats-card-value">{{ stats.total_revenue|default:"0.00"|floatformat:2 }}</div>
+            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- الطلبات الحديثة -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-history me-2"></i>{% trans "الطلبات الحديثة" %}</h5>
+        <div class="actions-container">
+          <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-sm btn-outline-primary">
+            <i class="fas fa-list me-1"></i>{% trans "عرض الكل" %}
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if recent_orders %}
+        <div class="table-responsive">
+          <table class="table table-hover" id="recent-orders-table">
+            <thead>
+              <tr>
+                <th>{% trans "رقم الطلب" %}</th>
+                <th>{% trans "العنوان" %}</th>
+                <th>{% trans "العميل" %}</th>
+                <th>{% trans "الحالة" %}</th>
+                <th>{% trans "التكلفة" %}</th>
+                <th>{% trans "التاريخ" %}</th>
+                <th>{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in recent_orders %}
+              <tr>
+                <td>
+                  <a href="{% url 'printing_pricing:order_detail' order.pk %}" class="text-primary">
+                    {{ order.order_number }}
+                  </a>
+                </td>
+                <td>{{ order.title|truncatechars:30 }}</td>
+                <td>{{ order.customer|truncatechars:20 }}</td>
+                <td>
+                  <span class="badge bg-{{ order.status|default:'secondary' }}">
+                    {{ order.get_status_display }}
+                  </span>
+                </td>
+                <td>{{ order.total_cost|default:"0.00"|floatformat:2 }} {% trans "ج.م" %}</td>
+                <td>{{ order.created_at|date:"d/m/Y H:i" }}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'printing_pricing:order_detail' order.pk %}" 
+                       class="btn btn-outline-primary btn-sm" title="{% trans 'عرض' %}">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{% url 'printing_pricing:order_update' order.pk %}" 
+                       class="btn btn-outline-warning btn-sm" title="{% trans 'تحرير' %}">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد طلبات حديثة" icon="inbox" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/printing_pricing/dashboard.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.Dashboard) {
+        PrintingPricing.Dashboard.init();
+    }
+});
+</script>
+{% endblock %}
