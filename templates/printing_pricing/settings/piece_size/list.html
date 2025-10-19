@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+{% load pricing_filters %}
+
+{% block title %}{% translate "مقاسات القطع" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"مقاسات القطع" }}</h1>
+                    <p class="text-muted mb-0">إدارة مقاسات القطع المختلفة حسب نوع الورق</p>
+                </div>
+            </div>
+            <div>
+                <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fas fa-plus me-2"></i>{% translate "إضافة مقاس جديد" %}
+                </button>
+            </div>
+        </div>
+    </div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "اسم المقاس" %}</th>
+                        <th>{% trans "الأبعاد (سم)" %}</th>
+                        <th>{% trans "مقاس الورق الأساسي" %}</th>
+                        <th>{% trans "عدد القطع في الفرخ" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "افتراضي" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for piece_size in piece_sizes %}
+                    <tr>
+                        <td>
+                            <strong>{{ piece_size.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="text-info">
+                                <i class="fas fa-cut me-1"></i>
+                                {{ piece_size.width|remove_trailing_zeros }} × {{ piece_size.height|remove_trailing_zeros }} سم
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-primary">
+                                <i class="fas fa-file-alt me-1"></i>
+                                {{ piece_size.get_paper_type_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="text-success">
+                                <i class="fas fa-calculator me-1"></i>
+                                {{ piece_size.get_pieces_per_sheet_display }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if piece_size.is_active %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check me-1"></i>{% trans "نشط" %}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">
+                                    <i class="fas fa-times me-1"></i>{% trans "غير نشط" %}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if piece_size.is_default %}
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-star me-1"></i>{% trans "افتراضي" %}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ piece_size.pk }})" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ piece_size.pk }})" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-cut fa-3x mb-3 d-block"></i>
+                            {% trans "لا توجد مقاسات قطع مضافة بعد" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<!-- Modal للإنشاء والتعديل -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="modalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal للحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="deleteModalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateModal() {
+    fetch('{% url "pricing:piece_size_create" %}')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openEditModal(id) {
+    fetch(`{% url "pricing:piece_size_edit" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openDeleteModal(id) {
+    fetch(`{% url "pricing:piece_size_delete" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+}
+
+function submitForm(formId) {
+    const form = document.getElementById(formId);
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            console.log(data.errors);
+        }
+    });
+}
+
+// دالة حساب عدد القطع تلقائياً - متاحة عالمياً
+function calculatePieces() {
+    console.log('🔄 تم الضغط على زر الحساب التلقائي');
+    
+    const paperTypeSelect = document.querySelector('[name="paper_type"]');
+    const widthInput = document.querySelector('[name="width"]');
+    const heightInput = document.querySelector('[name="height"]');
+    const piecesInput = document.querySelector('[name="pieces_per_sheet"]');
+    
+    if (!paperTypeSelect || !widthInput || !heightInput || !piecesInput) {
+        alert('لا يمكن العثور على الحقول المطلوبة');
+        return;
+    }
+    
+    console.log('📋 القيم الحالية:', {
+        paperType: paperTypeSelect.value,
+        width: widthInput.value,
+        height: heightInput.value
+    });
+    
+    if (!paperTypeSelect.value || !widthInput.value || !heightInput.value) {
+        alert('يرجى اختيار مقاس الورق الأساسي وإدخال أبعاد القطع أولاً');
+        return;
+    }
+    
+    // الحصول على أبعاد الورق المختار
+    const selectedOption = paperTypeSelect.options[paperTypeSelect.selectedIndex];
+    const optionText = selectedOption.text;
+    console.log('📄 الخيار المختار:', optionText);
+    
+    // استخراج الأبعاد من النص مباشرة
+    const dimensionMatch = optionText.match(/(\d+(?:\.\d+)?)\s*[×x]\s*(\d+(?:\.\d+)?)/);
+    
+    let paperWidth = 0;
+    let paperHeight = 0;
+    
+    if (dimensionMatch) {
+        paperWidth = parseFloat(dimensionMatch[1]);
+        paperHeight = parseFloat(dimensionMatch[2]);
+        console.log('📏 أبعاد الورق المستخرجة:', { paperWidth, paperHeight });
+    } else {
+        console.log('❌ لم يتم العثور على أبعاد في النص:', optionText);
+        
+        // محاولة أخرى بنمط مختلف - البحث عن أرقام في النص
+        const numbers = optionText.match(/\d+(?:\.\d+)?/g);
+        if (numbers && numbers.length >= 2) {
+            paperWidth = parseFloat(numbers[0]);
+            paperHeight = parseFloat(numbers[1]);
+            console.log('📏 أبعاد الورق من الأرقام:', { paperWidth, paperHeight });
+        }
+    }
+    
+    if (!paperWidth || !paperHeight) {
+        alert('لا يمكن الحصول على أبعاد مقاس الورق المختار');
+        return;
+    }
+    
+    const pieceWidth = parseFloat(widthInput.value);
+    const pieceHeight = parseFloat(heightInput.value);
+    
+    // حساب عدد القطع في الاتجاه العادي
+    const normalPiecesWidth = Math.floor(paperWidth / pieceWidth);
+    const normalPiecesHeight = Math.floor(paperHeight / pieceHeight);
+    const normalTotal = normalPiecesWidth * normalPiecesHeight;
+    
+    // حساب عدد القطع في الاتجاه المعكوس
+    const rotatedPiecesWidth = Math.floor(paperWidth / pieceHeight);
+    const rotatedPiecesHeight = Math.floor(paperHeight / pieceWidth);
+    const rotatedTotal = rotatedPiecesWidth * rotatedPiecesHeight;
+    
+    // اختيار الأفضل
+    const bestTotal = Math.max(normalTotal, rotatedTotal);
+    
+    if (bestTotal > 0) {
+        piecesInput.value = bestTotal;
+        
+        // إظهار رسالة توضيحية
+        const orientation = bestTotal === normalTotal ? 'عادي' : 'مُدوَّر';
+        const message = `تم حساب ${bestTotal} قطعة (اتجاه ${orientation})`;
+        
+        // إظهار رسالة مؤقتة
+        const alert = document.createElement('div');
+        alert.className = 'alert alert-success alert-dismissible fade show mt-2';
+        alert.innerHTML = `
+            <i class="fas fa-check-circle"></i> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        piecesInput.parentNode.parentNode.appendChild(alert);
+        
+        // إزالة الرسالة بعد 3 ثوانٍ
+        setTimeout(() => {
+            if (alert.parentNode) {
+                alert.remove();
+            }
+        }, 3000);
+    } else {
+        alert('لا يمكن قطع أي قطعة من هذا المقاس في الورق المختار');
+    }
+}
+</script>
+{% endblock %}

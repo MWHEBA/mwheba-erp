@@ -109,12 +109,6 @@ class PriceUnit(models.TextChoices):
     """
     PIECE = 'piece', _('بالقطعة')
     THOUSAND = 'thousand', _('بالألف')
-    HUNDRED = 'hundred', _('بالمائة')
-    SHEET = 'sheet', _('بالفرخ')
-    SQUARE_METER = 'square_meter', _('بالمتر المربع')
-    HOUR = 'hour', _('بالساعة')
-    KILOGRAM = 'kilogram', _('بالكيلوجرام')
-    METER = 'meter', _('بالمتر')
 
 
 __all__ = [

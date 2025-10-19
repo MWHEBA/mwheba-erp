@@ -45,7 +45,6 @@ const PrintingPricingSteps = {
             step.addEventListener('click', (e) => {
                 e.preventDefault();
                 const targetStep = index + 1;
-                console.log('نقر على الخطوة:', targetStep);
                 this.navigateToStep(targetStep);
             });
         });
@@ -146,6 +145,12 @@ const PrintingPricingSteps = {
      * التحقق من صحة القسم الحالي
      */
     validateCurrentSection: function() {
+        // استخدام نظام التحقق من field-handlers إذا كان متوفراً
+        if (typeof PrintingFieldHandlers !== 'undefined' && PrintingFieldHandlers.validateSection) {
+            return PrintingFieldHandlers.validateSection(this.currentStep);
+        }
+        
+        // النظام التقليدي كـ fallback
         const currentSection = document.querySelector(`[data-section="${this.currentStep}"]`) || document.querySelector('form');
         if (!currentSection) {
             return true;
@@ -194,13 +199,11 @@ function setupEnterKeyNavigation() {
             // الانتقال للصفحة التالية
             if (typeof PrintingPricingSteps !== 'undefined' && PrintingPricingSteps.nextStep) {
                 PrintingPricingSteps.nextStep();
-                console.log('تم الانتقال للصفحة التالية بمفتاح Enter');
             } else {
                 // بديل إذا لم يكن نظام الخطوات متوفراً
                 const nextButton = document.querySelector('.btn-next:not([style*="display: none"])');
                 if (nextButton) {
                     nextButton.click();
-                    console.log('تم الضغط على زر التالي بمفتاح Enter');
                 }
             }
         }

@@ -342,14 +342,14 @@
                 </div>
               </div>
               
-              <div class="row" id="double-side-colors">
-                <div class="col-md-3 mb-3">
+              <div class="row" id="double-side-colors" style="display: none;">
+                <div class="col-md-6 mb-3">
                   <label for="id_colors_front" class="form-label">
                     {% trans "عدد ألوان الوجه" %}
                   </label>
                   <input type="number" id="id_colors_front" name="colors_front" class="form-control" min="0" value="0">
                 </div>
-                <div class="col-md-3 mb-3">
+                <div class="col-md-6 mb-3">
                   <label for="id_colors_back" class="form-label">
                     {% trans "عدد ألوان الظهر" %}
                   </label>
@@ -533,6 +533,18 @@
                   </label>
                   <select id="id_paper_weight" name="paper_weight" class="form-select">
                     <option value="">{% trans "اختر الجرام" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_piece_size" class="form-label">
+                    {% trans "مقاس القطع" %}
+                  </label>
+                  <select id="id_piece_size" name="piece_size" class="form-select">
+                    <option value="">{% trans "-- اختر مقاس القطع --" %}</option>
+                    <!-- سيتم تحميل مقاسات القطع ديناميكياً من قاعدة البيانات -->
                   </select>
                 </div>
               </div>
@@ -792,12 +804,12 @@
                 </div>
               </div>
               
-              <div class="row" id="internal-double-side-colors">
-                <div class="col-md-3 mb-3">
+              <div class="row" id="internal-double-side-colors" style="display: none;">
+                <div class="col-md-6 mb-3">
                   <label for="id_internal_colors_front" class="form-label">{% trans "عدد ألوان الوجه" %}</label>
                   <input type="number" id="id_internal_colors_front" name="internal_colors_front" class="form-control" min="0" value="0">
                 </div>
-                <div class="col-md-3 mb-3">
+                <div class="col-md-6 mb-3">
                   <label for="id_internal_colors_back" class="form-label">{% trans "عدد ألوان الظهر" %}</label>
                   <input type="number" id="id_internal_colors_back" name="internal_colors_back" class="form-control" min="0" value="0">
                 </div>
@@ -938,6 +950,24 @@
                   <label for="id_internal_paper_weight" class="form-label">{% trans "جرام الورق" %}</label>
                   <select id="id_internal_paper_weight" name="internal_paper_weight" class="form-select">
                     <option value="">{% trans "اختر الجرام" %}</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div class="row">
+                <div class="col-md-3 mb-3">
+                  <label for="id_internal_piece_size" class="form-label">
+                    {% trans "مقاس القطع" %}
+                  </label>
+                  <select id="id_internal_piece_size" name="internal_piece_size" class="form-select">
+                    <option value="">{% trans "-- اختر مقاس القطع --" %}</option>
+                    <option value="A4">A4 (21×29.7 سم)</option>
+                    <option value="A5">A5 (14.8×21 سم)</option>
+                    <option value="A6">A6 (10.5×14.8 سم)</option>
+                    <option value="10x15">10×15 سم</option>
+                    <option value="15x20">15×20 سم</option>
+                    <option value="20x30">20×30 سم</option>
+                    <option value="custom">مقاس مخصص</option>
                   </select>
                 </div>
               </div>
@@ -1340,19 +1370,6 @@ document.addEventListener('DOMContentLoaded', function() {
         initAdvancedToastrMode();
     }
     
-    console.log('🎯 تم تحميل نظام التسعير الجديد بنجاح');
-    
-    
-    // إشعار بالتحسينات الجديدة باستخدام النظام الموحد
-    setTimeout(function() {
-        if (typeof showPricingNotification !== 'undefined') {
-            showPricingNotification('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'success', 'تم التحميل');
-        } else if (typeof showSuccess !== 'undefined') {
-            showSuccess('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'تم التحميل');
-        } else if (typeof toastr !== 'undefined') {
-            toastr.success('✅ النظام جاهز للاستخدام مع جميع التحسينات!', 'تم التحميل');
-        }
-    }, 2000);
 });
 </script>
 {% endblock %}

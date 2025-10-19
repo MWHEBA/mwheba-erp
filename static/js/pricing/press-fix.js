@@ -60,7 +60,6 @@ function loadPressesWithOrderType(supplierId) {
                     }
                 });
                 
-                console.log('تم تحميل ' + data.presses.length + ' ماكينة');
             } else {
                 html = '<option value="">-- لا توجد ماكينات متاحة --</option>';
                 console.log('لا توجد مكابس متاحة');

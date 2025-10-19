@@ -375,7 +375,7 @@ PrintingPricing.Dashboard = {
      */
     displaySearchResults: function(results) {
         // Implementation for displaying search results
-        console.log('Search results:', results);
+        // عرض نتائج البحث
     },
 
     /**

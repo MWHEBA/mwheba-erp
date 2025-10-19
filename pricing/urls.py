@@ -474,6 +474,23 @@ urlpatterns = [
     # التقارير ومؤشرات الأداء
     path("reports-new/", PricingReportListView.as_view(), name="reports_list"),
     path("kpis/", PricingKPIListView.as_view(), name="kpis_list"),
+    # إعدادات مقاسات القطع
+    path("settings/piece-sizes/", views.piece_size_list, name="piece_size_list"),
+    path(
+        "settings/piece-sizes/create/",
+        views.piece_size_create,
+        name="piece_size_create",
+    ),
+    path(
+        "settings/piece-sizes/<int:pk>/edit/",
+        views.piece_size_edit,
+        name="piece_size_edit",
+    ),
+    path(
+        "settings/piece-sizes/<int:pk>/delete/",
+        views.piece_size_delete,
+        name="piece_size_delete",
+    ),
     # إعدادات أنواع ماكينات الأوفست
     path(
         "settings/offset-machine-types/",

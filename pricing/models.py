@@ -156,6 +156,91 @@ class FinishingType(models.Model):
         return self.name
 
 
+class PieceSize(models.Model):
+    """نموذج مقاسات القطع"""
+
+    name = models.CharField(_("اسم المقاس"), max_length=100)
+    width = models.DecimalField(_("العرض (سم)"), max_digits=8, decimal_places=2)
+    height = models.DecimalField(_("الطول (سم)"), max_digits=8, decimal_places=2)
+    paper_type = models.ForeignKey(
+        'PaperSize',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("مقاس الورق الأساسي"),
+        help_text=_("مقاس الورق الأساسي المناسب لهذا المقاس من القطع"),
+        related_name="piece_sizes"
+    )
+    pieces_per_sheet = models.PositiveIntegerField(
+        _("عدد القطع في الفرخ"),
+        null=True,
+        blank=True,
+        help_text=_("عدد القطع التي يمكن قطعها من فرخ واحد من مقاس الورق الأساسي")
+    )
+    is_active = models.BooleanField(_("نشط"), default=True)
+    is_default = models.BooleanField(_("افتراضي"), default=False)
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+
+    class Meta:
+        app_label = "pricing"
+        verbose_name = _("مقاس القطع")
+        verbose_name_plural = _("مقاسات القطع")
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.width}×{self.height} سم)"
+
+    def get_area(self):
+        """حساب المساحة بالسنتيمتر المربع"""
+        return float(self.width * self.height)
+    
+    def get_area_display(self):
+        """عرض المساحة بشكل مقروء"""
+        area = self.get_area()
+        return f"{area} سم²"
+    
+    def get_paper_type_display(self):
+        """عرض نوع الورق الأساسي"""
+        if self.paper_type:
+            return self.paper_type.name
+        return "عام"
+    
+    def calculate_pieces_per_sheet(self):
+        """حساب عدد القطع في الفرخ تلقائياً"""
+        if not self.paper_type:
+            return None
+        
+        # حساب عدد القطع بناءً على الأبعاد
+        pieces_width = int(self.paper_type.width // self.width)
+        pieces_height = int(self.paper_type.height // self.height)
+        
+        # جرب الاتجاه المعكوس أيضاً
+        pieces_width_rotated = int(self.paper_type.width // self.height)
+        pieces_height_rotated = int(self.paper_type.height // self.width)
+        
+        # اختر الطريقة التي تعطي أكبر عدد قطع
+        normal_pieces = pieces_width * pieces_height
+        rotated_pieces = pieces_width_rotated * pieces_height_rotated
+        
+        return max(normal_pieces, rotated_pieces)
+    
+    def get_pieces_per_sheet_display(self):
+        """عرض عدد القطع في الفرخ"""
+        if self.pieces_per_sheet:
+            return f"{self.pieces_per_sheet} قطعة"
+        elif self.paper_type:
+            calculated = self.calculate_pieces_per_sheet()
+            if calculated:
+                return f"{calculated} قطعة (محسوب)"
+        return "غير محدد"
+
+    def save(self, *args, **kwargs):
+        # التأكد من وجود مقاس افتراضي واحد فقط
+        if self.is_default:
+            PieceSize.objects.filter(is_default=True).update(is_default=False)
+        super().save(*args, **kwargs)
+
+
 class PlateSize(models.Model):
     """نموذج أحجام الزنكات"""
 
@@ -336,6 +421,27 @@ class PricingOrder(models.Model):
 
     # تفاصيل إضافية من النظام المرجعي
     paper_weight = models.PositiveIntegerField(_("وزن الورق (جرام)"), default=80)
+    
+    # مقاس القطع
+    PIECE_SIZE_CHOICES = [
+        ('', '-- اختر مقاس القطع --'),
+        ('A4', 'A4 (21×29.7 سم)'),
+        ('A5', 'A5 (14.8×21 سم)'),
+        ('A6', 'A6 (10.5×14.8 سم)'),
+        ('10x15', '10×15 سم'),
+        ('15x20', '15×20 سم'),
+        ('20x30', '20×30 سم'),
+        ('custom', 'مقاس مخصص'),
+    ]
+    
+    piece_size = models.CharField(
+        _("مقاس القطع"),
+        max_length=50,
+        choices=PIECE_SIZE_CHOICES,
+        blank=True,
+        null=True
+    )
+    
     custom_width = models.DecimalField(
         _("العرض المخصص (سم)"), max_digits=8, decimal_places=2, null=True, blank=True
     )

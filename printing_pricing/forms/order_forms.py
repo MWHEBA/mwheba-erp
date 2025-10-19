@@ -164,7 +164,7 @@ class PaperSpecificationForm(forms.ModelForm):
         fields = [
             'paper_type_name', 'paper_weight', 'paper_size_name',
             'sheet_width', 'sheet_height', 'montage_count',
-            'sheet_cost'
+            'piece_size', 'sheet_cost'
         ]
         
         widgets = {
@@ -194,6 +194,10 @@ class PaperSpecificationForm(forms.ModelForm):
                 'class': 'form-control',
                 'min': '1',
                 'step': '1'
+            }),
+            'piece_size': forms.Select(attrs={
+                'class': 'form-control',
+                'placeholder': _('اختر مقاس القطع')
             }),
             'sheet_cost': forms.NumberInput(attrs={
                 'class': 'form-control',

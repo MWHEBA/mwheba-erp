@@ -17,7 +17,6 @@ PricingSystem.Montage = {
         // إنشاء الحاسبة الجديدة إذا كانت متاحة
         if (typeof MontageCalculator !== 'undefined') {
             this.calculator = new MontageCalculator();
-            console.log('تم تحميل النظام الاحترافي الجديد للمونتاج');
         }
         
         // تسجيل معالجات الأحداث مع ناقل الأحداث إذا كان متاحًا

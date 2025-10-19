@@ -166,6 +166,26 @@ class PaperSpecification(BaseModel):
         verbose_name=_("عدد القطع في الفرخ")
     )
     
+    # مقاس القطع
+    PIECE_SIZE_CHOICES = [
+        ('', '-- اختر مقاس القطع --'),
+        ('A4', 'A4 (21×29.7 سم)'),
+        ('A5', 'A5 (14.8×21 سم)'),
+        ('A6', 'A6 (10.5×14.8 سم)'),
+        ('10x15', '10×15 سم'),
+        ('15x20', '15×20 سم'),
+        ('20x30', '20×30 سم'),
+        ('custom', 'مقاس مخصص'),
+    ]
+    
+    piece_size = models.CharField(
+        max_length=50,
+        choices=PIECE_SIZE_CHOICES,
+        blank=True,
+        null=True,
+        verbose_name=_("مقاس القطع")
+    )
+    
     # معلومات التكلفة
     sheet_cost = models.DecimalField(
         max_digits=8,

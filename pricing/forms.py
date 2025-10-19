@@ -5,32 +5,36 @@ from .models import (
     InternalContent,
     OrderFinishing,
     ExtraExpense,
-    OrderComment,
     CtpPlates,
-    PaperType,
-    PaperSize,
-    PlateSize,
+    OrderComment,
     OrderSupplier,
     PricingQuotation,
     PricingApprovalWorkflow,
     PricingApproval,
     PricingReport,
     PricingKPI,
+    PricingSupplierSelection,
+    VATSetting,
+    PaperType,
+    PaperSize,
+    PaperWeight,
+    PaperOrigin,
+    PieceSize,
+    PlateSize,
+    PrintDirection,
+    PrintSide,
+    CoatingType,
+    FinishingType,
     OffsetMachineType,
     OffsetSheetSize,
     DigitalMachineType,
     DigitalSheetSize,
-    PaperWeight,
-    PaperOrigin,
     ProductType,
     ProductSize,
-    CoatingType,
-    FinishingType,
 )
 from supplier.models import Supplier, PaperServiceDetails
 from client.models import Customer as Client
 from users.models import User
-
 
 class PricingOrderForm(forms.ModelForm):
     """نموذج طلب التسعير"""
@@ -123,6 +127,12 @@ class PricingOrderForm(forms.ModelForm):
 
     paper_weight = forms.ChoiceField(
         label=_("جرام الورق"),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+    
+    piece_size = forms.ChoiceField(
+        label=_("مقاس القطع"),
         required=False,
         widget=forms.Select(attrs={"class": "form-control"}),
     )
@@ -279,6 +289,19 @@ class PricingOrderForm(forms.ModelForm):
                 (350, "350 جم"),
             ]
             self.fields["paper_weight"].choices = [("", "---------")] + paper_weights
+
+        # إعداد اختيارات مقاس القطع
+        piece_size_choices = [
+            ("", "-- اختر مقاس القطع --"),
+            ("A4", "A4 (21×29.7 سم)"),
+            ("A5", "A5 (14.8×21 سم)"),
+            ("A6", "A6 (10.5×14.8 سم)"),
+            ("10x15", "10×15 سم"),
+            ("15x20", "15×20 سم"),
+            ("20x30", "20×30 سم"),
+            ("custom", "مقاس مخصص"),
+        ]
+        self.fields["piece_size"].choices = piece_size_choices
 
         # تعيين المندوب المسؤول تلقائيًا إذا كان النموذج جديدًا
         if user and not self.instance.pk:
@@ -1379,6 +1402,100 @@ class FinishingTypeForm(forms.ModelForm):
             if existing.exists():
                 raise forms.ValidationError(_("يوجد نوع تشطيب بهذا الاسم بالفعل"))
         return name
+
+
+# ==================== نماذج مقاسات القطع ====================
+
+
+class PieceSizeForm(forms.ModelForm):
+    """نموذج مقاسات القطع"""
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # تخصيص حقل paper_type بطريقة بسيطة
+        self.fields['paper_type'].queryset = PaperSize.objects.filter(is_active=True).order_by('name')
+        self.fields['paper_type'].label = _("مقاس الورق الأساسي")
+        self.fields['paper_type'].required = False
+        self.fields['paper_type'].help_text = _("اختياري - مقاس الورق الأساسي المناسب لهذا المقاس")
+        self.fields['paper_type'].empty_label = "-- اختر مقاس الورق (اختياري) --"
+        self.fields['paper_type'].widget.attrs.update({'class': 'form-select'})
+
+    class Meta:
+        model = PieceSize
+        fields = [
+            "name",
+            "width",
+            "height", 
+            "paper_type",
+            "pieces_per_sheet",
+            "is_active",
+            "is_default",
+        ]
+        widgets = {
+            "name": forms.TextInput(
+                attrs={"class": "form-control", "placeholder": "مثال: فرخ كامل 70×100"}
+            ),
+            "width": forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "مثال: 70.0",
+                    "step": "0.1",
+                    "min": "0.1",
+                }
+            ),
+            "height": forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "مثال: 100.0",
+                    "step": "0.1",
+                    "min": "0.1",
+                }
+            ),
+            "pieces_per_sheet": forms.NumberInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "مثال: 8",
+                    "min": "1",
+                }
+            ),
+            "is_active": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+            "is_default": forms.CheckboxInput(
+                attrs={"class": "form-check-input"}
+            ),
+        }
+
+    def clean_name(self):
+        """التحقق من عدم تكرار الاسم"""
+        name = self.cleaned_data.get("name")
+        if name:
+            # التحقق من عدم وجود مقاس آخر بنفس الاسم
+            existing = PieceSize.objects.filter(name=name)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError("يوجد مقاس قطع بهذا الاسم بالفعل")
+        return name
+
+    def clean(self):
+        """التحقق من صحة البيانات"""
+        cleaned_data = super().clean()
+        width = cleaned_data.get("width")
+        height = cleaned_data.get("height")
+
+        if width and height:
+            # التحقق من عدم وجود مقاس آخر بنفس الأبعاد
+            existing = PieceSize.objects.filter(width=width, height=height)
+            if self.instance.pk:
+                existing = existing.exclude(pk=self.instance.pk)
+            if existing.exists():
+                raise forms.ValidationError(
+                    f"يوجد مقاس قطع بنفس الأبعاد ({width}×{height}) بالفعل"
+                )
+
+        return cleaned_data
 
 
 # ==================== نماذج مقاسات الماكينات ====================

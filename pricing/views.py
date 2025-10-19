@@ -3639,6 +3639,156 @@ def offset_machine_type_delete(request, pk):
     )
 
 
+# إعدادات مقاسات القطع
+@login_required
+def piece_size_list(request):
+    """قائمة مقاسات القطع"""
+    from .models import PieceSize
+
+    piece_sizes = PieceSize.objects.all().order_by("name", "width", "height")
+
+    context = {
+        "piece_sizes": piece_sizes,
+        "page_title": "إعدادات مقاسات القطع",
+        "page_icon": "fas fa-cut",
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {
+                "title": "التسعير",
+                "url": reverse("pricing:pricing_dashboard"),
+                "icon": "fas fa-calculator",
+            },
+            {
+                "title": "الإعدادات",
+                "url": reverse("pricing:settings_home"),
+                "icon": "fas fa-cog",
+            },
+            {"title": "مقاسات القطع", "active": True},
+        ],
+    }
+
+    return render(request, "pricing/settings/piece_size/list.html", context)
+
+
+@login_required
+def piece_size_create(request):
+    """إنشاء مقاس قطع جديد"""
+    from .forms import PieceSizeForm
+
+    if request.method == "POST":
+        form = PieceSizeForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم إنشاء مقاس القطع بنجاح")
+
+            # التحقق من AJAX request
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": True})
+            else:
+                return redirect("pricing:piece_size_list")
+        else:
+            # التحقق من AJAX request للأخطاء
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "errors": form.errors})
+            else:
+                # في حالة عدم وجود AJAX، أعد عرض النموذج مع الأخطاء
+                return render(
+                    request,
+                    "pricing/settings/piece_size/form_modal.html",
+                    {
+                        "form": form,
+                        "title": "إضافة مقاس قطع جديد",
+                        "action_url": reverse("pricing:piece_size_create"),
+                    },
+                )
+
+    form = PieceSizeForm()
+    return render(
+        request,
+        "pricing/settings/piece_size/form_modal.html",
+        {
+            "form": form,
+            "title": "إضافة مقاس قطع جديد",
+            "action_url": reverse("pricing:piece_size_create"),
+        },
+    )
+
+
+@login_required
+def piece_size_edit(request, pk):
+    """تعديل مقاس قطع"""
+    from .forms import PieceSizeForm
+    from .models import PieceSize
+
+    try:
+        piece_size = PieceSize.objects.get(pk=pk)
+    except PieceSize.DoesNotExist:
+        messages.error(request, "مقاس القطع غير موجود")
+        return redirect("pricing:piece_size_list")
+
+    if request.method == "POST":
+        form = PieceSizeForm(request.POST, instance=piece_size)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "تم تحديث مقاس القطع بنجاح")
+
+            # التحقق من AJAX request
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": True})
+            else:
+                return redirect("pricing:piece_size_list")
+        else:
+            # التحقق من AJAX request للأخطاء
+            if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"success": False, "errors": form.errors})
+
+    form = PieceSizeForm(instance=piece_size)
+    return render(
+        request,
+        "pricing/settings/piece_size/form_modal.html",
+        {
+            "form": form,
+            "title": "تعديل مقاس القطع",
+            "action_url": reverse("pricing:piece_size_edit", args=[pk]),
+        },
+    )
+
+
+@login_required
+def piece_size_delete(request, pk):
+    """حذف مقاس قطع"""
+    from .models import PieceSize
+
+    try:
+        piece_size = PieceSize.objects.get(pk=pk)
+    except PieceSize.DoesNotExist:
+        messages.error(request, "مقاس القطع غير موجود")
+        return redirect("pricing:piece_size_list")
+
+    if request.method == "POST":
+        piece_size.delete()
+        messages.success(request, "تم حذف مقاس القطع بنجاح")
+
+        # التحقق من AJAX request
+        if request.headers.get("X-Requested-With") == "XMLHttpRequest":
+            return JsonResponse({"success": True})
+        else:
+            return redirect("pricing:piece_size_list")
+
+    return render(
+        request,
+        "pricing/settings/piece_size/delete_modal.html",
+        {
+            "piece_size": piece_size,
+            "action_url": reverse("pricing:piece_size_delete", kwargs={"pk": pk}),
+        },
+    )
+
+
 # إعدادات مقاسات ماكينات الأوفست
 @login_required
 def offset_sheet_size_list(request):
@@ -4764,10 +4914,12 @@ def get_presses(request):
         return JsonResponse({"success": True, "presses": presses})
 
     except Exception as e:
+        import traceback
         return JsonResponse(
             {
                 "success": False,
-                "error": "خطأ في جلب المطابع: خطأ في العملية",
+                "error": f"خطأ في جلب المطابع: {str(e)}",
+                "details": traceback.format_exc(),
                 "presses": [],
             }
         )

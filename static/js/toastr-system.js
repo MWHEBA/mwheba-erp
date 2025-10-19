@@ -67,7 +67,6 @@ window.showNotification = function(message, type = 'info', title = null, customO
     if (typeof toastr === 'undefined') {
         // fallback للمتصفحات القديمة
         const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
-        console.log(`${prefix} ${title || type}: ${message}`);
         alert(`${prefix} ${title || type}: ${message}`);
         return false;
     }

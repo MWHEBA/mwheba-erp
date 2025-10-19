@@ -10,7 +10,11 @@ from .views.order_views import (
 from .views.api_views import (
     CalculateCostAPIView, GetMaterialPriceAPIView, GetServicePriceAPIView,
     ValidateOrderAPIView, OrderSummaryAPIView, GetClientsAPIView,
-    GetProductTypesAPIView, GetProductSizesAPIView
+    GetProductTypesAPIView, GetProductSizesAPIView, GetPrintingSuppliersAPIView,
+    GetPressesAPIView, GetPressPriceAPIView, GetCTPSuppliersAPIView,
+    GetCTPPlatesAPIView, GetCTPPriceAPIView, GetPaperTypesAPIView,
+    GetPaperSuppliersAPIView, GetPaperWeightsAPIView, GetPaperSheetTypesAPIView,
+    GetPaperOriginsAPIView, GetPaperPriceAPIView, GetPieceSizesAPIView
 )
 
 app_name = 'printing_pricing'
@@ -41,6 +45,27 @@ api_patterns = [
     path('get-clients/', GetClientsAPIView.as_view(), name='api_get_clients'),
     path('get-product-types/', GetProductTypesAPIView.as_view(), name='api_get_product_types'),
     path('get-product-sizes/', GetProductSizesAPIView.as_view(), name='api_get_product_sizes'),
+    
+    # APIs للمطابع والماكينات
+    path('printing-suppliers/', GetPrintingSuppliersAPIView.as_view(), name='api_printing_suppliers'),
+    path('presses/', GetPressesAPIView.as_view(), name='api_presses'),
+    path('press-price/', GetPressPriceAPIView.as_view(), name='api_press_price'),
+    
+    # APIs للزنكات
+    path('ctp-suppliers/', GetCTPSuppliersAPIView.as_view(), name='api_ctp_suppliers'),
+    path('ctp-plates/', GetCTPPlatesAPIView.as_view(), name='api_ctp_plates'),
+    path('ctp-price/', GetCTPPriceAPIView.as_view(), name='api_ctp_price'),
+    
+    # APIs للورق
+    path('paper-types/', GetPaperTypesAPIView.as_view(), name='api_paper_types'),
+    path('paper-suppliers/', GetPaperSuppliersAPIView.as_view(), name='api_paper_suppliers'),
+    path('paper-weights/', GetPaperWeightsAPIView.as_view(), name='api_paper_weights'),
+    path('paper-sheet-types/', GetPaperSheetTypesAPIView.as_view(), name='api_paper_sheet_types'),
+    path('paper-origins/', GetPaperOriginsAPIView.as_view(), name='api_paper_origins'),
+    path('paper-price/', GetPaperPriceAPIView.as_view(), name='api_paper_price'),
+    
+    # APIs لمقاسات القطع
+    path('piece-sizes/', GetPieceSizesAPIView.as_view(), name='api_piece_sizes'),
 ]
 
 urlpatterns = [

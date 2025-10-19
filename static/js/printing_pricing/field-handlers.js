@@ -26,7 +26,6 @@ PrintingPricingSystem.FieldHandlers = {
         animationDuration: 300,
         // إعدادات الأداء
         cacheTimeout: 300000, // 5 دقائق
-        maxRetries: 3,
         requestTimeout: 10000, // 10 ثوانٍ
         // إعدادات التحقق
         validationDelay: 100,
@@ -36,7 +35,13 @@ PrintingPricingSystem.FieldHandlers = {
         autoSaveFields: [
             'client', 'title', 'quantity', 'product_type', 'product_size',
             'has_internal_content', 'open_size_width', 'open_size_height',
-            'internal_page_count', 'binding_side'
+            'internal_page_count', 'binding_side', 'print_sides', 'colors_design',
+            'colors_front', 'colors_back', 'design_price', 'supplier', 'press',
+            'press_price_per_1000', 'press_runs', 'press_transportation', 'ctp_supplier', 'ctp_plate_size',
+            'ctp_plates_count', 'ctp_transportation', 'internal_print_sides', 'internal_colors_design',
+            'internal_colors_front', 'internal_colors_back', 'internal_design_price',
+            'internal_ctp_supplier', 'internal_ctp_plate_size', 'internal_ctp_plates_count',
+            'internal_ctp_transportation'
         ],
         // حقول خاصة بمعرفات مخصصة (ليس id_*)
         specialFields: ['use-open-size'],
@@ -55,7 +60,8 @@ PrintingPricingSystem.FieldHandlers = {
     cache: {
         'clients': { data: null, timestamp: 0 },
         'product-types': { data: null, timestamp: 0 },
-        'product-sizes': { data: null, timestamp: 0 }
+        'product-sizes': { data: null, timestamp: 0 },
+        'piece_size': { data: null, timestamp: 0 }
     },
 
     /**
@@ -69,12 +75,10 @@ PrintingPricingSystem.FieldHandlers = {
         const isExpired = (now - cached.timestamp) > this.config.cacheTimeout;
         
         if (isExpired) {
-            console.log(`⏰ انتهت صلاحية البيانات المخزنة: ${key}`);
             this.cache[key] = { data: null, timestamp: 0 };
             return null;
         }
         
-        console.log(`📦 استخدام البيانات المخزنة: ${key}`);
         return cached.data;
     },
 
@@ -83,7 +87,6 @@ PrintingPricingSystem.FieldHandlers = {
             data: data,
             timestamp: Date.now()
         };
-        console.log(`💾 تم تخزين البيانات: ${key}`);
     },
 
     clearCache: function(key) {
@@ -102,18 +105,24 @@ PrintingPricingSystem.FieldHandlers = {
      * تهيئة جميع معالجات الحقول
      */
     init: function() {
-        console.log('🚀 تهيئة معالجات الحقول...');
         
         this.initClientField();
         this.initProductTypeField();
         this.initProductSizeField();
+        this.initPieceSizeField();
         this.initPrintDirectionField();
         this.initToggleFields();
+        this.initPrintSidesField();
+        this.initPressFields();
+        this.initCTPFields();
+        this.initPlatesCalculation();
+        this.initCTPCostCalculation();
+        this.initPressCostCalculation();
+        this.initPaperFields();
         this.initFormValidation();
         this.initAutoSave();
         this.setupGlobalSelect2Focus();
         
-        console.log('✅ تم تهيئة معالجات الحقول بنجاح');
     },
 
     /**
@@ -170,7 +179,6 @@ PrintingPricingSystem.FieldHandlers = {
             subtree: true
         });
 
-        console.log('✅ تم إعداد Focus تلقائي لجميع Select2');
     },
 
     /**
@@ -183,7 +191,6 @@ PrintingPricingSystem.FieldHandlers = {
             return;
         }
 
-        console.log('🔧 تهيئة حقل العميل...');
 
         // تحويل الحقل إلى Select2 مع البحث الديناميكي
         clientField.select2({
@@ -225,7 +232,6 @@ PrintingPricingSystem.FieldHandlers = {
         // معالج تغيير العميل
         clientField.on('select2:select', (e) => {
             const selectedData = e.params.data;
-            console.log('👤 تم اختيار العميل:', selectedData.text);
             this.onClientChange(selectedData);
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
@@ -236,7 +242,6 @@ PrintingPricingSystem.FieldHandlers = {
         });
 
         clientField.on('select2:clear', () => {
-            console.log('🗑️ تم مسح اختيار العميل');
             this.onClientClear();
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
@@ -246,7 +251,6 @@ PrintingPricingSystem.FieldHandlers = {
             }
         });
 
-        console.log('✅ تم تهيئة حقل العميل بنجاح');
     },
 
     /**
@@ -302,7 +306,6 @@ PrintingPricingSystem.FieldHandlers = {
             return;
         }
 
-        console.log('🔧 تهيئة حقل نوع المنتج مع Select2...');
 
         // تحويل الحقل إلى Select2
         productTypeField.select2({
@@ -346,7 +349,6 @@ PrintingPricingSystem.FieldHandlers = {
         // معالج تغيير نوع المنتج
         productTypeField.on('select2:select', (e) => {
             const selectedData = e.params.data;
-            console.log('📦 تم اختيار نوع المنتج:', selectedData.text);
             this.onProductTypeChange(selectedData.id, selectedData.text);
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
@@ -357,7 +359,6 @@ PrintingPricingSystem.FieldHandlers = {
         });
 
         productTypeField.on('select2:clear', () => {
-            console.log('🗑️ تم مسح اختيار نوع المنتج');
             this.onProductTypeClear();
             
             // تفعيل الحفظ التلقائي (بدون مؤشر فوري)
@@ -366,7 +367,6 @@ PrintingPricingSystem.FieldHandlers = {
                 // سيتم الحفظ في الدورة التالية للمؤقت
             }
         });
-        console.log('✅ تم تهيئة حقل نوع المنتج مع Select2 بنجاح');
     },
 
     /**
@@ -376,12 +376,10 @@ PrintingPricingSystem.FieldHandlers = {
         // التحقق من وجود بيانات مخزنة مؤقتاً
         const cached = this.getCachedData('product-types');
         if (cached) {
-            console.log('📦 استخدام بيانات أنواع المنتجات المخزنة مؤقتاً');
             return Promise.resolve(cached);
         }
 
         const apiUrl = this.config.apiBaseUrl + 'get-product-types/';
-        console.log('🌐 جلب أنواع المنتجات من الخادم...', apiUrl);
         
         return fetch(apiUrl)
             .then(response => {
@@ -393,7 +391,6 @@ PrintingPricingSystem.FieldHandlers = {
             .then(data => {
                 // التحقق من وجود البيانات
                 if (data && data.success && data.results) {
-                    console.log(`🎯 تم جلب ${data.results.length} نوع منتج من API`);
                     // حفظ البيانات في التخزين المؤقت
                     this.setCachedData('product-types', data.results);
                     return data.results;
@@ -463,7 +460,6 @@ PrintingPricingSystem.FieldHandlers = {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                console.log('✅ تم إنشاء أنواع المنتجات الافتراضية بنجاح');
                 // مسح التخزين المؤقت لإعادة تحميل البيانات الجديدة
                 this.clearCache('product-types');
             } else {
@@ -507,7 +503,6 @@ PrintingPricingSystem.FieldHandlers = {
         // تحديث Select2
         field.trigger('change');
         
-        console.log(`✅ تم تحميل ${productTypes.length} نوع منتج`);
     },
 
     /**
@@ -536,7 +531,6 @@ PrintingPricingSystem.FieldHandlers = {
             return;
         }
 
-        console.log('🔧 تهيئة حقل مقاس المنتج...');
 
         // جلب مقاسات المنتجات من API
         this.loadProductSizes()
@@ -563,7 +557,6 @@ PrintingPricingSystem.FieldHandlers = {
             
             // التحقق من وجود قيمة أولاً
             if (!selectedValue) {
-                console.log('📏 تم مسح اختيار مقاس المنتج');
                 return;
             }
             
@@ -571,11 +564,9 @@ PrintingPricingSystem.FieldHandlers = {
             
             // التحقق من وجود الخيار المحدد مع معالجة أفضل
             if (!selectedOption || selectedOption.selectedIndex === -1) {
-                console.log('📏 مقاس المنتج محدد لكن الخيار غير متاح حالياً:', selectedValue);
                 // محاولة العثور على الخيار بالقيمة
                 const optionByValue = Array.from(e.target.options).find(opt => opt.value === selectedValue);
                 if (optionByValue) {
-                    console.log('📏 تم العثور على الخيار بالقيمة:', optionByValue.text);
                     this.handleProductSizeChange(selectedValue, optionByValue.text, {});
                 }
                 return;
@@ -587,11 +578,133 @@ PrintingPricingSystem.FieldHandlers = {
             const width = selectedOption.dataset ? selectedOption.dataset.width : null;
             const height = selectedOption.dataset ? selectedOption.dataset.height : null;
             
-            console.log('📏 تم تغيير مقاس المنتج:', selectedText);
             this.handleProductSizeChange(selectedValue, selectedText, { width, height });
         });
 
-        console.log('✅ تم تهيئة حقل مقاس المنتج بنجاح');
+    },
+
+    /**
+     * تهيئة حقل مقاس القطع
+     */
+    initPieceSizeField: function() {
+        console.log('🔧 تهيئة حقل مقاس القطع...');
+        
+        const pieceSizeField = $('#id_piece_size');
+        
+        if (!pieceSizeField.length) {
+            console.warn('⚠️ حقل مقاس القطع غير موجود');
+            return;
+        }
+
+        // تهيئة الحقل بحالة فارغة مع رسالة توضيحية
+        pieceSizeField.find('option:not([value=""])').remove();
+        pieceSizeField.find('option[value=""]').text('-- اختر مقاس الورق أولاً --');
+        
+        // تحميل أولي مع فلترة ذكية (سيتحقق من وجود مقاس الفرخ)
+        this.updatePieceSizeOptions();
+
+        // معالج تغيير مقاس القطع
+        pieceSizeField.on('change', (e) => {
+            const selectedValue = e.target.value;
+            console.log('🔄 تم تغيير مقاس القطع:', selectedValue);
+            
+            if (!selectedValue) {
+                console.log('⚠️ لم يتم اختيار مقاس قطع');
+                return;
+            }
+            
+            const selectedOption = e.target.options[e.target.selectedIndex];
+            
+            if (!selectedOption) {
+                console.warn('⚠️ لا يمكن العثور على الخيار المحدد');
+                return;
+            }
+            
+            const selectedText = selectedOption.text || selectedOption.textContent || 'غير محدد';
+            
+            // الحصول على البيانات الإضافية من data attributes
+            const width = selectedOption.dataset ? selectedOption.dataset.width : null;
+            const height = selectedOption.dataset ? selectedOption.dataset.height : null;
+            const paperType = selectedOption.dataset ? selectedOption.dataset.paperType : null;
+            const name = selectedOption.dataset ? selectedOption.dataset.name : null;
+            
+            this.handlePieceSizeChange(selectedValue, selectedText, { width, height, paperType, name });
+        });
+
+        console.log('✅ تم تهيئة حقل مقاس القطع مع فلترة ذكية');
+    },
+
+    /**
+     * تحديث خيارات مقاس القطع حسب الشروط المطلوبة
+     */
+    updatePieceSizeOptions: function() {
+        console.log('🔄 تحديث خيارات مقاس القطع...');
+        
+        const pieceSizeField = $('#id_piece_size');
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        
+        if (!pieceSizeField.length) {
+            console.warn('⚠️ حقل مقاس القطع غير موجود');
+            return;
+        }
+
+        // الحصول على القيم الحالية
+        const paperSheetType = paperSheetTypeField.val();
+        
+        console.log('🔍 معايير الفلترة:', {
+            paperSheetType: paperSheetType || 'غير محدد'
+        });
+
+        // التحقق من وجود مقاس الفرخ قبل تحميل البيانات
+        if (!paperSheetType) {
+            console.log('📋 اختر مقاس الورق أولاً لعرض مقاسات القطع المناسبة');
+            // مسح الحقل وإضافة رسالة توضيحية
+            pieceSizeField.find('option:not([value=""])').remove();
+            pieceSizeField.find('option[value=""]').text('-- اختر مقاس الورق أولاً --');
+            return;
+        }
+
+        // جلب مقاسات القطع مع الفلترة
+        this.loadPieceSizes(paperSheetType)
+            .then(data => {
+                if (data.success) {
+                    this.populatePieceSizeField(pieceSizeField, data.piece_sizes, data.status_message);
+                    
+                    // عرض رسالة توضيحية إذا لم توجد مقاسات
+                    if (data.piece_sizes.length === 0) {
+                        console.log('📋 لا توجد مقاسات قطع متاحة لمقاس الورق المحدد');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ خطأ في تحميل مقاسات القطع:', error);
+                // إضافة خيار افتراضي في حالة الفشل
+                pieceSizeField.find('option:not([value=""])').remove();
+                pieceSizeField.find('option[value=""]').text('-- خطأ في التحميل --');
+            });
+    },
+
+    /**
+     * معالج تغيير مقاس القطع
+     */
+    handlePieceSizeChange: function(value, text, data) {
+        console.log(`📏 تم اختيار مقاس القطع: ${text}`, data);
+        
+        // حفظ البيانات في التخزين المؤقت
+        this.cache['piece_size'] = {
+            value: value,
+            text: text,
+            data: data,
+            timestamp: Date.now()
+        };
+
+        // إشعار النظام بتغيير مقاس القطع
+        $(document).trigger('field:piece_size:changed', [value, text, data]);
+        
+        // تحديث حسابات المونتاج إذا كان متاحاً
+        if (typeof window.PrintingPricingSystem.MontageHandlers !== 'undefined') {
+            window.PrintingPricingSystem.MontageHandlers.updateMontageCalculations();
+        }
     },
 
     /**
@@ -607,6 +720,101 @@ PrintingPricingSystem.FieldHandlers = {
             credentials: 'same-origin'
         })
         .then(response => response.json());
+    },
+
+    /**
+     * جلب مقاسات القطع من API مع فلترة حسب مقاس الورق فقط
+     */
+    loadPieceSizes: function(paperSheetType = null) {
+        console.log('🔄 جلب مقاسات القطع من قاعدة البيانات...');
+        
+        // بناء URL مع معاملات الفلترة
+        let apiUrl = this.config.apiBaseUrl + 'piece-sizes/';
+        const params = new URLSearchParams();
+        
+        if (paperSheetType) {
+            params.append('paper_sheet_type', paperSheetType);
+            console.log('🔍 فلترة حسب مقاس الفرخ:', paperSheetType);
+        }
+        
+        if (params.toString()) {
+            apiUrl += '?' + params.toString();
+        }
+        
+        return fetch(apiUrl, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                console.log(`✅ ${data.status_message}: ${data.total_count} مقاس`);
+                return data;
+            } else {
+                throw new Error(data.error || 'فشل في جلب مقاسات القطع');
+            }
+        })
+        .catch(error => {
+            console.error('❌ خطأ في جلب مقاسات القطع:', error);
+            throw error;
+        });
+    },
+
+    /**
+     * ملء حقل مقاس القطع بالبيانات مع رسائل توضيحية
+     */
+    populatePieceSizeField: function(field, pieceSizes, statusMessage = '') {
+        // مسح الخيارات الموجودة (عدا الخيار الفارغ)
+        field.find('option:not([value=""])').remove();
+        
+        // تحديث نص الخيار الفارغ حسب الحالة
+        const emptyOption = field.find('option[value=""]');
+        if (statusMessage.includes('اختر مقاس الورق أولاً')) {
+            emptyOption.text('-- اختر مقاس الورق أولاً --');
+        } else if (statusMessage.includes('اختر ماكينة الطباعة أولاً')) {
+            emptyOption.text('-- اختر ماكينة الطباعة أولاً --');
+        } else if (pieceSizes.length === 0) {
+            emptyOption.text('-- لا توجد مقاسات متاحة --');
+        } else {
+            emptyOption.text('-- اختر مقاس القطع --');
+        }
+        
+        // إضافة الخيارات الجديدة (بدون مقاس مخصص)
+        pieceSizes.forEach(pieceSize => {
+            const option = new Option(pieceSize.display_name, pieceSize.id, pieceSize.is_default, pieceSize.is_default);
+            
+            // إضافة بيانات إضافية كـ data attributes
+            option.dataset.width = pieceSize.width;
+            option.dataset.height = pieceSize.height;
+            option.dataset.paperType = pieceSize.paper_type;
+            option.dataset.paperTypeId = pieceSize.paper_type_id || '';
+            option.dataset.name = pieceSize.name;
+            
+            field.append(option);
+        });
+
+        // اختيار المقاس الافتراضي إذا وُجد
+        const defaultPieceSize = pieceSizes.find(ps => ps.is_default);
+        if (defaultPieceSize && pieceSizes.length > 0) {
+            field.val(defaultPieceSize.id);
+            console.log(`🔄 تم اختيار المقاس الافتراضي: ${defaultPieceSize.display_name}`);
+        } else {
+            field.val(''); // مسح الاختيار إذا لم توجد مقاسات
+        }
+
+        // تحديث العرض
+        field.trigger('change');
+        
+        console.log(`✅ تم ملء حقل مقاسات القطع: ${pieceSizes.length} مقاس متاح`);
     },
 
     /**
@@ -638,7 +846,6 @@ PrintingPricingSystem.FieldHandlers = {
         // تحديث العرض
         field.trigger('change');
         
-        console.log(`✅ تم تحميل ${productSizes.length} مقاس منتج + خيار مخصص`);
     },
 
     /**
@@ -658,19 +865,16 @@ PrintingPricingSystem.FieldHandlers = {
             widthField.val('').prop('readonly', false);
             heightField.val('').prop('readonly', false);
             
-            console.log('📝 تم تفعيل وضع المقاس المخصص');
         } else if (value && dimensions.width && dimensions.height) {
             // مقاس عادي - ملء الحقول وجعلها readonly
             widthField.val(dimensions.width).prop('readonly', true);
             heightField.val(dimensions.height).prop('readonly', true);
             
-            console.log(`📏 تم تحديد المقاس: ${dimensions.width} × ${dimensions.height} سم`);
         } else {
             // لا يوجد اختيار - تفريغ الحقول وجعلها readonly
             widthField.val('').prop('readonly', true);
             heightField.val('').prop('readonly', true);
             
-            console.log('🔄 تم مسح أبعاد المقاس');
         }
 
         // إطلاق حدث مخصص
@@ -684,7 +888,6 @@ PrintingPricingSystem.FieldHandlers = {
         // إطلاق حدث مخصص
         $(document).trigger('product-size:changed', { value, text, dimensions });
     },
-
     /**
      * تهيئة حقل اتجاه الطباعة
      */
@@ -695,14 +898,12 @@ PrintingPricingSystem.FieldHandlers = {
             return;
         }
 
-        console.log('🔧 تهيئة حقل اتجاه الطباعة...');
 
         // معالج تغيير اتجاه الطباعة
         printDirectionField.on('change', (e) => {
             const selectedValue = e.target.value;
             const selectedText = e.target.options[e.target.selectedIndex].text;
             
-            console.log('🔄 تم تغيير اتجاه الطباعة:', selectedText);
             this.handlePrintDirectionChange(selectedValue, selectedText);
         });
 
@@ -711,7 +912,6 @@ PrintingPricingSystem.FieldHandlers = {
             this.handleDimensionsChange(data);
         });
 
-        console.log('✅ تم تهيئة حقل اتجاه الطباعة بنجاح');
     },
 
     /**
@@ -750,7 +950,6 @@ PrintingPricingSystem.FieldHandlers = {
                 widthField.prop('readonly', wasWidthReadonly);
                 heightField.prop('readonly', wasHeightReadonly);
                 
-                console.log(`🔄 عكس للأفقي: ${currentWidth}×${currentHeight} → ${currentHeight}×${currentWidth}`);
             } else if (direction === 'portrait' && currentWidth > currentHeight) {
                 // إزالة readonly مؤقتاً للتعديل
                 widthField.prop('readonly', false);
@@ -764,9 +963,7 @@ PrintingPricingSystem.FieldHandlers = {
                 widthField.prop('readonly', wasWidthReadonly);
                 heightField.prop('readonly', wasHeightReadonly);
                 
-                console.log(`🔄 عكس للعمودي: ${currentWidth}×${currentHeight} → ${currentHeight}×${currentWidth}`);
             } else {
-                console.log(`✅ الاتجاه متطابق مع الأبعاد الحالية: ${currentWidth}×${currentHeight}`);
             }
         }
 
@@ -797,7 +994,6 @@ PrintingPricingSystem.FieldHandlers = {
                 printDirectionField.val(suggestedDirection);
                 
                 const directionText = suggestedDirection === 'landscape' ? 'أفقي' : 'عمودي';
-                console.log(`💡 تم اقتراح الاتجاه: ${directionText} (${width} × ${height})`);
                 
                 // إطلاق حدث التغيير
                 printDirectionField.trigger('change');
@@ -806,10 +1002,1009 @@ PrintingPricingSystem.FieldHandlers = {
     },
 
     /**
+     * تهيئة حقل عدد أوجه الطباعة وربطه بحقول الألوان
+     */
+    initPrintSidesField: function() {
+        const printSidesSelect = document.getElementById('id_print_sides');
+        const singleSideColors = document.getElementById('single-side-colors');
+        const doubleSideColors = document.getElementById('double-side-colors');
+        
+        if (printSidesSelect && singleSideColors && doubleSideColors) {
+            // تحديث حقول الألوان عند تحميل الصفحة
+            this.updateColorsFields(printSidesSelect, singleSideColors, doubleSideColors);
+            
+            // إضافة معالج حدث لتغيير عدد الأوجه
+            printSidesSelect.addEventListener('change', () => {
+                this.updateColorsFields(printSidesSelect, singleSideColors, doubleSideColors);
+            });
+        }
+
+        // تهيئة حقول المحتوى الداخلي
+        const internalPrintSidesSelect = document.getElementById('id_internal_print_sides');
+        const internalSingleSideColors = document.getElementById('internal-single-side-colors');
+        const internalDoubleSideColors = document.getElementById('internal-double-side-colors');
+        
+        if (internalPrintSidesSelect && internalSingleSideColors && internalDoubleSideColors) {
+            // تحديث حقول الألوان عند تحميل الصفحة
+            this.updateColorsFields(internalPrintSidesSelect, internalSingleSideColors, internalDoubleSideColors);
+            
+            // إضافة معالج حدث لتغيير عدد الأوجه
+            internalPrintSidesSelect.addEventListener('change', () => {
+                this.updateColorsFields(internalPrintSidesSelect, internalSingleSideColors, internalDoubleSideColors);
+            });
+        }
+    },
+
+    /**
+     * تحديث حقول الألوان حسب عدد أوجه الطباعة
+     * @param {HTMLElement} printSidesSelect - قائمة عدد الأوجه
+     * @param {HTMLElement} singleSideColors - حقل ألوان الوجه الواحد
+     * @param {HTMLElement} doubleSideColors - حقل ألوان الوجهين
+     */
+    updateColorsFields: function(printSidesSelect, singleSideColors, doubleSideColors) {
+        if (!printSidesSelect || !singleSideColors || !doubleSideColors) {
+            return;
+        }
+        
+        const selectedValue = printSidesSelect.value;
+        
+        // تحديث حقول الألوان حسب عدد الأوجه
+        // القيم: 1 = وجه واحد، 2 = وجهين، 3 = طبع وقلب
+        if (selectedValue === '1' || selectedValue === '3') {
+            // وجه واحد أو طبع وقلب (تصميم واحد)
+            singleSideColors.style.display = 'flex';
+            doubleSideColors.style.display = 'none';
+        } else if (selectedValue === '2') {
+            // وجهين مختلفين
+            singleSideColors.style.display = 'none';
+            doubleSideColors.style.display = 'flex';
+        } else {
+            // القيمة الافتراضية - إظهار حقل الوجه الواحد
+            singleSideColors.style.display = 'flex';
+            doubleSideColors.style.display = 'none';
+        }
+    },
+
+    /**
+     * تهيئة حقول المطبعة والماكينة
+     */
+    initPressFields: function() {
+        // تهيئة حقول المطبعة والماكينة
+        this.initSupplierPressFields();
+    },
+
+    /**
+     * تهيئة حقول المطبعة والماكينة
+     */
+    initSupplierPressFields: function() {
+        const supplierSelect = $('#id_supplier');
+        const pressSelect = $('#id_press');
+        
+        if (!supplierSelect.length || !pressSelect.length) {
+            return;
+        }
+        
+        // تحويل المطبعة إلى Select2
+        supplierSelect.select2({
+            ...this.config.select2Config,
+            placeholder: 'اختر المطبعة...',
+            allowClear: true,
+            minimumInputLength: 0
+        });
+        
+        // الماكينة عادية بدون Select2 لتجنب التداخل
+        // pressSelect سيبقى select عادي
+        
+        // تحميل قائمة المطابع
+        this.loadSuppliers(supplierSelect);
+        
+        // إضافة معالج حدث لتغيير المطبعة - Select2 events
+        supplierSelect.on('select2:select', (e) => {
+            let selectedValue;
+            
+            // التحقق من مصدر الحدث (طبيعي أم مطلق)
+            if (e.params && e.params.data && e.params.data.id) {
+                selectedValue = e.params.data.id;
+            } else {
+                // في حالة الحدث المطلق، استخدم القيمة الحالية
+                selectedValue = supplierSelect.val();
+            }
+            
+            if (selectedValue) {
+                this.handleSupplierChange(selectedValue, document.getElementById('id_press'));
+            }
+        });
+        
+        supplierSelect.on('select2:clear', () => {
+            this.handleSupplierChange('', document.getElementById('id_press'));
+        });
+        
+        // إضافة معالج حدث عادي أيضاً كـ backup
+        supplierSelect.on('change', () => {
+            const selectedValue = supplierSelect.val();
+            
+            if (selectedValue) {
+                this.handleSupplierChange(selectedValue, document.getElementById('id_press'));
+            } else {
+                this.handleSupplierChange('', document.getElementById('id_press'));
+            }
+        });
+        
+        // إضافة معالج حدث لتغيير الماكينة
+        pressSelect.on('change', () => {
+            this.handlePressChange(pressSelect[0]);
+        });
+    },
+
+    /**
+     * تحميل قائمة المطابع
+     */
+    loadSuppliers: function(supplierSelect) {
+        
+        if (!supplierSelect || !supplierSelect.length) {
+            return;
+        }
+        
+        // بناء URL للـ API - جلب مطابع الأوفست فقط
+        let apiUrl = '/printing-pricing/api/printing-suppliers/?order_type=offset';
+        
+        // تعطيل القائمة أثناء التحميل
+        supplierSelect.prop('disabled', true);
+        supplierSelect.empty();
+        supplierSelect.append('<option value="">-- جاري التحميل... --</option>');
+        
+        // استدعاء API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                supplierSelect.prop('disabled', false);
+                supplierSelect.empty();
+                
+                let html = '<option value="">-- اختر المطبعة --</option>';
+                
+                if (data.success && data.suppliers && data.suppliers.length > 0) {
+                    data.suppliers.forEach(supplier => {
+                        supplierSelect.append(`<option value="${supplier.id}">${supplier.name}</option>`);
+                    });
+                } else {
+                    supplierSelect.append('<option value="">-- لا توجد مطابع متاحة --</option>');
+                }
+            })
+            .catch(error => {
+                console.error('❌ خطأ في تحميل المطابع:', error);
+                supplierSelect.prop('disabled', false);
+                supplierSelect.empty();
+                supplierSelect.append('<option value="">-- خطأ في التحميل --</option>');
+            });
+    },
+
+    /**
+     * معالجة تغيير المطبعة
+     */
+    handleSupplierChange: function(supplierId, pressSelectElement) {
+        if (!pressSelectElement) {
+            console.error('❌ pressSelectElement is null or undefined');
+            return;
+        }
+        
+        const pressSelect = $(pressSelectElement);
+        
+        if (!supplierId || supplierId === '') {
+            // مسح قائمة الماكينات
+            let pressSelectElement;
+            if (pressSelect && pressSelect.length) {
+                pressSelectElement = pressSelect[0];
+            } else if (pressSelect && pressSelect.nodeType) {
+                pressSelectElement = pressSelect;
+            } else {
+                pressSelectElement = document.getElementById('id_press');
+            }
+            
+            if (pressSelectElement) {
+                pressSelectElement.innerHTML = '<option value="">اختر الماكينة</option>';
+                $(pressSelectElement).trigger('change');
+                this.clearPressPrice();
+                this.lastLoadedPress = null; // مسح آخر ماكينة محملة
+            }
+            return;
+        }
+        
+        // منع تكرار التحميل إذا كان قيد التنفيذ
+        if (this.loadingPresses) {
+            return;
+        }
+        
+        this.loadPressesForSupplier(supplierId, pressSelect);
+    },
+
+    /**
+     * تحميل ماكينات المطبعة
+{{ ... }}
+     */
+    loadPressesForSupplier: function(supplierId, pressSelect) {
+        // تعيين علامة التحميل
+        this.loadingPresses = true;
+        
+        // التأكد من الحصول على العنصر الصحيح
+        let pressSelectElement;
+        if (pressSelect && pressSelect.length) {
+            // jQuery object
+            pressSelectElement = pressSelect[0];
+        } else if (pressSelect && pressSelect.nodeType) {
+            // DOM element
+            pressSelectElement = pressSelect;
+        } else {
+            // البحث عن العنصر بالـ ID
+            pressSelectElement = document.getElementById('id_press');
+        }
+        
+        if (!pressSelectElement) {
+            console.error('❌ لم يتم العثور على عنصر الماكينة');
+            return;
+        }
+        
+        
+        // مسح الخيارات الحالية
+        pressSelectElement.innerHTML = '<option value="">جاري التحميل...</option>';
+        pressSelectElement.disabled = true;
+        
+        // بناء URL مع المعاملات - جلب ماكينات الأوفست فقط
+        let apiUrl = `/printing-pricing/api/presses/?supplier_id=${supplierId}&order_type=offset`;
+        
+        
+        // استدعاء API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                
+                // إعادة تمكين القائمة - استخدام DOM عادي
+                pressSelectElement.disabled = false;
+                pressSelectElement.innerHTML = '<option value="">-- اختر ماكينة الطباعة --</option>';
+                
+                if (data && data.success && Array.isArray(data.presses) && data.presses.length > 0) {
+                    // إضافة خيارات الماكينات
+                    data.presses.forEach(press => {
+                        if (press && typeof press === 'object' && press.id) {
+                            const name = press.name || `ماكينة ${press.id}`;
+                            let price = '';
+                            
+                            if (press.price_per_1000 !== undefined) {
+                                price = press.price_per_1000;
+                            } else if (press.unit_price !== undefined) {
+                                price = press.unit_price;
+                            }
+                            
+                            // إنشاء option جديد
+                            const option = document.createElement('option');
+                            option.value = press.id;
+                            option.textContent = name;
+                            option.setAttribute('data-price', price);
+                            pressSelectElement.appendChild(option);
+                        }
+                    });
+                    
+                    // اختيار الماكينة الأولى افتراضياً
+                    if (data.presses.length > 0) {
+                        const firstPress = data.presses[0];
+                        pressSelectElement.value = firstPress.id;
+                        
+                        // إطلاق حدث change باستخدام jQuery للتوافق مع باقي النظام
+                        $(pressSelectElement).trigger('change');
+                    }
+                    
+                } else {
+                    // إذا لم يتم العثور على ماكينات أو فشل API
+                    if (data && data.success === false && data.error) {
+                        // عرض رسالة الخطأ من API
+                        console.error('❌ خطأ من API:', data.error);
+                        pressSelectElement.innerHTML += `<option value="">-- ${data.error} --</option>`;
+                    } else {
+                        // حالة عدم وجود ماكينات
+                        pressSelectElement.innerHTML += '<option value="">-- لا توجد ماكينات متاحة --</option>';
+                    }
+                }
+                
+                // إلغاء علامة التحميل
+                this.loadingPresses = false;
+            })
+            .catch(error => {
+                console.error('❌ خطأ في تحميل ماكينات الطباعة:', error);
+                pressSelectElement.disabled = false;
+                pressSelectElement.innerHTML = '<option value="">-- خطأ في تحميل الماكينات --</option>';
+                
+                // إلغاء علامة التحميل في حالة الخطأ
+                this.loadingPresses = false;
+            });
+    },
+
+
+    /**
+     * معالجة تغيير الماكينة
+     */
+    handlePressChange: function(pressSelectElement) {
+        const pressSelect = $(pressSelectElement);
+        const selectedValue = pressSelect.val();
+        
+        if (!selectedValue) {
+            this.clearPressPrice();
+            return;
+        }
+        
+        // منع تكرار تحميل نفس الماكينة
+        if (this.lastLoadedPress === selectedValue) {
+            return;
+        }
+        
+        this.lastLoadedPress = selectedValue;
+        
+        // تحميل سعر الماكينة المختارة
+        this.loadPressPrice(selectedValue);
+    },
+
+    /**
+     * تحميل سعر الماكينة
+     */
+    loadPressPrice: function(pressId) {
+        const priceField = $('#id_press_price_per_1000');
+        const pressSelect = $('#id_press');
+        
+        if (!priceField.length || !pressId) {
+            return;
+        }
+        
+        // أولاً، محاولة الحصول على السعر من البيانات المخزنة في الخيار
+        const pressSelectElement = document.getElementById('id_press');
+        if (pressSelectElement) {
+            const selectedOption = pressSelectElement.querySelector(`option[value="${pressId}"]`);
+            if (selectedOption && selectedOption.getAttribute('data-price')) {
+                const price = selectedOption.getAttribute('data-price');
+                priceField.val(price);
+                priceField.trigger('change');
+                return;
+            }
+        }
+        
+        // إذا لم يتم العثور على السعر في البيانات المخزنة، استدعاء API
+        
+        fetch(`/printing-pricing/api/press-price/?press_id=${pressId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.success) {
+                    // تحديث سعر الماكينة
+                    const price = data.price_per_1000 || data.price || data.unit_price || '0.00';
+                    priceField.val(price);
+                    priceField.trigger('change');
+                } else {
+                    console.warn('⚠️ لم يتم العثور على سعر للماكينة');
+                    priceField.val('0.00');
+                    priceField.trigger('change');
+                }
+            })
+            .catch(error => {
+                console.error('❌ خطأ في جلب سعر الماكينة:', error);
+                priceField.val('0.00');
+                priceField.trigger('change');
+            });
+    },
+
+    /**
+     * مسح سعر الماكينة
+     */
+    clearPressPrice: function() {
+        const priceField = $('#id_press_price_per_1000');
+        
+        if (priceField.length) {
+            priceField.val('');
+            priceField.trigger('change');
+        }
+    },
+
+    /**
+     * تهيئة حقول الزنكات (CTP)
+     */
+    initCTPFields: function() {
+        // تهيئة حقول الغلاف
+        this.initCoverCTPFields();
+        
+        // تهيئة حقول المحتوى الداخلي
+        this.initInternalCTPFields();
+    },
+
+    /**
+     * تهيئة حقول الزنكات للغلاف
+     */
+    initCoverCTPFields: function() {
+        const ctpSupplierSelect = $('#id_ctp_supplier');
+        const ctpPlateSizeSelect = $('#id_ctp_plate_size');
+        
+        if (ctpSupplierSelect.length && ctpPlateSizeSelect.length) {
+            // تحويل مورد الزنكات إلى Select2
+            ctpSupplierSelect.select2({
+                ...this.config.select2Config,
+                placeholder: 'اختر مورد الزنكات...',
+                allowClear: true,
+                minimumInputLength: 0
+            });
+            
+            // تحميل موردي الزنكات
+            this.loadCTPSuppliers(ctpSupplierSelect);
+            
+            // إضافة معالج حدث لتغيير مورد الزنكات
+            ctpSupplierSelect.on('select2:select', (e) => {
+                let selectedValue;
+                
+                // التحقق من مصدر الحدث (طبيعي أم مطلق)
+                if (e.params && e.params.data && e.params.data.id) {
+                    selectedValue = e.params.data.id;
+                } else {
+                    // في حالة الحدث المطلق، استخدم القيمة الحالية
+                    selectedValue = ctpSupplierSelect.val();
+                }
+                
+                if (selectedValue) {
+                    this.handleCTPSupplierChange(selectedValue, ctpPlateSizeSelect[0]);
+                }
+            });
+            
+            ctpSupplierSelect.on('select2:clear', () => {
+                this.handleCTPSupplierChange('', ctpPlateSizeSelect[0]);
+            });
+            
+            // إضافة معالج حدث لتغيير مقاس الزنك
+            ctpPlateSizeSelect.on('change', () => {
+                this.handleCTPPlateSizeChange(ctpPlateSizeSelect[0]);
+            });
+        }
+    },
+
+    /**
+     * تهيئة حقول الزنكات للمحتوى الداخلي
+     */
+    initInternalCTPFields: function() {
+        const internalCtpSupplierSelect = $('#id_internal_ctp_supplier');
+        const internalCtpPlateSizeSelect = $('#id_internal_ctp_plate_size');
+        
+        if (internalCtpSupplierSelect.length && internalCtpPlateSizeSelect.length) {
+            // تحويل مورد الزنكات إلى Select2
+            internalCtpSupplierSelect.select2({
+                ...this.config.select2Config,
+                placeholder: 'اختر مورد الزنكات...',
+                allowClear: true,
+                minimumInputLength: 0
+            });
+            
+            // تحميل موردي الزنكات
+            this.loadCTPSuppliers(internalCtpSupplierSelect);
+            
+            // إضافة معالج حدث لتغيير مورد الزنكات
+            internalCtpSupplierSelect.on('select2:select', (e) => {
+                let selectedValue;
+                
+                // التحقق من مصدر الحدث (طبيعي أم مطلق)
+                if (e.params && e.params.data && e.params.data.id) {
+                    selectedValue = e.params.data.id;
+                } else {
+                    // في حالة الحدث المطلق، استخدم القيمة الحالية
+                    selectedValue = internalCtpSupplierSelect.val();
+                }
+                
+                if (selectedValue) {
+                    this.handleCTPSupplierChange(selectedValue, internalCtpPlateSizeSelect[0]);
+                }
+            });
+            
+            internalCtpSupplierSelect.on('select2:clear', () => {
+                this.handleCTPSupplierChange('', internalCtpPlateSizeSelect[0]);
+            });
+            
+            // إضافة معالج حدث لتغيير مقاس الزنك
+            internalCtpPlateSizeSelect.on('change', () => {
+                this.handleCTPPlateSizeChange(internalCtpPlateSizeSelect[0]);
+            });
+        }
+    },
+
+    /**
+     * تحميل موردي الزنكات
+     */
+    loadCTPSuppliers: function(supplierSelect) {
+        if (!supplierSelect || !supplierSelect.length) return;
+        
+        // تعطيل القائمة أثناء التحميل
+        supplierSelect.prop('disabled', true);
+        
+        // استدعاء API للحصول على موردي الزنكات - النظام الجديد
+        fetch('/printing-pricing/api/ctp-suppliers/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`فشل الطلب بكود الحالة: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // إعادة تمكين القائمة
+                supplierSelect.prop('disabled', false);
+                
+                if (data.success && data.suppliers && data.suppliers.length > 0) {
+                    // مسح الخيارات الحالية
+                    supplierSelect.empty();
+                    supplierSelect.append('<option value="">-- اختر المورد --</option>');
+                    
+                    // إضافة الموردين إلى القائمة
+                    data.suppliers.forEach(supplier => {
+                        const option = new Option(supplier.name, supplier.id);
+                        supplierSelect.append(option);
+                    });
+                    
+                    // تحديث Select2
+                    supplierSelect.trigger('change');
+                } else {
+                    console.warn('لا توجد موردين زنكات متاحين');
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في تحميل موردي الزنكات:', error);
+                supplierSelect.prop('disabled', false);
+            });
+    },
+
+    /**
+     * معالجة تغيير مورد الزنكات
+     */
+    handleCTPSupplierChange: function(supplierId, plateSizeSelect) {
+        if (!plateSizeSelect) return;
+        
+        // إذا تم إعادة تعيين المورد (اختيار قيمة فارغة)
+        if (!supplierId) {
+            plateSizeSelect.innerHTML = '<option value="">-- اختر المقاس --</option>';
+            plateSizeSelect.disabled = true;
+            this.clearCTPPriceFields(plateSizeSelect);
+            return;
+        }
+        
+        // تحميل مقاسات الزنكات للمورد المختار
+        this.loadPlateSizes(supplierId, plateSizeSelect);
+    },
+
+    /**
+     * تحميل مقاسات الزنكات
+     */
+    loadPlateSizes: function(supplierId, plateSizeSelect) {
+        if (!plateSizeSelect || !supplierId) return;
+        
+        // تعطيل القائمة أثناء التحميل
+        plateSizeSelect.disabled = true;
+        
+        // مسح الخيارات الحالية
+        plateSizeSelect.innerHTML = '<option value="">-- اختر المقاس --</option>';
+        
+        // استدعاء API للحصول على مقاسات الزنكات المتاحة - النظام الجديد
+        fetch(`/printing-pricing/api/ctp-plates/?supplier_id=${supplierId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`فشل الطلب بكود الحالة: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // إعادة تمكين القائمة
+                plateSizeSelect.disabled = false;
+                
+                if (data.success && data.plates && data.plates.length > 0) {
+                    // إضافة مقاسات الزنكات إلى القائمة
+                    data.plates.forEach(plate => {
+                        const option = document.createElement('option');
+                        option.value = plate.id;
+                        option.text = plate.name;
+                        option.dataset.price = plate.price_per_plate;
+                        plateSizeSelect.appendChild(option);
+                    });
+                    
+                    // اختيار أول خيار تلقائياً إذا كان هناك خيارات متاحة
+                    if (plateSizeSelect.options.length > 1) {
+                        plateSizeSelect.selectedIndex = 1; // اختيار أول خيار (تجاهل الخيار الفارغ)
+                        
+                        // تحديث سعر الزنك تلقائياً
+                        this.handleCTPPlateSizeChange(plateSizeSelect);
+                        
+                        // إطلاق حدث change للتأكد من تحديث أي معالجات أخرى
+                        const changeEvent = new Event('change', { bubbles: true });
+                        plateSizeSelect.dispatchEvent(changeEvent);
+                    }
+                } else {
+                    console.warn('لا توجد مقاسات زنكات متاحة للمورد المختار');
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في تحميل مقاسات الزنكات:', error);
+                plateSizeSelect.disabled = false;
+            });
+    },
+
+    /**
+     * معالجة تغيير مقاس الزنك
+     */
+    handleCTPPlateSizeChange: function(plateSizeSelect) {
+        if (!plateSizeSelect) return;
+        
+        const selectedOption = plateSizeSelect.options[plateSizeSelect.selectedIndex];
+        const price = selectedOption ? selectedOption.dataset.price : '';
+        
+        // تحديث سعر الزنك
+        this.updateCTPPrice(plateSizeSelect, price);
+    },
+
+    /**
+     * تحديث سعر الزنك
+     */
+    updateCTPPrice: function(plateSizeSelect, price) {
+        // تحديد حقل السعر المناسب بناءً على نوع الحقل
+        let priceFieldId;
+        if (plateSizeSelect.id === 'id_ctp_plate_size') {
+            priceFieldId = 'id_ctp_plate_price';
+        } else if (plateSizeSelect.id === 'id_internal_ctp_plate_size') {
+            priceFieldId = 'id_internal_ctp_plate_price';
+        }
+        
+        const priceField = document.getElementById(priceFieldId);
+        if (priceField) {
+            priceField.value = price || '';
+        }
+    },
+
+    /**
+     * مسح حقول أسعار الزنكات
+     */
+    clearCTPPriceFields: function(plateSizeSelect) {
+        // تحديد حقل السعر المناسب بناءً على نوع الحقل
+        let priceFieldId;
+        if (plateSizeSelect.id === 'id_ctp_plate_size') {
+            priceFieldId = 'id_ctp_plate_price';
+        } else if (plateSizeSelect.id === 'id_internal_ctp_plate_size') {
+            priceFieldId = 'id_internal_ctp_plate_price';
+        }
+        
+        const priceField = document.getElementById(priceFieldId);
+        if (priceField) {
+            priceField.value = '';
+        }
+    },
+
+    /**
+     * تهيئة حساب عدد الزنكات
+     */
+    initPlatesCalculation: function() {
+        // تهيئة حساب الزنكات للغلاف
+        this.initCoverPlatesCalculation();
+        
+        // تهيئة حساب الزنكات للمحتوى الداخلي
+        this.initInternalPlatesCalculation();
+    },
+
+    /**
+     * تهيئة حساب الزنكات للغلاف
+     */
+    initCoverPlatesCalculation: function() {
+        const printSidesField = $('#id_print_sides');
+        const colorsDesignField = $('#id_colors_design');
+        const colorsFrontField = $('#id_colors_front');
+        const colorsBackField = $('#id_colors_back');
+        const platesCountField = $('#id_ctp_plates_count');
+        
+        if (printSidesField.length && platesCountField.length) {
+            // إضافة معالجات الأحداث
+            printSidesField.on('change', () => {
+                this.calculatePlatesCount('cover');
+            });
+            
+            colorsDesignField.on('input change', () => {
+                this.calculatePlatesCount('cover');
+            });
+            
+            colorsFrontField.on('input change', () => {
+                this.calculatePlatesCount('cover');
+            });
+            
+            colorsBackField.on('input change', () => {
+                this.calculatePlatesCount('cover');
+            });
+        }
+    },
+
+    /**
+     * تهيئة حساب الزنكات للمحتوى الداخلي
+     */
+    initInternalPlatesCalculation: function() {
+        const internalPrintSidesField = $('#id_internal_print_sides');
+        const internalColorsDesignField = $('#id_internal_colors_design');
+        const internalColorsFrontField = $('#id_internal_colors_front');
+        const internalColorsBackField = $('#id_internal_colors_back');
+        const internalPlatesCountField = $('#id_internal_ctp_plates_count');
+        
+        if (internalPrintSidesField.length && internalPlatesCountField.length) {
+            // إضافة معالجات الأحداث
+            internalPrintSidesField.on('change', () => {
+                this.calculatePlatesCount('internal');
+            });
+            
+            internalColorsDesignField.on('input change', () => {
+                this.calculatePlatesCount('internal');
+            });
+            
+            internalColorsFrontField.on('input change', () => {
+                this.calculatePlatesCount('internal');
+            });
+            
+            internalColorsBackField.on('input change', () => {
+                this.calculatePlatesCount('internal');
+            });
+        }
+    },
+
+    /**
+     * حساب عدد الزنكات
+     * @param {string} type - نوع الحساب ('cover' أو 'internal')
+     */
+    calculatePlatesCount: function(type) {
+        let printSidesField, colorsDesignField, colorsFrontField, colorsBackField, platesCountField;
+        
+        if (type === 'cover') {
+            printSidesField = $('#id_print_sides');
+            colorsDesignField = $('#id_colors_design');
+            colorsFrontField = $('#id_colors_front');
+            colorsBackField = $('#id_colors_back');
+            platesCountField = $('#id_ctp_plates_count');
+        } else if (type === 'internal') {
+            printSidesField = $('#id_internal_print_sides');
+            colorsDesignField = $('#id_internal_colors_design');
+            colorsFrontField = $('#id_internal_colors_front');
+            colorsBackField = $('#id_internal_colors_back');
+            platesCountField = $('#id_internal_ctp_plates_count');
+        }
+        
+        if (!printSidesField.length || !platesCountField.length) {
+            return;
+        }
+        
+        const printSides = printSidesField.val();
+        let totalColors = 0;
+        let platesCount = 0;
+        
+        // حساب عدد الألوان حسب نوع الطباعة
+        if (printSides === '1' || printSides === '3') {
+            // وجه واحد أو طبع وقلب - استخدم عدد ألوان التصميم
+            totalColors = parseInt(colorsDesignField.val()) || 0;
+        } else if (printSides === '2') {
+            // وجهين - استخدم مجموع ألوان الوجه والظهر
+            const frontColors = parseInt(colorsFrontField.val()) || 0;
+            const backColors = parseInt(colorsBackField.val()) || 0;
+            totalColors = frontColors + backColors;
+        }
+        
+        // حساب عدد الزنكات حسب نوع الطباعة
+        if (printSides === '1') {
+            // وجه واحد: الزنكات = عدد الألوان × 1
+            platesCount = totalColors * 1;
+        } else if (printSides === '2') {
+            // وجهين: الزنكات = عدد الألوان × 2 (لكن هنا totalColors يشمل الوجهين)
+            platesCount = totalColors;
+        } else if (printSides === '3') {
+            // طبع وقلب: الزنكات = عدد الألوان × 1 (نفس الزنكات للوجهين)
+            platesCount = totalColors * 1;
+        }
+        
+        // تحديث حقل عدد الزنكات
+        if (platesCount > 0) {
+            platesCountField.val(platesCount);
+        } else {
+            platesCountField.val('');
+        }
+        
+        // إطلاق حدث تغيير لتحديث التكاليف
+        platesCountField.trigger('change');
+    },
+
+    /**
+     * تهيئة حساب التكلفة الإجمالية للزنكات
+     */
+    initCTPCostCalculation: function() {
+        // تهيئة حساب التكلفة للغلاف
+        this.initCoverCTPCostCalculation();
+        
+        // تهيئة حساب التكلفة للمحتوى الداخلي
+        this.initInternalCTPCostCalculation();
+    },
+
+    /**
+     * تهيئة حساب التكلفة الإجمالية للزنكات للغلاف
+     */
+    initCoverCTPCostCalculation: function() {
+        const platesCountField = $('#id_ctp_plates_count');
+        const platePriceField = $('#id_ctp_plate_price');
+        const transportationField = $('#id_ctp_transportation');
+        const totalCostField = $('#id_ctp_total_cost');
+        
+        if (platesCountField.length && platePriceField.length && transportationField.length && totalCostField.length) {
+            // إضافة معالجات الأحداث
+            platesCountField.on('input change', () => {
+                this.calculateCTPTotalCost('cover');
+            });
+            
+            platePriceField.on('input change', () => {
+                this.calculateCTPTotalCost('cover');
+            });
+            
+            transportationField.on('input change', () => {
+                this.calculateCTPTotalCost('cover');
+            });
+        }
+    },
+
+    /**
+     * تهيئة حساب التكلفة الإجمالية للزنكات للمحتوى الداخلي
+     */
+    initInternalCTPCostCalculation: function() {
+        const internalPlatesCountField = $('#id_internal_ctp_plates_count');
+        const internalPlatePriceField = $('#id_internal_ctp_plate_price');
+        const internalTransportationField = $('#id_internal_ctp_transportation');
+        const internalTotalCostField = $('#id_internal_ctp_total_cost');
+        
+        if (internalPlatesCountField.length && internalPlatePriceField.length && internalTransportationField.length && internalTotalCostField.length) {
+            // إضافة معالجات الأحداث
+            internalPlatesCountField.on('input change', () => {
+                this.calculateCTPTotalCost('internal');
+            });
+            
+            internalPlatePriceField.on('input change', () => {
+                this.calculateCTPTotalCost('internal');
+            });
+            
+            internalTransportationField.on('input change', () => {
+                this.calculateCTPTotalCost('internal');
+            });
+        }
+    },
+
+    /**
+     * حساب التكلفة الإجمالية للزنكات
+     * @param {string} type - نوع الحساب ('cover' أو 'internal')
+     */
+    calculateCTPTotalCost: function(type) {
+        let platesCountField, platePriceField, transportationField, totalCostField;
+        
+        if (type === 'cover') {
+            platesCountField = $('#id_ctp_plates_count');
+            platePriceField = $('#id_ctp_plate_price');
+            transportationField = $('#id_ctp_transportation');
+            totalCostField = $('#id_ctp_total_cost');
+        } else if (type === 'internal') {
+            platesCountField = $('#id_internal_ctp_plates_count');
+            platePriceField = $('#id_internal_ctp_plate_price');
+            transportationField = $('#id_internal_ctp_transportation');
+            totalCostField = $('#id_internal_ctp_total_cost');
+        }
+        
+        if (!platesCountField.length || !platePriceField.length || !transportationField.length || !totalCostField.length) {
+            return;
+        }
+        
+        // الحصول على القيم
+        const platesCount = parseFloat(platesCountField.val()) || 0;
+        const platePrice = parseFloat(platePriceField.val()) || 0;
+        const transportation = parseFloat(transportationField.val()) || 0;
+        
+        // حساب التكلفة الإجمالية
+        // التكلفة الإجمالية = (عدد الزنكات × سعر الزنك) + تكلفة الانتقالات
+        const totalCost = (platesCount * platePrice) + transportation;
+        
+        // تحديث حقل التكلفة الإجمالية
+        if (totalCost > 0) {
+            totalCostField.val(totalCost.toFixed(2));
+        } else {
+            totalCostField.val('');
+        }
+        
+        // إطلاق حدث تغيير لتحديث التكاليف الأخرى
+        totalCostField.trigger('change');
+    },
+
+    /**
+     * تهيئة حساب التكلفة الإجمالية للمطبعة
+     */
+    initPressCostCalculation: function() {
+        const priceField = $('#id_press_price_per_1000');
+        const runsField = $('#id_press_runs');
+        const transportationField = $('#id_press_transportation');
+        const totalCostField = $('#id_press_total_cost');
+        
+        if (priceField.length && runsField.length && transportationField.length && totalCostField.length) {
+            // إضافة معالجات الأحداث مع debounce
+            const debouncedCalculate = debounce(() => {
+                this.calculatePressTotalCost();
+            }, 100);
+            
+            priceField.on('input change', debouncedCalculate);
+            runsField.on('input change', debouncedCalculate);
+            transportationField.on('input change', debouncedCalculate);
+        }
+    },
+
+    /**
+     * حساب التكلفة الإجمالية للمطبعة
+     */
+    calculatePressTotalCost: function() {
+        // منع تكرار الحساب إذا كان قيد التنفيذ
+        if (this.calculatingPressCost) {
+            return;
+        }
+        
+        // إضافة debounce داخلي إضافي
+        if (this.pressCostTimeout) {
+            clearTimeout(this.pressCostTimeout);
+        }
+        
+        this.pressCostTimeout = setTimeout(() => {
+            this.calculatingPressCost = true;
+            this._doCalculatePressCost();
+        }, 50);
+    },
+    
+    _doCalculatePressCost: function() {
+        
+        const priceField = $('#id_press_price_per_1000');
+        const runsField = $('#id_press_runs');
+        const transportationField = $('#id_press_transportation');
+        const totalCostField = $('#id_press_total_cost');
+        
+        if (!priceField.length || !runsField.length || !transportationField.length || !totalCostField.length) {
+            this.calculatingPressCost = false;
+            return;
+        }
+        
+        // الحصول على القيم
+        const pricePerRun = parseFloat(priceField.val()) || 0;
+        const runs = parseFloat(runsField.val()) || 0;
+        const transportation = parseFloat(transportationField.val()) || 0;
+        
+        // حساب التكلفة الإجمالية
+        // التكلفة الإجمالية = (سعر التراج × عدد التراجات) + تكلفة الانتقالات
+        const totalCost = (pricePerRun * runs) + transportation;
+        
+        // تحديث حقل التكلفة الإجمالية
+        if (totalCost > 0) {
+            totalCostField.val(totalCost.toFixed(2));
+        } else {
+            totalCostField.val('');
+        }
+        
+        // إطلاق حدث تغيير لتحديث التكاليف الأخرى (بدون إطلاق حساب جديد)
+        totalCostField.off('change.pressCost').trigger('change').on('change.pressCost', () => {
+            // منع إعادة الحساب من هذا الحدث
+        });
+        
+        // إلغاء علامة الحساب
+        this.calculatingPressCost = false;
+    },
+
+    /**
      * تهيئة الحقول القابلة للإظهار/الإخفاء
      */
     initToggleFields: function() {
-        console.log('🔧 تهيئة الحقول القابلة للإظهار/الإخفاء...');
         
         // تهيئة checkbox المحتوى الداخلي
         this.initInternalContentToggle();
@@ -817,7 +2012,6 @@ PrintingPricingSystem.FieldHandlers = {
         // تهيئة checkbox المقاس المفتوح
         this.initOpenSizeToggle();
         
-        console.log('✅ تم تهيئة الحقول القابلة للإظهار/الإخفاء بنجاح');
     },
 
     /**
@@ -847,11 +2041,9 @@ PrintingPricingSystem.FieldHandlers = {
             
             if (isChecked) {
                 targetSection.slideDown(300);
-                console.log('📖 تم إظهار قسم المحتوى الداخلي');
                 this.updateSectionLabels(true);
             } else {
                 targetSection.slideUp(300);
-                console.log('📖 تم إخفاء قسم المحتوى الداخلي');
                 this.updateSectionLabels(false);
             }
             
@@ -863,12 +2055,10 @@ PrintingPricingSystem.FieldHandlers = {
         if (checkbox.prop('checked')) {
             targetSection.show();
             this.updateSectionLabels(true);
-            console.log('📖 قسم المحتوى الداخلي مفعل مسبقاً');
         } else {
             this.updateSectionLabels(false);
         }
         
-        console.log('✅ تم تهيئة معالج المحتوى الداخلي');
     },
 
     /**
@@ -901,7 +2091,6 @@ PrintingPricingSystem.FieldHandlers = {
             $('.step[data-step="3"] .step-number').text('3');
             $('.step[data-step="4"] .step-number').text('4');
             
-            console.log('🏷️ تم تفعيل المحتوى الداخلي - 4 خطوات');
         } else {
             // إخفاء القسم الثالث
             step3.hide();
@@ -912,10 +2101,8 @@ PrintingPricingSystem.FieldHandlers = {
             $('.step[data-step="2"] .step-number').text('2');
             $('.step[data-step="4"] .step-number').text('3'); // القسم الرابع يصبح الثالث
             
-            console.log('🏷️ تم تعطيل المحتوى الداخلي - 3 خطوات');
         }
 
-        console.log(`🏷️ تم تحديث تسميات الأقسام - المحتوى الداخلي: ${hasInternalContent ? 'مفعل' : 'معطل'}`);
     },
 
     /**
@@ -944,10 +2131,8 @@ PrintingPricingSystem.FieldHandlers = {
             
             if (isChecked) {
                 targetFields.slideDown(300);
-                console.log('📐 تم إظهار حقول المقاس المفتوح');
             } else {
                 targetFields.slideUp(300);
-                console.log('📐 تم إخفاء حقول المقاس المفتوح');
             }
             
             // إطلاق حدث مخصص
@@ -957,17 +2142,579 @@ PrintingPricingSystem.FieldHandlers = {
         // تطبيق الحالة الأولية إذا كان محدد مسبقاً
         if (checkbox.prop('checked')) {
             targetFields.show();
-            console.log('📐 حقول المقاس المفتوح مفعلة مسبقاً');
         }
         
-        console.log('✅ تم تهيئة معالج المقاس المفتوح');
+    },
+
+    /**
+     * تهيئة حقول الورق
+     */
+    initPaperFields: function() {
+        this.initPaperTypeField();
+        this.initPaperSupplierField();
+        this.initPaperSheetTypeField();
+        this.initPaperWeightField();
+        this.initPaperOriginField();
+        this.initPaperPriceField();
+    },
+
+    /**
+     * تهيئة حقل نوع الورق مع Select2
+     */
+    initPaperTypeField: function() {
+        const paperTypeField = $('#id_paper_type');
+        if (!paperTypeField.length) {
+            return;
+        }
+
+        // تحويل الحقل إلى Select2
+        paperTypeField.select2({
+            ...this.config.select2Config,
+            placeholder: 'اختر نوع الورق',
+            allowClear: true
+        });
+
+        // جلب أنواع الورق من API
+        this.loadPaperTypes();
+
+        // معالج تغيير نوع الورق
+        paperTypeField.on('select2:select', (e) => {
+            const selectedPaperType = e.params.data.id;
+            console.log('🔄 تم اختيار نوع الورق:', selectedPaperType);
+            
+            // تحديث قائمة الموردين حسب نوع الورق المختار
+            this.loadPaperSuppliers(selectedPaperType);
+            
+            // تحديث باقي الحقول
+            this.updatePaperWeightOptions();
+            this.updatePaperOrigins();
+        });
+
+        paperTypeField.on('select2:clear', () => {
+            console.log('🗑️ تم مسح نوع الورق');
+            
+            // إعادة تحميل جميع الموردين (بدون فلتر)
+            this.loadPaperSuppliers();
+            
+            // مسح باقي الحقول
+            this.clearPaperWeightOptions();
+            this.clearPaperOrigins();
+        });
+    },
+
+    /**
+     * تهيئة حقل مورد الورق مع Select2
+     */
+    initPaperSupplierField: function() {
+        const paperSupplierField = $('#id_paper_supplier');
+        if (!paperSupplierField.length) {
+            return;
+        }
+
+        // تحويل الحقل إلى Select2
+        paperSupplierField.select2({
+            ...this.config.select2Config,
+            placeholder: 'اختر مورد الورق',
+            allowClear: true
+        });
+
+        // جلب موردي الورق من API
+        this.loadPaperSuppliers();
+
+        // معالج تغيير مورد الورق
+        paperSupplierField.on('select2:select', (e) => {
+            this.updatePaperSheetTypes();
+            this.updatePaperOrigins();
+        });
+
+        paperSupplierField.on('select2:clear', () => {
+            this.clearPaperSheetTypes();
+            this.clearPaperOrigins();
+        });
+    },
+
+    /**
+     * تهيئة حقل مقاس الفرخ
+     */
+    initPaperSheetTypeField: function() {
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        if (!paperSheetTypeField.length) {
+            return;
+        }
+
+        // معالج تغيير مقاس الفرخ
+        paperSheetTypeField.on('change', () => {
+            this.updatePaperWeightOptions();
+            this.updatePaperOrigins();
+            this.updatePieceSizeOptions(); // تحديث مقاسات القطع عند تغيير مقاس الفرخ
+        });
+    },
+
+    /**
+     * تهيئة حقل وزن الورق
+     */
+    initPaperWeightField: function() {
+        const paperWeightField = $('#id_paper_weight');
+        if (!paperWeightField.length) {
+            return;
+        }
+
+        // معالج تغيير وزن الورق
+        paperWeightField.on('change', () => {
+            this.updatePaperOrigins();
+        });
+    },
+
+    /**
+     * تهيئة حقل منشأ الورق
+     */
+    initPaperOriginField: function() {
+        const paperOriginField = $('#id_paper_origin');
+        if (!paperOriginField.length) {
+            return;
+        }
+
+        // معالج تغيير منشأ الورق
+        paperOriginField.on('change', () => {
+            this.updatePaperPrice();
+        });
+    },
+
+    /**
+     * تهيئة حقل سعر الورق
+     */
+    initPaperPriceField: function() {
+        const paperPriceField = $('#id_paper_price');
+        if (!paperPriceField.length) {
+            return;
+        }
+
+        // معالج تغيير سعر الورق
+        paperPriceField.on('input change', () => {
+            this.updateTotalPaperCost();
+        });
+    },
+
+    /**
+     * جلب أنواع الورق من API
+     * ملاحظة: معطل حالياً - يحتاج إنشاء API حقيقي في النظام الجديد
+     */
+    loadPaperTypes: function() {
+        const paperTypeField = $('#id_paper_type');
+        if (!paperTypeField.length) {
+            return;
+        }
+
+        // جلب أنواع الورق من API
+        fetch('/printing-pricing/api/paper-types/')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.paper_types) {
+                    // مسح الخيارات الحالية
+                    paperTypeField.empty();
+                    paperTypeField.append('<option value="">-- اختر نوع الورق --</option>');
+                    
+                    // إضافة أنواع الورق
+                    data.paper_types.forEach(type => {
+                        paperTypeField.append(`<option value="${type.id}">${type.name}</option>`);
+                    });
+                } else {
+                    console.error('فشل في جلب أنواع الورق:', data.error || 'خطأ غير معروف');
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب أنواع الورق:', error);
+            });
+    },
+
+    /**
+     * جلب موردي الورق من API مع إمكانية الفلترة حسب نوع الورق
+     * @param {string} paperTypeId - معرف نوع الورق للفلترة (اختياري)
+     */
+    loadPaperSuppliers: function(paperTypeId = null) {
+        const paperSupplierField = $('#id_paper_supplier');
+        if (!paperSupplierField.length) {
+            return;
+        }
+
+        // بناء URL مع معامل نوع الورق إذا وُجد
+        let apiUrl = '/printing-pricing/api/paper-suppliers/';
+        if (paperTypeId) {
+            apiUrl += `?paper_type_id=${paperTypeId}`;
+            console.log('🔍 جلب موردي الورق لنوع الورق:', paperTypeId);
+        } else {
+            console.log('📋 جلب جميع موردي الورق');
+        }
+
+        // جلب موردي الورق من API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.suppliers) {
+                    // مسح الخيارات الحالية
+                    paperSupplierField.empty();
+                    paperSupplierField.append('<option value="">-- اختر مورد الورق --</option>');
+                    
+                    // إضافة موردي الورق
+                    data.suppliers.forEach(supplier => {
+                        paperSupplierField.append(`<option value="${supplier.id}">${supplier.name}</option>`);
+                    });
+                    
+                    // رسالة توضيحية
+                    if (data.filtered_by_paper_type) {
+                        console.log(`✅ تم جلب ${data.total_count} مورد لنوع الورق: ${data.filtered_by_paper_type.name}`);
+                    } else {
+                        console.log(`✅ تم جلب ${data.total_count} مورد ورق`);
+                    }
+                    
+                    // تحديث Select2 لإظهار التغييرات أولاً
+                    paperSupplierField.trigger('change');
+                    
+                    // اختيار أول مورد تلقائياً إذا وُجد (مع تأخير بسيط)
+                    if (data.suppliers.length > 0) {
+                        const self = this; // حفظ مرجع this
+                        setTimeout(() => {
+                            const firstSupplier = data.suppliers[0];
+                            paperSupplierField.val(firstSupplier.id);
+                            console.log(`🔄 تم اختيار أول مورد تلقائياً: ${firstSupplier.name}`);
+                            
+                            // تشغيل حدث التغيير لتحديث الحقول التابعة
+                            paperSupplierField.trigger('change');
+                            
+                            // تحديث مقاسات الفرخ ومنشأ الورق يدوياً (لأن الاختيار التلقائي لا يشغل select2:select)
+                            self.updatePaperSheetTypes();
+                            self.updatePaperWeightOptions();
+                            self.updatePaperOrigins();
+                        }, 100);
+                    }
+                } else {
+                    console.error('فشل في جلب موردي الورق:', data.error || 'خطأ غير معروف');
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب موردي الورق:', error);
+            });
+    },
+
+    /**
+     * تحديث خيارات وزن الورق حسب نوع الورق المختار
+     */
+    updatePaperWeightOptions: function() {
+        const paperTypeField = $('#id_paper_type');
+        const paperSupplierField = $('#id_paper_supplier');
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        const paperWeightField = $('#id_paper_weight');
+        
+        if (!paperTypeField.length || !paperWeightField.length) {
+            return;
+        }
+
+        const selectedType = paperTypeField.val();
+        if (!selectedType) {
+            this.clearPaperWeightOptions();
+            return;
+        }
+
+        // بناء URL مع جميع المعايير المتاحة
+        let apiUrl = `/printing-pricing/api/paper-weights/?paper_type_id=${selectedType}`;
+        
+        const selectedSupplier = paperSupplierField.val();
+        if (selectedSupplier) {
+            apiUrl += `&supplier_id=${selectedSupplier}`;
+        }
+        
+        const selectedSheetType = paperSheetTypeField.val();
+        if (selectedSheetType) {
+            apiUrl += `&sheet_type=${selectedSheetType}`;
+        }
+
+        console.log('🔍 جلب أوزان الورق للمعايير:', {
+            paper_type: selectedType,
+            supplier: selectedSupplier || 'غير محدد',
+            sheet_type: selectedSheetType || 'غير محدد'
+        });
+
+        // جلب أوزان الورق من API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.weights) {
+                    // مسح الخيارات الحالية
+                    paperWeightField.empty();
+                    paperWeightField.append('<option value="">-- اختر وزن الورق --</option>');
+                    
+                    // إضافة الأوزان الجديدة
+                    data.weights.forEach(weight => {
+                        paperWeightField.append(`<option value="${weight.value}">${weight.display_name}</option>`);
+                    });
+                    
+                    // اختيار أول وزن تلقائياً إذا وُجد
+                    if (data.weights.length > 0) {
+                        const firstWeight = data.weights[0];
+                        paperWeightField.val(firstWeight.value);
+                        console.log(`🔄 تم اختيار أول وزن ورق تلقائياً: ${firstWeight.display_name}`);
+                        paperWeightField.trigger('change');
+                    }
+                } else {
+                    this.clearPaperWeightOptions();
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب أوزان الورق:', error);
+                this.clearPaperWeightOptions();
+            });
+    },
+
+    /**
+     * تحديث مقاسات الفرخ حسب مورد الورق ونوع الورق
+     */
+    updatePaperSheetTypes: function() {
+        const paperTypeField = $('#id_paper_type');
+        const paperSupplierField = $('#id_paper_supplier');
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        
+        if (!paperTypeField.length || !paperSupplierField.length || !paperSheetTypeField.length) {
+            return;
+        }
+
+        const selectedType = paperTypeField.val();
+        const selectedSupplier = paperSupplierField.val();
+        
+        if (!selectedType || !selectedSupplier) {
+            this.clearPaperSheetTypes();
+            return;
+        }
+
+        // جلب مقاسات الفرخ من API
+        fetch(`/printing-pricing/api/paper-sheet-types/?supplier_id=${selectedSupplier}&paper_type_id=${selectedType}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.sheet_types) {
+                    // مسح الخيارات الحالية
+                    paperSheetTypeField.empty();
+                    paperSheetTypeField.append('<option value="">-- اختر مقاس الفرخ --</option>');
+                    
+                    // إضافة المقاسات الجديدة
+                    const uniqueSheetTypes = new Set();
+                    data.sheet_types.forEach(item => {
+                        if (item.sheet_type && !uniqueSheetTypes.has(item.sheet_type)) {
+                            uniqueSheetTypes.add(item.sheet_type);
+                            paperSheetTypeField.append(`<option value="${item.sheet_type}">${item.display_name || item.sheet_type}</option>`);
+                        }
+                    });
+                    
+                    // اختيار أول مقاس تلقائياً إذا وُجد
+                    if (data.sheet_types.length > 0) {
+                        const firstSheetType = data.sheet_types[0];
+                        paperSheetTypeField.val(firstSheetType.sheet_type);
+                        console.log(`🔄 تم اختيار أول مقاس فرخ تلقائياً: ${firstSheetType.display_name || firstSheetType.sheet_type}`);
+                        paperSheetTypeField.trigger('change');
+                    }
+                } else {
+                    this.clearPaperSheetTypes();
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب مقاسات الفرخ:', error);
+                this.clearPaperSheetTypes();
+            });
+    },
+
+    /**
+     * تحديث منشأ الورق حسب المعايير المختارة
+     */
+    updatePaperOrigins: function() {
+        const paperTypeField = $('#id_paper_type');
+        const paperSupplierField = $('#id_paper_supplier');
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        const paperWeightField = $('#id_paper_weight');
+        const paperOriginField = $('#id_paper_origin');
+        
+        if (!paperOriginField.length) {
+            return;
+        }
+
+        const selectedType = paperTypeField.val();
+        const selectedSupplier = paperSupplierField.val();
+        const selectedSheetType = paperSheetTypeField.val();
+        const selectedWeight = paperWeightField.val();
+        
+        if (!selectedType || !selectedSupplier) {
+            this.clearPaperOrigins();
+            return;
+        }
+
+        // بناء URL مع المعاملات
+        let apiUrl = `/printing-pricing/api/paper-origins/?paper_type_id=${selectedType}&supplier_id=${selectedSupplier}`;
+        if (selectedSheetType) apiUrl += `&sheet_type=${selectedSheetType}`;
+        if (selectedWeight) apiUrl += `&weight=${selectedWeight}`;
+
+        // جلب منشأ الورق من API
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.origins) {
+                    // مسح الخيارات الحالية
+                    paperOriginField.empty();
+                    paperOriginField.append('<option value="">-- اختر منشأ الورق --</option>');
+                    
+                    // إضافة المناشئ الجديدة
+                    const uniqueOrigins = new Set();
+                    data.origins.forEach(item => {
+                        if (item.origin && !uniqueOrigins.has(item.origin)) {
+                            uniqueOrigins.add(item.origin);
+                            paperOriginField.append(`<option value="${item.origin}">${item.display_name || item.origin}</option>`);
+                        }
+                    });
+                    
+                    // اختيار أول منشأ تلقائياً إذا وُجد
+                    if (data.origins.length > 0) {
+                        const firstOrigin = data.origins[0];
+                        paperOriginField.val(firstOrigin.origin);
+                        console.log(`🔄 تم اختيار أول منشأ ورق تلقائياً: ${firstOrigin.display_name || firstOrigin.origin}`);
+                        paperOriginField.trigger('change');
+                    }
+                } else {
+                    this.clearPaperOrigins();
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب منشأ الورق:', error);
+                this.clearPaperOrigins();
+            });
+    },
+
+    /**
+     * تحديث سعر الورق حسب المعايير المختارة
+     */
+    updatePaperPrice: function() {
+        const paperTypeField = $('#id_paper_type');
+        const paperSupplierField = $('#id_paper_supplier');
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        const paperWeightField = $('#id_paper_weight');
+        const paperOriginField = $('#id_paper_origin');
+        const paperPriceField = $('#id_paper_price');
+        
+        if (!paperPriceField.length) {
+            return;
+        }
+
+        const selectedType = paperTypeField.val();
+        const selectedSupplier = paperSupplierField.val();
+        const selectedSheetType = paperSheetTypeField.val();
+        const selectedWeight = paperWeightField.val();
+        const selectedOrigin = paperOriginField.val();
+        
+        if (!selectedType || !selectedSupplier || !selectedSheetType || !selectedWeight || !selectedOrigin) {
+            paperPriceField.val('');
+            return;
+        }
+
+        // جلب سعر الورق من API
+        const apiUrl = `/printing-pricing/api/paper-price/?paper_type_id=${selectedType}&supplier_id=${selectedSupplier}&sheet_type=${selectedSheetType}&weight=${selectedWeight}&origin=${selectedOrigin}`;
+        
+        fetch(apiUrl)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success && data.price !== undefined) {
+                    paperPriceField.val(data.price);
+                    this.updateTotalPaperCost();
+                } else {
+                    paperPriceField.val('');
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في جلب سعر الورق:', error);
+                paperPriceField.val('');
+            });
+    },
+
+    /**
+     * تحديث التكلفة الإجمالية للورق
+     */
+    updateTotalPaperCost: function() {
+        const paperPriceField = $('#id_paper_price');
+        const paperQuantityField = $('#id_paper_quantity');
+        const totalPaperCostField = $('#id_total_paper_cost');
+        
+        if (!paperPriceField.length || !paperQuantityField.length || !totalPaperCostField.length) {
+            return;
+        }
+
+        const price = parseFloat(paperPriceField.val()) || 0;
+        const quantity = parseFloat(paperQuantityField.val()) || 0;
+        const totalCost = price * quantity;
+        
+        totalPaperCostField.val(totalCost > 0 ? totalCost.toFixed(2) : '');
+    },
+
+    /**
+     * مسح خيارات وزن الورق
+     */
+    clearPaperWeightOptions: function() {
+        const paperWeightField = $('#id_paper_weight');
+        if (paperWeightField.length) {
+            paperWeightField.empty();
+            paperWeightField.append('<option value="">-- اختر وزن الورق --</option>');
+        }
+    },
+
+    /**
+     * مسح خيارات مقاسات الفرخ
+     */
+    clearPaperSheetTypes: function() {
+        const paperSheetTypeField = $('#id_paper_sheet_type');
+        if (paperSheetTypeField.length) {
+            paperSheetTypeField.empty();
+            paperSheetTypeField.append('<option value="">-- اختر مقاس الفرخ --</option>');
+        }
+    },
+
+    /**
+     * مسح خيارات منشأ الورق
+     */
+    clearPaperOrigins: function() {
+        const paperOriginField = $('#id_paper_origin');
+        if (paperOriginField.length) {
+            paperOriginField.empty();
+            paperOriginField.append('<option value="">-- اختر منشأ الورق --</option>');
+        }
     },
 
     /**
      * تهيئة نظام التحقق من صحة النموذج
      */
     initFormValidation: function() {
-        console.log('🔧 تهيئة نظام التحقق من صحة النموذج...');
         
         // إضافة معالج للنموذج عند الإرسال
         const form = $('form');
@@ -992,7 +2739,6 @@ PrintingPricingSystem.FieldHandlers = {
         // إضافة زر للتحقق السريع من البيانات
         this.addQuickValidationButton();
 
-        console.log('✅ تم تهيئة نظام التحقق من صحة النموذج');
     },
 
     /**
@@ -1030,7 +2776,6 @@ PrintingPricingSystem.FieldHandlers = {
                 showPricingNotification('جميع البيانات المطلوبة مكتملة!', 'success', 'تحقق ناجح');
             }
             
-            console.log('✅ جميع البيانات المطلوبة مكتملة');
         } else {
             // هناك حقول مفقودة
             this.showMissingFieldsNotification(missingFields);
@@ -1046,7 +2791,6 @@ PrintingPricingSystem.FieldHandlers = {
         
         if (missingFields.length > 0) {
             this.showMissingFieldsNotification(missingFields);
-            this.focusOnFirstMissingField(missingFields[0]);
             return false;
         }
         
@@ -1054,9 +2798,17 @@ PrintingPricingSystem.FieldHandlers = {
     },
 
     /**
-     * التحقق من صحة قسم معين
+     * التحقق من صحة قسم معين (بدون إشعارات)
      */
     validateSection: function(sectionNumber) {
+        const missingFields = this.getMissingRequiredFieldsInSection(sectionNumber);
+        return missingFields.length === 0;
+    },
+
+    /**
+     * التحقق من صحة قسم معين مع إظهار الإشعارات
+     */
+    validateSectionWithNotification: function(sectionNumber) {
         const missingFields = this.getMissingRequiredFieldsInSection(sectionNumber);
         
         if (missingFields.length > 0) {
@@ -1067,7 +2819,6 @@ PrintingPricingSystem.FieldHandlers = {
         
         return true;
     },
-
     /**
      * الحصول على قائمة الحقول المطلوبة المفقودة
      */
@@ -1155,7 +2906,6 @@ PrintingPricingSystem.FieldHandlers = {
                 // إضافة تأثير بصري للحقل
                 this.highlightField(element);
                 
-                console.log(`🎯 تم التركيز على الحقل: ${field.name}`);
             }, 300);
         }
     },
@@ -1174,7 +2924,6 @@ PrintingPricingSystem.FieldHandlers = {
         $('.step').removeClass('active');
         $(`.step[data-step="${sectionNumber}"]`).addClass('active');
         
-        console.log(`📍 تم الانتقال إلى القسم ${sectionNumber}`);
     },
 
     /**
@@ -1195,7 +2944,6 @@ PrintingPricingSystem.FieldHandlers = {
      * نظام الحفظ التلقائي
      */
     initAutoSave: function() {
-        console.log('💾 تهيئة نظام الحفظ التلقائي...');
         
         const self = this;
         this.autoSave = {
@@ -1272,11 +3020,9 @@ PrintingPricingSystem.FieldHandlers = {
                                 }
                             }, 500);
                         });
-                        console.log(`✅ تم تفعيل الحفظ التلقائي للحقل الخاص: ${fieldName}`);
                     }
                 });
                 
-                console.log('✅ تم تفعيل الحفظ التلقائي');
             }
         };
         
@@ -1317,15 +3063,25 @@ PrintingPricingSystem.FieldHandlers = {
                                 isSelect2: false,
                                 isCheckbox: true
                             };
-                            console.log(`💾 حفظ checkbox ${fieldName}:`, isChecked);
                         } else {
                             // الحقول العادية الأخرى
                             const value = element.val();
                             if (value !== null && value !== undefined && value !== '') {
-                                formData[fieldName] = {
+                                const fieldData = {
                                     value: value,
                                     isSelect2: false
                                 };
+                                
+                                // معالجة خاصة للماكينة - حفظ الاسم أيضاً
+                                if (fieldName === 'press' && value) {
+                                    const selectedOption = element.find(`option[value="${value}"]`);
+                                    if (selectedOption.length) {
+                                        fieldData.text = selectedOption.text();
+                                        fieldData.name = selectedOption.text(); // حفظ اسم الماكينة
+                                    }
+                                }
+                                
+                                formData[fieldName] = fieldData;
                             }
                         }
                     }
@@ -1344,7 +3100,6 @@ PrintingPricingSystem.FieldHandlers = {
                             isCheckbox: true,
                             isSpecial: true
                         };
-                        console.log(`💾 حفظ special checkbox ${fieldName}:`, isChecked);
                     } else {
                         const value = element.val();
                         if (value !== null && value !== undefined && value !== '') {
@@ -1376,12 +3131,10 @@ PrintingPricingSystem.FieldHandlers = {
             this.autoSave.isDirty = false;
             this.showSaveSuccess();
             
-            console.log('💾 تم حفظ حالة النموذج:', formData);
             
             // إظهار رسالة مفصلة عن ما تم حفظه
             const savedFields = Object.keys(formData);
             if (savedFields.length > 0) {
-                console.log(`📝 تم حفظ ${savedFields.length} حقل: ${savedFields.join(', ')}`);
             }
         } catch (error) {
             console.error('❌ خطأ في الحفظ التلقائي:', error);
@@ -1400,11 +3153,12 @@ PrintingPricingSystem.FieldHandlers = {
                 
                 // استعادة البيانات إذا كانت أحدث من ساعة واحدة
                 if (age < 3600000 && draft.url === window.location.href) {
-                    console.log('🔄 بدء استعادة البيانات المحفوظة...');
                     
                     // إعطاء أولوية لاستعادة الحقول التي لا تعتمد على APIs
-                    const priorityFields = ['title', 'quantity', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side'];
-                    const apiDependentFields = ['client', 'product_type', 'product_size'];
+                    const priorityFields = ['title', 'quantity', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side', 'print_sides', 'internal_print_sides'];
+                    const colorFields = ['colors_design', 'colors_front', 'colors_back', 'design_price', 'internal_colors_design', 'internal_colors_front', 'internal_colors_back', 'internal_design_price']; // تحتاج print_sides أولاً
+                    const apiDependentFields = ['client', 'product_type', 'product_size', 'supplier', 'press', 'ctp_supplier', 'internal_ctp_supplier'];
+                    const secondaryFields = ['press_price_per_1000', 'press_runs', 'press_transportation', 'ctp_plate_size', 'internal_ctp_plate_size', 'ctp_plates_count', 'internal_ctp_plates_count']; // تحتاج تحميل المورد أولاً
                     const hiddenFields = ['use-open-size']; // الحقول المخفية داخل أقسام
                     
                     // استعادة الحقول ذات الأولوية أولاً
@@ -1414,6 +3168,21 @@ PrintingPricingSystem.FieldHandlers = {
                         }
                     });
                     
+                    // تأخير قصير لاستعادة حقول الألوان (بعد print_sides)
+                    setTimeout(() => {
+                        colorFields.forEach(fieldName => {
+                            if (draft.data[fieldName]) {
+                                this.restoreField(fieldName, draft.data[fieldName]);
+                            }
+                        });
+                        
+                        // إعادة حساب الزنكات بعد استعادة حقول الألوان
+                        setTimeout(() => {
+                            this.calculatePlatesCount('cover');
+                            this.calculatePlatesCount('internal');
+                        }, 100);
+                    }, 500); // تأخير قصير لضمان تحديث عرض حقول الألوان
+                    
                     // تأخير استعادة الحقول التي تعتمد على APIs
                     setTimeout(() => {
                         apiDependentFields.forEach(fieldName => {
@@ -1422,6 +3191,15 @@ PrintingPricingSystem.FieldHandlers = {
                             }
                         });
                     }, 1000);
+                    
+                    // تأخير متوسط لاستعادة الحقول الثانوية (مقاسات الزنكات)
+                    setTimeout(() => {
+                        secondaryFields.forEach(fieldName => {
+                            if (draft.data[fieldName]) {
+                                this.restoreField(fieldName, draft.data[fieldName]);
+                            }
+                        });
+                    }, 1500); // تأخير متوسط لضمان تحميل مقاسات الزنكات
                     
                     // تأخير أكبر لاستعادة الحقول المخفية داخل الأقسام
                     setTimeout(() => {
@@ -1437,12 +3215,10 @@ PrintingPricingSystem.FieldHandlers = {
                         const descriptionField = $('textarea[name="description"]');
                         if (descriptionField.length) {
                             descriptionField.val(draft.data['description'].value);
-                            console.log('🔄 تم استعادة حقل الوصف');
                         }
                     }
                     
                     this.showRestoreNotification();
-                    console.log('📋 تم استعادة البيانات المحفوظة');
                 }
             }
         } catch (error) {
@@ -1463,7 +3239,6 @@ PrintingPricingSystem.FieldHandlers = {
         try {
             if (fieldData.isSelect2) {
                 // استعادة حقول Select2
-                console.log(`🔄 استعادة Select2 ${fieldName}:`, fieldData);
                 
                 // التحقق من وجود الخيار أولاً
                 const existingOption = element.find(`option[value="${fieldData.value}"]`);
@@ -1476,27 +3251,135 @@ PrintingPricingSystem.FieldHandlers = {
                     element.val(fieldData.value);
                 }
                 
-                // تحديث Select2
+                // تحديث Select2 وإطلاق الأحداث المناسبة
                 element.trigger('change');
+                
+                // معالجة خاصة لحقول CTP لتحميل المقاسات
+                if (fieldName === 'ctp_supplier' || fieldName === 'internal_ctp_supplier') {
+                    // تجاهل القيم الفارغة أو غير الصحيحة
+                    if (!fieldData.value || fieldData.value === '' || fieldData.text === '-- اختر المورد --') {
+                        return;
+                    }
+                    
+                    
+                    // إطلاق حدث select2:select لتحميل مقاسات الزنكات
+                    element.trigger('select2:select');
+                    
+                }
+                
+                // معالجة خاصة لحقول المطبعة لتحميل الماكينات والأسعار
+                if (fieldName === 'supplier' || fieldName === 'press') {
+                    // تجاهل القيم الفارغة أو غير الصحيحة
+                    if (!fieldData.value || fieldData.value === '' || fieldData.text === '-- اختر المطبعة --' || fieldData.text === '-- اختر الماكينة --') {
+                        return;
+                    }
+                    
+                    
+                    // إطلاق حدث select2:select لتحميل البيانات التابعة
+                    element.trigger('select2:select');
+                    
+                }
             } else {
                 // معالجة خاصة للـ checkboxes
                 if (fieldData.isCheckbox) {
                     element.prop('checked', fieldData.value);
-                    console.log(`🔄 استعادة checkbox ${fieldName}:`, fieldData.value);
                 } else {
                     // استعادة الحقول العادية
                     element.val(fieldData.value);
                     
                     // التحقق من نجاح الاستعادة
                     if (element.val() !== fieldData.value) {
-                        console.warn(`⚠️ فشل في استعادة ${fieldName}، الخيار غير متاح:`, fieldData.value);
-                        return; // تخطي trigger إذا فشلت الاستعادة
+                        
+                        // للماكينات، حاول البحث بالاسم ثم اختيار أول خيار متاح
+                        if (fieldName === 'press') {
+                            // انتظار أطول للتأكد من تحميل الماكينات
+                            let waitAttempts = 0;
+                            const maxWaitAttempts = 15; // حد أقصى 3 ثوانٍ (15 × 200ms)
+                            
+                            const waitForMachines = () => {
+                                // التحقق من وجود ماكينات محملة
+                                const options = element.find('option:not([value=""])');
+                                if (options.length === 0 && waitAttempts < maxWaitAttempts) {
+                                    waitAttempts++;
+                                    setTimeout(waitForMachines, 200); // إعادة المحاولة
+                                    return;
+                                } else if (options.length === 0) {
+                                    console.warn('⚠️ انتهت محاولات انتظار تحميل الماكينات');
+                                    return;
+                                }
+                                
+                                let foundOption = null;
+                                
+                                // البحث بالاسم إذا كان متوفراً
+                                if (fieldData.name || fieldData.text) {
+                                    const searchName = fieldData.name || fieldData.text;
+                                    element.find('option').each(function() {
+                                        const optionText = $(this).text();
+                                        if (optionText === searchName || optionText.includes(searchName.split(' - ')[0])) {
+                                            foundOption = $(this);
+                                            return false; // break
+                                        }
+                                    });
+                                    
+                                    if (foundOption && foundOption.val()) {
+                                        element.val(foundOption.val());
+                                        element.trigger('change');
+                                        return;
+                                    }
+                                }
+                                
+                                // إذا لم يتم العثور بالاسم، اختر الأول المتاح
+                                if (options.length > 0) {
+                                    const firstOption = options.first();
+                                    element.val(firstOption.val());
+                                    element.trigger('change');
+                                } else {
+                                    console.warn(`⚠️ لا توجد ماكينات متاحة للاختيار`);
+                                }
+                            };
+                            
+                            // بدء عملية الانتظار والاستعادة
+                            setTimeout(waitForMachines, 500);
+                            return; // تخطي trigger الفوري
+                        } else {
+                            return; // تخطي trigger إذا فشلت الاستعادة
+                        }
                     }
                 }
                 
                 // تأخير trigger لضمان تحميل البيانات أولاً
                 setTimeout(() => {
                     element.trigger('change');
+                    
+                    // معالجة خاصة لحقول عدد الأوجه لتحديث عرض حقول الألوان
+                    if (fieldName === 'print_sides' || fieldName === 'internal_print_sides') {
+                        
+                        // تأخير إضافي لضمان وجود العناصر
+                        setTimeout(() => {
+                            // تحديث عرض حقول الألوان
+                            if (fieldName === 'print_sides') {
+                                const printSidesElement = document.getElementById('id_print_sides');
+                                const singleSideColors = document.getElementById('single-side-colors');
+                                const doubleSideColors = document.getElementById('double-side-colors');
+                                
+                                if (printSidesElement && singleSideColors && doubleSideColors) {
+                                    this.updateColorsFields(printSidesElement, singleSideColors, doubleSideColors);
+                                } else {
+                                    console.warn(`⚠️ لم يتم العثور على عناصر حقول الألوان للغلاف`);
+                                }
+                            } else if (fieldName === 'internal_print_sides') {
+                                const internalPrintSidesElement = document.getElementById('id_internal_print_sides');
+                                const internalSingleSideColors = document.getElementById('internal-single-side-colors');
+                                const internalDoubleSideColors = document.getElementById('internal-double-side-colors');
+                                
+                                if (internalPrintSidesElement && internalSingleSideColors && internalDoubleSideColors) {
+                                    this.updateColorsFields(internalPrintSidesElement, internalSingleSideColors, internalDoubleSideColors);
+                                } else {
+                                    console.warn(`⚠️ لم يتم العثور على عناصر حقول الألوان للمحتوى الداخلي`);
+                                }
+                            }
+                        }, 50); // تأخير قصير لضمان وجود العناصر
+                    }
                     
                     // معالجة خاصة لحقل المحتوى الداخلي
                     if (fieldName === 'has_internal_content') {
@@ -1532,7 +3415,6 @@ PrintingPricingSystem.FieldHandlers = {
         try {
             if (fieldData.isCheckbox) {
                 element.prop('checked', fieldData.value);
-                console.log(`🔄 استعادة special checkbox ${fieldName}:`, fieldData.value);
                 
                 // تأخير trigger لضمان تحميل البيانات أولاً
                 setTimeout(() => {
@@ -1547,7 +3429,6 @@ PrintingPricingSystem.FieldHandlers = {
                         } else {
                             targetFields.slideUp(300);
                         }
-                        console.log(`🔄 تم تطبيق حالة المقاس المفتوح: ${isChecked}`);
                     }
                 }, 300);
             } else {
@@ -1643,7 +3524,6 @@ PrintingPricingSystem.FieldHandlers = {
             clearInterval(this.autoSave.timer);
         }
         
-        console.log('🧹 تم تنظيف معالجات الحقول');
     }
 };
 
@@ -1667,5 +3547,17 @@ window.addEventListener('beforeunload', function(e) {
 $('form').on('submit', function() {
     // مسح المسودة عند الإرسال الناجح
     localStorage.removeItem('printing_form_draft');
-    console.log('🗑️ تم مسح المسودة المحفوظة');
 });
+
+// دالة debounce مساعدة
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}

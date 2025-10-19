@@ -43,7 +43,6 @@ function initializeTable(tableId, options = {}) {
     const tbody = table.querySelector('tbody');
     const rows = tbody ? tbody.querySelectorAll('tr') : [];
     
-    console.log(`الجدول ${tableId} يحتوي على ${rows.length} صف - تهيئة DataTables`);
     
     // التحقق من تطابق عدد الأعمدة
     if (!validateTableStructure(tableId)) {

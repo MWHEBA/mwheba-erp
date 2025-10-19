@@ -81,7 +81,6 @@ function safeDataTableInit(tableId, options = {}) {
                 
                 // تهيئة DataTable
                 const dataTable = $table.DataTable(finalOptions);
-                console.log('تم تهيئة DataTable بنجاح:', tableId);
                 resolve(dataTable);
                 
             } catch (error) {

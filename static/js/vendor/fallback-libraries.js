@@ -58,4 +58,3 @@ if (typeof JSZip === 'undefined') {
     };
 }
 
-console.log('تم تحميل المكتبات البديلة');
