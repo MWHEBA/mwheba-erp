@@ -632,7 +632,7 @@ class PaperServiceDetails(models.Model):
     def get_sheet_size_display(self):
         """عرض مقاس الفرخ مع التنسيق المناسب"""
         if self.sheet_size == "custom" and self.custom_width and self.custom_height:
-            from pricing.templatetags.pricing_filters import remove_trailing_zeros
+            from core.templatetags.pricing_filters import remove_trailing_zeros
             width_clean = remove_trailing_zeros(self.custom_width)
             height_clean = remove_trailing_zeros(self.custom_height)
             return f"مخصص ({width_clean}×{height_clean} سم)"
@@ -645,7 +645,7 @@ class PaperServiceDetails(models.Model):
             # إذا كان المقاس مخزون كأرقام، حاول تحويله لاسم مفهوم
             if self.sheet_size:
                 # تنظيف الأرقام وإزالة الأصفار
-                from pricing.templatetags.pricing_filters import remove_trailing_zeros
+                from core.templatetags.pricing_filters import remove_trailing_zeros
                 
                 # التحقق من المقاسات الشائعة
                 if "70" in self.sheet_size and "100" in self.sheet_size:
@@ -858,7 +858,7 @@ class ServicePriceTier(models.Model):
         unique_together = ["service", "min_quantity"]
 
     def __str__(self):
-        from pricing.templatetags.pricing_filters import remove_trailing_zeros
+        from core.templatetags.pricing_filters import remove_trailing_zeros
         
         max_qty = self.max_quantity if self.max_quantity else "∞"
         price_clean = remove_trailing_zeros(self.price_per_unit)

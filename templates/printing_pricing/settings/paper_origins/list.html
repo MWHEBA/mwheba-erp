@@ -170,7 +170,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`/pricing/settings/paper-origins/${id}/edit/`)
+    fetch(`{% url "printing_pricing:paper_origin_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -179,7 +179,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`/pricing/settings/paper-origins/${id}/delete/`)
+    fetch(`{% url "printing_pricing:paper_origin_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

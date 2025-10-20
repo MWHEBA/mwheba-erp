@@ -23,9 +23,73 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             {% translate "إلغاء" %}
         </button>
-        <button type="submit" class="btn btn-danger" onclick="submitForm('deletePrintDirectionForm')">
+        <button type="submit" class="btn btn-danger">
             <i class="fas fa-trash me-2"></i>
             {% translate "حذف" %}
         </button>
     </div>
 </form>
+
+<script>
+document.getElementById('deletePrintDirectionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // تعطيل الزر وإظهار مؤشر التحميل
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => {
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            throw new Error('Server returned HTML instead of JSON');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // إغلاق المودال
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+            if (modal) modal.hide();
+            
+            // عرض رسالة النجاح
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show position-fixed';
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                ${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // إعادة تحميل الصفحة
+            setTimeout(() => location.reload(), 500);
+        } else {
+            alert('حدث خطأ أثناء الحذف');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء معالجة الطلب');
+    })
+    .finally(() => {
+        // إعادة تفعيل الزر
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+</script>

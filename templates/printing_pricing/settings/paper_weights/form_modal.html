@@ -7,7 +7,7 @@
     </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
 </div>
-<form method="post" action="{{ action_url }}">
+<form id="paperWeightForm" method="post" action="{{ action_url }}">
     {% csrf_token %}
     <div class="modal-body">
         <div class="row">
@@ -44,7 +44,7 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
             <i class="fas fa-times me-2"></i>إلغاء
         </button>
-        <button type="submit" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" onclick="submitForm('paperWeightForm')">
             <i class="fas fa-save me-2"></i>حفظ
         </button>
     </div>

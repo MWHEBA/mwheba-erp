@@ -21,6 +21,7 @@ class PaperType(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
 
     class Meta:
         app_label = "printing_pricing"
@@ -41,6 +42,7 @@ class PaperSize(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
 
     class Meta:
         app_label = "printing_pricing"
@@ -49,7 +51,7 @@ class PaperSize(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        from pricing.templatetags.pricing_filters import remove_trailing_zeros
+        from core.templatetags.pricing_filters import remove_trailing_zeros
 
         width_clean = remove_trailing_zeros(self.width)
         height_clean = remove_trailing_zeros(self.height)
@@ -68,6 +70,7 @@ class PaperWeight(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
 
     class Meta:
         app_label = "printing_pricing"
@@ -89,6 +92,7 @@ class PaperOrigin(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     is_default = models.BooleanField(_("افتراضي"), default=False)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
 
     class Meta:
         app_label = "printing_pricing"
@@ -276,7 +280,7 @@ class PlateSize(models.Model):
         ordering = ["name"]
 
     def __str__(self):
-        from pricing.templatetags.pricing_filters import remove_trailing_zeros
+        from core.templatetags.pricing_filters import remove_trailing_zeros
 
         width_clean = remove_trailing_zeros(self.width)
         height_clean = remove_trailing_zeros(self.height)

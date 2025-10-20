@@ -186,13 +186,32 @@ function submitForm(formId) {
             'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
         }
     })
-    .then(response => response.json())
+    .then(response => {
+        // التحقق من نوع المحتوى
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // إذا لم يكن JSON، فهناك خطأ في الخادم
+            throw new Error('Server returned HTML instead of JSON');
+        }
+    })
     .then(data => {
         if (data.success) {
+            // إغلاق المودال
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+            if (modal) modal.hide();
+            // إعادة تحميل الصفحة
             location.reload();
         } else {
-            console.log(data.errors);
+            // عرض الأخطاء
+            console.error('Form errors:', data.errors);
+            alert('حدث خطأ في النموذج');
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء معالجة الطلب');
     });
 }
 </script>

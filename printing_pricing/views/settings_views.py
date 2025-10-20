@@ -1,19 +1,54 @@
 """
-عروض إدارة الإعدادات للنظام الجديد
 Views for managing settings in the new system
 """
 
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from django.urls import reverse_lazy
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
+from django.urls import reverse_lazy
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView
+from django.shortcuts import render
+from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
 from django.core.paginator import Paginator
 from django.db.models import Q
-from django.utils.translation import gettext_lazy as _
+
+
+# ==================== Mixins مشتركة ====================
+
+class AjaxDeleteMixin:
+    """Mixin لإضافة دعم AJAX للـ DeleteViews"""
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # إضافة الكائن المراد حذفه للـ context
+        model_name = self.model._meta.model_name
+        context[model_name] = self.object
+        context['action_url'] = self.request.path
+        return context
+
+    def delete(self, request, *args, **kwargs):
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            # للطلبات AJAX، حذف الكائن وإرجاع JSON
+            self.object = self.get_object()
+            self.object.delete()
+            
+            # إنشاء رسالة النجاح بناءً على اسم النموذج
+            model_verbose_name = self.model._meta.verbose_name
+            success_message = _('تم حذف {} بنجاح').format(model_verbose_name)
+            return JsonResponse(
+                {'success': True, 'message': success_message},
+                content_type='application/json'
+            )
+        
+        # للطلبات العادية، استخدام السلوك الافتراضي
+        response = super().delete(request, *args, **kwargs)
+        model_verbose_name = self.model._meta.verbose_name
+        success_message = _('تم حذف {} بنجاح').format(model_verbose_name)
+        messages.success(request, success_message)
+        return response
 
 from ..models import (
     PaperType, PaperSize, PaperWeight, PaperOrigin,
@@ -107,15 +142,11 @@ class PaperTypeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PaperTypeDeleteView(LoginRequiredMixin, DeleteView):
+class PaperTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع الورق"""
     model = PaperType
     template_name = 'printing_pricing/settings/paper_types/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع الورق بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات الورق ====================
@@ -195,15 +226,11 @@ class PaperSizeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PaperSizeDeleteView(LoginRequiredMixin, DeleteView):
+class PaperSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس الورق"""
     model = PaperSize
     template_name = 'printing_pricing/settings/paper_sizes/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس الورق بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أوزان الورق ====================
@@ -263,8 +290,16 @@ class PaperWeightCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم إنشاء وزن الورق بنجاح')})
         messages.success(self.request, _('تم إنشاء وزن الورق بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
 class PaperWeightUpdateView(LoginRequiredMixin, UpdateView):
@@ -281,19 +316,23 @@ class PaperWeightUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم تحديث وزن الورق بنجاح')})
         messages.success(self.request, _('تم تحديث وزن الورق بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
-class PaperWeightDeleteView(LoginRequiredMixin, DeleteView):
+class PaperWeightDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف وزن الورق"""
     model = PaperWeight
     template_name = 'printing_pricing/settings/paper_weights/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_weight_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف وزن الورق بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مناشئ الورق ====================
@@ -375,15 +414,11 @@ class PaperOriginUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PaperOriginDeleteView(LoginRequiredMixin, DeleteView):
+class PaperOriginDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف منشأ الورق"""
     model = PaperOrigin
     template_name = 'printing_pricing/settings/paper_origins/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_origin_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف منشأ الورق بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض اتجاهات الطباعة ====================
@@ -465,15 +500,11 @@ class PrintDirectionUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PrintDirectionDeleteView(LoginRequiredMixin, DeleteView):
+class PrintDirectionDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف اتجاه الطباعة"""
     model = PrintDirection
     template_name = 'printing_pricing/settings/print_directions/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:print_direction_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف اتجاه الطباعة بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض جوانب الطباعة ====================
@@ -510,15 +541,11 @@ class PrintSideUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PrintSideDeleteView(LoginRequiredMixin, DeleteView):
+class PrintSideDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف جانب الطباعة"""
     model = PrintSide
     template_name = 'printing_pricing/settings/print_sides/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:print_side_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف جانب الطباعة بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أنواع التغطية ====================
@@ -600,15 +627,11 @@ class CoatingTypeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class CoatingTypeDeleteView(LoginRequiredMixin, DeleteView):
+class CoatingTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع التغطية"""
     model = CoatingType
     template_name = 'printing_pricing/settings/coating_type/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:coating_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع التغطية بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أنواع التشطيب ====================
@@ -690,15 +713,11 @@ class FinishingTypeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class FinishingTypeDeleteView(LoginRequiredMixin, DeleteView):
+class FinishingTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع التشطيب"""
     model = FinishingType
     template_name = 'printing_pricing/settings/finishing_types/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:finishing_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع التشطيب بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات القطع ====================
@@ -756,8 +775,16 @@ class PieceSizeCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم إنشاء مقاس القطع بنجاح')})
         messages.success(self.request, _('تم إنشاء مقاس القطع بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
 class PieceSizeUpdateView(LoginRequiredMixin, UpdateView):
@@ -774,19 +801,23 @@ class PieceSizeUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم تحديث مقاس القطع بنجاح')})
         messages.success(self.request, _('تم تحديث مقاس القطع بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
-class PieceSizeDeleteView(LoginRequiredMixin, DeleteView):
+class PieceSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس القطع"""
     model = PieceSize
     template_name = 'printing_pricing/settings/piece_size/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:piece_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس القطع بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== صفحة الإعدادات الرئيسية ====================
@@ -862,15 +893,11 @@ class VATSettingUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class VATSettingDeleteView(LoginRequiredMixin, DeleteView):
+class VATSettingDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف إعداد ضريبة القيمة المضافة"""
     model = VATSetting
     template_name = 'printing_pricing/settings/vat_settings/confirm_delete.html'
     success_url = reverse_lazy('printing_pricing:vat_setting_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف إعداد ضريبة القيمة المضافة بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أنواع ماكينات الأوفست ====================
@@ -930,8 +957,16 @@ class OffsetMachineTypeCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم إنشاء نوع ماكينة الأوفست بنجاح')})
         messages.success(self.request, _('تم إنشاء نوع ماكينة الأوفست بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
 class OffsetMachineTypeUpdateView(LoginRequiredMixin, UpdateView):
@@ -948,19 +983,23 @@ class OffsetMachineTypeUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم تحديث نوع ماكينة الأوفست بنجاح')})
         messages.success(self.request, _('تم تحديث نوع ماكينة الأوفست بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
-class OffsetMachineTypeDeleteView(LoginRequiredMixin, DeleteView):
+class OffsetMachineTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع ماكينة أوفست"""
     model = OffsetMachineType
     template_name = 'printing_pricing/settings/offset_machine_type/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:offset_machine_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع ماكينة الأوفست بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات ماكينات الأوفست ====================
@@ -1040,15 +1079,11 @@ class OffsetSheetSizeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class OffsetSheetSizeDeleteView(LoginRequiredMixin, DeleteView):
+class OffsetSheetSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس ماكينة أوفست"""
     model = OffsetSheetSize
     template_name = 'printing_pricing/settings/offset_sheet_size/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:offset_sheet_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس ماكينة الأوفست بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أنواع ماكينات الديجيتال ====================
@@ -1130,15 +1165,11 @@ class DigitalMachineTypeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class DigitalMachineTypeDeleteView(LoginRequiredMixin, DeleteView):
+class DigitalMachineTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع ماكينة ديجيتال"""
     model = DigitalMachineType
     template_name = 'printing_pricing/settings/digital_machine_type/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:digital_machine_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع ماكينة الديجيتال بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات ماكينات الديجيتال ====================
@@ -1218,15 +1249,11 @@ class DigitalSheetSizeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class DigitalSheetSizeDeleteView(LoginRequiredMixin, DeleteView):
+class DigitalSheetSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس ماكينة ديجيتال"""
     model = DigitalSheetSize
     template_name = 'printing_pricing/settings/digital_sheet_size/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:digital_sheet_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس ماكينة الديجيتال بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض إعدادات النظام ====================
@@ -1286,15 +1313,11 @@ class SystemSettingUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class SystemSettingDeleteView(LoginRequiredMixin, DeleteView):
+class SystemSettingDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف إعداد نظام"""
     model = SystemSetting
     template_name = 'printing_pricing/settings/system_settings/confirm_delete.html'
     success_url = reverse_lazy('printing_pricing:system_setting_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف إعداد النظام بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات الزنكات ====================
@@ -1338,15 +1361,11 @@ class PlateSizeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class PlateSizeDeleteView(LoginRequiredMixin, DeleteView):
+class PlateSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس الزنك"""
     model = PlateSize
     template_name = 'printing_pricing/settings/plate_size/confirm_delete.html'
     success_url = reverse_lazy('printing_pricing:plate_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس الزنك بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض أنواع المنتجات ====================
@@ -1428,15 +1447,11 @@ class ProductTypeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class ProductTypeDeleteView(LoginRequiredMixin, DeleteView):
+class ProductTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف نوع المنتج"""
     model = ProductType
     template_name = 'printing_pricing/settings/product_types/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:product_type_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف نوع المنتج بنجاح'))
-        return super().delete(request, *args, **kwargs)
 
 
 # ==================== عروض مقاسات المنتجات ====================
@@ -1516,12 +1531,8 @@ class ProductSizeUpdateView(LoginRequiredMixin, UpdateView):
         return super().form_valid(form)
 
 
-class ProductSizeDeleteView(LoginRequiredMixin, DeleteView):
+class ProductSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     """عرض حذف مقاس المنتج"""
     model = ProductSize
     template_name = 'printing_pricing/settings/product_sizes/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:product_size_list')
-
-    def delete(self, request, *args, **kwargs):
-        messages.success(request, _('تم حذف مقاس المنتج بنجاح'))
-        return super().delete(request, *args, **kwargs)
