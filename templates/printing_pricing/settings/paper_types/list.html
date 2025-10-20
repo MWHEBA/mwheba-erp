@@ -148,7 +148,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:paper_type_create" %}')
+    fetch('{% url "printing_pricing:paper_type_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -157,7 +157,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`{% url "pricing:paper_type_edit" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:paper_type_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -166,7 +166,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`{% url "pricing:paper_type_delete" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:paper_type_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

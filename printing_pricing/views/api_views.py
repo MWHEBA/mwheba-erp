@@ -14,7 +14,7 @@ from ..services.calculators.base_calculator import BaseCalculator
 
 # استيراد نماذج الورق من النماذج الموجودة (بدون اعتماد على النظام القديم في APIs)
 from supplier.models import Supplier, PaperServiceDetails
-from pricing.models import PaperOrigin, PieceSize
+from printing_pricing.models.settings_models import PaperOrigin, PieceSize
 
 
 class BaseAPIView(LoginRequiredMixin, View):
@@ -542,7 +542,7 @@ class GetProductTypesAPIView(BaseAPIView):
     
     def get(self, request):
         try:
-            from pricing.models import ProductType
+            from printing_pricing.models.settings_models import ProductType
             
             # جلب أنواع المنتجات النشطة
             product_types = ProductType.objects.filter(is_active=True).order_by('name')
@@ -574,7 +574,7 @@ class GetProductSizesAPIView(BaseAPIView):
     
     def get(self, request):
         try:
-            from pricing.models import ProductSize
+            from printing_pricing.models.settings_models import ProductSize
             
             # جلب أحجام المنتجات النشطة
             product_sizes = ProductSize.objects.filter(is_active=True).order_by('name')
@@ -979,7 +979,7 @@ class GetCTPPlatesAPIView(BaseAPIView):
                 }, status=404)
             
             # جلب خدمات الزنكات المتاحة لدى هذا المورد
-            from pricing.models import PaperSize
+            from printing_pricing.models.settings_models import PaperSize
             
             ctp_services = PlateServiceDetails.objects.filter(
                 service__supplier=supplier

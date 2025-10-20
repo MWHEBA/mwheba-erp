@@ -26,6 +26,16 @@ class PrintingOrder(BaseModel):
         verbose_name=_("العميل")
     )
     
+    # إضافة حقل client للتوافق مع النظام القديم
+    client = models.ForeignKey(
+        Customer,
+        on_delete=models.PROTECT,
+        related_name="client_printing_orders",
+        verbose_name=_("العميل (client)"),
+        null=True,
+        blank=True
+    )
+    
     title = models.CharField(
         max_length=200,
         verbose_name=_("عنوان الطلب")
@@ -105,6 +115,16 @@ class PrintingOrder(BaseModel):
         verbose_name=_("السعر النهائي")
     )
     
+    # إضافة حقل sale_price للتوافق مع النظام القديم
+    sale_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("سعر البيع")
+    )
+    
     profit_margin = models.DecimalField(
         max_digits=5,
         decimal_places=2,
@@ -126,6 +146,132 @@ class PrintingOrder(BaseModel):
         verbose_name=_("تاريخ الاعتماد")
     )
     
+    # حقول التوافق مع النظام القديم
+    product_type = models.ForeignKey(
+        'ProductType',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("نوع المنتج"),
+        null=True,
+        blank=True
+    )
+    
+    paper_type = models.ForeignKey(
+        'PaperType',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("نوع الورق"),
+        null=True,
+        blank=True
+    )
+    
+    product_size = models.ForeignKey(
+        'ProductSize',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("مقاس المنتج"),
+        null=True,
+        blank=True
+    )
+    
+    supplier = models.ForeignKey(
+        'supplier.Supplier',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("المورد"),
+        null=True,
+        blank=True
+    )
+    
+    press = models.CharField(
+        max_length=100,
+        verbose_name=_("المطبعة"),
+        null=True,
+        blank=True
+    )
+    
+    colors_front = models.PositiveIntegerField(
+        default=1,
+        verbose_name=_("ألوان الوجه")
+    )
+    
+    colors_back = models.PositiveIntegerField(
+        default=0,
+        verbose_name=_("ألوان الظهر")
+    )
+    
+    print_sides = models.CharField(
+        max_length=20,
+        choices=[
+            ('single', _('وجه واحد')),
+            ('double', _('وجهين'))
+        ],
+        default='single',
+        verbose_name=_("جوانب الطباعة")
+    )
+    
+    print_direction = models.ForeignKey(
+        'PrintDirection',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("اتجاه الطباعة"),
+        null=True,
+        blank=True
+    )
+    
+    coating_type = models.ForeignKey(
+        'CoatingType',
+        on_delete=models.PROTECT,
+        related_name="printing_orders",
+        verbose_name=_("نوع التغطية"),
+        null=True,
+        blank=True
+    )
+    
+    coating_service = models.CharField(
+        max_length=100,
+        verbose_name=_("خدمة التغطية"),
+        null=True,
+        blank=True
+    )
+    
+    has_internal_content = models.BooleanField(
+        default=False,
+        verbose_name=_("يحتوي على محتوى داخلي")
+    )
+    
+    material_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("تكلفة المواد")
+    )
+    
+    printing_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("تكلفة الطباعة")
+    )
+    
+    finishing_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("تكلفة التشطيب")
+    )
+    
+    extra_cost = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=Decimal('0.00'),
+        validators=[MinValueValidator(Decimal('0.00'))],
+        verbose_name=_("تكلفة إضافية")
+    )
+
     # معلومات إضافية
     priority = models.CharField(
         max_length=10,

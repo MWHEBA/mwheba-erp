@@ -201,85 +201,11 @@
                     </ul>
                 </li>
 
-                <!-- تسعير -->
-                <li class="sidebar-item">
-                    <a href="#pricingMenu" class="sidebar-link collapsed {% if active_menu == 'pricing' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
-                        <i class="fas fa-calculator sidebar-icon"></i>
-                        <span class="sidebar-text">{% trans "تسعير" %}</span>
-                        <i class="fas fa-chevron-down sidebar-arrow"></i>
-                    </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'pricing' %}show{% endif %}" id="pricingMenu">
-                        <!-- طلبات التسعير -->
-                        <li class="submenu-title">طلبات التسعير</li>
-                        <li>
-                            <a href="{% url 'pricing:pricing_order_list' %}" class="submenu-link">
-                                <i class="fas fa-list me-2"></i>{% trans "قائمة طلبات التسعير" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'pricing:pricing_order_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-circle me-2"></i>{% trans "طلب تسعير جديد" %}
-                            </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- عروض الأسعار -->
-                        <li class="submenu-title">عروض الأسعار</li>
-                        <li>
-                            <a href="{% url 'pricing:quotation_list' %}" class="submenu-link">
-                                <i class="fas fa-file-contract me-2"></i>{% trans "عروض الأسعار" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'pricing:quotation_create' %}" class="submenu-link">
-                                <i class="fas fa-edit me-2"></i>{% trans "إنشاء عرض سعر" %}
-                            </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- الموردين والأسعار -->
-                        <li class="submenu-title">إدارة الأسعار</li>
-                        <li>
-                            <a href="{% url 'pricing:supplier_pricing_list' %}" class="submenu-link">
-                                <i class="fas fa-tags me-2"></i>{% trans "أسعار الموردين" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'pricing:price_comparison' %}" class="submenu-link">
-                                <i class="fas fa-balance-scale-right me-2"></i>{% trans "مقارنة الأسعار" %}
-                            </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- التقارير والتحليلات -->
-                        <li class="submenu-title">التقارير والتحليلات</li>
-                        <li>
-                            <a href="{% url 'pricing:pricing_dashboard' %}" class="submenu-link">
-                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة تحكم التسعير" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'pricing:profitability_report' %}" class="submenu-link">
-                                <i class="fas fa-chart-line me-2"></i>{% trans "تقرير الربحية" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'pricing:pricing_analytics' %}" class="submenu-link">
-                                <i class="fas fa-analytics me-2"></i>{% trans "تحليلات التسعير" %}
-                            </a>
-                        </li>
-                        
-                    </ul>
-                </li>
-
-                <!-- التسعير الجديد -->
+                <!-- التسعير -->
                 <li class="sidebar-item">
                     <a href="#printingPricingMenu" class="sidebar-link collapsed {% if active_menu == 'printing_pricing' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-print sidebar-icon"></i>
-                        <span class="sidebar-text">{% trans "التسعير الجديد" %}</span>
+                        <span class="sidebar-text">{% trans "التسعير" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'printing_pricing' %}show{% endif %}" id="printingPricingMenu">
@@ -567,7 +493,7 @@
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'pricing:settings_home' %}" class="submenu-link">
+                            <a href="{% url 'printing_pricing:settings_home' %}" class="submenu-link">
                                 <i class="fas fa-calculator me-2"></i>{% trans "إعدادات التسعير" %}
                             </a>
                         </li>

@@ -2,7 +2,9 @@
 {% load django_bootstrap5 %}
 
 <div class="modal-header">
-    <h5 class="modal-title">{{ title }}</h5>
+    <h5 class="modal-title">
+        <i class="fas fa-layer-group me-2 text-primary"></i>{{ title }}
+    </h5>
     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
@@ -10,44 +12,15 @@
     <div class="modal-body">
         {% csrf_token %}
         
-        <div class="mb-3">
-            <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
-            {{ form.name }}
-            {% if form.name.errors %}
-                <div class="text-danger small">{{ form.name.errors.0 }}</div>
-            {% endif %}
-        </div>
-        
-        <div class="mb-3">
-            <label for="{{ form.description.id_for_label }}" class="form-label">{{ form.description.label }}</label>
-            {{ form.description }}
-            {% if form.description.errors %}
-                <div class="text-danger small">{{ form.description.errors.0 }}</div>
-            {% endif %}
-        </div>
+        {% bootstrap_field form.name %}
+        {% bootstrap_field form.description %}
         
         <div class="row">
             <div class="col-md-6">
-                <div class="form-check mb-3">
-                    {{ form.is_active }}
-                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
-                        {{ form.is_active.label }}
-                    </label>
-                    {% if form.is_active.errors %}
-                        <div class="text-danger small">{{ form.is_active.errors.0 }}</div>
-                    {% endif %}
-                </div>
+                {% bootstrap_field form.is_active %}
             </div>
             <div class="col-md-6">
-                <div class="form-check mb-3">
-                    {{ form.is_default }}
-                    <label class="form-check-label" for="{{ form.is_default.id_for_label }}">
-                        {{ form.is_default.label }}
-                    </label>
-                    {% if form.is_default.errors %}
-                        <div class="text-danger small">{{ form.is_default.errors.0 }}</div>
-                    {% endif %}
-                </div>
+                {% bootstrap_field form.is_default %}
             </div>
         </div>
         
@@ -60,10 +33,10 @@
     
     <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-            {% translate "إلغاء" %}
+            <i class="fas fa-times me-1"></i>{% translate "إلغاء" %}
         </button>
-        <button type="button" class="btn btn-primary" onclick="submitForm('typeForm')">
-            {% translate "حفظ" %}
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% translate "حفظ" %}
         </button>
     </div>
 </form>

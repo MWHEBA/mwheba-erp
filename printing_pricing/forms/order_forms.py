@@ -1,158 +1,457 @@
+"""
+نماذج الطلبات المحسنة للنظام الجديد
+Enhanced order forms for the new system
+"""
+
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
-from decimal import Decimal
 
-from ..models import PrintingOrder, PaperSpecification, PrintingSpecification
+from ..models import (
+    PaperType, ProductType, ProductSize, PrintDirection, PrintSide,
+    CoatingType, FinishingType, PrintingOrder, PaperSpecification, PrintingSpecification
+)
+from supplier.models import Supplier, PaperServiceDetails
 from client.models import Customer
+from users.models import User
 
 
-class PrintingOrderForm(forms.ModelForm):
-    """
-    نموذج إنشاء وتحرير طلبات التسعير
-    """
-    
+class PricingOrderForm(forms.ModelForm):
+    """نموذج طلب التسعير المحسن"""
+
+    # خيارات نوع التقفيل
+    BINDING_TYPES = [
+        ("staple", _("تدبيس")),
+        ("wire", _("سلك")),
+        ("sewing", _("خياطة")),
+        ("glue", _("تغرية")),
+        ("spiral", _("سبيرال")),
+        ("none", _("بدون")),
+    ]
+
+    # خيارات جهة التقفيل
+    BINDING_SIDES = [
+        ("arabic", _("عربي")),
+        ("english", _("انجليزي")),
+        ("top", _("أعلى")),
+    ]
+
+    # حقول إضافية للمقاسات المخصصة
+    custom_size_width = forms.DecimalField(
+        label=_("العرض المخصص (سم)"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.1",
+            "placeholder": "21.0"
+        }),
+    )
+
+    custom_size_height = forms.DecimalField(
+        label=_("الطول المخصص (سم)"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.1",
+            "placeholder": "29.7"
+        }),
+    )
+
+    # حقول المقاس المفتوح
+    open_size_width = forms.DecimalField(
+        label=_("عرض المقاس المفتوح (سم)"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.1"
+        }),
+    )
+
+    open_size_height = forms.DecimalField(
+        label=_("طول المقاس المفتوح (سم)"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.1"
+        }),
+    )
+
+    # حقول التقفيل
+    binding_type = forms.ChoiceField(
+        label=_("نوع التقفيل"),
+        choices=BINDING_TYPES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    binding_side = forms.ChoiceField(
+        label=_("جهة التقفيل"),
+        choices=BINDING_SIDES,
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    # حقول الورق المتقدمة
+    paper_supplier = forms.ModelChoiceField(
+        label=_("مورد الورق"),
+        queryset=Supplier.objects.none(),  # سيتم تحديثه في __init__
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    paper_sheet_type = forms.ChoiceField(
+        label=_("مقاس الفرخ"),
+        choices=[],
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    paper_origin = forms.ChoiceField(
+        label=_("بلد المنشأ"),
+        required=False,
+        choices=[("", "---------")],
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    paper_weight = forms.ChoiceField(
+        label=_("جرام الورق"),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    paper_price = forms.DecimalField(
+        label=_("سعر الورق"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.01"
+        }),
+    )
+
+    # حقول الزنكات
+    zinc_plates_count = forms.IntegerField(
+        label=_("عدد الزنكات"),
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+
+    # حقول المحتوى الداخلي
+    internal_page_count = forms.IntegerField(
+        label=_("عدد صفحات الداخل"),
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control"}),
+    )
+
+    # حقول التصميم
+    design_price = forms.DecimalField(
+        label=_("سعر التصميم"),
+        required=False,
+        widget=forms.NumberInput(attrs={
+            "class": "form-control", 
+            "step": "0.01"
+        }),
+    )
     class Meta:
+        from printing_pricing.models import PrintingOrder
         model = PrintingOrder
         fields = [
-            'customer', 'title', 'description', 'order_type',
-            'quantity', 'pages_count', 'copies_count',
-            'width', 'height', 'priority', 'due_date',
-            'is_rush_order', 'rush_fee', 'profit_margin', 'notes'
+            "client",
+            "title",
+            "description",
+            "quantity",
+            "product_type",
+            "paper_type",
+            "product_size",
+            "supplier",
+            "press",
+            "colors_front",
+            "colors_back",
+            "print_sides",
+            "print_direction",
+            "coating_type",
+            "coating_service",
+            "has_internal_content",
+            "material_cost",
+            "printing_cost",
+            "finishing_cost",
+            "extra_cost",
+            "sale_price",
+            "status",
         ]
-        
         widgets = {
-            'customer': forms.Select(attrs={
-                'class': 'form-select',
-                'data-live-search': 'true'
+            "client": forms.Select(attrs={
+                "class": "form-control select2",
+                "data-placeholder": "اختر العميل...",
             }),
-            'title': forms.TextInput(attrs={
-                'class': 'form-control',
-                'placeholder': _('عنوان الطلب')
+            "title": forms.TextInput(attrs={
+                "class": "form-control",
+                "placeholder": "عنوان الطلب"
             }),
-            'description': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 3,
-                'placeholder': _('وصف تفصيلي للطلب')
+            "description": forms.Textarea(attrs={
+                "class": "form-control",
+                "rows": 3,
+                "placeholder": "وصف الطلب (اختياري)"
             }),
-            'order_type': forms.Select(attrs={
-                'class': 'form-select'
+            "quantity": forms.NumberInput(attrs={
+                "class": "form-control",
+                "min": "1"
             }),
-            'quantity': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '1',
-                'step': '1'
+            "has_internal_content": forms.CheckboxInput(attrs={
+                "class": "form-check-input"
             }),
-            'pages_count': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '1',
-                'step': '1'
+            "colors_front": forms.NumberInput(attrs={
+                "class": "form-control",
+                "min": "0",
+                "max": "10"
             }),
-            'copies_count': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'min': '1',
-                'step': '1'
+            "colors_back": forms.NumberInput(attrs={
+                "class": "form-control", 
+                "min": "0",
+                "max": "10"
             }),
-            'width': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.1',
-                'placeholder': _('العرض بالسنتيمتر')
+            "material_cost": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'height': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.1',
-                'placeholder': _('الارتفاع بالسنتيمتر')
+            "printing_cost": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'priority': forms.Select(attrs={
-                'class': 'form-select'
+            "finishing_cost": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'due_date': forms.DateTimeInput(attrs={
-                'class': 'form-control',
-                'type': 'datetime-local'
+            "extra_cost": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'is_rush_order': forms.CheckboxInput(attrs={
-                'class': 'form-check-input'
+            "profit_margin": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'rush_fee': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0'
+            "sale_price": forms.NumberInput(attrs={
+                "class": "form-control",
+                "step": "0.01"
             }),
-            'profit_margin': forms.NumberInput(attrs={
-                'class': 'form-control',
-                'step': '0.01',
-                'min': '0',
-                'max': '100'
-            }),
-            'notes': forms.Textarea(attrs={
-                'class': 'form-control',
-                'rows': 2,
-                'placeholder': _('ملاحظات إضافية')
-            })
         }
 
     def __init__(self, *args, **kwargs):
+        user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         
-        # تخصيص استعلام العملاء
-        self.fields['customer'].queryset = Customer.objects.filter(
-            is_active=True
-        ).order_by('name')
-        
-        # إضافة CSS classes
+        # إضافة فئات CSS لجميع الحقول
         for field_name, field in self.fields.items():
-            if not field.widget.attrs.get('class'):
-                field.widget.attrs['class'] = 'form-control'
+            if not field.widget.attrs.get("class"):
+                field.widget.attrs["class"] = "form-control"
+
+        # ربط نوع المنتج بالإعدادات
+        try:
+            self.fields["product_type"].queryset = ProductType.objects.filter(
+                is_active=True
+            ).order_by("name")
+            self.fields["product_type"].empty_label = "اختر نوع المنتج"
+        except:
+            pass
+
+        # ربط مقاس المنتج بالإعدادات
+        try:
+            self.fields["product_size"].queryset = ProductSize.objects.filter(
+                is_active=True
+            ).order_by("name")
+            self.fields["product_size"].empty_label = "اختر مقاس المنتج"
+        except:
+            pass
+
+        # ربط نوع الورق بالإعدادات
+        try:
+            self.fields["paper_type"].queryset = PaperType.objects.filter(
+                is_active=True
+            ).order_by("name")
+            self.fields["paper_type"].empty_label = "اختر نوع الورق"
+            
+            # تعيين قيمة افتراضية
+            if not self.instance.pk and not self.initial.get("paper_type"):
+                default_paper_type = PaperType.objects.filter(
+                    is_active=True, is_default=True
+                ).first()
+                if default_paper_type:
+                    self.initial["paper_type"] = default_paper_type.pk
+        except Exception as e:
+            print(f"خطأ في تحديد نوع الورق الافتراضي: {e}")
+
+        # ربط اتجاه الطباعة
+        try:
+            self.fields["print_direction"].queryset = PrintDirection.objects.filter(
+                is_active=True
+            ).order_by("name")
+        except:
+            pass
+
+        # ربط جوانب الطباعة
+        try:
+            self.fields["print_sides"].queryset = PrintSide.objects.filter(
+                is_active=True
+            ).order_by("name")
+        except:
+            pass
+
+        # ربط أنواع التغطية
+        try:
+            self.fields["coating_type"].queryset = CoatingType.objects.filter(
+                is_active=True
+            ).order_by("name")
+        except:
+            pass
+
+        # إعداد موردي الورق
+        try:
+            paper_suppliers = Supplier.objects.filter(
+                is_active=True,
+                id__in=PaperServiceDetails.objects.filter(
+                    service__is_active=True
+                ).values_list("service__supplier_id", flat=True).distinct(),
+            ).distinct()
+            self.fields["paper_supplier"].queryset = paper_suppliers
+        except:
+            pass
+
+        # جعل الحقول الاختيارية
+        optional_fields = [
+            "product_type", "paper_type", "product_size", "print_direction",
+            "coating_type", "coating_service", "supplier", "press",
+            "description", "paper_supplier", "paper_sheet_type", 
+            "paper_origin", "paper_weight", "paper_price",
+            "zinc_plates_count", "internal_page_count", "design_price",
+            "custom_size_width", "custom_size_height",
+            "open_size_width", "open_size_height"
+        ]
         
-        # تعيين القيم الافتراضية
-        if not self.instance.pk:
-            self.fields['profit_margin'].initial = Decimal('20.00')
-            self.fields['pages_count'].initial = 1
-            self.fields['copies_count'].initial = 1
-            self.fields['priority'].initial = 'medium'
+        for field in optional_fields:
+            if field in self.fields:
+                self.fields[field].required = False
 
-    def clean_quantity(self):
-        """التحقق من الكمية"""
-        quantity = self.cleaned_data.get('quantity')
-        if quantity and quantity <= 0:
-            raise ValidationError(_('الكمية يجب أن تكون أكبر من صفر'))
-        return quantity
-
-    def clean_pages_count(self):
-        """التحقق من عدد الصفحات"""
-        pages_count = self.cleaned_data.get('pages_count')
-        if pages_count and pages_count <= 0:
-            raise ValidationError(_('عدد الصفحات يجب أن يكون أكبر من صفر'))
-        return pages_count
-
-    def clean_profit_margin(self):
-        """التحقق من هامش الربح"""
-        profit_margin = self.cleaned_data.get('profit_margin')
-        if profit_margin and (profit_margin < 0 or profit_margin > 100):
-            raise ValidationError(_('هامش الربح يجب أن يكون بين 0 و 100'))
-        return profit_margin
+        # تعيين المستخدم المنشئ
+        if user and not self.instance.pk:
+            self.initial["created_by"] = user
 
     def clean(self):
-        """التحقق الشامل من النموذج"""
+        """التحقق من صحة البيانات المدخلة"""
         cleaned_data = super().clean()
         
-        # التحقق من الأبعاد
-        width = cleaned_data.get('width')
-        height = cleaned_data.get('height')
+        # التحقق من نوع الورق
+        paper_type = cleaned_data.get("paper_type")
+        if paper_type in ['', 'undefined', 'null', 'None']:
+            cleaned_data["paper_type"] = None
         
-        if width and height:
-            if width <= 0 or height <= 0:
-                raise ValidationError(_('الأبعاد يجب أن تكون أكبر من صفر'))
+        # التحقق من جوانب الطباعة والألوان
+        print_sides = cleaned_data.get("print_sides")
+        colors_front = cleaned_data.get("colors_front")
+        colors_back = cleaned_data.get("colors_back")
         
-        # التحقق من رسوم الاستعجال
-        is_rush_order = cleaned_data.get('is_rush_order')
-        rush_fee = cleaned_data.get('rush_fee')
-        
-        if is_rush_order and not rush_fee:
-            cleaned_data['rush_fee'] = Decimal('0.00')
-        
+        if print_sides:
+            try:
+                sides_count = getattr(print_sides, "sides_count", None)
+                
+                if sides_count == 2:  # وجهين
+                    if colors_front is None:
+                        self.add_error("colors_front", 
+                                     _("يجب تحديد عدد ألوان الوجه الأمامي"))
+                    if colors_back is None:
+                        self.add_error("colors_back", 
+                                     _("يجب تحديد عدد ألوان الوجه الخلفي"))
+                elif sides_count == 1:  # وجه واحد
+                    if colors_front is None:
+                        self.add_error("colors_front", 
+                                     _("يجب تحديد عدد ألوان الوجه الأمامي"))
+                    cleaned_data["colors_back"] = 0
+            except Exception as e:
+                print(f"خطأ في التحقق من جوانب الطباعة: {e}")
+
+        # التحقق من قيم الألوان
+        if colors_front is not None and colors_front < 0:
+            self.add_error("colors_front", _("عدد الألوان يجب أن يكون موجباً"))
+
+        if colors_back is not None and colors_back < 0:
+            self.add_error("colors_back", _("عدد الألوان يجب أن يكون موجباً"))
+
+        # التحقق من الكمية
+        quantity = cleaned_data.get("quantity")
+        if quantity is not None and quantity <= 0:
+            self.add_error("quantity", _("الكمية يجب أن تكون أكبر من صفر"))
+
         return cleaned_data
 
+    def clean_custom_size_width(self):
+        """التحقق من العرض المخصص"""
+        width = self.cleaned_data.get('custom_size_width')
+        if width is not None and width <= 0:
+            raise ValidationError(_('العرض يجب أن يكون أكبر من صفر'))
+        return width
+
+    def clean_custom_size_height(self):
+        """التحقق من الطول المخصص"""
+        height = self.cleaned_data.get('custom_size_height')
+        if height is not None and height <= 0:
+            raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
+        return height
+
+
+# ==================== نموذج البحث في الطلبات ====================
+
+class OrderSearchForm(forms.Form):
+    """نموذج البحث في طلبات التسعير"""
+
+    search = forms.CharField(
+        label=_("البحث"),
+        required=False,
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "placeholder": _("البحث في رقم الطلب أو العنوان أو العميل..."),
+        }),
+    )
+
+    client = forms.ModelChoiceField(
+        label=_("العميل"),
+        queryset=Customer.objects.filter(is_active=True),
+        required=False,
+        widget=forms.Select(attrs={"class": "form-control select2"}),
+        empty_label=_("جميع العملاء")
+    )
+
+    status = forms.ChoiceField(
+        label=_("الحالة"),
+        required=False,
+        choices=[("", _("جميع الحالات"))],  # سيتم تحديثها في __init__
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+    date_from = forms.DateField(
+        label=_("من تاريخ"),
+        required=False,
+        widget=forms.DateInput(attrs={
+            "type": "date", 
+            "class": "form-control"
+        }),
+    )
+
+    date_to = forms.DateField(
+        label=_("إلى تاريخ"),
+        required=False,
+        widget=forms.DateInput(attrs={
+            "type": "date", 
+            "class": "form-control"
+        }),
+    )
+
+    order_type = forms.ChoiceField(
+        label=_("نوع الطلب"),
+        required=False,
+        choices=[("", _("جميع الأنواع"))],  # سيتم تحديثها في __init__
+        widget=forms.Select(attrs={"class": "form-control"}),
+    )
+
+
+# ==================== النماذج الإضافية من الملف القديم ====================
 
 class PaperSpecificationForm(forms.ModelForm):
     """
@@ -279,10 +578,17 @@ class PrintingSpecificationForm(forms.ModelForm):
         }
 
     def clean_colors_front(self):
-        """التحقق من عدد ألوان الوجه"""
+        """التحقق من عدد ألوان الوجه الأمامي"""
         colors = self.cleaned_data.get('colors_front')
         if colors and colors < 0:
-            raise ValidationError(_('عدد الألوان لا يمكن أن يكون سالباً'))
+            raise ValidationError(_('عدد الألوان يجب أن يكون موجباً'))
+        return colors
+
+    def clean_colors_back(self):
+        """التحقق من عدد ألوان الوجه الخلفي"""
+        colors = self.cleaned_data.get('colors_back')
+        if colors and colors < 0:
+            raise ValidationError(_('عدد الألوان يجب أن يكون موجباً'))
         return colors
 
     def clean_spot_colors_count(self):
@@ -290,71 +596,21 @@ class PrintingSpecificationForm(forms.ModelForm):
         spot_colors = self.cleaned_data.get('spot_colors_count')
         has_spot_colors = self.cleaned_data.get('has_spot_colors')
         
-        if has_spot_colors and not spot_colors:
+        if has_spot_colors and (not spot_colors or spot_colors <= 0):
             raise ValidationError(_('يجب تحديد عدد الألوان الخاصة'))
         
-        if not has_spot_colors and spot_colors:
-            return 0
-            
         return spot_colors
 
 
-class OrderSearchForm(forms.Form):
-    """
-    نموذج البحث في الطلبات
-    """
-    search_query = forms.CharField(
-        required=False,
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': _('البحث في رقم الطلب، العنوان، أو العميل')
-        })
-    )
-    
-    status = forms.ChoiceField(
-        required=False,
-        choices=[('', _('جميع الحالات'))] + PrintingOrder._meta.get_field('status').choices,
-        widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
-    )
-    
-    order_type = forms.ChoiceField(
-        required=False,
-        choices=[('', _('جميع الأنواع'))] + PrintingOrder._meta.get_field('order_type').choices,
-        widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
-    )
-    
-    customer = forms.ModelChoiceField(
-        queryset=Customer.objects.filter(is_active=True),
-        required=False,
-        empty_label=_('جميع العملاء'),
-        widget=forms.Select(attrs={
-            'class': 'form-select'
-        })
-    )
-    
-    date_from = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date'
-        })
-    )
-    
-    date_to = forms.DateField(
-        required=False,
-        widget=forms.DateInput(attrs={
-            'class': 'form-control',
-            'type': 'date'
-        })
-    )
+# ==================== التوافق مع النظام القديم ====================
+
+# الاحتفاظ بالنموذج القديم للتوافق مع النظام القديم
+PrintingOrderForm = PricingOrderForm
 
 
 __all__ = [
-    'PrintingOrderForm', 
+    'PricingOrderForm',
+    'PrintingOrderForm',  # للتوافق مع النظام القديم
     'PaperSpecificationForm', 
     'PrintingSpecificationForm',
     'OrderSearchForm'

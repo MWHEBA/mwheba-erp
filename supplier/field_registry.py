@@ -413,7 +413,7 @@ def get_field_choices(choices_source):
     # للتغطية، جلب من CoatingType model
     elif choices_source == "coating_types":
         try:
-            from pricing.models import CoatingType
+            from printing_pricing.models.settings_models import CoatingType
             coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
             return [(ct.id, ct.name) for ct in coating_types]
         except ImportError:

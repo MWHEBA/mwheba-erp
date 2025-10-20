@@ -205,35 +205,35 @@
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'pricing:paper_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:paper_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-layer-group me-3 text-primary"></i>
                                         <span>{% translate "أنواع الورق" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:paper_size_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:paper_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-ruler-combined me-3 text-primary"></i>
                                         <span>{% translate "أحجام الورق" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:paper_weight_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:paper_weight_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-weight-hanging me-3 text-primary"></i>
                                         <span>{% translate "أوزان الورق" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:paper_origin_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:paper_origin_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-globe me-3 text-primary"></i>
                                         <span>{% translate "منشأ الورق" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:piece_size_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:piece_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-cut me-3 text-primary"></i>
                                         <span>{% translate "مقاسات القطع" %}</span>
@@ -256,35 +256,35 @@
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'pricing:print_direction_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:print_direction_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-arrows-alt me-3 text-success"></i>
                                         <span>{% translate "اتجاهات الطباعة" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:offset_machine_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:offset_machine_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-print me-3 text-success"></i>
                                         <span>{% translate "أنواع ماكينات الأوفست" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:offset_sheet_size_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:offset_sheet_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-ruler-combined me-3 text-success"></i>
                                         <span>{% translate "مقاسات ماكينات الأوفست" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:digital_machine_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:digital_machine_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-desktop me-3 text-success"></i>
                                         <span>{% translate "أنواع ماكينات الديجيتال" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:digital_sheet_size_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:digital_sheet_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-expand-arrows-alt me-3 text-success"></i>
                                         <span>{% translate "مقاسات ماكينات الديجيتال" %}</span>
@@ -307,14 +307,14 @@
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'pricing:finishing_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:finishing_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-cut me-3 text-info"></i>
                                         <span>{% translate "أنواع خدمات الطباعة" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:coating_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:coating_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-paint-brush me-3 text-info"></i>
                                         <span>{% translate "أنواع التغطية" %}</span>
@@ -337,14 +337,14 @@
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'pricing:product_type_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:product_type_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-tags me-3" style="color: #6f42c1;"></i>
                                         <span>{% translate "أنواع المنتجات" %}</span>
                                     </div>
                                     <i class="fas fa-chevron-left"></i>
                                 </a>
-                                <a href="{% url 'pricing:product_size_list' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:product_size_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-expand-arrows-alt me-3" style="color: #6f42c1;"></i>
                                         <span>{% translate "مقاسات المنتجات" %}</span>
@@ -393,7 +393,7 @@
                         </div>
                         <div class="card-body">
                             <div class="list-group list-group-flush">
-                                <a href="{% url 'pricing:vat_settings' %}" class="settings-list-item">
+                                <a href="{% url 'printing_pricing:vat_setting_list' %}" class="settings-list-item">
                                     <div class="d-flex align-items-center">
                                         <i class="fas fa-percentage me-3 text-warning"></i>
                                         <span>{% translate "ضريبة القيمة المضافة" %}</span>

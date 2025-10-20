@@ -585,7 +585,7 @@
               <i class="fas fa-calculator me-2 text-success"></i>طلبات التسعير والعروض
             </h5>
             <div class="d-flex align-items-center">
-              <a href="{% url 'pricing:pricing_order_create' %}?client={{ customer.pk }}" class="btn btn-sm btn-success me-2">
+              <a href="{% url 'printing_pricing:order_create' %}?client={{ customer.pk }}" class="btn btn-sm btn-success me-2">
                 <i class="fas fa-plus me-1"></i>طلب تسعير جديد
               </a>
               <span class="badge bg-success me-2">{{ pricing_orders_count|default:"0" }} طلب</span>

@@ -4,7 +4,7 @@
 {% endcomment %}
 
 {% if item.finishing_details.finishing_type %}
-    {% load pricing_filters %}
+    {% load utils_extras %}
     
     <!-- محاولة جلب اسم التغطية من CoatingType إذا كان ID -->
     {% if item.finishing_details.finishing_type|add:"0" != item.finishing_details.finishing_type %}

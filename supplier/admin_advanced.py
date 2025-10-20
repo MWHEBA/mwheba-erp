@@ -369,7 +369,7 @@ class SpecializedServiceAdmin(admin.ModelAdmin):
         """عرض نوع الخدمة التفصيلي للتغطية والتقفيل"""
         if obj.category.code == "coating" and hasattr(obj, "finishing_details"):
             try:
-                from pricing.models import CoatingType
+                from printing_pricing.models.settings_models import CoatingType
                 coating_type = CoatingType.objects.get(id=obj.finishing_details.finishing_type)
                 return format_html('<span class="badge badge-success">{}</span>', coating_type.name)
             except:

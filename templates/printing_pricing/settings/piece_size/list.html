@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load i18n %}
 {% load static %}
-{% load pricing_filters %}
+{% load utils_extras %}
 
 {% block title %}{% translate "مقاسات القطع" %}{% endblock %}
 
@@ -121,10 +121,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ piece_size.pk }})" title="تعديل">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ piece_size.pk }}')" title="تعديل">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ piece_size.pk }})" title="حذف">
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ piece_size.pk }}')" title="حذف">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -132,7 +132,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center text-muted py-4">
+                        <td colspan="7" class="text-center text-muted py-4">
                             <i class="fas fa-cut fa-3x mb-3 d-block"></i>
                             {% trans "لا توجد مقاسات قطع مضافة بعد" %}
                         </td>
@@ -168,7 +168,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:piece_size_create" %}')
+    fetch('{% url "printing_pricing:piece_size_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -177,7 +177,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`{% url "pricing:piece_size_edit" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:piece_size_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -186,7 +186,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`{% url "pricing:piece_size_delete" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:piece_size_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

@@ -9,7 +9,7 @@ from django.urls import reverse
 from .models import Customer, CustomerPayment
 from .forms import CustomerForm, CustomerAccountChangeForm
 from sale.models import Sale
-from pricing.models import PricingOrder
+# from printing_pricing.models import PrintingOrder  # مؤقتاً حتى يتم إكمال النظام الجديد
 
 # Create your views here.
 
@@ -233,11 +233,11 @@ def customer_detail(request, pk):
     invoices = Sale.objects.filter(customer=customer).order_by("-date")
     invoices_count = invoices.count()
 
-    # جلب طلبات التسعير المرتبطة بالعميل
-    pricing_orders = PricingOrder.objects.filter(client=customer).order_by(
-        "-created_at"
-    )
-    pricing_orders_count = pricing_orders.count()
+    # جلب طلبات التسعير المرتبطة بالعميل (مؤقتاً معطل)
+    # pricing_orders = PrintingOrder.objects.filter(client=customer).order_by("-created_at")
+    # pricing_orders_count = pricing_orders.count()
+    pricing_orders = []
+    pricing_orders_count = 0
 
     # حساب إجمالي المبيعات
     total_sales = invoices.aggregate(total=Sum("total"))["total"] or 0
@@ -683,19 +683,19 @@ def customer_detail(request, pk):
     # تعريف أزرار إجراءات جدول طلبات التسعير
     pricing_orders_action_buttons = [
         {
-            "url": "pricing:pricing_detail",
+            "url": "printing_pricing:order_detail",
             "icon": "fa-eye",
             "class": "action-view",
             "label": "عرض",
         },
         {
-            "url": "pricing:pricing_edit",
+            "url": "printing_pricing:order_update",
             "icon": "fa-edit",
             "class": "action-edit",
             "label": "تعديل",
         },
         {
-            "url": "pricing:pricing_delete",
+            "url": "printing_pricing:order_delete",
             "icon": "fa-trash",
             "class": "action-delete",
             "label": "حذف",

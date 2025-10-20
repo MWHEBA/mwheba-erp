@@ -79,7 +79,6 @@ INSTALLED_APPS = [
     "supplier",
     "services",  # الخدمات المتخصصة الجديدة
     "product.apps.ProductConfig",
-    "pricing",  # نظام التسعير المتكامل
     "printing_pricing",  # نظام التسعير الجديد والمحسن
     "sale",
     "purchase",

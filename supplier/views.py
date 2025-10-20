@@ -1510,7 +1510,7 @@ def add_specialized_service(request, supplier_id, service_id=None):
     elif category_code == "coating":
         # جلب أنواع التغطية من الإعدادات
         try:
-            from pricing.models import CoatingType
+            from printing_pricing.models.settings_models import CoatingType
             coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
             
             if coating_types.exists():
@@ -1667,7 +1667,7 @@ def get_paper_sheet_sizes_api(request):
 
         # الحصول على نوع الورق
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
 
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
@@ -1742,7 +1742,7 @@ def get_paper_weights_api(request):
 
         # الحصول على نوع الورق
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
 
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
@@ -1821,7 +1821,7 @@ def get_paper_origins_api(request):
 
         # الحصول على نوع الورق
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
 
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
@@ -1863,7 +1863,7 @@ def get_paper_origins_api(request):
 
                 # البحث عن منشأ الورق في النموذج للحصول على الاسم الكامل
                 try:
-                    from pricing.models import PaperOrigin
+                    from printing_pricing.models.settings_models import PaperOrigin
 
                     paper_origin = PaperOrigin.objects.filter(
                         Q(name__icontains=origin_name) | Q(code__iexact=origin_name)
@@ -1927,7 +1927,7 @@ def get_paper_price_api(request):
 
         # الحصول على نوع الورق
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
 
             paper_type = PaperType.objects.get(id=paper_type_id)
         except Exception as e:
@@ -1951,7 +1951,7 @@ def get_paper_price_api(request):
         try:
             # إذا كان paper_origin رقم، نبحث عن اسم المنشأ
             if paper_origin.isdigit():
-                from pricing.models import PaperOrigin
+                from printing_pricing.models.settings_models import PaperOrigin
 
                 paper_origin_obj = PaperOrigin.objects.get(id=int(paper_origin))
                 origin_name = paper_origin_obj.name
@@ -1974,7 +1974,7 @@ def get_paper_price_api(request):
             # إذا لم نجد، نحاول البحث بكود الدولة
             if not paper_service and paper_origin.isdigit():
                 try:
-                    from pricing.models import PaperOrigin
+                    from printing_pricing.models.settings_models import PaperOrigin
 
                     paper_origin_obj = PaperOrigin.objects.get(id=int(paper_origin))
                     origin_code = (
@@ -2189,7 +2189,7 @@ def root_cause_analysis_api(request):
 
         # 1. فحص نوع الورق
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
 
             paper_type = PaperType.objects.get(id=paper_type_id)
             analysis["database_checks"]["paper_type"] = {
@@ -2222,7 +2222,7 @@ def root_cause_analysis_api(request):
         origin_name = paper_origin
         try:
             if paper_origin.isdigit():
-                from pricing.models import PaperOrigin
+                from printing_pricing.models.settings_models import PaperOrigin
 
                 paper_origin_obj = PaperOrigin.objects.get(id=int(paper_origin))
                 origin_name = paper_origin_obj.name

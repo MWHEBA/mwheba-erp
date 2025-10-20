@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "إعدادات ضريبة القيمة المضافة" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-percentage fa-2x text-warning"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{% translate "إعدادات ضريبة القيمة المضافة" %}</h1>
+                    <p class="text-muted mb-0">{% translate "إدارة إعدادات ضريبة القيمة المضافة" %}</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'printing_pricing:vat_setting_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-2"></i>
+                    {% translate "إضافة إعداد جديد" %}
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- البحث والفلاتر -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <label for="search" class="form-label">{% translate "البحث" %}</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ request.GET.search }}" 
+                           placeholder="{% translate 'البحث في الإعدادات...' %}">
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-search me-1"></i>
+                        {% translate "بحث" %}
+                    </button>
+                    <a href="{% url 'printing_pricing:vat_setting_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>
+                        {% translate "مسح" %}
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- الجدول -->
+    <div class="card">
+        <div class="card-body">
+            {% if vat_settings %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>{% translate "النسبة" %}</th>
+                                <th>{% translate "الوصف" %}</th>
+                                <th>{% translate "الحالة" %}</th>
+                                <th>{% translate "تاريخ الإنشاء" %}</th>
+                                <th>{% translate "الإجراءات" %}</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for setting in vat_settings %}
+                            <tr>
+                                <td>
+                                    <strong>{{ setting.percentage }}%</strong>
+                                </td>
+                                <td>{{ setting.description|default:"-" }}</td>
+                                <td>
+                                    {% if setting.is_enabled %}
+                                        <span class="badge bg-success">{% translate "مفعل" %}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{% translate "معطل" %}</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ setting.created_at|date:"d/m/Y H:i" }}</td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'printing_pricing:vat_setting_edit' setting.pk %}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="{% translate 'تعديل' %}">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'printing_pricing:vat_setting_delete' setting.pk %}" 
+                                           class="btn btn-sm btn-outline-danger" 
+                                           title="{% translate 'حذف' %}"
+                                           onclick="return confirm('{% translate "هل أنت متأكد من حذف هذا الإعداد؟" %}')">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <nav aria-label="{% translate 'تنقل الصفحات' %}">
+                    <ul class="pagination justify-content-center">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="fas fa-angle-double-left"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="fas fa-angle-left"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        {% for num in page_obj.paginator.page_range %}
+                            {% if page_obj.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                            {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ num }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">{{ num }}</a>
+                                </li>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="fas fa-angle-right"></i>
+                                </a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}">
+                                    <i class="fas fa-angle-double-right"></i>
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-percentage fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">{% translate "لا توجد إعدادات ضريبة القيمة المضافة" %}</h5>
+                    <p class="text-muted">{% translate "ابدأ بإضافة إعداد ضريبة جديد" %}</p>
+                    <a href="{% url 'printing_pricing:vat_setting_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        {% translate "إضافة إعداد جديد" %}
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تأثيرات بسيطة للجدول
+    const tableRows = document.querySelectorAll('tbody tr');
+    tableRows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = 'var(--bs-gray-50)';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+});
+</script>
+{% endblock %}

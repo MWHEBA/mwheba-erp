@@ -928,7 +928,7 @@ class OffsetPrintingDetails(models.Model):
     def get_machine_type_display(self):
         """عرض نوع الماكينة من المرجعية"""
         try:
-            from pricing.models import OffsetMachineType
+            from printing_pricing.models.settings_models import OffsetMachineType
             machine = OffsetMachineType.objects.filter(code=self.machine_type, is_active=True).first()
             if machine:
                 return str(machine)
@@ -939,7 +939,7 @@ class OffsetPrintingDetails(models.Model):
     def get_sheet_size_display(self):
         """عرض مقاس الماكينة من المرجعية"""
         try:
-            from pricing.models import OffsetSheetSize
+            from printing_pricing.models.settings_models import OffsetSheetSize
             size = OffsetSheetSize.objects.filter(code=self.sheet_size, is_active=True).first()
             if size:
                 return str(size)

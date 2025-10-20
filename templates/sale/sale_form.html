@@ -3,7 +3,7 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
-{% load pricing_filters %}
+{% load utils_extras %}
 {% block title %}{% if sale.id %}تعديل فاتورة مبيعات - {{ sale.number }}{% else %}إضافة فاتورة مبيعات جديدة{% endif %}{% endblock %}
 
 {% block extra_css %}

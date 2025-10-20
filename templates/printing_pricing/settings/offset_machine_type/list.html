@@ -124,10 +124,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ machine_type.pk }})" title="تعديل">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ machine_type.pk }}')" title="تعديل">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ machine_type.pk }})" title="حذف">
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ machine_type.pk }}')" title="حذف">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -136,7 +136,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="7" class="text-center text-muted py-4">
-                            <i class="fas fa-layer-group fa-3x mb-3 d-block"></i>
+                            <i class="fas fa-print fa-3x mb-3 d-block"></i>
                             {% trans "لا توجد أنواع ماكينات مضافة بعد" %}
                         </td>
                     </tr>
@@ -171,7 +171,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:offset_machine_type_create" %}')
+    fetch('{% url "printing_pricing:offset_machine_type_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -180,7 +180,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`{% url "pricing:offset_machine_type_edit" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:offset_machine_type_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -189,7 +189,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`{% url "pricing:offset_machine_type_delete" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:offset_machine_type_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

@@ -82,7 +82,7 @@ def get_category_form_api(request):
         elif category_code == "digital_printing":
             # جلب أنواع ماكينات الديجيتال من الإعدادات
             try:
-                from pricing.models import DigitalMachineType, DigitalSheetSize
+                from printing_pricing.models.settings_models import DigitalMachineType, DigitalSheetSize
 
                 machine_types = DigitalMachineType.objects.filter(
                     is_active=True
@@ -175,7 +175,7 @@ def get_category_form_api(request):
         elif category_code == "coating":
             # جلب أنواع التغطية من الإعدادات
             try:
-                from pricing.models import CoatingType
+                from printing_pricing.models.settings_models import CoatingType
                 
                 coating_types = CoatingType.objects.filter(is_active=True).order_by('name')
                 
@@ -888,7 +888,7 @@ def _save_category_details(service, category_code, data):
         if not service.name or service.name.strip() == "":
             # محاولة جلب اسم نوع التغطية من CoatingType model
             try:
-                from pricing.models import CoatingType
+                from printing_pricing.models.settings_models import CoatingType
                 coating_type_obj = CoatingType.objects.get(id=coating_type)
                 coating_type_display = coating_type_obj.name
             except (CoatingType.DoesNotExist, ValueError):

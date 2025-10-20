@@ -161,7 +161,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:paper_origin_create" %}')
+    fetch('{% url "printing_pricing:paper_origin_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;

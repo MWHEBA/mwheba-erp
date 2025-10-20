@@ -1,4 +1,4 @@
-{% load pricing_filters %}
+{% load utils_extras %}
 <!-- صف الحساب في الجدول مع ديناميكية -->
 <tr class="account-row level-{{ level }} {% if account.is_leaf %}leaf-row{% endif %} {% if not account.is_active %}text-muted{% endif %} {% if account.children.exists %}expandable-row{% endif %}" 
     data-account-id="{{ account.id }}" 

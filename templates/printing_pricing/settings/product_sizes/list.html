@@ -102,10 +102,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ product_size.pk }})">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ product_size.pk }}')" title="تعديل">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ product_size.pk }})">
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ product_size.pk }}')" title="حذف">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -114,7 +114,7 @@
                     {% empty %}
                     <tr>
                         <td colspan="5" class="text-center text-muted py-4">
-                            <i class="fas fa-ruler-combined fa-3x mb-3 d-block"></i>
+                            <i class="fas fa-ruler fa-3x mb-3 d-block"></i>
                             {% trans "لا توجد مقاسات منتجات مضافة بعد" %}
                         </td>
                     </tr>
@@ -148,7 +148,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:product_size_create" %}')
+    fetch('{% url "printing_pricing:product_size_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -157,7 +157,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`{% url "pricing:product_size_edit" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:product_size_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -166,7 +166,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`{% url "pricing:product_size_delete" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:product_size_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

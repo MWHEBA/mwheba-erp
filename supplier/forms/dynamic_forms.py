@@ -56,7 +56,7 @@ class ServiceFormFactory:
     def convert_legacy_paper_type(old_value):
         """تحويل قيم أنواع الورق القديمة للجديدة"""
         try:
-            from pricing.models import PaperType
+            from printing_pricing.models.settings_models import PaperType
             # البحث عن نوع الورق بالاسم
             paper_type = PaperType.objects.filter(name__icontains=old_value, is_active=True).first()
             if paper_type:
@@ -96,7 +96,7 @@ class ServiceFormFactory:
         errors = []
         
         try:
-            from pricing.models import PaperType, PaperWeight, PaperOrigin, PaperSize
+            from printing_pricing.models.settings_models import PaperType, PaperWeight, PaperOrigin, PaperSize
             
             # التحقق من نوع الورق
             if paper_type:
@@ -131,7 +131,7 @@ class ServiceFormFactory:
     def get_unified_paper_choices():
         """جلب خيارات الورق الموحدة من المرجعية الوحيدة"""
         try:
-            from pricing.models import PaperType, PaperWeight, PaperOrigin, PaperSize
+            from printing_pricing.models.settings_models import PaperType, PaperWeight, PaperOrigin, PaperSize
 
             return {
                 "paper_types": [
@@ -164,7 +164,7 @@ class ServiceFormFactory:
     def get_unified_offset_choices():
         """جلب خيارات الأوفست الموحدة من المرجعية الوحيدة"""
         try:
-            from pricing.models import OffsetMachineType, OffsetSheetSize
+            from printing_pricing.models.settings_models import OffsetMachineType, OffsetSheetSize
 
             return {
                 "machine_types": [
@@ -239,7 +239,7 @@ class ServiceFormFactory:
         errors = []
         
         try:
-            from pricing.models import OffsetMachineType, OffsetSheetSize
+            from printing_pricing.models.settings_models import OffsetMachineType, OffsetSheetSize
             
             # التحقق من نوع الماكينة
             if machine_type:
@@ -261,7 +261,7 @@ class ServiceFormFactory:
     def get_unified_ctp_choices():
         """جلب خيارات الزنكات CTP الموحدة من المرجعية الوحيدة"""
         try:
-            from pricing.models import PlateSize
+            from printing_pricing.models.settings_models import PlateSize
 
             return {
                 "plate_sizes": [
@@ -310,7 +310,7 @@ class ServiceFormFactory:
         errors = []
         
         try:
-            from pricing.models import PlateSize
+            from printing_pricing.models.settings_models import PlateSize
             
             # التحقق من مقاس الزنك
             if plate_size and plate_size != 'custom':
@@ -343,7 +343,7 @@ class ServiceFormFactory:
         # للطباعة الديجيتال، استخدم البيانات من الإعدادات
         if category_code == "digital_printing":
             try:
-                from pricing.models import DigitalMachineType, DigitalSheetSize
+                from printing_pricing.models.settings_models import DigitalMachineType, DigitalSheetSize
 
                 # أنواع الماكينات من الإعدادات
                 machine_types = DigitalMachineType.objects.filter(
@@ -602,7 +602,7 @@ class DigitalPrintingForm(BaseServiceForm):
 
         # تحديث خيارات أنواع الماكينات من الإعدادات
         try:
-            from pricing.models import DigitalMachineType
+            from printing_pricing.models.settings_models import DigitalMachineType
 
             machine_types = DigitalMachineType.objects.filter(is_active=True).order_by(
                 "manufacturer", "name"
@@ -619,7 +619,7 @@ class DigitalPrintingForm(BaseServiceForm):
 
         # تحديث خيارات مقاسات الماكينات من الإعدادات
         try:
-            from pricing.models import DigitalSheetSize
+            from printing_pricing.models.settings_models import DigitalSheetSize
 
             sheet_sizes = DigitalSheetSize.objects.filter(is_active=True).order_by(
                 "width_cm", "height_cm"

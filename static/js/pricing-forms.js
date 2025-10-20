@@ -473,7 +473,7 @@ function updatePaperSuppliers() {
     
     // استدعاء API لجلب الموردين المناسبين
     $.ajax({
-        url: '/pricing/api/paper-suppliers/',
+        url: '/printing-pricing/api/paper-suppliers/',
         method: 'GET',
         data: {
             paper_type_id: paperTypeId
@@ -514,7 +514,7 @@ function resetPaperSuppliers() {
     const paperSupplierSelect = $('#id_paper_supplier');
     
     $.ajax({
-        url: '/pricing/api/paper-suppliers/',
+        url: '/printing-pricing/api/paper-suppliers/',
         method: 'GET',
         success: function(response) {
             if (response.success) {

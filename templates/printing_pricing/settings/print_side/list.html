@@ -10,7 +10,7 @@
         <h2>{% translate "إدارة جوانب الطباعة" %}</h2>
     </div>
     <div class="col-auto">
-        <a href="{% url 'pricing:print_side_create' %}" class="btn btn-primary">
+        <a href="{% url 'printing_pricing:print_side_create' %}" class="btn btn-primary">
             <i class="fas fa-plus"></i> {% translate "إضافة جانب طباعة جديد" %}
         </a>
     </div>
@@ -40,10 +40,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <a href="{% url 'pricing:print_side_edit' print_side.pk %}" class="btn btn-warning" title="{% translate 'تعديل' %}">
+                                <a href="{% url 'printing_pricing:print_side_edit' print_side.pk %}" class="btn btn-warning" title="{% translate 'تعديل' %}">
                                     <i class="fas fa-edit"></i>
                                 </a>
-                                <a href="{% url 'pricing:print_side_delete' print_side.pk %}" class="btn btn-danger" title="{% translate 'حذف' %}">
+                                <a href="{% url 'printing_pricing:print_side_delete' print_side.pk %}" class="btn btn-danger" title="{% translate 'حذف' %}">
                                     <i class="fas fa-trash"></i>
                                 </a>
                             </div>
@@ -65,7 +65,7 @@
 
 <div class="row">
     <div class="col">
-        <a href="{% url 'pricing:settings_home' %}" class="btn btn-secondary">
+        <a href="{% url 'printing_pricing:settings_home' %}" class="btn btn-secondary">
             <i class="fas fa-arrow-right"></i> {% translate "العودة للإعدادات" %}
         </a>
     </div>

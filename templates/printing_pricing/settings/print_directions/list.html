@@ -102,10 +102,10 @@
                         </td>
                         <td>
                             <div class="btn-group btn-group-sm" role="group">
-                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ direction.pk }})">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal('{{ direction.pk }}')">
                                     <i class="fas fa-edit"></i>
                                 </button>
-                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ direction.pk }})">
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal('{{ direction.pk }}')">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
@@ -148,7 +148,7 @@
 {% block extra_js %}
 <script>
 function openCreateModal() {
-    fetch('{% url "pricing:print_direction_create" %}')
+    fetch('{% url "printing_pricing:print_direction_create" %}')
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -157,7 +157,7 @@ function openCreateModal() {
 }
 
 function openEditModal(id) {
-    fetch(`{% url "pricing:print_direction_edit" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:print_direction_edit" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('modalContent').innerHTML = html;
@@ -166,7 +166,7 @@ function openEditModal(id) {
 }
 
 function openDeleteModal(id) {
-    fetch(`{% url "pricing:print_direction_delete" 0 %}`.replace('0', id))
+    fetch(`{% url "printing_pricing:print_direction_delete" 0 %}`.replace('0', id))
         .then(response => response.text())
         .then(html => {
             document.getElementById('deleteModalContent').innerHTML = html;

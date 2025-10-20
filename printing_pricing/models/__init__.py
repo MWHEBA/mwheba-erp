@@ -6,3 +6,4 @@ from .order import *
 from .calculations import *
 from .materials import *
 from .services import *
+from .settings_models import *
