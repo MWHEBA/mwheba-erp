@@ -7,6 +7,9 @@
 
 {% block title %}{{ customer.name }} - {% trans "تفاصيل العميل" %}{% endblock %}
 
+<!-- CSRF Token مخفي للاستخدام في JavaScript -->
+{% csrf_token %}
+
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
@@ -363,12 +366,19 @@
                   </div>
                 {% endif %}
                 
-                {% if financial_account %}
+                {% if customer.financial_account %}
                 <div class="customer-info-badge mb-2" style="background-color: rgba(25, 135, 84, 0.1); border: 1px solid rgba(25, 135, 84, 0.2);">
                   <i class="fas fa-link me-2 text-success"></i>
-                  <a href="{% url 'financial:account_detail' financial_account.pk %}" class="text-success text-decoration-none fw-bold">
+                  <a href="{% url 'financial:account_detail' customer.financial_account.pk %}" class="text-success text-decoration-none fw-bold">
                     دليل الحسابات
                   </a>
+                </div>
+                {% else %}
+                <div class="customer-info-badge mb-2" style="background-color: rgba(13, 110, 253, 0.1); border: 1px solid rgba(13, 110, 253, 0.2); padding: 8px;">
+                  <button type="button" class="btn btn-sm btn-primary border-0 d-block w-100" onclick="openCreateAccountModal({{ customer.pk }})" style="background: linear-gradient(135deg, #007bff 0%, #0056b3 100%); padding: 8px 16px; font-weight: 600; border-radius: 6px;">
+                    <i class="fas fa-plus-circle me-2"></i>إنشاء حساب محاسبي
+                  </button>
+                  <small class="text-muted d-block mt-1 text-center">العميل غير مربوط بحساب محاسبي</small>
                 </div>
                 {% endif %}
                 </div>
@@ -751,5 +761,150 @@ document.addEventListener('DOMContentLoaded', function() {
         initializeAllTables();
     }
 });
+
+// دالة إظهار الإشعارات الموحدة
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    // حساب موضع الإشعار بناءً على الإشعارات الموجودة
+    const existingNotifications = document.querySelectorAll('.js-notification, .django-message');
+    const topPosition = 20 + (existingNotifications.length * 80);
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed js-notification" 
+             style="top: ${topPosition}px; right: 20px; z-index: ${9999 + existingNotifications.length}; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+        // إعادة ترتيب الإشعارات المتبقية
+        setTimeout(() => {
+            repositionAllNotifications();
+        }, 300);
+    }, 5000);
+}
+
+// دالة إعادة ترتيب جميع الإشعارات
+function repositionAllNotifications() {
+    const allNotifications = document.querySelectorAll('.js-notification, .django-message');
+    allNotifications.forEach(function(notification, index) {
+        notification.style.top = (20 + (index * 80)) + 'px';
+        notification.style.zIndex = 9999 + index;
+    });
+}
+
+// فتح مودال إنشاء حساب محاسبي
+function openCreateAccountModal(customerId) {
+    fetch(`/client/${customerId}/create-account/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.html) {
+            // إنشاء المودال إذا لم يكن موجوداً
+            let modal = document.getElementById('createAccountModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.id = 'createAccountModal';
+                modal.setAttribute('tabindex', '-1');
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content" id="createAccountModalContent">
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            document.getElementById('createAccountModalContent').innerHTML = data.html;
+            new bootstrap.Modal(document.getElementById('createAccountModal')).show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('حدث خطأ في تحميل المودال', 'error');
+    });
+}
+
+// دالة للحصول على CSRF token بطريقة آمنة
+function getCsrfToken() {
+    // البحث في المودال أولاً
+    let csrfInput = document.querySelector('#createAccountModal [name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // البحث في الصفحة الرئيسية
+    csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // البحث في الـ meta tag
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta && csrfMeta.content) {
+        return csrfMeta.content;
+    }
+    
+    // البحث في الـ cookies
+    const csrfCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+    if (csrfCookie) {
+        return csrfCookie.split('=')[1];
+    }
+    
+    return null;
+}
+
+// إنشاء حساب محاسبي للعميل
+function createCustomerAccount(customerId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    
+    // الحصول على CSRF token بطريقة آمنة
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showNotification('خطأ: لم يتم العثور على رمز الأمان', 'error');
+        return;
+    }
+    
+    fetch(`/client/${customerId}/create-account/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            showNotification(data.message, 'success');
+            
+            // إعادة تحميل الصفحة بعد ثانيتين
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('حدث خطأ أثناء إنشاء الحساب', 'error');
+    });
+}
 </script>
 {% endblock %} 

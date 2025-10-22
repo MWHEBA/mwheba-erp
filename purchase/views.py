@@ -459,26 +459,29 @@ def purchase_update(request, pk):
     تعديل فاتورة مشتريات
     """
     purchase = get_object_or_404(Purchase, pk=pk)
-    products = Product.objects.filter(is_active=True)
 
-    # منع تعديل الفواتير المدفوعة أو المرتجعة بالكامل
-    if purchase.is_fully_paid or purchase.return_status == "full":
-        messages.error(request, _("لا يمكن تعديل فاتورة مدفوعة أو مرتجعة بالكامل"))
-        return redirect("purchase:purchase_detail", pk=pk)
+    # التحقق من الصلاحيات
+    if not request.user.has_perm("purchase.change_purchase"):
+        messages.error(request, "ليس لديك صلاحية لتعديل فواتير المشتريات")
+        return redirect("purchase:purchase_list")
 
-    # حفظ البنود الحالية للفاتورة قبل التعديل للاستفادة منها لاحقاً
+    # منع تعديل الفواتير المدفوعة بالكامل
+    if purchase.payment_status == "paid":
+        messages.error(request, "لا يمكن تعديل فاتورة مدفوعة بالكامل")
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+    # الحصول على البنود الأصلية قبل التعديل
     original_items = {}
     for item in purchase.items.all():
-        original_items[item.product_id] = item.quantity
+        original_items[item.product.id] = item.quantity
 
     if request.method == "POST":
-        form = PurchaseUpdateForm(request.POST, instance=purchase)
-
-        # تسجيل البيانات للتحقق
-        logger.info(f"Form data: {request.POST}")
-
+        form = PurchaseForm(request.POST, instance=purchase)
         if form.is_valid():
             try:
+                # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
+                from product.models import StockMovement
+                
                 with transaction.atomic():
                     updated_purchase = form.save(commit=False)
 
@@ -697,6 +700,9 @@ def purchase_delete(request, pk):
 
     if request.method == "POST":
         try:
+            # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
+            from product.models import StockMovement
+            
             with transaction.atomic():
                 # حساب عدد حركات المخزون المرتبطة بالفاتورة (للعرض فقط)
                 movement_count = StockMovement.objects.filter(
@@ -724,13 +730,40 @@ def purchase_delete(request, pk):
                 #     reference_number__startswith=f"PURCHASE-{purchase.number}"
                 # ).delete()
 
-                # حذف الفاتورة فقط
+                # إلغاء ترحيل وحذف القيد المحاسبي المرتبط بالفاتورة إذا وُجد
+                journal_entry_info = ""
+                if purchase.journal_entry:
+                    journal_entry = purchase.journal_entry
+                    journal_entry_number = journal_entry.number
+                    journal_entry_status = journal_entry.status
+                    
+                    import logging
+                    logger = logging.getLogger(__name__)
+                    
+                    # إلغاء ترحيل القيد أولاً إذا كان مرحلاً
+                    if journal_entry_status == "posted":
+                        try:
+                            journal_entry.status = "draft"
+                            journal_entry.save(update_fields=['status'])
+                            logger.info(f"✅ تم إلغاء ترحيل القيد المحاسبي {journal_entry_number}")
+                            journal_entry_info = f" وتم إلغاء ترحيل وحذف القيد المحاسبي {journal_entry_number}"
+                        except Exception as e:
+                            logger.error(f"❌ فشل في إلغاء ترحيل القيد {journal_entry_number}: {e}")
+                            journal_entry_info = f" وتم حذف القيد المحاسبي {journal_entry_number} (فشل إلغاء الترحيل)"
+                    else:
+                        journal_entry_info = f" وتم حذف القيد المحاسبي {journal_entry_number}"
+                    
+                    # حذف القيد المحاسبي وخطوطه
+                    journal_entry.delete()
+                    logger.info(f"✅ تم حذف القيد المحاسبي {journal_entry_number} المرتبط بفاتورة المشتريات {purchase.number}")
+
+                # حذف الفاتورة
                 purchase_number = purchase.number
                 purchase.delete()
 
                 messages.success(
                     request,
-                    f"تم حذف فاتورة المشتريات {purchase_number} بنجاح مع إضافة حركات مخزون للإرجاع. تم الاحتفاظ بعدد {movement_count} من حركات المخزون للحفاظ على سجل المخزون",
+                    f"تم حذف فاتورة المشتريات {purchase_number} بنجاح{journal_entry_info}. تم إضافة حركات مخزون للإرجاع والاحتفاظ بـ {movement_count} حركة مخزون للسجل",
                 )
                 return redirect("purchase:purchase_list")
 
@@ -930,6 +963,9 @@ def purchase_return(request, pk):
 
     if request.method == "POST":
         try:
+            # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
+            from product.models import StockMovement
+            
             with transaction.atomic():
                 # إنشاء مرتجع المشتريات
                 return_data = {
@@ -1479,3 +1515,47 @@ def unpost_payment_only(request, payment_id):
             messages.error(request, f"حدث خطأ أثناء إلغاء الترحيل: {str(e)}")
 
     return redirect("purchase:purchase_detail", pk=payment.purchase.pk)
+
+
+@login_required
+def delete_payment(request, payment_id):
+    """
+    حذف دفعة مشتريات - يُسمح بالحذف فقط للدفعات غير المرحلة
+    """
+    payment = get_object_or_404(PurchasePayment, pk=payment_id)
+    purchase = payment.purchase
+    
+    # التحقق من إمكانية الحذف
+    if not payment.can_delete:
+        messages.error(request, "لا يمكن حذف الدفعة المرحلة. يجب إلغاء الترحيل أولاً.")
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+    
+    if request.method == "POST":
+        try:
+            # تسجيل العملية في سجل التدقيق قبل الحذف
+            if hasattr(payment, 'log_payment_action'):
+                payment.log_payment_action(
+                    action="delete",
+                    user=request.user,
+                    description=f"حذف دفعة مشتريات - المبلغ: {payment.amount} - التاريخ: {payment.payment_date}",
+                    reason=request.POST.get("reason", "حذف الدفعة"),
+                    old_values={
+                        "amount": float(payment.amount),
+                        "payment_date": payment.payment_date.isoformat(),
+                        "payment_method": payment.payment_method,
+                        "reference_number": payment.reference_number,
+                        "notes": payment.notes,
+                        "status": payment.status,
+                    }
+                )
+            
+            # حذف الدفعة
+            payment.delete()
+            
+            messages.success(request, "تم حذف الدفعة بنجاح")
+            
+        except Exception as e:
+            logger.error(f"خطأ في حذف الدفعة {payment_id}: {str(e)}")
+            messages.error(request, f"حدث خطأ أثناء حذف الدفعة: {str(e)}")
+    
+    return redirect("purchase:purchase_detail", pk=purchase.pk)

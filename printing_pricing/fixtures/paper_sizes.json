@@ -1,0 +1,157 @@
+[
+{
+  "model": "printing_pricing.papersize",
+  "pk": 1,
+  "fields": {
+    "name": "فرخ كامل 70×100",
+    "width": "70.00",
+    "height": "100.00",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 2,
+  "fields": {
+    "name": "نصف فرخ 50×70",
+    "width": "50.00",
+    "height": "70.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 3,
+  "fields": {
+    "name": "فرخ طبع جاير 60×85",
+    "width": "60.00",
+    "height": "85.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 4,
+  "fields": {
+    "name": "ربع فرخ 35×50",
+    "width": "35.00",
+    "height": "50.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 5,
+  "fields": {
+    "name": "A4",
+    "width": "21.00",
+    "height": "29.70",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 6,
+  "fields": {
+    "name": "A3",
+    "width": "29.70",
+    "height": "42.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 7,
+  "fields": {
+    "name": "A5",
+    "width": "14.80",
+    "height": "21.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 8,
+  "fields": {
+    "name": "فرخ جاير 66×88",
+    "width": "66.00",
+    "height": "88.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 9,
+  "fields": {
+    "name": "نصف جاير 44×66",
+    "width": "44.00",
+    "height": "66.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 10,
+  "fields": {
+    "name": "ربع جاير 33×44",
+    "width": "33.00",
+    "height": "44.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 11,
+  "fields": {
+    "name": "نصف طبع جاير 42.5×60",
+    "width": "42.50",
+    "height": "60.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 12,
+  "fields": {
+    "name": "ربع طبع جاير 30×42.5",
+    "width": "30.00",
+    "height": "42.50",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+}]

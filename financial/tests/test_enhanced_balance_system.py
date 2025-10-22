@@ -66,9 +66,9 @@ class EnhancedBalanceServiceTestCase(TestCase):
 
         # إنشاء فترة محاسبية
         self.period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
@@ -79,7 +79,7 @@ class EnhancedBalanceServiceTestCase(TestCase):
         """إنشاء قيود تجريبية للاختبار"""
         # قيد افتتاحي
         entry1 = JournalEntry.objects.create(
-            date=date(2024, 1, 1),
+            date=date(2025, 1, 1),
             description="قيد افتتاحي",
             accounting_period=self.period,
             status="posted",
@@ -102,7 +102,7 @@ class EnhancedBalanceServiceTestCase(TestCase):
 
         # قيد إضافي
         entry2 = JournalEntry.objects.create(
-            date=date(2024, 1, 15),
+            date=date(2025, 1, 15),
             description="قيد إضافي",
             accounting_period=self.period,
             status="posted",
@@ -174,7 +174,7 @@ class EnhancedBalanceServiceTestCase(TestCase):
 
     def test_balance_snapshot_creation(self):
         """اختبار إنشاء لقطات الأرصدة"""
-        snapshot_date = date(2024, 1, 15)
+        snapshot_date = date(2025, 1, 15)
 
         success = EnhancedBalanceService.create_balance_snapshot(
             self.cash_account, snapshot_date
@@ -223,16 +223,16 @@ class PerformanceOptimizerTestCase(TestCase):
 
         # إنشاء فترة محاسبية
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
         # إنشاء عدة قيود للاختبار
         for i in range(10):
             entry = JournalEntry.objects.create(
-                date=date(2024, 1, 1) + timedelta(days=i),
+                date=date(2025, 1, 1) + timedelta(days=i),
                 description=f"قيد اختبار {i+1}",
                 accounting_period=period,
                 status="posted",
@@ -402,9 +402,9 @@ class BalanceValidationTestCase(TestCase):
 
         # إنشاء فترة محاسبية
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
@@ -492,16 +492,16 @@ class PerformanceBenchmarkTestCase(TransactionTestCase):
 
         # إنشاء فترة محاسبية
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
         # إنشاء عدد كبير من القيود
         for i in range(100):
             entry = JournalEntry.objects.create(
-                date=date(2024, 1, 1) + timedelta(days=i % 365),
+                date=date(2025, 1, 1) + timedelta(days=i % 365),
                 description=f"قيد أداء {i+1}",
                 accounting_period=period,
                 status="posted",

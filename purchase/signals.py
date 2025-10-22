@@ -2,7 +2,6 @@ from django.db.models.signals import post_save, post_delete
 from django.dispatch import receiver
 from django.db import transaction
 from .models import PurchaseItem, PurchasePayment, Purchase, PurchaseReturn
-from product.models import StockMovement
 
 
 @receiver(post_save, sender=PurchaseItem)
@@ -14,6 +13,9 @@ def create_stock_movement_for_purchase_item(sender, instance, created, **kwargs)
     Signal يضمن إنشاء الحركة في جميع الحالات (View, Admin, API, etc.)
     """
     if created and instance.purchase.status == "confirmed":
+        # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
+        from product.models import StockMovement
+        
         # التحقق من عدم وجود حركة مخزون مسبقاً لتجنب الازدواجية
         existing_movement = StockMovement.objects.filter(
             product=instance.product,
@@ -131,6 +133,9 @@ def handle_deleted_purchase_item(sender, instance, **kwargs):
     إلغاء حركة المخزون عند حذف بند الفاتورة
     """
     try:
+        # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
+        from product.models import StockMovement
+        
         # البحث عن حركة المخزون المرتبطة وحذفها
         related_movement = StockMovement.objects.filter(
             product=instance.product,

@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-type-card {
+        background: var(--bs-white);
+        border-radius: 12px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--bs-border-color);
+        margin-bottom: 1.5rem;
+    }
+    
+    .account-type-header {
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 12px 12px 0 0;
+    }
+    
+    .account-type-body {
+        padding: 1.5rem;
+    }
+    
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-bottom: 2rem;
+    }
+    
+    .info-item {
+        background: var(--bs-light);
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid var(--bs-primary);
+    }
+    
+    .info-label {
+        font-weight: 600;
+        color: var(--bs-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 0.25rem;
+    }
+    
+    .info-value {
+        font-size: 1rem;
+        color: var(--bs-dark);
+    }
+    
+    .stats-card {
+        background: var(--bs-white);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .stats-number {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--bs-primary);
+        margin-bottom: 0.5rem;
+    }
+    
+    .stats-label {
+        color: var(--bs-secondary);
+        font-size: 0.875rem;
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--bs-dark);
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--bs-primary);
+    }
+    
+    .account-item {
+        background: var(--bs-white);
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        transition: all 0.2s ease;
+    }
+    
+    .account-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+    
+    .account-code {
+        font-family: 'Courier New', monospace;
+        background: var(--bs-light);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.875rem;
+        color: var(--bs-primary);
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: var(--bs-secondary);
+    }
+    
+    .empty-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">{{ page_title }}</h1>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if item.active %}
+                            <li class="breadcrumb-item active">{{ item.title }}</li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">{{ item.title }}</a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        <div>
+            <a href="{% url 'financial:account_types_edit' account_type.pk %}" class="btn btn-primary me-2">
+                <i class="fas fa-edit me-1"></i>تعديل
+            </a>
+            <a href="{% url 'financial:account_types_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-1"></i>العودة للقائمة
+            </a>
+        </div>
+    </div>
+
+    <!-- Account Type Details Card -->
+    <div class="account-type-card">
+        <div class="account-type-header">
+            <div class="d-flex align-items-center">
+                <i class="{{ page_icon }} fa-2x me-3"></i>
+                <div>
+                    <h2 class="h4 mb-1">{{ account_type.name }}</h2>
+                    <p class="mb-0 opacity-75">كود: {{ account_type.code }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="account-type-body">
+            <!-- Basic Information -->
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">الكود</div>
+                    <div class="info-value">{{ account_type.code }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">الاسم</div>
+                    <div class="info-value">{{ account_type.name }}</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">التصنيف</div>
+                    <div class="info-value">
+                        {% if account_type.category == 'asset' %}
+                            أصول
+                        {% elif account_type.category == 'liability' %}
+                            خصوم
+                        {% elif account_type.category == 'equity' %}
+                            حقوق الملكية
+                        {% elif account_type.category == 'revenue' %}
+                            إيرادات
+                        {% elif account_type.category == 'expense' %}
+                            مصروفات
+                        {% else %}
+                            {{ account_type.category }}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">الطبيعة</div>
+                    <div class="info-value">
+                        {% if account_type.nature == 'debit' %}
+                            مدين
+                        {% elif account_type.nature == 'credit' %}
+                            دائن
+                        {% else %}
+                            {{ account_type.nature }}
+                        {% endif %}
+                    </div>
+                </div>
+                {% if account_type.parent %}
+                <div class="info-item">
+                    <div class="info-label">النوع الأب</div>
+                    <div class="info-value">
+                        <a href="{% url 'financial:account_type_detail' account_type.parent.pk %}">
+                            {{ account_type.parent.name }}
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+                <div class="info-item">
+                    <div class="info-label">الحالة</div>
+                    <div class="info-value">
+                        {% if account_type.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                        {% else %}
+                            <span class="badge bg-secondary">غير نشط</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <div class="stats-number">{{ accounts_count }}</div>
+                        <div class="stats-label">الحسابات المرتبطة</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <div class="stats-number">{{ children_count }}</div>
+                        <div class="stats-label">الأنواع الفرعية</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Child Types -->
+            {% if child_types %}
+            <div class="mb-4">
+                <h3 class="section-title">
+                    <i class="fas fa-sitemap me-2"></i>الأنواع الفرعية
+                </h3>
+                <div class="row">
+                    {% for child_type in child_types %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="account-item">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="account-code">{{ child_type.code }}</span>
+                                {% if child_type.is_active %}
+                                    <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">غير نشط</span>
+                                {% endif %}
+                            </div>
+                            <h6 class="mb-1">
+                                <a href="{% url 'financial:account_type_detail' child_type.pk %}" class="text-decoration-none">
+                                    {{ child_type.name }}
+                                </a>
+                            </h6>
+                            <small class="text-muted">{{ child_type.get_category_display }}</small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Related Accounts -->
+            {% if related_accounts %}
+            <div class="mb-4">
+                <h3 class="section-title">
+                    <i class="fas fa-list me-2"></i>الحسابات المرتبطة
+                </h3>
+                <div class="row">
+                    {% for account in related_accounts %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="account-item">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <span class="account-code">{{ account.code }}</span>
+                                {% if account.is_active %}
+                                    <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">غير نشط</span>
+                                {% endif %}
+                            </div>
+                            <h6 class="mb-1">
+                                <a href="{% url 'financial:account_detail' account.pk %}" class="text-decoration-none">
+                                    {{ account.name }}
+                                </a>
+                            </h6>
+                            {% if account.description %}
+                                <small class="text-muted">{{ account.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-icon">
+                    <i class="fas fa-inbox"></i>
+                </div>
+                <h5>لا توجد حسابات مرتبطة</h5>
+                <p>لم يتم إنشاء أي حسابات لهذا النوع بعد.</p>
+                <a href="{% url 'financial:account_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>إنشاء حساب جديد
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

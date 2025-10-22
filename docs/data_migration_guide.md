@@ -8,10 +8,10 @@
 ### 1. تصدير البيانات الحالية (نسخة احتياطية)
 ```bash
 # تصدير جميع البيانات بتنسيق JSON
-python manage.py export_pricing_data --output-file backup_2024.json
+python manage.py export_pricing_data --output-file backup_2025.json
 
 # تصدير البيانات بتنسيق CSV
-python manage.py export_pricing_data --output-file backup_2024.csv --format csv
+python manage.py export_pricing_data --output-file backup_2025.csv --format csv
 ```
 
 ### 2. نقل البيانات من النظام القديم
@@ -29,13 +29,13 @@ python manage.py migrate_old_pricing_data --old-db-path /path/to/old/database.db
 ### 3. استيراد البيانات من ملف JSON
 ```bash
 # استيراد البيانات من ملف نسخة احتياطية
-python manage.py import_pricing_data --input-file backup_2024.json
+python manage.py import_pricing_data --input-file backup_2025.json
 
 # تشغيل تجريبي
-python manage.py import_pricing_data --input-file backup_2024.json --dry-run
+python manage.py import_pricing_data --input-file backup_2025.json --dry-run
 
 # مسح البيانات الموجودة قبل الاستيراد
-python manage.py import_pricing_data --input-file backup_2024.json --clear-existing
+python manage.py import_pricing_data --input-file backup_2025.json --clear-existing
 ```
 
 ## خطوات النقل الموصى بها

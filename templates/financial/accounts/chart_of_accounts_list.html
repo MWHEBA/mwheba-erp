@@ -1,0 +1,454 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* تحسينات بسيطة للجدول الهرمي */
+.account-row {
+    transition: background-color 0.2s ease;
+}
+
+.account-row:hover {
+    background-color: #f8f9fa;
+}
+
+.expand-btn {
+    color: #6c757d;
+    text-decoration: none;
+    transition: all 0.2s ease;
+}
+
+.expand-btn:hover {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.expand-btn i {
+    transition: transform 0.2s ease;
+}
+
+/* إخفاء الصفوف الفرعية افتراضياً */
+.account-row[data-level="1"],
+.account-row[data-level="2"], 
+.account-row[data-level="3"] {
+    display: none !important;
+}
+
+/* عرض الصفوف المستوى الأول فقط */
+.account-row[data-level="0"] {
+    display: table-row !important;
+}
+
+/* عرض الصفوف المرئية */
+.account-row.visible {
+    display: table-row !important;
+}
+
+/* تحسين أيقونات التوسع */
+.expand-btn i {
+    transition: transform 0.3s ease, color 0.2s ease;
+}
+
+.expand-btn i.fa-chevron-left {
+    transform: rotate(0deg);
+    color: #6c757d;
+}
+
+.expand-btn i.fa-chevron-down {
+    transform: rotate(0deg);
+    color: #007bff;
+}
+
+.expand-btn:hover i {
+    color: #0056b3 !important;
+}
+
+/* تحسين الصفوف القابلة للتوسع */
+.expandable-row:hover {
+    background-color: #f8f9fa !important;
+}
+
+.expandable-row {
+    transition: background-color 0.2s ease;
+}
+
+/* مسافة بادئة ديناميكية حسب المستوى */
+.indent { margin-right: 0; }
+.account-row.level-0 .indent { margin-right: 0px; }
+.account-row.level-1 .indent { margin-right: 20px; }
+.account-row.level-2 .indent { margin-right: 40px; }
+.account-row.level-3 .indent { margin-right: 60px; }
+.account-row.level-4 .indent { margin-right: 80px; }
+.account-row.level-5 .indent { margin-right: 100px; }
+
+/* صفوف الحسابات النهائية: مؤشر يد ورغبة في النقر */
+.account-row.leaf-row { cursor: pointer; }
+.account-row.leaf-row:hover { background-color: #f1f3f5; }
+
+@media (max-width: 768px) {
+    .btn-group-sm .btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">إدارة دليل الحسابات المحاسبي الشامل</p>
+                </div>
+            </div>
+            <div>
+                <a href="{% url 'financial:account_types_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-layer-group me-2"></i>أنواع الحسابات
+                </a>
+                <a href="{% url 'financial:chart_of_accounts_create' %}" class="btn btn-primary ms-2">
+                    <i class="fas fa-plus me-2"></i>إضافة حساب جديد
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات الأرصدة حسب التصنيف -->
+    {% if stats %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>الأرصدة حسب التصنيف
+                        <small class="text-muted">(للحسابات النهائية النشطة فقط)</small>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-building fa-2x text-primary mb-2"></i>
+                                <h5 class="mb-0 text-primary">{{ stats.assets_balance|remove_trailing_zeros }}</h5>
+                                <small class="text-muted">الأصول</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-file-invoice-dollar fa-2x text-danger mb-2"></i>
+                                <h5 class="mb-0 text-danger">{{ stats.liabilities_balance|remove_trailing_zeros }}</h5>
+                                <small class="text-muted">الخصوم</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-landmark fa-2x text-info mb-2"></i>
+                                <h5 class="mb-0 text-info">{{ stats.equity_balance|remove_trailing_zeros }}</h5>
+                                <small class="text-muted">حقوق الملكية</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-arrow-up fa-2x text-success mb-2"></i>
+                                <h5 class="mb-0 text-success">{{ stats.revenue_balance|remove_trailing_zeros }}</h5>
+                                <small class="text-muted">الإيرادات</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded">
+                                <i class="fas fa-arrow-down fa-2x text-warning mb-2"></i>
+                                <h5 class="mb-0 text-warning">{{ stats.expense_balance|remove_trailing_zeros }}</h5>
+                                <small class="text-muted">المصروفات</small>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <div class="text-center p-3 border rounded bg-light">
+                                <i class="fas fa-balance-scale fa-2x text-dark mb-2"></i>
+                                <h5 class="mb-0 {% if stats.net_assets >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    {{ stats.net_assets|remove_trailing_zeros }}
+                                </h5>
+                                <small class="text-muted">صافي الأصول</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Content -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>قائمة الحسابات
+                        </h5>
+                        <!-- بحث وفلترة -->
+                        <div class="d-flex gap-2">
+                            <form method="get" class="d-flex gap-2">
+                                <input type="text" name="search" class="form-control" placeholder="بحث..." value="{{ search_query }}" style="width: 200px;">
+                                <select name="type" class="form-select" style="width: 200px;" onchange="this.form.submit()">
+                                    <option value="">كل الأنواع</option>
+                                    {% for acc_type in account_types %}
+                                    <option value="{{ acc_type.code }}" {% if selected_type == acc_type.code %}selected{% endif %}>
+                                        {{ acc_type.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                {% if search_query or selected_type %}
+                                <a href="{% url 'financial:chart_of_accounts_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                                {% endif %}
+                            </form>
+                            <!-- أدوات الشجرة -->
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="expandAllBtn">
+                                <i class="fas fa-expand-arrows-alt me-1"></i>توسيع الكل
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="collapseAllBtn">
+                                <i class="fas fa-compress-arrows-alt me-1"></i>طي الكل
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    
+                    <!-- عرض هرمي للحسابات -->
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 15%;">كود الحساب</th>
+                                    <th style="width: 35%;">اسم الحساب</th>
+                                    <th style="width: 20%;">نوع الحساب</th>
+                                    <th style="width: 10%;">الرصيد</th>
+                                    <th style="width: 10%;">الحالة</th>
+                                    <th style="width: 10%;">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountsTable">
+                                {% for account in root_accounts %}
+                                    {% include 'financial/components/enhanced_account_row.html' with account=account level=0 %}
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-5">
+                                        <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                        <p class="mb-0">لا توجد حسابات مضافة بعد</p>
+                                        <a href="{% url 'financial:chart_of_accounts_create' %}" class="btn btn-primary mt-3">
+                                            <i class="fas fa-plus me-2"></i>إضافة حساب جديد
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// دالة التوسيط والطي للحسابات
+function toggleAccountChildren(accountId) {
+    const parentRow = document.querySelector(`tr[data-account-id="${accountId}"]`);
+    const icon = document.getElementById(`icon-${accountId}`);
+    
+    if (!parentRow || !icon) return;
+    
+    const parentLevel = parseInt(parentRow.dataset.level);
+    
+    // العثور على جميع الصفوف الفرعية المباشرة
+    let nextRow = parentRow.nextElementSibling;
+    const directChildRows = [];
+    
+    while (nextRow && nextRow.dataset.level && parseInt(nextRow.dataset.level) > parentLevel) {
+        const currentLevel = parseInt(nextRow.dataset.level);
+        
+        // إضافة الأطفال المباشرين فقط (المستوى التالي مباشرة)
+        if (currentLevel === parentLevel + 1) {
+            directChildRows.push(nextRow);
+        }
+        
+        nextRow = nextRow.nextElementSibling;
+    }
+    
+    // تبديل حالة العرض
+    const isExpanded = icon.classList.contains('fa-chevron-down');
+    
+    if (isExpanded) {
+        // طي: إخفاء جميع الأطفال والأحفاد
+        hideAllDescendants(parentRow, parentLevel);
+        icon.classList.remove('fa-chevron-down');
+        icon.classList.add('fa-chevron-left');
+        // تغيير لون الأيقونة للمغلق
+        icon.style.color = '#6c757d';
+    } else {
+        // توسع: إظهار الأطفال المباشرين فقط
+        directChildRows.forEach(row => {
+            row.classList.add('visible');
+        });
+        icon.classList.remove('fa-chevron-left');
+        icon.classList.add('fa-chevron-down');
+        // تغيير لون الأيقونة للمفتوح
+        icon.style.color = '#007bff';
+    }
+}
+
+// دالة لإخفاء جميع الأحفاد
+function hideAllDescendants(parentRow, parentLevel) {
+    let nextRow = parentRow.nextElementSibling;
+    
+    while (nextRow && nextRow.dataset.level && parseInt(nextRow.dataset.level) > parentLevel) {
+        nextRow.classList.remove('visible');
+        
+        // إذا كان هذا الصف موسعاً، اطويه أيضاً
+        const rowAccountId = nextRow.dataset.accountId;
+        const rowIcon = document.getElementById(`icon-${rowAccountId}`);
+        if (rowIcon && rowIcon.classList.contains('fa-chevron-down')) {
+            rowIcon.classList.remove('fa-chevron-down');
+            rowIcon.classList.add('fa-chevron-left');
+            // تغيير لون الأيقونة للمغلق
+            rowIcon.style.color = '#6c757d';
+        }
+        
+        nextRow = nextRow.nextElementSibling;
+    }
+}
+
+// أدوات الشجرة
+document.addEventListener('DOMContentLoaded', function() {
+    // توسيع الكل
+    document.getElementById('expandAllBtn').addEventListener('click', function() {
+        document.querySelectorAll('.expand-btn i.fa-chevron-left').forEach(icon => {
+            const btn = icon.closest('.expand-btn');
+            if (btn) btn.click();
+        });
+    });
+    
+    // طي الكل
+    document.getElementById('collapseAllBtn').addEventListener('click', function() {
+        // طي جميع الحسابات الموسعة
+        document.querySelectorAll('.expand-btn i.fa-chevron-down').forEach(icon => {
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-left');
+            icon.style.color = '#6c757d';
+        });
+        
+        // إخفاء جميع الصفوف الفرعية
+        document.querySelectorAll('.account-row[data-level]:not([data-level="0"])').forEach(row => {
+            row.classList.remove('visible');
+        });
+    });
+    
+    // فتح جميع الحسابات افتراضياً ماعدا العملاء والموردين
+    document.querySelectorAll('.account-row[data-level]:not([data-level="0"])').forEach(row => {
+        // البحث عن الحساب الأب لهذا الصف
+        const level = parseInt(row.dataset.level);
+        let parentRow = row.previousElementSibling;
+        
+        // البحث عن الحساب الأب
+        while (parentRow && (!parentRow.dataset.level || parseInt(parentRow.dataset.level) >= level)) {
+            parentRow = parentRow.previousElementSibling;
+        }
+        
+        // فحص إذا كان الحساب الأب هو العملاء أو الموردين
+        let isCustomerOrSupplier = false;
+        if (parentRow) {
+            const accountName = parentRow.querySelector('.account-name');
+            if (accountName) {
+                const name = accountName.textContent.trim();
+                if (name.includes('العملاء') || name.includes('الموردون') || name.includes('عملاء') || name.includes('موردين')) {
+                    isCustomerOrSupplier = true;
+                }
+            }
+        }
+        
+        // إظهار الصف إذا لم يكن تحت العملاء أو الموردين
+        if (!isCustomerOrSupplier) {
+            row.classList.add('visible');
+        }
+    });
+    
+    // تعيين حالة الأيقونات حسب الحساب
+    document.querySelectorAll('.expand-btn i').forEach(icon => {
+        const btn = icon.closest('.expand-btn');
+        const row = btn.closest('tr');
+        const accountName = row.querySelector('.account-name');
+        
+        if (accountName) {
+            const name = accountName.textContent.trim();
+            // إغلاق العملاء والموردين، فتح الباقي
+            if (name.includes('العملاء') || name.includes('الموردون') || name.includes('عملاء') || name.includes('موردين')) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-left');
+                icon.style.color = '#6c757d';
+            } else {
+                icon.classList.remove('fa-chevron-left');
+                icon.classList.add('fa-chevron-down');
+                icon.style.color = '#007bff';
+            }
+        }
+    });
+
+    // فتح تفاصيل الحساب عند الضغط على صف نهائي (leaf)
+    const table = document.getElementById('accountsTable');
+    if (table) {
+        table.addEventListener('click', function(e) {
+            // تجاهل الضغط على الأزرار/الروابط/أيقونات التوسيع
+            if (e.target.closest('.btn, a, .expand-btn')) return;
+            const row = e.target.closest('tr.leaf-row');
+            if (row && row.dataset.href) {
+                window.location.href = row.dataset.href;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

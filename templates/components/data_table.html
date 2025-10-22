@@ -1,6 +1,6 @@
 {% load static %}
 {% load i18n %}
-{% load custom_filters %}
+{% load pricing_filters %}
 {% load utils_extras %}
 
 {% comment %}
@@ -33,8 +33,6 @@
 - show_export: إظهار أزرار التصدير (اختياري، افتراضي False)
 - export_filename: اسم الملف للتصدير (اختياري، افتراضي table_data)
 {% endcomment %}
-
-<!-- DEBUG: data={{ data|length|default:"None" }}, headers={{ headers|length|default:"None" }} -->
 
 {% if data %}
 {% if show_search|default:True or show_length_menu|default:True %}
@@ -83,7 +81,7 @@
         <tbody>
             {% for item in data %}
                 {% if forloop.first %}<!-- DEBUG: لدينا بيانات فعلية -->{% endif %}
-                    <tr {% if row_class_callback %}class="{{ item|call:row_class_callback }}"{% endif %} data-id="{{ item|get_attr:primary_key|default:'0' }}">
+                    <tr {% if row_class_callback %}class="{{ item|call:row_class_callback }}"{% endif %} data-id="{{ item|get_attr:primary_key|default:'0' }}"{% if row_click_field %} data-url="{{ item|get_attr:row_click_field }}"{% endif %}>
                         {% for header in headers %}
                             {% with field_value=item|get_attr:header.key %}
                                 <td class="{% if header.class %}{{ header.class }}{% endif %} col-{{ header.key }}">
@@ -107,7 +105,7 @@
                                                     <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> 0</strong>
                                                 {% endif %}
                                             {% else %}
-                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> {{ field_value|custom_number_format }}</strong>
+                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> {{ field_value|remove_trailing_zeros }}</strong>
                                             {% endif %}
                                         </span>
                                     {% elif header.format == 'boolean' %}
@@ -189,6 +187,11 @@
                                                     <span class="badge bg-secondary">{{ field_value }}</span>
                                                 {% endif %}
                                                 
+                                            <!-- معالجة حالات القيود المحاسبية -->
+                                            {% elif field_value == 'posted' %}
+                                                <span class="badge bg-success">مرحل</span>
+                                            {% elif field_value == 'draft' %}
+                                                <span class="badge bg-warning">مسودة</span>
                                             {% elif field_value == 'paid' %}
                                                 <span class="badge bg-success">{% trans "مدفوع" %}</span>
                                             {% elif field_value == 'pending' %}
@@ -272,6 +275,31 @@
                                             </span>
                                         {% else %}
                                             <span class="text-muted">-</span>
+                                        {% endif %}
+                                    {% elif header.key == 'entry_type' %}
+                                        <!-- معالجة نوع القيد المحاسبي -->
+                                        {% if field_value == 'إيراد نقدي' %}
+                                            <span class="badge bg-success">💵 إيراد نقدي</span>
+                                        {% elif field_value == 'مصروف نقدي' %}
+                                            <span class="badge bg-danger">💸 مصروف نقدي</span>
+                                        {% elif field_value == 'إيراد بنكي' %}
+                                            <span class="badge bg-primary">🏦 إيراد بنكي</span>
+                                        {% elif field_value == 'مصروف بنكي' %}
+                                            <span class="badge bg-warning">🏧 مصروف بنكي</span>
+                                        {% elif field_value == 'فاتورة مبيعات' %}
+                                            <span class="badge bg-success">📄 فاتورة مبيعات</span>
+                                        {% elif field_value == 'فاتورة مشتريات' %}
+                                            <span class="badge bg-info">🛒 فاتورة مشتريات</span>
+                                        {% elif field_value == 'تحصيل من عميل' %}
+                                            <span class="badge bg-primary">💰 تحصيل من عميل</span>
+                                        {% elif field_value == 'دفع لمورد' %}
+                                            <span class="badge bg-warning">💳 دفع لمورد</span>
+                                        {% elif field_value == 'قيد مركب' %}
+                                            <span class="badge bg-secondary">🔗 قيد مركب</span>
+                                        {% elif field_value == 'تحويل' %}
+                                            <span class="badge bg-info">🔄 تحويل</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ field_value }}</span>
                                         {% endif %}
                                     {% else %}
                                         {% if header.ellipsis|default:False %}
@@ -378,7 +406,7 @@
 </div>
 {% endif %}
 
-{% if clickable_rows|default:False and row_click_url %}
+{% if clickable_rows|default:False %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // جعل صفوف الجدول قابلة للنقر
@@ -393,23 +421,28 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // تجاهل الصفوف الفارغة
             if (row.getAttribute('data-empty') === 'true') return;
-            
-            // الحصول على ID من أول خلية أو من data attribute
+            {% if row_click_field %}
+            // استخدام URL من البيانات
+            const url = row.getAttribute('data-url');
+            if (url && (url.startsWith('/') || url.startsWith(window.location.origin))) {
+                window.location.href = url;
+            }
+            {% elif row_click_url %}
+            // استخدام URL ثابت مع ID
             const itemId = row.getAttribute('data-id') || row.querySelector('td:first-child')?.textContent?.trim();
-            if (itemId && /^\d+$/.test(itemId)) { // التحقق من أن ID رقمي فقط
+            if (itemId && /^\d+$/.test(itemId)) {
                 const baseUrl = '{{ row_click_url|escapejs }}';
                 const url = baseUrl.replace('0', encodeURIComponent(itemId));
-                // التحقق من أن URL يبدأ بـ / أو domain صحيح
                 if (url.startsWith('/') || url.startsWith(window.location.origin)) {
                     window.location.href = url;
                 }
             }
+            {% endif %}
         });
         
         // إضافة مؤشر اليد للصفوف
         const rows = tableBody.querySelectorAll('tr:not([data-empty])');
         rows.forEach(row => {
-            row.style.cursor = 'pointer';
         });
     }
 });

@@ -152,13 +152,13 @@ class AccountingPeriodTestCase(TestCase):
     def test_create_period(self):
         """اختبار إنشاء فترة محاسبية"""
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
-        self.assertEqual(period.name, "2024")
+        self.assertEqual(period.name, "2025")
         self.assertEqual(period.status, "open")
         self.assertTrue(period.can_post_entries())
 
@@ -167,8 +167,8 @@ class AccountingPeriodTestCase(TestCase):
         with self.assertRaises(ValidationError):
             period = AccountingPeriod(
                 name="Invalid Period",
-                start_date=date(2024, 12, 31),
-                end_date=date(2024, 1, 1),  # تاريخ النهاية قبل البداية
+                start_date=date(2025, 12, 31),
+                end_date=date(2025, 1, 1),  # تاريخ النهاية قبل البداية
                 created_by=self.user,
             )
             period.full_clean()
@@ -176,13 +176,13 @@ class AccountingPeriodTestCase(TestCase):
     def test_get_period_for_date(self):
         """اختبار الحصول على الفترة لتاريخ معين"""
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
-        found_period = AccountingPeriod.get_period_for_date(date(2024, 6, 15))
+        found_period = AccountingPeriod.get_period_for_date(date(2025, 6, 15))
         self.assertEqual(found_period, period)
 
         not_found = AccountingPeriod.get_period_for_date(date(2025, 1, 1))
@@ -232,9 +232,9 @@ class JournalEntryTestCase(TestCase):
 
         # إنشاء فترة محاسبية
         self.period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
@@ -379,9 +379,9 @@ class JournalEntryServiceTestCase(TestCase):
 
         # إنشاء فترة محاسبية
         AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
@@ -392,7 +392,7 @@ class JournalEntryServiceTestCase(TestCase):
             credit_account="3001",
             amount=Decimal("1000"),
             description="قيد افتتاحي",
-            date=date(2024, 6, 15),  # تاريخ ضمن الفترة المحاسبية
+            date=date(2025, 6, 15),  # تاريخ ضمن الفترة المحاسبية
             user=self.user,
         )
 
@@ -420,7 +420,7 @@ class JournalEntryServiceTestCase(TestCase):
 
         entry = JournalEntryService.create_entry(
             description="قيد افتتاحي",
-            date=date(2024, 6, 15),  # تاريخ ضمن الفترة المحاسبية
+            date=date(2025, 6, 15),  # تاريخ ضمن الفترة المحاسبية
             lines_data=lines_data,
             user=self.user,
             auto_post=True,
@@ -452,9 +452,9 @@ class BalanceServiceTestCase(TestCase):
         )
 
         period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 

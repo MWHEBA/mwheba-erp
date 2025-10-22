@@ -49,26 +49,112 @@
     }
   },
   {
+    "model": "product.unit",
+    "pk": 2,
+    "fields": {
+      "name": "قطعة",
+      "symbol": "قطعة",
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.brand",
+    "pk": 2,
+    "fields": {
+      "name": "أوفست",
+      "description": "ورق أوفست عالي الجودة",
+      "logo": null,
+      "website": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "product.brand",
+    "pk": 3,
+    "fields": {
+      "name": "دوبلكس",
+      "description": "ورق دوبلكس للتغليف",
+      "logo": null,
+      "website": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
     "model": "product.product",
     "pk": 1,
     "fields": {
       "name": "كوشيه 300جم",
       "category": 1,
       "brand": 1,
-      "description": "",
-      "sku": "1",
-      "barcode": "",
+      "description": "ورق كوشيه عالي الجودة 300 جرام للطباعة الفاخرة",
+      "sku": "COATED-300",
+      "barcode": "1234567890123",
       "unit": 1,
       "cost_price": "5.00",
       "selling_price": "7.00",
-      "min_stock": 0,
+      "min_stock": 100,
       "is_active": true,
-      "is_featured": false,
-      "tax_rate": "0.00",
+      "is_featured": true,
+      "tax_rate": "15.00",
       "discount_rate": "0.00",
       "created_at": "2025-01-01T00:00:00Z",
       "updated_at": "2025-01-01T00:00:00Z",
-      "created_by": 1
+      "created_by": 1,
+      "default_supplier": null
+    }
+  },
+  {
+    "model": "product.product",
+    "pk": 2,
+    "fields": {
+      "name": "أوفست 80جم",
+      "category": 1,
+      "brand": 2,
+      "description": "ورق أوفست أبيض 80 جرام للطباعة العادية",
+      "sku": "OFFSET-80",
+      "barcode": "1234567890124",
+      "unit": 1,
+      "cost_price": "2.50",
+      "selling_price": "3.50",
+      "min_stock": 200,
+      "is_active": true,
+      "is_featured": false,
+      "tax_rate": "15.00",
+      "discount_rate": "0.00",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": 1,
+      "default_supplier": null
+    }
+  },
+  {
+    "model": "product.product",
+    "pk": 3,
+    "fields": {
+      "name": "دوبلكس 250جم",
+      "category": 1,
+      "brand": 3,
+      "description": "ورق دوبلكس 250 جرام للتغليف والكرتون",
+      "sku": "DUPLEX-250",
+      "barcode": "1234567890125",
+      "unit": 1,
+      "cost_price": "4.00",
+      "selling_price": "5.50",
+      "min_stock": 150,
+      "is_active": true,
+      "is_featured": false,
+      "tax_rate": "15.00",
+      "discount_rate": "5.00",
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": 1,
+      "default_supplier": null
     }
   }
 ]

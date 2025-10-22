@@ -53,6 +53,11 @@ urlpatterns = [
         "account-types/create/", views.account_types_create, name="account_types_create"
     ),
     path(
+        "account-types/<int:pk>/",
+        views.account_types_detail,
+        name="account_type_detail",
+    ),
+    path(
         "account-types/<int:pk>/edit/",
         views.account_types_edit,
         name="account_types_edit",
@@ -63,27 +68,27 @@ urlpatterns = [
         name="account_types_delete",
     ),
     # APIs للقيود المحاسبية (تم حذفها لتبسيط النظام)
-    # APIs لإدارة تزامن المدفوعات
-    path(
-        "api/payment-sync/retry-failed/",
-        views.payment_sync_retry_failed_api,
-        name="payment_sync_retry_failed_api",
-    ),
-    path(
-        "api/payment-sync/resolve-errors/",
-        views.payment_sync_resolve_errors_api,
-        name="payment_sync_resolve_errors_api",
-    ),
-    path(
-        "api/payment-sync/process-all/",
-        views.payment_sync_process_all_api,
-        name="payment_sync_process_all_api",
-    ),
-    path(
-        "api/payment-sync/reset-all/",
-        views.payment_sync_reset_all_api,
-        name="payment_sync_reset_all_api",
-    ),
+    # APIs لإدارة تزامن المدفوعات (معطلة مؤقتاً)
+    # path(
+    #     "api/payment-sync/retry-failed/",
+    #     views.payment_sync_retry_failed_api,
+    #     name="payment_sync_retry_failed_api",
+    # ),
+    # path(
+    #     "api/payment-sync/resolve-errors/",
+    #     views.payment_sync_resolve_errors_api,
+    #     name="payment_sync_resolve_errors_api",
+    # ),
+    # path(
+    #     "api/payment-sync/process-all/",
+    #     views.payment_sync_process_all_api,
+    #     name="payment_sync_process_all_api",
+    # ),
+    # path(
+    #     "api/payment-sync/reset-all/",
+    #     views.payment_sync_reset_all_api,
+    #     name="payment_sync_reset_all_api",
+    # ),
     # القيود المحاسبية
     path("journal-entries/", views.journal_entries_list, name="journal_entries_list"),
     path(
@@ -132,31 +137,25 @@ urlpatterns = [
         views.accounting_periods_close,
         name="accounting_periods_close",
     ),
-    # المعاملات المالية
-    path("transactions/", views.transaction_list, name="transaction_list"),
-    path("transactions/create/", views.transaction_create, name="transaction_create"),
-    path("transactions/<int:pk>/", views.transaction_detail, name="transaction_detail"),
-    path(
-        "transactions/<int:pk>/edit/", views.transaction_edit, name="transaction_edit"
-    ),
-    path(
-        "transactions/<int:pk>/delete/",
-        views.transaction_delete,
-        name="transaction_delete",
-    ),
     # المصروفات والإيرادات
     path("expenses/", views.expense_list, name="expense_list"),
-    path("expenses/create/", views.expense_create, name="expense_create"),
+    path("expenses/create/", views.expense_create, name="expense_create"),  # AJAX only
     path("expenses/<int:pk>/", views.expense_detail, name="expense_detail"),
     path("expenses/<int:pk>/edit/", views.expense_edit, name="expense_edit"),
-    path("expenses/<int:pk>/delete/", views.expense_delete, name="expense_delete"),
-    path("expenses/<int:pk>/post/", views.expense_post, name="expense_post"),
+    path("expenses/<int:pk>/cancel/", views.expense_cancel, name="expense_cancel"),  # بدلاً من delete
+    path("expenses/<int:pk>/mark-paid/", views.expense_mark_paid, name="expense_mark_paid"),  # بدلاً من post
     path("incomes/", views.income_list, name="income_list"),
-    path("incomes/create/", views.income_create, name="income_create"),
+    path("incomes/create/", views.expense_create_enhanced, name="income_create"),  # استخدام دالة إنشاء محسنة
     path("incomes/<int:pk>/", views.income_detail, name="income_detail"),
-    path("incomes/<int:pk>/edit/", views.income_edit, name="income_edit"),
-    path("incomes/<int:pk>/delete/", views.income_delete, name="income_delete"),
-    path("incomes/<int:pk>/post/", views.income_post, name="income_post"),
+    path("incomes/<int:pk>/cancel/", views.income_cancel, name="income_cancel"),  # بدلاً من delete
+    path("incomes/<int:pk>/mark-received/", views.income_mark_received, name="income_mark_received"),  # بدلاً من post
+    # المعاملات العامة
+    path("transactions/", views.transaction_list, name="transaction_list"),
+    path("transactions/<int:pk>/", views.transaction_detail, name="transaction_detail"),
+    # API للمودالز السريعة
+    path("api/expense-accounts/", views.api_expense_accounts, name="api_expense_accounts"),
+    path("api/payment-accounts/", views.api_payment_accounts, name="api_payment_accounts"),
+    path("api/income-accounts/", views.api_income_accounts, name="api_income_accounts"),
     # الأرصدة المحسنة
     path(
         "enhanced-balances/",
@@ -209,7 +208,6 @@ urlpatterns = [
     path("reports/income-statement/", views.income_statement, name="income_statement"),
     path("reports/analytics/", views.financial_analytics, name="financial_analytics"),
     # إدارة الدفعات المحسنة
-    path("payments/", views.payment_dashboard, name="payment_dashboard"),
     path("payments/list/", views.payment_list, name="payment_list"),
     path(
         "payments/<str:payment_type>/<int:payment_id>/",
@@ -238,6 +236,15 @@ urlpatterns = [
     ),
     # سجل التدقيق
     path("audit-trail/", views.audit_trail_list, name="audit_trail_list"),
+    path("audit-trail/cleanup/", views.audit_trail_cleanup, name="audit_trail_cleanup"),
+    # معاملات الشريك
+    path("partner/", views.partner_dashboard, name="partner_dashboard"),
+    path("partner/transactions/", views.partner_transactions_list, name="partner_transactions_list"),
+    path("partner/transactions/<int:pk>/", views.partner_transaction_detail, name="partner_transaction_detail"),
+    path("partner/contribute/", views.create_contribution, name="create_contribution"),
+    path("partner/withdraw/", views.create_withdrawal, name="create_withdrawal"),
+    # API endpoints للشراكة
+    path("api/partner/balance/", views.get_partner_balance, name="get_partner_balance"),
     # API endpoints
     path(
         "api/journal-entry/<int:journal_entry_id>/summary/",

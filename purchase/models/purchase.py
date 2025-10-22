@@ -92,57 +92,6 @@ class Purchase(models.Model):
     def __str__(self):
         return f"{self.number} - {self.supplier} - {self.date}"
 
-    def _create_journal_entry(self):
-        """إنشاء قيد محاسبي لفاتورة المشتريات"""
-        try:
-            from financial.models import JournalEntry, JournalEntryLine, ChartOfAccounts
-            from decimal import Decimal
-
-            # الحصول على الحسابات
-            try:
-                inventory_account = ChartOfAccounts.objects.get(
-                    code="1030"
-                )  # مخزون البضاعة
-                suppliers_account = ChartOfAccounts.objects.get(code="2010")  # الموردين
-                cash_account = ChartOfAccounts.objects.get(code="1010")  # الصندوق
-            except ChartOfAccounts.DoesNotExist:
-                print(f"⚠️  الحسابات المحاسبية غير موجودة - لم يتم إنشاء قيد")
-                return
-
-            # إنشاء القيد
-            journal_entry = JournalEntry.objects.create(
-                date=self.date,
-                description=f"مشتريات من المورد {self.supplier.name}",
-                reference_number=self.number,
-                status="posted",  # مرحل مباشرة
-                created_by=self.created_by,
-            )
-
-            # بند المخزون (مدين)
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=inventory_account,
-                debit=self.total,
-                credit=Decimal("0"),
-                description=f"مشتريات - {self.supplier.name}",
-            )
-
-            # بند الموردين (دائن) - دائماً
-            # ملاحظة: الدفع الفعلي يُسجل من خلال PurchasePayment
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=suppliers_account,
-                debit=Decimal("0"),
-                credit=self.total,
-                description=f"مشتريات من {self.supplier.name}",
-            )
-
-            # ربط القيد بالفاتورة
-            self.journal_entry = journal_entry
-            Purchase.objects.filter(pk=self.pk).update(journal_entry=journal_entry)
-
-        except Exception as e:
-            print(f"❌ خطأ في إنشاء القيد المحاسبي: {e}")
 
     def save(self, *args, **kwargs):
         if not self.number:

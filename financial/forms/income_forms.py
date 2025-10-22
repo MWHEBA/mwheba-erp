@@ -172,11 +172,11 @@ class IncomeEditForm(IncomeForm):
             # استخراج المبلغ والحسابات من بنود القيد
             lines = self.journal_entry.lines.all()
             for line in lines:
-                if line.debit_amount > 0:
+                if line.debit > 0:
                     # حساب الاستلام (مدين)
                     self.initial["receipt_account"] = line.account
-                    self.initial["amount"] = line.debit_amount
-                elif line.credit_amount > 0:
+                    self.initial["amount"] = line.debit
+                elif line.credit > 0:
                     # حساب الإيراد (دائن)
                     self.initial["income_account"] = line.account
 

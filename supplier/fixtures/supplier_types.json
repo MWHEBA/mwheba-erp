@@ -1,41 +1,245 @@
 [
   {
-    "model": "supplier.suppliertype",
+    "model": "supplier.suppliertypesettings",
     "pk": 1,
+    "fields": {
+      "name": "مخزن ورق",
+      "code": "paper",
+      "description": "",
+      "icon": "fas fa-file-alt",
+      "color": "#28a745",
+      "display_order": 1,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 2,
     "fields": {
       "name": "مطبعة أوفست",
       "code": "offset_printing",
-      "description": "موردين متخصصين في الطباعة الأوفست عالية الجودة",
+      "description": "",
       "icon": "fas fa-print",
-      "color": "#007bff",
+      "color": "#1c5997",
+      "display_order": 2,
       "is_active": true,
-      "display_order": 1
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 3,
+    "fields": {
+      "name": "مطبعة ديجيتال",
+      "code": "digital_printing",
+      "description": "",
+      "icon": "fas fa-desktop",
+      "color": "#17a2b8",
+      "display_order": 3,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 4,
+    "fields": {
+      "name": "خدمات الطباعة",
+      "code": "finishing",
+      "description": "",
+      "icon": "fas fa-cut",
+      "color": "#ffc107",
+      "display_order": 5,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 5,
+    "fields": {
+      "name": "مكتب فصل",
+      "code": "plates",
+      "description": "",
+      "icon": "fas fa-layer-group",
+      "color": "#6f42c1",
+      "display_order": 4,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 6,
+    "fields": {
+      "name": "تقفيل",
+      "code": "packaging",
+      "description": "",
+      "icon": "fas fa-box",
+      "color": "#fd7e14",
+      "display_order": 6,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 7,
+    "fields": {
+      "name": "تغطية",
+      "code": "coating",
+      "description": "",
+      "icon": "fas fa-paint-brush",
+      "color": "#e83e8c",
+      "display_order": 7,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 8,
+    "fields": {
+      "name": "أوت دور",
+      "code": "outdoor",
+      "description": "",
+      "icon": "fas fa-bullhorn",
+      "color": "#20c997",
+      "display_order": 8,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 9,
+    "fields": {
+      "name": "ليزر",
+      "code": "laser",
+      "description": "",
+      "icon": "fas fa-bolt",
+      "color": "#dc3545",
+      "display_order": 10,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 10,
+    "fields": {
+      "name": "هدايا VIPs",
+      "code": "vip_gifts",
+      "description": "",
+      "icon": "fas fa-truck",
+      "color": "#6610f2",
+      "display_order": 9,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 11,
+    "fields": {
+      "name": "أخرى",
+      "code": "other",
+      "description": "",
+      "icon": "fas fa-ellipsis-h",
+      "color": "#6c757d",
+      "display_order": 11,
+      "is_active": true,
+      "is_system": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 1,
+    "fields": {
+      "name": "مخزن ورق",
+      "code": "paper",
+      "slug": "paper",
+      "description": "",
+      "icon": "fas fa-file-alt",
+      "color": "#28a745",
+      "is_active": true,
+      "display_order": 1,
+      "settings": 1
     }
   },
   {
     "model": "supplier.suppliertype",
     "pk": 2,
     "fields": {
-      "name": "مطبعة ديجيتال",
-      "code": "digital_printing",
-      "description": "موردين متخصصين في الطباعة الرقمية السريعة",
-      "icon": "fas fa-desktop",
-      "color": "#fd7e14",
+      "name": "مطبعة أوفست",
+      "code": "offset_printing",
+      "slug": "offset_printing",
+      "description": "",
+      "icon": "fas fa-print",
+      "color": "#1c5997",
       "is_active": true,
-      "display_order": 2
+      "display_order": 2,
+      "settings": 2
     }
   },
   {
     "model": "supplier.suppliertype",
     "pk": 3,
     "fields": {
-      "name": "مخزن ورق",
-      "code": "paper",
-      "description": "موردين الورق والخامات",
-      "icon": "fas fa-scroll",
-      "color": "#28a745",
+      "name": "مطبعة ديجيتال",
+      "code": "digital_printing",
+      "slug": "digital_printing",
+      "description": "",
+      "icon": "fas fa-desktop",
+      "color": "#17a2b8",
       "is_active": true,
-      "display_order": 3
+      "display_order": 3,
+      "settings": 3
     }
   },
   {
@@ -44,11 +248,13 @@
     "fields": {
       "name": "خدمات الطباعة",
       "code": "finishing",
-      "description": "موردين خدمات ما بعد الطباعة والتشطيب",
-      "icon": "fas fa-hammer",
-      "color": "#6c757d",
+      "slug": "finishing",
+      "description": "",
+      "icon": "fas fa-cut",
+      "color": "#ffc107",
       "is_active": true,
-      "display_order": 4
+      "display_order": 5,
+      "settings": 4
     }
   },
   {
@@ -57,11 +263,13 @@
     "fields": {
       "name": "مكتب فصل",
       "code": "plates",
-      "description": "موردين إنتاج الزنكات وخدمات CTP",
+      "slug": "plates",
+      "description": "",
       "icon": "fas fa-layer-group",
-      "color": "#6c757d",
+      "color": "#6f42c1",
       "is_active": true,
-      "display_order": 5
+      "display_order": 4,
+      "settings": 5
     }
   },
   {
@@ -70,11 +278,13 @@
     "fields": {
       "name": "تقفيل",
       "code": "packaging",
-      "description": "موردين خدمات التقفيل (تقفيل سلك، هارد كوفر، تجليد)",
-      "icon": "fas fa-book",
-      "color": "#20c997",
+      "slug": "packaging",
+      "description": "",
+      "icon": "fas fa-box",
+      "color": "#fd7e14",
       "is_active": true,
-      "display_order": 6
+      "display_order": 6,
+      "settings": 6
     }
   },
   {
@@ -83,11 +293,13 @@
     "fields": {
       "name": "تغطية",
       "code": "coating",
-      "description": "موردين خدمات التغطية (سيلوفان، ورنيش، طلاء)",
-      "icon": "fas fa-layer-group",
-      "color": "#17a2b8",
+      "slug": "coating",
+      "description": "",
+      "icon": "fas fa-paint-brush",
+      "color": "#e83e8c",
       "is_active": true,
-      "display_order": 7
+      "display_order": 7,
+      "settings": 7
     }
   },
   {
@@ -96,11 +308,13 @@
     "fields": {
       "name": "أوت دور",
       "code": "outdoor",
-      "description": "موردين الإعلانات الخارجية واللافتات",
+      "slug": "outdoor",
+      "description": "",
       "icon": "fas fa-bullhorn",
-      "color": "#e83e8c",
+      "color": "#20c997",
       "is_active": true,
-      "display_order": 9
+      "display_order": 8,
+      "settings": 8
     }
   },
   {
@@ -109,24 +323,28 @@
     "fields": {
       "name": "ليزر",
       "code": "laser",
-      "description": "موردين خدمات القص والحفر بالليزر",
-      "icon": "fas fa-cut",
+      "slug": "laser",
+      "description": "",
+      "icon": "fas fa-bolt",
       "color": "#dc3545",
       "is_active": true,
-      "display_order": 10
+      "display_order": 10,
+      "settings": 9
     }
   },
   {
     "model": "supplier.suppliertype",
     "pk": 10,
     "fields": {
-      "name": "هدايا VIP",
+      "name": "هدايا VIPs",
       "code": "vip_gifts",
-      "description": "موردين الهدايا الدعائية والمنتجات المخصصة",
-      "icon": "fas fa-gift",
-      "color": "#ffc107",
+      "slug": "vip_gifts",
+      "description": "",
+      "icon": "fas fa-truck",
+      "color": "#6610f2",
       "is_active": true,
-      "display_order": 11
+      "display_order": 9,
+      "settings": 10
     }
   },
   {
@@ -135,11 +353,13 @@
     "fields": {
       "name": "أخرى",
       "code": "other",
-      "description": "خدمات أخرى متنوعة",
-      "icon": "fas fa-industry",
+      "slug": "other",
+      "description": "",
+      "icon": "fas fa-ellipsis-h",
       "color": "#6c757d",
       "is_active": true,
-      "display_order": 12
+      "display_order": 11,
+      "settings": 11
     }
   }
 ]

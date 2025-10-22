@@ -1,9 +1,10 @@
 from django.http import JsonResponse
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
-from django.template.loader import render_to_string
-from django.urls import reverse
-from django.db import transaction
+from .models import Supplier, SpecializedService, SupplierType, SupplierTypeSettings
 from django.contrib import messages
 import json
 import logging
@@ -56,7 +57,7 @@ def get_category_form_api(request):
 
         category = SupplierType.objects.get(code=category_code, is_active=True)
 
-        # تحديد template النموذج
+        # تحديد template النموذج - المسارات الجديدة المنظمة
         template_map = {
             "paper": "supplier/forms/paper_form.html",
             "offset_printing": "supplier/forms/offset_form.html",
@@ -917,3 +918,39 @@ def _save_price_tiers(service, tiers_data):
             floor_price=tier_data.get("floor_price"),
             discount_percentage=tier_data.get("discount_percentage", 0),
         )
+
+
+class SupplierTypesStylesAPIView(View):
+    """API لجلب أنماط أنواع الموردين (الأيقونات والألوان)"""
+    
+    def get(self, request):
+        try:
+            # جلب الأنواع النشطة مع إعداداتها
+            supplier_types = SupplierType.objects.filter(
+                settings__is_active=True
+            ).select_related('settings').order_by('settings__display_order', 'name')
+            
+            types_data = []
+            for supplier_type in supplier_types:
+                if supplier_type.settings:
+                    types_data.append({
+                        'id': supplier_type.id,
+                        'code': supplier_type.code,
+                        'name': supplier_type.settings.name,  # استخدام الاسم الديناميكي
+                        'icon': supplier_type.settings.icon,
+                        'color': supplier_type.settings.color,
+                        'description': supplier_type.settings.description or ''
+                    })
+            
+            return JsonResponse({
+                'success': True,
+                'types': types_data,
+                'total_count': len(types_data)
+            })
+            
+        except Exception as e:
+            logger.error(f"خطأ في جلب أنماط أنواع الموردين: {e}")
+            return JsonResponse({
+                'success': False,
+                'error': 'فشل في جلب أنماط أنواع الموردين'
+            }, status=500)

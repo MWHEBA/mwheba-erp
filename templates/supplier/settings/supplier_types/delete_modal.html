@@ -1,0 +1,283 @@
+{% load static %}
+{% load i18n %}
+
+<div class="modal-header bg-danger text-white">
+  <h5 class="modal-title">
+    <i class="fas fa-exclamation-triangle"></i>
+    {{ title }}
+  </h5>
+  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+
+<form id="deleteForm" method="post" action="{% url 'supplier:supplier_type_settings_delete' supplier_type.pk %}">
+  {% csrf_token %}
+  
+  <div class="modal-body">
+    <!-- معلومات النوع المراد حذفه -->
+    <div class="alert alert-warning">
+      <div class="d-flex align-items-center mb-3">
+        <div class="type-icon me-3" style="background-color: {{ supplier_type.color }};">
+          <i class="{{ supplier_type.icon }}"></i>
+        </div>
+        <div>
+          <h6 class="mb-1">{{ supplier_type.name }}</h6>
+          <small class="text-muted">{{ supplier_type.code }}</small>
+        </div>
+      </div>
+      
+      {% if supplier_type.description %}
+        <p class="mb-0">{{ supplier_type.description }}</p>
+      {% endif %}
+    </div>
+
+    <!-- تحذيرات الحذف -->
+    <div class="mb-4">
+      <h6 class="text-danger mb-3">
+        <i class="fas fa-exclamation-circle"></i>
+        تحذيرات مهمة قبل الحذف:
+      </h6>
+      
+      <ul class="list-unstyled">
+        {% if supplier_type.is_system %}
+          <li class="text-danger mb-2">
+            <i class="fas fa-shield-alt"></i>
+            <strong>هذا نوع نظام أساسي</strong> - لا يمكن حذفه لأنه جزء من النظام الأساسي
+          </li>
+        {% endif %}
+        
+        {% if supplier_type.suppliers_count > 0 %}
+          <li class="text-danger mb-2">
+            <i class="fas fa-users"></i>
+            <strong>مرتبط بـ {{ supplier_type.suppliers_count }} مورد</strong> - يجب نقل الموردين لنوع آخر أولاً
+          </li>
+        {% else %}
+          <li class="text-success mb-2">
+            <i class="fas fa-check-circle"></i>
+            غير مرتبط بأي موردين - يمكن الحذف بأمان
+          </li>
+        {% endif %}
+        
+        <li class="text-warning mb-2">
+          <i class="fas fa-database"></i>
+          <strong>الحذف نهائي</strong> - لا يمكن التراجع عن هذا الإجراء
+        </li>
+      </ul>
+    </div>
+
+    <!-- نموذج التأكيد -->
+    {% if supplier_type.can_delete %}
+      <div class="border rounded p-3 bg-light">
+        <div class="form-check">
+          {{ form.confirm_delete }}
+          <label class="form-check-label" for="{{ form.confirm_delete.id_for_label }}">
+            {{ form.confirm_delete.label }}
+          </label>
+        </div>
+        {% if form.confirm_delete.errors %}
+          <div class="text-danger small mt-1">{{ form.confirm_delete.errors.0 }}</div>
+        {% endif %}
+        
+        <div class="form-text mt-2">
+          <i class="fas fa-info-circle"></i>
+          يرجى التأكد من رغبتك في حذف هذا النوع نهائياً
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-danger">
+        <h6 class="alert-heading">
+          <i class="fas fa-ban"></i>
+          لا يمكن حذف هذا النوع
+        </h6>
+        <p class="mb-0">
+          {% if supplier_type.is_system %}
+            هذا النوع جزء من النظام الأساسي ولا يمكن حذفه.
+          {% elif supplier_type.suppliers_count > 0 %}
+            هذا النوع مرتبط بـ {{ supplier_type.suppliers_count }} مورد. يرجى نقل الموردين لنوع آخر أولاً.
+          {% else %}
+            حدث خطأ في التحقق من إمكانية الحذف.
+          {% endif %}
+        </p>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+      <i class="fas fa-times"></i> إلغاء
+    </button>
+    
+    {% if supplier_type.can_delete %}
+      <button type="submit" class="btn btn-danger" id="deleteBtn" disabled>
+        <i class="fas fa-trash"></i> حذف نهائي
+      </button>
+    {% else %}
+      <button type="button" class="btn btn-outline-primary" onclick="openEditModal()">
+        <i class="fas fa-edit"></i> تعديل بدلاً من الحذف
+      </button>
+    {% endif %}
+  </div>
+</form>
+
+<style>
+.type-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+}
+
+.alert-warning {
+  border-left: 4px solid #ffc107;
+}
+
+.alert-danger {
+  border-left: 4px solid #dc3545;
+}
+
+.list-unstyled li {
+  padding: 0.25rem 0;
+}
+
+.form-check-input:checked + .form-check-label {
+  color: #dc3545;
+  font-weight: 500;
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('deleteForm');
+    const confirmCheckbox = document.getElementById('{{ form.confirm_delete.id_for_label }}');
+    const deleteBtn = document.getElementById('deleteBtn');
+    
+    // تفعيل/إلغاء تفعيل زر الحذف بناءً على التأكيد
+    if (confirmCheckbox && deleteBtn) {
+        confirmCheckbox.addEventListener('change', function() {
+            deleteBtn.disabled = !this.checked;
+            
+            if (this.checked) {
+                deleteBtn.classList.remove('btn-outline-danger');
+                deleteBtn.classList.add('btn-danger');
+            } else {
+                deleteBtn.classList.remove('btn-danger');
+                deleteBtn.classList.add('btn-outline-danger');
+            }
+        });
+        
+        // إرسال النموذج
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            if (!confirmCheckbox.checked) {
+                showAlert('يرجى تأكيد رغبتك في الحذف', 'warning');
+                return;
+            }
+            
+            // تأكيد إضافي
+            if (!confirm('هل أنت متأكد تماماً من حذف هذا النوع؟ هذا الإجراء لا يمكن التراجع عنه!')) {
+                return;
+            }
+            
+            submitDeleteForm();
+        });
+    }
+    
+    function submitDeleteForm() {
+        const deleteBtn = document.getElementById('deleteBtn');
+        const originalText = deleteBtn.innerHTML;
+        
+        // إظهار حالة التحميل
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+        
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // إظهار رسالة النجاح
+                showAlert(data.message, 'success');
+                
+                // إغلاق المودال وإعادة تحميل الصفحة
+                const modal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
+                modal.hide();
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showAlert(data.message || 'حدث خطأ أثناء الحذف', 'danger');
+                
+                // إظهار أخطاء النموذج إن وجدت
+                if (data.errors) {
+                    Object.keys(data.errors).forEach(fieldName => {
+                        const errorDiv = document.querySelector(`#id_${fieldName}`).parentNode.querySelector('.text-danger.small');
+                        if (errorDiv) {
+                            errorDiv.textContent = data.errors[fieldName][0];
+                            errorDiv.style.display = 'block';
+                        }
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showAlert('حدث خطأ في الاتصال', 'danger');
+        })
+        .finally(() => {
+            // إعادة تعيين زر الحذف
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalText;
+        });
+    }
+    
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+        alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.parentNode.removeChild(alertDiv);
+            }
+        }, 5000);
+    }
+});
+
+function openEditModal() {
+    // إغلاق مودال الحذف
+    const deleteModal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
+    deleteModal.hide();
+    
+    // فتح مودال التعديل
+    setTimeout(() => {
+        fetch(`/supplier/settings/types/{{ supplier_type.id }}/edit/`, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('typeModal')).show();
+        });
+    }, 300);
+}
+</script>

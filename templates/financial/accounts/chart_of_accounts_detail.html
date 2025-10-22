@@ -1,0 +1,605 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* تحسينات بصرية متماشية مع تصميم المشروع */
+
+.account-status-indicators {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.status-card {
+    flex: 1;
+    padding: 1.25rem;
+    border-radius: var(--border-radius);
+    text-align: center;
+    background: white;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    transition: all var(--transition-speed);
+    position: relative;
+    overflow: hidden;
+}
+
+.status-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--border-color);
+    transition: all var(--transition-speed);
+}
+
+.status-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+}
+
+.status-card.positive::before { 
+    background: var(--success-color);
+}
+
+.status-card.negative::before { 
+    background: var(--danger-color);
+}
+
+.status-card.neutral::before { 
+    background: var(--secondary-color);
+}
+
+.status-card.info::before { 
+    background: var(--info-color);
+}
+
+.status-value {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-dark);
+}
+
+.status-label {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.trend-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.nav-tabs {
+    border-bottom: 2px solid var(--border-color);
+}
+
+.nav-tabs .nav-link {
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    margin-right: 0.25rem;
+    transition: all var(--transition-speed);
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    padding: 0.75rem 1rem;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--primary-color);
+    border-color: var(--border-color);
+}
+
+.nav-tabs .nav-link.active {
+    background-color: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.tab-content {
+    background: white;
+    border-radius: 0 var(--border-radius) var(--border-radius) var(--border-radius);
+    padding: 1.5rem;
+}
+
+.transaction-row:hover {
+    background-color: var(--bg-light);
+}
+
+.account-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius-sm);
+    background-color: var(--bg-light);
+    color: var(--text-dark);
+    border: 1px solid var(--border-color);
+}
+
+/* تحسين الجداول */
+.table th {
+    background-color: var(--bg-light);
+    border-bottom: 2px solid var(--border-color);
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.table-borderless td {
+    border: none;
+    padding: 0.5rem 0;
+}
+
+.table-borderless td:first-child {
+    font-weight: 500;
+    color: var(--text-muted);
+    width: 40%;
+}
+
+/* تحسين الأزرار */
+.btn-group .btn {
+    border-radius: var(--border-radius-sm);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+/* تحسين البطاقات الفرعية */
+.card.border-0.shadow-sm {
+    border: 1px solid var(--border-color) !important;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08) !important;
+    transition: all var(--transition-speed);
+}
+
+.card.border-0.shadow-sm:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+    transform: translateY(-1px);
+}
+
+/* تحسين التنبيهات */
+.alert-info {
+    background-color: var(--bg-soft-info);
+    border-color: var(--info-color);
+    color: var(--info-color);
+}
+
+@media (max-width: 768px) {
+    .account-status-indicators {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .status-card {
+        margin-bottom: 0;
+    }
+    
+    .tab-content {
+        padding: 1rem;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ account.name }} <small class="text-muted">({{ account.code }})</small></h1>
+                    <p class="text-muted mb-0">
+                        <i class="fas fa-tag me-1"></i>{{ account.account_type.name }}
+                        {% if not account.is_leaf %}
+                            <span class="ms-3">
+                                <i class="fas fa-sitemap me-1"></i>حساب أب - يحتوي على {{ sub_accounts.count }} حساب فرعي
+                            </span>
+                        {% endif %}
+                        {% if account.is_cash_account %}
+                            <span class="badge bg-success ms-2">
+                                <i class="fas fa-money-bill-wave me-1"></i>حساب نقدي
+                            </span>
+                        {% endif %}
+                        {% if account.is_bank_account %}
+                            <span class="badge bg-info ms-2">
+                                <i class="fas fa-university me-1"></i>حساب بنكي
+                            </span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <a href="{% url 'financial:account_edit' account.pk %}" class="btn btn-outline-warning">
+                    <i class="fas fa-edit me-2"></i>تعديل
+                </a>
+                <a href="{% url 'financial:chart_of_accounts_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- مؤشرات الحالة -->
+    <div class="account-status-indicators">
+        <div class="status-card {% if analytics.current_balance > 0 %}positive{% elif analytics.current_balance < 0 %}negative{% else %}neutral{% endif %}">
+            <div class="status-value">{{ analytics.current_balance|remove_trailing_zeros }}</div>
+            <div class="status-label">الرصيد الحالي</div>
+        </div>
+        
+        <div class="status-card {% if analytics.balance_change > 0 %}positive{% elif analytics.balance_change < 0 %}negative{% else %}neutral{% endif %}">
+            <div class="status-value">
+                <span class="trend-indicator bg-{{ analytics.trend_color }} text-white">
+                    <i class="fas {{ analytics.trend_icon }}"></i>
+                    {{ analytics.balance_change|remove_trailing_zeros }}
+                </span>
+            </div>
+            <div class="status-label">التغيير (آخر {{ analytics.period_days }} يوم)</div>
+        </div>
+        
+        <div class="status-card info">
+            <div class="status-value">{{ analytics.transaction_count }}</div>
+            <div class="status-label">عدد المعاملات</div>
+        </div>
+        
+        {% if not account.is_leaf %}
+        <div class="status-card info">
+            <div class="status-value">{{ analytics.accounts_included }}</div>
+            <div class="status-label">الحسابات المتضمنة</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- التبويبات الرئيسية -->
+    <div class="card">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" role="tablist">
+                <li class="nav-item">
+                    <a class="nav-link active" data-bs-toggle="tab" href="#overview" role="tab">
+                        <i class="fas fa-chart-line me-2"></i>نظرة عامة
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#transactions" role="tab">
+                        <i class="fas fa-list me-2"></i>المعاملات الأخيرة
+                    </a>
+                </li>
+                {% if not account.is_leaf %}
+                <li class="nav-item">
+                    <a class="nav-link" data-bs-toggle="tab" href="#sub-accounts" role="tab">
+                        <i class="fas fa-sitemap me-2"></i>الحسابات الفرعية
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+        
+        <div class="tab-content">
+            <!-- تبويب النظرة العامة -->
+            <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-info-circle me-2 text-primary"></i>معلومات الحساب
+                        </h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>كود الحساب:</strong></td>
+                                <td>{{ account.code }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>نوع الحساب:</strong></td>
+                                <td>{{ account.account_type.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>التصنيف:</strong></td>
+                                <td>{{ account.account_type.get_category_display }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>الطبيعة:</strong></td>
+                                <td>{{ account.account_type.get_nature_display }}</td>
+                            </tr>
+                            {% if account.parent %}
+                            <tr>
+                                <td><strong>الحساب الأب:</strong></td>
+                                <td>
+                                    <a href="{% url 'financial:account_detail' account.parent.pk %}">
+                                        {{ account.parent.name }}
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <td><strong>الحالة:</strong></td>
+                                <td>
+                                    {% if account.is_active %}
+                                        <span class="badge bg-success">نشط</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير نشط</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="mb-3">
+                            <i class="fas fa-chart-bar me-2 text-success"></i>الإحصائيات المالية
+                        </h5>
+                        <table class="table table-borderless">
+                            <tr>
+                                <td><strong>إجمالي المدين:</strong></td>
+                                <td class="text-success">{{ analytics.total_debit|remove_trailing_zeros }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>إجمالي الدائن:</strong></td>
+                                <td class="text-danger">{{ analytics.total_credit|remove_trailing_zeros }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>الرصيد السابق:</strong></td>
+                                <td>{{ analytics.previous_balance|remove_trailing_zeros }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>متوسط المعاملات اليومية:</strong></td>
+                                <td>{{ analytics.avg_daily_transactions|remove_trailing_zeros }}</td>
+                            </tr>
+                            {% if account.opening_balance %}
+                            <tr>
+                                <td><strong>الرصيد الافتتاحي:</strong></td>
+                                <td>{{ account.opening_balance|remove_trailing_zeros }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                
+                {% if account.description %}
+                <div class="mt-4">
+                    <h5 class="mb-3">
+                        <i class="fas fa-file-alt me-2 text-info"></i>الوصف
+                    </h5>
+                    <p class="text-muted">{{ account.description }}</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- تبويب المعاملات -->
+            <div class="tab-pane fade" id="transactions" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2 text-primary"></i>
+                        آخر المعاملات
+                        {% if not account.is_leaf %}
+                            <small class="text-muted">(تشمل جميع الحسابات الفرعية)</small>
+                        {% endif %}
+                    </h5>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary" onclick="loadMoreTransactions()">
+                            <i class="fas fa-sync me-1"></i>تحديث
+                        </button>
+                        <button class="btn btn-outline-secondary" onclick="exportTransactions()">
+                            <i class="fas fa-download me-1"></i>تصدير
+                        </button>
+                    </div>
+                </div>
+                
+                {% if transactions %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>الوصف</th>
+                                {% if not account.is_leaf %}
+                                <th>الحساب</th>
+                                {% endif %}
+                                <th class="text-center">مدين</th>
+                                <th class="text-center">دائن</th>
+                                <th class="text-center">رقم القيد</th>
+                                <th class="text-center">المرجع</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for transaction in transactions %}
+                            <tr class="transaction-row">
+                                <td>
+                                    <small class="text-muted">
+                                        {{ transaction.journal_entry.date|date:"d-m-Y" }}
+                                    </small>
+                                </td>
+                                <td>
+                                    {{ transaction.description|default:transaction.journal_entry.description }}
+                                </td>
+                                {% if not account.is_leaf %}
+                                <td>
+                                    <span class="account-badge bg-light text-dark">
+                                        {{ transaction.account.code }} - {{ transaction.account.name|truncatechars:20 }}
+                                    </span>
+                                </td>
+                                {% endif %}
+                                <td class="text-center">
+                                    {% if transaction.debit > 0 %}
+                                        <span class="text-success fw-bold">{{ transaction.debit|remove_trailing_zeros }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if transaction.credit > 0 %}
+                                        <span class="text-danger fw-bold">{{ transaction.credit|remove_trailing_zeros }}</span>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'financial:journal_entries_detail' transaction.journal_entry.pk %}" 
+                                       class="btn btn-sm btn-outline-primary" 
+                                       title="عرض تفاصيل القيد">
+                                        <i class="fas fa-file-alt me-1"></i>
+                                        {{ transaction.journal_entry.number|default:"قيد"|truncatechars:10 }}
+                                    </a>
+                                </td>
+                                <td class="text-center">
+                                    <small class="text-muted">{{ transaction.journal_entry.reference|truncatechars:15 }}</small>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-inbox fa-3x" style="color: var(--text-muted);"></i>
+                    </div>
+                    <h5 class="text-muted">لا توجد معاملات</h5>
+                    <p class="text-muted">لم يتم تسجيل أي معاملات لهذا الحساب بعد</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- تبويب الحسابات الفرعية -->
+            {% if not account.is_leaf %}
+            <div class="tab-pane fade" id="sub-accounts" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0">
+                        <i class="fas fa-sitemap me-2 text-primary"></i>الحسابات الفرعية
+                    </h5>
+                    <a href="{% url 'financial:chart_of_accounts_create' %}?parent={{ account.id }}" class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i>إضافة حساب فرعي
+                    </a>
+                </div>
+                
+                {% if sub_accounts %}
+                <div class="row">
+                    {% for sub_account in sub_accounts %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h6 class="card-title mb-0">
+                                        <a href="{% url 'financial:account_detail' sub_account.pk %}" class="text-decoration-none">
+                                            <i class="fas fa-file-invoice me-2 text-primary"></i>
+                                            {{ sub_account.name }}
+                                        </a>
+                                    </h6>
+                                    <span class="badge bg-primary">{{ sub_account.code }}</span>
+                                </div>
+                                <p class="card-text text-muted small mb-2">
+                                    <i class="fas fa-tag me-1"></i>{{ sub_account.account_type.name }}
+                                </p>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-center p-2 border rounded">
+                                        <small class="text-muted d-block">الرصيد الحالي</small>
+                                        <span class="fw-bold {% if sub_account.current_balance > 0 %}text-success{% elif sub_account.current_balance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                                            {{ sub_account.current_balance|remove_trailing_zeros }}
+                                        </span>
+                                    </div>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'financial:account_detail' sub_account.pk %}" class="btn btn-outline-primary btn-sm" title="عرض التفاصيل">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'financial:account_edit' sub_account.pk %}" class="btn btn-outline-secondary btn-sm" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <div class="mb-3">
+                        <i class="fas fa-folder-open fa-3x" style="color: var(--text-muted);"></i>
+                    </div>
+                    <h5 class="text-muted">لا توجد حسابات فرعية</h5>
+                    <p class="text-muted">يمكنك إضافة حسابات فرعية لهذا الحساب</p>
+                    <a href="{% url 'financial:chart_of_accounts_create' %}?parent={{ account.id }}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>إضافة حساب فرعي
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// دوال JavaScript للتفاعل مع التبويبات
+function loadMoreTransactions() {
+    // تحديث المعاملات
+    location.reload();
+}
+
+function exportTransactions() {
+    // تصدير المعاملات
+    window.open(`/financial/accounts/{{ account.id }}/export/?format=excel`, '_blank');
+}
+
+
+// تفعيل التبويبات
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل Bootstrap tabs
+    var triggerTabList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tab"]'));
+    triggerTabList.forEach(function (triggerEl) {
+        var tabTrigger = new bootstrap.Tab(triggerEl);
+        
+        triggerEl.addEventListener('click', function (event) {
+            event.preventDefault();
+            tabTrigger.show();
+        });
+    });
+});
+</script>
+{% endblock %}

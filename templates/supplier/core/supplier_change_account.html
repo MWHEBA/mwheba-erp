@@ -1,0 +1,307 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load utils_extras %}
+
+{% block extra_css %}
+<!-- سيتم تحميل Select2 CSS ديناميكياً -->
+{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-0 text-gray-800">
+                <i class="{{ page_icon }} me-2"></i>{{ page_title }}
+            </h1>
+        </div>
+    </div>
+
+    <!-- بطاقة معلومات المورد -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-truck me-2"></i>معلومات المورد
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>اسم المورد:</strong>
+                            <p class="mb-0">{{ supplier.name }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>كود المورد:</strong>
+                            <p class="mb-0">{{ supplier.code }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الحساب المحاسبي الحالي:</strong>
+                            {% if supplier.financial_account %}
+                                <p class="mb-0 text-success">
+                                    <i class="fas fa-check-circle me-1"></i>
+                                    {{ supplier.financial_account.code }} - {{ supplier.financial_account.name }}
+                                </p>
+                            {% else %}
+                                <p class="mb-0 text-warning">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    غير مربوط بحساب محاسبي
+                                </p>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreateAccountModal({{ supplier.pk }})">
+                                        <i class="fas fa-plus-circle me-1"></i>إنشاء حساب جديد
+                                    </button>
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الرصيد الحالي:</strong>
+                            <p class="mb-0">{{ supplier.actual_balance|remove_trailing_zeros }} ج.م</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج تغيير الحساب -->
+    <div class="row">
+        <div class="col-lg-8 col-md-10 mx-auto">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-gradient-success text-white">
+                    <h6 class="card-title mb-0">
+                        <i class="fas fa-exchange-alt me-2"></i>تغيير الحساب المحاسبي
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.financial_account.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-chart-line me-2 text-success"></i>{{ form.financial_account.label }}
+                            </label>
+                            {{ form.financial_account }}
+                            {% if form.financial_account.help_text %}
+                                <div class="form-text">{{ form.financial_account.help_text }}</div>
+                            {% endif %}
+                            {% if form.financial_account.errors %}
+                                <div class="text-danger mt-1">
+                                    {% for error in form.financial_account.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- تنبيه مهم -->
+                        <div class="alert alert-info border-0" role="alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>ملاحظة مهمة:
+                            </h6>
+                            <p class="mb-0">
+                                • الحسابات المتاحة: <strong>حساب الموردين والحسابات الفرعية منه فقط</strong><br>
+                                • سيتم تحديث الربط فوراً بعد الحفظ<br>
+                                • النظام يمنع اختيار أي حسابات أخرى خارج نطاق الموردين
+                            </p>
+                        </div>
+
+                        <!-- أزرار الإجراءات -->
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-right me-2"></i>إلغاء
+                                </a>
+                                {% if not supplier.financial_account %}
+                                    <button type="button" class="btn btn-primary ms-2" onclick="openCreateAccountModal({{ supplier.pk }})">
+                                        <i class="fas fa-plus-circle me-2"></i>إنشاء حساب جديد
+                                    </button>
+                                {% endif %}
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save me-2"></i>حفظ التغييرات
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إنشاء حساب محاسبي -->
+<div class="modal fade" id="createAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" id="createAccountModalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+
+<style>
+.bg-gradient-success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #1cc88a 100%);
+}
+
+.card {
+    border-radius: 10px;
+    transition: transform 0.2s ease-in-out;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+}
+
+.form-control:focus {
+    border-color: var(--bs-success);
+    box-shadow: 0 0 0 0.2rem rgba(28, 200, 138, 0.25);
+}
+
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.alert {
+    border-radius: 8px;
+}
+
+/* تخصيص Select2 للعربية */
+.select2-container--bootstrap-5 .select2-selection {
+    direction: rtl;
+    text-align: right;
+}
+
+.select2-container--bootstrap-5 .select2-selection__rendered {
+    padding-right: 12px;
+    padding-left: 20px;
+}
+
+.select2-container--bootstrap-5 .select2-selection__arrow {
+    right: auto;
+    left: 1px;
+}
+
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear, 
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    right: unset;
+}
+</style>
+
+{% block extra_js %}
+<script>
+// انتظار تحميل الصفحة بالكامل
+window.addEventListener('load', function() {
+    // تحميل Select2 بعد تحميل jQuery
+    if (typeof jQuery !== 'undefined') {
+        // تحميل Select2 CSS
+        const select2CSS = document.createElement('link');
+        select2CSS.rel = 'stylesheet';
+        select2CSS.href = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
+        document.head.appendChild(select2CSS);
+        
+        const select2ThemeCSS = document.createElement('link');
+        select2ThemeCSS.rel = 'stylesheet';
+        select2ThemeCSS.href = 'https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css';
+        document.head.appendChild(select2ThemeCSS);
+        
+        // تحميل Select2 JS
+        const select2Script = document.createElement('script');
+        select2Script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+        select2Script.onload = function() {
+            // تفعيل Select2 بعد تحميله
+            jQuery(document).ready(function($) {
+                $('.select2-search').select2({
+                    theme: 'bootstrap-5',
+                    dir: 'rtl',
+                    language: {
+                        noResults: function() {
+                            return "لا توجد نتائج";
+                        },
+                        searching: function() {
+                            return "جاري البحث...";
+                        },
+                        inputTooShort: function() {
+                            return "اكتب للبحث";
+                        },
+                        loadingMore: function() {
+                            return "جاري تحميل المزيد...";
+                        }
+                    },
+                    placeholder: function() {
+                        return $(this).data('placeholder');
+                    },
+                    allowClear: true,
+                    width: '100%'
+                });
+            });
+        };
+        document.head.appendChild(select2Script);
+    }
+});
+
+// فتح مودال إنشاء حساب محاسبي
+function openCreateAccountModal(supplierId) {
+    fetch(`/supplier/${supplierId}/create-account/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.html) {
+            document.getElementById('createAccountModalContent').innerHTML = data.html;
+            new bootstrap.Modal(document.getElementById('createAccountModal')).show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ في تحميل المودال');
+    });
+}
+
+// إنشاء حساب محاسبي للمورد
+function createSupplierAccount(supplierId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    
+    fetch(`/supplier/${supplierId}/create-account/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            // عرض رسالة النجاح
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+            
+            // إعادة تحميل الصفحة بعد ثانيتين
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء إنشاء الحساب');
+    });
+}
+</script>
+{% endblock %}
+{% endblock %}

@@ -1,6 +1,9 @@
 {% if messages %}
     {% for message in messages %}
-        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show position-fixed django-message" 
+             style="top: {% if forloop.counter0 == 0 %}20{% elif forloop.counter0 == 1 %}100{% elif forloop.counter0 == 2 %}180{% elif forloop.counter0 == 3 %}260{% else %}340{% endif %}px; right: 20px; z-index: {{ 9999|add:forloop.counter0 }}; min-width: 300px;" 
+             role="alert"
+             data-message-index="{{ forloop.counter0 }}">
             {% if message.tags == 'success' %}
                 <i class="fas fa-check-circle me-2"></i>
             {% elif message.tags == 'info' %}
@@ -8,7 +11,7 @@
             {% elif message.tags == 'warning' %}
                 <i class="fas fa-exclamation-triangle me-2"></i>
             {% elif message.tags == 'error' or message.tags == 'danger' %}
-                <i class="fas fa-times-circle me-2"></i>
+                <i class="fas fa-exclamation-circle me-2"></i>
             {% endif %}
             
             {{ message }}
@@ -16,6 +19,45 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
         </div>
     {% endfor %}
+    
+    <script>
+    // إزالة الرسائل تلقائياً بعد 5 ثوان مع تأخير متدرج
+    document.addEventListener('DOMContentLoaded', function() {
+        const alerts = document.querySelectorAll('.django-message');
+        alerts.forEach(function(alert, index) {
+            // تأخير متدرج للرسائل المتعددة
+            setTimeout(function() {
+                if (alert && alert.parentNode) {
+                    const bsAlert = new bootstrap.Alert(alert);
+                    bsAlert.close();
+                    
+                    // إعادة ترتيب الرسائل المتبقية
+                    setTimeout(function() {
+                        repositionMessages();
+                    }, 300);
+                }
+            }, 5000 + (index * 1000)); // تأخير إضافي للرسائل المتعددة
+        });
+    });
+    
+    // دالة إعادة ترتيب الرسائل بعد إغلاق إحداها
+    function repositionMessages() {
+        const remainingAlerts = document.querySelectorAll('.django-message');
+        remainingAlerts.forEach(function(alert, index) {
+            alert.style.top = (20 + (index * 80)) + 'px';
+            alert.style.zIndex = 9999 + index;
+        });
+    }
+    
+    // معالجة الإغلاق اليدوي
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('btn-close') && e.target.closest('.django-message')) {
+            setTimeout(function() {
+                repositionMessages();
+            }, 300);
+        }
+    });
+    </script>
 {% endif %}
 
 {% if form.errors %}

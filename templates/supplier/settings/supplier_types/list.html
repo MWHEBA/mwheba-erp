@@ -1,0 +1,907 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+
+.type-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 0.875rem;
+  margin-left: 0.5rem;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: white;
+}
+
+.sortable-handle {
+  cursor: move;
+  color: #6c757d;
+}
+
+.sortable-handle:hover {
+  color: var(--primary-color);
+}
+
+
+.table {
+  width: 100% !important;
+  table-layout: auto;
+}
+
+.table th {
+  border-top: none;
+  font-weight: 600;
+  color: var(--dark-color);
+  background-color: var(--light-color);
+  white-space: nowrap;
+}
+
+.table td {
+  vertical-align: middle;
+}
+
+.table-responsive {
+  overflow-x: visible;
+}
+
+.card-body {
+  padding: 1.5rem;
+}
+
+/* إجبار الجدول على استخدام العرض الكامل */
+.table-responsive .table {
+  margin-bottom: 0;
+  min-width: 100%;
+}
+
+.btn {
+  border-radius: 6px;
+}
+
+.card {
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'supplier:supplier_list' %}">
+                            <i class="fas fa-people-carry me-1"></i>الموردين
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-tags me-1"></i>إعدادات أنواع الموردين
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-tags fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <p class="text-muted mb-0">إدارة أنواع الموردين وإعداداتها</p>
+                </div>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-primary" onclick="syncWithOldSystem()">
+                    <i class="fas fa-sync-alt me-2"></i>مزامنة النظام
+                </button>
+                <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+                    <i class="fas fa-plus me-2"></i>إضافة نوع جديد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- أدوات البحث والفلترة -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">البحث</label>
+                    <input type="text" name="search" class="form-control" 
+                           placeholder="البحث في الأسماء والرموز..." 
+                           value="{{ request.GET.search }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">الحالة</label>
+                    <select name="status" class="form-select">
+                        <option value="">جميع الحالات</option>
+                        <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشط</option>
+                        <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>غير نشط</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">النوع</label>
+                    <select name="type" class="form-select">
+                        <option value="">جميع الأنواع</option>
+                        <option value="system" {% if request.GET.type == 'system' %}selected{% endif %}>أنواع النظام</option>
+                        <option value="custom" {% if request.GET.type == 'custom' %}selected{% endif %}>أنواع مخصصة</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">&nbsp;</label>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-outline-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                        <a href="{% url 'supplier:supplier_type_settings_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- جدول أنواع الموردين -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            {% if supplier_types %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover">
+                        <thead>
+                            <tr>
+                                <th style="width: 50px;" class="text-center">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </th>
+                                <th style="min-width: 200px;">النوع</th>
+                                <th style="width: 120px;">الرمز</th>
+                                <th>الوصف</th>
+                                <th style="width: 130px;" class="text-center">عدد الموردين</th>
+                                <th style="width: 80px;" class="text-center">الحالة</th>
+                                <th style="width: 100px;" class="text-center">النوع</th>
+                                <th style="width: 180px;">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="sortableTypes">
+                            {% for supplier_type in supplier_types %}
+                                <tr data-id="{{ supplier_type.id }}" class="supplier-type-row">
+                                    <td class="text-center">
+                                        <i class="fas fa-grip-vertical sortable-handle"></i>
+                                    </td>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            <div class="type-icon" style="background-color: {{ supplier_type.color }};">
+                                                <i class="{{ supplier_type.icon }}"></i>
+                                            </div>
+                                            <div>
+                                                <strong>{{ supplier_type.name }}</strong>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <code class="text-primary">{{ supplier_type.code }}</code>
+                                    </td>
+                                    <td>
+                                        {% if supplier_type.description %}
+                                            <span title="{{ supplier_type.description }}">
+                                                {{ supplier_type.description|truncatechars:50 }}
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if supplier_type.suppliers_count > 0 %}
+                                            <span class="badge bg-primary">{{ supplier_type.suppliers_count }} مورد</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">0 مورد</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="form-check form-switch d-flex justify-content-center">
+                                            <input class="form-check-input status-toggle" type="checkbox" 
+                                                   {% if supplier_type.is_active %}checked{% endif %}
+                                                   data-id="{{ supplier_type.id }}"
+                                                   onchange="toggleStatus({{ supplier_type.id }}, this.checked)">
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if supplier_type.is_system %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-shield-alt"></i> نظام
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">مخصص</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="previewType({{ supplier_type.id }})" 
+                                                    title="معاينة">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" 
+                                                    onclick="editType({{ supplier_type.id }})" 
+                                                    title="تعديل">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if not supplier_type.is_system and supplier_type.suppliers_count == 0 %}
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="deleteType({{ supplier_type.id }})" 
+                                                        title="حذف">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">الأولى</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">السابقة</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">{{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">التالية</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">الأخيرة</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                {% endif %}
+            {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">لا توجد أنواع موردين</h5>
+                    <p class="text-muted">ابدأ بإضافة نوع مورد جديد</p>
+                    <button type="button" class="btn btn-primary" onclick="openCreateModal()">
+                        <i class="fas fa-plus"></i> إضافة نوع جديد
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token -->
+{% csrf_token %}
+
+<!-- Modal للنماذج -->
+<div class="modal fade" id="typeModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="modalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبات بسيطة فقط -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// دالة للحصول على CSRF token
+function getCsrfToken() {
+    const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfInput ? csrfInput.value : null;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // إعداد السحب والإفلات لإعادة الترتيب
+    const sortableElement = document.getElementById('sortableTypes');
+    if (sortableElement) {
+        const sortable = new Sortable(sortableElement, {
+            handle: '.sortable-handle',
+            animation: 150,
+            onEnd: function(evt) {
+                reorderTypes();
+            }
+        });
+    }
+
+});
+
+function executeModalScripts() {
+    // تنفيذ JavaScript الخاص بالمودال
+    console.log('🚀 تنفيذ JavaScript للمودال');
+    
+    // البحث عن script tags في المودال وتنفيذها
+    const scripts = document.querySelectorAll('#modalContent script');
+    scripts.forEach(script => {
+        if (script.innerHTML) {
+            try {
+                eval(script.innerHTML);
+                console.log('✅ تم تنفيذ script بنجاح');
+            } catch (error) {
+                console.error('❌ خطأ في تنفيذ script:', error);
+            }
+        }
+    });
+    
+    // تحقق من نوع المودال وتنفيذ JavaScript المناسب
+    if (document.querySelector('#modalContent #deleteForm')) {
+        console.log('🗑️ مودال حذف - تهيئة JavaScript للحذف');
+        initializeDeleteModal();
+    } else if (document.querySelector('#modalContent #supplierTypeForm')) {
+        console.log('📝 مودال نموذج - تهيئة JavaScript للمعاينة');
+        initializeModalPreview();
+    }
+}
+
+function initializeModalPreview() {
+    console.log('🔧 تهيئة معاينة المودال');
+    
+    // فحص شامل لمحتوى المودال
+    const modalContent = document.getElementById('modalContent');
+    if (!modalContent) {
+        console.error('❌ لم يتم العثور على modalContent');
+        return;
+    }
+    
+    console.log('📋 محتوى المودال موجود، فحص العناصر...');
+    
+    // الحصول على عناصر النموذج
+    const iconField = document.querySelector('#modalContent select[name="icon"]');
+    const colorField = document.querySelector('#modalContent input[name="color"]');
+    const nameField = document.querySelector('#modalContent input[name="name"]');
+    
+    // فحص الأزرار
+    const iconButtons = document.querySelectorAll('#modalContent .icon-btn');
+    const colorButtons = document.querySelectorAll('#modalContent .color-btn');
+    
+    console.log('🔍 فحص العناصر في المودال:');
+    console.log('- iconField:', !!iconField);
+    console.log('- colorField:', !!colorField);
+    console.log('- nameField:', !!nameField);
+    console.log('- iconButtons:', iconButtons.length);
+    console.log('- colorButtons:', colorButtons.length);
+    
+    if (!iconField) {
+        console.log('⚠️ لم يتم العثور على حقل الأيقونة');
+        return;
+    }
+    
+    if (iconButtons.length === 0) {
+        console.warn('⚠️ لم يتم العثور على أزرار الأيقونات');
+    }
+    
+    if (colorButtons.length === 0) {
+        console.warn('⚠️ لم يتم العثور على أزرار الألوان');
+    }
+    
+    // دالة تحديث المعاينة
+    function updateModalPreview() {
+        const icon = iconField?.value || 'fas fa-truck';
+        const color = colorField?.value || '#007bff';
+        const name = nameField?.value || 'اسم النوع';
+        
+        console.log('🔄 تحديث معاينة المودال:', { icon, color, name });
+        
+        // تحديث جميع عناصر المعاينة
+        const previewElements = [
+            '#modalContent #selectedIconPreview i',
+            '#modalContent #previewIconClass',
+            '#modalContent #previewIconClassLarge',
+            '#modalContent #previewBadge i'
+        ];
+        
+        previewElements.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.className = icon;
+                console.log('✅ تم تحديث:', selector, 'بالأيقونة:', icon);
+            }
+        });
+        
+        // تحديث الألوان
+        const colorElements = [
+            '#modalContent #previewIconSmall',
+            '#modalContent #previewIconLarge',
+            '#modalContent #previewBadge',
+            '#modalContent #colorPreview'
+        ];
+        
+        colorElements.forEach(selector => {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.style.backgroundColor = color;
+                console.log('✅ تم تحديث لون:', selector);
+            }
+        });
+        
+        // تحديث النصوص
+        const textElements = {
+            '#modalContent #previewName': name,
+            '#modalContent #previewNameLarge': name,
+            '#modalContent #previewBadge span': name
+        };
+        
+        Object.entries(textElements).forEach(([selector, text]) => {
+            const element = document.querySelector(selector);
+            if (element) {
+                element.textContent = text;
+            }
+        });
+    }
+    
+    // إضافة event listeners
+    if (iconField) {
+        iconField.addEventListener('change', updateModalPreview);
+        iconField.addEventListener('input', updateModalPreview);
+    }
+    
+    if (colorField) {
+        colorField.addEventListener('change', updateModalPreview);
+        colorField.addEventListener('input', updateModalPreview);
+    }
+    
+    if (nameField) {
+        nameField.addEventListener('input', updateModalPreview);
+    }
+    
+    // إضافة event listeners للأزرار إذا وُجدت
+    if (iconButtons.length > 0) {
+        console.log('🔧 إضافة event listeners لأزرار الأيقونات...');
+        iconButtons.forEach((btn, index) => {
+            console.log(`- زر ${index + 1}: ${btn.dataset.icon}`);
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const icon = this.dataset.icon;
+                console.log('🖱️ تم النقر على زر الأيقونة:', icon);
+                
+                if (iconField) {
+                    iconField.value = icon;
+                    console.log('✅ تم تحديث iconField.value إلى:', iconField.value);
+                    
+                    // تحديث الأزرار المحددة
+                    iconButtons.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    console.log('✅ تم تحديث الأزرار المحددة');
+                    
+                    updateModalPreview();
+                } else {
+                    console.error('❌ iconField غير موجود');
+                }
+            });
+        });
+        console.log('✅ تم إضافة event listeners لجميع أزرار الأيقونات');
+    }
+    
+    if (colorButtons.length > 0) {
+        console.log('🔧 إضافة event listeners لأزرار الألوان...');
+        colorButtons.forEach((btn, index) => {
+            console.log(`- زر ${index + 1}: ${btn.dataset.color}`);
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                const color = this.dataset.color;
+                console.log('🖱️ تم النقر على زر اللون:', color);
+                
+                if (colorField) {
+                    colorField.value = color;
+                    console.log('✅ تم تحديث colorField.value إلى:', colorField.value);
+                    
+                    // تحديث الأزرار المحددة
+                    colorButtons.forEach(b => b.classList.remove('selected'));
+                    this.classList.add('selected');
+                    console.log('✅ تم تحديث الأزرار المحددة');
+                    
+                    updateModalPreview();
+                } else {
+                    console.error('❌ colorField غير موجود');
+                }
+            });
+        });
+        console.log('✅ تم إضافة event listeners لجميع أزرار الألوان');
+    }
+    
+    // تحديث أولي
+    setTimeout(() => {
+        updateModalPreview();
+        
+        // تحديد الأزرار المحددة حسب القيم الحالية
+        if (iconField && iconField.value) {
+            const selectedIconBtn = document.querySelector(`#modalContent .icon-btn[data-icon="${iconField.value}"]`);
+            if (selectedIconBtn) {
+                selectedIconBtn.classList.add('selected');
+            }
+        }
+        
+        if (colorField && colorField.value) {
+            const selectedColorBtn = document.querySelector(`#modalContent .color-btn[data-color="${colorField.value}"]`);
+            if (selectedColorBtn) {
+                selectedColorBtn.classList.add('selected');
+            }
+        }
+    }, 100);
+    
+    console.log('✅ تم تهيئة معاينة المودال بنجاح');
+}
+
+function initializeDeleteModal() {
+    console.log('🗑️ تهيئة مودال الحذف');
+    
+    const form = document.querySelector('#modalContent #deleteForm');
+    const confirmCheckbox = document.querySelector('#modalContent input[name="confirm_delete"]') || 
+                           document.querySelector('#modalContent #id_confirm_delete');
+    const deleteBtn = document.querySelector('#modalContent #deleteBtn');
+    
+    console.log('🔍 فحص عناصر مودال الحذف:');
+    console.log('- form:', !!form);
+    console.log('- confirmCheckbox:', !!confirmCheckbox);
+    console.log('- deleteBtn:', !!deleteBtn);
+    
+    // تشخيص مفصل للـ checkbox
+    if (!confirmCheckbox) {
+        console.error('❌ لم يتم العثور على checkbox التأكيد');
+        console.log('🔍 البحث عن جميع checkboxes في المودال:');
+        const allCheckboxes = document.querySelectorAll('#modalContent input[type="checkbox"]');
+        allCheckboxes.forEach((cb, index) => {
+            console.log(`  - checkbox ${index + 1}:`, {
+                id: cb.id,
+                name: cb.name,
+                class: cb.className
+            });
+        });
+        return;
+    }
+    
+    if (!deleteBtn) {
+        console.error('❌ لم يتم العثور على زر الحذف');
+        console.log('🔍 البحث عن جميع الأزرار في المودال:');
+        const allButtons = document.querySelectorAll('#modalContent button');
+        allButtons.forEach((btn, index) => {
+            console.log(`  - button ${index + 1}:`, {
+                id: btn.id,
+                class: btn.className,
+                text: btn.textContent.trim()
+            });
+        });
+        return;
+    }
+    
+    console.log('🔧 إضافة event listener لـ checkbox التأكيد');
+    
+    // تفعيل/إلغاء تفعيل زر الحذف بناءً على التأكيد
+    confirmCheckbox.addEventListener('change', function() {
+        console.log('🔄 تغيير checkbox التأكيد:', this.checked);
+        
+        deleteBtn.disabled = !this.checked;
+        
+        if (this.checked) {
+            deleteBtn.classList.remove('btn-outline-danger');
+            deleteBtn.classList.add('btn-danger');
+            console.log('✅ تم تفعيل زر الحذف');
+        } else {
+            deleteBtn.classList.remove('btn-danger');
+            deleteBtn.classList.add('btn-outline-danger');
+            console.log('❌ تم إلغاء تفعيل زر الحذف');
+        }
+    });
+    
+    // إرسال النموذج
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            console.log('📤 محاولة إرسال نموذج الحذف');
+            
+            if (!confirmCheckbox.checked) {
+                showAlert('يرجى تأكيد رغبتك في الحذف', 'warning');
+                console.warn('⚠️ لم يتم تأكيد الحذف');
+                return;
+            }
+            
+            // تأكيد إضافي
+            if (!confirm('هل أنت متأكد تماماً من حذف هذا النوع؟ هذا الإجراء لا يمكن التراجع عنه!')) {
+                console.log('❌ تم إلغاء الحذف من قبل المستخدم');
+                return;
+            }
+            
+            console.log('✅ تم تأكيد الحذف، بدء الإرسال');
+            submitDeleteForm();
+        });
+    }
+    
+    function submitDeleteForm() {
+        console.log('🚀 إرسال نموذج الحذف');
+        console.log('🔗 URL الهدف:', form.action);
+        console.log('📝 بيانات النموذج:', form);
+        
+        const originalText = deleteBtn.innerHTML;
+        
+        // إظهار حالة التحميل
+        deleteBtn.disabled = true;
+        deleteBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحذف...';
+        
+        const formData = new FormData(form);
+        
+        // طباعة بيانات النموذج للتشخيص
+        console.log('📋 محتويات النموذج:');
+        for (let [key, value] of formData.entries()) {
+            console.log(`  ${key}: ${value}`);
+        }
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => {
+            console.log('📡 استجابة HTTP:', response.status, response.statusText);
+            console.log('📡 Content-Type:', response.headers.get('content-type'));
+            
+            // التحقق من نوع المحتوى
+            const contentType = response.headers.get('content-type');
+            if (contentType && contentType.includes('application/json')) {
+                return response.json();
+            } else {
+                // إذا لم يكن JSON، اقرأ النص لمعرفة الخطأ
+                return response.text().then(text => {
+                    console.error('❌ استجابة غير متوقعة (HTML):', text.substring(0, 200) + '...');
+                    throw new Error('الخادم أرجع HTML بدلاً من JSON. قد يكون هناك خطأ في الخادم.');
+                });
+            }
+        })
+        .then(data => {
+            console.log('📨 استجابة الخادم:', data);
+            
+            if (data.success) {
+                // إظهار رسالة النجاح
+                showAlert(data.message, 'success');
+                console.log('✅ تم الحذف بنجاح');
+                
+                // إغلاق المودال وإعادة تحميل الصفحة
+                const modal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
+                modal.hide();
+                
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                showAlert(data.message || 'حدث خطأ أثناء الحذف', 'danger');
+                console.error('❌ فشل الحذف:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('❌ خطأ في الاتصال:', error);
+            showAlert('حدث خطأ في الاتصال', 'danger');
+        })
+        .finally(() => {
+            // إعادة تعيين زر الحذف
+            deleteBtn.disabled = false;
+            deleteBtn.innerHTML = originalText;
+        });
+    }
+    
+    console.log('✅ تم تهيئة مودال الحذف بنجاح');
+}
+
+function openCreateModal() {
+    fetch('/supplier/settings/types/create/', {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalContent').innerHTML = html;
+        
+        // تنفيذ JavaScript بعد تحميل المودال
+        executeModalScripts();
+        
+        new bootstrap.Modal(document.getElementById('typeModal')).show();
+    });
+}
+
+function editType(id) {
+    fetch(`/supplier/settings/types/${id}/edit/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalContent').innerHTML = html;
+        
+        // تنفيذ JavaScript بعد تحميل المودال
+        executeModalScripts();
+        
+        new bootstrap.Modal(document.getElementById('typeModal')).show();
+    });
+}
+
+function deleteType(id) {
+    fetch(`/supplier/settings/types/${id}/delete/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalContent').innerHTML = html;
+        
+        // تنفيذ JavaScript بعد تحميل المودال
+        executeModalScripts();
+        
+        new bootstrap.Modal(document.getElementById('typeModal')).show();
+    });
+}
+
+function previewType(id) {
+    fetch(`/supplier/settings/types/${id}/preview/`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('modalContent').innerHTML = html;
+        
+        // تنفيذ JavaScript بعد تحميل المودال
+        executeModalScripts();
+        
+        new bootstrap.Modal(document.getElementById('typeModal')).show();
+    });
+}
+
+function toggleStatus(id, isActive) {
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showAlert('خطأ في الأمان - يرجى إعادة تحميل الصفحة', 'danger');
+        return;
+    }
+    
+    fetch(`/supplier/settings/types/${id}/toggle-status/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.message, 'danger');
+            // إعادة تعيين الحالة في حالة الفشل
+            event.target.checked = !isActive;
+        }
+    });
+}
+
+function reorderTypes() {
+    const rows = document.querySelectorAll('#sortableTypes tr');
+    const typeIds = Array.from(rows).map(row => row.dataset.id);
+    
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showAlert('خطأ في الأمان - يرجى إعادة تحميل الصفحة', 'danger');
+        return;
+    }
+    
+    fetch('/supplier/settings/types/reorder/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({
+            type_ids: typeIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    });
+}
+
+
+function syncWithOldSystem() {
+    if (!confirm('هل تريد مزامنة أنواع الموردين مع النظام القديم؟')) {
+        return;
+    }
+    
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showAlert('خطأ في الأمان - يرجى إعادة تحميل الصفحة', 'danger');
+        return;
+    }
+    
+    fetch('/supplier/settings/types/sync/', {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(data.message, 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    });
+}
+
+function showAlert(message, type) {
+    // إنشاء alert bootstrap
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+    alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertDiv);
+    
+    // إزالة تلقائية بعد 5 ثوان
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

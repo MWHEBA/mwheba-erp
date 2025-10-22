@@ -20,6 +20,7 @@ from .models import (
 )
 from .forms import SupplierForm, SupplierAccountChangeForm
 from purchase.models import Purchase, PurchaseItem
+from financial.models import ChartOfAccounts
 
 
 @login_required
@@ -78,10 +79,10 @@ def supplier_list(request):
 
     total_purchases = 0  # قد تحتاج لحساب إجمالي المشتريات من موديل آخر
 
-    # جلب أنواع الموردين للفلتر
-    supplier_types = SupplierType.objects.filter(is_active=True).order_by(
-        "display_order"
-    )
+    # جلب أنواع الموردين للفلتر من الإعدادات الديناميكية
+    supplier_types = SupplierType.objects.filter(
+        settings__is_active=True
+    ).select_related('settings').order_by('settings__display_order', 'name')
 
     # تعريف أعمدة الجدول
     headers = [
@@ -133,12 +134,6 @@ def supplier_list(request):
             "class": "action-edit",
             "label": "تعديل",
         },
-        {
-            "url": "supplier:supplier_delete",
-            "icon": "fa-trash",
-            "class": "action-delete",
-            "label": "حذف",
-        },
     ]
 
     context = {
@@ -169,13 +164,13 @@ def supplier_list(request):
         return JsonResponse(
             {
                 "html": render_to_string(
-                    "supplier/supplier_list.html", context, request
+                    "supplier/core/supplier_list.html", context, request
                 ),
                 "success": True,
             }
         )
 
-    return render(request, "supplier/supplier_list.html", context)
+    return render(request, "supplier/core/supplier_list.html", context)
 
 
 @login_required
@@ -213,7 +208,7 @@ def supplier_add(request):
         ],
     }
 
-    return render(request, "supplier/supplier_form.html", context)
+    return render(request, "supplier/core/supplier_form.html", context)
 
 
 @login_required
@@ -256,7 +251,7 @@ def supplier_edit(request, pk):
         ],
     }
 
-    return render(request, "supplier/supplier_form.html", context)
+    return render(request, "supplier/core/supplier_form.html", context)
 
 
 @login_required
@@ -295,7 +290,7 @@ def supplier_delete(request, pk):
         ],
     }
 
-    return render(request, "supplier/supplier_delete.html", context)
+    return render(request, "supplier/core/supplier_delete.html", context)
 
 
 @login_required
@@ -309,6 +304,10 @@ def supplier_detail(request, pk):
             "specialized_services__offset_details",
             "specialized_services__digital_details",
             "specialized_services__category",
+        ).select_related(
+            "primary_type__settings"
+        ).prefetch_related(
+            "supplier_types__settings"
         ),
         pk=pk,
     )
@@ -880,6 +879,14 @@ def supplier_detail(request, pk):
             "sortable": True,
             "class": "text-center",
             "template": "components/cells/paper_weight.html",
+            "width": "12%",
+        },
+        {
+            "key": "paper_details.price_per_sheet",
+            "label": "السعر/فرخ",
+            "sortable": True,
+            "class": "text-center",
+            "template": "components/cells/paper_price.html",
             "width": "15%",
         },
         {
@@ -888,7 +895,7 @@ def supplier_detail(request, pk):
             "sortable": True,
             "class": "text-center",
             "format": "status",
-            "width": "10%",
+            "width": "8%",
         },
         {
             "key": "actions",
@@ -1164,7 +1171,7 @@ def supplier_detail(request, pk):
         ],
     }
 
-    return render(request, "supplier/supplier_detail.html", context)
+    return render(request, "supplier/core/supplier_detail.html", context)
 
 
 @login_required
@@ -1252,7 +1259,98 @@ def supplier_change_account(request, pk):
         ],
     }
 
-    return render(request, "supplier/supplier_change_account.html", context)
+    return render(request, "supplier/core/supplier_change_account.html", context)
+
+
+@login_required
+def supplier_create_account(request, pk):
+    """
+    إنشاء حساب محاسبي جديد للمورد (AJAX)
+    """
+    supplier = get_object_or_404(Supplier, pk=pk)
+    
+    # التحقق من أن المورد لا يملك حساب بالفعل
+    if supplier.financial_account:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False, 
+                'message': f'المورد "{supplier.name}" مربوط بالفعل بحساب محاسبي'
+            })
+        messages.warning(request, f'المورد "{supplier.name}" مربوط بالفعل بحساب محاسبي')
+        return redirect("supplier:supplier_change_account", pk=supplier.pk)
+    
+    if request.method == "POST":
+        try:
+            # البحث عن حساب الموردين الرئيسي
+            suppliers_account = ChartOfAccounts.objects.filter(code="21010").first()
+            
+            if not suppliers_account:
+                error_msg = "لا يمكن العثور على حساب الموردين الرئيسي في النظام"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': error_msg})
+                messages.error(request, error_msg)
+                return redirect("supplier:supplier_change_account", pk=supplier.pk)
+            
+            # إنشاء كود فريد للحساب الجديد
+            # البحث عن آخر حساب فرعي تحت حساب الموردين
+            # النمط المتوقع: 2101001, 2101002, 2101003...
+            last_supplier_account = ChartOfAccounts.objects.filter(
+                parent=suppliers_account,
+                code__regex=r'^2101\d{3}$'  # يبدأ بـ 2101 ويتبعه 3 أرقام
+            ).order_by('-code').first()
+            
+            if last_supplier_account:
+                # استخراج الرقم التسلسلي من آخر 3 أرقام
+                last_number = int(last_supplier_account.code[-3:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            # تكوين الكود الجديد: 2101 + رقم تسلسلي من 3 أرقام
+            new_code = f"2101{new_number:03d}"
+            
+            # إنشاء اسم مناسب للحساب
+            account_name = f"مورد - {supplier.name}"
+            
+            # إنشاء الحساب الجديد
+            new_account = ChartOfAccounts.objects.create(
+                code=new_code,
+                name=account_name,
+                parent=suppliers_account,
+                account_type=suppliers_account.account_type,
+                is_active=True,
+                is_leaf=True,
+                description=f"حساب محاسبي للمورد: {supplier.name} (كود المورد: {supplier.code})"
+            )
+            
+            # ربط المورد بالحساب الجديد
+            supplier.financial_account = new_account
+            supplier.save()
+            
+            success_msg = f'تم إنشاء حساب محاسبي جديد "{new_account.code} - {new_account.name}" وربطه بالمورد بنجاح'
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': success_msg})
+            
+            messages.success(request, success_msg)
+            return redirect("supplier:supplier_detail", pk=supplier.pk)
+            
+        except Exception as e:
+            error_msg = f"حدث خطأ أثناء إنشاء الحساب: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': error_msg})
+            messages.error(request, error_msg)
+            return redirect("supplier:supplier_change_account", pk=supplier.pk)
+    
+    # للطلبات GET - إرجاع مودال التأكيد
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('supplier/core/supplier_create_account_modal.html', {
+            'supplier': supplier
+        }, request=request)
+        return JsonResponse({'html': html})
+    
+    # إعادة توجيه للصفحة العادية
+    return redirect("supplier:supplier_change_account", pk=supplier.pk)
 
 
 # ===== تم حذف النظام القديم واستبداله بالنظام المتخصص الجديد =====
@@ -1266,11 +1364,12 @@ def supplier_change_account(request, pk):
 def suppliers_by_type(request):
     """عرض الموردين مصنفين حسب النوع"""
 
-    # جلب جميع أنواع الموردين النشطة مع الموردين المرتبطين
+    # جلب جميع أنواع الموردين النشطة مع الموردين المرتبطين من الإعدادات الديناميكية
     supplier_types = (
-        SupplierType.objects.filter(is_active=True)
+        SupplierType.objects.filter(settings__is_active=True)
+        .select_related('settings')
         .prefetch_related("primary_suppliers", "suppliers")
-        .order_by("display_order")
+        .order_by("settings__display_order", "name")
     )
 
     # إضافة الإحصائيات لكل نوع مورد
@@ -1313,7 +1412,7 @@ def suppliers_by_type(request):
         ],
     }
 
-    return render(request, "supplier/suppliers_by_type.html", context)
+    return render(request, "supplier/core/suppliers_by_type.html", context)
 
 
 @login_required
@@ -1377,7 +1476,7 @@ def service_comparison(request):
         ],
     }
 
-    return render(request, "supplier/service_comparison.html", context)
+    return render(request, "supplier/analysis/service_comparison.html", context)
 
 
 @login_required
@@ -1436,7 +1535,7 @@ def supplier_services_detail(request, pk):
         ],
     }
 
-    return render(request, "supplier/supplier_services_detail.html", context)
+    return render(request, "supplier/analysis/supplier_services_detail.html", context)
 
 
 # ===== النظام الديناميكي للخدمات المتخصصة =====
@@ -1569,7 +1668,7 @@ def add_specialized_service(request, supplier_id, service_id=None):
         ],
     }
 
-    return render(request, "supplier/dynamic_service_form.html", context)
+    return render(request, "supplier/services/dynamic_service_form.html", context)
 
 
 @login_required
@@ -1618,7 +1717,7 @@ def delete_specialized_service(request, supplier_id, service_id):
         ],
     }
 
-    return render(request, "supplier/delete_service_confirm.html", context)
+    return render(request, "supplier/services/delete_service_confirm.html", context)
 
 
 # ===== APIs للنظام الديناميكي =====

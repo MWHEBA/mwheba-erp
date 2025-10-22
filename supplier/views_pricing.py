@@ -277,14 +277,10 @@ def category_analysis(request, category_code):
     # أفضل 5 خدمات (أقل تكلفة إعداد)
     best_services = services.order_by("setup_cost")[:5]
 
-    # توزيع الموردين حسب النوع
+    # توزيع الموردين حسب النوع من الإعدادات الديناميكية
     supplier_types_distribution = {}
     for service in services:
-        supplier_type = (
-            service.supplier.primary_type.name
-            if service.supplier.primary_type
-            else "غير محدد"
-        )
+        supplier_type = service.supplier.get_primary_type_display()
         supplier_types_distribution[supplier_type] = (
             supplier_types_distribution.get(supplier_type, 0) + 1
         )
@@ -443,7 +439,7 @@ def add_specialized_service(request, supplier_id):
         "page_icon": "fas fa-plus-circle",
     }
 
-    return render(request, "supplier/add_specialized_service.html", context)
+    return render(request, "supplier/services/add_specialized_service.html", context)
 
 
 @login_required
@@ -488,7 +484,7 @@ def edit_specialized_service(request, supplier_id, service_id):
         "page_icon": "fas fa-edit",
     }
 
-    return render(request, "supplier/edit_specialized_service.html", context)
+    return render(request, "supplier/services/edit_specialized_service.html", context)
 
 
 @login_required
@@ -513,4 +509,4 @@ def delete_specialized_service(request, supplier_id, service_id):
         "page_icon": "fas fa-trash",
     }
 
-    return render(request, "supplier/delete_specialized_service.html", context)
+    return render(request, "supplier/services/delete_specialized_service.html", context)

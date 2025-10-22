@@ -3,6 +3,8 @@
  * @version 2.0.0
  */
 
+console.log('🔄 تحميل global-table.js - الإصدار 2.0.0');
+
 // التحقق من وجود المكتبات المطلوبة
 function checkRequiredLibraries() {
     const libraries = {
@@ -39,10 +41,36 @@ function initializeTable(tableId, options = {}) {
         return;
     }
     
+    // تجاهل الجداول التي فشلت سابقاً
+    if (table.classList.contains('table-failed')) {
+        console.info(`تجاهل الجدول ${tableId} - فشل في التهيئة سابقاً`);
+        return;
+    }
+    
+    // تجاهل الجداول المُهيأة بالفعل والتي تعمل بشكل صحيح
+    if (table.classList.contains('table-initialized') && $.fn.DataTable.isDataTable(table)) {
+        console.info(`تجاهل الجدول ${tableId} - مُهيأ بالفعل`);
+        return;
+    }
+    
     // التحقق من وجود بيانات في الجدول
     const tbody = table.querySelector('tbody');
     const rows = tbody ? tbody.querySelectorAll('tr') : [];
     
+    // فحص إضافي للجداول الفاضية
+    if (rows.length === 0) {
+        console.info(`تجاهل الجدول ${tableId} - لا يحتوي على صفوف`);
+        return;
+    }
+    
+    // فحص الجداول التي تحتوي على رسالة "لا توجد بيانات" فقط
+    if (rows.length === 1) {
+        const firstRowText = rows[0].textContent.trim();
+        if (firstRowText.includes('لا توجد') || firstRowText.includes('No data') || firstRowText === '') {
+            console.info(`تجاهل الجدول ${tableId} - يحتوي على رسالة فارغة أو "لا توجد بيانات"`);
+            return;
+        }
+    }
     
     // التحقق من تطابق عدد الأعمدة
     if (!validateTableStructure(tableId)) {
@@ -56,28 +84,7 @@ function initializeTable(tableId, options = {}) {
         pageLength: 25,
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, "الكل"]],
         language: {
-            "decimal": "",
-            "emptyTable": "لا توجد بيانات متاحة في الجدول",
-            "info": "عرض _START_ إلى _END_ من إجمالي _TOTAL_ عنصر",
-            "infoEmpty": "عرض 0 إلى 0 من إجمالي 0 عنصر",
-            "infoFiltered": "(مفلتر من إجمالي _MAX_ عنصر)",
-            "infoPostFix": "",
-            "thousands": ",",
-            "lengthMenu": "عرض _MENU_ عنصر",
-            "loadingRecords": "جاري التحميل...",
-            "processing": "جاري المعالجة...",
-            "search": "بحث:",
-            "zeroRecords": "لم يتم العثور على نتائج مطابقة",
-            "paginate": {
-                "first": "الأول",
-                "last": "الأخير",
-                "next": "التالي",
-                "previous": "السابق"
-            },
-            "aria": {
-                "sortAscending": ": تفعيل لترتيب العمود تصاعدياً",
-                "sortDescending": ": تفعيل لترتيب العمود تنازلياً"
-            }
+            url: '/static/js/ar.json'
         },
         dom: '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
@@ -93,13 +100,52 @@ function initializeTable(tableId, options = {}) {
     const mergedOptions = Object.assign({}, defaultOptions, options);
     
     try {
+        // التحقق من وجود العنصر في DOM
+        if (!document.contains(table)) {
+            console.warn(`الجدول ${tableId} غير موجود في DOM`);
+            return;
+        }
+        
         // تحقق من وجود DataTable مسبقاً وقم بتدميره
         if ($.fn.DataTable.isDataTable(table)) {
-            $(table).DataTable().destroy();
+            try {
+                // محاولة الحصول على instance الموجود
+                const existingTable = $.fn.DataTable.Api(table);
+                if (existingTable && typeof existingTable.destroy === 'function') {
+                    existingTable.destroy(true); // true لإزالة DOM elements
+                }
+            } catch (destroyError) {
+                console.warn(`تحذير: مشكلة في تدمير الجدول ${tableId}:`, destroyError);
+                
+                // تنظيف شامل يدوياً
+                try {
+                    // إزالة جميع البيانات المرتبطة بـ DataTables
+                    $(table).removeData();
+                    $(table).removeClass('dataTable');
+                    
+                    // إزالة الـ wrapper إذا كان موجود
+                    const wrapper = $(table).closest('.dataTables_wrapper');
+                    if (wrapper.length > 0) {
+                        $(table).unwrap();
+                    }
+                    
+                    // إزالة أي عناصر DataTables إضافية
+                    $(table).find('.dataTables_empty').remove();
+                    
+                } catch (cleanupError) {
+                    console.error(`فشل في تنظيف الجدول ${tableId}:`, cleanupError);
+                    // كحل أخير، تجاهل هذا الجدول
+                    return;
+                }
+            }
         }
         
         const dataTable = $(table).DataTable(mergedOptions);
         setupExternalControls(tableId, dataTable);
+        
+        // إضافة علامة نجاح التهيئة
+        table.classList.add('table-initialized');
+        console.info(`تم تهيئة الجدول ${tableId} بنجاح`);
         
     } catch (error) {
         console.error(`خطأ في تهيئة الجدول ${tableId}:`, error);
@@ -110,10 +156,23 @@ function initializeTable(tableId, options = {}) {
                 fixColumnCount(tableId);
                 // تحقق من وجود DataTable مسبقاً وقم بتدميره
                 if ($.fn.DataTable.isDataTable(table)) {
-                    $(table).DataTable().destroy();
+                    try {
+                        const existingTable = $(table).DataTable();
+                        if (existingTable && existingTable.destroy) {
+                            existingTable.destroy();
+                        }
+                    } catch (destroyError) {
+                        console.warn(`تحذير: مشكلة في تدمير الجدول ${tableId} (المحاولة الثانية):`, destroyError);
+                        $(table).removeData();
+                        $(table).removeClass('dataTable');
+                    }
                 }
                 const dataTable = $(table).DataTable(mergedOptions);
                 setupExternalControls(tableId, dataTable);
+                
+                // إضافة علامة نجاح التهيئة
+                table.classList.add('table-initialized');
+                console.info(`تم إصلاح وتهيئة الجدول ${tableId} بنجاح`);
             } catch (secondError) {
                 console.error(`فشل في إصلاح الجدول ${tableId}:`, secondError);
                 table.classList.add('table-failed');
@@ -276,6 +335,24 @@ function exportToExcel(tableId, filename = 'export.xlsx') {
     XLSX.writeFile(wb, filename);
 }
 
+// إعادة تعيين حالة جميع الجداول (للاستخدام عند الحاجة)
+function resetAllTables() {
+    const tables = document.querySelectorAll('table[id]');
+    tables.forEach(table => {
+        table.classList.remove('table-failed', 'table-initialized');
+        
+        // تنظيف DataTables إذا كان موجود
+        if ($.fn.DataTable.isDataTable(table)) {
+            try {
+                $(table).DataTable().destroy();
+            } catch (e) {
+                // تجاهل الأخطاء
+            }
+        }
+    });
+    console.info('تم إعادة تعيين حالة جميع الجداول');
+}
+
 // تهيئة جميع الجداول في الصفحة
 function initializeAllTables() {
     const tables = document.querySelectorAll('table[id]');
@@ -283,19 +360,77 @@ function initializeAllTables() {
     tables.forEach(table => {
         const tableId = table.id;
         if (tableId && !table.classList.contains('no-datatables')) {
-            initializeTable(tableId);
+            // تجاهل الجداول التي فشلت أو تم تهيئتها بالفعل
+            if (table.classList.contains('table-failed') || table.classList.contains('table-initialized')) {
+                return;
+            }
+            
+            // فحص إضافي للجداول المشكوك فيها
+            if (!document.contains(table)) {
+                console.warn(`تجاهل الجدول ${tableId} - غير موجود في DOM`);
+                return;
+            }
+            
+            // فحص بنية الجدول
+            const tbody = table.querySelector('tbody');
+            if (!tbody) {
+                console.warn(`تجاهل الجدول ${tableId} - لا يحتوي على tbody`);
+                return;
+            }
+            
+            // فحص وجود صفوف في الجدول
+            const rows = tbody.querySelectorAll('tr');
+            if (rows.length === 0) {
+                console.info(`تجاهل الجدول ${tableId} - لا يحتوي على بيانات`);
+                return;
+            }
+            
+            // فحص خاص للجداول الفاضية أو التي تحتوي على رسالة "لا توجد بيانات"
+            const firstRow = rows[0];
+            if (rows.length === 1 && firstRow.textContent.includes('لا توجد')) {
+                console.info(`تجاهل الجدول ${tableId} - يحتوي على رسالة "لا توجد بيانات"`);
+                return;
+            }
+            
+            try {
+                initializeTable(tableId);
+            } catch (error) {
+                console.error(`فشل في تهيئة الجدول ${tableId}:`, error);
+                table.classList.add('table-failed');
+            }
         }
     });
+}
+
+// دالة للتوافق مع الكود القديم
+function initGlobalTable(tableId, options = {}) {
+    console.log(`✅ استدعاء initGlobalTable للجدول: ${tableId}`);
+    return initializeTable(tableId, options);
+}
+
+// دوال للتوافق مع أزرار التصدير
+function exportTableToCSV(tableId, filename) {
+    return exportToCSV(tableId, filename);
+}
+
+function exportTableToExcel(tableId, filename) {
+    return exportToExcel(tableId, filename);
 }
 
 // تصدير الوظائف للاستخدام العام
 window.GlobalTableManager = {
     initializeTable,
     initializeAllTables,
+    resetAllTables,
     exportToCSV,
     exportToExcel,
     checkRequiredLibraries
 };
+
+// تصدير الدوال للنطاق العام للتوافق
+window.initGlobalTable = initGlobalTable;
+window.exportTableToCSV = exportTableToCSV;
+window.exportTableToExcel = exportTableToExcel;
 
 // ربط أزرار التصدير
 document.addEventListener('DOMContentLoaded', function() {

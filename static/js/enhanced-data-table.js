@@ -15,7 +15,7 @@ class EnhancedDataTable {
             info: true,
             responsive: true,
             language: {
-                url: '//cdn.datatables.net/plug-ins/1.13.7/i18n/ar.json'
+                url: '/static/js/ar.json'
             },
             columnDefs: [
                 { targets: 'no-sort', orderable: false },

@@ -1,0 +1,154 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">تقرير ميزان المراجعة لجميع الحسابات</p>
+                </div>
+            </div>
+            <div>
+                <button class="btn btn-outline-success ms-2" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-balance-scale me-2"></i>ميزان المراجعة
+                </h6>
+            </div>
+            <div class="card-body">
+                <!-- نموذج الفلترة -->
+                <form method="get" class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <label for="date_from" class="form-label">من تاريخ:</label>
+                        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="date_to" class="form-label">إلى تاريخ:</label>
+                        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary me-2">
+                            <i class="fas fa-filter me-1"></i>فلترة
+                        </button>
+                        <a href="{% url 'financial:trial_balance_report' %}" class="btn btn-secondary">
+                            <i class="fas fa-undo me-1"></i>إعادة تعيين
+                        </a>
+                    </div>
+                </form>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>كود الحساب</th>
+                                <th>اسم الحساب</th>
+                                <th>مدين</th>
+                                <th>دائن</th>
+                                <th>الرصيد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if trial_balance %}
+                                {% for item in trial_balance %}
+                                <tr>
+                                    <td>{{ item.account.code }}</td>
+                                    <td>{{ item.account.name }}</td>
+                                    <td class="text-end">
+                                        {% if item.debit_balance %}
+                                            {{ item.debit_balance|floatformat:2 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if item.credit_balance %}
+                                            {{ item.credit_balance|floatformat:2 }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if item.debit_balance %}
+                                            {{ item.debit_balance|floatformat:2 }} مدين
+                                        {% elif item.credit_balance %}
+                                            {{ item.credit_balance|floatformat:2 }} دائن
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-active fw-bold">
+                                    <td colspan="2">الإجمالي</td>
+                                    <td class="text-end">{{ total_debit|floatformat:2 }}</td>
+                                    <td class="text-end">{{ total_credit|floatformat:2 }}</td>
+                                    <td class="text-end">
+                                        {% if total_debit == total_credit %}
+                                            متوازن ✓
+                                        {% else %}
+                                            غير متوازن ⚠️
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-chart-bar fa-2x mb-3"></i>
+                                        <p>لا توجد بيانات لعرضها في ميزان المراجعة</p>
+                                    </td>
+                                </tr>
+                            {% endif %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

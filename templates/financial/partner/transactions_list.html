@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+    .filter-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .stats-summary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 10px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    .transaction-row.contribution {
+        border-left: 4px solid #28a745;
+    }
+    .transaction-row.withdrawal {
+        border-left: 4px solid #ffc107;
+    }
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8em;
+        font-weight: 600;
+    }
+    .status-completed { background: #d4edda; color: #155724; }
+    .status-approved { background: #cce5ff; color: #004085; }
+    .status-pending { background: #fff3cd; color: #856404; }
+    .status-cancelled { background: #f8d7da; color: #721c24; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="mb-2">
+                        <i class="{{ page_icon }} me-3"></i>
+                        {{ page_title }}
+                    </h2>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'financial:partner_dashboard' %}">معاملات الشريك</a>
+                            </li>
+                            <li class="breadcrumb-item active">قائمة المعاملات</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'financial:partner_dashboard' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        العودة للوحة التحكم
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الإحصائيات الموجزة -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="stats-summary">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4>{{ total_contributions|remove_trailing_zeros }} ج.م</h4>
+                        <p class="mb-0 opacity-75">إجمالي المساهمات</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ total_withdrawals|remove_trailing_zeros }} ج.م</h4>
+                        <p class="mb-0 opacity-75">إجمالي السحوبات</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ net_balance|remove_trailing_zeros }} ج.م</h4>
+                        <p class="mb-0 opacity-75">صافي الرصيد</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h4>{{ transactions.paginator.count }}</h4>
+                        <p class="mb-0 opacity-75">إجمالي المعاملات</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلاتر البحث -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="filter-card">
+                <form method="get" class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">نوع المعاملة</label>
+                        <select name="type" class="form-select">
+                            <option value="">جميع الأنواع</option>
+                            <option value="contribution" {% if filters.type == 'contribution' %}selected{% endif %}>
+                                مساهمة
+                            </option>
+                            <option value="withdrawal" {% if filters.type == 'withdrawal' %}selected{% endif %}>
+                                سحب
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">الحالة</label>
+                        <select name="status" class="form-select">
+                            <option value="">جميع الحالات</option>
+                            <option value="pending" {% if filters.status == 'pending' %}selected{% endif %}>
+                                في الانتظار
+                            </option>
+                            <option value="approved" {% if filters.status == 'approved' %}selected{% endif %}>
+                                موافق عليه
+                            </option>
+                            <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>
+                                مكتمل
+                            </option>
+                            <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>
+                                ملغي
+                            </option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">من تاريخ</label>
+                        <input type="date" name="date_from" class="form-control" 
+                               value="{{ filters.date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">إلى تاريخ</label>
+                        <input type="date" name="date_to" class="form-control" 
+                               value="{{ filters.date_to }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label">&nbsp;</label>
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-search me-2"></i>
+                                بحث
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول المعاملات -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    {% if transactions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>النوع</th>
+                                        <th>المبلغ</th>
+                                        <th>الخزينة</th>
+                                        <th>الوصف</th>
+                                        <th>التاريخ</th>
+                                        <th>الحالة</th>
+                                        <th>أنشأ بواسطة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for transaction in transactions %}
+                                    <tr class="transaction-row {{ transaction.transaction_type }}">
+                                        <td>
+                                            {% if transaction.transaction_type == 'contribution' %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-plus-circle me-1"></i>
+                                                    مساهمة
+                                                </span>
+                                                {% if transaction.get_sub_type_display %}
+                                                    <br><small class="text-muted">{{ transaction.get_sub_type_display }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-minus-circle me-1"></i>
+                                                    سحب
+                                                </span>
+                                                {% if transaction.get_sub_type_display %}
+                                                    <br><small class="text-muted">{{ transaction.get_sub_type_display }}</small>
+                                                {% endif %}
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <strong class="{% if transaction.transaction_type == 'contribution' %}text-success{% else %}text-warning{% endif %}">
+                                                {{ transaction.amount|remove_trailing_zeros }} ج.م
+                                            </strong>
+                                        </td>
+                                        <td>
+                                            <small>{{ transaction.cash_account_name }}</small>
+                                        </td>
+                                        <td>
+                                            {{ transaction.description|truncatechars:50 }}
+                                        </td>
+                                        <td>
+                                            {{ transaction.transaction_date }}
+                                        </td>
+                                        <td>
+                                            <span class="status-badge status-{{ transaction.status }}">
+                                                {{ transaction.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <small>{{ transaction.created_by.get_full_name|default:transaction.created_by.username }}</small>
+                                            <br><small class="text-muted">{{ transaction.created_at|date:"d/m/Y H:i" }}</small>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'financial:partner_transaction_detail' transaction.id %}" 
+                                                   class="btn btn-outline-primary" title="عرض التفاصيل">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if transaction.journal_entry %}
+                                                    <a href="{% url 'financial:journal_entries_detail' transaction.journal_entry.id %}" 
+                                                       class="btn btn-outline-info" title="عرض القيد المحاسبي">
+                                                        <i class="fas fa-book"></i>
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- الترقيم الصفحي -->
+                        {% if transactions.has_other_pages %}
+                            <nav aria-label="Page navigation" class="mt-4">
+                                <ul class="pagination justify-content-center">
+                                    {% if transactions.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ transactions.previous_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                                السابق
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in transactions.paginator.page_range %}
+                                        {% if transactions.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% elif num > transactions.number|add:'-3' and num < transactions.number|add:'3' %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                                    {{ num }}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if transactions.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ transactions.next_page_number }}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                                                التالي
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">لا توجد معاملات</h5>
+                            <p class="text-muted">لم يتم العثور على معاملات تطابق معايير البحث</p>
+                            <a href="{% url 'financial:partner_dashboard' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>
+                                إضافة معاملة جديدة
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تحسين تجربة المستخدم مع الفلاتر
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة تأثيرات hover للصفوف
+    const rows = document.querySelectorAll('.transaction-row');
+    rows.forEach(row => {
+        row.addEventListener('mouseenter', function() {
+            this.style.backgroundColor = '#f8f9fa';
+        });
+        row.addEventListener('mouseleave', function() {
+            this.style.backgroundColor = '';
+        });
+    });
+    
+    // تحسين عرض التواريخ
+    const dateInputs = document.querySelectorAll('input[type="date"]');
+    dateInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            if (this.value) {
+                this.style.color = '#495057';
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

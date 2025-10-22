@@ -1,5 +1,5 @@
-{% load custom_filters %}
+{% load pricing_filters %}
 {% load i18n %}
 <span class="payment-amount fw-bold text-success">
-  <strong>{{ value|custom_number_format }}</strong> {% trans "ج.م" %}
+  <strong>{{ value|remove_trailing_zeros }}</strong> {% trans "ج.م" %}
 </span>

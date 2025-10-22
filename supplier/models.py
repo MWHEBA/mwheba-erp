@@ -9,27 +9,18 @@ except ImportError:
     # في حالة عدم وجود الملف، إنشاء نموذج بسيط
     SupplierPayment = None
 
+# إضافة النموذج الجديد في نفس الملف لتجنب مشاكل الاستيراد
+
 
 class SupplierType(models.Model):
-    """أنواع الموردين"""
+    """أنواع الموردين - النموذج الأساسي (للتوافق مع النظام القديم)"""
 
-    TYPE_CHOICES = (
-        ("paper", _("مخزن ورق")),
-        ("offset_printing", _("مطبعة أوفست")),
-        ("digital_printing", _("مطبعة ديجيتال")),
-        ("finishing", _("خدمات الطباعة")),
-        ("plates", _("مكتب فصل")),
-        ("packaging", _("تقفيل")),
-        ("coating", _("تغطية")),
-        ("outdoor", _("أوت دور")),
-        ("laser", _("ليزر")),
-        ("vip_gifts", _("هدايا VIP")),
-        ("other", _("أخرى")),
-    )
+    # إزالة TYPE_CHOICES لجعل النظام ديناميكي
+    # TYPE_CHOICES سيتم جلبها من SupplierTypeSettings
 
     name = models.CharField(_("اسم النوع"), max_length=100)
     code = models.CharField(
-        _("الرمز"), max_length=20, choices=TYPE_CHOICES, unique=True
+        _("الرمز"), max_length=50, unique=True  # إزالة choices وزيادة max_length
     )
     slug = models.SlugField(_("الرابط"), max_length=100, unique=True, blank=True)
     description = models.TextField(_("وصف"), blank=True)
@@ -44,6 +35,16 @@ class SupplierType(models.Model):
     )
     is_active = models.BooleanField(_("نشط"), default=True)
     display_order = models.PositiveIntegerField(_("ترتيب العرض"), default=0)
+    
+    # ربط مع النموذج الجديد للإعدادات الديناميكية
+    settings = models.OneToOneField(
+        'SupplierTypeSettings',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='supplier_type',
+        verbose_name=_("إعدادات النوع")
+    )
 
     class Meta:
         verbose_name = _("نوع مورد")
@@ -59,6 +60,52 @@ class SupplierType(models.Model):
 
     def __str__(self):
         return self.name
+    
+    @classmethod
+    def sync_with_settings(cls):
+        """مزامنة الأنواع الحالية مع إعدادات النظام الجديد"""
+        # إنشاء الأنواع الافتراضية إذا لم تكن موجودة
+        SupplierTypeSettings.create_default_types()
+        
+        # مزامنة الأنواع الموجودة
+        for supplier_type in cls.objects.all():
+            settings, created = SupplierTypeSettings.objects.get_or_create(
+                code=supplier_type.code,
+                defaults={
+                    'name': supplier_type.name,
+                    'description': supplier_type.description,
+                    'icon': supplier_type.icon or 'fas fa-truck',
+                    'color': supplier_type.color,
+                    'display_order': supplier_type.display_order,
+                    'is_active': supplier_type.is_active,
+                }
+            )
+            
+            # ربط الإعدادات بالنوع
+            if not supplier_type.settings:
+                supplier_type.settings = settings
+                supplier_type.save()
+    
+    @property
+    def dynamic_name(self):
+        """الحصول على الاسم من الإعدادات الديناميكية أو الاسم الثابت"""
+        if self.settings:
+            return self.settings.name
+        return self.name
+    
+    @property
+    def dynamic_icon(self):
+        """الحصول على الأيقونة من الإعدادات الديناميكية أو الأيقونة الثابتة"""
+        if self.settings:
+            return self.settings.icon
+        return self.icon or 'fas fa-truck'
+    
+    @property
+    def dynamic_color(self):
+        """الحصول على اللون من الإعدادات الديناميكية أو اللون الثابت"""
+        if self.settings:
+            return self.settings.color
+        return self.color
 
 
 class SupplierServiceTag(models.Model):
@@ -149,9 +196,11 @@ class SupplierServiceTag(models.Model):
         return f"{self.name} ({self.get_category_display()})"
 
     def get_supplier_types_display(self):
-        """الحصول على عرض أنواع الموردين"""
+        """الحصول على عرض أنواع الموردين من الإعدادات الديناميكية"""
+        types = self.supplier_types.select_related('settings').filter(settings__is_active=True)
         return ", ".join(
-            [supplier_type.name for supplier_type in self.supplier_types.all()]
+            [supplier_type.settings.name if supplier_type.settings else supplier_type.name 
+             for supplier_type in types]
         )
 
     def get_suppliers_count(self):
@@ -338,22 +387,54 @@ class Supplier(models.Model):
         return self.get_services_by_category(category_code).exists()
 
     def get_primary_type_display(self):
-        """عرض النوع الأساسي للمورد"""
-        return self.primary_type.name if self.primary_type else _("غير محدد")
+        """عرض النوع الأساسي للمورد من الإعدادات الديناميكية"""
+        if self.primary_type and hasattr(self.primary_type, 'settings') and self.primary_type.settings:
+            return self.primary_type.settings.name
+        elif self.primary_type:
+            return self.primary_type.name
+        else:
+            return _("غير محدد")
+    
+    def get_primary_type_icon(self):
+        """الحصول على أيقونة النوع الأساسي من الإعدادات الديناميكية"""
+        if self.primary_type and hasattr(self.primary_type, 'settings') and self.primary_type.settings:
+            return self.primary_type.settings.icon
+        elif self.primary_type:
+            return self.primary_type.icon
+        else:
+            return 'fas fa-industry'
+    
+    def get_primary_type_color(self):
+        """الحصول على لون النوع الأساسي من الإعدادات الديناميكية"""
+        if self.primary_type and hasattr(self.primary_type, 'settings') and self.primary_type.settings:
+            return self.primary_type.settings.color
+        elif self.primary_type:
+            return self.primary_type.color
+        else:
+            return '#6c757d'
+    
+    def get_primary_type_code(self):
+        """الحصول على كود النوع الأساسي"""
+        return self.primary_type.code if self.primary_type else None
 
     def get_all_types_display(self):
-        """عرض جميع أنواع المورد"""
-        return ", ".join([t.name for t in self.supplier_types.all()])
+        """عرض جميع أنواع المورد من الإعدادات الديناميكية"""
+        types = self.supplier_types.select_related('settings').filter(settings__is_active=True)
+        return ", ".join([t.settings.name if t.settings else t.name for t in types])
 
     def supplier_types_display(self):
-        """عرض أنواع المورد بتنسيق HTML جميل للجداول"""
-        types = self.supplier_types.all()
+        """عرض أنواع المورد بتنسيق HTML جميل للجداول من الإعدادات الديناميكية"""
+        types = self.supplier_types.select_related('settings').filter(settings__is_active=True)
         if not types:
             return '<span class="text-muted">غير محدد</span>'
 
         badges = []
         for supplier_type in types:
-            badge_html = f'<span class="badge me-1 mb-1" style="background-color: {supplier_type.color}; color: white; font-size: 0.75rem;"><i class="{supplier_type.icon} me-1"></i>{supplier_type.name}</span>'
+            # استخدام الاسم والأيقونة واللون من الإعدادات الديناميكية
+            name = supplier_type.settings.name if supplier_type.settings else supplier_type.name
+            icon = supplier_type.settings.icon if supplier_type.settings else 'fas fa-industry'
+            color = supplier_type.settings.color if supplier_type.settings else '#6c757d'
+            badge_html = f'<span class="badge me-1 mb-1" style="background-color: {color}; color: white; font-size: 0.75rem;"><i class="{icon} me-1"></i>{name}</span>'
             badges.append(badge_html)
 
         return "".join(badges)
@@ -1230,3 +1311,289 @@ class VIPGiftDetails(models.Model):
     class Meta:
         verbose_name = _("تفاصيل هدايا VIP")
         verbose_name_plural = _("تفاصيل هدايا VIP")
+
+
+# ========================================
+# نموذج إعدادات أنواع الموردين الديناميكية
+# ========================================
+
+import re
+from django.conf import settings
+from django.core.exceptions import ValidationError
+
+
+class SupplierTypeSettings(models.Model):
+    """
+    إعدادات أنواع الموردين الديناميكية
+    يسمح بإضافة وتعديل أنواع الموردين من الواجهة
+    """
+    
+    # معلومات أساسية
+    name = models.CharField(
+        _("اسم النوع"), 
+        max_length=100,
+        help_text=_("اسم نوع المورد كما سيظهر في الواجهة")
+    )
+    code = models.CharField(
+        _("الرمز"), 
+        max_length=50, 
+        unique=True,
+        help_text=_("رمز فريد لنوع المورد (بالإنجليزية)")
+    )
+    description = models.TextField(
+        _("الوصف"), 
+        blank=True,
+        help_text=_("وصف مختصر لنوع المورد")
+    )
+    
+    # المظهر البصري
+    icon = models.CharField(
+        _("الأيقونة"), 
+        max_length=50,
+        default="fas fa-truck",
+        help_text=_("اسم الأيقونة من Font Awesome (مثل: fas fa-truck)")
+    )
+    color = models.CharField(
+        _("اللون"), 
+        max_length=7, 
+        default="#007bff",
+        help_text=_("لون النوع بصيغة HEX (مثل: #007bff)")
+    )
+    
+    # الترتيب والحالة
+    display_order = models.PositiveIntegerField(
+        _("ترتيب العرض"), 
+        default=0,
+        help_text=_("ترتيب ظهور النوع في القوائم")
+    )
+    is_active = models.BooleanField(
+        _("نشط"), 
+        default=True,
+        help_text=_("هل النوع نشط ويظهر في الواجهة؟")
+    )
+    is_system = models.BooleanField(
+        _("نوع نظام"), 
+        default=False,
+        help_text=_("الأنواع الأساسية التي لا يمكن حذفها")
+    )
+    
+    # تتبع التغييرات
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name=_("أنشئ بواسطة"),
+        related_name="created_supplier_types"
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True,
+        verbose_name=_("حُدث بواسطة"),
+        related_name="updated_supplier_types"
+    )
+    
+    class Meta:
+        verbose_name = _("إعدادات نوع المورد")
+        verbose_name_plural = _("إعدادات أنواع الموردين")
+        ordering = ['display_order', 'name']
+        db_table = 'supplier_type_settings'
+    
+    def __str__(self):
+        return self.name
+    
+    def clean(self):
+        """التحقق من صحة البيانات"""
+        super().clean()
+        
+        # التحقق من عدم تكرار الرمز
+        if SupplierTypeSettings.objects.filter(
+            code=self.code
+        ).exclude(pk=self.pk).exists():
+            raise ValidationError({
+                'code': _("هذا الرمز مستخدم بالفعل")
+            })
+        
+        # التحقق من صحة اللون
+        if not re.match(r'^#[0-9A-Fa-f]{6}$', self.color):
+            raise ValidationError({
+                'color': _("يجب أن يكون اللون بصيغة HEX صحيحة (مثل: #007bff)")
+            })
+        
+        # التحقق من صحة الرمز (إنجليزي فقط)
+        if not re.match(r'^[a-zA-Z0-9_]+$', self.code):
+            raise ValidationError({
+                'code': _("يجب أن يحتوي الرمز على أحرف إنجليزية وأرقام وشرطة سفلية فقط")
+            })
+    
+    def save(self, *args, **kwargs):
+        """حفظ النموذج مع التحقق من البيانات والتحديث التلقائي"""
+        self.full_clean()
+        super().save(*args, **kwargs)
+        
+        # تحديث SupplierType المرتبط تلقائياً
+        self.sync_with_supplier_type()
+    
+    def sync_with_supplier_type(self):
+        """مزامنة البيانات مع SupplierType المرتبط"""
+        try:
+            # البحث عن SupplierType المرتبط أو إنشاؤه
+            supplier_type, created = SupplierType.objects.get_or_create(
+                code=self.code,
+                defaults={
+                    'name': self.name,
+                    'description': self.description,
+                    'icon': self.icon,
+                    'color': self.color,
+                    'display_order': self.display_order,
+                    'is_active': self.is_active,
+                    'settings': self
+                }
+            )
+            
+            # إذا كان موجوداً، قم بتحديثه
+            if not created:
+                supplier_type.name = self.name
+                supplier_type.description = self.description
+                supplier_type.icon = self.icon
+                supplier_type.color = self.color
+                supplier_type.display_order = self.display_order
+                supplier_type.is_active = self.is_active
+                supplier_type.settings = self
+                supplier_type.save()
+            
+            # ربط العلاقة العكسية إذا لم تكن موجودة
+            if not hasattr(self, 'supplier_type'):
+                self.supplier_type = supplier_type
+                # تجنب استدعاء save() مرة أخرى لمنع التكرار اللانهائي
+                SupplierTypeSettings.objects.filter(pk=self.pk).update(supplier_type=supplier_type)
+                
+        except Exception as e:
+            # تسجيل الخطأ دون إيقاف العملية
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"فشل في مزامنة SupplierTypeSettings {self.code} مع SupplierType: {e}")
+    
+    @property
+    def suppliers_count(self):
+        """عدد الموردين المرتبطين بهذا النوع"""
+        return self.supplier_type.suppliers.filter(is_active=True).count() if hasattr(self, 'supplier_type') else 0
+    
+    @property
+    def can_delete(self):
+        """هل يمكن حذف هذا النوع؟"""
+        return not self.is_system and self.suppliers_count == 0
+    
+    @classmethod
+    def get_active_types(cls):
+        """جلب الأنواع النشطة مرتبة"""
+        return cls.objects.filter(is_active=True).order_by('display_order', 'name')
+    
+    @classmethod
+    def create_default_types(cls):
+        """إنشاء الأنواع الافتراضية للنظام"""
+        default_types = [
+            {
+                'name': 'مخزن ورق',
+                'code': 'paper',
+                'icon': 'fas fa-file-alt',
+                'color': '#28a745',
+                'display_order': 1,
+                'is_system': True
+            },
+            {
+                'name': 'مطبعة أوفست',
+                'code': 'offset_printing',
+                'icon': 'fas fa-print',
+                'color': '#007bff',
+                'display_order': 2,
+                'is_system': True
+            },
+            {
+                'name': 'مطبعة ديجيتال',
+                'code': 'digital_printing',
+                'icon': 'fas fa-desktop',
+                'color': '#17a2b8',
+                'display_order': 3,
+                'is_system': True
+            },
+            {
+                'name': 'خدمات الطباعة',
+                'code': 'finishing',
+                'icon': 'fas fa-cut',
+                'color': '#ffc107',
+                'display_order': 4,
+                'is_system': True
+            },
+            {
+                'name': 'مكتب فصل',
+                'code': 'plates',
+                'icon': 'fas fa-layer-group',
+                'color': '#6f42c1',
+                'display_order': 5,
+                'is_system': True
+            },
+            {
+                'name': 'تقفيل',
+                'code': 'packaging',
+                'icon': 'fas fa-box',
+                'color': '#fd7e14',
+                'display_order': 6,
+                'is_system': True
+            },
+            {
+                'name': 'تغطية',
+                'code': 'coating',
+                'icon': 'fas fa-paint-brush',
+                'color': '#e83e8c',
+                'display_order': 7,
+                'is_system': True
+            },
+            {
+                'name': 'أوت دور',
+                'code': 'outdoor',
+                'icon': 'fas fa-bullhorn',
+                'color': '#20c997',
+                'display_order': 8,
+                'is_system': True
+            },
+            {
+                'name': 'ليزر',
+                'code': 'laser',
+                'icon': 'fas fa-bolt',
+                'color': '#dc3545',
+                'display_order': 9,
+                'is_system': True
+            },
+            {
+                'name': 'هدايا VIP',
+                'code': 'vip_gifts',
+                'icon': 'fas fa-gift',
+                'color': '#6610f2',
+                'display_order': 10,
+                'is_system': True
+            },
+            {
+                'name': 'أخرى',
+                'code': 'other',
+                'icon': 'fas fa-ellipsis-h',
+                'color': '#6c757d',
+                'display_order': 99,
+                'is_system': True
+            }
+        ]
+        
+        created_count = 0
+        for type_data in default_types:
+            type_obj, created = cls.objects.get_or_create(
+                code=type_data['code'],
+                defaults=type_data
+            )
+            if created:
+                created_count += 1
+        
+        return created_count

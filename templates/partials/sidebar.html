@@ -146,6 +146,11 @@
                                 <i class="fas fa-cogs me-2"></i>{% trans "الخدمات المتخصصة" %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'supplier:supplier_type_settings_list' %}" class="submenu-link">
+                                <i class="fas fa-tags me-2"></i>{% trans "إعدادات أنواع الموردين" %}
+                            </a>
+                        </li>
                     </ul>
                 </li>
 
@@ -314,13 +319,6 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- المعاملات المالية -->
-                        <li class="submenu-title">المعاملات المالية</li>
-                        <li>
-                            <a href="{% url 'financial:transaction_list' %}" class="submenu-link">
-                                <i class="fas fa-exchange-alt me-2"></i>{% trans "المعاملات المالية" %}
-                            </a>
-                        </li>
                         <li>
                             <a href="{% url 'financial:expense_list' %}" class="submenu-link">
                                 <i class="fas fa-money-bill-alt me-2"></i>{% trans "المصروفات" %}
@@ -334,13 +332,24 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- إدارة الدفعات المحسنة -->
-                        <li class="submenu-title">إدارة الدفعات</li>
+                        <!-- إدارة الشراكة -->
+                        <li class="submenu-title">إدارة الشراكة</li>
                         <li>
-                            <a href="{% url 'financial:payment_dashboard' %}" class="submenu-link">
-                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة تحكم الدفعات" %}
+                            <a href="{% url 'financial:partner_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-handshake me-2"></i>{% trans "لوحة تحكم الشريك" %}
                             </a>
                         </li>
+                        <li>
+                            <a href="{% url 'financial:partner_transactions_list' %}" class="submenu-link">
+                                <i class="fas fa-exchange-alt me-2"></i>{% trans "معاملات الشريك" %}
+                            </a>
+                        </li>
+                        <!-- تم حذف إعدادات الشراكة - النظام المبسط -->
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- إدارة الدفعات المحسنة -->
+                        <li class="submenu-title">إدارة الدفعات</li>
                         <li>
                             <a href="{% url 'financial:payment_list' %}" class="submenu-link">
                                 <i class="fas fa-list me-2"></i>{% trans "قائمة الدفعات" %}
@@ -480,8 +489,6 @@
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
                     <ul class="collapse list-unstyled submenu {% if active_menu == 'settings' %}show{% endif %}" id="settingsMenu">
-                        <!-- الإعدادات العامة -->
-                        <li class="submenu-title">الإعدادات العامة</li>
                         <li>
                             <a href="{% url 'core:system_settings' %}" class="submenu-link">
                                 <i class="fas fa-sliders-h me-2"></i>{% trans "إعدادات النظام" %}
@@ -496,33 +503,7 @@
                             <a href="{% url 'printing_pricing:settings_home' %}" class="submenu-link">
                                 <i class="fas fa-calculator me-2"></i>{% trans "إعدادات التسعير" %}
                             </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- النسخ الاحتياطي المتقدم -->
-                        <li class="submenu-title">النسخ الاحتياطي المتقدم</li>
-                        <li>
-                            <a href="{% url 'financial:general_backup' %}" class="submenu-link">
-                                <i class="fas fa-database me-2"></i>{% trans "النسخ الاحتياطي العام" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'financial:financial_backup_advanced' %}" class="submenu-link">
-                                <i class="fas fa-coins me-2"></i>{% trans "نسخ احتياطي مالي متقدم" %}
-                                <span class="badge bg-warning ms-2">جديد</span>
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'financial:restore_data' %}" class="submenu-link">
-                                <i class="fas fa-history me-2"></i>{% trans "استعادة البيانات" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'financial:data_integrity_check' %}" class="submenu-link">
-                                <i class="fas fa-shield-alt me-2"></i>{% trans "التحقق من سلامة البيانات" %}
-                            </a>
-                        </li>
+                        </li>                        
                     </ul>
                 </li>
             </ul>

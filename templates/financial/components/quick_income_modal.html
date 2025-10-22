@@ -1,0 +1,329 @@
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load pricing_filters %}
+
+<!-- مودال الإيراد السريع -->
+<div class="modal fade" id="quickIncomeModal" tabindex="-1" aria-labelledby="quickIncomeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="quickIncomeModalLabel">
+          <i class="fas fa-plus-circle me-2"></i>
+          {% trans "إضافة إيراد جديد" %}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <form id="quickIncomeForm" method="post" action="{% url 'financial:income_create' %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          
+          <!-- رسائل الخطأ -->
+          <div id="quickIncomeErrors" class="alert alert-danger d-none" role="alert">
+            <ul class="mb-0" id="quickIncomeErrorsList"></ul>
+          </div>
+          
+          <div class="row">
+            <!-- وصف الإيراد -->
+            <div class="col-12 mb-3">
+              <label for="quick_income_description" class="form-label">
+                <i class="fas fa-edit me-1"></i>
+                {% trans "وصف الإيراد" %} <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control" id="quick_income_description" name="description" 
+                     placeholder="{% trans 'أدخل وصف الإيراد' %}" required>
+            </div>
+            
+            <!-- المبلغ -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_amount" class="form-label">
+                <i class="fas fa-money-bill me-1"></i>
+                {% trans "المبلغ" %} <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="quick_income_amount" name="amount" 
+                       placeholder="0" step="any" min="0.01" required>
+                <span class="input-group-text">{% trans "ج.م" %}</span>
+              </div>
+            </div>
+            
+            <!-- تاريخ الإيراد -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_date" class="form-label">
+                <i class="fas fa-calendar me-1"></i>
+                {% trans "تاريخ الإيراد" %} <span class="text-danger">*</span>
+              </label>
+              <input type="date" class="form-control" id="quick_income_date" name="income_date" required>
+            </div>
+            
+            <!-- حساب الإيراد -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_account" class="form-label">
+                <i class="fas fa-folder me-1"></i>
+                {% trans "حساب الإيراد" %} <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" id="quick_income_account" name="income_account" required>
+                <option value="">{% trans "اختر حساب الإيراد" %}</option>
+                <!-- سيتم تحميل الخيارات ديناميكياً -->
+              </select>
+            </div>
+            
+            <!-- الخزينة -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_receiving_account" class="form-label">
+                <i class="fas fa-wallet me-1"></i>
+                {% trans "الخزينة" %} <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" id="quick_receiving_account" name="receipt_account" required>
+                <option value="">{% trans "اختر الخزينة" %}</option>
+                <!-- سيتم تحميل الخيارات ديناميكياً -->
+              </select>
+            </div>
+            
+            <!-- ملاحظات -->
+            <div class="col-12 mb-3">
+              <label for="quick_income_notes" class="form-label">
+                <i class="fas fa-sticky-note me-1"></i>
+                {% trans "ملاحظات" %}
+              </label>
+              <textarea class="form-control" id="quick_income_notes" name="notes" rows="2" 
+                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}"></textarea>
+            </div>
+            
+            <!-- ترحيل تلقائي -->
+            <div class="col-12 mb-3">
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="quick_income_auto_post" name="auto_post" value="1">
+                <label class="form-check-label" for="quick_income_auto_post">
+                  <i class="fas fa-check-circle me-1"></i>
+                  {% trans "ترحيل تلقائي للقيد المحاسبي" %}
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>
+            {% trans "إلغاء" %}
+          </button>
+          <button type="submit" class="btn btn-success" id="quickIncomeSubmitBtn">
+            <i class="fas fa-save me-1"></i>
+            {% trans "حفظ الإيراد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// دالة فتح مودال الإيراد السريع
+function openQuickIncomeModal() {
+  // تحميل الحسابات
+  loadIncomeAccounts();
+  loadReceivingAccounts();
+  
+  // تعيين التاريخ الحالي
+  document.getElementById('quick_income_date').value = new Date().toISOString().split('T')[0];
+  
+  // إظهار المودال
+  const modal = new bootstrap.Modal(document.getElementById('quickIncomeModal'));
+  modal.show();
+  
+  // التركيز على حقل الوصف
+  setTimeout(() => {
+    document.getElementById('quick_income_description').focus();
+  }, 500);
+}
+
+// تحميل حسابات الإيرادات
+function loadIncomeAccounts() {
+  fetch('/financial/api/income-accounts/')
+    .then(response => response.json())
+    .then(data => {
+      const incomeSelect = document.getElementById('quick_income_account');
+      incomeSelect.innerHTML = '<option value="">{% trans "اختر حساب الإيراد" %}</option>';
+      
+      data.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.id;
+        option.textContent = `${account.name} (${account.code})`;
+        incomeSelect.appendChild(option);
+      });
+    })
+    .catch(error => {
+      console.error('Error loading income accounts:', error);
+      // استخدام الحسابات الافتراضية في حالة الخطأ
+      const incomeSelect = document.getElementById('quick_income_account');
+      incomeSelect.innerHTML = `
+        <option value="">{% trans "اختر حساب الإيراد" %}</option>
+        <option value="8">{% trans "إيرادات المبيعات" %}</option>
+        <option value="9">{% trans "إيرادات الخدمات" %}</option>
+        <option value="10">{% trans "إيرادات أخرى" %}</option>
+      `;
+    });
+}
+
+// تحميل حسابات الاستلام
+function loadReceivingAccounts() {
+  fetch('/financial/api/payment-accounts/')
+    .then(response => response.json())
+    .then(data => {
+      const receivingSelect = document.getElementById('quick_receiving_account');
+      receivingSelect.innerHTML = '<option value="">{% trans "اختر الخزينة" %}</option>';
+      
+      data.forEach(account => {
+        const option = document.createElement('option');
+        option.value = account.id;
+        option.textContent = `${account.name} (${account.code})`;
+        receivingSelect.appendChild(option);
+      });
+    })
+    .catch(error => {
+      console.error('Error loading receiving accounts:', error);
+      // استخدام الحسابات الافتراضية في حالة الخطأ
+      const receivingSelect = document.getElementById('quick_receiving_account');
+      receivingSelect.innerHTML = `
+        <option value="">{% trans "اختر الخزينة" %}</option>
+        <option value="1">{% trans "الصندوق" %}</option>
+        <option value="2">{% trans "البنك الأهلي المصري" %}</option>
+        <option value="3">{% trans "بنك مصر" %}</option>
+      `;
+    });
+}
+
+// معالجة إرسال النموذج
+document.getElementById('quickIncomeForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  submitQuickIncome();
+});
+
+// دالة إرسال الإيراد السريع
+function submitQuickIncome() {
+  const form = document.getElementById('quickIncomeForm');
+  const formData = new FormData(form);
+  const submitBtn = document.getElementById('quickIncomeSubmitBtn');
+  const originalText = submitBtn.innerHTML;
+  
+  // تعطيل الزر وإظهار مؤشر التحميل
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحفظ..." %}';
+  
+  // إخفاء رسائل الخطأ السابقة
+  hideQuickIncomeErrors();
+  
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // إغلاق المودال
+      const modal = bootstrap.Modal.getInstance(document.getElementById('quickIncomeModal'));
+      modal.hide();
+      
+      // عرض رسالة النجاح
+      showSuccessToast(data.message);
+      
+      // إعادة تحميل الصفحة أو تحديث القائمة
+      setTimeout(() => {
+        if (data.redirect_url) {
+          window.location.href = data.redirect_url;
+        } else {
+          location.reload();
+        }
+      }, 1000);
+    } else {
+      // عرض الأخطاء
+      showQuickIncomeErrors(data.errors || {}, data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showQuickIncomeErrors({}, '{% trans "حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى." %}');
+  })
+  .finally(() => {
+    // إعادة تفعيل الزر
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  });
+}
+
+// عرض أخطاء الإيراد السريع
+function showQuickIncomeErrors(errors, message) {
+  const errorDiv = document.getElementById('quickIncomeErrors');
+  const errorsList = document.getElementById('quickIncomeErrorsList');
+  
+  errorsList.innerHTML = '';
+  
+  if (message) {
+    const li = document.createElement('li');
+    li.textContent = message;
+    errorsList.appendChild(li);
+  }
+  
+  for (const [field, fieldErrors] of Object.entries(errors)) {
+    fieldErrors.forEach(error => {
+      const li = document.createElement('li');
+      li.textContent = `${field}: ${error}`;
+      errorsList.appendChild(li);
+    });
+  }
+  
+  errorDiv.classList.remove('d-none');
+}
+
+// إخفاء أخطاء الإيراد السريع
+function hideQuickIncomeErrors() {
+  document.getElementById('quickIncomeErrors').classList.add('d-none');
+}
+
+// عرض رسالة نجاح
+function showSuccessToast(message) {
+  // يمكن استخدام Bootstrap Toast أو أي مكتبة أخرى
+  const toast = `
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+      <div class="toast show" role="alert">
+        <div class="toast-header bg-success text-white">
+          <i class="fas fa-check-circle me-2"></i>
+          <strong class="me-auto">{% trans "نجح" %}</strong>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+          ${message}
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.insertAdjacentHTML('beforeend', toast);
+  
+  // إزالة التوست بعد 3 ثوان
+  setTimeout(() => {
+    const toastElement = document.querySelector('.toast-container');
+    if (toastElement) {
+      toastElement.remove();
+    }
+  }, 3000);
+}
+
+// إضافة معالج Enter للحفظ في المودال
+document.getElementById('quickIncomeModal').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    // تجاهل Enter في textarea
+    if (event.target.tagName.toLowerCase() === 'textarea') {
+      return;
+    }
+    
+    event.preventDefault();
+    document.getElementById('quickIncomeForm').dispatchEvent(new Event('submit'));
+  }
+});
+</script>

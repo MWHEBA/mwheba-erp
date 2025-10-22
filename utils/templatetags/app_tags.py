@@ -56,7 +56,11 @@ def currency(value, currency_symbol="ج.م"):
 
     try:
         value = Decimal(value)
-        formatted = "{:,.2f}".format(value)
+        # إذا كان الرقم صحيح (بدون كسور)، اعرضه بدون خانات عشرية
+        if value == value.to_integral_value():
+            formatted = "{:,.0f}".format(value)
+        else:
+            formatted = "{:,.2f}".format(value)
         return f"{formatted} {currency_symbol}"
     except (ValueError, TypeError, InvalidOperation):
         return value

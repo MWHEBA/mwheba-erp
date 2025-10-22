@@ -36,14 +36,20 @@ class ExpenseIncomeService:
         """
         try:
             with transaction.atomic():
+                # الحصول على الفترة المحاسبية
+                accounting_period = ExpenseIncomeService.get_or_create_accounting_period(data["expense_date"])
+                
                 # إنشاء القيد المحاسبي
+                reference = f"EXP-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                 journal_entry = JournalEntry.objects.create(
-                    reference=f"EXP-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+                    number=reference,
+                    reference=reference,
                     description=data["description"],
                     date=data["expense_date"],
                     notes=data.get("notes", ""),
                     created_by=user,
                     status="draft",
+                    accounting_period=accounting_period,
                 )
 
                 # إضافة بنود القيد
@@ -52,8 +58,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["expense_account"],
                     description=f"مصروف: {data['description']}",
-                    debit_amount=data["amount"],
-                    credit_amount=Decimal("0.00"),
+                    debit=data["amount"],
+                    credit=Decimal("0.00"),
                 )
 
                 # 2. حساب الدفع (دائن)
@@ -61,8 +67,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["payment_account"],
                     description=f"دفع مصروف: {data['description']}",
-                    debit_amount=Decimal("0.00"),
-                    credit_amount=data["amount"],
+                    debit=Decimal("0.00"),
+                    credit=data["amount"],
                 )
 
                 # ربط بالمورد إذا تم تحديده
@@ -88,14 +94,20 @@ class ExpenseIncomeService:
         """
         try:
             with transaction.atomic():
+                # الحصول على الفترة المحاسبية
+                accounting_period = ExpenseIncomeService.get_or_create_accounting_period(data["income_date"])
+                
                 # إنشاء القيد المحاسبي
+                reference = f"INC-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                 journal_entry = JournalEntry.objects.create(
-                    reference=f"INC-{timezone.now().strftime('%Y%m%d%H%M%S')}",
+                    number=reference,
+                    reference=reference,
                     description=data["description"],
                     date=data["income_date"],
                     notes=data.get("notes", ""),
                     created_by=user,
                     status="draft",
+                    accounting_period=accounting_period,
                 )
 
                 # إضافة بنود القيد
@@ -104,8 +116,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["receipt_account"],
                     description=f"استلام إيراد: {data['description']}",
-                    debit_amount=data["amount"],
-                    credit_amount=Decimal("0.00"),
+                    debit=data["amount"],
+                    credit=Decimal("0.00"),
                 )
 
                 # 2. الإيراد (دائن)
@@ -113,8 +125,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["income_account"],
                     description=f"إيراد: {data['description']}",
-                    debit_amount=Decimal("0.00"),
-                    credit_amount=data["amount"],
+                    debit=Decimal("0.00"),
+                    credit=data["amount"],
                 )
 
                 # ربط بالعميل إذا تم تحديده
@@ -160,8 +172,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["expense_account"],
                     description=f"مصروف: {data['description']}",
-                    debit_amount=data["amount"],
-                    credit_amount=Decimal("0.00"),
+                    debit=data["amount"],
+                    credit=Decimal("0.00"),
                 )
 
                 # 2. حساب الدفع (دائن)
@@ -169,8 +181,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["payment_account"],
                     description=f"دفع مصروف: {data['description']}",
-                    debit_amount=Decimal("0.00"),
-                    credit_amount=data["amount"],
+                    debit=Decimal("0.00"),
+                    credit=data["amount"],
                 )
 
                 # ربط بالمورد
@@ -213,8 +225,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["receipt_account"],
                     description=f"استلام إيراد: {data['description']}",
-                    debit_amount=data["amount"],
-                    credit_amount=Decimal("0.00"),
+                    debit=data["amount"],
+                    credit=Decimal("0.00"),
                 )
 
                 # 2. الإيراد (دائن)
@@ -222,8 +234,8 @@ class ExpenseIncomeService:
                     journal_entry=journal_entry,
                     account=data["income_account"],
                     description=f"إيراد: {data['description']}",
-                    debit_amount=Decimal("0.00"),
-                    credit_amount=data["amount"],
+                    debit=Decimal("0.00"),
+                    credit=data["amount"],
                 )
 
                 # ربط بالعميل
@@ -251,10 +263,10 @@ class ExpenseIncomeService:
 
                 # التحقق من توازن القيد
                 total_debit = sum(
-                    line.debit_amount for line in journal_entry.lines.all()
+                    line.debit for line in journal_entry.lines.all()
                 )
                 total_credit = sum(
-                    line.credit_amount for line in journal_entry.lines.all()
+                    line.credit for line in journal_entry.lines.all()
                 )
 
                 if total_debit != total_credit:
@@ -341,7 +353,7 @@ class ExpenseIncomeService:
         try:
             # البحث عن فترة محاسبية تحتوي على التاريخ
             period = AccountingPeriod.objects.filter(
-                start_date__lte=date, end_date__gte=date, is_closed=False
+                start_date__lte=date, end_date__gte=date, status="open"
             ).first()
 
             if not period:
@@ -360,7 +372,7 @@ class ExpenseIncomeService:
                     name=f"فترة {date.strftime('%Y-%m')}",
                     start_date=start_date,
                     end_date=end_date,
-                    is_closed=False,
+                    status="open",
                 )
 
                 logger.info(f"تم إنشاء فترة محاسبية جديدة: {period.name}")
@@ -377,20 +389,23 @@ class ExpenseIncomeService:
         تحديث أرصدة الحسابات بعد الترحيل
         """
         try:
-            for line in journal_entry.lines.all():
-                account = line.account
-
-                # تحديث الرصيد الحالي
-                if line.debit_amount > 0:
-                    account.current_balance += line.debit_amount
-                elif line.credit_amount > 0:
-                    account.current_balance -= line.credit_amount
-
-                account.save()
-
-                logger.debug(
-                    f"تم تحديث رصيد الحساب {account.code}: {account.current_balance}"
-                )
+            # تحديث كاش الأرصدة إذا كان متاح
+            try:
+                from .enhanced_balance_service import EnhancedBalanceService
+                
+                for line in journal_entry.lines.all():
+                    account = line.account
+                    # إعادة حساب الرصيد مع إجبار التحديث
+                    EnhancedBalanceService.get_account_balance_optimized(
+                        account, force_refresh=True
+                    )
+                    logger.debug(f"تم تحديث رصيد الحساب {account.code}")
+                    
+            except ImportError:
+                # إذا لم يكن النظام المحسن متاح، لا نفعل شيء
+                # لأن current_balance هو property محسوب تلقائياً
+                logger.debug("تم تخطي تحديث الأرصدة - النظام يحسب الأرصدة تلقائياً")
+                pass
 
         except Exception as e:
             logger.error(f"خطأ في تحديث أرصدة الحسابات: {str(e)}")
@@ -402,20 +417,23 @@ class ExpenseIncomeService:
         عكس تحديث أرصدة الحسابات عند إلغاء الترحيل
         """
         try:
-            for line in journal_entry.lines.all():
-                account = line.account
-
-                # عكس تحديث الرصيد
-                if line.debit_amount > 0:
-                    account.current_balance -= line.debit_amount
-                elif line.credit_amount > 0:
-                    account.current_balance += line.credit_amount
-
-                account.save()
-
-                logger.debug(
-                    f"تم عكس تحديث رصيد الحساب {account.code}: {account.current_balance}"
-                )
+            # تحديث كاش الأرصدة إذا كان متاح
+            try:
+                from .enhanced_balance_service import EnhancedBalanceService
+                
+                for line in journal_entry.lines.all():
+                    account = line.account
+                    # إعادة حساب الرصيد مع إجبار التحديث
+                    EnhancedBalanceService.get_account_balance_optimized(
+                        account, force_refresh=True
+                    )
+                    logger.debug(f"تم عكس تحديث رصيد الحساب {account.code}")
+                    
+            except ImportError:
+                # إذا لم يكن النظام المحسن متاح، لا نفعل شيء
+                # لأن current_balance هو property محسوب تلقائياً
+                logger.debug("تم تخطي عكس تحديث الأرصدة - النظام يحسب الأرصدة تلقائياً")
+                pass
 
         except Exception as e:
             logger.error(f"خطأ في عكس تحديث أرصدة الحسابات: {str(e)}")
@@ -442,9 +460,9 @@ class ExpenseIncomeService:
 
             for entry in queryset:
                 amount = sum(
-                    line.debit_amount
+                    line.debit
                     for line in entry.lines.all()
-                    if line.debit_amount > 0
+                    if line.debit > 0
                 )
                 total_expenses += amount
 
@@ -490,9 +508,9 @@ class ExpenseIncomeService:
 
             for entry in queryset:
                 amount = sum(
-                    line.credit_amount
+                    line.credit
                     for line in entry.lines.all()
-                    if line.credit_amount > 0
+                    if line.credit > 0
                 )
                 total_incomes += amount
 

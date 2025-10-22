@@ -1,0 +1,396 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<style>
+    .detail-card {
+        border-radius: 15px;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        margin-bottom: 20px;
+    }
+    .transaction-header {
+        background: linear-gradient(135deg, 
+            {% if transaction.transaction_type == 'contribution' %}#28a745, #20c997{% else %}#ffc107, #fd7e14{% endif %});
+        color: white;
+        border-radius: 15px 15px 0 0;
+        padding: 25px;
+    }
+    .info-row {
+        padding: 15px 0;
+        border-bottom: 1px solid #eee;
+    }
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    .info-label {
+        font-weight: 600;
+        color: #6c757d;
+        margin-bottom: 5px;
+    }
+    .info-value {
+        font-size: 1.1em;
+        color: #495057;
+    }
+    .amount-display {
+        font-size: 2em;
+        font-weight: bold;
+        text-align: center;
+        padding: 20px;
+        border-radius: 10px;
+        margin: 20px 0;
+    }
+    .amount-contribution {
+        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        color: #155724;
+    }
+    .amount-withdrawal {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        color: #856404;
+    }
+    .status-badge {
+        padding: 8px 15px;
+        border-radius: 20px;
+        font-weight: 600;
+        font-size: 0.9em;
+    }
+    .journal-entry-card {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'financial:partner_dashboard' %}">معاملات الشريك</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'financial:partner_transactions_list' %}">قائمة المعاملات</a>
+                    </li>
+                    <li class="breadcrumb-item active">تفاصيل المعاملة #{{ transaction.id }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- تفاصيل المعاملة الرئيسية -->
+        <div class="col-lg-8">
+            <div class="detail-card">
+                <div class="transaction-header">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-2">
+                                {% if transaction.transaction_type == 'contribution' %}
+                                    <i class="fas fa-plus-circle me-3"></i>
+                                    مساهمة الشريك
+                                {% else %}
+                                    <i class="fas fa-minus-circle me-3"></i>
+                                    سحب الشريك
+                                {% endif %}
+                            </h3>
+                            <p class="mb-0 opacity-75">
+                                معاملة رقم #{{ transaction.id }} - {{ transaction.transaction_date }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="status-badge bg-light text-dark">
+                                {{ transaction.get_status_display }}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-body">
+                    <!-- المبلغ -->
+                    <div class="amount-display amount-{{ transaction.transaction_type }}">
+                        <div class="mb-2">
+                            {% if transaction.transaction_type == 'contribution' %}
+                                <i class="fas fa-arrow-up"></i>
+                            {% else %}
+                                <i class="fas fa-arrow-down"></i>
+                            {% endif %}
+                        </div>
+                        {{ transaction.amount|remove_trailing_zeros }} ج.م
+                    </div>
+
+                    <!-- تفاصيل المعاملة -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <div class="info-label">الشريك</div>
+                                <div class="info-value">{{ transaction.partner_name }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <div class="info-label">الخزينة</div>
+                                <div class="info-value">{{ transaction.cash_account_name }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <div class="info-label">نوع المعاملة</div>
+                                <div class="info-value">
+                                    {{ transaction.get_transaction_type_display }}
+                                    {% if transaction.get_sub_type_display %}
+                                        <br><small class="text-muted">{{ transaction.get_sub_type_display }}</small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="info-row">
+                                <div class="info-label">تاريخ المعاملة</div>
+                                <div class="info-value">{{ transaction.transaction_date }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-row">
+                        <div class="info-label">الوصف</div>
+                        <div class="info-value">{{ transaction.description }}</div>
+                    </div>
+
+                    {% if transaction.notes %}
+                    <div class="info-row">
+                        <div class="info-label">ملاحظات إضافية</div>
+                        <div class="info-value">{{ transaction.notes }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- القيد المحاسبي -->
+            {% if transaction.journal_entry %}
+            <div class="detail-card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book me-2"></i>
+                        القيد المحاسبي المرتبط
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="journal-entry-card">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <strong>رقم القيد:</strong> {{ transaction.journal_entry.number }}
+                            </div>
+                            <div class="col-md-6">
+                                <strong>التاريخ:</strong> {{ transaction.journal_entry.date }}
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <strong>الوصف:</strong> {{ transaction.journal_entry.description }}
+                            </div>
+                        </div>
+                        
+                        <!-- بنود القيد -->
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>الحساب</th>
+                                        <th class="text-center">مدين</th>
+                                        <th class="text-center">دائن</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for line in transaction.journal_entry.lines.all %}
+                                    <tr>
+                                        <td>{{ line.account.name }}</td>
+                                        <td class="text-center">
+                                            {% if line.debit > 0 %}
+                                                {{ line.debit|remove_trailing_zeros }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if line.credit > 0 %}
+                                                {{ line.credit|remove_trailing_zeros }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="{% url 'financial:journal_entries_detail' transaction.journal_entry.id %}" 
+                               class="btn btn-outline-info">
+                                <i class="fas fa-external-link-alt me-2"></i>
+                                عرض القيد كاملاً
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- الشريط الجانبي -->
+        <div class="col-lg-4">
+            <!-- معلومات التدقيق -->
+            <div class="detail-card">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        معلومات التدقيق
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="info-row">
+                        <div class="info-label">أنشأ بواسطة</div>
+                        <div class="info-value">
+                            {{ transaction.created_by.get_full_name|default:transaction.created_by.username }}
+                        </div>
+                    </div>
+                    
+                    <div class="info-row">
+                        <div class="info-label">تاريخ الإنشاء</div>
+                        <div class="info-value">{{ transaction.created_at|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    
+                    {% if transaction.approved_by %}
+                    <div class="info-row">
+                        <div class="info-label">وافق عليه</div>
+                        <div class="info-value">
+                            {{ transaction.approved_by.get_full_name|default:transaction.approved_by.username }}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if transaction.approved_at %}
+                    <div class="info-row">
+                        <div class="info-label">تاريخ الموافقة</div>
+                        <div class="info-value">{{ transaction.approved_at|date:"d/m/Y H:i" }}</div>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="info-row">
+                        <div class="info-label">آخر تحديث</div>
+                        <div class="info-value">{{ transaction.updated_at|date:"d/m/Y H:i" }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الحالة والإجراءات -->
+            <div class="detail-card">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        الحالة والإجراءات
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <span class="status-badge 
+                            {% if transaction.status == 'completed' %}bg-success text-white
+                            {% elif transaction.status == 'approved' %}bg-info text-white
+                            {% elif transaction.status == 'pending' %}bg-warning text-dark
+                            {% else %}bg-danger text-white{% endif %}">
+                            {{ transaction.get_status_display }}
+                        </span>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        {% if transaction.journal_entry %}
+                            <a href="{% url 'financial:journal_entries_detail' transaction.journal_entry.id %}" 
+                               class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-book me-2"></i>
+                                عرض القيد المحاسبي
+                            </a>
+                        {% endif %}
+                        
+                        <a href="{% url 'financial:partner_transactions_list' %}" 
+                           class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-list me-2"></i>
+                            العودة للقائمة
+                        </a>
+                        
+                        <a href="{% url 'financial:partner_dashboard' %}" 
+                           class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-tachometer-alt me-2"></i>
+                            لوحة التحكم
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات إضافية -->
+            {% if transaction.transaction_type == 'contribution' %}
+            <div class="detail-card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>
+                        تفاصيل المساهمة
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-success">
+                        <i class="fas fa-info-circle me-2"></i>
+                        هذه المساهمة تزيد من رصيد الشريك وتزيد النقدية في الخزينة المحددة.
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="detail-card">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-minus-circle me-2"></i>
+                        تفاصيل السحب
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        هذا السحب يقلل من رصيد الشريك ويقلل النقدية في الخزينة المحددة.
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحسين عرض الصفحة
+    const cards = document.querySelectorAll('.detail-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(20px)';
+        
+        setTimeout(() => {
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 100);
+    });
+});
+</script>
+{% endblock %}

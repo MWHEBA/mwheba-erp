@@ -1,0 +1,498 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<style>
+    .partner-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 25px;
+        margin-bottom: 20px;
+    }
+    .balance-card {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 20px;
+    }
+    .stats-card {
+        background: white;
+        border-radius: 10px;
+        padding: 20px;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        margin-bottom: 15px;
+    }
+    .action-btn {
+        border-radius: 25px;
+        padding: 10px 25px;
+        font-weight: 600;
+        margin: 5px;
+    }
+    .contribution-btn {
+        background: linear-gradient(45deg, #28a745, #20c997);
+        border: none;
+        color: white;
+    }
+    .withdrawal-btn {
+        background: linear-gradient(45deg, #ffc107, #fd7e14);
+        border: none;
+        color: white;
+    }
+    .transaction-item {
+        border-left: 4px solid #dee2e6;
+        padding: 15px;
+        margin-bottom: 10px;
+        background: #f8f9fa;
+        border-radius: 0 8px 8px 0;
+    }
+    .transaction-item.contribution {
+        border-left-color: #28a745;
+    }
+    .transaction-item.withdrawal {
+        border-left-color: #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="partner-card">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h2 class="mb-2">
+                            <i class="{{ page_icon }} me-3"></i>
+                            {{ page_title }}
+                        </h2>
+                        <p class="mb-0 opacity-75">إدارة مساهمات وسحوبات الشريك</p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button class="btn contribution-btn action-btn" onclick="openContributionModal()">
+                            <i class="fas fa-plus-circle me-2"></i>
+                            مساهمة جديدة
+                        </button>
+                        <button class="btn withdrawal-btn action-btn" onclick="openWithdrawalModal()">
+                            <i class="fas fa-minus-circle me-2"></i>
+                            سحب مبلغ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الأرصدة والإحصائيات -->
+    <div class="row mb-4">
+        <!-- رصيد الشريك -->
+        <div class="col-md-4">
+            <div class="balance-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-wallet me-2"></i>
+                    رصيد الشريك
+                </h5>
+                <h2 class="mb-2">{{ partner_balance.current_balance|remove_trailing_zeros }} ج.م</h2>
+                <small class="opacity-75">
+                    {% if partner_balance.last_transaction_date %}
+                        آخر معاملة: {{ partner_balance.last_transaction_date }}
+                    {% else %}
+                        لا توجد معاملات بعد
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+
+        <!-- إجمالي المساهمات -->
+        <div class="col-md-4">
+            <div class="stats-card text-center">
+                <i class="fas fa-arrow-up text-success fa-2x mb-3"></i>
+                <h4 class="text-success">{{ partner_balance.total_contributions|remove_trailing_zeros }} ج.م</h4>
+                <p class="text-muted mb-0">إجمالي المساهمات</p>
+            </div>
+        </div>
+
+        <!-- إجمالي السحوبات -->
+        <div class="col-md-4">
+            <div class="stats-card text-center">
+                <i class="fas fa-arrow-down text-warning fa-2x mb-3"></i>
+                <h4 class="text-warning">{{ partner_balance.total_withdrawals|remove_trailing_zeros }} ج.م</h4>
+                <p class="text-muted mb-0">إجمالي السحوبات</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- الإحصائيات الشهرية -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="stats-card">
+                <h6 class="text-muted mb-3">المساهمات الشهرية (آخر 30 يوم)</h6>
+                <h4 class="text-success">{{ monthly_stats.contributions|remove_trailing_zeros }} ج.م</h4>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="stats-card">
+                <h6 class="text-muted mb-3">السحوبات الشهرية (آخر 30 يوم)</h6>
+                <h4 class="text-warning">{{ monthly_stats.withdrawals|remove_trailing_zeros }} ج.م</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- آخر المعاملات -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        آخر المعاملات
+                    </h5>
+                    <a href="{% url 'financial:partner_transactions_list' %}" class="btn btn-outline-primary btn-sm">
+                        عرض الكل
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                        {% for transaction in recent_transactions %}
+                        <div class="transaction-item {{ transaction.transaction_type }}">
+                            <div class="row align-items-center">
+                                <div class="col-md-2">
+                                    {% if transaction.transaction_type == 'contribution' %}
+                                        <i class="fas fa-plus-circle text-success fa-lg"></i>
+                                        <span class="text-success fw-bold">مساهمة</span>
+                                    {% else %}
+                                        <i class="fas fa-minus-circle text-warning fa-lg"></i>
+                                        <span class="text-warning fw-bold">سحب</span>
+                                    {% endif %}
+                                </div>
+                                <div class="col-md-3">
+                                    <strong>{{ transaction.amount|remove_trailing_zeros }} ج.م</strong>
+                                </div>
+                                <div class="col-md-4">
+                                    {{ transaction.description|truncatechars:50 }}
+                                </div>
+                                <div class="col-md-2">
+                                    {{ transaction.transaction_date }}
+                                </div>
+                                <div class="col-md-1">
+                                    <span class="badge bg-{{ transaction.status|yesno:'success,warning,danger' }}">
+                                        {{ transaction.get_status_display }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">لا توجد معاملات بعد</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال المساهمة -->
+<div class="modal fade" id="contributionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus-circle me-2"></i>
+                    مساهمة جديدة
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="contributionForm" method="post" action="{% url 'financial:create_contribution' %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="partner_account" value="{{ partner_account.id }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">المبلغ *</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="amount" 
+                                           step="0.01" min="0.01" required>
+                                    <span class="input-group-text">ج.م</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الخزينة *</label>
+                                <select class="form-select" name="cash_account" required>
+                                    <option value="">اختر الخزينة</option>
+                                    {% for account in cash_accounts %}
+                                        <option value="{{ account.id }}">{{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">نوع المساهمة *</label>
+                                <select class="form-select" name="contribution_type" required>
+                                    <option value="">اختر النوع</option>
+                                    <option value="loan">قرض للشركة</option>
+                                    <option value="capital_increase">زيادة رأس المال</option>
+                                    <option value="temporary">مساهمة مؤقتة</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">التاريخ *</label>
+                                <input type="date" class="form-control" name="transaction_date" 
+                                       value="{% now 'Y-m-d' %}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">الوصف *</label>
+                        <textarea class="form-control" name="description" rows="3" 
+                                  placeholder="سبب المساهمة..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-plus me-2"></i>
+                        إضافة المساهمة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- مودال السحب -->
+<div class="modal fade" id="withdrawalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="fas fa-minus-circle me-2"></i>
+                    سحب مبلغ
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="withdrawalForm" method="post" action="{% url 'financial:create_withdrawal' %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" name="partner_account" value="{{ partner_account.id }}">
+                    
+                    <!-- تنبيه الرصيد -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        الرصيد المتاح: <strong>{{ partner_balance.current_balance|remove_trailing_zeros }} ج.م</strong>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">المبلغ *</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" name="amount" 
+                                           step="0.01" min="0.01" 
+                                           max="{{ partner_balance.current_balance }}" required>
+                                    <span class="input-group-text">ج.م</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">الخزينة *</label>
+                                <select class="form-select" name="cash_account" required>
+                                    <option value="">اختر الخزينة</option>
+                                    {% for account in cash_accounts %}
+                                        <option value="{{ account.id }}">{{ account.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">نوع السحب *</label>
+                                <select class="form-select" name="withdrawal_type" required>
+                                    <option value="">اختر النوع</option>
+                                    <option value="loan_repayment">سداد قرض سابق</option>
+                                    <option value="capital_withdrawal">سحب من رأس المال</option>
+                                    <option value="profit_distribution">توزيع أرباح</option>
+                                    <option value="personal_expense">مصروف شخصي</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">التاريخ *</label>
+                                <input type="date" class="form-control" name="transaction_date" 
+                                       value="{% now 'Y-m-d' %}" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">الوصف *</label>
+                        <textarea class="form-control" name="description" rows="3" 
+                                  placeholder="سبب السحب..." required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-minus me-2"></i>
+                        تأكيد السحب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openContributionModal() {
+    const modal = new bootstrap.Modal(document.getElementById('contributionModal'));
+    modal.show();
+}
+
+function openWithdrawalModal() {
+    const modal = new bootstrap.Modal(document.getElementById('withdrawalModal'));
+    modal.show();
+}
+
+// معالجة نموذج المساهمة
+document.getElementById('contributionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // تعطيل الزر وإظهار مؤشر التحميل
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الإضافة...';
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // إغلاق المودال
+            bootstrap.Modal.getInstance(document.getElementById('contributionModal')).hide();
+            
+            // عرض رسالة النجاح
+            showSuccessAlert(data.message);
+            
+            // إعادة تحميل الصفحة
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showErrorAlert(data.error || 'حدث خطأ غير متوقع');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showErrorAlert('حدث خطأ في الاتصال');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+
+// معالجة نموذج السحب
+document.getElementById('withdrawalForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalText = submitBtn.innerHTML;
+    
+    // تعطيل الزر وإظهار مؤشر التحميل
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري المعالجة...';
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // إغلاق المودال
+            bootstrap.Modal.getInstance(document.getElementById('withdrawalModal')).hide();
+            
+            // عرض رسالة النجاح
+            showSuccessAlert(data.message);
+            
+            // إعادة تحميل الصفحة
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showErrorAlert(data.error || 'حدث خطأ غير متوقع');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showErrorAlert('حدث خطأ في الاتصال');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+    });
+});
+
+// دوال عرض الرسائل
+function showSuccessAlert(message) {
+    const alertHtml = `
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="fas fa-check-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.querySelector('.container-fluid').insertAdjacentHTML('afterbegin', alertHtml);
+}
+
+function showErrorAlert(message) {
+    const alertHtml = `
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="fas fa-exclamation-circle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+    document.querySelector('.container-fluid').insertAdjacentHTML('afterbegin', alertHtml);
+}
+</script>
+{% endblock %}

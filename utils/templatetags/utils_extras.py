@@ -223,3 +223,49 @@ def format_dimension(value):
     تنسيق الأبعاد بإزالة الأصفار الزائدة
     """
     return remove_trailing_zeros(value)
+
+
+@register.filter
+def get_attr(obj, attr_name):
+    """
+    الحصول على خاصية من كائن أو dictionary
+    """
+    if isinstance(obj, dict):
+        return obj.get(attr_name, '')
+    else:
+        return getattr(obj, attr_name, '')
+
+
+@register.filter
+def call(obj, method_name):
+    """
+    استدعاء دالة على كائن
+    """
+    if hasattr(obj, method_name):
+        method = getattr(obj, method_name)
+        if callable(method):
+            return method()
+    return ''
+
+
+@register.filter
+def split(value, delimiter):
+    """
+    تقسيم نص بناءً على فاصل
+    """
+    if isinstance(value, str):
+        return value.split(delimiter)
+    return []
+
+
+@register.simple_tag
+def get_coating_type_name(coating_type_id):
+    """
+    جلب اسم نوع التغطية من ID
+    """
+    try:
+        from printing_pricing.models import CoatingType
+        coating_type = CoatingType.objects.get(id=coating_type_id)
+        return coating_type.name
+    except (CoatingType.DoesNotExist, ValueError, TypeError):
+        return None

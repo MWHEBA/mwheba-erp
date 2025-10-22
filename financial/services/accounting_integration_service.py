@@ -152,11 +152,16 @@ class AccountingIntegrationService:
                     description=f"مشتريات مخزون - فاتورة {purchase.number}",
                 )
 
-                # قيد المورد (دائن) - دائماً نسجل في حساب الموردين
-                # القيد النقدي سيتم في قيد الدفعة المنفصل
+                # قيد المورد (دائن) - استخدام حساب المورد المحدد
+                supplier_account = cls._get_supplier_account(purchase.supplier)
+                if not supplier_account:
+                    # استخدام الحساب العام كحل أخير
+                    supplier_account = accounts["accounts_payable"]
+                    logger.warning(f"استخدام حساب الموردين العام للمورد {purchase.supplier.name}")
+                
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
-                    account=accounts["accounts_payable"],
+                    account=supplier_account,
                     debit=Decimal("0.00"),
                     credit=purchase.total,
                     description=f"مشتريات - المورد {purchase.supplier.name} - فاتورة {purchase.number}",
@@ -209,8 +214,10 @@ class AccountingIntegrationService:
                     reference = f"دفعة للمورد - فاتورة {payment.purchase.number}"
                     description = f"دفع للمورد {payment.purchase.supplier.name}"
 
-                    # مدين الموردين
-                    account_debit = accounts["accounts_payable"]
+                    # مدين حساب المورد المحدد
+                    supplier_account = cls._get_supplier_account(payment.purchase.supplier)
+                    account_debit = supplier_account if supplier_account else accounts["accounts_payable"]
+                    
                     # دائن الصندوق/البنك
                     account_credit = (
                         accounts["cash"]
@@ -506,3 +513,75 @@ class AccountingIntegrationService:
         }
 
         return accounts_data.get(account_key)
+
+    @classmethod
+    def _get_supplier_account(cls, supplier) -> Optional[ChartOfAccounts]:
+        """الحصول على حساب المورد المحدد أو إنشاؤه"""
+        try:
+            # أولاً: محاولة استخدام الحساب المالي المحدد للمورد
+            if supplier.financial_account and supplier.financial_account.is_active:
+                logger.info(f"✅ استخدام حساب المورد المحدد: {supplier.financial_account.code} - {supplier.financial_account.name}")
+                return supplier.financial_account
+            
+            # ثانياً: البحث عن حساب فرعي للمورد في شجرة الحسابات
+            supplier_sub_accounts = ChartOfAccounts.objects.filter(
+                name__icontains=supplier.name,
+                is_active=True,
+                is_leaf=True,  # حساب نهائي
+                parent__code__startswith="201"  # تحت مجموعة الموردين
+            )
+            
+            if supplier_sub_accounts.exists():
+                account = supplier_sub_accounts.first()
+                logger.info(f"✅ وُجد حساب فرعي للمورد: {account.code} - {account.name}")
+                return account
+            
+            # ثالثاً: محاولة إنشاء حساب جديد للمورد
+            try:
+                # البحث عن الحساب الأب للموردين
+                parent_account = ChartOfAccounts.objects.get(code="2010", is_active=True)
+                
+                # إنشاء رقم حساب جديد للمورد
+                last_supplier_account = ChartOfAccounts.objects.filter(
+                    code__startswith="20101"
+                ).order_by("-code").first()
+                
+                if last_supplier_account:
+                    try:
+                        last_number = int(last_supplier_account.code[5:])  # آخر 3 أرقام
+                        new_number = last_number + 1
+                    except (ValueError, IndexError):
+                        new_number = 1
+                else:
+                    new_number = 1
+                
+                new_code = f"20101{new_number:03d}"  # مثال: 20101001
+                
+                # إنشاء الحساب الجديد
+                new_account = ChartOfAccounts.objects.create(
+                    code=new_code,
+                    name=f"المورد - {supplier.name}",
+                    parent=parent_account,
+                    account_type="liability",
+                    is_active=True,
+                    is_leaf=True,
+                    created_by_id=1  # استخدام المستخدم الافتراضي
+                )
+                
+                # ربط الحساب الجديد بالمورد
+                supplier.financial_account = new_account
+                supplier.save(update_fields=['financial_account'])
+                
+                logger.info(f"✅ تم إنشاء حساب جديد للمورد: {new_account.code} - {new_account.name}")
+                return new_account
+                
+            except Exception as e:
+                logger.warning(f"⚠️ فشل في إنشاء حساب جديد للمورد: {e}")
+            
+            # رابعاً: إرجاع None للاستخدام الحساب العام
+            logger.warning(f"⚠️ لم يتم العثور على حساب محدد للمورد {supplier.name}")
+            return None
+            
+        except Exception as e:
+            logger.error(f"❌ خطأ في الحصول على حساب المورد: {e}")
+            return None

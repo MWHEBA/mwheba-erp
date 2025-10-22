@@ -29,7 +29,6 @@ class ExpenseForm(forms.Form):
         label="المبلغ",
         max_digits=15,
         decimal_places=2,
-        min_value=Decimal("0.01"),
         widget=forms.NumberInput(
             attrs={"class": "form-control", "placeholder": "0", "step": "any"}
         ),
@@ -40,7 +39,6 @@ class ExpenseForm(forms.Form):
         initial=timezone.now().date(),
         widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
     )
-
     # الحسابات المحاسبية
     expense_account = forms.ModelChoiceField(
         label="حساب المصروف",
@@ -172,11 +170,11 @@ class ExpenseEditForm(ExpenseForm):
             # استخراج المبلغ والحسابات من بنود القيد
             lines = self.journal_entry.lines.all()
             for line in lines:
-                if line.debit_amount > 0:
+                if line.debit > 0:
                     # حساب المصروف (مدين)
                     self.initial["expense_account"] = line.account
-                    self.initial["amount"] = line.debit_amount
-                elif line.credit_amount > 0:
+                    self.initial["amount"] = line.debit
+                elif line.credit > 0:
                     # حساب الدفع (دائن)
                     self.initial["payment_account"] = line.account
 

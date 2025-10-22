@@ -52,6 +52,11 @@
                                     <i class="fas fa-exclamation-triangle me-1"></i>
                                     غير مربوط بحساب محاسبي
                                 </p>
+                                <div class="mt-2">
+                                    <button type="button" class="btn btn-sm btn-primary" onclick="openCreateAccountModal({{ customer.pk }})">
+                                        <i class="fas fa-plus-circle me-1"></i>إنشاء حساب جديد
+                                    </button>
+                                </div>
                             {% endif %}
                         </div>
                         <div class="col-md-3">
@@ -108,16 +113,32 @@
 
                         <!-- أزرار الإجراءات -->
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'client:customer_detail' customer.pk %}" class="btn btn-secondary">
-                                <i class="fas fa-arrow-right me-2"></i>إلغاء
-                            </a>
-                            <button type="submit" class="btn btn-primary">
+                            <div>
+                                <a href="{% url 'client:customer_detail' customer.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-right me-2"></i>إلغاء
+                                </a>
+                                {% if not customer.financial_account %}
+                                    <button type="button" class="btn btn-primary ms-2" onclick="openCreateAccountModal({{ customer.pk }})">
+                                        <i class="fas fa-plus-circle me-2"></i>إنشاء حساب جديد
+                                    </button>
+                                {% endif %}
+                            </div>
+                            <button type="submit" class="btn btn-success">
                                 <i class="fas fa-save me-2"></i>حفظ التغييرات
                             </button>
                         </div>
                     </form>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إنشاء حساب محاسبي -->
+<div class="modal fade" id="createAccountModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" id="createAccountModalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
         </div>
     </div>
 </div>
@@ -203,6 +224,65 @@ $(document).ready(function() {
         width: '100%'
     });
 });
+
+// فتح مودال إنشاء حساب محاسبي
+function openCreateAccountModal(customerId) {
+    fetch(`/client/${customerId}/create-account/`, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.html) {
+            document.getElementById('createAccountModalContent').innerHTML = data.html;
+            new bootstrap.Modal(document.getElementById('createAccountModal')).show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ في تحميل المودال');
+    });
+}
+
+// إنشاء حساب محاسبي للعميل
+function createCustomerAccount(customerId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    
+    fetch(`/client/${customerId}/create-account/`, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            // عرض رسالة النجاح
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-success alert-dismissible fade show';
+            alertDiv.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>${data.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+            
+            // إعادة تحميل الصفحة بعد ثانيتين
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            alert(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء إنشاء الحساب');
+    });
+}
 </script>
 {% endblock %}
 {% endblock %}

@@ -1,0 +1,120 @@
+# financial/views/__init__.py
+# ملف التجميع الرئيسي لجميع العروض المالية
+# تم تقسيم views.py الأصلي إلى ملفات متخصصة لسهولة الصيانة
+
+# من account_views.py
+from .account_views import (
+    get_cash_and_bank_accounts,
+    get_all_active_accounts,
+    get_accounts_by_category,
+    get_bank_accounts,
+    get_next_available_code,
+    cash_and_bank_accounts_list,
+    chart_of_accounts_list,
+    chart_tree_api,
+    chart_of_accounts_create,
+    chart_of_accounts_detail,
+    chart_of_accounts_delete,
+    account_types_list,
+    account_types_detail,
+    account_types_create,
+    account_types_edit,
+    account_types_delete,
+    account_list,
+    get_account_transactions,
+    get_account_analytics,
+    account_detail,
+    account_create,
+    account_edit,
+    account_transactions,
+    account_delete,
+    bank_reconciliation_list,
+    bank_reconciliation_create,
+    cash_account_movements,
+    enhanced_balances_list,
+    enhanced_balances_refresh,
+    enhanced_balances_audit,
+    payment_list,
+    payment_detail,
+    payment_edit,
+    payment_unpost,
+    payment_delete,
+    payment_history,
+    create_contribution,
+    create_withdrawal,
+    partner_dashboard,
+    partner_transactions_list,
+    partner_transaction_detail,
+    get_partner_balance,
+)
+
+# من transaction_views.py  
+from .transaction_views import (
+    journal_entries_list,
+    journal_entries_create,
+    journal_entries_detail,
+    journal_entries_edit,
+    journal_entries_delete,
+    journal_entries_post,
+    transaction_list,
+    transaction_detail,
+    transaction_create,
+    transaction_edit,
+    transaction_delete,
+    journal_entry_delete,
+)
+
+# من api_views.py
+from .api_views import (
+    api_expense_accounts,
+    api_payment_accounts,
+    api_income_accounts,
+    export_transactions,
+    ledger_report,
+    balance_sheet,
+    trial_balance_report,
+    sales_report,
+    purchases_report,
+    inventory_report,
+    general_backup,
+    financial_backup_advanced,
+    restore_data,
+    data_integrity_check,
+    payment_sync_check_pending_api,
+    payment_sync_process_pending_api,
+    audit_trail_list,
+    audit_trail_cleanup,
+    payment_sync_operations,
+    payment_sync_logs,
+    journal_entry_summary_api,
+    income_statement,
+    financial_analytics,
+)
+
+# من income_views.py
+from .income_views import (
+    expense_list,
+    expense_detail,
+    expense_create,
+    expense_edit,
+    expense_mark_paid,
+    expense_cancel,
+    income_list,
+    income_detail,
+    income_mark_received,
+    income_cancel,
+    category_list,
+    category_create,
+    category_edit,
+    category_delete,
+    expense_create_enhanced,
+    expense_detail_enhanced,
+)
+
+# من period_views.py
+from .period_views import (
+    accounting_periods_list,
+    accounting_periods_create,
+    accounting_periods_edit,
+    accounting_periods_close,
+)

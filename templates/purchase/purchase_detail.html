@@ -395,6 +395,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
     <!-- عنوان الصفحة (مضمن مباشرة) -->
     <div class="mb-4">
@@ -800,6 +801,9 @@
                                                 <a href="{% url 'purchase:edit_payment' payment.id %}" class="btn btn-sm btn-outline-secondary" title="تعديل الدفعة">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
+                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDeletePayment({{ payment.id }})" title="حذف الدفعة">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
                                                 {% elif payment.status == 'posted' %}
                                                 <a href="{% url 'purchase:unpost_payment' payment.id %}" class="btn btn-sm btn-warning">
                                                     <i class="fas fa-undo me-1"></i>إلغاء الترحيل
@@ -911,6 +915,29 @@
             }
         );
     });
+    
+    // دالة تأكيد حذف الدفعة
+    function confirmDeletePayment(paymentId) {
+        if (confirm('هل أنت متأكد من حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            // إنشاء نموذج مخفي لإرسال طلب POST
+            var form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '/purchases/payments/' + paymentId + '/delete/';
+            
+            // إضافة CSRF token
+            var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                var csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
     
     // عرض SweetAlert للترحيل بعد حفظ الدفعة
     {% if show_post_alert %}

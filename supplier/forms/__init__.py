@@ -164,13 +164,19 @@ class SupplierForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # إضافة حقل أنواع الموردين
-        from ..models import SupplierType
+        # إضافة حقل أنواع الموردين - الجلب من الإعدادات الديناميكية
+        from ..models import SupplierType, SupplierTypeSettings
+
+        # التأكد من وجود الإعدادات ومزامنتها
+        SupplierType.sync_with_settings()
+
+        # جلب الأنواع النشطة من الإعدادات الديناميكية
+        active_types = SupplierType.objects.filter(
+            settings__is_active=True
+        ).select_related('settings').order_by('settings__display_order', 'name')
 
         self.fields["supplier_types"] = forms.ModelMultipleChoiceField(
-            queryset=SupplierType.objects.filter(is_active=True).order_by(
-                "display_order"
-            ),
+            queryset=active_types,
             widget=forms.CheckboxSelectMultiple(attrs={"class": "form-check-input"}),
             required=False,
             label="أنواع المورد",

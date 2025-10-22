@@ -22,6 +22,8 @@ from .payment_sync import (
 from .bank_reconciliation import BankReconciliation, BankReconciliationItem
 from .categories import FinancialCategory, CategoryBudget
 from .audit_trail import AuditTrail, PaymentAuditMixin
+from .partner_transactions import PartnerTransaction, PartnerBalance
+from .partner_settings import PartnerSettings, PartnerPermission, PartnerAuditLog
 
 # استيراد آمن للنماذج الاختيارية
 try:
@@ -67,6 +69,12 @@ __all__ = [
     # نماذج التدقيق
     "AuditTrail",
     "PaymentAuditMixin",
+    # نماذج معاملات الشريك
+    "PartnerTransaction",
+    "PartnerBalance",
+    "PartnerSettings",
+    "PartnerPermission",
+    "PartnerAuditLog",
     # نماذج المعاملات المحسنة
     "FinancialTransaction",
     "ExpenseTransaction",

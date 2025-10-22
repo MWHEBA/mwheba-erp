@@ -20,6 +20,7 @@ urlpatterns = [
         "payments/<int:payment_id>/unpost/", views.unpost_payment, name="unpost_payment"
     ),
     path("payments/<int:payment_id>/edit/", views.edit_payment, name="edit_payment"),
+    path("payments/<int:payment_id>/delete/", views.delete_payment, name="delete_payment"),
     path(
         "payments/<int:payment_id>/unpost-only/",
         views.unpost_payment_only,

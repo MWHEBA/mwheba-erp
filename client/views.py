@@ -5,10 +5,13 @@ from django.utils.translation import gettext_lazy as _
 from django.db import transaction
 from django.db.models import Sum, Q
 from django.urls import reverse
+from django.http import JsonResponse
+from django.template.loader import render_to_string
 
 from .models import Customer, CustomerPayment
 from .forms import CustomerForm, CustomerAccountChangeForm
 from sale.models import Sale
+from financial.models import ChartOfAccounts
 # from printing_pricing.models import PrintingOrder  # مؤقتاً حتى يتم إكمال النظام الجديد
 
 # Create your views here.
@@ -65,12 +68,6 @@ def customer_list(request):
             "icon": "fa-edit",
             "class": "action-edit",
             "label": "تعديل",
-        },
-        {
-            "url": "client:customer_delete",
-            "icon": "fa-trash",
-            "class": "action-delete",
-            "label": "حذف",
         },
     ]
 
@@ -826,3 +823,94 @@ def customer_change_account(request, pk):
     }
 
     return render(request, "client/customer_change_account.html", context)
+
+
+@login_required
+def customer_create_account(request, pk):
+    """
+    إنشاء حساب محاسبي جديد للعميل (AJAX)
+    """
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    # التحقق من أن العميل لا يملك حساب بالفعل
+    if customer.financial_account:
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False, 
+                'message': f'العميل "{customer.name}" مربوط بالفعل بحساب محاسبي'
+            })
+        messages.warning(request, f'العميل "{customer.name}" مربوط بالفعل بحساب محاسبي')
+        return redirect("client:customer_change_account", pk=customer.pk)
+    
+    if request.method == "POST":
+        try:
+            # البحث عن حساب العملاء الرئيسي
+            customers_account = ChartOfAccounts.objects.filter(code="11030").first()
+            
+            if not customers_account:
+                error_msg = "لا يمكن العثور على حساب العملاء الرئيسي في النظام"
+                if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                    return JsonResponse({'success': False, 'message': error_msg})
+                messages.error(request, error_msg)
+                return redirect("client:customer_change_account", pk=customer.pk)
+            
+            # إنشاء كود فريد للحساب الجديد
+            # البحث عن آخر حساب فرعي تحت حساب العملاء
+            # النمط المتوقع: 1103001, 1103002, 1103003...
+            last_customer_account = ChartOfAccounts.objects.filter(
+                parent=customers_account,
+                code__regex=r'^1103\d{3}$'  # يبدأ بـ 1103 ويتبعه 3 أرقام
+            ).order_by('-code').first()
+            
+            if last_customer_account:
+                # استخراج الرقم التسلسلي من آخر 3 أرقام
+                last_number = int(last_customer_account.code[-3:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            # تكوين الكود الجديد: 1103 + رقم تسلسلي من 3 أرقام
+            new_code = f"1103{new_number:03d}"
+            
+            # إنشاء اسم مناسب للحساب
+            account_name = f"عميل - {customer.name}"
+            
+            # إنشاء الحساب الجديد
+            new_account = ChartOfAccounts.objects.create(
+                code=new_code,
+                name=account_name,
+                parent=customers_account,
+                account_type=customers_account.account_type,
+                is_active=True,
+                is_leaf=True,
+                description=f"حساب محاسبي للعميل: {customer.name} (كود العميل: {customer.code})"
+            )
+            
+            # ربط العميل بالحساب الجديد
+            customer.financial_account = new_account
+            customer.save()
+            
+            success_msg = f'تم إنشاء حساب محاسبي جديد "{new_account.code} - {new_account.name}" وربطه بالعميل بنجاح'
+            
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True, 'message': success_msg})
+            
+            messages.success(request, success_msg)
+            return redirect("client:customer_detail", pk=customer.pk)
+            
+        except Exception as e:
+            error_msg = f"حدث خطأ أثناء إنشاء الحساب: {str(e)}"
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'message': error_msg})
+            messages.error(request, error_msg)
+            return redirect("client:customer_change_account", pk=customer.pk)
+    
+    # للطلبات GET - إرجاع مودال التأكيد
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        html = render_to_string('client/customer_create_account_modal.html', {
+            'customer': customer
+        }, request=request)
+        return JsonResponse({'html': html})
+    
+    # إعادة توجيه للصفحة العادية
+    return redirect("client:customer_change_account", pk=customer.pk)

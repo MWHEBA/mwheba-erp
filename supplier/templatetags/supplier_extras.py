@@ -18,11 +18,13 @@ def get_service_categories(supplier):
 
 @register.simple_tag
 def get_all_service_categories(supplier):
-    """الحصول على فئات الخدمات المختارة للمورد"""
+    """الحصول على فئات الخدمات المختارة للمورد من الإعدادات الديناميكية"""
     try:
-        # إرجاع فقط الفئات المختارة لهذا المورد
-        return supplier.supplier_types.filter(is_active=True).order_by(
-            "display_order", "name"
+        # إرجاع فقط الفئات المختارة لهذا المورد من الإعدادات الديناميكية
+        return supplier.supplier_types.filter(
+            settings__is_active=True
+        ).select_related('settings').order_by(
+            "settings__display_order", "name"
         )
     except AttributeError:
         # في حالة عدم وجود supplier_types، إرجاع قائمة فارغة

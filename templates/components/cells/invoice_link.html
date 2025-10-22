@@ -1,0 +1,11 @@
+{% if object.url and object.url != "#" %}
+    <a href="{{ object.url }}" class="text-primary text-decoration-none fw-medium">
+        <i class="fas fa-file-invoice me-1"></i>
+        {{ object.invoice_number }}
+    </a>
+{% else %}
+    <span class="text-muted">
+        <i class="fas fa-file-invoice me-1"></i>
+        {{ object.invoice_number }}
+    </span>
+{% endif %}

@@ -1,0 +1,202 @@
+[
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 1,
+  "fields": {
+    "name": "فرخ كامل",
+    "width": "70.00",
+    "height": "100.00",
+    "paper_type": null,
+    "pieces_per_sheet": 1,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 2,
+  "fields": {
+    "name": "نص فرخ",
+    "width": "50.00",
+    "height": "70.00",
+    "paper_type": null,
+    "pieces_per_sheet": 2,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 3,
+  "fields": {
+    "name": "ربع فرخ",
+    "width": "35.00",
+    "height": "50.00",
+    "paper_type": null,
+    "pieces_per_sheet": 4,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 4,
+  "fields": {
+    "name": "ثمن فرخ",
+    "width": "25.00",
+    "height": "35.00",
+    "paper_type": null,
+    "pieces_per_sheet": 8,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 5,
+  "fields": {
+    "name": "30×40",
+    "width": "30.00",
+    "height": "40.00",
+    "paper_type": null,
+    "pieces_per_sheet": 5,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 6,
+  "fields": {
+    "name": "20×30",
+    "width": "20.00",
+    "height": "30.00",
+    "paper_type": null,
+    "pieces_per_sheet": 11,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 7,
+  "fields": {
+    "name": "فرخ جاير",
+    "width": "66.00",
+    "height": "88.00",
+    "paper_type": null,
+    "pieces_per_sheet": 1,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 8,
+  "fields": {
+    "name": "نص جاير",
+    "width": "44.00",
+    "height": "66.00",
+    "paper_type": null,
+    "pieces_per_sheet": 2,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 9,
+  "fields": {
+    "name": "ربع جاير",
+    "width": "33.00",
+    "height": "44.00",
+    "paper_type": null,
+    "pieces_per_sheet": 4,
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 10,
+  "fields": {
+    "name": "فرخ طبع جاير",
+    "width": "60.00",
+    "height": "85.00",
+    "paper_type": null,
+    "pieces_per_sheet": 1,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 11,
+  "fields": {
+    "name": "نص طبع جاير",
+    "width": "42.50",
+    "height": "60.00",
+    "paper_type": null,
+    "pieces_per_sheet": 2,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.piecesize",
+  "pk": 12,
+  "fields": {
+    "name": "ربع طبع جاير",
+    "width": "30.00",
+    "height": "42.50",
+    "paper_type": null,
+    "pieces_per_sheet": 4,
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.platesize",
+  "pk": 1,
+  "fields": {
+    "name": "ربع فرخ",
+    "width": "35.00",
+    "height": "50.00",
+    "is_active": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.platesize",
+  "pk": 2,
+  "fields": {
+    "name": "نصف فرخ",
+    "width": "50.00",
+    "height": "70.00",
+    "is_active": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.platesize",
+  "pk": 3,
+  "fields": {
+    "name": "فرخ كامل",
+    "width": "70.00",
+    "height": "100.00",
+    "is_active": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+}]

@@ -14,4 +14,9 @@ urlpatterns = [
         views.customer_change_account,
         name="customer_change_account",
     ),
+    path(
+        "<int:pk>/create-account/",
+        views.customer_create_account,
+        name="customer_create_account",
+    ),
 ]

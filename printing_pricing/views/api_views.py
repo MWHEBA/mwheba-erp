@@ -200,13 +200,13 @@ class GetMaterialPriceAPIView(BaseAPIView):
                     'unit_cost': 2.50,
                     'unit': 'sheet',
                     'supplier': 'مورد الورق الرئيسي',
-                    'last_updated': '2024-01-15'
+                    'last_updated': '2025-01-15'
                 },
                 'ink': {
                     'unit_cost': 150.00,
                     'unit': 'kilogram',
                     'supplier': 'مورد الأحبار',
-                    'last_updated': '2024-01-10'
+                    'last_updated': '2025-01-10'
                 }
             }
             

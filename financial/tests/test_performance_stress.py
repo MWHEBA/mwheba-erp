@@ -66,9 +66,9 @@ class PerformanceTestCase(TransactionTestCase):
 
         # إنشاء فترة محاسبية
         self.period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 
@@ -235,9 +235,9 @@ class StressTestCase(TransactionTestCase):
 
         # إنشاء فترة محاسبية
         self.period = AccountingPeriod.objects.create(
-            name="2024",
-            start_date=date(2024, 1, 1),
-            end_date=date(2024, 12, 31),
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
             created_by=self.user,
         )
 

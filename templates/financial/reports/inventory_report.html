@@ -1,0 +1,221 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">تقرير شامل لحالة المخزون وقيمته</p>
+                </div>
+            </div>
+            <div>
+                <button class="btn btn-outline-success ms-2" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- كروت الإحصائيات -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">إجمالي قيمة المخزون</h6>
+                            <h4 class="mb-0">{{ total_inventory_value|floatformat:2 }} ج.م</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-warehouse fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">عدد حسابات المخزون</h6>
+                            <h4 class="mb-0">{{ total_accounts }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-list fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">الحسابات النشطة</h6>
+                            <h4 class="mb-0">{{ active_accounts }}</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h6 class="card-title">متوسط قيمة الحساب</h6>
+                            <h4 class="mb-0">{{ avg_account_value|floatformat:2 }} ج.م</h4>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calculator fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نموذج الفلترة -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-6">
+                            <label for="date" class="form-label">تاريخ التقرير:</label>
+                            <input type="date" name="date" id="date" class="form-control" value="{{ report_date|date:'Y-m-d' }}">
+                        </div>
+                        <div class="col-md-6 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-sync me-1"></i>تحديث التقرير
+                            </button>
+                            <a href="{% url 'financial:inventory_report' %}" class="btn btn-secondary">
+                                <i class="fas fa-undo me-1"></i>إعادة تعيين
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول المخزون -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table me-2"></i>تفاصيل المخزون حسب الحساب
+                    </h6>
+                </div>
+                <div class="card-body">
+                    {% if inventory_data %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>كود الحساب</th>
+                                    <th>اسم الحساب</th>
+                                    <th>القيمة الحالية</th>
+                                    <th>عدد المعاملات</th>
+                                    <th>الحركات الأخيرة (30 يوم)</th>
+                                    <th>النسبة</th>
+                                    <th>الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in inventory_data %}
+                                <tr>
+                                    <td>{{ item.account.code }}</td>
+                                    <td>{{ item.account.name }}</td>
+                                    <td class="text-end">{{ item.balance|floatformat:2 }} ج.م</td>
+                                    <td>{{ item.transactions_count }}</td>
+                                    <td>{{ item.recent_movements }}</td>
+                                    <td class="text-end">
+                                        {% if total_inventory_value > 0 %}
+                                            {% widthratio item.balance total_inventory_value 100 %}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if item.recent_movements > 0 %}
+                                            <span class="badge bg-success">نشط</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">راكد</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr class="table-active fw-bold">
+                                    <td colspan="2">الإجمالي</td>
+                                    <td class="text-end">{{ total_inventory_value|floatformat:2 }} ج.م</td>
+                                    <td>-</td>
+                                    <td>-</td>
+                                    <td class="text-end">100%</td>
+                                    <td>{{ active_accounts }}/{{ total_accounts }} نشط</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+                        <h5>لا توجد بيانات مخزون</h5>
+                        <p class="text-muted">لا توجد حسابات مخزون مسجلة في النظام</p>
+                        <small class="text-muted">
+                            يتم البحث عن الحسابات التي تحتوي على الكلمات: مخزون، بضاعة، مواد، منتجات، سلع، خامات
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
