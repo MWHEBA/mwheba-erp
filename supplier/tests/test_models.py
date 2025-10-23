@@ -10,7 +10,9 @@ from ..models import (
     SupplierType, SupplierTypeSettings, Supplier,
     PaperServiceDetails, OffsetPrintingDetails,
     DigitalPrintingDetails, PlateServiceDetails,
-    PricingTier
+    SpecializedService, ServicePriceTier,
+    FinishingServiceDetails, OutdoorPrintingDetails,
+    LaserServiceDetails, VIPGiftDetails
 )
 
 User = get_user_model()
@@ -24,28 +26,30 @@ class SupplierModelTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         self.supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="paper"
+            code="paper"
         ).first()
         
     def test_create_supplier(self):
         """اختبار إنشاء مورد جديد"""
         supplier = Supplier.objects.create(
             name="مورد الورق المصري",
-            supplier_type=self.supplier_type,
+            code="PAPER001",
+            primary_type=self.supplier_type,
             email="supplier@paper.com",
             phone="01234567890",
             address="القاهرة، مصر"
         )
         
         self.assertEqual(supplier.name, "مورد الورق المصري")
-        self.assertEqual(supplier.supplier_type, self.supplier_type)
+        self.assertEqual(supplier.primary_type, self.supplier_type)
         self.assertTrue(supplier.is_active)
         
     def test_supplier_str_method(self):
         """اختبار طريقة __str__ للمورد"""
         supplier = Supplier.objects.create(
             name="مورد تجريبي",
-            supplier_type=self.supplier_type
+            code="TEST001",
+            primary_type=self.supplier_type
         )
         
         self.assertEqual(str(supplier), "مورد تجريبي")
@@ -59,12 +63,13 @@ class PaperServiceTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="paper"
+            code="paper"
         ).first()
         
         self.supplier = Supplier.objects.create(
             name="مورد ورق",
-            supplier_type=supplier_type
+            code="PAPER002",
+            primary_type=supplier_type
         )
         
     def test_create_paper_service(self):
@@ -116,12 +121,13 @@ class OffsetServiceTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="offset_printing"
+            code="offset_printing"
         ).first()
         
         self.supplier = Supplier.objects.create(
             name="مطبعة أوفست",
-            supplier_type=supplier_type
+            code="OFFSET001",
+            primary_type=supplier_type
         )
         
     def test_create_offset_service(self):
@@ -147,12 +153,13 @@ class DigitalServiceTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="digital_printing"
+            code="digital_printing"
         ).first()
         
         self.supplier = Supplier.objects.create(
             name="مطبعة ديجيتال",
-            supplier_type=supplier_type
+            code="DIGITAL001",
+            primary_type=supplier_type
         )
         
     def test_create_digital_service(self):
@@ -176,12 +183,13 @@ class PlateServiceTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="plates"
+            code="plates"
         ).first()
         
         self.supplier = Supplier.objects.create(
             name="مكتب فصل",
-            supplier_type=supplier_type
+            code="PLATES001",
+            primary_type=supplier_type
         )
         
     def test_create_plate_service(self):
@@ -196,7 +204,7 @@ class PlateServiceTest(TestCase):
         self.assertEqual(service.price_per_plate, Decimal('15.00'))
 
 
-class PricingTierTest(TestCase):
+class ServicePriceTierTest(TestCase):
     """اختبارات الشرائح السعرية"""
     
     fixtures = ['supplier/fixtures/supplier_types.json']
@@ -204,40 +212,45 @@ class PricingTierTest(TestCase):
     def setUp(self):
         """إعداد بيانات الاختبار"""
         supplier_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="paper"
+            code="paper"
         ).first()
         
         self.supplier = Supplier.objects.create(
             name="مورد ورق",
-            supplier_type=supplier_type
+            code="PAPER003",
+            primary_type=supplier_type
         )
         
-        self.service = PaperServiceDetails.objects.create(
+        # إنشاء خدمة متخصصة
+        self.service = SpecializedService.objects.create(
             supplier=self.supplier,
-            paper_type="كوشيه",
-            gsm=120
+            name="خدمة ورق كوشيه",
+            service_type="paper",
+            base_price=Decimal('2.50')
         )
         
-    def test_create_pricing_tier(self):
+    def test_create_service_price_tier(self):
         """اختبار إنشاء شريحة سعرية"""
-        tier = PricingTier.objects.create(
-            service_details=self.service,
+        tier = ServicePriceTier.objects.create(
+            service=self.service,
+            tier_name="1000-5000",
             min_quantity=1000,
             max_quantity=5000,
-            price=Decimal('2.00')
+            price_per_unit=Decimal('2.00')
         )
         
         self.assertEqual(tier.min_quantity, 1000)
         self.assertEqual(tier.max_quantity, 5000)
-        self.assertEqual(tier.price, Decimal('2.00'))
+        self.assertEqual(tier.price_per_unit, Decimal('2.00'))
         
-    def test_pricing_tier_str_method(self):
+    def test_service_price_tier_str_method(self):
         """اختبار طريقة __str__ للشريحة السعرية"""
-        tier = PricingTier.objects.create(
-            service_details=self.service,
+        tier = ServicePriceTier.objects.create(
+            service=self.service,
+            tier_name="1000-5000",
             min_quantity=1000,
             max_quantity=5000,
-            price=Decimal('2.00')
+            price_per_unit=Decimal('2.00')
         )
         
         str_result = str(tier)
@@ -254,11 +267,11 @@ class SupplierTypeTest(TestCase):
         """اختبار تحميل أنواع الموردين من fixtures"""
         # التحقق من وجود أنواع الموردين الأساسية
         paper_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="paper"
+            code="paper"
         ).first()
         
         offset_type = SupplierType.objects.filter(
-            supplier_type_settings__type_key="offset_printing"
+            code="offset_printing"
         ).first()
         
         self.assertIsNotNone(paper_type)
@@ -267,9 +280,9 @@ class SupplierTypeTest(TestCase):
     def test_supplier_type_settings(self):
         """اختبار إعدادات أنواع الموردين"""
         settings = SupplierTypeSettings.objects.filter(
-            type_key="paper"
+            code="paper"
         ).first()
         
         self.assertIsNotNone(settings)
-        self.assertEqual(settings.type_key, "paper")
+        self.assertEqual(settings.code, "paper")
         self.assertTrue(settings.is_active)

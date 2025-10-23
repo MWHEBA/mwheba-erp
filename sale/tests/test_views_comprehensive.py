@@ -60,8 +60,7 @@ class SaleViewsTestCase(TestCase):
         
         if all([Category, Unit, Product]):
             self.category = Category.objects.create(
-                name='فئة اختبار',
-                created_by=self.user
+                name='فئة اختبار'
             )
             
             self.unit = Unit.objects.create(
@@ -74,6 +73,8 @@ class SaleViewsTestCase(TestCase):
                 sku='PROD001',
                 category=self.category,
                 unit=self.unit,
+                cost_price=Decimal('50.00'),
+                selling_price=Decimal('100.00'),
                 created_by=self.user
             )
         else:
@@ -83,7 +84,11 @@ class SaleViewsTestCase(TestCase):
         
         # إنشاء فاتورة مبيعات للاختبار
         if self.customer and self.warehouse:
-            self.sale = Sale.objects.create(
+            self.sale = Sale.objects.create(,
+            subtotal=Decimal("100.00",
+            payment_method="cash",
+            ),
+            payment_method="cash"
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
@@ -123,7 +128,11 @@ class SaleListViewTest(SaleViewsTestCase):
         
         # إنشاء فواتير متعددة للاختبار
         for i in range(15):
-            Sale.objects.create(
+            Sale.objects.create(,
+            subtotal=Decimal("100.00",
+            payment_method="cash",
+            ),
+            payment_method="cash"
                 number=f'SAL{i+100}',
                 date=timezone.now().date(),
                 customer=self.customer,
@@ -230,7 +239,8 @@ class SaleDetailViewTest(SaleViewsTestCase):
             product=self.product,
             quantity=Decimal('10.00'),
             unit_price=Decimal('50.00'),
-            total_price=Decimal('500.00')
+            discount=Decimal('0.00'),
+            total=Decimal('500.00')
         )
         
         try:

@@ -1799,21 +1799,26 @@ def stock_adjust(request, pk):
     stock = get_object_or_404(Stock, pk=pk)
 
     if request.method == "POST":
-        quantity = request.POST.get("quantity", 0)
+        new_quantity = Decimal(request.POST.get("quantity", 0))
         notes = request.POST.get("notes", "")
+        
+        # حفظ الكمية القديمة
+        old_quantity = stock.quantity
 
         # إنشاء حركة تسوية
         StockMovement.objects.create(
             product=stock.product,
             warehouse=stock.warehouse,
             movement_type="adjustment",
-            quantity=abs(Decimal(quantity)),
+            quantity=new_quantity,
+            quantity_before=old_quantity,
+            quantity_after=new_quantity,
             notes=notes,
             created_by=request.user,
         )
 
         # تحديث المخزون
-        stock.quantity = Decimal(quantity)
+        stock.quantity = new_quantity
         stock.save()
 
         messages.success(request, f"تم تسوية المخزون بنجاح")
@@ -3274,6 +3279,21 @@ def product_price_comparison_api(request, product_id):
 
         # الحصول على مقارنة الأسعار
         price_comparison = PricingService.get_price_comparison(product)
+        
+        if not price_comparison:
+            return JsonResponse(
+                {
+                    "success": True,
+                    "data": {
+                        "product_name": product.name,
+                        "product_cost_price": float(product.cost_price),
+                        "suppliers_count": 0,
+                        "cheapest_price": 0,
+                        "most_expensive_price": 0,
+                        "comparison": [],
+                    },
+                }
+            )
 
         comparison_data = []
         for comparison in price_comparison:

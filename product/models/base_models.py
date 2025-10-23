@@ -48,6 +48,14 @@ class Brand(models.Model):
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    created_by = models.ForeignKey(
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أنشئ بواسطة"),
+        related_name="brands_created",
+    )
 
     class Meta:
         verbose_name = _("علامة تجارية")
@@ -179,9 +187,10 @@ class Product(models.Model):
     def profit_margin(self):
         """
         حساب هامش الربح
+        Profit Margin = (Selling Price - Cost Price) / Selling Price * 100
         """
-        if self.cost_price > 0:
-            return (self.selling_price - self.cost_price) / self.cost_price * 100
+        if self.selling_price > 0:
+            return (self.selling_price - self.cost_price) / self.selling_price * 100
         return 0
 
     def get_supplier_price(self, supplier):

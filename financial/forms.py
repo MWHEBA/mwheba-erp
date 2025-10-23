@@ -3,21 +3,31 @@ from django.utils import timezone
 from django.core.validators import MinValueValidator
 from django.db import models
 
-# استيراد آمن للنماذج
-try:
-    from .models import Transaction, Expense, Income, Category, BankReconciliation
-except ImportError:
-    # في حالة عدم توفر النماذج القديمة
-    Transaction = None
-    Expense = None
-    Income = None
-    Category = None
-    try:
-        from .models.bank_reconciliation import BankReconciliation
-    except ImportError:
-        BankReconciliation = None
+# استيراد النماذج الأساسية أولاً
 from .models.chart_of_accounts import ChartOfAccounts, AccountType
-from .services.account_helper import AccountHelperService
+
+# استيراد آمن للنماذج الاختيارية
+Transaction = None
+Expense = None
+Income = None
+Category = None
+BankReconciliation = None
+
+# محاولة استيراد النماذج القديمة إن وجدت
+try:
+    from .models import Transaction, Expense, Income, Category
+except (ImportError, AttributeError):
+    pass
+
+try:
+    from .models.bank_reconciliation import BankReconciliation
+except (ImportError, AttributeError):
+    pass
+
+try:
+    from .services.account_helper import AccountHelperService
+except (ImportError, AttributeError):
+    AccountHelperService = None
 
 
 class AccountForm(forms.ModelForm):

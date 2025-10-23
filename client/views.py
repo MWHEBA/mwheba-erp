@@ -717,8 +717,12 @@ def customer_detail(request, pk):
         },
     ]
 
+    # حساب الرصيد المتاح (credit_limit - balance)
+    available_credit = customer.credit_limit - customer.balance if customer.credit_limit else 0
+    
     context = {
         "customer": customer,
+        "available_credit": available_credit,
         "quick_action_buttons": quick_action_buttons,
         "payments": payments,
         "invoices": invoices,

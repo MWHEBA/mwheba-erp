@@ -458,6 +458,34 @@
           </div>
         </div>
       </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stats-card-title">{% trans "الرصيد المتاح" %}</div>
+            <div class="stats-card-value">{{ available_credit|custom_number_format }}</div>
+            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-secondary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-credit-card"></i>
+            </div>
+            <div class="stats-card-title">{% trans "حد الائتمان" %}</div>
+            <div class="stats-card-value">{{ customer.credit_limit|custom_number_format|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+          </div>
+        </div>
+      </div>
     </div>
                 </div>
 
