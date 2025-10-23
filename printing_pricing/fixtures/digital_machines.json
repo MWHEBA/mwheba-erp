@@ -1,0 +1,41 @@
+[
+  {
+    "model": "printing_pricing.digitalmachinetype",
+    "pk": 1,
+    "fields": {
+      "name": "إندیجو HP 7900",
+      "code": "indigo_7900",
+      "manufacturer": "HP",
+      "description": "ماكينة ديجيتال متطورة للطباعة عالية الجودة",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.digitalmachinetype",
+    "pk": 2,
+    "fields": {
+      "name": "زيروكس فيرساتت 280",
+      "code": "xerox_280",
+      "manufacturer": "Xerox",
+      "description": "ماكينة ديجيتال سريعة للإنتاج التجاري",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.digitalmachinetype",
+    "pk": 3,
+    "fields": {
+      "name": "كانون إيماج پرس C910",
+      "code": "canon_c910",
+      "manufacturer": "Canon",
+      "description": "ماكينة ديجيتال متعددة الاستخدامات",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

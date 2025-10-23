@@ -240,6 +240,14 @@ def ledger_report(request):
         balance = total_debit - total_credit
 
         context = {
+            "page_title": f"دفتر الأستاذ - {account.name}",
+            "page_icon": "fas fa-book",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+            ],
             "account": account,
             "transactions": transactions,
             "total_debit": total_debit,
@@ -294,6 +302,14 @@ def ledger_report(request):
                 )
 
         context = {
+            "page_title": "دفتر الأستاذ العام",
+            "page_icon": "fas fa-book",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+            ],
             "account_balances": account_balances,
             "accounts": accounts,
             "date_from": date_from,
@@ -424,6 +440,14 @@ def balance_sheet(request):
     total_liabilities_equity = liabilities_total + equity_total
 
     context = {
+        "page_title": "الميزانية العمومية",
+        "page_icon": "fas fa-balance-scale",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "الميزانية العمومية", "active": True, "icon": "fas fa-balance-scale"},
+        ],
         "assets": assets,
         "liabilities": liabilities,
         "equity": equity,
@@ -504,6 +528,14 @@ def income_statement(request):
     net_income = total_income - total_expense
 
     context = {
+        "page_title": "قائمة الدخل",
+        "page_icon": "fas fa-file-invoice-dollar",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
+        ],
         "income_items": income_items,
         "expense_items": expense_items,
         "total_income": total_income,
@@ -647,8 +679,14 @@ def financial_analytics(request):
 
     # إعداد سياق البيانات
     context = {
-        "page_title": _("التحليلات المالية"),
-        "page_icon": "fas fa-chart-line",
+        "page_title": "التحليلات المالية",
+        "page_icon": "fas fa-chart-pie",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "التحليلات المالية", "active": True, "icon": "fas fa-chart-pie"},
+        ],
         "monthly_income": monthly_income,
         "profit_margin": profit_margin,
         "avg_invoice": avg_invoice,
@@ -811,14 +849,20 @@ def trial_balance_report(request):
     all_accounts = AccountHelperService.get_all_active_accounts().order_by("name")
     
     context = {
+        "page_title": "ميزان المراجعة",
+        "page_icon": "fas fa-calculator",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-calculator"},
+        ],
         "trial_balance": trial_balance,
         "total_debit": total_debit,
         "total_credit": total_credit,
         "accounts": all_accounts,
         "date_from": date_from,
         "date_to": date_to,
-        "page_title": "ميزان المراجعة",
-        "page_icon": "fas fa-balance-scale",
     }
     return render(request, "financial/reports/trial_balance_report.html", context)
 
@@ -886,6 +930,12 @@ def sales_report(request):
     context = {
         "page_title": "تقرير المبيعات",
         "page_icon": "fas fa-chart-line",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "تقرير المبيعات", "active": True, "icon": "fas fa-chart-line"},
+        ],
         "sales_data": sales_data,
         "total_sales": total_sales,
         "avg_daily_sales": avg_daily_sales,
@@ -958,7 +1008,13 @@ def purchases_report(request):
     
     context = {
         "page_title": "تقرير المشتريات",
-        "page_icon": "fas fa-chart-pie",
+        "page_icon": "fas fa-shopping-cart",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "تقرير المشتريات", "active": True, "icon": "fas fa-shopping-cart"},
+        ],
         "purchases_data": purchases_data,
         "total_purchases": total_purchases,
         "avg_daily_purchases": avg_daily_purchases,
@@ -1038,6 +1094,12 @@ def inventory_report(request):
     context = {
         "page_title": "تقرير المخزون",
         "page_icon": "fas fa-boxes",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+            {"title": "تقرير المخزون", "active": True, "icon": "fas fa-boxes"},
+        ],
         "inventory_data": inventory_data,
         "total_inventory_value": total_inventory_value,
         "total_accounts": total_accounts,

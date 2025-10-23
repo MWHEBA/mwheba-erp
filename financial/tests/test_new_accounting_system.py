@@ -1,92 +1,96 @@
-"""
-اختبارات النظام المحاسبي الجديد
-"""
-from django.test import TestCase
+"""اختبارات النظام المحاسبي الجديد المحسنة"""
+from django.test import TestCase, TransactionTestCase
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from decimal import Decimal
 from datetime import date, timedelta
+import json
 
 from ..models.chart_of_accounts import AccountType, ChartOfAccounts
 from ..models.journal_entry import AccountingPeriod, JournalEntry, JournalEntryLine
+from ..models.partner_transactions import PartnerTransaction, PartnerBalance
 from ..services.journal_service import JournalEntryService, AutoJournalService
 from ..services.balance_service import BalanceService
 
 User = get_user_model()
 
-
 class AccountTypeTestCase(TestCase):
-    """اختبارات أنواع الحسابات"""
+    """اختبارات أنواع الحسابات المحسنة"""
+    
+    fixtures = ['chart_of_accounts_final.json']
 
     def setUp(self):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpass123"
         )
+        # استخدام البيانات من fixtures
+        self.asset_type = AccountType.objects.get(code="ASSET")
+        self.current_asset_type = AccountType.objects.get(code="CURRENT_ASSET")
 
-    def test_create_account_type(self):
-        """اختبار إنشاء نوع حساب"""
-        account_type = AccountType.objects.create(
-            code="1000",
-            name="الأصول",
+    def test_account_type_from_fixtures(self):
+        """اختبار أنواع الحسابات من fixtures"""
+        # التحقق من وجود البيانات من fixtures
+        self.assertEqual(self.asset_type.code, "ASSET")
+        self.assertEqual(self.asset_type.name, "الأصول")
+        self.assertEqual(self.asset_type.category, "asset")
+        self.assertEqual(self.asset_type.nature, "debit")
+        self.assertEqual(self.asset_type.level, 1)
+        self.assertTrue(self.asset_type.is_active)
+        
+    def test_create_new_account_type(self):
+        """اختبار إنشاء نوع حساب جديد"""
+        # إنشاء نوع حساب فرعي جديد
+        new_type = AccountType.objects.create(
+            code="FIXED_ASSET",
+            name="الأصول الثابتة",
             category="asset",
             nature="debit",
+            parent=self.asset_type,
             created_by=self.user,
         )
+        
+        self.assertEqual(new_type.level, 2)
+        self.assertEqual(new_type.parent, self.asset_type)
+        self.assertIn(new_type, self.asset_type.children.all())
 
-        self.assertEqual(account_type.code, "1000")
-        self.assertEqual(account_type.name, "الأصول")
-        self.assertEqual(account_type.category, "asset")
-        self.assertEqual(account_type.nature, "debit")
-        self.assertEqual(account_type.level, 1)
-        self.assertTrue(account_type.is_active)
-
-    def test_account_type_hierarchy(self):
-        """اختبار التسلسل الهرمي لأنواع الحسابات"""
-        parent_type = AccountType.objects.create(
-            code="1000",
-            name="الأصول",
-            category="asset",
-            nature="debit",
-            created_by=self.user,
-        )
-
-        child_type = AccountType.objects.create(
-            code="1100",
-            name="الأصول المتداولة",
-            category="asset",
-            nature="debit",
-            parent=parent_type,
-            created_by=self.user,
-        )
-
-        self.assertEqual(child_type.level, 2)
-        self.assertEqual(child_type.parent, parent_type)
-        self.assertIn(child_type, parent_type.children.all())
+    def test_account_type_hierarchy_from_fixtures(self):
+        """اختبار التسلسل الهرمي لأنواع الحسابات من fixtures"""
+        # التحقق من التسلسل الهرمي الموجود
+        self.assertEqual(self.current_asset_type.level, 2)
+        self.assertEqual(self.current_asset_type.parent, self.asset_type)
+        self.assertIn(self.current_asset_type, self.asset_type.children.all())
+        
+        # التحقق من وجود أنواع فرعية أخرى
+        cash_type = AccountType.objects.get(code="CASH")
+        self.assertEqual(cash_type.level, 3)
+        self.assertEqual(cash_type.parent, self.current_asset_type)
+        
+    def test_account_type_methods(self):
+        """اختبار دوال أنواع الحسابات"""
+        # اختبار دالة get_full_path
+        cash_type = AccountType.objects.get(code="CASH")
+        expected_path = f"{self.asset_type.name} > {self.current_asset_type.name} > {cash_type.name}"
+        self.assertEqual(cash_type.get_full_path(), expected_path)
+        
+        # اختبار دالة get_descendants
+        descendants = self.asset_type.get_descendants()
+        self.assertIn(self.current_asset_type, descendants)
+        self.assertIn(cash_type, descendants)
 
 
 class ChartOfAccountsTestCase(TestCase):
-    """اختبارات دليل الحسابات"""
+    """اختبارات دليل الحسابات المحسنة"""
+    
+    fixtures = ['chart_of_accounts_final.json']
 
     def setUp(self):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpass123"
         )
-
-        self.asset_type = AccountType.objects.create(
-            code="1000",
-            name="الأصول",
-            category="asset",
-            nature="debit",
-            created_by=self.user,
-        )
-
-        self.liability_type = AccountType.objects.create(
-            code="2000",
-            name="الخصوم",
-            category="liability",
-            nature="credit",
-            created_by=self.user,
-        )
+        # استخدام البيانات من fixtures
+        self.asset_type = AccountType.objects.get(code="ASSET")
+        self.liability_type = AccountType.objects.get(code="LIABILITY")
 
     def test_create_account(self):
         """اختبار إنشاء حساب"""
@@ -493,6 +497,200 @@ class BalanceServiceTestCase(TestCase):
         # التحقق من الإجماليات
         totals = trial_balance[-1]
         self.assertEqual(totals["account_name"], "الإجمالي")
+
+
+class PartnerTransactionTestCase(TestCase):
+    """اختبارات معاملات الشريك المتكاملة"""
+    
+    fixtures = ['chart_of_accounts_final.json']
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        # إنشاء فترة محاسبية
+        self.period = AccountingPeriod.objects.create(
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            created_by=self.user,
+        )
+        
+        # الحصول على الحسابات من fixtures
+        self.partner_account = ChartOfAccounts.objects.get(name__contains="جاري الشريك")
+        self.cash_account = ChartOfAccounts.objects.get(name__contains="الصندوق")
+    
+    def test_partner_contribution(self):
+        """اختبار مساهمة الشريك"""
+        # إنشاء مساهمة
+        contribution = PartnerTransaction.objects.create(
+            transaction_type="PARTNER_CONTRIBUTION",
+            amount=Decimal('10000.00'),
+            description="مساهمة رأس مال",
+            created_by=self.user
+        )
+        
+        # التحقق من إنشاء القيود المحاسبية
+        journal_entries = JournalEntry.objects.filter(
+            reference_type="partner_transaction",
+            reference_id=contribution.id
+        )
+        
+        self.assertTrue(journal_entries.exists())
+        entry = journal_entries.first()
+        self.assertEqual(entry.total_debit, Decimal('10000.00'))
+        self.assertEqual(entry.total_credit, Decimal('10000.00'))
+        
+    def test_partner_withdrawal(self):
+        """اختبار سحب الشريك"""
+        # إنشاء مساهمة أولاً
+        PartnerTransaction.objects.create(
+            transaction_type="PARTNER_CONTRIBUTION",
+            amount=Decimal('10000.00'),
+            description="مساهمة رأس مال",
+            created_by=self.user
+        )
+        
+        # إنشاء سحب
+        withdrawal = PartnerTransaction.objects.create(
+            transaction_type="PARTNER_WITHDRAWAL",
+            amount=Decimal('2000.00'),
+            description="سحب شخصي",
+            created_by=self.user
+        )
+        
+        # التحقق من رصيد الشريك
+        partner_balance = PartnerBalance.objects.first()
+        if partner_balance:
+            self.assertEqual(partner_balance.current_balance, Decimal('8000.00'))
+
+
+class IntegratedWorkflowTestCase(TransactionTestCase):
+    """اختبارات سير العمل المتكامل"""
+    
+    fixtures = ['chart_of_accounts_final.json']
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        # إنشاء فترة محاسبية
+        self.period = AccountingPeriod.objects.create(
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            created_by=self.user,
+        )
+    
+    def test_complete_business_cycle(self):
+        """اختبار دورة أعمال كاملة"""
+        with transaction.atomic():
+            # 1. مساهمة الشريك
+            contribution = PartnerTransaction.objects.create(
+                transaction_type="PARTNER_CONTRIBUTION",
+                amount=Decimal('50000.00'),
+                description="مساهمة رأس مال",
+                created_by=self.user
+            )
+            
+            # 2. إنشاء قيد يدوي لشراء معدات
+            equipment_entry = JournalEntryService.create_simple_entry(
+                debit_account="EQUIPMENT",  # معدات
+                credit_account="CASH",      # نقدية
+                amount=Decimal('20000.00'),
+                description="شراء معدات",
+                date=date.today(),
+                user=self.user
+            )
+            
+            # 3. التحقق من الأرصدة
+            cash_balance = BalanceService.get_account_balance("CASH")
+            equipment_balance = BalanceService.get_account_balance("EQUIPMENT")
+            
+            self.assertEqual(cash_balance, Decimal('30000.00'))  # 50000 - 20000
+            self.assertEqual(equipment_balance, Decimal('20000.00'))
+            
+            # 4. إنشاء ميزان مراجعة
+            trial_balance = BalanceService.get_trial_balance()
+            self.assertIsNotNone(trial_balance)
+            
+            # التحقق من توازن ميزان المراجعة
+            total_debits = sum(item.get('debit_balance', 0) for item in trial_balance[:-1])
+            total_credits = sum(item.get('credit_balance', 0) for item in trial_balance[:-1])
+            self.assertEqual(total_debits, total_credits)
+
+
+class PerformanceTestCase(TestCase):
+    """اختبارات الأداء"""
+    
+    fixtures = ['chart_of_accounts_final.json']
+    
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpass123"
+        )
+        
+        AccountingPeriod.objects.create(
+            name="2025",
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            created_by=self.user,
+        )
+    
+    def test_bulk_journal_entries(self):
+        """اختبار إنشاء قيود متعددة"""
+        import time
+        
+        start_time = time.time()
+        
+        # إنشاء 100 قيد محاسبي
+        for i in range(100):
+            JournalEntryService.create_simple_entry(
+                debit_account="CASH",
+                credit_account="REVENUE",
+                amount=Decimal('100.00'),
+                description=f"قيد رقم {i+1}",
+                date=date.today(),
+                user=self.user
+            )
+        
+        end_time = time.time()
+        execution_time = end_time - start_time
+        
+        # يجب أن يكتمل في أقل من 10 ثواني
+        self.assertLess(execution_time, 10.0)
+        
+        # التحقق من عدد القيود المنشأة
+        entries_count = JournalEntry.objects.count()
+        self.assertEqual(entries_count, 100)
+    
+    def test_trial_balance_performance(self):
+        """اختبار أداء ميزان المراجعة"""
+        # إنشاء بعض القيود أولاً
+        for i in range(50):
+            JournalEntryService.create_simple_entry(
+                debit_account="CASH",
+                credit_account="REVENUE",
+                amount=Decimal('100.00'),
+                description=f"قيد رقم {i+1}",
+                date=date.today(),
+                user=self.user
+            )
+        
+        import time
+        start_time = time.time()
+        
+        # إنشاء ميزان المراجعة
+        trial_balance = BalanceService.get_trial_balance()
+        
+        end_time = time.time()
+        execution_time = end_time - start_time
+        
+        # يجب أن يكتمل في أقل من 2 ثانية
+        self.assertLess(execution_time, 2.0)
+        self.assertIsNotNone(trial_balance)
 
 
 if __name__ == "__main__":

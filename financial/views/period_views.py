@@ -44,12 +44,17 @@ def accounting_periods_list(request):
             messages.error(request, f"خطأ في تحميل الفترات المحاسبية: {str(e)}")
     
     context = {
+        "page_title": "الفترات المحاسبية",
+        "page_icon": "fas fa-calendar-alt",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "الفترات المحاسبية", "active": True, "icon": "fas fa-calendar-alt"},
+        ],
         "periods": periods,
         "open_periods_count": open_periods_count,
         "closed_periods_count": closed_periods_count,
         "current_period": current_period,
-        "page_title": "الفترات المحاسبية",
-        "page_icon": "fas fa-calendar-alt",
     }
     return render(request, "financial/periods/accounting_periods_list.html", context)
 

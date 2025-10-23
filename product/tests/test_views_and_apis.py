@@ -23,6 +23,7 @@ from product.models import (
     PriceHistory,
 )
 from supplier.models import Supplier
+import unittest
 
 User = get_user_model()
 
@@ -45,7 +46,8 @@ class ProductViewsTestCase(TestCase):
         self.unit = Unit.objects.create(name="قطعة", symbol="قطعة")
 
         self.warehouse = Warehouse.objects.create(
-            name="المخزن الرئيسي", code="MAIN", location="الرياض", manager=self.user
+            name="المخزن الرئيسي", code="MAIN", location="الرياض", manager=self.user,
+            created_by=self.user
         )
 
         self.product = Product.objects.create(
@@ -56,7 +58,7 @@ class ProductViewsTestCase(TestCase):
             unit=self.unit,
             cost_price=Decimal("500.00"),
             selling_price=Decimal("750.00"),
-            created_by=self.user,
+            created_by=self.user
         )
 
     def test_product_list_view(self):
@@ -153,7 +155,7 @@ class InventoryAPITestCase(TestCase):
 
         self.warehouse = Warehouse.objects.create(
             name="مخزن API", code="API", location="اختبار", manager=self.user
-        )
+        , created_by=self.user)
 
         self.product = Product.objects.create(
             name="منتج API",
@@ -168,7 +170,7 @@ class InventoryAPITestCase(TestCase):
 
         self.stock = ProductStock.objects.create(
             product=self.product, warehouse=self.warehouse, quantity=100
-        )
+        , created_by=self.user)
 
     def test_get_stock_by_warehouse_api(self):
         """اختبار API الحصول على المخزون حسب المخزن"""
@@ -283,7 +285,6 @@ class SupplierPricingAPITestCase(TestCase):
             product=self.product,
             supplier=self.supplier,
             cost_price=Decimal("100.00"),
-            created_by=self.user,
         )
 
         url = reverse(
@@ -321,7 +322,6 @@ class SupplierPricingAPITestCase(TestCase):
             supplier=self.supplier,
             cost_price=Decimal("100.00"),
             is_default=True,
-            created_by=self.user,
         )
 
         # إنشاء مورد ثاني
@@ -336,7 +336,6 @@ class SupplierPricingAPITestCase(TestCase):
             product=self.product,
             supplier=supplier2,
             cost_price=Decimal("95.00"),
-            created_by=self.user,
         )
 
         url = reverse(
@@ -365,7 +364,6 @@ class SupplierPricingAPITestCase(TestCase):
             product=self.product,
             supplier=self.supplier,
             cost_price=Decimal("100.00"),
-            created_by=self.user,
         )
 
         # إنشاء تاريخ تغيير
@@ -405,7 +403,6 @@ class SupplierPricingAPITestCase(TestCase):
             supplier=self.supplier,
             cost_price=Decimal("100.00"),
             is_default=True,
-            created_by=self.user,
         )
 
         # إنشاء مورد ثاني
@@ -420,7 +417,6 @@ class SupplierPricingAPITestCase(TestCase):
             product=self.product,
             supplier=supplier2,
             cost_price=Decimal("95.00"),
-            created_by=self.user,
         )
 
         url = reverse(
@@ -466,7 +462,7 @@ class ExpirySystemTestCase(TestCase):
 
         self.warehouse = Warehouse.objects.create(
             name="مخزن الصلاحية", code="EXPIRY", location="اختبار", manager=self.user
-        )
+        , created_by=self.user)
 
         self.product = Product.objects.create(
             name="منتج قابل للانتهاء",
@@ -495,7 +491,7 @@ class ExpirySystemTestCase(TestCase):
             unit_cost=Decimal("10.00"),
             total_cost=Decimal("1000.00"),
             status="active",
-            created_by=self.user,
+            created_by=self.user
         )
 
         ProductBatch.objects.create(
@@ -511,7 +507,7 @@ class ExpirySystemTestCase(TestCase):
             unit_cost=Decimal("10.00"),
             total_cost=Decimal("500.00"),
             status="active",
-            created_by=self.user,
+            created_by=self.user
         )
 
         ProductBatch.objects.create(
@@ -527,7 +523,7 @@ class ExpirySystemTestCase(TestCase):
             unit_cost=Decimal("10.00"),
             total_cost=Decimal("250.00"),
             status="active",
-            created_by=self.user,
+            created_by=self.user
         )
 
         url = reverse("product:expiry_dashboard")
@@ -553,14 +549,13 @@ class ExpirySystemTestCase(TestCase):
             unit_cost=Decimal("10.00"),
             total_cost=Decimal("300.00"),
             status="active",
-            created_by=self.user,
+            created_by=self.user
         )
 
         alert = ExpiryAlert.objects.create(
             batch=batch,
             alert_type="near_expiry",
             days_to_expiry=15,
-            created_by=self.user,
         )
 
         url = reverse("product:acknowledge_expiry_alert_api")
@@ -602,7 +597,7 @@ class ReservationSystemTestCase(TestCase):
 
         self.warehouse = Warehouse.objects.create(
             name="مخزن الحجوزات", code="RESERVE", location="اختبار", manager=self.user
-        )
+        , created_by=self.user)
 
         self.product = Product.objects.create(
             name="منتج قابل للحجز",
@@ -617,7 +612,7 @@ class ReservationSystemTestCase(TestCase):
 
         self.stock = ProductStock.objects.create(
             product=self.product, warehouse=self.warehouse, quantity=100
-        )
+        , created_by=self.user)
 
     def test_reservation_dashboard_view(self):
         """اختبار لوحة تحكم الحجوزات"""
@@ -631,6 +626,7 @@ class ReservationSystemTestCase(TestCase):
             reserved_by=self.user,
             reservation_type="manual",
             status="active",
+            created_by=self.user
         )
 
         StockReservation.objects.create(
@@ -642,6 +638,7 @@ class ReservationSystemTestCase(TestCase):
             reserved_by=self.user,
             reservation_type="manual",
             status="expired",
+            created_by=self.user
         )
 
         url = reverse("product:reservation_dashboard")
@@ -663,6 +660,7 @@ class ReservationSystemTestCase(TestCase):
             reserved_by=self.user,
             reservation_type="manual",
             status="active",
+            created_by=self.user
         )
 
         url = reverse("product:reservation_list")
@@ -707,7 +705,7 @@ class ErrorHandlingTestCase(TestCase):
 
         warehouse = Warehouse.objects.create(
             name="مخزن الخطأ", code="ERROR", location="اختبار", manager=self.user
-        )
+        , created_by=self.user)
 
         product = Product.objects.create(
             name="منتج محدود",
@@ -722,7 +720,7 @@ class ErrorHandlingTestCase(TestCase):
 
         ProductStock.objects.create(
             product=product, warehouse=warehouse, quantity=10  # كمية محدودة
-        )
+        , created_by=self.user)
 
         url = reverse("product:create_reservation_api")
 

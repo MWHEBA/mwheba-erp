@@ -16,10 +16,27 @@ from ..models.enhanced_balance import (
     BalanceSnapshot,
     BalanceAuditLog,
 )
-from ..services.enhanced_balance_service import EnhancedBalanceService
-from ..services.performance_optimizer import PerformanceOptimizer
-from ..services.redis_cache_service import RedisFinancialCache, CachedBalanceService
-from ..services.balance_validation_service import AdvancedBalanceValidationService
+# محاولة استيراد الخدمات المتقدمة
+try:
+    from ..services.enhanced_balance_service import EnhancedBalanceService
+except ImportError:
+    EnhancedBalanceService = None
+
+try:
+    from ..services.performance_optimizer import PerformanceOptimizer
+except ImportError:
+    PerformanceOptimizer = None
+
+try:
+    from ..services.redis_cache_service import RedisFinancialCache, CachedBalanceService
+except ImportError:
+    RedisFinancialCache = None
+    CachedBalanceService = None
+
+try:
+    from ..services.balance_validation_service import AdvancedBalanceValidationService
+except ImportError:
+    AdvancedBalanceValidationService = None
 
 User = get_user_model()
 

@@ -328,24 +328,6 @@
         </div>
     </div>
 
-    <!-- Breadcrumb -->
-    <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
-            {% for item in breadcrumb_items %}
-                {% if item.active %}
-                    <li class="breadcrumb-item active" aria-current="page">{{ item.title }}</li>
-                {% else %}
-                    <li class="breadcrumb-item">
-                        <a href="{{ item.url }}">
-                            {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                            {{ item.title }}
-                        </a>
-                    </li>
-                {% endif %}
-            {% endfor %}
-        </ol>
-    </nav>
-
     <!-- Accounts Grid المحسن -->
     {% if accounts %}
         <div class="row">

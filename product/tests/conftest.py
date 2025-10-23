@@ -72,6 +72,43 @@ def pytest_configure(config):
     django.setup()
 
 
+# Fixtures للحسابات المحاسبية
+@pytest.fixture(scope="session", autouse=True)
+def setup_accounting_system(django_db_setup, django_db_blocker):
+    """إعداد النظام المحاسبي للاختبارات"""
+    with django_db_blocker.unblock():
+        from financial.models import AccountType, ChartOfAccounts
+        
+        # إنشاء أنواع الحسابات الأساسية
+        account_types = {
+            'ASSETS': {'name': 'الأصول', 'code': 'ASSETS'},
+            'LIABILITIES': {'name': 'الخصوم', 'code': 'LIABILITIES'},
+            'EQUITY': {'name': 'حقوق الملكية', 'code': 'EQUITY'},
+            'REVENUE': {'name': 'الإيرادات', 'code': 'REVENUE'},
+            'EXPENSES': {'name': 'المصروفات', 'code': 'EXPENSES'},
+            'RECEIVABLES': {'name': 'المدينون', 'code': 'RECEIVABLES'},
+            'PAYABLES': {'name': 'الدائنون', 'code': 'PAYABLES'},
+            'CASH': {'name': 'النقدية', 'code': 'CASH'},
+        }
+        
+        for code, data in account_types.items():
+            AccountType.objects.get_or_create(
+                code=code,
+                defaults={'name': data['name']}
+            )
+        
+        # إنشاء حسابات أساسية
+        cash_type = AccountType.objects.get(code='CASH')
+        ChartOfAccounts.objects.get_or_create(
+            code='1001',
+            defaults={
+                'name': 'الصندوق الرئيسي',
+                'account_type': cash_type,
+                'is_active': True
+            }
+        )
+
+
 # Fixtures أساسية
 @pytest.fixture
 def user():

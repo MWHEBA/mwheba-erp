@@ -422,6 +422,14 @@ class Warehouse(models.Model):
     description = models.TextField(_("الوصف"), blank=True, null=True)
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أنشئ بواسطة"),
+        related_name="warehouses_created",
+    )
 
     class Meta:
         verbose_name = _("مخزن")
@@ -451,6 +459,14 @@ class Stock(models.Model):
     )
     quantity = models.PositiveIntegerField(_("الكمية"), default=0)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أنشئ بواسطة"),
+        related_name="stocks_created",
+    )
 
     class Meta:
         verbose_name = _("مخزون")

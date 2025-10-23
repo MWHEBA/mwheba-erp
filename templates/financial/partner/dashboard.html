@@ -7,198 +7,408 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
-    .partner-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 25px;
-        margin-bottom: 20px;
-    }
-    .balance-card {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        color: white;
-        border-radius: 15px;
-        padding: 20px;
-    }
-    .stats-card {
-        background: white;
-        border-radius: 10px;
-        padding: 20px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        margin-bottom: 15px;
-    }
-    .action-btn {
-        border-radius: 25px;
-        padding: 10px 25px;
-        font-weight: 600;
-        margin: 5px;
-    }
-    .contribution-btn {
-        background: linear-gradient(45deg, #28a745, #20c997);
-        border: none;
-        color: white;
-    }
-    .withdrawal-btn {
-        background: linear-gradient(45deg, #ffc107, #fd7e14);
-        border: none;
-        color: white;
-    }
-    .transaction-item {
-        border-left: 4px solid #dee2e6;
-        padding: 15px;
-        margin-bottom: 10px;
-        background: #f8f9fa;
-        border-radius: 0 8px 8px 0;
-    }
-    .transaction-item.contribution {
-        border-left-color: #28a745;
-    }
-    .transaction-item.withdrawal {
-        border-left-color: #ffc107;
-    }
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم كروت الإحصائيات */
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-warning-header {
+    background-color: rgba(255, 193, 7, 0.05);
+    color: #ffc107;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.1);
+  }
+  
+  .bg-info-header {
+    background-color: rgba(13, 202, 240, 0.05);
+    color: #0dcaf0;
+    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-warning-header .icon-box {
+    color: #ffc107;
+  }
+  
+  .bg-info-header .icon-box {
+    color: #0dcaf0;
+  }
+  
+  .transaction-item {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.3s ease;
+  }
+  
+  .transaction-item:hover {
+    background-color: #f8f9fa;
+  }
+  
+  .transaction-item:last-child {
+    border-bottom: none;
+  }
+  
+  .transaction-type {
+    font-weight: 600;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+  }
+  
+  .transaction-type.contribution {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  
+  .transaction-type.withdrawal {
+    background-color: #fff3cd;
+    color: #856404;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+  
+  /* كروت الإحصائيات */
+  .stats-card {
+    background: #fff;
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  }
+  
+  .stats-card-header {
+    height: 4px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  .stats-card-primary .stats-card-header {
+    background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
+  }
+  
+  .stats-card-success .stats-card-header {
+    background: linear-gradient(90deg, #198754 0%, #146c43 100%);
+  }
+  
+  .stats-card-danger .stats-card-header {
+    background: linear-gradient(90deg, #dc3545 0%, #b02a37 100%);
+  }
+  
+  .stats-card-info .stats-card-header {
+    background: linear-gradient(90deg, #0dcaf0 0%, #0aa2c0 100%);
+  }
+  
+  .stats-card-body {
+    padding: 1.5rem;
+    text-align: center;
+  }
+  
+  .stats-card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+    color: #6c757d;
+  }
+  
+  .stats-card-primary .stats-card-icon {
+    color: #0d6efd;
+  }
+  
+  .stats-card-success .stats-card-icon {
+    color: #198754;
+  }
+  
+  .stats-card-danger .stats-card-icon {
+    color: #dc3545;
+  }
+  
+  .stats-card-info .stats-card-icon {
+    color: #0dcaf0;
+  }
+  
+  .stats-card-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .stats-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #344767;
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+  }
+  
+  .stats-card-unit {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 400;
+  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="partner-card">
-                <div class="row align-items-center">
-                    <div class="col-md-8">
-                        <h2 class="mb-2">
-                            <i class="{{ page_icon }} me-3"></i>
-                            {{ page_title }}
-                        </h2>
-                        <p class="mb-0 opacity-75">إدارة مساهمات وسحوبات الشريك</p>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <button class="btn contribution-btn action-btn" onclick="openContributionModal()">
-                            <i class="fas fa-plus-circle me-2"></i>
-                            مساهمة جديدة
-                        </button>
-                        <button class="btn withdrawal-btn action-btn" onclick="openWithdrawalModal()">
-                            <i class="fas fa-minus-circle me-2"></i>
-                            سحب مبلغ
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>
+                          الرئيسية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="#">
+                          <i class="fas fa-money-bill-wave me-1"></i>
+                          الإدارة المالية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="{{ page_icon }} me-1"></i>
+                      {{ page_title }}
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">إدارة مساهمات وسحوبات الشريك في النظام</p>
+              </div>
+          </div>
+          <div>
+              <button class="btn btn-success me-2" onclick="openContributionModal()">
+                  <i class="fas fa-plus-circle me-2"></i>مساهمة جديدة
+              </button>
+              <button class="btn btn-warning" onclick="openWithdrawalModal()">
+                  <i class="fas fa-minus-circle me-2"></i>سحب مبلغ
+              </button>
+              <a href="{% url 'financial:partner_transactions_list' %}" class="btn btn-primary ms-2">
+                  <i class="fas fa-list me-2"></i>جميع المعاملات
+              </a>
+          </div>
+      </div>
+  </div>
 
-    <!-- الأرصدة والإحصائيات -->
-    <div class="row mb-4">
-        <!-- رصيد الشريك -->
-        <div class="col-md-4">
-            <div class="balance-card">
-                <h5 class="mb-3">
-                    <i class="fas fa-wallet me-2"></i>
-                    رصيد الشريك
-                </h5>
-                <h2 class="mb-2">{{ partner_balance.current_balance|remove_trailing_zeros }} ج.م</h2>
-                <small class="opacity-75">
-                    {% if partner_balance.last_transaction_date %}
-                        آخر معاملة: {{ partner_balance.last_transaction_date }}
-                    {% else %}
-                        لا توجد معاملات بعد
-                    {% endif %}
-                </small>
-            </div>
-        </div>
-
-        <!-- إجمالي المساهمات -->
-        <div class="col-md-4">
-            <div class="stats-card text-center">
-                <i class="fas fa-arrow-up text-success fa-2x mb-3"></i>
-                <h4 class="text-success">{{ partner_balance.total_contributions|remove_trailing_zeros }} ج.م</h4>
-                <p class="text-muted mb-0">إجمالي المساهمات</p>
-            </div>
-        </div>
-
-        <!-- إجمالي السحوبات -->
-        <div class="col-md-4">
-            <div class="stats-card text-center">
-                <i class="fas fa-arrow-down text-warning fa-2x mb-3"></i>
-                <h4 class="text-warning">{{ partner_balance.total_withdrawals|remove_trailing_zeros }} ج.م</h4>
-                <p class="text-muted mb-0">إجمالي السحوبات</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- الإحصائيات الشهرية -->
-    <div class="row mb-4">
-        <div class="col-md-6">
-            <div class="stats-card">
-                <h6 class="text-muted mb-3">المساهمات الشهرية (آخر 30 يوم)</h6>
-                <h4 class="text-success">{{ monthly_stats.contributions|remove_trailing_zeros }} ج.م</h4>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="stats-card">
-                <h6 class="text-muted mb-3">السحوبات الشهرية (آخر 30 يوم)</h6>
-                <h4 class="text-warning">{{ monthly_stats.withdrawals|remove_trailing_zeros }} ج.م</h4>
-            </div>
-        </div>
-    </div>
-
-    <!-- آخر المعاملات -->
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
     <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0">
-                        <i class="fas fa-history me-2"></i>
-                        آخر المعاملات
-                    </h5>
-                    <a href="{% url 'financial:partner_transactions_list' %}" class="btn btn-outline-primary btn-sm">
-                        عرض الكل
-                    </a>
-                </div>
-                <div class="card-body">
-                    {% if recent_transactions %}
-                        {% for transaction in recent_transactions %}
-                        <div class="transaction-item {{ transaction.transaction_type }}">
-                            <div class="row align-items-center">
-                                <div class="col-md-2">
-                                    {% if transaction.transaction_type == 'contribution' %}
-                                        <i class="fas fa-plus-circle text-success fa-lg"></i>
-                                        <span class="text-success fw-bold">مساهمة</span>
-                                    {% else %}
-                                        <i class="fas fa-minus-circle text-warning fa-lg"></i>
-                                        <span class="text-warning fw-bold">سحب</span>
-                                    {% endif %}
-                                </div>
-                                <div class="col-md-3">
-                                    <strong>{{ transaction.amount|remove_trailing_zeros }} ج.م</strong>
-                                </div>
-                                <div class="col-md-4">
-                                    {{ transaction.description|truncatechars:50 }}
-                                </div>
-                                <div class="col-md-2">
-                                    {{ transaction.transaction_date }}
-                                </div>
-                                <div class="col-md-1">
-                                    <span class="badge bg-{{ transaction.status|yesno:'success,warning,danger' }}">
-                                        {{ transaction.get_status_display }}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        {% endfor %}
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-wallet"></i>
+            </div>
+            <div class="stats-card-title">رصيد الشريك</div>
+            <div class="stats-card-value">{{ partner_balance.current_balance|remove_trailing_zeros }}</div>
+            <div class="stats-card-unit">جنيه مصري</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stats-card-title">إجمالي المساهمات</div>
+            <div class="stats-card-value">{{ partner_balance.total_contributions|remove_trailing_zeros }}</div>
+            <div class="stats-card-unit">جنيه مصري</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stats-card-title">إجمالي السحوبات</div>
+            <div class="stats-card-value">{{ partner_balance.total_withdrawals|remove_trailing_zeros }}</div>
+            <div class="stats-card-unit">جنيه مصري</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stats-card-title">آخر معاملة</div>
+            <div class="stats-card-value">
+              {% if partner_balance.last_transaction_date %}
+                {{ partner_balance.last_transaction_date|date:"d/m" }}
+              {% else %}
+                --
+              {% endif %}
+            </div>
+            <div class="stats-card-unit">
+              {% if partner_balance.last_transaction_date %}
+                {{ partner_balance.last_transaction_date|date:"Y" }}
+              {% else %}
+                لا توجد معاملات
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- آخر المعاملات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-history me-2"></i>آخر المعاملات</h5>
+    {% if recent_transactions %}
+        {% for transaction in recent_transactions %}
+        <div class="transaction-item {{ transaction.transaction_type }}">
+            <div class="row align-items-center">
+                <div class="col-md-2">
+                    {% if transaction.transaction_type == 'contribution' %}
+                        <i class="fas fa-plus-circle text-success fa-lg"></i>
+                        <span class="text-success fw-bold">مساهمة</span>
                     {% else %}
-                        <div class="text-center py-4">
-                            <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
-                            <p class="text-muted">لا توجد معاملات بعد</p>
-                        </div>
+                        <i class="fas fa-minus-circle text-warning fa-lg"></i>
+                        <span class="text-warning fw-bold">سحب</span>
                     {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <strong>{{ transaction.amount|remove_trailing_zeros }} ج.م</strong>
+                </div>
+                <div class="col-md-4">
+                    {{ transaction.description|truncatechars:50 }}
+                </div>
+                <div class="col-md-2">
+                    {{ transaction.transaction_date }}
+                </div>
+                <div class="col-md-1">
+                    <span class="badge bg-{{ transaction.status|yesno:'success,warning,danger' }}">
+                        {{ transaction.get_status_display }}
+                    </span>
                 </div>
             </div>
         </div>
-    </div>
+        {% endfor %}
+        
+        <div class="text-center mt-3">
+            <a href="{% url 'financial:partner_transactions_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-2"></i>عرض جميع المعاملات
+            </a>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-inbox"></i>
+            </div>
+            <h5 class="text-muted mb-3">لا توجد معاملات بعد</h5>
+            <p class="text-muted mb-4">ابدأ بإضافة مساهمة أو سحب مبلغ</p>
+            <button class="btn btn-success me-2" onclick="openContributionModal()">
+                <i class="fas fa-plus-circle me-2"></i>مساهمة جديدة
+            </button>
+        </div>
+    {% endif %}
+  </div>
 </div>
 
 <!-- مودال المساهمة -->

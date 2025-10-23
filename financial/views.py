@@ -107,6 +107,13 @@ from .views.account_views import (
     account_types_delete,
     account_list,
     get_account_transactions,
+    # معاملات الشريك
+    partner_dashboard,
+    partner_transactions_list,
+    partner_transaction_detail,
+    create_contribution,
+    create_withdrawal,
+    get_partner_balance,
     get_account_analytics,
     account_detail,
     account_create,

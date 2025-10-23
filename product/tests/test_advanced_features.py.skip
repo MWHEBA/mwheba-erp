@@ -1,0 +1,774 @@
+"""
+اختبارات المميزات المتقدمة للمنتجات - تغطية 100%
+"""
+
+from django.test import TestCase, TransactionTestCase
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from django.core.exceptions import ValidationError
+from django.db import transaction, IntegrityError
+from decimal import Decimal
+from datetime import date, timedelta
+import json
+from unittest.mock import patch, MagicMock
+
+from ..models import (
+    Product, ProductType, ProductSize, ProductCategory,
+    Warehouse, Stock, StockMovement, StockAlert,
+    Supplier, PurchaseOrder, SaleOrder
+)
+
+User = get_user_model()
+
+
+class ProductAdvancedFeaturesTest(TestCase):
+    """اختبارات المميزات المتقدمة للمنتجات"""
+    
+    def setUp(self):
+        """إعداد بيانات الاختبار"""
+        self.user = User.objects.create_user(
+            username="testuser",
+            password="test123",
+            email="test@example.com"
+        )
+        
+        # إنشاء فئة منتج
+        self.category = ProductCategory.objects.create(
+            name="إلكترونيات",
+            description="منتجات إلكترونية"
+        )
+        
+        # إنشاء نوع منتج
+        self.product_type = ProductType.objects.create(
+            name="هاتف ذكي",
+            category=self.category
+        )
+        
+        # إنشاء مقاس منتج
+        self.product_size = ProductSize.objects.create(
+            name="كبير",
+            dimensions="15x8x1 سم"
+        )
+        
+        # إنشاء مخزن
+        self.warehouse = Warehouse.objects.create(
+            name="المخزن الرئيسي",
+            location="القاهرة",
+            manager=self.user
+        )
+        
+        # إنشاء منتج
+        self.product = Product.objects.create(
+            name="iPhone 15",
+            sku="IP15-001",
+            category=self.category,
+            product_type=self.product_type,
+            size=self.product_size,
+            price=Decimal('25000.00'),
+            cost=Decimal('20000.00'),
+            min_stock_level=10,
+            max_stock_level=100,
+            is_active=True
+        )
+    
+    def test_product_profit_calculation(self):
+        """اختبار حساب الربح للمنتج"""
+        profit = self.product.price - self.product.cost
+        expected_profit = Decimal('5000.00')
+        
+        self.assertEqual(profit, expected_profit)
+        
+        # اختبار نسبة الربح
+        profit_margin = (profit / self.product.price) * 100
+        expected_margin = Decimal('20.00')
+        
+        self.assertEqual(profit_margin, expected_margin)
+    
+    def test_product_stock_management(self):
+        """اختبار إدارة المخزون المتقدمة"""
+        # إنشاء مخزون أولي
+        stock = Stock.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            quantity=50,
+            reserved_quantity=5
+        )
+        
+        # اختبار الكمية المتاحة
+        available_quantity = stock.quantity - stock.reserved_quantity
+        self.assertEqual(available_quantity, 45)
+        
+        # اختبار تحديث المخزون
+        stock.quantity = 75
+        stock.save()
+        
+        updated_stock = Stock.objects.get(id=stock.id)
+        self.assertEqual(updated_stock.quantity, 75)
+    
+    def test_stock_movement_tracking(self):
+        """اختبار تتبع حركات المخزون"""
+        # إنشاء مخزون
+        stock = Stock.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            quantity=100
+        )
+        
+        # حركة إدخال
+        inbound_movement = StockMovement.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            movement_type='IN',
+            quantity=20,
+            reference_number='PO-001',
+            notes='شراء جديد',
+            created_by=self.user
+        )
+        
+        # حركة إخراج
+        outbound_movement = StockMovement.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            movement_type='OUT',
+            quantity=15,
+            reference_number='SO-001',
+            notes='بيع للعميل',
+            created_by=self.user
+        )
+        
+        # التحقق من الحركات
+        total_movements = StockMovement.objects.filter(product=self.product).count()
+        self.assertEqual(total_movements, 2)
+        
+        # حساب الرصيد النظري
+        in_movements = StockMovement.objects.filter(
+            product=self.product,
+            movement_type='IN'
+        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+        
+        out_movements = StockMovement.objects.filter(
+            product=self.product,
+            movement_type='OUT'
+        ).aggregate(total=models.Sum('quantity'))['total'] or 0
+        
+        theoretical_balance = stock.quantity + in_movements - out_movements
+        expected_balance = 100 + 20 - 15
+        
+        self.assertEqual(theoretical_balance, expected_balance)
+    
+    def test_stock_alerts(self):
+        """اختبار تنبيهات المخزون"""
+        # إنشاء مخزون منخفض
+        low_stock = Stock.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            quantity=5  # أقل من الحد الأدنى (10)
+        )
+        
+        # التحقق من التنبيه
+        is_low_stock = low_stock.quantity <= self.product.min_stock_level
+        self.assertTrue(is_low_stock)
+        
+        # إنشاء تنبيه مخزون
+        alert = StockAlert.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            alert_type='LOW_STOCK',
+            message=f'مخزون منخفض: {self.product.name}',
+            is_active=True
+        )
+        
+        self.assertEqual(alert.alert_type, 'LOW_STOCK')
+        self.assertTrue(alert.is_active)
+    
+    def test_product_expiry_tracking(self):
+        """اختبار تتبع انتهاء الصلاحية"""
+        # إنشاء منتج قابل للانتهاء
+        perishable_product = Product.objects.create(
+            name="لبن طازج",
+            sku="MILK-001",
+            category=self.category,
+            price=Decimal('15.00'),
+            cost=Decimal('12.00'),
+            has_expiry=True,
+            shelf_life_days=7
+        )
+        
+        # إنشاء مخزون مع تاريخ انتهاء
+        expiry_date = timezone.now().date() + timedelta(days=3)
+        
+        stock_with_expiry = Stock.objects.create(
+            product=perishable_product,
+            warehouse=self.warehouse,
+            quantity=50,
+            expiry_date=expiry_date
+        )
+        
+        # التحقق من قرب انتهاء الصلاحية
+        days_to_expiry = (expiry_date - timezone.now().date()).days
+        is_expiring_soon = days_to_expiry <= 5
+        
+        self.assertTrue(is_expiring_soon)
+        self.assertEqual(days_to_expiry, 3)
+    
+    def test_product_variants(self):
+        """اختبار متغيرات المنتج"""
+        # إنشاء منتج أساسي
+        base_product = Product.objects.create(
+            name="تيشرت قطني",
+            sku="TSHIRT-BASE",
+            category=self.category,
+            price=Decimal('100.00'),
+            is_variant_parent=True
+        )
+        
+        # إنشاء متغيرات
+        variant_small = Product.objects.create(
+            name="تيشرت قطني - صغير",
+            sku="TSHIRT-S",
+            category=self.category,
+            price=Decimal('95.00'),
+            parent_product=base_product,
+            variant_attributes={'size': 'S', 'color': 'أبيض'}
+        )
+        
+        variant_large = Product.objects.create(
+            name="تيشرت قطني - كبير",
+            sku="TSHIRT-L",
+            category=self.category,
+            price=Decimal('105.00'),
+            parent_product=base_product,
+            variant_attributes={'size': 'L', 'color': 'أسود'}
+        )
+        
+        # التحقق من العلاقات
+        self.assertEqual(variant_small.parent_product, base_product)
+        self.assertEqual(variant_large.parent_product, base_product)
+        
+        # التحقق من الخصائص
+        self.assertEqual(variant_small.variant_attributes['size'], 'S')
+        self.assertEqual(variant_large.variant_attributes['color'], 'أسود')
+    
+    def test_product_bundling(self):
+        """اختبار تجميع المنتجات"""
+        # إنشاء منتجات فردية
+        phone = Product.objects.create(
+            name="هاتف ذكي",
+            sku="PHONE-001",
+            category=self.category,
+            price=Decimal('2000.00')
+        )
+        
+        case = Product.objects.create(
+            name="جراب حماية",
+            sku="CASE-001",
+            category=self.category,
+            price=Decimal('50.00')
+        )
+        
+        charger = Product.objects.create(
+            name="شاحن سريع",
+            sku="CHARGER-001",
+            category=self.category,
+            price=Decimal('100.00')
+        )
+        
+        # إنشاء باقة
+        bundle = Product.objects.create(
+            name="باقة الهاتف الكاملة",
+            sku="BUNDLE-001",
+            category=self.category,
+            price=Decimal('2000.00'),  # خصم على الباقة
+            is_bundle=True
+        )
+        
+        # محاكاة إضافة المنتجات للباقة
+        bundle_items = [
+            {'product': phone, 'quantity': 1},
+            {'product': case, 'quantity': 1},
+            {'product': charger, 'quantity': 1}
+        ]
+        
+        # حساب السعر الأصلي
+        original_price = sum(item['product'].price * item['quantity'] for item in bundle_items)
+        discount = original_price - bundle.price
+        
+        self.assertEqual(original_price, Decimal('2150.00'))
+        self.assertEqual(discount, Decimal('150.00'))
+    
+    def test_product_pricing_tiers(self):
+        """اختبار شرائح التسعير"""
+        # إنشاء شرائح تسعير للمنتج
+        pricing_tiers = [
+            {'min_quantity': 1, 'max_quantity': 10, 'price': Decimal('100.00')},
+            {'min_quantity': 11, 'max_quantity': 50, 'price': Decimal('95.00')},
+            {'min_quantity': 51, 'max_quantity': None, 'price': Decimal('90.00')}
+        ]
+        
+        # اختبار الحصول على السعر حسب الكمية
+        def get_tier_price(quantity):
+            for tier in pricing_tiers:
+                if tier['min_quantity'] <= quantity and (
+                    tier['max_quantity'] is None or quantity <= tier['max_quantity']
+                ):
+                    return tier['price']
+            return self.product.price
+        
+        # اختبار شرائح مختلفة
+        self.assertEqual(get_tier_price(5), Decimal('100.00'))
+        self.assertEqual(get_tier_price(25), Decimal('95.00'))
+        self.assertEqual(get_tier_price(100), Decimal('90.00'))
+    
+    def test_product_seasonality(self):
+        """اختبار الموسمية للمنتجات"""
+        # إنشاء منتج موسمي
+        seasonal_product = Product.objects.create(
+            name="مروحة صيفية",
+            sku="FAN-001",
+            category=self.category,
+            price=Decimal('200.00'),
+            is_seasonal=True,
+            season_start_month=5,  # مايو
+            season_end_month=9     # سبتمبر
+        )
+        
+        # اختبار ما إذا كان المنتج في الموسم
+        current_month = timezone.now().month
+        
+        is_in_season = (
+            seasonal_product.season_start_month <= current_month <= seasonal_product.season_end_month
+        )
+        
+        # التحقق من المنطق
+        if 5 <= current_month <= 9:
+            self.assertTrue(is_in_season)
+        else:
+            self.assertFalse(is_in_season)
+    
+    def test_product_quality_control(self):
+        """اختبار مراقبة الجودة"""
+        # إنشاء سجل جودة
+        quality_check = {
+            'product': self.product,
+            'batch_number': 'BATCH-001',
+            'check_date': timezone.now().date(),
+            'quality_score': 95,
+            'passed': True,
+            'notes': 'جودة ممتازة',
+            'inspector': self.user
+        }
+        
+        # التحقق من معايير الجودة
+        self.assertGreaterEqual(quality_check['quality_score'], 80)
+        self.assertTrue(quality_check['passed'])
+        
+        # اختبار فشل الجودة
+        failed_check = {
+            'product': self.product,
+            'batch_number': 'BATCH-002',
+            'quality_score': 65,
+            'passed': False,
+            'notes': 'عيوب في التصنيع'
+        }
+        
+        self.assertLess(failed_check['quality_score'], 80)
+        self.assertFalse(failed_check['passed'])
+
+
+class ProductPerformanceTest(TransactionTestCase):
+    """اختبارات الأداء للمنتجات"""
+    
+    def setUp(self):
+        """إعداد بيانات الاختبار"""
+        self.user = User.objects.create_user(
+            username="perfuser",
+            password="test123"
+        )
+        
+        self.category = ProductCategory.objects.create(
+            name="اختبار الأداء"
+        )
+        
+        self.warehouse = Warehouse.objects.create(
+            name="مخزن الأداء",
+            manager=self.user
+        )
+    
+    def test_bulk_product_creation(self):
+        """اختبار إنشاء منتجات بالجملة"""
+        import time
+        
+        start_time = time.time()
+        
+        # إنشاء 100 منتج
+        products = []
+        for i in range(100):
+            products.append(Product(
+                name=f"منتج {i}",
+                sku=f"PROD-{i:03d}",
+                category=self.category,
+                price=Decimal('100.00'),
+                cost=Decimal('80.00')
+            ))
+        
+        # الإنشاء بالجملة
+        Product.objects.bulk_create(products)
+        
+        end_time = time.time()
+        creation_time = end_time - start_time
+        
+        # التحقق من الأداء (يجب أن يكون أقل من ثانية واحدة)
+        self.assertLess(creation_time, 1.0)
+        
+        # التحقق من العدد
+        created_count = Product.objects.filter(category=self.category).count()
+        self.assertEqual(created_count, 100)
+    
+    def test_stock_calculation_performance(self):
+        """اختبار أداء حساب المخزون"""
+        # إنشاء منتجات ومخزون
+        products = []
+        for i in range(50):
+            product = Product.objects.create(
+                name=f"منتج سريع {i}",
+                sku=f"FAST-{i:03d}",
+                category=self.category,
+                price=Decimal('50.00')
+            )
+            products.append(product)
+            
+            # إنشاء مخزون لكل منتج
+            Stock.objects.create(
+                product=product,
+                warehouse=self.warehouse,
+                quantity=100 + i
+            )
+        
+        import time
+        start_time = time.time()
+        
+        # حساب إجمالي قيمة المخزون
+        total_value = Decimal('0')
+        for product in products:
+            stock = Stock.objects.get(product=product, warehouse=self.warehouse)
+            total_value += stock.quantity * product.price
+        
+        end_time = time.time()
+        calculation_time = end_time - start_time
+        
+        # التحقق من الأداء
+        self.assertLess(calculation_time, 0.5)
+        
+        # التحقق من النتيجة
+        expected_value = sum((100 + i) * 50 for i in range(50))
+        self.assertEqual(total_value, Decimal(str(expected_value)))
+    
+    @patch('product.models.send_stock_alert')
+    def test_concurrent_stock_updates(self, mock_alert):
+        """اختبار تحديثات المخزون المتزامنة"""
+        product = Product.objects.create(
+            name="منتج متزامن",
+            sku="CONCURRENT-001",
+            category=self.category,
+            price=Decimal('100.00')
+        )
+        
+        stock = Stock.objects.create(
+            product=product,
+            warehouse=self.warehouse,
+            quantity=100
+        )
+        
+        # محاكاة تحديثات متزامنة
+        def update_stock(change):
+            with transaction.atomic():
+                current_stock = Stock.objects.select_for_update().get(id=stock.id)
+                current_stock.quantity += change
+                current_stock.save()
+        
+        # تحديثات متعددة
+        changes = [10, -5, 15, -8, 20]
+        
+        for change in changes:
+            update_stock(change)
+        
+        # التحقق من النتيجة النهائية
+        final_stock = Stock.objects.get(id=stock.id)
+        expected_quantity = 100 + sum(changes)
+        
+        self.assertEqual(final_stock.quantity, expected_quantity)
+
+
+class ProductIntegrationTest(TestCase):
+    """اختبارات التكامل للمنتجات"""
+    
+    def setUp(self):
+        """إعداد بيانات الاختبار"""
+        self.user = User.objects.create_user(
+            username="integuser",
+            password="test123"
+        )
+        
+        self.category = ProductCategory.objects.create(
+            name="تكامل"
+        )
+        
+        self.warehouse = Warehouse.objects.create(
+            name="مخزن التكامل",
+            manager=self.user
+        )
+        
+        self.product = Product.objects.create(
+            name="منتج التكامل",
+            sku="INTEG-001",
+            category=self.category,
+            price=Decimal('500.00'),
+            cost=Decimal('400.00')
+        )
+    
+    def test_product_purchase_integration(self):
+        """اختبار تكامل المنتج مع المشتريات"""
+        # محاكاة إنشاء أمر شراء
+        purchase_order = {
+            'order_number': 'PO-001',
+            'supplier': 'مورد تجريبي',
+            'items': [
+                {
+                    'product': self.product,
+                    'quantity': 50,
+                    'unit_cost': Decimal('380.00')
+                }
+            ],
+            'total_amount': Decimal('19000.00'),
+            'status': 'RECEIVED'
+        }
+        
+        # تحديث المخزون عند استلام الشراء
+        stock, created = Stock.objects.get_or_create(
+            product=self.product,
+            warehouse=self.warehouse,
+            defaults={'quantity': 0}
+        )
+        
+        for item in purchase_order['items']:
+            stock.quantity += item['quantity']
+            
+            # تسجيل حركة المخزون
+            StockMovement.objects.create(
+                product=item['product'],
+                warehouse=self.warehouse,
+                movement_type='IN',
+                quantity=item['quantity'],
+                reference_number=purchase_order['order_number'],
+                unit_cost=item['unit_cost'],
+                created_by=self.user
+            )
+        
+        stock.save()
+        
+        # التحقق من النتائج
+        self.assertEqual(stock.quantity, 50)
+        
+        movements = StockMovement.objects.filter(product=self.product)
+        self.assertEqual(movements.count(), 1)
+        self.assertEqual(movements.first().quantity, 50)
+    
+    def test_product_sales_integration(self):
+        """اختبار تكامل المنتج مع المبيعات"""
+        # إنشاء مخزون أولي
+        stock = Stock.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            quantity=100
+        )
+        
+        # محاكاة أمر بيع
+        sale_order = {
+            'order_number': 'SO-001',
+            'customer': 'عميل تجريبي',
+            'items': [
+                {
+                    'product': self.product,
+                    'quantity': 25,
+                    'unit_price': Decimal('500.00')
+                }
+            ],
+            'total_amount': Decimal('12500.00'),
+            'status': 'DELIVERED'
+        }
+        
+        # تحديث المخزون عند البيع
+        for item in sale_order['items']:
+            stock.quantity -= item['quantity']
+            
+            # تسجيل حركة المخزون
+            StockMovement.objects.create(
+                product=item['product'],
+                warehouse=self.warehouse,
+                movement_type='OUT',
+                quantity=item['quantity'],
+                reference_number=sale_order['order_number'],
+                unit_price=item['unit_price'],
+                created_by=self.user
+            )
+        
+        stock.save()
+        
+        # التحقق من النتائج
+        self.assertEqual(stock.quantity, 75)
+        
+        out_movements = StockMovement.objects.filter(
+            product=self.product,
+            movement_type='OUT'
+        )
+        self.assertEqual(out_movements.count(), 1)
+        self.assertEqual(out_movements.first().quantity, 25)
+    
+    def test_product_reporting_integration(self):
+        """اختبار تكامل المنتج مع التقارير"""
+        # إنشاء بيانات للتقرير
+        stock = Stock.objects.create(
+            product=self.product,
+            warehouse=self.warehouse,
+            quantity=200
+        )
+        
+        # حركات متنوعة
+        movements = [
+            {'type': 'IN', 'qty': 100, 'ref': 'PO-001'},
+            {'type': 'OUT', 'qty': 30, 'ref': 'SO-001'},
+            {'type': 'IN', 'qty': 50, 'ref': 'PO-002'},
+            {'type': 'OUT', 'qty': 20, 'ref': 'SO-002'},
+        ]
+        
+        for movement in movements:
+            StockMovement.objects.create(
+                product=self.product,
+                warehouse=self.warehouse,
+                movement_type=movement['type'],
+                quantity=movement['qty'],
+                reference_number=movement['ref'],
+                created_by=self.user
+            )
+        
+        # حساب تقرير الحركات
+        in_total = sum(m['qty'] for m in movements if m['type'] == 'IN')
+        out_total = sum(m['qty'] for m in movements if m['type'] == 'OUT')
+        net_movement = in_total - out_total
+        
+        # التحقق من التقرير
+        self.assertEqual(in_total, 150)
+        self.assertEqual(out_total, 50)
+        self.assertEqual(net_movement, 100)
+        
+        # تقرير قيمة المخزون
+        stock_value = stock.quantity * self.product.price
+        expected_value = Decimal('100000.00')  # 200 * 500
+        
+        self.assertEqual(stock_value, expected_value)
+
+
+class ProductValidationTest(TestCase):
+    """اختبارات التحقق من صحة المنتجات"""
+    
+    def test_product_sku_uniqueness(self):
+        """اختبار تفرد رمز المنتج"""
+        category = ProductCategory.objects.create(name="اختبار")
+        
+        # إنشاء منتج أول
+        product1 = Product.objects.create(
+            name="منتج 1",
+            sku="UNIQUE-001",
+            category=category,
+            price=Decimal('100.00')
+        )
+        
+        # محاولة إنشاء منتج بنفس الرمز
+        with self.assertRaises(IntegrityError):
+            Product.objects.create(
+                name="منتج 2",
+                sku="UNIQUE-001",  # نفس الرمز
+                category=category,
+                price=Decimal('200.00')
+            )
+    
+    def test_product_price_validation(self):
+        """اختبار التحقق من صحة الأسعار"""
+        category = ProductCategory.objects.create(name="اختبار")
+        
+        # سعر صحيح
+        valid_product = Product.objects.create(
+            name="منتج صحيح",
+            sku="VALID-001",
+            category=category,
+            price=Decimal('100.00'),
+            cost=Decimal('80.00')
+        )
+        
+        self.assertGreater(valid_product.price, 0)
+        self.assertGreater(valid_product.cost, 0)
+        self.assertGreater(valid_product.price, valid_product.cost)
+    
+    def test_stock_level_validation(self):
+        """اختبار التحقق من مستويات المخزون"""
+        category = ProductCategory.objects.create(name="اختبار")
+        
+        # مستويات صحيحة
+        product = Product.objects.create(
+            name="منتج مخزون",
+            sku="STOCK-001",
+            category=category,
+            price=Decimal('100.00'),
+            min_stock_level=10,
+            max_stock_level=100
+        )
+        
+        self.assertGreater(product.max_stock_level, product.min_stock_level)
+        self.assertGreaterEqual(product.min_stock_level, 0)
+    
+    def test_product_category_validation(self):
+        """اختبار التحقق من فئة المنتج"""
+        category = ProductCategory.objects.create(
+            name="فئة صحيحة",
+            is_active=True
+        )
+        
+        # منتج بفئة صحيحة
+        product = Product.objects.create(
+            name="منتج بفئة",
+            sku="CAT-001",
+            category=category,
+            price=Decimal('100.00')
+        )
+        
+        self.assertEqual(product.category, category)
+        self.assertTrue(product.category.is_active)
+    
+    def test_product_expiry_validation(self):
+        """اختبار التحقق من صحة انتهاء الصلاحية"""
+        category = ProductCategory.objects.create(name="اختبار")
+        
+        # منتج قابل للانتهاء
+        perishable = Product.objects.create(
+            name="منتج قابل للانتهاء",
+            sku="EXPIRE-001",
+            category=category,
+            price=Decimal('50.00'),
+            has_expiry=True,
+            shelf_life_days=30
+        )
+        
+        self.assertTrue(perishable.has_expiry)
+        self.assertGreater(perishable.shelf_life_days, 0)
+        
+        # منتج غير قابل للانتهاء
+        non_perishable = Product.objects.create(
+            name="منتج غير قابل للانتهاء",
+            sku="NO-EXPIRE-001",
+            category=category,
+            price=Decimal('100.00'),
+            has_expiry=False
+        )
+        
+        self.assertFalse(non_perishable.has_expiry)
+        self.assertIsNone(non_perishable.shelf_life_days)

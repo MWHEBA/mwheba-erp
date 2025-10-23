@@ -2090,6 +2090,9 @@ def partner_dashboard(request):
     # الحسابات النقدية المتاحة باستخدام أدوات التكامل
     cash_accounts = PartnerFinancialIntegration.get_available_cash_accounts()
     
+    # تحديث الرصيد للتأكد من أحدث البيانات
+    partner_balance.update_balance()
+    
     context = {
         'partner_account': partner_account,
         'partner_balance': partner_balance,
@@ -2582,6 +2585,8 @@ def partner_transactions_list(request):
     """
     قائمة معاملات الشريك
     """
+    from ..models.partner_transactions import PartnerTransaction, PartnerBalance
+    
     # الحصول على حساب الشريك
     try:
         partner_account = ChartOfAccounts.objects.get(
@@ -2592,72 +2597,44 @@ def partner_transactions_list(request):
         messages.error(request, "لم يتم العثور على حساب الشريك")
         return redirect('financial:chart_of_accounts_list')
     
-    # جلب القيود المحاسبية المرتبطة بحساب الشريك
-    partner_entries = JournalEntry.objects.filter(
-        lines__account=partner_account
-    ).distinct().order_by('-date', '-id')
+    # جلب معاملات الشريك
+    transactions_queryset = PartnerTransaction.objects.filter(
+        partner_account=partner_account
+    ).order_by('-created_at')
     
     # الفلترة
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     transaction_type = request.GET.get('transaction_type')
+    status_filter = request.GET.get('status')
     
     if date_from:
         date_from = datetime.strptime(date_from, '%Y-%m-%d').date()
-        partner_entries = partner_entries.filter(date__gte=date_from)
+        transactions_queryset = transactions_queryset.filter(transaction_date__gte=date_from)
     
     if date_to:
         date_to = datetime.strptime(date_to, '%Y-%m-%d').date()
-        partner_entries = partner_entries.filter(date__lte=date_to)
+        transactions_queryset = transactions_queryset.filter(transaction_date__lte=date_to)
     
     if transaction_type:
-        if transaction_type == 'contribution':
-            partner_entries = partner_entries.filter(description__icontains='مساهمة')
-        elif transaction_type == 'withdrawal':
-            partner_entries = partner_entries.filter(description__icontains='سحب')
+        transactions_queryset = transactions_queryset.filter(transaction_type=transaction_type)
     
-    # تحويل القيود المحاسبية إلى تنسيق يتوافق مع القالب
-    enhanced_transactions = []
-    total_contributions = Decimal('0')
-    total_withdrawals = Decimal('0')
+    if status_filter:
+        transactions_queryset = transactions_queryset.filter(status=status_filter)
     
-    for entry in partner_entries:
-        # الحصول على بنود الشريك في هذا القيد
-        partner_lines = entry.lines.filter(account=partner_account)
-        
-        for line in partner_lines:
-            # تحديد نوع المعاملة بناءً على الدائن/المدين
-            if line.credit > 0:
-                transaction_type = 'contribution'
-                amount = line.credit
-                total_contributions += amount
-            else:
-                transaction_type = 'withdrawal'
-                amount = line.debit
-                total_withdrawals += amount
-            
-            # الحصول على الحساب المقابل (الخزينة)
-            other_lines = entry.lines.exclude(account=partner_account)
-            cash_account_name = ', '.join([ol.account.name for ol in other_lines])
-            
-            enhanced_transaction = {
-                'id': entry.id,
-                'transaction_type': transaction_type,
-                'amount': amount,
-                'description': entry.description,
-                'transaction_date': entry.date,
-                'status': 'completed',  # جميع القيود المحاسبية مكتملة
-                'cash_account_name': cash_account_name,
-                'created_by': entry.created_by,
-                'created_at': entry.created_at,
-                'journal_entry': entry,
-                'get_status_display': 'مكتمل',
-                'get_sub_type_display': '',
-            }
-            enhanced_transactions.append(enhanced_transaction)
+    # حساب الإحصائيات
+    total_contributions = transactions_queryset.filter(
+        transaction_type='contribution',
+        status='completed'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0')
+    
+    total_withdrawals = transactions_queryset.filter(
+        transaction_type='withdrawal',
+        status='completed'
+    ).aggregate(total=models.Sum('amount'))['total'] or Decimal('0')
     
     # الترقيم الصفحي
-    paginator = Paginator(enhanced_transactions, 25)
+    paginator = Paginator(transactions_queryset, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     

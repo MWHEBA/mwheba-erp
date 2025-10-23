@@ -4,63 +4,152 @@
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
-{% block title %}{% trans "تقرير الأستاذ العام" %}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/financial.css' %}">
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* تصميم حالة الفارغ */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: #dee2e6;
+    margin-bottom: 1.5rem;
+    animation: float 3s ease-in-out infinite;
+  }
+  
+  @keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-15px); }
+    100% { transform: translateY(0px); }
+  }
+</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <div class="card shadow mb-4">
-        <div class="card-header py-3 d-flex justify-content-between align-items-center">
-            <h6 class="m-0 font-weight-bold text-primary">{{ title }}</h6>
-        </div>
-        <div class="card-body">
-            <!-- نموذج التصفية -->
-            <form method="get" class="form-inline mb-4 filter-form">
-                <div class="form-group mx-2">
-                    <label for="account" class="mx-2">الحساب:</label>
-                    <select name="account" id="account" class="form-control">
-                        <option value="">-- كل الحسابات --</option>
-                        {% for acc in accounts %}
-                        <option value="{{ acc.id }}" {% if account and acc.id == account.id %}selected{% endif %}>
-                            {{ acc.name }} ({{ acc.code }})
-                        </option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="form-group mx-2">
-                    <label for="date_from" class="mx-2">من تاريخ:</label>
-                    <input type="date" name="date_from" id="date_from" class="form-control"
-                        value="{{ date_from|date:'d-m-Y' }}">
-                </div>
-                <div class="form-group mx-2">
-                    <label for="date_to" class="mx-2">إلى تاريخ:</label>
-                    <input type="date" name="date_to" id="date_to" class="form-control"
-                        value="{{ date_to|date:'d-m-Y' }}">
-                </div>
-                <button type="submit" class="btn btn-primary mx-2">تصفية</button>
-                <a href="{% url 'financial:ledger_report' %}" class="btn btn-secondary">إعادة تعيين</a>
-                
-                <div class="ml-auto">
-                    <a href="#" class="btn btn-success" onclick="window.print()">
-                        <i class="fas fa-print"></i> طباعة
-                    </a>
-                </div>
-            </form>
+  <!-- عنوان الصفحة (مضمن مباشرة) -->
+  <div class="mb-4">
+      <!-- Breadcrumbs -->
+      {% if breadcrumb_items %}
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  {% for item in breadcrumb_items %}
+                      {% if forloop.last or item.active %}
+                          <li class="breadcrumb-item active" aria-current="page">
+                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                              {{ item.title }}
+                          </li>
+                      {% else %}
+                          <li class="breadcrumb-item">
+                              <a href="{{ item.url }}">
+                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                  {{ item.title }}
+                              </a>
+                          </li>
+                      {% endif %}
+                  {% endfor %}
+              </ol>
+          </nav>
+      </div>
+      {% endif %}
+      
+      <!-- Header -->
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              {% if page_icon %}
+                  <div class="me-3">
+                      <i class="{{ page_icon }} fa-2x text-primary"></i>
+                  </div>
+              {% endif %}
+              <div>
+                  <h1 class="h3 mb-1">{{ page_title }}</h1>
+                  <p class="text-muted mb-0">تقرير تفصيلي لحركات الحسابات المالية</p>
+              </div>
+          </div>
+          <div>
+              <button class="btn btn-outline-success ms-2" onclick="window.print()">
+                  <i class="fas fa-print me-2"></i>طباعة
+              </button>
+          </div>
+      </div>
+  </div>
 
-            <!-- في حالة اختيار حساب محدد: عرض التفاصيل -->
-            {% if account %}
-            <div class="table-responsive">
-                <div class="account-info mb-3">
-                    <h5>{{ account.name }}</h5>
-                    <p>
-                        <strong>الكود:</strong> {{ account.code }} |
-                        <strong>النوع:</strong> {{ account.get_account_type_display }} |
-                        <strong>الرصيد الحالي:</strong> {{ account.balance }}
-                    </p>
-                </div>
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-4">
+          <label for="account" class="form-label">الحساب:</label>
+          <select name="account" id="account" class="form-select">
+            <option value="">-- كل الحسابات --</option>
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}" {% if account and acc.id == account.id %}selected{% endif %}>
+              {{ acc.name }} ({{ acc.code }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label for="date_from" class="form-label">من تاريخ:</label>
+          <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="date_to" class="form-label">إلى تاريخ:</label>
+          <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-filter me-1"></i>تصفية
+          </button>
+          <a href="{% url 'financial:ledger_report' %}" class="btn btn-secondary">
+            <i class="fas fa-undo me-1"></i>إعادة تعيين
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- تفاصيل الحساب -->
+  {% if account %}
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-user me-2"></i>تفاصيل الحساب</h5>
+    <div class="account-info mb-3">
+      <h5>{{ account.name }}</h5>
+      <p>
+        <strong>الكود:</strong> {{ account.code }} |
+        <strong>النوع:</strong> {{ account.get_account_type_display }} |
+        <strong>الرصيد الحالي:</strong> {{ account.balance }}
+      </p>
+    </div>
+    
+    <div class="table-responsive">
                 
                 <table class="table table-bordered table-striped" id="ledgerTable">
                     <thead class="thead-dark">
@@ -97,67 +186,76 @@
                                 </td>
                             </tr>
                             {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center">لا توجد معاملات لهذا الحساب في الفترة المحددة</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                    <tfoot>
-                        <tr class="table-active">
-                            <th colspan="4">الإجمالي</th>
-                            <th class="text-right">{{ total_debit|custom_number_format }}</th>
-                            <th class="text-right">{{ total_credit|custom_number_format }}</th>
-                            <th class="text-right">{{ balance|custom_number_format }}</th>
-                        </tr>
-                    </tfoot>
-                </table>
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-file-alt"></i>
+                </div>
+                <h5 class="text-muted mb-3">لا توجد معاملات</h5>
+                <p class="text-muted mb-4">لا توجد معاملات لهذا الحساب في الفترة المحددة</p>
             </div>
-            
-            {% else %}
-            <!-- في حالة عدم اختيار حساب: عرض ملخص لكل الحسابات -->
-            <div class="table-responsive">
-                <table class="table table-bordered table-striped" id="accountsTable">
-                    <thead class="thead-dark">
-                        <tr>
-                            <th>الحساب</th>
-                            <th>الكود</th>
-                            <th>النوع</th>
-                            <th>مدين</th>
-                            <th>دائن</th>
-                            <th>الرصيد</th>
-                            <th>عرض</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% if account_balances %}
-                            {% for item in account_balances %}
-                            <tr>
-                                <td>{{ item.account.name }}</td>
-                                <td>{{ item.account.code }}</td>
-                                <td>{{ item.account.account_type }}</td>
-                                <td class="text-right">{{ item.total_debit|custom_number_format }}</td>
-                                <td class="text-right">{{ item.total_credit|custom_number_format }}</td>
-                                <td class="text-right">{{ item.balance|custom_number_format }}</td>
-                                <td>
-                                    <a href="{% url 'financial:ledger_report' %}?account={{ item.account.id }}"
-                                       class="btn btn-sm btn-primary">
-                                        <i class="fas fa-eye"></i> عرض
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        {% else %}
-                            <tr>
-                                <td colspan="7" class="text-center">لا توجد حسابات نشطة في الفترة المحددة</td>
-                            </tr>
-                        {% endif %}
-                    </tbody>
-                </table>
-            </div>
-            {% endif %}
-        </div>
+        {% endif %}
+      </tbody>
+      <tfoot>
+        <tr class="table-active">
+          <th colspan="4">الإجمالي</th>
+          <th class="text-end">{{ total_debit|custom_number_format }}</th>
+          <th class="text-end">{{ total_credit|custom_number_format }}</th>
+          <th class="text-end">{{ balance|custom_number_format }}</th>
+        </tr>
+      </tfoot>
+    </table>
     </div>
+  </div>
+  
+  {% else %}
+  <!-- ملخص جميع الحسابات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-table me-2"></i>ملخص جميع الحسابات</h5>
+    {% if account_balances %}
+    <div class="table-responsive">
+      <table class="table table-striped" id="accountsTable">
+        <thead>
+          <tr>
+            <th>الحساب</th>
+            <th>الكود</th>
+            <th>النوع</th>
+            <th>مدين</th>
+            <th>دائن</th>
+            <th>الرصيد</th>
+            <th>عرض</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in account_balances %}
+          <tr>
+            <td>{{ item.account.name }}</td>
+            <td>{{ item.account.code }}</td>
+            <td>{{ item.account.account_type }}</td>
+            <td class="text-end">{{ item.total_debit|custom_number_format }}</td>
+            <td class="text-end">{{ item.total_credit|custom_number_format }}</td>
+            <td class="text-end">{{ item.balance|custom_number_format }}</td>
+            <td>
+              <a href="{% url 'financial:ledger_report' %}?account={{ item.account.id }}" class="btn btn-sm btn-primary">
+                <i class="fas fa-eye"></i> عرض
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-book"></i>
+            </div>
+            <h5 class="text-muted mb-3">لا توجد حسابات نشطة</h5>
+            <p class="text-muted mb-4">لا توجد حسابات نشطة في الفترة المحددة</p>
+        </div>
+    {% endif %}
+  </div>
+  {% endif %}
 </div>
 {% endblock %}
 

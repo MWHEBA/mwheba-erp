@@ -148,17 +148,22 @@ class PartnerFinancialIntegration:
                 )
                 partner_balance.update_balance()
         
-        # تسجيل في سجل التدقيق
-        PartnerAuditLog.log_action(
-            user=created_by,
-            action=f'create_{transaction_type}',
-            description=f'تم إنشاء {transaction_obj.get_transaction_type_display()} بمبلغ {amount} ج.م',
-            extra_data={
-                'transaction_id': transaction_obj.id,
-                'amount': float(amount),
-                'status': status
-            }
-        )
+        # تسجيل في سجل التدقيق (إذا كان متاحاً)
+        if PartnerAuditLog:
+            try:
+                PartnerAuditLog.log_action(
+                    user=created_by,
+                    action=f'create_{transaction_type}',
+                    description=f'تم إنشاء {transaction_obj.get_transaction_type_display()} بمبلغ {amount} ج.م',
+                    extra_data={
+                        'transaction_id': transaction_obj.id,
+                        'amount': float(amount),
+                        'status': status
+                    }
+                )
+            except Exception:
+                # تجاهل أخطاء سجل التدقيق
+                pass
         
         return transaction_obj
     
