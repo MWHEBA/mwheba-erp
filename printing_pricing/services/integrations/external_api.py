@@ -66,10 +66,11 @@ class ExternalAPIIntegration:
                 price = self._find_closest_match(category_prices, specifications)
             
             if price is not None:
+                from core.utils import get_default_currency
                 return {
                     'success': True,
                     'price': price,
-                    'currency': 'EGP',
+                    'currency': get_default_currency(),
                     'source': 'external_api',
                     'last_updated': 'now'
                 }
@@ -130,10 +131,11 @@ class ExternalAPIIntegration:
                 price = self._find_closest_match(category_prices, specifications)
             
             if price is not None:
+                from core.utils import get_default_currency
                 return {
                     'success': True,
                     'price': price,
-                    'currency': 'EGP',
+                    'currency': get_default_currency(),
                     'source': 'external_api',
                     'last_updated': 'now'
                 }
@@ -227,10 +229,11 @@ class ExternalAPIIntegration:
                 'AED': Decimal('8.30')
             }
             
+            from core.utils import get_default_currency
             return {
                 'success': True,
                 'rates': mock_rates,
-                'base_currency': 'EGP',
+                'base_currency': get_default_currency(),
                 'last_updated': 'now'
             }
             

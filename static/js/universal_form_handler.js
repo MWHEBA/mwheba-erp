@@ -171,7 +171,7 @@ class UniversalFormHandler {
                                    min="0" placeholder="0.00" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                            <label class="form-label fw-bold text-muted small">السعر للأرضيات</label>
                             <input type="number" class="form-control text-center" name="tier_1_floor_price" 
                                    min="0" placeholder="0.00">
                         </div>
@@ -408,7 +408,7 @@ class UniversalFormHandler {
                                    value="${tier.price_per_unit}" min="0" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                            <label class="form-label fw-bold text-muted small">السعر للأرضيات</label>
                             <input type="number" class="form-control text-center" name="tier_${tierNumber}_floor_price" 
                                    value="${tier.floor_price || ''}" min="0">
                         </div>

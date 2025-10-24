@@ -123,7 +123,7 @@
           <div class="col-md-8">
             <div class="pp-cost-item">
               <span class="pp-cost-label">{% trans "التكلفة الإجمالية" %}</span>
-              <span class="pp-cost-value">{{ object.total_cost|floatformat:2 }} {% trans "ج.م" %}</span>
+              <span class="pp-cost-value">{{ object.total_cost|currency }}</span>
             </div>
           </div>
         </div>
@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="pp-detail-item">
                             <label class="pp-detail-label">{% trans "تصميم الغلاف" %}</label>
                             <div class="pp-detail-value text-success fw-bold">
-                                {{ object.design_price|floatformat:2 }} {% trans "جنيه" %}
+                                {{ object.design_price|currency }}
                             </div>
                         </div>
                     </div>
@@ -221,7 +221,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <div class="pp-detail-item">
                             <label class="pp-detail-label">{% trans "تصميم المحتوى الداخلي" %}</label>
                             <div class="pp-detail-value text-success fw-bold">
-                                {{ object.internal_design_price|floatformat:2 }} {% trans "جنيه" %}
+                                {{ object.internal_design_price|currency }}
                             </div>
                         </div>
                     </div>
@@ -283,27 +283,27 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="pp-calculation-body">
                 <div class="pp-cost-item">
                     <span class="pp-cost-label">{% trans "تكلفة المواد" %}</span>
-                    <span class="pp-cost-value">{{ object.material_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                    <span class="pp-cost-value">{{ object.material_cost|currency }}</span>
                 </div>
                 <div class="pp-cost-item">
                     <span class="pp-cost-label">{% trans "تكلفة الطباعة" %}</span>
-                    <span class="pp-cost-value">{{ object.printing_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                    <span class="pp-cost-value">{{ object.printing_cost|currency }}</span>
                 </div>
                 <div class="pp-cost-item">
                     <span class="pp-cost-label">{% trans "تكلفة الخدمات" %}</span>
-                    <span class="pp-cost-value">{{ object.services_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                    <span class="pp-cost-value">{{ object.services_cost|currency }}</span>
                 </div>
                 {% if object.design_price or object.internal_design_price %}
                 <div class="pp-cost-item">
                     <span class="pp-cost-label">{% trans "تكلفة التصميم" %}</span>
                     <span class="pp-cost-value">
-                        {% widthratio object.design_price|default:0|add:object.internal_design_price|default:0 1 1 %} {% trans "جنيه" %}
+                        {% widthratio object.design_price|default:0|add:object.internal_design_price|default:0 1 1 %} {{ currency_symbol }}
                     </span>
                 </div>
                 {% endif %}
                 <div class="pp-cost-item">
                     <span class="pp-cost-label pp-total-cost">{% trans "إجمالي التكلفة" %}</span>
-                    <span class="pp-cost-value pp-total-cost">{{ object.total_cost|default:"0.00"|floatformat:2 }} {% trans "جنيه" %}</span>
+                    <span class="pp-cost-value pp-total-cost">{{ object.total_cost|currency }}</span>
                 </div>
             </div>
         </div>

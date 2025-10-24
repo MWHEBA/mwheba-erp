@@ -854,7 +854,7 @@ class GetPressPriceAPIView(BaseAPIView):
                     
                     # وقت الإعداد كتكلفة ثابتة
                     setup_time = getattr(machine, 'setup_time_minutes', 5)
-                    setup_cost = setup_time * 2.0  # افتراض 2 جنيه/دقيقة
+                    setup_cost = setup_time * 2.0  # افتراض 2 {currency}/دقيقة
                     
                     price_info = {
                         'price_per_1000': price_per_1000,
@@ -1519,12 +1519,14 @@ class GetPaperPriceAPIView(BaseAPIView):
                     'suggestion': 'تأكد من صحة جميع المعايير المحددة'
                 }, status=404)
             
+            from core.utils import get_default_currency
+            
             return JsonResponse({
                 'success': True,
                 'price': float(paper_service.price_per_sheet),
                 'unit_price': float(paper_service.price_per_sheet),
                 'price_per_sheet': float(paper_service.price_per_sheet),
-                'currency': 'EGP',
+                'currency': get_default_currency(),
                 'service_info': {
                     'id': paper_service.id,
                     'supplier_name': paper_service.service.supplier.name,

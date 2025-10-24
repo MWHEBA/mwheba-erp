@@ -34,10 +34,14 @@ function formatNumber(value) {
  * تحويل السعر أو المبلغ المالي إلى نص منسق
  * 
  * @param {number|string} value القيمة المراد تنسيقها
- * @param {string} currency عملة التنسيق (افتراضي: ج.م)
+ * @param {string} currency عملة التنسيق (افتراضي: يقرأ من window.CURRENCY_SYMBOL أو ج.م)
  * @returns {string} القيمة المنسقة مع العملة
  */
-function formatCurrency(value, currency = 'ج.م') {
+function formatCurrency(value, currency) {
+    // إذا لم يتم تمرير العملة، استخدم العملة العامة أو الافتراضية
+    if (!currency) {
+        currency = window.CURRENCY_SYMBOL || 'ج.م';
+    }
     return formatNumber(value) + ' ' + currency;
 }
 

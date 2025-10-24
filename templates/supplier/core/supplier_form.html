@@ -424,7 +424,7 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.min_order_amount.id_for_label }}" class="form-label">الحد الأدنى للطلب (ج.م)</label>
+                                    <label for="{{ form.min_order_amount.id_for_label }}" class="form-label">الحد الأدنى للطلب ({{ currency_symbol }})</label>
                                     {{ form.min_order_amount }}
                                     {% if form.min_order_amount.errors %}
                                         <div class="text-danger small">{{ form.min_order_amount.errors.0 }}</div>

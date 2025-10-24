@@ -150,7 +150,7 @@
         <div class="col-md-6">
           <div class="detail-row">
             <div class="detail-label">{% trans "المبلغ" %}</div>
-            <div class="detail-value fw-bold">{{ transaction.amount|remove_trailing_zeros }} {% trans "جنيه" %}</div>
+            <div class="detail-value fw-bold">{{ transaction.amount|currency }}</div>
           </div>
           
           <div class="detail-row">

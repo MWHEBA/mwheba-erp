@@ -160,7 +160,8 @@ class PartnerTransaction(models.Model):
     
     def __str__(self):
         type_display = self.get_transaction_type_display()
-        return f"{type_display} - {self.amount} ج.م - {self.transaction_date}"
+        from core.models import SystemSetting
+        return f"{type_display} - {self.amount} {SystemSetting.get_currency_symbol()} - {self.transaction_date}"
     
     @property
     def partner_name(self):
@@ -331,7 +332,8 @@ class PartnerBalance(models.Model):
     
     def __str__(self):
         partner_name = self.partner_account.name if self.partner_account else "شريك"
-        return f"رصيد {partner_name}: {self.current_balance} ج.م"
+        from core.models import SystemSetting
+        return f"رصيد {partner_name}: {self.current_balance} {SystemSetting.get_currency_symbol()}"
     
     def update_balance(self):
         """تحديث الرصيد من المعاملات المكتملة"""

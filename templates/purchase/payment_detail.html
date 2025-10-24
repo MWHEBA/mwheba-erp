@@ -316,7 +316,7 @@
                             <div class="info-item">
                                 <span class="info-label">المبلغ:</span>
                                 <span class="info-value amount-highlight">
-                                    {{ payment.amount|custom_number_format }} {{ purchase.currency|default:"ج.م" }}
+                                    {{ payment.amount|currency }}
                                 </span>
                             </div>
                             
@@ -391,18 +391,18 @@
                             
                             <div class="info-item">
                                 <span class="info-label">إجمالي الفاتورة:</span>
-                                <span class="info-value">{{ purchase.total|custom_number_format }} {{ purchase.currency|default:"ج.م" }}</span>
+                                <span class="info-value">{{ purchase.total|currency }}</span>
                             </div>
                             
                             <div class="info-item">
                                 <span class="info-label">المبلغ المدفوع:</span>
-                                <span class="info-value text-success">{{ purchase.amount_paid|custom_number_format }} {{ purchase.currency|default:"ج.م" }}</span>
+                                <span class="info-value text-success">{{ purchase.amount_paid|currency }}</span>
                             </div>
                             
                             <div class="info-item">
                                 <span class="info-label">المبلغ المتبقي:</span>
                                 <span class="info-value {% if purchase.amount_due > 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {{ purchase.amount_due|custom_number_format }} {{ purchase.currency|default:"ج.م" }}
+                                    {{ purchase.amount_due|currency }}
                                 </span>
                             </div>
                         </div>

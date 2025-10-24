@@ -154,7 +154,7 @@
           
           <div class="detail-row">
             <div>{% trans "المبلغ" %}</div>
-            <div class="fw-bold">{{ object.amount }} {% trans "ج.م" %}</div>
+            <div class="fw-bold">{{ object.amount|currency }}</div>
           </div>
           
           <div class="detail-row">
@@ -205,11 +205,11 @@
               <h5 class="alert-heading mb-1">{% trans "تنبيه هام" %}</h5>
               <p class="mb-0">
                 {% if object.transaction_type == 'income' %}
-                {% trans "سيتم تخفيض رصيد الحساب المستلم بمبلغ " %} {{ object.amount }} {% trans "ج.م" %}
+                {% trans "سيتم تخفيض رصيد الحساب المستلم بمبلغ " %} {{ object.amount|currency }}
                 {% elif object.transaction_type == 'expense' %}
-                {% trans "سيتم زيادة رصيد حساب الدفع بمبلغ " %} {{ object.amount }} {% trans "ج.م" %}
+                {% trans "سيتم زيادة رصيد حساب الدفع بمبلغ " %} {{ object.amount|currency }}
                 {% elif object.transaction_type == 'transfer' %}
-                {% trans "سيتم زيادة رصيد الحساب المصدر بمبلغ " %} {{ object.amount }} {% trans "ج.م" %} {% trans "وتخفيض رصيد الحساب المستلم بنفس المبلغ" %}
+                {% trans "سيتم زيادة رصيد الحساب المصدر بمبلغ " %} {{ object.amount|currency }} {% trans "وتخفيض رصيد الحساب المستلم بنفس المبلغ" %}
                 {% endif %}
               </p>
             </div>

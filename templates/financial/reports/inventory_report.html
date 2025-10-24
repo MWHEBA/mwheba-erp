@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -195,8 +196,7 @@
               <i class="fas fa-warehouse"></i>
             </div>
             <div class="stats-card-title">إجمالي قيمة المخزون</div>
-            <div class="stats-card-value">{{ total_inventory_value|floatformat:2 }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ total_inventory_value|currency }}</div>
           </div>
         </div>
       </div>
@@ -234,8 +234,7 @@
               <i class="fas fa-calculator"></i>
             </div>
             <div class="stats-card-title">متوسط قيمة الحساب</div>
-            <div class="stats-card-value">{{ avg_account_value|floatformat:2 }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ avg_account_value|currency }}</div>
           </div>
         </div>
       </div>
@@ -285,7 +284,7 @@
                                 <tr>
                                     <td>{{ item.account.code }}</td>
                                     <td>{{ item.account.name }}</td>
-                                    <td class="text-end">{{ item.balance|floatformat:2 }} ج.م</td>
+                                    <td class="text-end">{{ item.balance|currency }}</td>
                                     <td>{{ item.transactions_count }}</td>
                                     <td>{{ item.recent_movements }}</td>
                                     <td class="text-end">
@@ -308,7 +307,7 @@
                             <tfoot>
                                 <tr class="table-active fw-bold">
                                     <td colspan="2">الإجمالي</td>
-                                    <td class="text-end">{{ total_inventory_value|floatformat:2 }} ج.م</td>
+                                    <td class="text-end">{{ total_inventory_value|currency }}</td>
                                     <td>-</td>
                                     <td>-</td>
                                     <td class="text-end">100%</td>

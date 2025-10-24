@@ -179,22 +179,22 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-6">{% trans "المجموع الفرعي" %}</div>
-                        <div class="col-6 text-end">{{ sale_return.subtotal|custom_number_format }} {% trans "ج.م" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.subtotal|currency }}</div>
                     </div>
                     <hr>
                     <div class="row">
                         <div class="col-6">{% trans "الخصم" %}</div>
-                        <div class="col-6 text-end">{{ sale_return.discount|custom_number_format }} {% trans "ج.م" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.discount|currency }}</div>
                     </div>
                     <hr>
                     <div class="row">
                         <div class="col-6">{% trans "الضريبة" %}</div>
-                        <div class="col-6 text-end">{{ sale_return.tax|custom_number_format }} {% trans "ج.م" %}</div>
+                        <div class="col-6 text-end">{{ sale_return.tax|currency }}</div>
                     </div>
                     <hr>
                     <div class="row font-weight-bold">
                         <div class="col-6">{% trans "الإجمالي" %}</div>
-                        <div class="col-6 text-end total-value">{{ sale_return.total|custom_number_format }} {% trans "ج.م" %}</div>
+                        <div class="col-6 text-end total-value">{{ sale_return.total|currency }}</div>
                     </div>
                 </div>
             </div>
@@ -232,9 +232,9 @@
                                         <small class="text-muted">{{ item.product.sku }}</small>
                                     </td>
                                     <td>{{ item.quantity|custom_number_format }}</td>
-                                    <td>{{ item.unit_price|custom_number_format }} {% trans "ج.م" %}</td>
-                                    <td>{{ item.discount|custom_number_format }} {% trans "ج.م" %}</td>
-                                    <td class="item-total">{{ item.total|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ item.unit_price|currency }}</td>
+                                    <td>{{ item.discount|currency }}</td>
+                                    <td class="item-total">{{ item.total|currency }}</td>
                                     <td>{{ item.reason }}</td>
                                 </tr>
                                 {% endfor %}
@@ -242,19 +242,19 @@
                             <tfoot>
                                 <tr>
                                     <th colspan="5" class="text-end">{% trans "المجموع الفرعي" %}</th>
-                                    <th>{{ sale_return.subtotal|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th>{{ sale_return.subtotal|currency }}</th>
                                     <th></th>
                                 </tr>
                                 {% if sale_return.tax > 0 %}
                                 <tr>
                                     <th colspan="5" class="text-end">{% trans "الضريبة" %}</th>
-                                    <th>{{ sale_return.tax|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th>{{ sale_return.tax|currency }}</th>
                                     <th></th>
                                 </tr>
                                 {% endif %}
                                 <tr>
                                     <th colspan="5" class="text-end">{% trans "الإجمالي" %}</th>
-                                    <th>{{ sale_return.total|custom_number_format }} {% trans "ج.م" %}</th>
+                                    <th>{{ sale_return.total|currency }}</th>
                                     <th></th>
                                 </tr>
                             </tfoot>

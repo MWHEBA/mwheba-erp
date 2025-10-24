@@ -943,7 +943,8 @@ class ServicePriceTier(models.Model):
         
         max_qty = self.max_quantity if self.max_quantity else "∞"
         price_clean = remove_trailing_zeros(self.price_per_unit)
-        return f"{self.service.name} - {self.min_quantity}-{max_qty}: {price_clean} ج.م"
+        from core.models import SystemSetting
+        return f"{self.service.name} - {self.min_quantity}-{max_qty}: {price_clean} {SystemSetting.get_currency_symbol()}"
 
     def get_quantity_range_display(self):
         """عرض نطاق الكمية"""
@@ -1031,7 +1032,8 @@ class OffsetPrintingDetails(models.Model):
     def get_main_price_display(self):
         """عرض السعر الأساسي"""
         if self.impression_cost_per_1000:
-            return f"{self.impression_cost_per_1000} ج.م/1000 تراج"
+            from core.models import SystemSetting
+            return f"{self.impression_cost_per_1000} {SystemSetting.get_currency_symbol()}/1000 تراج"
         return "غير محدد"
 
     def get_capabilities_display(self):

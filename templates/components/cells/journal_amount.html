@@ -4,7 +4,7 @@
   {% if value > 0 %}
     <span class="text-success">
       <i class="fas fa-coins me-1"></i>
-      <strong>{{ value|custom_number_format }}</strong> {% trans "ج.م" %}
+      <strong>{{ value|currency }}</strong>
     </span>
   {% else %}
     <span class="text-muted">

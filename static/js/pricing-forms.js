@@ -366,11 +366,11 @@ function calculateCostDifference() {
         if (difference > 0) {
             alertClass = 'alert-success';
             icon = 'fa-arrow-up';
-            message = 'ربح: ' + difference.toFixed(2) + ' ج.م';
+            message = 'ربح: ' + difference.toFixed(2) + ' ' + (window.CURRENCY_SYMBOL || 'ج.م');
         } else if (difference < 0) {
             alertClass = 'alert-danger';
             icon = 'fa-arrow-down';
-            message = 'خسارة: ' + Math.abs(difference).toFixed(2) + ' ج.م';
+            message = 'خسارة: ' + Math.abs(difference).toFixed(2) + ' ' + (window.CURRENCY_SYMBOL || 'ج.م');
         }
         
         const diffText = 'الفرق: ' + message;

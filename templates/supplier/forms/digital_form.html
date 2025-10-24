@@ -69,12 +69,12 @@
                         </div>
                         <div class="col-md-1"></div> <!-- فراغ -->
                         <div class="col-md-2">
-                            <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
+                            <label class="form-label fw-bold text-muted small">السعر للقطعة ({{ currency_symbol }})</label>
                             <input type="number" class="form-control text-center" name="tier_1_price" 
                                    min="0" placeholder="0.00" required>
                         </div>
                         <div class="col-md-2">
-                            <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                            <label class="form-label fw-bold text-muted small">السعر للأرضيات ({{ currency_symbol }})</label>
                             <input type="number" class="form-control text-center" name="tier_1_floor_price" 
                                    min="0" placeholder="0.00">
                         </div>
@@ -162,12 +162,12 @@ function addNewTier() {
                            value="${newMinQuantity + 49}" min="${newMinQuantity}" required>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label fw-bold text-muted small">السعر للقطعة (ج.م)</label>
+                    <label class="form-label fw-bold text-muted small">السعر للقطعة ({{ currency_symbol }})</label>
                     <input type="number" class="form-control" name="tier_${tierCount}_price" 
                            min="0" placeholder="0.00" required>
                 </div>
                 <div class="col-md-2">
-                    <label class="form-label fw-bold text-muted small">السعر للأرضيات (ج.م)</label>
+                    <label class="form-label fw-bold text-muted small">السعر للأرضيات ({{ currency_symbol }})</label>
                     <input type="number" class="form-control" name="tier_${tierCount}_floor_price" 
                            min="0" placeholder="0.00">
                 </div>

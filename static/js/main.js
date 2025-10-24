@@ -475,7 +475,11 @@ function notify(message, type = 'success', title = null) {
 /**
  * تنسيق الأرقام كعملة
  */
-function formatCurrency(amount, currency = 'ج.م', decimals = 2) {
+function formatCurrency(amount, currency, decimals = 2) {
+    // إذا لم يتم تمرير العملة، استخدم العملة العامة أو الافتراضية
+    if (!currency) {
+        currency = window.CURRENCY_SYMBOL || 'ج.م';
+    }
     // استخدام دالة formatNumber من ملف number_formatter.js
     if (typeof formatNumber === 'function') {
         return formatNumber(amount) + ' ' + currency;

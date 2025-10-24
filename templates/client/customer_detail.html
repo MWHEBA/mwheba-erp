@@ -357,12 +357,12 @@
                 {% if customer.actual_balance > 0 %}
                   <div class="customer-info-badge me-2 mb-2" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545; font-weight: 700;">
                     <i class="fas fa-arrow-up me-2"></i>
-                    <span>{% trans "المديونية:" %} {{ customer.actual_balance|custom_number_format }} {% trans "ج.م" %}</span>
+                    <span>{% trans "المديونية:" %} {{ customer.actual_balance|currency }}</span>
                   </div>
                 {% else %}
                   <div class="customer-info-badge me-2 mb-2" style="background-color: rgba(25, 135, 84, 0.1); color: #198754; font-weight: 700;">
                     <i class="fas fa-arrow-down me-2"></i>
-                    <span>{% trans "المديونية:" %} {{ customer.actual_balance|custom_number_format }} {% trans "ج.م" %}</span>
+                    <span>{% trans "المديونية:" %} {{ customer.actual_balance|currency }}</span>
                   </div>
                 {% endif %}
                 
@@ -412,7 +412,7 @@
             </div>
             <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
             <div class="stats-card-value">{{ total_payments|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -426,7 +426,7 @@
             </div>
             <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
             <div class="stats-card-value">{{ total_sales|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -468,7 +468,7 @@
             </div>
             <div class="stats-card-title">{% trans "الرصيد المتاح" %}</div>
             <div class="stats-card-value">{{ available_credit|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -482,7 +482,7 @@
             </div>
             <div class="stats-card-title">{% trans "حد الائتمان" %}</div>
             <div class="stats-card-value">{{ customer.credit_limit|custom_number_format|default:"0" }}</div>
-            <div class="stats-card-unit">{% trans "ج.م" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -653,7 +653,7 @@
           <div class="d-flex justify-content-between align-items-center mb-3">
             <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
               <i class="fas fa-money-bill-wave me-2"></i>
-              <span>{% trans "الإجمالي:" %} {{ total_payments|custom_number_format }} {% trans "ج.م" %}</span>
+              <span>{% trans "الإجمالي:" %} {{ total_payments|currency }}</span>
             </div>
                     </div>
           

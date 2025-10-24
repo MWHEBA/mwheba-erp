@@ -341,7 +341,7 @@
                     {{ form.amount.label }}{% if form.amount.field.required %} *{% endif %}
                   </label>
                   <div class="input-group">
-                    <span class="input-group-text">ج.م</span>
+                    <span class="input-group-text">{{ currency_symbol }}</span>
                     <input type="number" 
                            name="{{ form.amount.name }}" 
                            id="{{ form.amount.id_for_label }}" 
@@ -589,7 +589,7 @@
       }
       
       // تنسيق المبلغ المتبقي بعد الدفع
-      $('#remaining-balance').text(formatNumber(remaining) + ' {% trans "ج.م" %}');
+      $('#remaining-balance').text(formatNumber(remaining) + ' {{ currency_symbol }}');
       
       // تحذير إذا كان المبلغ أكبر من المبلغ المتبقي
       if (amountValue > totalDue) {

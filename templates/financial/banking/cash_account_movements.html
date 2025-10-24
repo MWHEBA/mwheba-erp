@@ -229,7 +229,7 @@
         <div>
           <h1 class="h3 mb-1">{{ page_title }}</h1>
           <p class="text-muted mb-0">
-            {% trans "الرصيد الحالي:" %} {{ current_balance|custom_number_format }} {% trans "جنيه" %} | 
+            {% trans "الرصيد الحالي:" %} {{ current_balance|currency }} | 
             {% if account.is_cash_account %}
               {% trans "حساب نقدي" %}
             {% elif account.is_bank_account %}

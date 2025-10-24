@@ -317,7 +317,7 @@
                             <div class="info-item">
                                 <span class="info-label">المبلغ:</span>
                                 <span class="info-value amount-highlight">
-                                    {{ payment.amount|custom_number_format }} {{ sale.currency|default:"ج.م" }}
+                                    {{ payment.amount|currency }}
                                 </span>
                             </div>
                             
@@ -388,18 +388,18 @@
                             
                             <div class="info-item">
                                 <span class="info-label">إجمالي الفاتورة:</span>
-                                <span class="info-value">{{ sale.total|custom_number_format }} {{ sale.currency|default:"ج.م" }}</span>
+                                <span class="info-value">{{ sale.total|currency }}</span>
                             </div>
                             
                             <div class="info-item">
                                 <span class="info-label">المبلغ المدفوع:</span>
-                                <span class="info-value text-success">{{ sale.amount_paid|custom_number_format }} {{ sale.currency|default:"ج.م" }}</span>
+                                <span class="info-value text-success">{{ sale.amount_paid|currency }}</span>
                             </div>
                             
                             <div class="info-item">
                                 <span class="info-label">المبلغ المتبقي:</span>
                                 <span class="info-value {% if sale.amount_due > 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {{ sale.amount_due|custom_number_format }} {{ sale.currency|default:"ج.م" }}
+                                    {{ sale.amount_due|currency }}
                                 </span>
                             </div>
                         </div>

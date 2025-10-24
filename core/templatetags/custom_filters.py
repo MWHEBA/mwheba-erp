@@ -268,7 +268,9 @@ def format_table_cell(value, format_type):
         return "-"
 
     if format_type == "currency":
-        return f"{custom_number_format(value)} ج.م"
+        from core.utils import get_default_currency
+        currency_symbol = get_default_currency()
+        return f"{custom_number_format(value)} {currency_symbol}"
     elif format_type == "date":
         return value.strftime("%Y-%m-%d") if value else "-"
     elif format_type == "datetime":
@@ -356,3 +358,23 @@ def has_module_access(context, module_name):
 
     # يكفي وجود صلاحية واحدة للوصول للوحدة
     return any(user.has_perm(perm) for perm in permissions)
+
+
+@register.filter
+def currency(value, decimals=2):
+    """
+    تنسيق الرقم كعملة باستخدام العملة الافتراضية من إعدادات الشركة
+    استخدام: {{ amount|currency }} أو {{ amount|currency:0 }}
+    """
+    from core.utils import format_currency
+    return format_currency(value, decimal_places=decimals)
+
+
+@register.simple_tag
+def currency_symbol():
+    """
+    الحصول على رمز العملة الافتراضية
+    استخدام: {% currency_symbol %}
+    """
+    from core.utils import get_default_currency
+    return get_default_currency()

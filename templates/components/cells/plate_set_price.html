@@ -4,7 +4,7 @@
 {% if item.category.code == 'plates' and item.plate_details %}
     {% if item.plate_details.set_price and item.plate_details.set_price > 0 %}
         <span class="fw-bold text-primary">
-            {{ item.plate_details.set_price|custom_number_format }} ج.م
+            {{ item.plate_details.set_price|currency }}
         </span>
     {% else %}
         <span class="text-muted">-</span>

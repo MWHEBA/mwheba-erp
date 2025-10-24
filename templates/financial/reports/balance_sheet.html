@@ -285,8 +285,7 @@
               <i class="fas fa-chart-line"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الأصول" %}</div>
-            <div class="stats-card-value">{{ total_assets|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+            <div class="stats-card-value">{{ total_assets|currency }}</div>
           </div>
         </div>
       </div>
@@ -298,8 +297,7 @@
               <i class="fas fa-chart-pie"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الخصوم" %}</div>
-            <div class="stats-card-value">{{ total_liabilities|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+            <div class="stats-card-value">{{ total_liabilities|currency }}</div>
           </div>
         </div>
       </div>
@@ -311,8 +309,7 @@
               <i class="fas fa-user-tie"></i>
             </div>
             <div class="stats-card-title">{% trans "حقوق الملكية" %}</div>
-            <div class="stats-card-value">{{ total_equity|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+            <div class="stats-card-value">{{ total_equity|currency }}</div>
           </div>
         </div>
       </div>
@@ -362,12 +359,12 @@
                 {% for asset in assets %}
                 <div class="account-row">
                   <span class="account-name">{{ asset.account.name }}</span>
-                  <span class="account-balance">{{ asset.balance|custom_number_format }}</span>
+                  <span class="account-balance">{{ asset.balance|currency }}</span>
                 </div>
                 {% endfor %}
                 <div class="account-row total-row">
                   <span>{% trans "إجمالي الأصول" %}</span>
-                  <span>{{ total_assets|custom_number_format }}</span>
+                  <span>{{ total_assets|currency }}</span>
                 </div>
               {% else %}
                 <div class="empty-state">
@@ -390,12 +387,12 @@
                 {% for liability in liabilities %}
                 <div class="account-row">
                   <span class="account-name">{{ liability.account.name }}</span>
-                  <span class="account-balance">{{ liability.balance|custom_number_format }}</span>
+                  <span class="account-balance">{{ liability.balance|currency }}</span>
                 </div>
                 {% endfor %}
                 <div class="account-row total-row">
                   <span>{% trans "إجمالي الخصوم" %}</span>
-                  <span>{{ total_liabilities|custom_number_format }}</span>
+                  <span>{{ total_liabilities|currency }}</span>
                 </div>
               {% else %}
                 <div class="text-center text-muted py-3">
@@ -411,12 +408,12 @@
                 {% for item in equity %}
                 <div class="account-row">
                   <span class="account-name">{{ item.account.name }}</span>
-                  <span class="account-balance">{{ item.balance|custom_number_format }}</span>
+                  <span class="account-balance">{{ item.balance|currency }}</span>
                 </div>
                 {% endfor %}
                 <div class="account-row total-row">
                   <span>{% trans "إجمالي حقوق الملكية" %}</span>
-                  <span>{{ total_equity|custom_number_format }}</span>
+                  <span>{{ total_equity|currency }}</span>
                 </div>
               {% else %}
                 <div class="text-center text-muted py-3">
@@ -429,7 +426,7 @@
             <div class="balance-sheet-section">
               <div class="account-row total-row">
                 <span>{% trans "إجمالي الخصوم وحقوق الملكية" %}</span>
-                <span>{{ total_liabilities_equity|custom_number_format }}</span>
+                <span>{{ total_liabilities_equity|currency }}</span>
               </div>
             </div>
           </div>
@@ -442,7 +439,7 @@
             {% trans "الميزانية متوازنة" %}
           {% else %}
             <i class="fas fa-exclamation-triangle me-2"></i>
-            {% trans "الميزانية غير متوازنة" %} - {% trans "الفرق" %}: {{ total_assets|add:total_liabilities_equity|custom_number_format }}
+            {% trans "الميزانية غير متوازنة" %} - {% trans "الفرق" %}: {{ total_assets|add:total_liabilities_equity|currency }}
           {% endif %}
         </div>
       </div>
@@ -467,30 +464,30 @@
       csvContent += 'الأصول\n';
       {% if assets %}
         {% for asset in assets %}
-          csvContent += '"{{ asset.account.name }}","{{ asset.balance|custom_number_format }}"\n';
+          csvContent += '"{{ asset.account.name }}","{{ asset.balance|currency }}"\n';
         {% endfor %}
-        csvContent += '"إجمالي الأصول","{{ total_assets|custom_number_format }}"\n\n';
+        csvContent += '"إجمالي الأصول","{{ total_assets|currency }}"\n\n';
       {% endif %}
       
       // الخصوم
       csvContent += 'الخصوم\n';
       {% if liabilities %}
         {% for liability in liabilities %}
-          csvContent += '"{{ liability.account.name }}","{{ liability.balance|custom_number_format }}"\n';
+          csvContent += '"{{ liability.account.name }}","{{ liability.balance|currency }}"\n';
         {% endfor %}
-        csvContent += '"إجمالي الخصوم","{{ total_liabilities|custom_number_format }}"\n\n';
+        csvContent += '"إجمالي الخصوم","{{ total_liabilities|currency }}"\n\n';
       {% endif %}
       
       // حقوق الملكية
       csvContent += 'حقوق الملكية\n';
       {% if equity %}
         {% for item in equity %}
-          csvContent += '"{{ item.account.name }}","{{ item.balance|custom_number_format }}"\n';
+          csvContent += '"{{ item.account.name }}","{{ item.balance|currency }}"\n';
         {% endfor %}
-        csvContent += '"إجمالي حقوق الملكية","{{ total_equity|custom_number_format }}"\n\n';
+        csvContent += '"إجمالي حقوق الملكية","{{ total_equity|currency }}"\n\n';
       {% endif %}
       
-      csvContent += '"إجمالي الخصوم وحقوق الملكية","{{ total_liabilities_equity|custom_number_format }}"\n';
+      csvContent += '"إجمالي الخصوم وحقوق الملكية","{{ total_liabilities_equity|currency }}"\n';
       
       // تحميل الملف
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -523,9 +520,9 @@
       data.push(['الأصول']);
       {% if assets %}
         {% for asset in assets %}
-          data.push(['{{ asset.account.name }}', '{{ asset.balance|custom_number_format }}']);
+          data.push(['{{ asset.account.name }}', '{{ asset.balance|currency }}']);
         {% endfor %}
-        data.push(['إجمالي الأصول', '{{ total_assets|custom_number_format }}']);
+        data.push(['إجمالي الأصول', '{{ total_assets|currency }}']);
       {% endif %}
       data.push([]);
       
@@ -533,9 +530,9 @@
       data.push(['الخصوم']);
       {% if liabilities %}
         {% for liability in liabilities %}
-          data.push(['{{ liability.account.name }}', '{{ liability.balance|custom_number_format }}']);
+          data.push(['{{ liability.account.name }}', '{{ liability.balance|currency }}']);
         {% endfor %}
-        data.push(['إجمالي الخصوم', '{{ total_liabilities|custom_number_format }}']);
+        data.push(['إجمالي الخصوم', '{{ total_liabilities|currency }}']);
       {% endif %}
       data.push([]);
       
@@ -543,13 +540,13 @@
       data.push(['حقوق الملكية']);
       {% if equity %}
         {% for item in equity %}
-          data.push(['{{ item.account.name }}', '{{ item.balance|custom_number_format }}']);
+          data.push(['{{ item.account.name }}', '{{ item.balance|currency }}']);
         {% endfor %}
-        data.push(['إجمالي حقوق الملكية', '{{ total_equity|custom_number_format }}']);
+        data.push(['إجمالي حقوق الملكية', '{{ total_equity|currency }}']);
       {% endif %}
       data.push([]);
       
-      data.push(['إجمالي الخصوم وحقوق الملكية', '{{ total_liabilities_equity|custom_number_format }}']);
+      data.push(['إجمالي الخصوم وحقوق الملكية', '{{ total_liabilities_equity|currency }}']);
       
       // إنشاء ملف Excel
       const ws = XLSX.utils.aoa_to_sheet(data);

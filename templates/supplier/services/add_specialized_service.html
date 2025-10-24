@@ -367,7 +367,7 @@
                             <div class="col-md-6">
                                 <div class="form-floating">
                                     {{ form.base_price }}
-                                    <label for="{{ form.base_price.id_for_label }}">السعر الأساسي (ج.م) *</label>
+                                    <label for="{{ form.base_price.id_for_label }}">السعر الأساسي ({{ currency_symbol }}) *</label>
                                     {% if form.base_price.errors %}
                                         <div class="text-danger small">{{ form.base_price.errors.0 }}</div>
                                     {% endif %}
@@ -377,7 +377,7 @@
                             <div class="col-md-6">
                                 <div class="form-floating">
                                     {{ form.setup_cost }}
-                                    <label for="{{ form.setup_cost.id_for_label }}">تكلفة الإعداد (ج.م)</label>
+                                    <label for="{{ form.setup_cost.id_for_label }}">تكلفة الإعداد ({{ currency_symbol }})</label>
                                     {% if form.setup_cost.errors %}
                                         <div class="text-danger small">{{ form.setup_cost.errors.0 }}</div>
                                     {% endif %}

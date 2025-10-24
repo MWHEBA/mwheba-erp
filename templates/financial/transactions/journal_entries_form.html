@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -381,7 +383,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
             balanceStatus.textContent = 'غير متوازن';
             balanceStatus.className = 'badge bg-danger';
-            balanceDifference.textContent = `الفرق: ${difference.toFixed(2)} ج.م`;
+            balanceDifference.textContent = `الفرق: ${difference.toFixed(2)} {{ currency_symbol }}`;
         }
     }
     

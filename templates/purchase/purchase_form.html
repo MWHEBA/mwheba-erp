@@ -619,9 +619,9 @@
             var grandTotal = subtotal - discount;
             
             // عرض القيم
-            $('#subtotal').text(subtotal.toFixed(2) + ' ج.م');
-            $('#discount-total').text(discount.toFixed(2) + ' ج.م');
-            $('#grand-total').text(grandTotal.toFixed(2) + ' ج.م');
+            $('#subtotal').text(subtotal.toFixed(2) + ' {{ currency_symbol }}');
+            $('#discount-total').text(discount.toFixed(2) + ' {{ currency_symbol }}');
+            $('#grand-total').text(grandTotal.toFixed(2) + ' {{ currency_symbol }}');
             
             // تعيين القيم في الحقول المخفية
             $('#subtotal-input').val(subtotal.toFixed(2));
@@ -640,7 +640,7 @@
         
         // تحديث قيمة الخصم في حالة التعديل
         if ($('#id_discount').val()) {
-            $('#discount-total').text(parseFloat($('#id_discount').val()).toFixed(2) + ' ج.م');
+            $('#discount-total').text(parseFloat($('#id_discount').val()).toFixed(2) + ' {{ currency_symbol }}');
         }
         
         // التحكم في إظهار/إخفاء حقل الخزينة بناءً على طريقة الدفع

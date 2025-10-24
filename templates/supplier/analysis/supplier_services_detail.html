@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load utils_extras %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -179,7 +180,7 @@
                             {% if supplier.min_order_amount > 0 %}
                             <div class="mb-2">
                                 <i class="fas fa-box fa-fw me-2"></i>
-                                الحد الأدنى: {{ supplier.min_order_amount|remove_trailing_zeros }} ج.م
+                                الحد الأدنى: {{ supplier.min_order_amount|currency }}
                             </div>
                             {% endif %}
                         </div>
@@ -283,14 +284,14 @@
                                 <div class="col-md-6">
                                     <small class="text-muted">
                                         <i class="fas fa-tools fa-fw"></i>
-                                        تكلفة التجهيز: {{ service_data.service.setup_cost|remove_trailing_zeros }} ج.م
+                                        تكلفة التجهيز: {{ service_data.service.setup_cost|currency }}
                                     </small>
                                 </div>
                                 {% endif %}
                             </div>
                         </div>
                         <div class="col-md-4 text-end">
-                            <div class="service-price">{{ service_data.service.base_price|remove_trailing_zeros }} ج.م</div>
+                            <div class="service-price">{{ service_data.service.base_price|currency }}</div>
                             <small class="text-muted">السعر الأساسي</small>
                         </div>
                     </div>
@@ -327,7 +328,7 @@
                             {% endif %}
                             <div class="detail-row">
                                 <span class="detail-label">سعر الفرخ:</span>
-                                <span class="detail-value">{{ service_data.details.price_per_sheet|remove_trailing_zeros }} ج.م</span>
+                                <span class="detail-value">{{ service_data.details.price_per_sheet|currency }}</span>
                             </div>
                             
                         {% elif service_data.service.category.code == 'digital_printing' %}
@@ -345,11 +346,11 @@
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">سعر الصفحة أبيض/أسود:</span>
-                                <span class="detail-value">{{ service_data.details.price_per_page_bw|remove_trailing_zeros }} ج.م</span>
+                                <span class="detail-value">{{ service_data.details.price_per_page_bw|currency }}</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">سعر الصفحة ملونة:</span>
-                                <span class="detail-value">{{ service_data.details.price_per_page_color|remove_trailing_zeros }} ج.م</span>
+                                <span class="detail-value">{{ service_data.details.price_per_page_color|currency }}</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">طباعة على الوجهين:</span>
@@ -395,7 +396,7 @@
                             {% endif %}
                             <div class="detail-row">
                                 <span class="detail-label">سعر الوحدة:</span>
-                                <span class="detail-value">{{ service_data.details.price_per_unit|remove_trailing_zeros }} ج.م</span>
+                                <span class="detail-value">{{ service_data.details.price_per_unit|currency }}</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">وقت التجهيز:</span>

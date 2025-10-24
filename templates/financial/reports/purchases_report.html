@@ -1,6 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -195,8 +196,7 @@
               <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="stats-card-title">إجمالي المشتريات</div>
-            <div class="stats-card-value">{{ total_purchases|floatformat:2 }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ total_purchases|currency }}</div>
           </div>
         </div>
       </div>
@@ -208,8 +208,7 @@
               <i class="fas fa-calendar-day"></i>
             </div>
             <div class="stats-card-title">متوسط المشتريات اليومية</div>
-            <div class="stats-card-value">{{ avg_daily_purchases|floatformat:2 }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ avg_daily_purchases|currency }}</div>
           </div>
         </div>
       </div>
@@ -275,7 +274,7 @@
                     <td>{{ item.account_code }}</td>
                     <td>{{ item.account_name }}</td>
                     <td>{{ item.transaction_count }}</td>
-                    <td class="text-end">{{ item.total_amount|floatformat:2 }} ج.م</td>
+                    <td class="text-end">{{ item.total_amount|currency }}</td>
                     <td class="text-end">{{ item.percentage|floatformat:1 }}%</td>
                 </tr>
                 {% endfor %}
@@ -283,7 +282,7 @@
             <tfoot>
                 <tr class="table-active fw-bold">
                     <td colspan="3">الإجمالي</td>
-                    <td class="text-end">{{ total_purchases|floatformat:2 }} ج.م</td>
+                    <td class="text-end">{{ total_purchases|currency }}</td>
                     <td class="text-end">100%</td>
                 </tr>
             </tfoot>

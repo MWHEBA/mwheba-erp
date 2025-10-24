@@ -218,7 +218,7 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">{{ item.quantity_sold|remove_trailing_zeros }}</td>
-                            <td class="text-end">{{ item.sales_value|remove_trailing_zeros }} ج.م</td>
+                            <td class="text-end">{{ item.sales_value|currency }}</td>
                             <td class="text-end">{{ item.cumulative_percentage|remove_trailing_zeros }}%</td>
                             <td>
                                 {% if item.category == 'A' %}

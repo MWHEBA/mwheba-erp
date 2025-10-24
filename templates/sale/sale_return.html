@@ -99,13 +99,13 @@
                     </div>
                     <div class="row mt-3">
                         <div class="col-md-3">
-                            <p class="mb-0"><strong>{% trans "المجموع" %}:</strong> {{ sale.total|custom_number_format }} {% trans "ج.م" %}</p>
+                            <p class="mb-0"><strong>{% trans "المجموع" %}:</strong> {{ sale.total|currency }}</p>
                         </div>
                         <div class="col-md-3">
-                            <p class="mb-0"><strong>{% trans "المدفوع" %}:</strong> {{ sale.amount_paid|custom_number_format }} {% trans "ج.م" %}</p>
+                            <p class="mb-0"><strong>{% trans "المدفوع" %}:</strong> {{ sale.amount_paid|currency }}</p>
                         </div>
                         <div class="col-md-3">
-                            <p class="mb-0"><strong>{% trans "المتبقي" %}:</strong> {{ sale.amount_due|custom_number_format }} {% trans "ج.م" %}</p>
+                            <p class="mb-0"><strong>{% trans "المتبقي" %}:</strong> {{ sale.amount_due|currency }}</p>
                         </div>
                         <div class="col-md-3">
                             <p class="mb-0"><strong>{% trans "الحالة" %}:</strong> 
@@ -181,7 +181,7 @@
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                         </td>
                                         <td>{{ item.quantity }}</td>
-                                        <td>{{ item.unit_price|custom_number_format }} {% trans "ج.م" %}</td>
+                                        <td>{{ item.unit_price|currency }}</td>
                                         <td>
                                             <input type="number" name="return_quantity" class="form-control form-control-sm" 
                                                    min="0" max="{{ item.quantity }}" value="0">

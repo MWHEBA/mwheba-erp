@@ -14,6 +14,7 @@ from .models import (
     PartnerTransaction,
     PartnerBalance,
 )
+from core.models import SystemSetting
 
 
 class JournalEntryLineInline(admin.TabularInline):
@@ -258,8 +259,8 @@ class PartnerTransactionAdmin(admin.ModelAdmin):
         """عرض المبلغ مع تنسيق"""
         color = 'green' if obj.transaction_type == 'contribution' else 'orange'
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{} ج.م</span>',
-            color, obj.amount
+            '<span style="color: {}; font-weight: bold;">{} {}</span>',
+            color, obj.amount, SystemSetting.get_currency_symbol()
         )
     amount_display.short_description = _('المبلغ')
     amount_display.admin_order_field = 'amount'
@@ -334,8 +335,8 @@ class PartnerBalanceAdmin(admin.ModelAdmin):
     def total_contributions_display(self, obj):
         """عرض إجمالي المساهمات"""
         return format_html(
-            '<span style="color: green; font-weight: bold;">{} ج.م</span>',
-            obj.total_contributions
+            '<span style="color: green; font-weight: bold;">{} {}</span>',
+            obj.total_contributions, SystemSetting.get_currency_symbol()
         )
     total_contributions_display.short_description = _('إجمالي المساهمات')
     total_contributions_display.admin_order_field = 'total_contributions'
@@ -343,8 +344,8 @@ class PartnerBalanceAdmin(admin.ModelAdmin):
     def total_withdrawals_display(self, obj):
         """عرض إجمالي السحوبات"""
         return format_html(
-            '<span style="color: orange; font-weight: bold;">{} ج.م</span>',
-            obj.total_withdrawals
+            '<span style="color: orange; font-weight: bold;">{} {}</span>',
+            obj.total_withdrawals, SystemSetting.get_currency_symbol()
         )
     total_withdrawals_display.short_description = _('إجمالي السحوبات')
     total_withdrawals_display.admin_order_field = 'total_withdrawals'
@@ -353,8 +354,8 @@ class PartnerBalanceAdmin(admin.ModelAdmin):
         """عرض الرصيد الحالي"""
         color = 'green' if obj.current_balance >= 0 else 'red'
         return format_html(
-            '<span style="color: {}; font-weight: bold; font-size: 1.1em;">{} ج.م</span>',
-            color, obj.current_balance
+            '<span style="color: {}; font-weight: bold; font-size: 1.1em;">{} {}</span>',
+            color, obj.current_balance, SystemSetting.get_currency_symbol()
         )
     current_balance_display.short_description = _('الرصيد الحالي')
     current_balance_display.admin_order_field = 'current_balance'

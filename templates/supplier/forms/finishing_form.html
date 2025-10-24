@@ -74,14 +74,14 @@
             <div class="form-floating">
                 <input type="number" class="form-control" name="base_price" 
                        id="base-price" placeholder="السعر الأساسي" min="0" required>
-                <label for="base-price">السعر الأساسي (ج.م) *</label>
+                <label for="base-price">السعر الأساسي ({{ currency_symbol }}) *</label>
             </div>
         </div>
         <div class="col-md-4">
             <div class="form-floating">
                 <input type="number" class="form-control" name="setup_cost" 
                        id="setup-cost" placeholder="تكلفة التجهيز" min="0" value="0">
-                <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+                <label for="setup-cost">تكلفة التجهيز ({{ currency_symbol }})</label>
             </div>
         </div>
         <div class="col-md-4">
@@ -209,7 +209,7 @@ function calculateQuickCost() {
         
         const costPerPiece = totalCost / quantity;
         document.getElementById('calc-result').value = 
-            `${totalCost.toFixed(2)} ج.م (${costPerPiece.toFixed(3)} ج.م/قطعة)`;
+            `${totalCost.toFixed(2)} {{ currency_symbol }} (${costPerPiece.toFixed(3)} {{ currency_symbol }}/قطعة)`;
     }
 }
 

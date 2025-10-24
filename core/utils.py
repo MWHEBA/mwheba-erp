@@ -14,39 +14,32 @@ import math
 import locale
 
 
-def format_currency(amount, currency_code="EGP", decimal_places=2, show_symbol=True):
+def format_currency(amount, currency_symbol=None, decimal_places=2, show_symbol=True):
     """
     تنسيق المبلغ بعملة معينة
 
     المعلمات:
     amount (float, int, Decimal): المبلغ المراد تنسيقه
-    currency_code (str): رمز العملة مثل EGP, USD
+    currency_symbol (str): رمز العملة (مثل: ج.م، ر.س، $) - إذا كان None سيستخدم العملة الافتراضية
     decimal_places (int): عدد المنازل العشرية
     show_symbol (bool): عرض رمز العملة أم لا
 
     تُرجع: سلسلة نصية تمثل المبلغ بتنسيق العملة المحددة
     """
-    # تحديد رمز العملة المناسب
-    currency_symbols = {
-        "EGP": "ج.م",
-        "USD": "$",
-        "EUR": "€",
-        "GBP": "£",
-        "SAR": "ر.س",
-        "AED": "د.إ",
-        "KWD": "د.ك",
-    }
-
     # تنسيق المبلغ كرقم
     formatted_amount = format_number(amount, decimal_places=decimal_places)
 
     # إضافة رمز العملة إذا كان مطلوبًا
     if show_symbol:
-        symbol = currency_symbols.get(currency_code, currency_code)
-        if currency_code == "USD" or currency_code == "EUR" or currency_code == "GBP":
-            return f"{symbol}{formatted_amount}"
+        # إذا لم يتم تحديد رمز العملة، استخدم العملة الافتراضية
+        if currency_symbol is None:
+            currency_symbol = get_default_currency()
+        
+        # إذا كان الرمز $ أو € أو £ ضعه قبل الرقم، وإلا بعده
+        if currency_symbol in ['$', '€', '£']:
+            return f"{currency_symbol}{formatted_amount}"
         else:
-            return f"{formatted_amount} {symbol}"
+            return f"{formatted_amount} {currency_symbol}"
 
     return formatted_amount
 
@@ -278,12 +271,18 @@ def generate_invoice_number(prefix="INV", length=6):
 
 def get_default_currency():
     """
-    استرجاع العملة الافتراضية من إعدادات التطبيق
+    استرجاع رمز العملة الافتراضية من إعدادات الشركة
 
-    تُرجع: رمز العملة الافتراضية
+    تُرجع: رمز العملة (مثل: ج.م، ر.س، $)
     """
-    # يمكن استرجاع العملة من إعدادات التطبيق أو قاعدة البيانات
-    return getattr(settings, "DEFAULT_CURRENCY", "EGP")
+    try:
+        from .models import SystemSetting
+        # قراءة رمز العملة من إعدادات الشركة
+        currency_symbol = SystemSetting.get_setting('default_currency', 'ج.م')
+        return currency_symbol
+    except:
+        # fallback للقيمة الافتراضية
+        return 'ج.م'
 
 
 def get_tax_rate():

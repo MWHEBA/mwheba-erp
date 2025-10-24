@@ -364,18 +364,15 @@
                             <div class="balance-display">
                                 <div class="balance-amount">
                                     {% if account.calculated_balance is not None %}
-                                        {{ account.calculated_balance|remove_trailing_zeros }}
-                                    {% else %}
                                         {{ account.opening_balance|default:0|remove_trailing_zeros }}
                                     {% endif %}
                                 </div>
-                                <div class="balance-currency">جنيه مصري</div>
+                                <div class="stats-card-unit">{{ currency_symbol }}</div>
                                 
 
                             </div>
                             
                             <!-- معلومات إضافية -->
-                            <div class="account-info-grid">
                                 <div class="info-item">
                                     <div class="info-label">الرصيد الافتتاحي</div>
                                     <div class="info-value">
@@ -431,7 +428,7 @@
                         <div class="col-md-3">
                             <div class="stat-item">
                                 <div class="stat-number">{{ total_balance|remove_trailing_zeros }}</div>
-                                <div class="stat-label">إجمالي الأرصدة (جنيه)</div>
+                                <div class="stat-label">إجمالي الأرصدة ({{ currency_symbol }})</div>
                             </div>
                         </div>
                     </div>

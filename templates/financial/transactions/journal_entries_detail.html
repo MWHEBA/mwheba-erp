@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load utils_extras %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -312,7 +313,7 @@
                     {% else %}
                     <div class="alert alert-danger mt-3" role="alert">
                         <i class="fas fa-exclamation-triangle me-2"></i>
-                        القيد غير متوازن - الفرق: {{ difference|remove_trailing_zeros }} ج.م
+                        القيد غير متوازن - الفرق: {{ difference|currency }}
                     </div>
                     {% endif %}
                     
@@ -362,7 +363,7 @@
                                 <small class="text-muted d-block">إجمالي المدين</small>
                                 <h5 class="mb-0 text-success">
                                     {{ total_debits|remove_trailing_zeros }}
-                                    <small class="text-muted">ج.م</small>
+                                    <small class="text-muted">{{ currency_symbol }}</small>
                                 </h5>
                             </div>
                         </div>
@@ -372,7 +373,7 @@
                                 <small class="text-muted d-block">إجمالي الدائن</small>
                                 <h5 class="mb-0 text-danger">
                                     {{ total_credits|remove_trailing_zeros }}
-                                    <small class="text-muted">ج.م</small>
+                                    <small class="text-muted">{{ currency_symbol }}</small>
                                 </h5>
                             </div>
                         </div>

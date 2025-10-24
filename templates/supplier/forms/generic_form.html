@@ -23,14 +23,14 @@
             <div class="form-floating">
                 <input type="number" class="form-control" name="price_per_unit" 
                        id="price-per-unit" placeholder="سعر الوحدة" min="0" required>
-                <label for="price-per-unit">سعر الوحدة (ج.م) *</label>
+                <label for="price-per-unit">سعر الوحدة ({{ currency_symbol }}) *</label>
             </div>
         </div>
         <div class="col-md-4">
             <div class="form-floating">
                 <input type="number" class="form-control" name="base_price" 
                        id="base-price" placeholder="السعر الأساسي" min="0" required>
-                <label for="base-price">السعر الأساسي (ج.م) *</label>
+                <label for="base-price">السعر الأساسي ({{ currency_symbol }}) *</label>
             </div>
         </div>
         <div class="col-md-4">
@@ -47,7 +47,7 @@
             <div class="form-floating">
                 <input type="number" class="form-control" name="setup_cost" 
                        id="setup-cost" placeholder="تكلفة التجهيز" min="0" value="0">
-                <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+                <label for="setup-cost">تكلفة التجهيز ({{ currency_symbol }})</label>
             </div>
         </div>
         <div class="col-md-6">
@@ -174,7 +174,7 @@ function calculateQuickCost() {
         const unitType = document.getElementById('unit-type').value || 'وحدة';
         
         document.getElementById('calc-result').value = 
-            `${totalCost.toFixed(2)} ج.م (${costPerUnit.toFixed(2)} ج.م/${unitType})`;
+            `${totalCost.toFixed(2)} {{ currency_symbol }} (${costPerUnit.toFixed(2)} {{ currency_symbol }}/${unitType})`;
     }
 }
 

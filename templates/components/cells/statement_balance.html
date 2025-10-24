@@ -1,5 +1,5 @@
 {% load custom_filters %}
 {% load i18n %}
 <span class="transaction-amount {% if value > 0 %}negative{% else %}positive{% endif %}">
-  <strong>{{ value|custom_number_format }}</strong> {% trans "ج.م" %}
+  <strong>{{ value|currency }}</strong>
 </span>

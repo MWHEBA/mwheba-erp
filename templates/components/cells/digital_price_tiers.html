@@ -18,9 +18,9 @@
     {% for tier in item.service.price_tiers.all|slice:":2" %}
     <div class="small text-muted mb-1">
         <strong>{{ tier.get_quantity_range_display }}:</strong>
-        <span class="text-success">{{ tier.price_per_unit|custom_number_format }} ج.م</span>
+        <span class="text-success">{{ tier.price_per_unit|currency }}</span>
         {% if tier.floor_price %}
-        <br><small class="text-info">أرضيات: {{ tier.floor_price|custom_number_format }} ج.م</small>
+        <br><small class="text-info">أرضيات: {{ tier.floor_price|currency }}</small>
         {% endif %}
     </div>
     {% endfor %}

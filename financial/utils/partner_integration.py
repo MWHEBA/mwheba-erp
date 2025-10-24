@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 
 from ..models.partner_transactions import PartnerTransaction, PartnerBalance
 from ..models.chart_of_accounts import ChartOfAccounts
+from core.models import SystemSetting
 try:
     from ..models.partner_transactions import PartnerSettings, PartnerAuditLog
 except ImportError:
@@ -154,7 +155,7 @@ class PartnerFinancialIntegration:
                 PartnerAuditLog.log_action(
                     user=created_by,
                     action=f'create_{transaction_type}',
-                    description=f'تم إنشاء {transaction_obj.get_transaction_type_display()} بمبلغ {amount} ج.م',
+                    description=f'تم إنشاء {transaction_obj.get_transaction_type_display()} بمبلغ {amount} {SystemSetting.get_currency_symbol()}',
                     extra_data={
                         'transaction_id': transaction_obj.id,
                         'amount': float(amount),

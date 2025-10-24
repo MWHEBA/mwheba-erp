@@ -5,18 +5,18 @@
     <div class="impression-cost-cell text-center">
         <div class="fw-bold text-success mb-1">
             <i class="fas fa-coins me-1"></i>
-            {{ item.offset_details.impression_cost_per_1000|custom_number_format }} ج.م
+            {{ item.offset_details.impression_cost_per_1000|currency }}
         </div>
         
         {% if item.offset_details.special_impression_cost > 0 %}
             <small class="text-warning d-block">
-                <i class="fas fa-star me-1"></i>مخصوص: {{ item.offset_details.special_impression_cost|custom_number_format }} ج.م
+                <i class="fas fa-star me-1"></i>مخصوص: {{ item.offset_details.special_impression_cost|currency }}
             </small>
         {% endif %}
         
         {% if item.offset_details.break_impression_cost > 0 %}
             <small class="text-info d-block">
-                <i class="fas fa-cut me-1"></i>كسر: {{ item.offset_details.break_impression_cost|custom_number_format }} ج.م
+                <i class="fas fa-cut me-1"></i>كسر: {{ item.offset_details.break_impression_cost|currency }}
             </small>
         {% endif %}
     </div>

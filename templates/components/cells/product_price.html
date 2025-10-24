@@ -2,9 +2,9 @@
 {% load i18n %}
 <span class="product-price fw-bold text-primary">
   {% if object.sale_price %}
-    <strong>{{ object.sale_price|custom_number_format }}</strong> {% trans "ج.م" %}
+    <strong>{{ object.sale_price|currency }}</strong>
   {% elif object.selling_price %}
-    <strong>{{ object.selling_price|custom_number_format }}</strong> {% trans "ج.م" %}
+    <strong>{{ object.selling_price|currency }}</strong>
   {% else %}
     <span class="text-muted">{% trans "غير محدد" %}</span>
   {% endif %}

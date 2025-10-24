@@ -382,7 +382,7 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-tag me-2" style="color: #94a3b8;"></i>سعر البيع
                 </h5>
-                <div class="highlight-price">{{ product.selling_price|custom_number_format }} <small style="font-size: 1rem; color: #64748b;">ج.م</small></div>
+                <div class="highlight-price">{{ product.selling_price|currency }}</div>
                 <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|remove_trailing_zeros }}%</small>
             </div>
         </div>
@@ -400,7 +400,7 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-chart-line me-2" style="color: #94a3b8;"></i>إجمالي المبيعات
                 </h5>
-                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sales_value|custom_number_format|default:"0" }} <small style="font-size: 1rem; color: #64748b;">ج.م</small></div>
+                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sales_value|currency }}</div>
                 <small style="color: #94a3b8;">{{ sales_stats.total_sales_count|default:"0" }} فاتورة</small>
             </div>
         </div>
@@ -410,7 +410,7 @@
                     <i class="fas fa-shopping-cart me-2" style="color: #94a3b8;"></i>الكمية المباعة
                 </h5>
                 <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|remove_trailing_zeros|default:"0" }}</div>
-                <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|custom_number_format|default:"0" }} ج.م</small>
+                <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|default:0|currency }}</small>
             </div>
         </div>
     </div>
@@ -553,7 +553,7 @@
                                     <span class="badge bg-warning ms-2">افتراضي</span>
                                     {% endif %}
                                 </td>
-                                <td><strong>{{ sp.cost_price|custom_number_format }} ج.م</strong></td>
+                                <td><strong>{{ sp.cost_price|currency }}</strong></td>
                                 <td>
                                     {% if sp.last_purchase_date %}
                                     {{ sp.last_purchase_date|date:"d/m/Y" }}
@@ -681,8 +681,8 @@
                                     <td>{{ sale_item.sale.customer.name }}</td>
                                     <td>{{ sale_item.sale.date|date:"d/m/Y" }}</td>
                                     <td>{{ sale_item.quantity|remove_trailing_zeros }}</td>
-                                    <td>{{ sale_item.unit_price|custom_number_format }} ج.م</td>
-                                    <td><strong>{{ sale_item.total|custom_number_format }} ج.م</strong></td>
+                                    <td>{{ sale_item.unit_price|currency }}</td>
+                                    <td><strong>{{ sale_item.total|currency }}</strong></td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -707,7 +707,7 @@
                                     </div>
                                     <div class="text-end">
                                         <div class="customer-quantity">{{ customer.total_quantity|remove_trailing_zeros }}</div>
-                                        <small class="text-muted">{{ customer.total_value|custom_number_format }} ج.م</small>
+                                        <small class="text-muted">{{ customer.total_value|currency }}</small>
                                     </div>
                                 </div>
                             </div>
@@ -838,7 +838,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">سعر التكلفة</span>
-                    <span class="info-value">{{ product.cost_price|custom_number_format }} ج.م</span>
+                    <span class="info-value">{{ product.cost_price|currency }}</span>
                 </div>
                 
                 
@@ -851,7 +851,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">أقل سعر</span>
-                    <span class="info-value">{{ supplier_prices.0.cost_price|custom_number_format }} ج.م</span>
+                    <span class="info-value">{{ supplier_prices.0.cost_price|currency }}</span>
                 </div>
                 {% endif %}
                 
@@ -870,7 +870,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">إجمالي المبيعات</span>
-                    <span class="info-value text-success">{{ sales_stats.total_sales_value|custom_number_format }} ج.م</span>
+                    <span class="info-value text-success">{{ sales_stats.total_sales_value|currency }}</span>
                 </div>
                 
                 <div class="info-row">
@@ -885,7 +885,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">متوسط السعر</span>
-                    <span class="info-value">{{ sales_stats.average_sale_price|custom_number_format }} ج.م</span>
+                    <span class="info-value">{{ sales_stats.average_sale_price|currency }}</span>
                 </div>
                 
                 {% if sales_stats.last_sale_date %}
@@ -1193,7 +1193,7 @@
                         <div class="modal-body">
                             <div class="mb-3">
                                 <strong>المنتج:</strong> ${data.product_name}<br>
-                                <strong>السعر الحالي:</strong> ${data.current_price.toFixed(2)} ج.م
+                                <strong>السعر الحالي:</strong> ${data.current_price.toFixed(2)} {{ currency_symbol }}
                             </div>
                             ${historyHtml}
                         </div>
@@ -1424,7 +1424,7 @@
                                     <div class="stat-icon">
                                         <i class="fas fa-money-bill-wave text-success"></i>
                                     </div>
-                                    <div class="stat-value">${monthData.value.toLocaleString()} ج.م</div>
+                                    <div class="stat-value">${monthData.value.toLocaleString()} {{ currency_symbol }}</div>
                                     <div class="stat-label">قيمة المبيعات</div>
                                 </div>
                                 <div class="col-md-4 text-center">

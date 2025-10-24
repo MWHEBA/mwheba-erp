@@ -27,7 +27,7 @@
                                 <h6><i class="fas fa-file-invoice"></i> معلومات الفاتورة</h6>
                                 <p class="mb-1"><strong>رقم الفاتورة:</strong> {{ purchase.number }}</p>
                                 <p class="mb-1"><strong>المورد:</strong> {{ purchase.supplier.name }}</p>
-                                <p class="mb-0"><strong>إجمالي الفاتورة:</strong> {{ purchase.total_amount|remove_trailing_zeros }} ج.م</p>
+                                <p class="mb-0"><strong>إجمالي الفاتورة:</strong> {{ purchase.total_amount|currency }}</p>
                             </div>
                         </div>
                         <div class="col-md-6">

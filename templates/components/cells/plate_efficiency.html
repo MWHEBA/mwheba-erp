@@ -15,7 +15,7 @@
                             ممتاز
                         </span>
                         <small class="text-success d-block mt-1">
-                            وفر {{ savings|remove_trailing_zeros }} ج.م
+                            وفر {{ savings|currency }}
                         </small>
                     {% elif savings > 20 %}
                         <span class="badge bg-primary">
@@ -23,7 +23,7 @@
                             جيد
                         </span>
                         <small class="text-primary d-block mt-1">
-                            وفر {{ savings|remove_trailing_zeros }} ج.م
+                            وفر {{ savings|currency }}
                         </small>
                     {% elif savings > 0 %}
                         <span class="badge bg-info">
@@ -31,7 +31,7 @@
                             مقبول
                         </span>
                         <small class="text-info d-block mt-1">
-                            وفر {{ savings|remove_trailing_zeros }} ج.م
+                            وفر {{ savings|currency }}
                         </small>
                     {% else %}
                         <span class="badge bg-warning text-dark">

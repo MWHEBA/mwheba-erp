@@ -67,14 +67,14 @@
                     <div class="form-floating">
                         <input type="number" class="form-control" name="base_price" 
                                id="base-price" placeholder="السعر الأساسي" min="0" step="0.01" required>
-                        <label for="base-price">السعر الأساسي (ج.م) *</label>
+                        <label for="base-price">السعر الأساسي ({{ currency_symbol }}) *</label>
                     </div>
                 </div>
                 <div class="col-md-4">
                     <div class="form-floating">
                         <input type="number" class="form-control" name="setup_cost" 
                                id="setup-cost" placeholder="تكلفة التجهيز" min="0" step="0.01" value="0">
-                        <label for="setup-cost">تكلفة التجهيز (ج.م)</label>
+                        <label for="setup-cost">تكلفة التجهيز ({{ currency_symbol }})</label>
                     </div>
                 </div>
                 <div class="col-md-4">

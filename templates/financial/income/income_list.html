@@ -143,7 +143,7 @@
                         </div>
                         <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
                         <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
-                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -156,7 +156,7 @@
                         </div>
                         <div class="stats-card-title">{% trans "الإيرادات المستلمة" %}</div>
                         <div class="stats-card-value">{{ received_incomes|custom_number_format }}</div>
-                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -169,7 +169,7 @@
                         </div>
                         <div class="stats-card-title">{% trans "الإيرادات المعلقة" %}</div>
                         <div class="stats-card-value">{{ pending_incomes|default:"0.00" }}</div>
-                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>
@@ -182,7 +182,7 @@
                         </div>
                         <div class="stats-card-title">{% trans "متوسط الإيرادات الشهرية" %}</div>
                         <div class="stats-card-value">{{ monthly_average|default:"0.00" }}</div>
-                        <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+                        <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
             </div>

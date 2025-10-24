@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 
-from ..models import Notification
+from ..models import Notification, SystemSetting
 from product.models import Product
 from sale.models import Sale
 from purchase.models import Purchase
@@ -163,7 +163,7 @@ class NotificationService:
                     message = (
                         f"فاتورة المبيعات رقم {sale.invoice_number} متأخرة منذ {days_overdue} يوم.\n"
                         f"العميل: {sale.customer.name}\n"
-                        f"المبلغ المستحق: {sale.remaining_amount} ج.م\n"
+                        f"المبلغ المستحق: {sale.remaining_amount} {SystemSetting.get_currency_symbol()}\n"
                         f"تاريخ الاستحقاق: {sale.due_date}\n"
                         f"يُرجى المتابعة مع العميل لتحصيل المبلغ."
                     )
@@ -193,7 +193,7 @@ class NotificationService:
                     message = (
                         f"فاتورة المشتريات رقم {purchase.invoice_number} مستحقة منذ {days_overdue} يوم.\n"
                         f"المورد: {purchase.supplier.name}\n"
-                        f"المبلغ المستحق: {purchase.remaining_amount} ج.م\n"
+                        f"المبلغ المستحق: {purchase.remaining_amount} {SystemSetting.get_currency_symbol()}\n"
                         f"تاريخ الاستحقاق: {purchase.due_date}\n"
                         f"يُرجى سداد المبلغ في أقرب وقت ممكن."
                     )

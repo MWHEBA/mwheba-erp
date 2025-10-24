@@ -7,20 +7,20 @@
                 <h6>تفاصيل التكلفة:</h6>
                 <ul class="list-unstyled">
                     {% if order.material_cost %}
-                        <li>تكلفة المواد: {{ order.material_cost|currency }} جنيه</li>
+                        <li>تكلفة المواد: {{ order.material_cost|currency }}</li>
                     {% endif %}
                     {% if order.printing_cost %}
-                        <li>تكلفة الطباعة: {{ order.printing_cost|currency }} جنيه</li>
+                        <li>تكلفة الطباعة: {{ order.printing_cost|currency }}</li>
                     {% endif %}
                     {% if order.finishing_cost %}
-                        <li>تكلفة التشطيب: {{ order.finishing_cost|currency }} جنيه</li>
+                        <li>تكلفة التشطيب: {{ order.finishing_cost|currency }}</li>
                     {% endif %}
                 </ul>
             </div>
             <div class="col-md-6">
                 <h6>الإجمالي:</h6>
                 <div class="total-cost">
-                    <strong>{{ order.total_cost|currency }} جنيه</strong>
+                    <strong>{{ order.total_cost|currency }}</strong>
                 </div>
             </div>
         </div>

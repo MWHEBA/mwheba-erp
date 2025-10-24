@@ -1,6 +1,7 @@
 {% load i18n %}
 {% load utils_extras %}
 {% load payment_status_tags %}
+{% load custom_filters %}
 
 <div class="card payment-status-card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
@@ -29,7 +30,7 @@
                     معلومات الدفعة
                 </h6>
                 <ul class="list-unstyled mb-0">
-                    <li><strong>المبلغ:</strong> {{ payment.amount|remove_trailing_zeros }} ج.م</li>
+                    <li><strong>المبلغ:</strong> {{ payment.amount|currency }}</li>
                     <li><strong>تاريخ الدفع:</strong> {{ payment.payment_date }}</li>
                     <li><strong>طريقة الدفع:</strong> {{ payment.get_payment_method_display }}</li>
                     {% if payment.reference_number %}

@@ -274,8 +274,7 @@
               <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stats-card-title">{% trans "الإيرادات الشهرية" %}</div>
-            <div class="stats-card-value">{{ monthly_income|default:"32500"|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+            <div class="stats-card-value">{{ monthly_income|default:"32500"|currency }}</div>
           </div>
         </div>
       </div>
@@ -300,8 +299,7 @@
               <i class="fas fa-file-invoice-dollar"></i>
             </div>
             <div class="stats-card-title">{% trans "متوسط قيمة الفاتورة" %}</div>
-            <div class="stats-card-value">{{ avg_invoice|default:"1250"|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه" %}</div>
+            <div class="stats-card-value">{{ avg_invoice|default:"1250"|currency }}</div>
           </div>
         </div>
       </div>
@@ -362,7 +360,7 @@
           </div>
           <div class="analytics-card-title">{% trans "ديون مستحقة" %}</div>
           <div class="analytics-card-value">{{ due_debt|default:"18750"|custom_number_format }}</div>
-          <div class="analytics-card-unit">{% trans "جنيه" %}</div>
+          <div class="analytics-card-unit">{{ currency_symbol }}</div>
         </div>
       </div>
     </div>
@@ -558,7 +556,7 @@
               cornerRadius: 8,
               callbacks: {
                 label: function(context) {
-                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' جنيه';
+                  return context.dataset.label + ': ' + context.parsed.y.toLocaleString() + ' {{ currency_symbol }}';
                 }
               }
             }
@@ -571,7 +569,7 @@
               },
               ticks: {
                 callback: function(value) {
-                  return value.toLocaleString() + ' جنيه';
+                  return value.toLocaleString() + ' {{ currency_symbol }}';
                 },
                 font: {
                   size: 12

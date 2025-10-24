@@ -47,7 +47,7 @@ def replace_id(url, id_value):
 
 
 @register.filter
-def currency(value, currency_symbol="ج.م"):
+def currency(value, currency_symbol=None):
     """
     تنسيق قيمة كعملة
     """
@@ -55,6 +55,10 @@ def currency(value, currency_symbol="ج.م"):
         return None
 
     try:
+        from core.models import SystemSetting
+        if currency_symbol is None:
+            currency_symbol = SystemSetting.get_currency_symbol()
+        
         value = Decimal(value)
         # إذا كان الرقم صحيح (بدون كسور)، اعرضه بدون خانات عشرية
         if value == value.to_integral_value():

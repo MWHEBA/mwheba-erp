@@ -69,13 +69,12 @@
       <div class="col-md-6 col-lg-4 mb-4">
         <div class="stats-card stats-card-primary">
           <div class="stats-card-header"></div>
-          <div class="stats-card-body">
             <div class="stats-card-icon">
               <i class="fas fa-coins"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الأصول" %}</div>
             <div class="stats-card-value">{{ total_assets|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -88,7 +87,7 @@
             </div>
             <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
             <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
@@ -101,13 +100,12 @@
             </div>
             <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
             <div class="stats-card-value">{{ total_expenses|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+            <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  
   <!-- تصفية وبحث -->
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
@@ -187,7 +185,7 @@
                   </div>
                   
                   <div class="account-balance {% if account.balance < 0 %}text-danger{% elif account.balance > 0 %}text-success{% endif %}">
-                    {{ account.balance|custom_number_format }} {% trans "ج.م" %}
+                    {{ account.balance|currency }}
                   </div>
                   
                   <div class="account-details">

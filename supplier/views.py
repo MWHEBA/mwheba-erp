@@ -2144,9 +2144,10 @@ def get_paper_price_api(request):
 
         if paper_service:
             # تحضير معلومات السعر
+            from core.utils import get_default_currency
             price_info = {
                 "price_per_sheet": float(paper_service.price_per_sheet),
-                "currency": "ريال",  # يمكن تخصيصه حسب النظام
+                "currency": get_default_currency(),
                 "supplier_name": supplier.name,
                 "paper_type": paper_type.name,
                 "sheet_size": dict(PaperServiceDetails.SHEET_SIZE_CHOICES).get(

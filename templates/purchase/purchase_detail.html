@@ -509,7 +509,7 @@
                                                 <i class="fas fa-money-bill-wave text-success me-2"></i>
                                                 <div>
                                                     <small class="text-muted d-block">الإجمالي</small>
-                                                    <span class="fw-medium text-primary">{{ purchase.total|remove_trailing_zeros }} ج.م</span>
+                                                    <span class="fw-medium text-primary">{{ purchase.total|currency }}</span>
                                                 </div>
                                             </div>
                                         </div>
@@ -562,7 +562,7 @@
                             </div>
                             <div class="party-info">
                                 <div class="party-label">{% trans "العملة:" %}</div>
-                                <div class="party-value">{{ purchase.currency|default:"جنيه مصري" }}</div>
+                                <div class="party-value">{{ purchase.currency|default:currency_symbol }}</div>
                             </div>
                         </div>
                     </div>
@@ -596,9 +596,9 @@
                                         <td>{{ forloop.counter }}</td>
                                         <td class="fw-bold">{{ item.product.name }}</td>
                                         <td class="fw-bold">{{ item.quantity|remove_trailing_zeros }}</td>
-                                        <td>{{ item.unit_price|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
-                                        <td>{{ item.discount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
-                                        <td class="fw-bold">{{ item.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td>{{ item.unit_price|currency }}</td>
+                                        <td>{{ item.discount|currency }}</td>
+                                        <td class="fw-bold">{{ item.total|currency }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -609,23 +609,23 @@
                     <div class="invoice-summary">
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                            <div class="summary-value">{{ purchase.subtotal|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                            <div class="summary-value">{{ purchase.subtotal|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الخصم:" %}</div>
-                            <div class="summary-value">{{ purchase.discount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                            <div class="summary-value">{{ purchase.discount|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الإجمالي:" %}</div>
-                            <div class="summary-value">{{ purchase.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                            <div class="summary-value">{{ purchase.total|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المدفوع:" %}</div>
-                            <div class="summary-value">{{ purchase.amount_paid|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                            <div class="summary-value">{{ purchase.amount_paid|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المتبقي:" %}</div>
-                            <div class="summary-value">{{ purchase.amount_due|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></div>
+                            <div class="summary-value">{{ purchase.amount_due|currency }}</div>
                         </div>
                     </div>
                     
@@ -684,7 +684,7 @@
                                             </a>
                                         </td>
                                         <td>{{ return.date|date:"d-m-Y" }}</td>
-                                        <td>{{ return.total|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td>{{ return.total|currency }}</td>
                                         <td>
                                             <span class="badge {% if return.status == 'draft' %}bg-warning{% elif return.status == 'confirmed' %}bg-success{% else %}bg-danger{% endif %}">
                                                 {{ return.get_status_display }}
@@ -761,7 +761,7 @@
                                             <div>{{ payment.payment_date|date:"d-m-Y" }}</div>
                                             <small class="text-muted">{{ payment.created_at|date:"h:i A" }}</small>
                                         </td>
-                                        <td class="fw-bold">{{ payment.amount|custom_number_format }} <small class="text-muted">{{ purchase.currency|default:"ج.م" }}</small></td>
+                                        <td class="fw-bold">{{ payment.amount|currency }}</td>
                                         <td>
                                             {% if payment.payment_method == 'cash' %}
                                             <span class="badge bg-success">{% trans "نقدي" %}</span>

@@ -55,7 +55,7 @@
                     <div class="col-md-3">
                         <div class="card border-primary">
                             <div class="card-body text-center py-3">
-                                <h5 class="text-primary mb-1">{{ service.base_price|remove_trailing_zeros }} ج.م</h5>
+                                <h5 class="text-primary mb-1">{{ service.base_price|currency }}</h5>
                                 <small class="text-muted">السعر الحالي</small>
                             </div>
                         </div>
@@ -137,22 +137,22 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.base_price.id_for_label }}" class="form-label">السعر الأساسي (ج.م) *</label>
+                                    <label for="{{ form.base_price.id_for_label }}" class="form-label">السعر الأساسي ({{ currency_symbol }}) *</label>
                                     {{ form.base_price }}
                                     {% if form.base_price.errors %}
                                         <div class="text-danger small">{{ form.base_price.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">السعر الحالي: {{ service.base_price|remove_trailing_zeros }} ج.م</div>
+                                    <div class="help-text">السعر الحالي: {{ service.base_price|currency }}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="{{ form.setup_cost.id_for_label }}" class="form-label">تكلفة الإعداد (ج.م)</label>
+                                    <label for="{{ form.setup_cost.id_for_label }}" class="form-label">تكلفة الإعداد ({{ currency_symbol }})</label>
                                     {{ form.setup_cost }}
                                     {% if form.setup_cost.errors %}
                                         <div class="text-danger small">{{ form.setup_cost.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">التكلفة الحالية: {{ service.setup_cost|remove_trailing_zeros }} ج.م</div>
+                                    <div class="help-text">التكلفة الحالية: {{ service.setup_cost|currency }}</div>
                                 </div>
                             </div>
                         </div>

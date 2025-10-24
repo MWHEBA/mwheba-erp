@@ -332,7 +332,7 @@
                             </td>
                             <td class="text-end">{{ item.current_stock|remove_trailing_zeros }}</td>
                             <td class="text-end">{{ item.average_inventory|remove_trailing_zeros }}</td>
-                            <td class="text-end">{{ item.cogs|remove_trailing_zeros }} ج.م</td>
+                            <td class="text-end">{{ item.cogs|currency }}</td>
                             <td class="text-end">
                                 <strong>{{ item.turnover_ratio|remove_trailing_zeros }}</strong>
                                 <div class="progress progress-thin mt-1">

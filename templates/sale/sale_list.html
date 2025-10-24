@@ -205,8 +205,7 @@
               <i class="fas fa-credit-card"></i>
             </div>
             <div class="stats-card-title">{% trans "القيمة الإجمالية" %}</div>
-            <div class="stats-card-value">{{ total_amount|custom_number_format }}</div>
-            <div class="stats-card-unit">{% trans "جنيه مصري" %}</div>
+            <div class="stats-card-value">{{ total_amount|currency }}</div>
           </div>
         </div>
       </div>
@@ -290,7 +289,7 @@
                     {% with action_buttons=sale_actions %}
                       {% with primary_key="id" %}
                         {% with clickable_rows=True row_click_url="/sales/0/" %}
-                          {% with show_currency=True currency_symbol="ج.م" %}
+                          {% with show_currency=True currency_symbol=currency_symbol %}
                             {% with show_search=True show_length_menu=True length_options="10,25,50,100" sortable=False %}
                               {% include "components/data_table.html" %}
                             {% endwith %}

@@ -124,7 +124,7 @@
                     <p class="mb-0 opacity-75">تفاصيل المصروف والقيد المحاسبي المرتبط</p>
                 </div>
                 <div class="text-end">
-                    <div class="expense-amount">{{ expense_amount|remove_trailing_zeros }} ج.م</div>
+                    <div class="expense-amount">{{ expense_amount|currency }}</div>
                     <span class="status-badge status-{{ journal_entry.status }}">
                         {% if journal_entry.status == 'draft' %}
                             <i class="fas fa-edit me-1"></i>مسودة
@@ -162,7 +162,7 @@
                 
                 <div class="info-item">
                     <span class="info-label">المبلغ:</span>
-                    <span class="info-value expense-amount">{{ expense_amount|remove_trailing_zeros }} ج.م</span>
+                    <span class="info-value expense-amount">{{ expense_amount|currency }}</span>
                 </div>
                 
                 {% if journal_entry.notes %}

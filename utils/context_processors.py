@@ -13,8 +13,9 @@ def common_variables(request):
     current_date = timezone.now()
     current_year = current_date.year
 
-    # متغيرات العملة
-    currency_symbol = "ج.م"
+    # متغيرات العملة - قراءة من إعدادات الشركة
+    from core.utils import get_default_currency
+    currency_symbol = get_default_currency()
 
     # بيانات المؤسسة
     # يمكن استبدالها بنموذج في قاعدة البيانات في المستقبل

@@ -92,7 +92,7 @@
                                     <td><a href="{% url 'purchase:purchase_detail' payment.purchase.id %}" class="text-decoration-none"><code>{{ payment.purchase.number }}</code></a></td>
                                     <td>{{ payment.payment_date|date:"d-m-Y" }}</td>
                                     <td><a href="{% url 'supplier:supplier_detail' payment.purchase.supplier.id %}" class="text-decoration-none">{{ payment.purchase.supplier.name }}</a></td>
-                                    <td>{{ payment.amount|custom_number_format }} {% trans "ج.م" %}</td>
+                                    <td>{{ payment.amount|currency }}</td>
                                     <td>
                                         {% if payment.payment_method == 'cash' %}
                                         <span class="badge bg-success">{% trans "نقدي" %}</span>

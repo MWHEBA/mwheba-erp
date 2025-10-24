@@ -186,10 +186,10 @@
                         <dd class="col-sm-7">{{ stock.product.unit }}</dd>
                         
                         <dt class="col-sm-5">{% trans "سعر التكلفة" %}</dt>
-                        <dd class="col-sm-7">{{ stock.product.cost_price|custom_number_format }}</dd>
+                        <dd class="col-sm-7">{{ stock.product.cost_price|currency }}</dd>
                         
                         <dt class="col-sm-5">{% trans "سعر البيع" %}</dt>
-                        <dd class="col-sm-7">{{ stock.product.selling_price|custom_number_format }}</dd>
+                        <dd class="col-sm-7">{{ stock.product.selling_price|currency }}</dd>
                     </dl>
                 </div>
             </div>

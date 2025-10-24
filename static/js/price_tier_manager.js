@@ -282,7 +282,7 @@ class PriceTierManager {
         let range = maxQty ? `${minQty} - ${maxQty}` : `${minQty}+`;
         let discountText = discount > 0 ? ` (خصم ${discount}%)` : '';
         
-        return `${range} قطعة = ${price.toFixed(2)} ج.م للوحدة${discountText}`;
+        return `${range} قطعة = ${price.toFixed(2)} ${window.CURRENCY_SYMBOL || 'ج.م'} للوحدة${discountText}`;
     }
 
     // ربط الأحداث

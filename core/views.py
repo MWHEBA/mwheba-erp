@@ -89,6 +89,41 @@ def company_settings(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
+    # معالجة حفظ الإعدادات عند POST
+    if request.method == "POST":
+        # قائمة الحقول المطلوب حفظها
+        settings_fields = [
+            "company_name",
+            "company_address",
+            "company_phone",
+            "company_email",
+            "company_tax_number",
+            "company_website",
+            "invoice_prefix",
+            "default_currency",
+            "default_tax_rate",
+            "invoice_notes",
+        ]
+        
+        # حفظ كل إعداد
+        for field in settings_fields:
+            value = request.POST.get(field, "")
+            if value:  # فقط إذا كانت القيمة موجودة
+                setting, created = SystemSetting.objects.get_or_create(
+                    key=field,
+                    defaults={
+                        "value": value,
+                        "group": "general",
+                        "data_type": "string",
+                    }
+                )
+                if not created:
+                    setting.value = value
+                    setting.save()
+        
+        messages.success(request, "تم حفظ إعدادات الشركة بنجاح")
+        return redirect("core:company_settings")
+
     # الحصول على إعدادات الشركة من قاعدة البيانات
     company_settings_list = SystemSetting.objects.filter(group="general")
 

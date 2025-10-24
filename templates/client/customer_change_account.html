@@ -61,7 +61,7 @@
                         </div>
                         <div class="col-md-3">
                             <strong>الرصيد الحالي:</strong>
-                            <p class="mb-0">{{ customer.actual_balance|remove_trailing_zeros }} ج.م</p>
+                            <p class="mb-0">{{ customer.actual_balance|currency }}</p>
                         </div>
                     </div>
                 </div>

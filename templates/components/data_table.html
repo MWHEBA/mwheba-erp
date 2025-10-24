@@ -23,7 +23,7 @@
 - current_order_dir: اتجاه الترتيب الحالي (اختياري، افتراضي "")
 - row_class_callback: دالة لتحديد فئة الصفوف تبعاً لمحتواها (اختياري)
 - show_currency: هل تظهر رمز العملة في القيم المالية (اختياري، افتراضي False)
-- currency_symbol: رمز العملة (اختياري، افتراضي "ج.م")
+- currency_symbol: رمز العملة (اختياري، يأتي من الإعدادات)
 - hover_effect: هل تظهر تأثير عند المرور على الصف (اختياري، افتراضي True)
 - show_search: إظهار مربع البحث (اختياري، افتراضي True)
 - show_length_menu: إظهار قائمة عدد العناصر (اختياري، افتراضي True)
@@ -102,10 +102,10 @@
                                                 {% if header.key == 'balance' %}
                                                     <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
                                                 {% else %}
-                                                    <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> 0</strong>
+                                                    <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> 0</strong>
                                                 {% endif %}
                                             {% else %}
-                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol|default:'ج.م' }}</span> {{ field_value|remove_trailing_zeros }}</strong>
+                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> {{ field_value|remove_trailing_zeros }}</strong>
                                             {% endif %}
                                         </span>
                                     {% elif header.format == 'boolean' %}

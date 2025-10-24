@@ -264,9 +264,9 @@
                         <td>{{ forloop.counter }}</td>
                         <td class="product-name">{{ item.product.name }}</td>
                         <td class="product-qty">{{ item.quantity }}</td>
-                        <td>{{ item.unit_price|custom_number_format }}</td>
-                        <td>{{ item.discount|custom_number_format }}</td>
-                        <td>{{ item.total|custom_number_format }}</td>
+                        <td>{{ item.unit_price|currency }}</td>
+                        <td>{{ item.discount|currency }}</td>
+                        <td>{{ item.total|currency }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -275,19 +275,19 @@
             <table class="summary-table">
                 <tr>
                     <td>المجموع الفرعي</td>
-                    <td>{{ purchase.subtotal|custom_number_format }}</td>
+                    <td>{{ purchase.subtotal|currency }}</td>
                 </tr>
                 <tr>
                     <td>الخصم</td>
-                    <td>{{ purchase.discount|custom_number_format }}</td>
+                    <td>{{ purchase.discount|currency }}</td>
                 </tr>
                 <tr>
                     <td>الضريبة</td>
-                    <td>{{ purchase.tax|custom_number_format }}</td>
+                    <td>{{ purchase.tax|currency }}</td>
                 </tr>
                 <tr class="total-row">
                     <td>الإجمالي</td>
-                    <td>{{ purchase.total|custom_number_format }}</td>
+                    <td>{{ purchase.total|currency }}</td>
                 </tr>
             </table>
             

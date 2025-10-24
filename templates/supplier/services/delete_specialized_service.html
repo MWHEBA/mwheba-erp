@@ -109,13 +109,13 @@
                     
                     <div class="info-item">
                         <span class="info-label">السعر الأساسي:</span>
-                        <span class="info-value">{{ service.base_price }} ج.م</span>
+                        <span class="info-value">{{ service.base_price|currency }}</span>
                     </div>
                     
                     {% if service.setup_cost > 0 %}
                     <div class="info-item">
                         <span class="info-label">تكلفة الإعداد:</span>
-                        <span class="info-value">{{ service.setup_cost|remove_trailing_zeros }} ج.م</span>
+                        <span class="info-value">{{ service.setup_cost|currency }}</span>
                     </div>
                     {% endif %}
                     

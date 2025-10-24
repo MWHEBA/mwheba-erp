@@ -1,0 +1,86 @@
+[
+  {
+    "model": "core.systemsetting",
+    "pk": 1,
+    "fields": {
+      "key": "company_name",
+      "value": "مؤسسة موهبة",
+      "data_type": "string",
+      "description": "اسم الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 2,
+    "fields": {
+      "key": "default_currency",
+      "value": "ج.م",
+      "data_type": "string",
+      "description": "رمز العملة الافتراضية",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 3,
+    "fields": {
+      "key": "default_tax_rate",
+      "value": "14",
+      "data_type": "decimal",
+      "description": "نسبة الضريبة الافتراضية",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 4,
+    "fields": {
+      "key": "invoice_prefix",
+      "value": "INV-",
+      "data_type": "string",
+      "description": "بادئة رقم الفاتورة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 5,
+    "fields": {
+      "key": "company_address",
+      "value": "القاهرة، مصر",
+      "data_type": "string",
+      "description": "عنوان الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 6,
+    "fields": {
+      "key": "company_phone",
+      "value": "+201234567890",
+      "data_type": "string",
+      "description": "رقم هاتف الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 7,
+    "fields": {
+      "key": "company_email",
+      "value": "info@mwheba-erp.com",
+      "data_type": "string",
+      "description": "البريد الإلكتروني للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  }
+]

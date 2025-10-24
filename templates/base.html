@@ -105,6 +105,10 @@
     </div>
 
     <!-- JavaScript Libraries -->
+    <script>
+        // Global currency symbol for JavaScript
+        window.CURRENCY_SYMBOL = '{{ currency_symbol|default:"ج.م" }}';
+    </script>
     <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
     <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
     <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>

@@ -96,7 +96,7 @@
         <div>
           <h1 class="h3 mb-1">{{ page_title }}</h1>
           <p class="text-muted mb-0">
-            {% trans "الرصيد الحالي:" %} {{ account.balance }} {% trans "جنيه" %} | 
+            {% trans "الرصيد الحالي:" %} {{ account.balance|currency }} | 
             {% if account.account_type == 'cash' %}
               {% trans "حساب نقدي" %}
             {% elif account.account_type == 'bank' %}
@@ -140,7 +140,7 @@
                 {% with table_class="hover" %}
                   {% with action_buttons=transaction_actions %}
                     {% with primary_key="id" %}
-                      {% with show_currency=True currency_symbol="ج.م" %}
+                      {% with show_currency=True currency_symbol=currency_symbol %}
                         {% with show_search=True show_length_menu=True length_options="10,25,50,100" %}
                           {% include "components/data_table.html" %}
                         {% endwith %}

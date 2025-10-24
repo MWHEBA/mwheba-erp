@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load pricing_filters %}
+{% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -298,8 +299,7 @@
               <i class="fas fa-wallet"></i>
             </div>
             <div class="stats-card-title">رصيد الشريك</div>
-            <div class="stats-card-value">{{ partner_balance.current_balance|remove_trailing_zeros }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ partner_balance.current_balance|currency }}</div>
           </div>
         </div>
       </div>
@@ -311,8 +311,7 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">إجمالي المساهمات</div>
-            <div class="stats-card-value">{{ partner_balance.total_contributions|remove_trailing_zeros }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ partner_balance.total_contributions|currency }}</div>
           </div>
         </div>
       </div>
@@ -324,8 +323,7 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">إجمالي السحوبات</div>
-            <div class="stats-card-value">{{ partner_balance.total_withdrawals|remove_trailing_zeros }}</div>
-            <div class="stats-card-unit">جنيه مصري</div>
+            <div class="stats-card-value">{{ partner_balance.total_withdrawals|currency }}</div>
           </div>
         </div>
       </div>
@@ -374,7 +372,7 @@
                     {% endif %}
                 </div>
                 <div class="col-md-3">
-                    <strong>{{ transaction.amount|remove_trailing_zeros }} ج.م</strong>
+                    <strong>{{ transaction.amount|currency }}</strong>
                 </div>
                 <div class="col-md-4">
                     {{ transaction.description|truncatechars:50 }}
@@ -434,7 +432,7 @@
                                 <div class="input-group">
                                     <input type="number" class="form-control" name="amount" 
                                            step="0.01" min="0.01" required>
-                                    <span class="input-group-text">ج.م</span>
+                                    <span class="input-group-text">{{ currency_symbol }}</span>
                                 </div>
                             </div>
                         </div>
@@ -509,7 +507,7 @@
                     <!-- تنبيه الرصيد -->
                     <div class="alert alert-info">
                         <i class="fas fa-info-circle me-2"></i>
-                        الرصيد المتاح: <strong>{{ partner_balance.current_balance|remove_trailing_zeros }} ج.م</strong>
+                        الرصيد المتاح: <strong>{{ partner_balance.current_balance|currency }}</strong>
                     </div>
                     
                     <div class="row">
@@ -520,7 +518,7 @@
                                     <input type="number" class="form-control" name="amount" 
                                            step="0.01" min="0.01" 
                                            max="{{ partner_balance.current_balance }}" required>
-                                    <span class="input-group-text">ج.م</span>
+                                    <span class="input-group-text">{{ currency_symbol }}</span>
                                 </div>
                             </div>
                         </div>

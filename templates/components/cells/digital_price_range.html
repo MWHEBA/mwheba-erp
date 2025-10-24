@@ -10,16 +10,16 @@
     {% if item.price_tiers.exists %}
         {% with first_tier=item.price_tiers.first last_tier=item.price_tiers.last %}
             <div class="fw-bold text-success mb-1">
-                {{ first_tier.price_per_unit|custom_number_format }} ج.م
+                {{ first_tier.price_per_unit|currency }}
             </div>
             {% if item.price_tiers.count > 1 %}
                 <small class="text-muted d-block">
-                    إلى {{ last_tier.price_per_unit|custom_number_format }} ج.م
+                    إلى {{ last_tier.price_per_unit|currency }}
                 </small>
             {% endif %}
             {% if first_tier.floor_price %}
                 <small class="text-info d-block">
-                    أرضيات: {{ first_tier.floor_price|custom_number_format }} ج.م
+                    أرضيات: {{ first_tier.floor_price|currency }}
                 </small>
             {% endif %}
         {% endwith %}

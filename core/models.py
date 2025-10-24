@@ -71,6 +71,13 @@ class SystemSetting(models.Model):
                 return setting.value
         except cls.DoesNotExist:
             return default
+    
+    @classmethod
+    def get_currency_symbol(cls):
+        """
+        الحصول على رمز العملة من الإعدادات
+        """
+        return cls.get_setting('default_currency', 'ج.م')
 
 
 class DashboardStat(models.Model):

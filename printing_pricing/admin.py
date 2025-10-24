@@ -8,6 +8,7 @@ from .models import (
     PrintingOrder, OrderMaterial, PaperSpecification,
     OrderService, PrintingSpecification, CostCalculation, OrderSummary
 )
+from core.models import SystemSetting
 
 
 @admin.register(PrintingOrder)
@@ -75,8 +76,8 @@ class PrintingOrderAdmin(admin.ModelAdmin):
         """عرض التكلفة المقدرة بتنسيق جميل"""
         if obj.estimated_cost:
             return format_html(
-                '<span style="color: #28a745; font-weight: bold;">{:,.2f} ج.م</span>',
-                obj.estimated_cost
+                '<span style="color: #28a745; font-weight: bold;">{:,.2f} {}</span>',
+                obj.estimated_cost, SystemSetting.get_currency_symbol()
             )
         return '-'
     estimated_cost_display.short_description = _('التكلفة المقدرة')
