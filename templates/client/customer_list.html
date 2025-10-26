@@ -249,7 +249,7 @@
               </div>
           </div>
           <div class="d-flex gap-2">
-              <button onclick="syncWithDaftra()" class="btn btn-success" id="sync-btn">
+              <button class="btn btn-success" id="sync-btn">
                   <i class="fas fa-sync me-2"></i>مزامنة مع دفترة
               </button>
               <a href="{% url 'client:customer_add' %}" class="btn btn-primary">
@@ -303,44 +303,18 @@
         </div>
       </div>
       <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-info">
+        <div class="stats-card stats-card-warning">
           <div class="stats-card-header"></div>
           <div class="stats-card-body">
             <div class="stats-card-icon">
-              <i class="fas fa-shopping-cart"></i>
+              <i class="fas fa-user-times"></i>
             </div>
-            <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
-            <div class="stats-card-value">{{ total_sales|default:"0"|custom_number_format }}</div>
-            <div class="stats-card-unit">{{ currency_symbol }}</div>
+            <div class="stats-card-title">{% trans "العملاء غير النشطين" %}</div>
+            <div class="stats-card-value">{{ inactive_customers|default:0 }}</div>
+            <div class="stats-card-unit">{% trans "عميل" %}</div>
           </div>
         </div>
       </div>
-    </div>
-  </div>
-  
-  <!-- تصفية وبحث -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
-    <div class="filter-section mb-4">
-      <form method="GET" action="" class="row g-3">
-        <div class="col-md-3">
-          <label for="status" class="form-label">{% trans "الحالة" %}</label>
-          <select class="form-select" id="status" name="status">
-            <option value="">{% trans "الكل" %}</option>
-            <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
-            <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
-          </select>
-        </div>
-        <div class="col-md-3">
-          <label for="search" class="form-label">{% trans "بحث" %}</label>
-          <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="{% trans 'اسم أو كود العميل' %}">
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-search me-2"></i>{% trans "بحث" %}
-          </button>
-        </div>
-      </form>
     </div>
   </div>
   
@@ -478,6 +452,9 @@
     });
   });
   
+  // إضافة event listener لزر المزامنة
+  document.getElementById('sync-btn').addEventListener('click', syncWithDaftra);
+  
   // مزامنة مع دفترة
   async function syncWithDaftra() {
     const btn = document.getElementById('sync-btn');
@@ -487,6 +464,36 @@
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري المزامنة...';
     
+    // إنشاء شريط التقدم
+    const progressContainer = document.createElement('div');
+    progressContainer.className = 'alert alert-info mt-3';
+    progressContainer.innerHTML = `
+      <div class="d-flex align-items-center">
+        <div class="flex-grow-1">
+          <strong>جاري المزامنة مع دفترة...</strong>
+          <div class="progress mt-2" style="height: 25px;">
+            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                 role="progressbar" 
+                 style="width: 0%"
+                 id="sync-progress-bar">
+              <span id="sync-progress-text">0%</span>
+            </div>
+          </div>
+          <small class="text-muted mt-1 d-block" id="sync-status">جاري الاتصال بدفترة...</small>
+          <small class="text-muted mt-1 d-block" id="sync-counter"></small>
+        </div>
+      </div>
+    `;
+    
+    // إضافة شريط التقدم قبل أول section
+    const firstSection = document.querySelector('.section-container');
+    firstSection.insertAdjacentElement('beforebegin', progressContainer);
+    
+    const progressBar = document.getElementById('sync-progress-bar');
+    const progressText = document.getElementById('sync-progress-text');
+    const statusText = document.getElementById('sync-status');
+    const counterText = document.getElementById('sync-counter');
+    
     try {
       const response = await fetch('/utils/daftra/sync-clients/', {
         method: 'POST',
@@ -495,38 +502,104 @@
         }
       });
       
-      const data = await response.json();
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finalData = null;
+      let buffer = '';  // buffer للبيانات غير المكتملة
       
-      if (data.success) {
-        // عرض رسالة نجاح مع التفاصيل
-        const message = `
-          <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <strong>${data.message}</strong><br>
-            <small>
-              ✅ جديد: ${data.stats.created} | 
-              ✏️ محدث: ${data.stats.updated} | 
-              ⏭️ متخطى: ${data.stats.skipped} | 
-              ❌ أخطاء: ${data.stats.errors}
-            </small>
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-          </div>
-        `;
+      while (true) {
+        const {done, value} = await reader.read();
+        if (done) break;
         
-        // إضافة الرسالة في أعلى الصفحة
-        const container = document.querySelector('.section-container');
-        container.insertAdjacentHTML('beforebegin', message);
+        // إضافة البيانات الجديدة للـ buffer
+        buffer += decoder.decode(value, {stream: true});
         
-        // إعادة تحميل الصفحة بعد 3 ثواني
+        // معالجة الأسطر الكاملة فقط
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';  // الاحتفاظ بآخر سطر غير مكتمل
+        
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          
+          try {
+            const data = JSON.parse(line);
+            
+            if (data.type === 'status') {
+              statusText.textContent = data.message;
+              progressBar.style.width = data.progress + '%';
+              progressText.textContent = data.progress + '%';
+              
+              if (data.total) {
+                counterText.textContent = `إجمالي: ${data.total} سجل`;
+              }
+            } else if (data.type === 'progress') {
+              progressBar.style.width = data.progress + '%';
+              progressText.textContent = data.progress + '%';
+              counterText.textContent = `تمت معالجة ${data.current} من ${data.total} | ✅ ${data.stats.created} | ✏️ ${data.stats.updated} | ⏭️ ${data.stats.skipped} | ❌ ${data.stats.errors}`;
+            } else if (data.type === 'complete') {
+              progressBar.style.width = '100%';
+              progressText.textContent = '100%';
+              statusText.textContent = data.message;
+              finalData = data;
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          } catch (e) {
+            console.error('خطأ في معالجة السطر:', line.substring(0, 100), e);
+          }
+        }
+      }
+      
+      if (!finalData) {
+        throw new Error('لم يتم استلام البيانات النهائية');
+      }
+      
+      // عرض رسالة نجاح مع التفاصيل
+      let errorInfo = '';
+      if (finalData.stats.errors > 0 && finalData.error_samples) {
+        errorInfo = '<div class="mt-2"><strong>أمثلة الأخطاء:</strong><ul class="mb-0">';
+        finalData.error_samples.forEach(err => {
+          errorInfo += `<li><small>${err.name}: ${err.reason}</small></li>`;
+        });
+        errorInfo += '</ul></div>';
+      }
+      
+      const alertClass = finalData.stats.errors > 0 ? 'alert-warning' : 'alert-success';
+      const message = `
+        <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+          <strong>${finalData.message}</strong><br>
+          <small>
+            ✅ جديد: ${finalData.stats.created} | 
+            ✏️ محدث: ${finalData.stats.updated} | 
+            ⏭️ متخطى: ${finalData.stats.skipped} | 
+            ❌ أخطاء: ${finalData.stats.errors}
+          </small>
+          ${errorInfo}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      `;
+      
+      // إزالة شريط التقدم
+      setTimeout(() => {
+        progressContainer.remove();
+      }, 1000);
+      
+      // إضافة الرسالة في أعلى الصفحة
+      const container = document.querySelector('.section-container');
+      container.insertAdjacentHTML('beforebegin', message);
+      
+      // إعادة تحميل الصفحة بعد 3 ثواني إذا لم يكن هناك أخطاء
+      if (finalData.stats.errors === 0) {
         setTimeout(() => {
           location.reload();
         }, 3000);
       } else {
-        // عرض رسالة خطأ
-        alert('خطأ في المزامنة: ' + data.message);
         btn.disabled = false;
         btn.innerHTML = originalHTML;
       }
+      
     } catch (error) {
+      progressContainer.remove();
       alert('خطأ في الاتصال: ' + error.message);
       btn.disabled = false;
       btn.innerHTML = originalHTML;

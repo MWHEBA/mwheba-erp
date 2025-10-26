@@ -1,0 +1,639 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+{% load app_tags %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* Stats Cards */
+  .stat-card-modern {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card-modern:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+  }
+  
+  .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .stat-icon.primary { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+  .stat-icon.success { background: rgba(25, 135, 84, 0.1); color: #198754; }
+  .stat-icon.warning { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
+  .stat-icon.danger { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
+  
+  .stat-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+  }
+  
+  .stat-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+  }
+  
+  /* Info Section */
+  .info-section {
+    background: white;
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border: 1px solid rgba(0,0,0,0.05);
+    margin-bottom: 1.5rem;
+  }
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+  }
+  
+  .section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #344767;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 1rem;
+  }
+  
+  .info-item {
+    padding: 0.75rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+  }
+  
+  .info-label {
+    font-size: 0.85rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+  }
+  
+  .info-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #344767;
+  }
+  
+  /* Progress Bar */
+  .progress-modern {
+    height: 35px;
+    border-radius: 10px;
+    background: #e9ecef;
+    overflow: hidden;
+  }
+  
+  .progress-bar-modern {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  
+  /* Payment Table */
+  .payment-table-modern {
+    background: white;
+  }
+  
+  .payment-table-modern thead {
+    background: #f8f9fa;
+  }
+  
+  .payment-table-modern thead th {
+    font-weight: 600;
+    color: #344767;
+    border-bottom: 2px solid #dee2e6;
+    padding: 1rem;
+  }
+  
+  .payment-table-modern tbody tr {
+    transition: all 0.2s;
+  }
+  
+  .payment-table-modern tbody tr:hover {
+    background: #f8f9fa;
+  }
+  
+  .payment-badge {
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+  
+  .payment-badge.completed {
+    background: #d4edda;
+    color: #155724;
+  }
+  
+  .payment-badge.scheduled {
+    background: #fff3cd;
+    color: #856404;
+  }
+  
+  .payment-badge.overdue {
+    background: #f8d7da;
+    color: #721c24;
+  }
+  
+  /* Action Buttons */
+  .action-btn-group {
+    display: flex;
+    gap: 0.5rem;
+  }
+  
+  .btn-modern {
+    border-radius: 8px;
+    padding: 0.6rem 1.2rem;
+    font-weight: 500;
+    transition: all 0.3s;
+  }
+  
+  .btn-modern:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb -->
+  <div class="mb-4">
+    {% if breadcrumb_items %}
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        {% for item in breadcrumb_items %}
+          {% if forloop.last or item.active %}
+            <li class="breadcrumb-item active" aria-current="page">
+              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+              {{ item.title }}
+            </li>
+          {% else %}
+            <li class="breadcrumb-item">
+              <a href="{{ item.url }}">
+                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                {{ item.title }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        {% if page_icon %}
+        <div class="me-3">
+          <i class="{{ page_icon }} fa-2x text-primary"></i>
+        </div>
+        {% endif %}
+        <div>
+          <h1 class="h3 mb-1">{{ loan.loan_number }}</h1>
+          <p class="text-muted mb-0">{{ loan.lender_name }} - {{ loan.get_lender_type_display }}</p>
+        </div>
+      </div>
+      <div>
+        {% if loan.status == 'active' %}
+          <span class="badge bg-success">نشط</span>
+        {% elif loan.status == 'completed' %}
+          <span class="badge bg-primary">مكتمل</span>
+        {% else %}
+          <span class="badge bg-secondary">ملغي</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <!-- Stats Cards -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-money-bill-wave"></i>
+          </div>
+          <div class="stats-card-title">المبلغ الأصلي</div>
+          <div class="stats-card-value">{{ loan.principal_amount|smart_float:2 }}</div>
+          <small class="text-muted">{% currency_symbol %}</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-check-circle"></i>
+          </div>
+          <div class="stats-card-title">إجمالي المدفوع</div>
+          <div class="stats-card-value">{{ loan.total_paid|smart_float:2 }}</div>
+          <small class="text-muted">{% currency_symbol %}</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-hourglass-half"></i>
+          </div>
+          <div class="stats-card-title">المتبقي للسداد</div>
+          <div class="stats-card-value">{{ loan.remaining_balance|smart_float:2 }}</div>
+          <small class="text-muted">{% currency_symbol %}</small>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-3">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <div class="stats-card-title">القسط الشهري</div>
+          <div class="stats-card-value">{{ loan.calculate_monthly_payment|smart_float:2 }}</div>
+          <small class="text-muted">{% currency_symbol %}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <!-- معلومات القرض -->
+    <div class="col-lg-6 mb-4">
+      <div class="info-section">
+        <div class="section-header">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-info-circle"></i>
+            معلومات القرض
+          </h5>
+          {% if loan.status == 'active' and loan.remaining_balance > 0 %}
+          <button type="button" class="btn btn-success btn-modern btn-sm" data-bs-toggle="modal" data-bs-target="#paymentModal">
+            <i class="fas fa-money-bill-wave me-1"></i>
+            سداد قسط
+          </button>
+          {% endif %}
+        </div>
+        
+        <div class="info-grid">
+          <div class="info-item">
+            <div class="info-label">نوع القرض</div>
+            <div class="info-value">{{ loan.get_loan_type_display }}</div>
+          </div>
+          
+          <div class="info-item">
+            <div class="info-label">معدل الفائدة</div>
+            <div class="info-value">{{ loan.interest_rate }}%</div>
+          </div>
+          
+          <div class="info-item">
+            <div class="info-label">تاريخ البدء</div>
+            <div class="info-value">{{ loan.start_date|date:"Y/m/d" }}</div>
+          </div>
+          
+          <div class="info-item">
+            <div class="info-label">المدة</div>
+            <div class="info-value">{{ loan.duration_months }} شهر</div>
+          </div>
+          
+          <div class="info-item">
+            <div class="info-label">دورية السداد</div>
+            <div class="info-value">{{ loan.get_payment_frequency_display }}</div>
+          </div>
+          
+          <div class="info-item">
+            <div class="info-label">تاريخ الانتهاء المتوقع</div>
+            <div class="info-value">{{ loan.end_date|date:"Y/m/d" }}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- نسبة السداد والإحصائيات -->
+    <div class="col-lg-6 mb-4">
+      <!-- نسبة السداد -->
+      <div class="info-section">
+        <div class="section-header">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-chart-line"></i>
+            نسبة السداد
+          </h5>
+        </div>
+        
+        <div class="progress-modern mb-3">
+          <div class="progress-bar progress-bar-modern bg-success" role="progressbar" 
+               style="width: {% widthratio loan.total_paid loan.principal_amount 100 %}%;">
+            {% widthratio loan.total_paid loan.principal_amount 100 %}%
+          </div>
+        </div>
+        
+        <div class="d-flex justify-content-between text-sm">
+          <span class="text-success">
+            <i class="fas fa-check-circle me-1"></i>
+            مدفوع: {{ loan.total_paid|smart_float:2 }} {% currency_symbol %}
+          </span>
+          <span class="text-warning">
+            <i class="fas fa-hourglass-half me-1"></i>
+            متبقي: {{ loan.remaining_balance|smart_float:2 }} {% currency_symbol %}
+          </span>
+        </div>
+      </div>
+      
+      <!-- الوصف -->
+      {% if loan.description %}
+      <div class="info-section">
+        <div class="section-header">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-file-alt"></i>
+            الوصف
+          </h5>
+        </div>
+        <p class="mb-0 text-muted">{{ loan.description }}</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  
+  <!-- جدول السداد -->
+  <div class="row">
+    <div class="col-12 mb-4">
+      <div class="info-section">
+        <div class="section-header">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-calendar-alt"></i>
+            جدول السداد
+          </h5>
+        </div>
+        
+        <ul class="nav nav-pills mb-4" role="tablist">
+          <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#all-payments">
+              <i class="fas fa-list me-1"></i>
+              الكل <span class="badge bg-secondary ms-1">{{ payments.count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#completed-payments">
+              <i class="fas fa-check-circle me-1"></i>
+              المدفوع <span class="badge bg-success ms-1">{{ completed_payments.count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#scheduled-payments">
+              <i class="fas fa-clock me-1"></i>
+              المجدول <span class="badge bg-warning ms-1">{{ scheduled_payments.count }}</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#overdue-payments">
+              <i class="fas fa-exclamation-triangle me-1"></i>
+              المتأخر <span class="badge bg-danger ms-1">{{ overdue_payments.count }}</span>
+            </a>
+          </li>
+        </ul>
+          
+        <div class="tab-content">
+          <!-- جميع الأقساط -->
+          <div class="tab-pane fade show active" id="all-payments">
+            <div class="table-responsive">
+              <table class="table payment-table-modern">
+                <thead>
+                  <tr>
+                    <th>رقم القسط</th>
+                    <th>التاريخ المجدول</th>
+                    <th>الأصل</th>
+                    <th>الفائدة</th>
+                    <th>الإجمالي</th>
+                    <th>الحالة</th>
+                    <th>تاريخ الدفع</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for payment in payments %}
+                  <tr>
+                    <td><strong>#{{ payment.payment_number }}</strong></td>
+                    <td>{{ payment.scheduled_date|date:"Y/m/d" }}</td>
+                    <td>{{ payment.principal_amount|currency }}</td>
+                    <td>{{ payment.interest_amount|currency }}</td>
+                    <td class="fw-bold">{{ payment.amount|currency }}</td>
+                    <td>
+                      <span class="payment-badge {{ payment.status }}">
+                        {{ payment.get_status_display }}
+                      </span>
+                    </td>
+                    <td>
+                      {% if payment.actual_payment_date %}
+                        {{ payment.actual_payment_date|date:"Y/m/d" }}
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+            
+          <!-- الأقساط المدفوعة -->
+          <div class="tab-pane fade" id="completed-payments">
+            <div class="table-responsive">
+              <table class="table payment-table-modern">
+                <thead>
+                  <tr>
+                    <th>رقم القسط</th>
+                    <th>تاريخ الدفع</th>
+                    <th>الأصل</th>
+                    <th>الفائدة</th>
+                    <th>الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for payment in completed_payments %}
+                  <tr>
+                    <td><strong>#{{ payment.payment_number }}</strong></td>
+                    <td>{{ payment.actual_payment_date|date:"Y/m/d" }}</td>
+                    <td>{{ payment.principal_amount|currency }}</td>
+                    <td>{{ payment.interest_amount|currency }}</td>
+                    <td class="fw-bold text-success">{{ payment.amount|currency }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- الأقساط المجدولة -->
+          <div class="tab-pane fade" id="scheduled-payments">
+            <div class="table-responsive">
+              <table class="table payment-table-modern">
+                <thead>
+                  <tr>
+                    <th>رقم القسط</th>
+                    <th>التاريخ المجدول</th>
+                    <th>الأصل</th>
+                    <th>الفائدة</th>
+                    <th>الإجمالي</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for payment in scheduled_payments %}
+                  <tr>
+                    <td><strong>#{{ payment.payment_number }}</strong></td>
+                    <td>{{ payment.scheduled_date|date:"Y/m/d" }}</td>
+                    <td>{{ payment.principal_amount|currency }}</td>
+                    <td>{{ payment.interest_amount|currency }}</td>
+                    <td class="fw-bold">{{ payment.amount|currency }}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- الأقساط المتأخرة -->
+          <div class="tab-pane fade" id="overdue-payments">
+            <div class="table-responsive">
+              <table class="table payment-table-modern">
+                <thead>
+                  <tr>
+                    <th>رقم القسط</th>
+                    <th>التاريخ المجدول</th>
+                    <th>الأصل</th>
+                    <th>الفائدة</th>
+                    <th>الإجمالي</th>
+                    <th>الأيام المتأخرة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for payment in overdue_payments %}
+                  <tr>
+                    <td><strong>#{{ payment.payment_number }}</strong></td>
+                    <td>{{ payment.scheduled_date|date:"Y/m/d" }}</td>
+                    <td>{{ payment.principal_amount|currency }}</td>
+                    <td>{{ payment.interest_amount|currency }}</td>
+                    <td class="fw-bold text-danger">{{ payment.amount|currency }}</td>
+                    <td>
+                      <span class="payment-badge overdue">
+                        <i class="fas fa-exclamation-circle me-1"></i>
+                        {{ payment.days_overdue }} يوم
+                      </span>
+                    </td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal سداد قسط -->
+<div class="modal fade" id="paymentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title">
+          <i class="fas fa-money-bill-wave me-2"></i>
+          سداد قسط من القرض
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'financial:loan_payment_create' %}" id="paymentForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <input type="hidden" name="loan" value="{{ loan.id }}">
+          
+          <div class="mb-3">
+            <label class="form-label">تاريخ السداد</label>
+            <input type="date" name="payment_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">المبلغ المدفوع</label>
+            <input type="number" name="amount" class="form-control" 
+                   step="0.01" min="0.01" 
+                   value="{{ loan.calculate_monthly_payment|smart_float:2 }}" 
+                   placeholder="0.00" required>
+            <small class="text-muted">
+              القسط الشهري المقترح: {{ loan.calculate_monthly_payment|currency }}
+            </small>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">حساب الدفع</label>
+            <select name="payment_account" class="form-select" required>
+              <option value="">اختر الحساب...</option>
+              {% for account in payment_accounts %}
+              <option value="{{ account.id }}">{{ account.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          
+          <div class="mb-3">
+            <label class="form-label">ملاحظات (اختياري)</label>
+            <textarea name="notes" class="form-control" rows="2"></textarea>
+          </div>
+          
+          <div class="alert alert-info">
+            <strong>المتبقي للسداد:</strong> {{ loan.remaining_balance|currency }}
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>
+            إلغاء
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check me-1"></i>
+            تأكيد السداد
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

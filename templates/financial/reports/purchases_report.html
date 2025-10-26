@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -196,7 +197,8 @@
               <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="stats-card-title">إجمالي المشتريات</div>
-            <div class="stats-card-value">{{ total_purchases|currency }}</div>
+            <div class="stats-card-value">{{ total_purchases|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -208,7 +210,8 @@
               <i class="fas fa-calendar-day"></i>
             </div>
             <div class="stats-card-title">متوسط المشتريات اليومية</div>
-            <div class="stats-card-value">{{ avg_daily_purchases|currency }}</div>
+            <div class="stats-card-value">{{ avg_daily_purchases|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -275,7 +278,7 @@
                     <td>{{ item.account_name }}</td>
                     <td>{{ item.transaction_count }}</td>
                     <td class="text-end">{{ item.total_amount|currency }}</td>
-                    <td class="text-end">{{ item.percentage|floatformat:1 }}%</td>
+                    <td class="text-end">{{ item.percentage|smart_float:1 }}%</td>
                 </tr>
                 {% endfor %}
             </tbody>

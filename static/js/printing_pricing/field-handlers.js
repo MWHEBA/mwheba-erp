@@ -33,15 +33,19 @@ PrintingPricingSystem.FieldHandlers = {
         // إعدادات الحفظ التلقائي
         autoSaveInterval: 30000, // 30 ثانية
         autoSaveFields: [
-            'client', 'title', 'quantity', 'product_type', 'product_size',
-            'has_internal_content', 'open_size_width', 'open_size_height',
-            'internal_page_count', 'binding_side', 'print_sides', 'colors_design',
+            'client', 'title', 'quantity', 'product_type', 'product_size', 'product_width', 'product_height',
+            'order_type', 'has_internal_content', 'open_size_width', 'open_size_height',
+            'internal_page_count', 'binding_side', 'print_sides', 'print_direction', 'colors_design',
             'colors_front', 'colors_back', 'design_price', 'supplier', 'press',
             'press_price_per_1000', 'press_runs', 'press_transportation', 'ctp_supplier', 'ctp_plate_size',
             'ctp_plates_count', 'ctp_transportation', 'internal_print_sides', 'internal_colors_design',
             'internal_colors_front', 'internal_colors_back', 'internal_design_price',
             'internal_ctp_supplier', 'internal_ctp_plate_size', 'internal_ctp_plates_count',
-            'internal_ctp_transportation'
+            'internal_ctp_transportation',
+            // حقول الورق والمونتاج
+            'piece_size', 'piece_width', 'piece_height', 'montage_count', 'montage_info',
+            'paper_type', 'paper_supplier', 'paper_sheet_type', 'paper_weight', 'paper_origin',
+            'paper_price', 'paper_sheets_count', 'paper_quantity', 'paper_total_cost'
         ],
         // حقول خاصة بمعرفات مخصصة (ليس id_*)
         specialFields: ['use-open-size'],
@@ -113,12 +117,15 @@ PrintingPricingSystem.FieldHandlers = {
         this.initPrintDirectionField();
         this.initToggleFields();
         this.initPrintSidesField();
+        this.initMontageInfoFields();
         this.initPressFields();
         this.initCTPFields();
         this.initPlatesCalculation();
+        this.initPressRunsCalculation();
         this.initCTPCostCalculation();
         this.initPressCostCalculation();
         this.initPaperFields();
+        this.initFinishingServices();
         this.initFormValidation();
         this.initAutoSave();
         this.setupGlobalSelect2Focus();
@@ -261,6 +268,7 @@ PrintingPricingSystem.FieldHandlers = {
             return client.text;
         }
 
+        // عرض النص كما هو من API (يحتوي على الكود + الاسم + الشركة)
         const $container = $(
             `<div class="select2-result-client">
                 <div class="client-name">${client.text}</div>
@@ -271,10 +279,11 @@ PrintingPricingSystem.FieldHandlers = {
     },
 
     /**
-     * تنسيق عرض العميل المختار
+     * تنسيق عرض العميل المختار (في الحقل بعد الاختيار)
      */
     formatClientSelection: function(client) {
-        return client.text || client.name;
+        // عرض النص المركب من API فقط (لا تكرار)
+        return client.text;
     },
 
     /**
@@ -701,10 +710,8 @@ PrintingPricingSystem.FieldHandlers = {
         // إشعار النظام بتغيير مقاس القطع
         $(document).trigger('field:piece_size:changed', [value, text, data]);
         
-        // تحديث حسابات المونتاج إذا كان متاحاً
-        if (typeof window.PrintingPricingSystem.MontageHandlers !== 'undefined') {
-            window.PrintingPricingSystem.MontageHandlers.updateMontageCalculations();
-        }
+        // تحديث معلومات المونتاج (سيحسب تلقائياً من الأبعاد)
+        this.updateMontageInfo();
     },
 
     /**
@@ -798,6 +805,7 @@ PrintingPricingSystem.FieldHandlers = {
             option.dataset.paperType = pieceSize.paper_type;
             option.dataset.paperTypeId = pieceSize.paper_type_id || '';
             option.dataset.name = pieceSize.name;
+            option.dataset.piecesPerSheet = pieceSize.pieces_per_sheet || 1; // ✅ إضافة عدد القطع في الفرخ
             
             field.append(option);
         });
@@ -1063,6 +1071,279 @@ PrintingPricingSystem.FieldHandlers = {
             singleSideColors.style.display = 'flex';
             doubleSideColors.style.display = 'none';
         }
+    },
+
+    /**
+     * تهيئة حقول معلومات المونتاج
+     */
+    initMontageInfoFields: function() {
+        console.log('🔧 تهيئة حقول معلومات المونتاج...');
+        
+        // تهيئة حقل المونتاج للغلاف
+        const montageInfoField = $('#id_montage_info');
+        if (montageInfoField.length) {
+            // تحديث أولي
+            this.updateMontageInfo();
+            
+            // ربط الأحداث مع الحقول المؤثرة (piece_size و product_size)
+            $('#id_piece_size, #id_product_size').on('change', () => {
+                this.updateMontageInfo();
+            });
+            
+            // ربط حقول المقاسات المخصصة
+            $('#id_piece_width, #id_piece_height, #id_product_width, #id_product_height').on('input change', () => {
+                this.updateMontageInfo();
+            });
+            
+            // ربط حقل الكمية لتحديث عدد الأفرخ
+            $('#id_quantity').on('input change', () => {
+                this.updatePaperSheetsCount();
+            });
+            
+            // ربط حقل سعر الورق لتحديث التكلفة الإجمالية
+            $('#id_paper_price').on('input change', () => {
+                this.updatePaperTotalCost();
+            });
+            
+            console.log('✅ تم تهيئة حقل معلومات المونتاج للغلاف');
+        }
+        
+        // تهيئة حقل المونتاج للمحتوى الداخلي
+        const internalMontageInfoField = $('#id_internal_montage_info');
+        if (internalMontageInfoField.length) {
+            // تحديث أولي
+            this.updateInternalMontageInfo();
+            
+            // ربط الأحداث
+            $('#id_quantity, #id_internal_page_count').on('change', () => {
+                this.updateInternalMontageInfo();
+            });
+            
+            console.log('✅ تم تهيئة حقل معلومات المونتاج للمحتوى الداخلي');
+        }
+    },
+
+    /**
+     * تحديث معلومات المونتاج للغلاف
+     * يعرض: عدد القطع من المنتج / مقاس القطع
+     * مثال: 2 / ربع فرخ (يعني قطعتين من المنتج في ربع الفرخ)
+     */
+    updateMontageInfo: function() {
+        const montageInfoField = $('#id_montage_info');
+        if (!montageInfoField.length) return;
+        
+        // الحصول على مقاس القطع
+        const pieceSizeField = $('#id_piece_size');
+        const pieceSizeValue = pieceSizeField.val();
+        const pieceSizeText = pieceSizeField.length && pieceSizeValue 
+            ? pieceSizeField.find('option:selected').text() 
+            : '';
+        
+        // الحصول على مقاس المنتج
+        const productSizeField = $('#id_product_size');
+        const productSizeValue = productSizeField.val();
+        
+        // التحقق من وجود البيانات المطلوبة
+        if (!pieceSizeValue || !productSizeValue) {
+            montageInfoField.val('-- اختر مقاس القطع ومقاس المنتج --');
+            montageInfoField.attr('placeholder', 'اختر مقاس القطع ومقاس المنتج أولاً');
+            console.log('⚠️ مقاس القطع أو مقاس المنتج غير محدد');
+            return;
+        }
+        
+        // حساب المونتاج من أبعاد المقاسات
+        const montageCount = this.calculateMontageCount();
+        
+        // الصيغة: عدد القطع / مقاس القطع
+        const montageInfo = `${montageCount} / ${pieceSizeText}`;
+        montageInfoField.val(montageInfo);
+        montageInfoField.removeAttr('placeholder');
+        
+        // تحديث حقل montage_count المخفي
+        $('#id_montage_count').val(montageCount);
+        
+        // حساب وتحديث عدد الأفرخ
+        this.updatePaperSheetsCount();
+        
+        console.log(`📊 تحديث معلومات المونتاج: ${montageInfo} (${montageCount} قطعة من المنتج في ${pieceSizeText})`);
+    },
+
+    /**
+     * حساب وتحديث عدد الأفرخ المطلوبة
+     * الصيغة: عدد الأفرخ = ceil(عدد المنتج ÷ (المونتاج × عدد القطع في الفرخ))
+     */
+    updatePaperSheetsCount: function() {
+        const paperSheetsField = $('#id_paper_sheets_count');
+        if (!paperSheetsField.length) return;
+        
+        // الحصول على البيانات المطلوبة
+        const quantity = parseInt($('#id_quantity').val()) || 0;
+        const montageCount = parseInt($('#id_montage_count').val()) || 1;
+        const pieceSizeField = $('#id_piece_size');
+        
+        if (!quantity || !pieceSizeField.val()) {
+            paperSheetsField.val('');
+            return;
+        }
+        
+        // الحصول على عدد القطع في الفرخ
+        const pieceSizeOption = pieceSizeField.find('option:selected');
+        let piecesPerSheet = parseInt(pieceSizeOption.data('piecesPerSheet')) || 1;
+        
+        // إذا كان مقاس مخصص، نفترض 1 (فرخ كامل)
+        if (pieceSizeField.val() === 'custom') {
+            piecesPerSheet = 1;
+            console.log('📐 مقاس مخصص: عدد القطع في الفرخ = 1 (فرخ كامل)');
+        }
+        
+        // حساب عدد الأفرخ
+        // عدد الأفرخ = ceil(عدد المنتج ÷ (المونتاج × عدد القطع في الفرخ))
+        const totalPiecesPerSheet = montageCount * piecesPerSheet;
+        const paperSheets = Math.ceil(quantity / totalPiecesPerSheet);
+        
+        console.log(`📄 حساب عدد الأفرخ:
+        - عدد المنتج: ${quantity}
+        - المونتاج: ${montageCount} قطعة/مقاس قطع
+        - عدد القطع في الفرخ: ${piecesPerSheet}
+        - إجمالي القطع في الفرخ: ${totalPiecesPerSheet} (${montageCount} × ${piecesPerSheet})
+        - عدد الأفرخ المطلوبة: ${paperSheets} فرخ`);
+        
+        // تحديث الحقل
+        paperSheetsField.val(paperSheets);
+        
+        // إطلاق حدث التغيير
+        paperSheetsField.trigger('change');
+        
+        // حساب التكلفة الإجمالية للورق
+        this.updatePaperTotalCost();
+    },
+
+    /**
+     * حساب وتحديث التكلفة الإجمالية للورق
+     * الصيغة: التكلفة الإجمالية = سعر الفرخ × عدد الأفرخ
+     */
+    updatePaperTotalCost: function() {
+        const totalCostField = $('#id_paper_total_cost');
+        if (!totalCostField.length) return;
+        
+        // الحصول على البيانات المطلوبة
+        const paperPrice = parseFloat($('#id_paper_price').val()) || 0;
+        const paperSheets = parseInt($('#id_paper_sheets_count').val()) || 0;
+        
+        if (!paperPrice || !paperSheets) {
+            totalCostField.val('');
+            return;
+        }
+        
+        // حساب التكلفة الإجمالية
+        const totalCost = paperPrice * paperSheets;
+        
+        console.log(`💰 حساب التكلفة الإجمالية للورق:
+        - سعر الفرخ: ${paperPrice} جنيه
+        - عدد الأفرخ: ${paperSheets} فرخ
+        - التكلفة الإجمالية: ${totalCost.toFixed(2)} جنيه`);
+        
+        // تحديث الحقل
+        totalCostField.val(totalCost.toFixed(2));
+        
+        // إطلاق حدث التغيير
+        totalCostField.trigger('change');
+    },
+
+    /**
+     * حساب عدد القطع من المنتج في مقاس القطع
+     * بناءً على المساحات والأبعاد
+     */
+    calculateMontageCount: function() {
+        const pieceSizeField = $('#id_piece_size');
+        const productSizeField = $('#id_product_size');
+        
+        if (!pieceSizeField.val() || !productSizeField.val()) {
+            return 1;
+        }
+        
+        // الحصول على أبعاد مقاس القطع
+        const pieceSizeOption = pieceSizeField.find('option:selected');
+        let pieceWidth = parseFloat(pieceSizeOption.data('width')) || 0;
+        let pieceHeight = parseFloat(pieceSizeOption.data('height')) || 0;
+        
+        // إذا كان مقاس القطع مخصص، نجيب الأبعاد من الحقول المخصصة
+        if (pieceSizeField.val() === 'custom') {
+            const customWidthField = $('#id_piece_width');
+            const customHeightField = $('#id_piece_height');
+            
+            if (customWidthField.length && customHeightField.length) {
+                pieceWidth = parseFloat(customWidthField.val()) || 0;
+                pieceHeight = parseFloat(customHeightField.val()) || 0;
+                console.log(`📐 مقاس قطع مخصص: ${pieceWidth}×${pieceHeight} سم`);
+            }
+        }
+        
+        // خصم السماحية من مقاس القطع (1 سم من العرض و 1 سم من الطول)
+        const trimMargin = 1; // سم
+        pieceWidth = Math.max(0, pieceWidth - trimMargin);
+        pieceHeight = Math.max(0, pieceHeight - trimMargin);
+        console.log(`✂️ مقاس القطع بعد خصم السماحية (${trimMargin} سم): ${pieceWidth}×${pieceHeight} سم`);
+        
+        // الحصول على أبعاد مقاس المنتج
+        const productSizeOption = productSizeField.find('option:selected');
+        let productWidth = parseFloat(productSizeOption.data('width')) || 0;
+        let productHeight = parseFloat(productSizeOption.data('height')) || 0;
+        
+        // إذا كان مقاس المنتج مخصص، نجيب الأبعاد من الحقول المخصصة
+        if (productSizeField.val() === 'custom') {
+            const customWidthField = $('#id_product_width');
+            const customHeightField = $('#id_product_height');
+            
+            if (customWidthField.length && customHeightField.length) {
+                productWidth = parseFloat(customWidthField.val()) || 0;
+                productHeight = parseFloat(customHeightField.val()) || 0;
+                console.log(`📐 مقاس منتج مخصص: ${productWidth}×${productHeight} سم`);
+            }
+        }
+        
+        if (!pieceWidth || !pieceHeight || !productWidth || !productHeight) {
+            console.warn('⚠️ لا يمكن الحصول على أبعاد المقاسات');
+            return 1;
+        }
+        
+        // حساب عدد القطع في كل اتجاه
+        // نجرب الاتجاهين (عادي ومقلوب) ونختار الأفضل
+        
+        // الاتجاه العادي
+        const countNormal = Math.floor(pieceWidth / productWidth) * Math.floor(pieceHeight / productHeight);
+        
+        // الاتجاه المقلوب
+        const countRotated = Math.floor(pieceWidth / productHeight) * Math.floor(pieceHeight / productWidth);
+        
+        // اختيار الأفضل
+        const montageCount = Math.max(countNormal, countRotated);
+        
+        console.log(`🧮 حساب المونتاج:
+        - مقاس القطع: ${pieceWidth}×${pieceHeight} سم
+        - مقاس المنتج: ${productWidth}×${productHeight} سم
+        - الاتجاه العادي: ${countNormal} قطعة
+        - الاتجاه المقلوب: ${countRotated} قطعة
+        - النتيجة: ${montageCount} قطعة`);
+        
+        return montageCount || 1;
+    },
+
+    /**
+     * تحديث معلومات المونتاج للمحتوى الداخلي
+     * يعرض: الكمية × عدد الصفحات
+     */
+    updateInternalMontageInfo: function() {
+        const internalMontageInfoField = $('#id_internal_montage_info');
+        if (!internalMontageInfoField.length) return;
+        
+        const quantity = $('#id_quantity').val() || 0;
+        const pageCount = $('#id_internal_page_count').val() || 0;
+        
+        const montageInfo = `${quantity} × ${pageCount} صفحة`;
+        internalMontageInfoField.val(montageInfo);
+        
+        console.log(`📊 تحديث معلومات المونتاج الداخلي: ${montageInfo}`);
     },
 
     /**
@@ -1785,27 +2066,13 @@ PrintingPricingSystem.FieldHandlers = {
         let totalColors = 0;
         let platesCount = 0;
         
-        // حساب عدد الألوان حسب نوع الطباعة
-        if (printSides === '1' || printSides === '3') {
-            // وجه واحد أو طبع وقلب - استخدم عدد ألوان التصميم
-            totalColors = parseInt(colorsDesignField.val()) || 0;
-        } else if (printSides === '2') {
-            // وجهين - استخدم مجموع ألوان الوجه والظهر
-            const frontColors = parseInt(colorsFrontField.val()) || 0;
-            const backColors = parseInt(colorsBackField.val()) || 0;
-            totalColors = frontColors + backColors;
-        }
-        
-        // حساب عدد الزنكات حسب نوع الطباعة
+        // حساب عدد الألوان حسب نوع الطباعة (نفس منطق حساب التراجات)
         if (printSides === '1') {
-            // وجه واحد: الزنكات = عدد الألوان × 1
-            platesCount = totalColors * 1;
-        } else if (printSides === '2') {
-            // وجهين: الزنكات = عدد الألوان × 2 (لكن هنا totalColors يشمل الوجهين)
-            platesCount = totalColors;
-        } else if (printSides === '3') {
-            // طبع وقلب: الزنكات = عدد الألوان × 1 (نفس الزنكات للوجهين)
-            platesCount = totalColors * 1;
+            // وجه واحد → عدد الزنكات = عدد ألوان التصميم
+            platesCount = parseInt(colorsDesignField.val()) || 0;
+        } else if (printSides === '2' || printSides === '3') {
+            // وجهين أو طبع وقلب → عدد الزنكات = عدد ألوان الوجه الأمامي
+            platesCount = parseInt(colorsFrontField.val()) || 0;
         }
         
         // تحديث حقل عدد الزنكات
@@ -1817,6 +2084,176 @@ PrintingPricingSystem.FieldHandlers = {
         
         // إطلاق حدث تغيير لتحديث التكاليف
         platesCountField.trigger('change');
+    },
+
+    /**
+     * حساب عدد التراجات حسب القواعد الجديدة
+     * يتم حساب التراجات بناءً على الكمية والمونتاج والألوان مع تطبيق قاعدة السماحية
+     */
+    calculatePressRuns: function() {
+        console.log('🧮 بدء حساب عدد التراجات...');
+        
+        // الحصول على الحقول المطلوبة
+        const quantityField = $('#id_quantity');
+        const montageField = $('#id_montage_count');
+        const printSidesField = $('#id_print_sides');
+        const colorsDesignField = $('#id_colors_design');
+        const colorsFrontField = $('#id_colors_front');
+        const pressRunsField = $('#id_press_runs');
+        const ctpPlatesField = $('#id_ctp_plates_count');
+        
+        // التحقق من وجود الحقول الأساسية المطلوبة
+        if (!quantityField.length || !printSidesField.length || 
+            !colorsDesignField.length || !colorsFrontField.length || !pressRunsField.length) {
+            console.warn('⚠️ بعض الحقول الأساسية المطلوبة لحساب التراجات غير موجودة');
+            return;
+        }
+        
+        // الحصول على القيم مع قيم افتراضية آمنة
+        const quantity = parseInt(quantityField.val()) || 0;
+        const montageCount = montageField.length ? (parseInt(montageField.val()) || 1) : 1;
+        const printSides = printSidesField.val();
+        const colorsDesign = parseInt(colorsDesignField.val()) || 0;
+        const colorsFront = parseInt(colorsFrontField.val()) || 0;
+        
+        console.log('📊 القيم المدخلة:', {
+            quantity: quantity,
+            montageCount: montageCount,
+            printSides: printSides,
+            colorsDesign: colorsDesign,
+            colorsFront: colorsFront
+        });
+        
+        // التحقق من وجود البيانات الأساسية
+        if (quantity <= 0 || montageCount <= 0) {
+            console.log('⚠️ الكمية أو المونتاج غير صحيح');
+            pressRunsField.val('');
+            return;
+        }
+        
+        // 1. حساب عدد مقاس الطباعة الفعلي
+        const printSheets = Math.ceil(quantity / montageCount);
+        console.log(`📄 عدد مقاس الطباعة الفعلي: ${printSheets} = ceil(${quantity} / ${montageCount})`);
+        
+        // 2. تحديد عدد الألوان المستخدمة في الحساب
+        let colorsTotal = 0;
+        if (printSides === '1') {
+            // وجه واحد → إجمالي الألوان = عدد ألوان التصميم
+            colorsTotal = colorsDesign;
+        } else if (printSides === '2' || printSides === '3') {
+            // وجهين أو طبع وقلب → إجمالي الألوان = عدد ألوان الوجه الأمامي
+            colorsTotal = colorsFront;
+        }
+        
+        console.log(`🎨 إجمالي الألوان للحساب: ${colorsTotal} (نوع الطباعة: ${printSides})`);
+        
+        if (colorsTotal <= 0) {
+            console.log('⚠️ عدد الألوان غير صحيح');
+            pressRunsField.val('');
+            return;
+        }
+        
+        // 3. حساب عدد التراجات لكل لون مع تطبيق قاعدة السماحية
+        let tarajPerColor = 0;
+        
+        if (printSheets <= 1000) {
+            // إذا كان عدد الأوراق ≤ 1000 → تراج واحد لكل لون
+            tarajPerColor = 1;
+        } else {
+            // إذا كان عدد الأوراق > 1000
+            const R = printSheets - 1000;
+            
+            if (R <= 150) {
+                // إذا كان الفرق ≤ 150 → تراج واحد لكل لون (سماحية)
+                tarajPerColor = 1;
+            } else {
+                // إذا كان الفرق > 150 → حساب التراجات الإضافية
+                tarajPerColor = 1 + Math.ceil((R - 150) / 1000);
+            }
+        }
+        
+        console.log(`📊 تفاصيل حساب التراجات لكل لون:
+        - عدد الأوراق: ${printSheets}
+        - التراجات لكل لون: ${tarajPerColor}`);
+        
+        // 4. حساب عدد التراجات الكلي
+        const totalPressRuns = tarajPerColor * colorsTotal;
+        
+        console.log(`🏃 النتيجة النهائية: ${totalPressRuns} تراج = ${tarajPerColor} × ${colorsTotal}`);
+        
+        // تحديث حقل عدد التراجات
+        pressRunsField.val(totalPressRuns);
+        
+        // 5. حساب عدد الزنكات (CTP) حسب نفس منطق الألوان
+        let ctpPlatesCount = 0;
+        if (printSides === '1') {
+            // وجه واحد → عدد الزنكات = عدد ألوان التصميم
+            ctpPlatesCount = colorsDesign;
+        } else if (printSides === '2' || printSides === '3') {
+            // وجهين أو طبع وقلب → عدد الزنكات = عدد ألوان الوجه الأمامي
+            ctpPlatesCount = colorsFront;
+        }
+        
+        if (ctpPlatesField.length && ctpPlatesCount > 0) {
+            ctpPlatesField.val(ctpPlatesCount);
+            console.log(`🖨️ عدد الزنكات: ${ctpPlatesCount}`);
+        }
+        
+        // إطلاق أحداث التغيير لتحديث الحسابات الأخرى
+        pressRunsField.trigger('change');
+        if (ctpPlatesField.length) {
+            ctpPlatesField.trigger('change');
+        }
+        
+        console.log('✅ تم حساب عدد التراجات بنجاح');
+    },
+
+    /**
+     * تهيئة حساب عدد التراجات التلقائي
+     * ربط الحقول المؤثرة بدالة حساب التراجات
+     */
+    initPressRunsCalculation: function() {
+        console.log('🔧 تهيئة حساب عدد التراجات التلقائي...');
+        
+        // الحقول المؤثرة على حساب التراجات
+        const quantityField = $('#id_quantity');
+        const montageField = $('#id_montage_count');
+        const printSidesField = $('#id_print_sides');
+        const colorsDesignField = $('#id_colors_design');
+        const colorsFrontField = $('#id_colors_front');
+        
+        // ربط الأحداث بالحقول المؤثرة (فقط الحقول الموجودة)
+        const fieldsToWatch = [quantityField, printSidesField, colorsDesignField, colorsFrontField];
+        
+        // إضافة حقل المونتاج إذا كان موجوداً
+        if (montageField.length) {
+            fieldsToWatch.push(montageField);
+            console.log('✅ حقل المونتاج موجود وسيتم مراقبته');
+        } else {
+            console.log('⚠️ حقل المونتاج غير موجود، سيتم استخدام قيمة افتراضية (1)');
+        }
+        
+        fieldsToWatch.forEach(field => {
+            if (field.length) {
+                // ربط أحداث التغيير
+                field.on('input change keyup', () => {
+                    // تأخير بسيط لتجنب الحسابات المتكررة
+                    clearTimeout(this.pressRunsTimeout);
+                    this.pressRunsTimeout = setTimeout(() => {
+                        this.calculatePressRuns();
+                    }, 300);
+                });
+                
+                console.log(`✅ تم ربط حقل ${field.attr('id')} بحساب التراجات`);
+            }
+        });
+        
+        // حساب أولي عند التحميل
+        setTimeout(() => {
+            this.calculatePressRuns();
+        }, 500);
+        
+        console.log('✅ تم تهيئة حساب عدد التراجات التلقائي');
     },
 
     /**
@@ -2712,6 +3149,192 @@ PrintingPricingSystem.FieldHandlers = {
     },
 
     /**
+     * تهيئة خدمات ما بعد الطباعة (إخفاء/إظهار)
+     */
+    initFinishingServices: function() {
+        // قائمة جميع الخدمات (checkbox → fields)
+        const services = [
+            // خدمات الغلاف
+            { checkbox: '#enable_cover_coating', fields: '#cover-coating-fields' },
+            { checkbox: '#enable_cover_folding', fields: '#cover-folding-fields' },
+            { checkbox: '#enable_cover_die_cut', fields: '#cover-die-cut-fields' },
+            { checkbox: '#enable_cover_packaging', fields: '#cover-packaging-fields' },
+            
+            // خدمات المحتوى الداخلي
+            { checkbox: '#enable_internal_coating', fields: '#internal-coating-fields' },
+            { checkbox: '#enable_internal_folding', fields: '#internal-folding-fields' },
+            { checkbox: '#enable_internal_die_cut', fields: '#internal-die-cut-fields' },
+            { checkbox: '#enable_internal_packaging', fields: '#internal-packaging-fields' }
+        ];
+        
+        // تطبيق نفس المنطق على جميع الخدمات
+        services.forEach(service => {
+            const checkbox = $(service.checkbox);
+            const fields = $(service.fields);
+            
+            if (checkbox.length && fields.length) {
+                // إخفاء الحقول في البداية
+                fields.hide();
+                
+                // معالج التغيير للـ checkbox
+                checkbox.on('change', function() {
+                    if ($(this).is(':checked')) {
+                        fields.slideDown(300);
+                    } else {
+                        fields.slideUp(300);
+                    }
+                });
+                
+                // جعل الـ header كله قابل للنقر
+                const header = checkbox.closest('.card-header');
+                if (header.length) {
+                    header.css('cursor', 'pointer');
+                    header.on('click', function(e) {
+                        // تجاهل النقر على الـ checkbox نفسه
+                        if (e.target !== checkbox[0] && !$(e.target).is('label')) {
+                            checkbox.prop('checked', !checkbox.prop('checked')).trigger('change');
+                        }
+                    });
+                }
+                
+                // تحديث الحالة الأولية (للاستعادة من الحفظ)
+                if (checkbox.is(':checked')) {
+                    fields.show();
+                }
+            }
+        });
+        
+        console.log('✅ تم تهيئة خدمات ما بعد الطباعة (8 خدمات)');
+        
+        // تحميل موردي الخدمات
+        this.loadFinishingSuppliers();
+        
+        // تهيئة handlers للخدمات
+        this.initFinishingServiceHandlers();
+    },
+    
+    /**
+     * تحميل موردي خدمات ما بعد الطباعة
+     */
+    loadFinishingSuppliers: function() {
+        // تحميل موردي التغطية للغلاف
+        this.loadCoatingSuppliers('#id_cover_coating_supplier');
+        
+        // تحميل موردي التغطية للمحتوى الداخلي
+        this.loadCoatingSuppliers('#id_internal_coating_supplier');
+    },
+    
+    /**
+     * تحميل موردي التغطية
+     */
+    loadCoatingSuppliers: function(selectId) {
+        const selectElement = $(selectId);
+        if (!selectElement.length) return;
+        
+        $.ajax({
+            url: '/supplier/api/suppliers/by-service-type/',
+            method: 'GET',
+            data: {
+                service_type: 'coating'
+            },
+            success: (response) => {
+                selectElement.empty();
+                selectElement.append('<option value="">اختر المورد</option>');
+                
+                if (response.suppliers && response.suppliers.length > 0) {
+                    response.suppliers.forEach(supplier => {
+                        selectElement.append(
+                            `<option value="${supplier.id}">${supplier.name}</option>`
+                        );
+                    });
+                    console.log(`✅ تم تحميل ${response.suppliers.length} مورد تغطية`);
+                } else {
+                    selectElement.append('<option value="" disabled>لا يوجد موردين متاحين</option>');
+                }
+            },
+            error: (xhr, status, error) => {
+                console.error('❌ خطأ في تحميل موردي التغطية:', error);
+                selectElement.append('<option value="" disabled>خطأ في التحميل</option>');
+            }
+        });
+    },
+    
+    /**
+     * تهيئة handlers لخدمات ما بعد الطباعة
+     */
+    initFinishingServiceHandlers: function() {
+        // التغطية للغلاف
+        this.initCoatingHandlers('#id_cover_coating_supplier', '#id_cover_coating_type', '#id_cover_coating_cost');
+        
+        // التغطية للمحتوى الداخلي
+        this.initCoatingHandlers('#id_internal_coating_supplier', '#id_internal_coating_type', '#id_internal_coating_cost');
+    },
+    
+    /**
+     * تهيئة handlers للتغطية
+     */
+    initCoatingHandlers: function(supplierSelect, typeSelect, costInput) {
+        const $supplier = $(supplierSelect);
+        const $type = $(typeSelect);
+        const $cost = $(costInput);
+        
+        if (!$supplier.length || !$type.length || !$cost.length) return;
+        
+        // عند تغيير المورد، تحميل خدماته
+        $supplier.on('change', () => {
+            const supplierId = $supplier.val();
+            
+            if (!supplierId) {
+                $type.empty().append('<option value="">اختر النوع</option>');
+                $cost.val('');
+                return;
+            }
+            
+            // تحميل خدمات التغطية للمورد
+            $.ajax({
+                url: '/supplier/api/supplier-coating-services/',
+                method: 'GET',
+                data: { supplier_id: supplierId },
+                success: (response) => {
+                    $type.empty().append('<option value="">اختر النوع</option>');
+                    
+                    if (response.services && response.services.length > 0) {
+                        response.services.forEach(service => {
+                            $type.append(
+                                `<option value="${service.id}" data-price="${service.price}">${service.name}</option>`
+                            );
+                        });
+                        console.log(`✅ تم تحميل ${response.services.length} خدمة تغطية`);
+                        
+                        // اختيار أول خدمة تلقائياً
+                        $type.val(response.services[0].id).trigger('change');
+                        console.log(`🔄 تم اختيار أول خدمة تلقائياً: ${response.services[0].name}`);
+                    } else {
+                        $type.append('<option value="" disabled>لا توجد خدمات متاحة</option>');
+                    }
+                },
+                error: (xhr, status, error) => {
+                    console.error('❌ خطأ في تحميل خدمات التغطية:', error);
+                    $type.empty().append('<option value="" disabled>خطأ في التحميل</option>');
+                }
+            });
+        });
+        
+        // عند تغيير نوع التغطية، تحديث السعر
+        $type.on('change', () => {
+            const selectedOption = $type.find('option:selected');
+            const price = selectedOption.data('price');
+            
+            if (price) {
+                $cost.val(price);
+                console.log(`💰 تم تحديث سعر التغطية: ${price} ر.س`);
+            } else {
+                $cost.val('');
+            }
+        });
+    },
+
+    /**
      * تهيئة نظام التحقق من صحة النموذج
      */
     initFormValidation: function() {
@@ -3155,10 +3778,13 @@ PrintingPricingSystem.FieldHandlers = {
                 if (age < 3600000 && draft.url === window.location.href) {
                     
                     // إعطاء أولوية لاستعادة الحقول التي لا تعتمد على APIs
-                    const priorityFields = ['title', 'quantity', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side', 'print_sides', 'internal_print_sides'];
+                    const priorityFields = ['client', 'title', 'quantity', 'order_type', 'has_internal_content', 'open_size_width', 'open_size_height', 'internal_page_count', 'binding_side', 'print_sides', 'internal_print_sides'];
                     const colorFields = ['colors_design', 'colors_front', 'colors_back', 'design_price', 'internal_colors_design', 'internal_colors_front', 'internal_colors_back', 'internal_design_price']; // تحتاج print_sides أولاً
-                    const apiDependentFields = ['client', 'product_type', 'product_size', 'supplier', 'press', 'ctp_supplier', 'internal_ctp_supplier'];
-                    const secondaryFields = ['press_price_per_1000', 'press_runs', 'press_transportation', 'ctp_plate_size', 'internal_ctp_plate_size', 'ctp_plates_count', 'internal_ctp_plates_count']; // تحتاج تحميل المورد أولاً
+                    const apiDependentFields = ['product_type', 'product_size', 'paper_type', 'supplier', 'press', 'ctp_supplier', 'internal_ctp_supplier'];
+                    const customSizeFields = ['product_width', 'product_height', 'piece_width', 'piece_height']; // تحتاج product_size و piece_size أولاً
+                    const paperFields = ['paper_supplier', 'paper_sheet_type', 'paper_weight', 'paper_origin', 'paper_price', 'paper_quantity']; // تحتاج paper_type أولاً
+                    const pieceSizeFields = ['piece_size']; // تحتاج paper_origin أولاً
+                    const secondaryFields = ['press_price_per_1000', 'press_runs', 'press_transportation', 'ctp_plate_size', 'internal_ctp_plate_size', 'ctp_plates_count', 'internal_ctp_plates_count', 'montage_count', 'montage_info', 'paper_sheets_count', 'paper_total_cost']; // تحتاج تحميل المورد أولاً
                     const hiddenFields = ['use-open-size']; // الحقول المخفية داخل أقسام
                     
                     // استعادة الحقول ذات الأولوية أولاً
@@ -3192,14 +3818,84 @@ PrintingPricingSystem.FieldHandlers = {
                         });
                     }, 1000);
                     
-                    // تأخير متوسط لاستعادة الحقول الثانوية (مقاسات الزنكات)
+                    // استعادة حقول المقاسات المخصصة (بعد product_size و piece_size)
+                    setTimeout(() => {
+                        customSizeFields.forEach(fieldName => {
+                            if (draft.data[fieldName]) {
+                                this.restoreField(fieldName, draft.data[fieldName]);
+                            }
+                        });
+                        
+                        // استعادة print_direction بعد الأبعاد عشان ما يتغيرش تلقائياً
+                        if (draft.data['print_direction']) {
+                            setTimeout(() => {
+                                this.restoreField('print_direction', draft.data['print_direction']);
+                            }, 200); // تأخير صغير بعد الأبعاد
+                        }
+                    }, 1300); // تأخير قصير بعد المقاسات الأساسية
+                    
+                    // استعادة حقول الورق (بعد paper_type)
+                    setTimeout(() => {
+                        paperFields.forEach(fieldName => {
+                            if (draft.data[fieldName]) {
+                                this.restoreField(fieldName, draft.data[fieldName]);
+                            }
+                        });
+                    }, 1500); // تأخير لضمان تحميل خيارات الورق
+                    
+                    // استعادة مقاس القطع - polling بسيط وفعال
+                    if (draft.data['piece_size']) {
+                        const pieceSizeValue = draft.data['piece_size'].value;
+                        const pieceSizeElement = $('#id_piece_size');
+                        let restored = false;
+                        let attempts = 0;
+                        const maxAttempts = 30; // 30 محاولة = 6 ثوانٍ
+                        
+                        const checkAndRestore = () => {
+                            if (restored) return;
+                            
+                            attempts++;
+                            const options = pieceSizeElement.find('option:not([value=""])');
+                            
+                            if (options.length > 0) {
+                                // انتظار 800ms للسماح لجميع الـ handlers بالانتهاء
+                                setTimeout(() => {
+                                    // استعادة القيمة
+                                    pieceSizeElement.val(pieceSizeValue);
+                                    
+                                    // التحقق من النجاح
+                                    if (pieceSizeElement.val() === pieceSizeValue) {
+                                        pieceSizeElement.trigger('change');
+                                        restored = true;
+                                        
+                                        // التحقق بعد 500ms للتأكد من عدم المسح وإعادة الاستعادة إذا لزم الأمر
+                                        setTimeout(() => {
+                                            const currentValue = pieceSizeElement.val();
+                                            if (currentValue !== pieceSizeValue) {
+                                                pieceSizeElement.val(pieceSizeValue);
+                                                pieceSizeElement.trigger('change');
+                                            }
+                                        }, 500);
+                                    }
+                                }, 800);
+                            } else if (attempts < maxAttempts) {
+                                // إعادة المحاولة بعد 200ms
+                                setTimeout(checkAndRestore, 200);
+                            }
+                        };
+                        
+                        // بدء الفحص
+                        checkAndRestore();
+                    }
+                    
+                    // تأخير متوسط لاستعادة الحقول الثانوية (مقاسات الزنكات والمونتاج)
                     setTimeout(() => {
                         secondaryFields.forEach(fieldName => {
                             if (draft.data[fieldName]) {
                                 this.restoreField(fieldName, draft.data[fieldName]);
                             }
                         });
-                    }, 1500); // تأخير متوسط لضمان تحميل مقاسات الزنكات
+                    }, 2000); // تأخير متوسط لضمان تحميل جميع البيانات
                     
                     // تأخير أكبر لاستعادة الحقول المخفية داخل الأقسام
                     setTimeout(() => {
@@ -3279,6 +3975,76 @@ PrintingPricingSystem.FieldHandlers = {
                     element.trigger('select2:select');
                     
                 }
+                
+                // معالجة خاصة لحقول الورق (تسلسل متتابع)
+                if (fieldName === 'paper_type') {
+                    if (!fieldData.value || fieldData.value === '') return;
+                    
+                    const selectData = element.select2('data');
+                    if (selectData && selectData.length > 0) {
+                        element.trigger({
+                            type: 'select2:select',
+                            params: { data: selectData[0] }
+                        });
+                    }
+                }
+                
+                if (fieldName === 'paper_supplier') {
+                    if (!fieldData.value || fieldData.value === '') return;
+                    
+                    const selectData = element.select2('data');
+                    if (selectData && selectData.length > 0) {
+                        element.trigger({
+                            type: 'select2:select',
+                            params: { data: selectData[0] }
+                        });
+                    }
+                }
+                
+                if (fieldName === 'piece_size') {
+                    // تجاهل القيم الفارغة
+                    if (!fieldData.value || fieldData.value === '') {
+                        return;
+                    }
+                    
+                    // الانتظار لحين تحميل الخيارات
+                    let waitAttempts = 0;
+                    const maxWaitAttempts = 20; // حد أقصى 4 ثوانٍ
+                    
+                    const waitForOptions = () => {
+                        const options = element.find('option:not([value=""])');
+                        
+                        if (options.length === 0 && waitAttempts < maxWaitAttempts) {
+                            waitAttempts++;
+                            setTimeout(waitForOptions, 200);
+                            return;
+                        }
+                        
+                        if (options.length === 0) {
+                            console.warn('⚠️ لم يتم تحميل خيارات مقاس القطع');
+                            return;
+                        }
+                        
+                        // محاولة استعادة القيمة
+                        element.val(fieldData.value);
+                        
+                        if (element.val() === fieldData.value) {
+                            // إطلاق حدث change لحساب المونتاج
+                            element.trigger('change');
+                            console.log(`✅ تم استعادة مقاس القطع: ${fieldData.value}`);
+                        } else {
+                            console.warn(`⚠️ فشل استعادة مقاس القطع: ${fieldData.value} (غير موجود في الخيارات)`);
+                        }
+                    };
+                    
+                    waitForOptions();
+                    return; // الخروج لأننا بنعالج بشكل async
+                }
+                
+                if (fieldName === 'product_size') {
+                    if (!fieldData.value || fieldData.value === '') return;
+                    element.trigger('change');
+                }
             } else {
                 // معالجة خاصة للـ checkboxes
                 if (fieldData.isCheckbox) {
@@ -3286,6 +4052,11 @@ PrintingPricingSystem.FieldHandlers = {
                 } else {
                     // استعادة الحقول العادية
                     element.val(fieldData.value);
+                    
+                    // إطلاق حدث change للحقول المهمة
+                    if (['print_direction', 'print_sides', 'order_type'].includes(fieldName)) {
+                        element.trigger('change');
+                    }
                     
                     // التحقق من نجاح الاستعادة
                     if (element.val() !== fieldData.value) {

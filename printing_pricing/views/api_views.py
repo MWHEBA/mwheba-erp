@@ -273,7 +273,7 @@ class GetServicePriceAPIView(BaseAPIView):
                     'unit_price': 0.25,
                     'setup_cost': 15.00,
                     'unit': 'piece',
-                    'supplier': 'ورشة التشطيبات',
+                    'supplier': 'ورشة خدمات الطباعة',
                     'execution_time': 1
                 }
             }
@@ -504,11 +504,22 @@ class GetClientsAPIView(BaseAPIView):
             # تحويل البيانات لصيغة Select2
             results = []
             for client in clients:
-                display_name = client.name
-                if client.company_name:
-                    display_name = f"{client.name} - {client.company_name}"
+                # بناء النص المعروض بطريقة واضحة ومنظمة
+                display_parts = []
+                
+                # إضافة الكود إذا وُجد
                 if client.code:
-                    display_name = f"[{client.code}] {display_name}"
+                    display_parts.append(f"[{client.code}]")
+                
+                # إضافة اسم العميل
+                display_parts.append(client.name)
+                
+                # إضافة اسم الشركة إذا وُجد ومختلف عن اسم العميل
+                if client.company_name and client.company_name != client.name:
+                    display_parts.append(f"- {client.company_name}")
+                
+                # دمج الأجزاء
+                display_name = " ".join(display_parts)
                 
                 results.append({
                     'id': client.id,

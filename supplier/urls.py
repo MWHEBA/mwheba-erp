@@ -33,11 +33,6 @@ urlpatterns = [
         views.edit_specialized_service,
         name="edit_specialized_service",
     ),
-    path(
-        "<int:supplier_id>/specialized-services/<int:service_id>/delete/",
-        views.delete_specialized_service,
-        name="delete_specialized_service",
-    ),
     # API لتحميل النماذج (مطلوب للنظام الجديد)
     path(
         "api/get-category-form/",
@@ -69,6 +64,11 @@ urlpatterns = [
         "api/universal/get-field-mapping/<str:service_type>/",
         api_views.get_field_mapping_api,
         name="get_field_mapping_api",
+    ),
+    path(
+        "api/universal/delete-service/<int:service_id>/",
+        api_views.delete_specialized_service_api,
+        name="delete_service_api",
     ),
     path("by-type/", views.suppliers_by_type, name="suppliers_by_type"),
     path("service-comparison/", views.service_comparison, name="service_comparison"),
@@ -106,6 +106,8 @@ urlpatterns = [
     ),
     # API endpoints
     path("api/list/", views.supplier_list_api, name="supplier_list_api"),
+    path("api/suppliers/by-service-type/", views.get_suppliers_by_service_type, name="get_suppliers_by_service_type"),
+    path("api/supplier-coating-services/", views.get_supplier_coating_services, name="get_supplier_coating_services"),
     path(
         "api/paper-sheet-sizes/",
         views.get_paper_sheet_sizes_api,

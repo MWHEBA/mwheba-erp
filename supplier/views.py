@@ -917,7 +917,7 @@ def supplier_detail(request, pk):
             "width": "25%",
         },
         {
-            "key": "plate_size",
+            "key": "plate_details.plate_size",
             "label": "مقاس الزنك",
             "sortable": True,
             "class": "text-center",
@@ -925,7 +925,7 @@ def supplier_detail(request, pk):
             "width": "20%",
         },
         {
-            "key": "plate_price",
+            "key": "plate_details.price_per_plate",
             "label": "سعر الزنك",
             "sortable": True,
             "class": "text-center",
@@ -933,7 +933,7 @@ def supplier_detail(request, pk):
             "width": "15%",
         },
         {
-            "key": "set_price",
+            "key": "plate_details.set_price",
             "label": "سعر الطقم",
             "sortable": True,
             "class": "text-center",
@@ -968,28 +968,85 @@ def supplier_detail(request, pk):
             "width": "20%",
         },
         {
-            "key": "finishing_details.finishing_type",
+            "key": "coating_details",
             "label": "نوع التغطية",
+            "sortable": False,
+            "class": "text-center",
+            "template": "components/cells/coating_type.html",
+            "width": "15%",
+        },
+        {
+            "key": "coating_details",
+            "label": "طريقة الحساب",
+            "sortable": False,
+            "class": "text-center",
+            "template": "components/cells/coating_calculation.html",
+            "width": "15%",
+        },
+        {
+            "key": "coating_details",
+            "label": "سعر الوحدة",
+            "sortable": False,
+            "class": "text-center",
+            "template": "components/cells/coating_price.html",
+            "width": "15%",
+        },
+        {
+            "key": "setup_cost",
+            "label": "تكلفة التجهيز",
             "sortable": True,
+            "class": "text-center",
+            "format": "currency",
+            "decimals": 2,
+            "width": "15%",
+        },
+        {
+            "key": "is_active",
+            "label": "الحالة",
+            "class": "text-center",
+            "template": "components/cells/active_status.html",
+            "width": "10%",
+        },
+        {
+            "key": "actions",
+            "label": "الإجراءات",
+            "class": "text-center",
+            "template": "components/cells/service_actions.html",
+            "width": "10%",
+        },
+    ]
+
+    # أعمدة خدمات التشطيب (قص، ريجة، تكسير، إلخ)
+    finishing_services_headers = [
+        {
+            "key": "name",
+            "label": "اسم الخدمة",
+            "sortable": True,
+            "class": "text-start fw-bold",
+            "width": "20%",
+        },
+        {
+            "key": "finishing_details",
+            "label": "نوع الخدمة",
+            "sortable": False,
             "class": "text-center",
             "template": "components/cells/finishing_type.html",
             "width": "15%",
         },
         {
-            "key": "finishing_details.calculation_method",
+            "key": "finishing_details",
             "label": "طريقة الحساب",
-            "sortable": True,
+            "sortable": False,
             "class": "text-center",
-            "template": "components/cells/calculation_method.html",
+            "template": "components/cells/finishing_calculation.html",
             "width": "15%",
         },
         {
-            "key": "finishing_details.price_per_unit",
+            "key": "finishing_details",
             "label": "سعر الوحدة",
-            "sortable": True,
+            "sortable": False,
             "class": "text-center",
-            "format": "currency",
-            "decimals": 2,
+            "template": "components/cells/finishing_price.html",
             "width": "15%",
         },
         {
@@ -1143,6 +1200,7 @@ def supplier_detail(request, pk):
         "paper_services_headers": paper_services_headers,  # أعمدة جدول الورق
         "plates_services_headers": plates_services_headers,  # أعمدة جدول الزنكات CTP
         "coating_services_headers": coating_services_headers,  # أعمدة جدول التغطية
+        "finishing_services_headers": finishing_services_headers,  # أعمدة جدول خدمات التشطيب
         "services_action_buttons": services_action_buttons,  # أزرار إجراءات الخدمات
         "statement_headers": statement_headers,  # أعمدة جدول كشف الحساب
         "primary_key": "id",  # المفتاح الأساسي للجداول
@@ -1606,6 +1664,38 @@ def add_specialized_service(request, supplier_id, service_id=None):
         # استخدام النظام الموحد لجلب بيانات الورق
         from .forms.dynamic_forms import ServiceFormFactory
         form_choices = ServiceFormFactory.get_unified_paper_choices()
+    elif category_code == "finishing":
+        # جلب أنواع خدمات الطباعة من الإعدادات
+        try:
+            from printing_pricing.models.settings_models import FinishingType
+            finishing_types = FinishingType.objects.filter(is_active=True).order_by('name')
+            
+            if finishing_types.exists():
+                form_choices.update({
+                    "finishing_types": [(ft.id, ft.name) for ft in finishing_types]
+                })
+            else:
+                # بيانات افتراضية في حالة عدم وجود بيانات
+                form_choices.update({
+                    "finishing_types": [
+                        ("cutting", "قص"),
+                        ("creasing", "ريجة"),
+                        ("perforation", "تثقيب"),
+                        ("die_cutting", "تكسير"),
+                        ("numbering", "ترقيم"),
+                    ]
+                })
+        except Exception as e:
+            # في حالة الخطأ، استخدام البيانات الافتراضية
+            form_choices.update({
+                "finishing_types": [
+                    ("cutting", "قص"),
+                    ("creasing", "ريجة"),
+                    ("perforation", "تثقيب"),
+                    ("die_cutting", "تكسير"),
+                    ("numbering", "ترقيم"),
+                ]
+            })
     elif category_code == "coating":
         # جلب أنواع التغطية من الإعدادات
         try:
@@ -1679,45 +1769,6 @@ def edit_specialized_service(request, supplier_id, service_id):
 
     # إعادة توجيه لنفس view الإضافة مع معامل التعديل
     return add_specialized_service(request, supplier_id, service_id=service_id)
-
-
-@login_required
-def delete_specialized_service(request, supplier_id, service_id):
-    """حذف خدمة متخصصة"""
-    supplier = get_object_or_404(Supplier, id=supplier_id)
-    service = get_object_or_404(SpecializedService, id=service_id, supplier=supplier)
-
-    if request.method == "POST":
-        service_name = service.name
-        service.delete()
-        messages.success(request, f'تم حذف الخدمة "{service_name}" بنجاح')
-        return redirect("supplier:supplier_detail", pk=supplier_id)
-
-    context = {
-        "supplier": supplier,
-        "service": service,
-        "page_title": f"حذف خدمة - {service.name}",
-        "page_icon": "fas fa-trash",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {
-                "title": "الموردين",
-                "url": reverse("supplier:supplier_list"),
-                "icon": "fas fa-truck",
-            },
-            {
-                "title": supplier.name,
-                "url": reverse("supplier:supplier_detail", kwargs={"pk": supplier.pk}),
-            },
-            {"title": f"حذف خدمة - {service.name}", "active": True},
-        ],
-    }
-
-    return render(request, "supplier/services/delete_service_confirm.html", context)
 
 
 # ===== APIs للنظام الديناميكي =====
@@ -2490,3 +2541,85 @@ def root_cause_analysis_api(request):
         return JsonResponse(
             {"success": False, "error": "خطأ في التحليل الجذري: خطأ في العملية"}
         )
+
+
+@login_required
+def get_suppliers_by_service_type(request):
+    """
+    API لجلب الموردين حسب نوع الخدمة
+    """
+    try:
+        service_type = request.GET.get('service_type')
+        
+        if not service_type:
+            return JsonResponse({
+                'success': False,
+                'error': 'نوع الخدمة مطلوب'
+            })
+        
+        # البحث عن الموردين الذين لديهم خدمات من النوع المطلوب
+        from .models import Supplier, SupplierType
+        
+        # جلب نوع المورد (مثلاً: coating)
+        supplier_type = SupplierType.objects.filter(code=service_type, is_active=True).first()
+        
+        if not supplier_type:
+            return JsonResponse({
+                'success': True,
+                'suppliers': [],
+                'message': f'لا يوجد نوع مورد بكود: {service_type}'
+            })
+        
+        # جلب الموردين النشطين من هذا النوع
+        suppliers = Supplier.objects.filter(
+            supplier_types=supplier_type,
+            is_active=True
+        ).distinct().values('id', 'name').order_by('name')
+        
+        return JsonResponse({
+            'success': True,
+            'suppliers': list(suppliers),
+            'count': len(suppliers)
+        })
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_suppliers_by_service_type: {str(e)}", exc_info=True)
+        return JsonResponse({
+            'success': False,
+            'error': f'خطأ في جلب الموردين: {str(e)}'
+        })
+
+
+@login_required
+def get_supplier_coating_services(request):
+    """API لجلب خدمات التغطية لمورد معين"""
+    try:
+        supplier_id = request.GET.get('supplier_id')
+        if not supplier_id:
+            return JsonResponse({'success': False, 'error': 'معرف المورد مطلوب'})
+        
+        from .models import Supplier, SpecializedService
+        supplier = Supplier.objects.filter(id=supplier_id, is_active=True).first()
+        if not supplier:
+            return JsonResponse({'success': False, 'error': 'المورد غير موجود'})
+        
+        services = SpecializedService.objects.filter(
+            supplier=supplier, category__code='coating', is_active=True
+        ).select_related('finishing_details').values(
+            'id', 'name', 'finishing_details__price_per_unit', 'finishing_details__finishing_type'
+        )
+        
+        services_list = [{
+            'id': s['id'], 'name': s['name'],
+            'price': float(s['finishing_details__price_per_unit'] or 0),
+            'type': s['finishing_details__finishing_type']
+        } for s in services]
+        
+        return JsonResponse({'success': True, 'services': services_list, 'count': len(services_list)})
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in get_supplier_coating_services: {str(e)}", exc_info=True)
+        return JsonResponse({'success': False, 'error': f'خطأ في جلب الخدمات: {str(e)}'})

@@ -1,6 +1,7 @@
 /**
  * نظام معالجة النماذج الموحد
  * يوفر واجهة موحدة لجميع نماذج الخدمات المتخصصة
+ * @version 2.1.0
  */
 
 class UniversalFormHandler {
@@ -196,7 +197,16 @@ class UniversalFormHandler {
      * ملء خيارات القائمة المنسدلة
      */
     populateSelectOptions(selectElement, choices) {
-        // مسح الخيارات الموجودة (عدا الخيار الافتراضي)
+        // التحقق من وجود خيارات في الـ select من Django
+        const existingOptions = selectElement.querySelectorAll('option:not([value=""])');
+        
+        // إذا كان الـ select عنده options من Django (أكثر من الخيار الافتراضي)، لا نمسحهم
+        if (existingOptions.length > 0) {
+            console.log(`✅ الـ select عنده ${existingOptions.length} options من Django - نتركهم`);
+            return;
+        }
+        
+        // إذا كان الـ select فاضي، نملأه من fieldMapping
         const defaultOption = selectElement.querySelector('option[value=""]');
         selectElement.innerHTML = '';
         
@@ -218,11 +228,16 @@ class UniversalFormHandler {
      * ملء الحقول بالبيانات المحملة
      */
     populateFields() {
-        if (!this.serviceData || !this.fieldMapping) return;
+        if (!this.serviceData) {
+            console.warn('⚠️ لا توجد بيانات لملء الحقول');
+            return;
+        }
         
+        console.log('📝 بدء ملء الحقول بالبيانات:', this.serviceData);
         
         for (const [fieldName, fieldValue] of Object.entries(this.serviceData)) {
             if (fieldValue !== null && fieldValue !== undefined) {
+                console.log(`  ✏️ ملء ${fieldName} = ${fieldValue}`);
                 this.setFieldValue(fieldName, fieldValue);
             }
         }
@@ -234,48 +249,67 @@ class UniversalFormHandler {
             console.warn('لا توجد شرائح سعرية في البيانات المحملة');
         }
         
+        console.log('✅ تم ملء جميع الحقول');
     }
     
     /**
      * تعيين قيمة حقل معين
      */
     setFieldValue(fieldName, value) {
-        // البحث عن الحقل بالمعرف الذكي
-        const fieldElement = document.querySelector(`[data-field-id="${this.serviceType}:${fieldName}"]`);
+        // البحث عن الحقل بطرق متعددة
+        let fieldElement = document.querySelector(`[data-field-id="${this.serviceType}:${fieldName}"]`);
+        
+        // إذا لم يُعثر عليه، ابحث بالاسم مباشرة
+        if (!fieldElement) {
+            fieldElement = document.querySelector(`[name="${fieldName}"]`);
+        }
+        
+        // إذا لم يُعثر عليه، ابحث بالـ ID
+        if (!fieldElement) {
+            const idVariations = [
+                fieldName,
+                fieldName.replace(/_/g, '-'),
+                fieldName.replace(/_/g, '')
+            ];
+            
+            for (const id of idVariations) {
+                fieldElement = document.getElementById(id);
+                if (fieldElement) break;
+            }
+        }
         
         if (fieldElement) {
-            const fieldConfig = this.fieldMapping[fieldName];
+            const fieldConfig = this.fieldMapping ? this.fieldMapping[fieldName] : null;
+            const inputType = fieldConfig?.input_type || fieldElement.type;
             
-            if (fieldConfig) {
-                switch (fieldConfig.input_type) {
-                    case 'checkbox':
-                        fieldElement.checked = Boolean(value);
-                        break;
-                    case 'select':
-                        fieldElement.value = value;
-                        // إطلاق حدث التغيير للـ select
-                        fieldElement.dispatchEvent(new Event('change', { bubbles: true }));
-                        break;
-                    default:
-                        fieldElement.value = value;
-                        // إطلاق حدث الإدخال
-                        fieldElement.dispatchEvent(new Event('input', { bubbles: true }));
-                        break;
-                }
-                
+            switch (inputType) {
+                case 'checkbox':
+                    fieldElement.checked = Boolean(value);
+                    break;
+                case 'select':
+                case 'select-one':
+                    fieldElement.value = value;
+                    // إطلاق حدث التغيير للـ select
+                    fieldElement.dispatchEvent(new Event('change', { bubbles: true }));
+                    break;
+                default:
+                    fieldElement.value = value;
+                    // إطلاق حدث الإدخال
+                    fieldElement.dispatchEvent(new Event('input', { bubbles: true }));
+                    break;
             }
         } else {
             // تجاهل التحذيرات للحقول غير المطلوبة في بعض الأنواع
             const ignoredFields = {
                 'plates': ['description', 'setup_cost', 'price_tiers'],
                 'paper': ['price_tiers'],
-                'finishing': ['price_tiers']
+                'finishing': ['price_tiers', 'description', 'setup_time_minutes', 'turnaround_time_hours'],
+                'coating': ['price_tiers', 'description', 'setup_time_minutes', 'turnaround_time_hours']
             };
             
             const shouldIgnore = ignoredFields[this.serviceType]?.includes(fieldName);
             if (!shouldIgnore) {
-                console.log(`لم يتم العثور على الحقل في النظام الموحد: ${fieldName}`);
-                console.log(`تأكد من وجود data-field-id="${this.serviceType}:${fieldName}" في النموذج`);
+                console.log(`⚠️ لم يتم العثور على الحقل: ${fieldName}`);
             }
         }
     }
@@ -286,13 +320,40 @@ class UniversalFormHandler {
     collectFormData() {
         const formData = {};
         
-        // جمع البيانات من الحقول المسجلة
-        if (this.fieldMapping) {
+        console.log('🔍 بدء جمع البيانات...');
+        console.log('fieldMapping موجود؟', !!this.fieldMapping);
+        console.log('عدد حقول fieldMapping:', this.fieldMapping ? Object.keys(this.fieldMapping).length : 0);
+        
+        // جمع البيانات من الحقول المسجلة في fieldMapping
+        if (this.fieldMapping && Object.keys(this.fieldMapping).length > 0) {
+            console.log('✅ استخدام fieldMapping');
             for (const fieldName of Object.keys(this.fieldMapping)) {
                 const value = this.getFieldValue(fieldName);
+                console.log(`  - ${fieldName}: ${value}`);
                 if (value !== null && value !== undefined) {
                     formData[fieldName] = value;
                 }
+            }
+        } else {
+            // إذا لم يكن fieldMapping موجود أو فارغ، جمع جميع حقول النموذج
+            console.log('⚠️ fieldMapping غير موجود أو فارغ - جمع الحقول مباشرة من النموذج');
+            
+            const form = document.getElementById('dynamic-service-form');
+            if (form) {
+                const inputs = form.querySelectorAll('input, select, textarea');
+                console.log(`📝 عدد الحقول الموجودة: ${inputs.length}`);
+                
+                inputs.forEach(input => {
+                    if (input.name && !input.name.startsWith('tier_') && !input.name.startsWith('csrf')) {
+                        const value = this.getFieldValue(input.name);
+                        console.log(`  - ${input.name}: ${value}`);
+                        if (value !== null && value !== undefined && value !== '') {
+                            formData[input.name] = value;
+                        }
+                    }
+                });
+            } else {
+                console.error('❌ لم يتم العثور على النموذج #dynamic-service-form');
             }
         }
         
@@ -311,6 +372,8 @@ class UniversalFormHandler {
             formData.price_tiers = priceTiers;
         }
         
+        console.log('📦 البيانات المجمعة:', formData);
+        
         return formData;
     }
     
@@ -318,26 +381,45 @@ class UniversalFormHandler {
      * جلب قيمة حقل معين
      */
     getFieldValue(fieldName) {
-        // البحث عن الحقل بالمعرف الذكي
-        const fieldElement = document.querySelector(`[data-field-id="${this.serviceType}:${fieldName}"]`);
+        // البحث عن الحقل بطرق متعددة
+        let fieldElement = document.querySelector(`[data-field-id="${this.serviceType}:${fieldName}"]`);
         
-        if (fieldElement) {
-            const fieldConfig = this.fieldMapping[fieldName];
+        // إذا لم يُعثر عليه، ابحث بالاسم مباشرة
+        if (!fieldElement) {
+            fieldElement = document.querySelector(`[name="${fieldName}"]`);
+        }
+        
+        // إذا لم يُعثر عليه، ابحث بالـ ID
+        if (!fieldElement) {
+            const idVariations = [
+                fieldName,
+                fieldName.replace(/_/g, '-'),
+                fieldName.replace(/_/g, '')
+            ];
             
-            if (fieldConfig) {
-                switch (fieldConfig.input_type) {
-                    case 'checkbox':
-                        return fieldElement.checked;
-                    case 'number':
-                        return fieldElement.value ? parseFloat(fieldElement.value) : null;
-                    default:
-                        return fieldElement.value || null;
-                }
+            for (const id of idVariations) {
+                fieldElement = document.getElementById(id);
+                if (fieldElement) break;
             }
         }
         
-        console.warn(`لم يتم العثور على الحقل في النظام الموحد: ${fieldName}`);
-        console.log(`تأكد من وجود data-field-id="${this.serviceType}:${fieldName}" في النموذج`);
+        if (fieldElement) {
+            const fieldConfig = this.fieldMapping ? this.fieldMapping[fieldName] : null;
+            
+            // تحديد نوع الحقل
+            const inputType = fieldConfig?.input_type || fieldElement.type;
+            
+            switch (inputType) {
+                case 'checkbox':
+                    return fieldElement.checked;
+                case 'number':
+                    return fieldElement.value ? parseFloat(fieldElement.value) : null;
+                default:
+                    return fieldElement.value || null;
+            }
+        }
+        
+        console.warn(`لم يتم العثور على الحقل: ${fieldName}`);
         return null;
     }
     

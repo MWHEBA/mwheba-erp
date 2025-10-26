@@ -545,7 +545,8 @@
               <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
-            <div class="stats-card-value">{{ total_purchases|default:"0"|currency }}</div>
+            <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -958,6 +959,23 @@
                           {% endwith %}
                         {% endwith %}
                       {% endwith %}
+                    {% elif category.code == 'finishing' %}
+                      {% with current_headers=finishing_services_headers %}
+                        <!-- استخدام النظام الموحد للجداول -->
+                        {% with table_id="category-"|add:category.id|add:"-services-table" %}
+                          {% with headers=current_headers %}
+                            {% with data=category_group.list %}
+                              {% with action_buttons=services_action_buttons %}
+                                {% with empty_message="لا توجد خدمات طباعة حتى الآن" %}
+                                  {% with show_export=True export_filename="supplier_finishing_services" %}
+                                    {% include "components/data_table.html" %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
                     {% else %}
                       {% with current_headers=services_headers %}
                         <!-- استخدام النظام الموحد للجداول -->
@@ -1150,12 +1168,16 @@
   </div>
 </div>
 
+<!-- Modal حذف الخدمة -->
+{% include 'components/modals/delete_service_modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
 {{ block.super }}
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/service-delete-handler.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // تهيئة الجداول باستخدام النظام الموحد

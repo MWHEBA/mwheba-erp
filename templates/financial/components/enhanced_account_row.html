@@ -95,6 +95,25 @@
 <!-- الحسابات الفرعية (مخفية افتراضياً) -->
 {% for child in account.children.all %}
     {% if child.is_active or show_inactive %}
-        {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
+        {# فحص إذا كان الحساب النهائي تحت العملاء أو الموردين برصيد صفري #}
+        {% if child.is_leaf %}
+            {% with child_balance=child.get_balance %}
+                {# البحث عن الحساب الأب للتحقق من العملاء/الموردين #}
+                {% with is_customer_supplier=False %}
+                    {% if 'العملاء' in account.name or 'الموردون' in account.name or 'عملاء' in account.name or 'موردين' in account.name or 'موردون' in account.name %}
+                        {# إخفاء الحسابات النهائية ذات الرصيد الصفري #}
+                        {% if child_balance != 0 %}
+                            {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
+                        {% endif %}
+                    {% else %}
+                        {# عرض الحسابات الأخرى عادياً #}
+                        {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
+                    {% endif %}
+                {% endwith %}
+            {% endwith %}
+        {% else %}
+            {# عرض الحسابات الأب عادياً #}
+            {% include 'financial/components/enhanced_account_row.html' with account=child level=level|add:"1" %}
+        {% endif %}
     {% endif %}
 {% endfor %}

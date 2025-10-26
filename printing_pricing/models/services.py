@@ -23,15 +23,9 @@ class OrderService(BaseModel):
         max_length=50,
         choices=[
             ('printing', _('طباعة')),
-            ('finishing', _('تشطيبات')),
-            ('binding', _('تجليد')),
-            ('cutting', _('تقطيع')),
-            ('folding', _('طي')),
-            ('lamination', _('تقفيل')),
+            ('finishing', _('خدمات الطباعة')),  # قص، ريجة، تكسير، تثقيب
+            ('packaging', _('خدمات التقفيل')),  # دبوس، بشر، سلك، تجليد
             ('coating', _('تغطية')),
-            ('embossing', _('بصمة')),
-            ('perforation', _('ثقب')),
-            ('numbering', _('ترقيم')),
             ('other', _('أخرى'))
         ],
         verbose_name=_("فئة الخدمة")

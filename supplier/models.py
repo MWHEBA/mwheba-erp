@@ -836,20 +836,7 @@ class DigitalPrintingDetails(models.Model):
 
 
 class FinishingServiceDetails(models.Model):
-    """تفاصيل خدمات الطباعة"""
-
-    FINISHING_TYPE_CHOICES = (
-        ("cutting", _("قص")),
-        ("folding", _("طي")),
-        ("binding_spiral", _("تجليد حلزوني")),
-        ("binding_perfect", _("تجليد كعب")),
-        ("lamination", _("تقفيل")),
-        ("uv_coating", _("طلاء UV")),
-        ("embossing", _("نقش بارز")),
-        ("die_cutting", _("تكسير")),
-        ("perforation", _("تثقيب")),
-        ("stapling", _("تدبيس")),
-    )
+    """تفاصيل خدمات الطباعة (قص، ريجة، تكسير، إلخ)"""
 
     CALCULATION_METHOD_CHOICES = (
         ("per_piece", _("بالقطعة")),
@@ -861,8 +848,13 @@ class FinishingServiceDetails(models.Model):
     service = models.OneToOneField(
         SpecializedService, on_delete=models.CASCADE, related_name="finishing_details"
     )
-    finishing_type = models.CharField(
-        _("نوع الخدمة"), max_length=20, choices=FINISHING_TYPE_CHOICES
+    finishing_type = models.ForeignKey(
+        'printing_pricing.FinishingType',
+        on_delete=models.PROTECT,
+        verbose_name=_("نوع الخدمة"),
+        related_name="finishing_services",
+        null=True,
+        blank=True
     )
     calculation_method = models.CharField(
         _("طريقة الحساب"), max_length=20, choices=CALCULATION_METHOD_CHOICES
@@ -892,6 +884,120 @@ class FinishingServiceDetails(models.Model):
     class Meta:
         verbose_name = _("تفاصيل خدمات الطباعة")
         verbose_name_plural = _("تفاصيل خدمات الطباعة")
+
+
+class PackagingServiceDetails(models.Model):
+    """تفاصيل خدمات التقفيل (دبوس، بشر، سلك، تجليد)"""
+
+    PACKAGING_TYPE_CHOICES = (
+        ("stapling", _("تدبيس / دبوس")),
+        ("wire_binding", _("تجليد سلك / بشر")),
+        ("spiral_binding", _("تجليد حلزوني / سوستة")),
+        ("perfect_binding", _("تجليد كعب / غراء")),
+        ("saddle_stitch", _("تدبيس وسط / سلك وسط")),
+        ("lamination", _("تقفيل / سلوفان")),
+        ("thermal_binding", _("تجليد حراري")),
+        ("comb_binding", _("تجليد مشط")),
+    )
+
+    CALCULATION_METHOD_CHOICES = (
+        ("per_piece", _("بالقطعة")),
+        ("per_thousand", _("بالألف")),
+        ("per_hour", _("بالساعة")),
+        ("per_meter", _("بالمتر")),
+    )
+
+    service = models.OneToOneField(
+        SpecializedService, on_delete=models.CASCADE, related_name="packaging_details"
+    )
+    packaging_type = models.CharField(
+        _("نوع التقفيل"), max_length=30, choices=PACKAGING_TYPE_CHOICES
+    )
+    calculation_method = models.CharField(
+        _("طريقة الحساب"), max_length=20, choices=CALCULATION_METHOD_CHOICES
+    )
+
+    # قيود المقاسات
+    min_size_cm = models.DecimalField(
+        _("أصغر مقاس (سم)"), max_digits=8, decimal_places=2, null=True, blank=True
+    )
+    max_size_cm = models.DecimalField(
+        _("أكبر مقاس (سم)"), max_digits=8, decimal_places=2, null=True, blank=True
+    )
+    max_thickness_mm = models.DecimalField(
+        _("أقصى سُمك (مم)"), max_digits=6, decimal_places=2, null=True, blank=True,
+        help_text=_("أقصى سُمك للكتاب أو المنتج")
+    )
+
+    # الأسعار
+    price_per_unit = models.DecimalField(
+        _("سعر الوحدة"), max_digits=10, decimal_places=2
+    )
+    setup_time_minutes = models.PositiveIntegerField(
+        _("وقت التجهيز (دقائق)"), default=0
+    )
+
+    # معلومات التسليم
+    turnaround_time_hours = models.PositiveIntegerField(
+        _("وقت التسليم (ساعات)"), default=24
+    )
+
+    # معلومات إضافية للتقفيل
+    wire_color_options = models.CharField(
+        _("ألوان السلك المتاحة"), max_length=200, blank=True,
+        help_text=_("مثال: أسود، أبيض، فضي، ذهبي")
+    )
+    cover_material_options = models.CharField(
+        _("خامات الغلاف المتاحة"), max_length=200, blank=True,
+        help_text=_("مثال: PVC، جلد صناعي، كرتون مقوى")
+    )
+
+    class Meta:
+        verbose_name = _("تفاصيل خدمات التقفيل")
+        verbose_name_plural = _("تفاصيل خدمات التقفيل")
+
+
+class CoatingServiceDetails(models.Model):
+    """تفاصيل خدمات التغطية (سلوفان، ورنيش، UV، إلخ)"""
+
+    CALCULATION_METHOD_CHOICES = (
+        ("per_piece", _("بالقطعة")),
+        ("per_thousand", _("بالألف")),
+        ("per_hour", _("بالساعة")),
+        ("per_square_meter", _("بالمتر المربع")),
+    )
+
+    service = models.OneToOneField(
+        SpecializedService, on_delete=models.CASCADE, related_name="coating_details"
+    )
+    coating_type = models.ForeignKey(
+        'printing_pricing.CoatingType',
+        on_delete=models.PROTECT,
+        verbose_name=_("نوع التغطية"),
+        related_name="coating_services",
+        null=True,
+        blank=True
+    )
+    calculation_method = models.CharField(
+        _("طريقة الحساب"), max_length=20, choices=CALCULATION_METHOD_CHOICES
+    )
+
+    # الأسعار
+    price_per_unit = models.DecimalField(
+        _("سعر الوحدة"), max_digits=10, decimal_places=2
+    )
+    setup_time_minutes = models.PositiveIntegerField(
+        _("وقت التجهيز (دقائق)"), default=30
+    )
+
+    # معلومات التسليم
+    turnaround_time_hours = models.PositiveIntegerField(
+        _("وقت التسليم (ساعات)"), default=6
+    )
+
+    class Meta:
+        verbose_name = _("تفاصيل خدمات التغطية")
+        verbose_name_plural = _("تفاصيل خدمات التغطية")
 
 
 # ========================================

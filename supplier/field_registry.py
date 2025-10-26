@@ -410,6 +410,15 @@ def get_field_choices(choices_source):
         except ImportError:
             pass
     
+    # لخدمات الطباعة، جلب من FinishingType model
+    elif choices_source == "finishing_types":
+        try:
+            from printing_pricing.models.settings_models import FinishingType
+            finishing_types = FinishingType.objects.filter(is_active=True).order_by('name')
+            return [(ft.id, ft.name) for ft in finishing_types]
+        except ImportError:
+            pass
+    
     # للتغطية، جلب من CoatingType model
     elif choices_source == "coating_types":
         try:

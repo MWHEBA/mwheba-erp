@@ -95,7 +95,7 @@
           <div class="col-md-6">
             <div class="pp-detail-item">
               <span class="pp-detail-label">{% trans "الكمية" %}</span>
-              <div class="pp-detail-value">{{ object.quantity|floatformat:0 }}</div>
+              <div class="pp-detail-value">{{ object.quantity|smart_float:0 }}</div>
             </div>
           </div>
           {% if object.description %}

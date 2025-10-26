@@ -1,0 +1,11 @@
+{% comment %}
+عرض نوع التغطية من CoatingType (ForeignKey)
+{% endcomment %}
+
+{% if value and value.coating_type %}
+    <span class="badge bg-success">
+        <i class="fas fa-paint-brush me-1"></i>{{ value.coating_type.name }}
+    </span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

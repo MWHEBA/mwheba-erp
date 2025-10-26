@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb -->
+  <div class="mb-4">
+    {% if breadcrumb_items %}
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        {% for item in breadcrumb_items %}
+          {% if forloop.last or item.active %}
+            <li class="breadcrumb-item active" aria-current="page">
+              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+              {{ item.title }}
+            </li>
+          {% else %}
+            <li class="breadcrumb-item">
+              <a href="{{ item.url }}">
+                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                {{ item.title }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        {% if page_icon %}
+        <div class="me-3">
+          <i class="{{ page_icon }} fa-2x text-primary"></i>
+        </div>
+        {% endif %}
+        <div>
+          <h1 class="h3 mb-1">{{ page_title }}</h1>
+          <p class="text-muted mb-0">أدخل بيانات القرض الجديد</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row justify-content-center">
+    <div class="col-lg-10">
+      <div class="card">
+        <div class="card-body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+              </div>
+            {% endif %}
+            
+            <div class="alert alert-info mb-4">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>ملاحظة:</strong> سيتم توليد رقم القرض تلقائياً بتنسيق: LOAN-25-0001
+            </div>
+            
+            <div class="row">
+              <!-- بيانات المُقرض -->
+              <div class="col-md-6 mb-4">
+                <h6 class="mb-3 text-primary border-bottom pb-2">
+                  <i class="fas fa-user-tie me-2"></i>
+                  بيانات المُقرض
+                </h6>
+                
+                {% bootstrap_field form.lender_name %}
+                {% bootstrap_field form.lender_type %}
+              </div>
+              
+              <!-- بيانات القرض -->
+              <div class="col-md-6 mb-4">
+                <h6 class="mb-3 text-primary border-bottom pb-2">
+                  <i class="fas fa-file-contract me-2"></i>
+                  بيانات القرض
+                </h6>
+                
+                {% bootstrap_field form.loan_type %}
+                {% bootstrap_field form.start_date %}
+              </div>
+            </div>
+            
+            <div class="row">
+              <!-- المبالغ -->
+              <div class="col-md-6 mb-4">
+                <h6 class="mb-3 text-success border-bottom pb-2">
+                  <i class="fas fa-money-bill-wave me-2"></i>
+                  المبالغ والفائدة
+                </h6>
+                
+                {% bootstrap_field form.principal_amount %}
+                {% bootstrap_field form.interest_rate %}
+              </div>
+              
+              <!-- جدول السداد -->
+              <div class="col-md-6 mb-4">
+                <h6 class="mb-3 text-warning border-bottom pb-2">
+                  <i class="fas fa-calendar-alt me-2"></i>
+                  جدول السداد
+                </h6>
+                
+                {% bootstrap_field form.duration_months %}
+                {% bootstrap_field form.payment_frequency %}
+              </div>
+            </div>
+            
+            <div class="row">
+              <!-- الحسابات المحاسبية -->
+              <div class="col-12 mb-4">
+                <h6 class="mb-3 text-info border-bottom pb-2">
+                  <i class="fas fa-calculator me-2"></i>
+                  الحسابات المحاسبية
+                </h6>
+                
+                <div class="row">
+                  <div class="col-md-4">
+                    {% bootstrap_field form.loan_account %}
+                  </div>
+                  <div class="col-md-4">
+                    {% bootstrap_field form.bank_account %}
+                  </div>
+                  <div class="col-md-4">
+                    {% bootstrap_field form.interest_expense_account %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <!-- الوصف والملاحظات -->
+              <div class="col-12 mb-4">
+                <h6 class="mb-3 text-secondary border-bottom pb-2">
+                  <i class="fas fa-sticky-note me-2"></i>
+                  الوصف والملاحظات
+                </h6>
+                
+                <div class="row">
+                  <div class="col-md-6">
+                    {% bootstrap_field form.description %}
+                  </div>
+                  <div class="col-md-6">
+                    {% bootstrap_field form.notes %}
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- الأزرار -->
+            <div class="d-flex justify-content-between align-items-center bg-light p-3 rounded">
+              <a href="{% url 'financial:loans_dashboard' %}" class="btn btn-secondary">
+                <i class="fas fa-times me-2"></i>
+                إلغاء
+              </a>
+              <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save me-2"></i>
+                حفظ القرض
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل Select2 للحقول
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('.form-select').select2({
+            theme: 'bootstrap-5',
+            dir: 'rtl',
+            language: 'ar'
+        });
+    }
+    
+    // إخفاء/إظهار حساب الفوائد حسب معدل الفائدة
+    const interestRateField = document.getElementById('id_interest_rate');
+    const interestAccountField = document.getElementById('id_interest_expense_account');
+    
+    if (interestRateField && interestAccountField) {
+        const interestAccountGroup = interestAccountField.closest('.mb-3');
+        
+        function toggleInterestAccount() {
+            const rate = parseFloat(interestRateField.value) || 0;
+            if (rate > 0) {
+                interestAccountGroup.style.display = 'block';
+            } else {
+                interestAccountGroup.style.display = 'none';
+            }
+        }
+        
+        interestRateField.addEventListener('input', toggleInterestAccount);
+        toggleInterestAccount();
+    }
+});
+</script>
+{% endblock %}

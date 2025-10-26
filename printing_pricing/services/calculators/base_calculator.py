@@ -215,18 +215,18 @@ class BaseCalculator(ABC):
     
     def _calculate_finishing_cost(self, parameters):
         """
-        حساب تكلفة التشطيبات
+        حساب تكلفة خدمات الطباعة
         
         Args:
             parameters: معاملات الحساب
             
         Returns:
-            dict: نتائج حساب تكلفة التشطيبات
+            dict: نتائج حساب تكلفة خدمات الطباعة
         """
         try:
-            # جمع تكاليف جميع خدمات التشطيبات
+            # جمع تكاليف جميع خدمات الطباعة والتقفيل
             finishing_services = self.order.services.filter(
-                service_category__in=['finishing', 'binding', 'cutting', 'folding', 'lamination'],
+                service_category__in=['finishing', 'packaging'],  # خدمات الطباعة + خدمات التقفيل
                 is_active=True
             )
             
@@ -277,7 +277,7 @@ class BaseCalculator(ABC):
             }
             
         except Exception as e:
-            raise ValueError(_('خطأ في حساب تكلفة التشطيبات: {}').format(str(e)))
+            raise ValueError(_('خطأ في حساب تكلفة خدمات الطباعة: {}').format(str(e)))
     
     def _calculate_design_cost(self, parameters):
         """

@@ -1,0 +1,47 @@
+{% comment %}
+عرض طريقة الحساب من finishing_details
+{% endcomment %}
+
+{% if value and value.calculation_method %}
+    {% if value.calculation_method == 'per_piece' %}
+        <span class="badge bg-primary">
+            <i class="fas fa-box me-1"></i>بالقطعة
+        </span>
+    {% elif value.calculation_method == 'per_thousand' %}
+        <span class="badge bg-success">
+            <i class="fas fa-layer-group me-1"></i>بالألف
+        </span>
+    {% elif value.calculation_method == 'per_square_meter' %}
+        <span class="badge bg-info">
+            <i class="fas fa-ruler-combined me-1"></i>بالمتر المربع
+        </span>
+    {% elif value.calculation_method == 'per_sheet' %}
+        <span class="badge bg-warning">
+            <i class="fas fa-file me-1"></i>بالفرخ
+        </span>
+    {% elif value.calculation_method == 'per_hour' %}
+        <span class="badge bg-secondary">
+            <i class="fas fa-clock me-1"></i>بالساعة
+        </span>
+    {% elif value.calculation_method == 'per_kg' %}
+        <span class="badge bg-dark">
+            <i class="fas fa-weight me-1"></i>بالكيلو
+        </span>
+    {% elif value.calculation_method == 'per_impression' %}
+        <span class="badge bg-danger">
+            <i class="fas fa-print me-1"></i>بالطبعة
+        </span>
+    {% elif value.calculation_method == 'per_meter' %}
+        <span class="badge bg-info">
+            <i class="fas fa-ruler me-1"></i>بالمتر
+        </span>
+    {% elif value.calculation_method == 'fixed' %}
+        <span class="badge bg-warning">
+            <i class="fas fa-dollar-sign me-1"></i>ثابت
+        </span>
+    {% else %}
+        <span class="badge bg-light text-dark">{{ value.calculation_method }}</span>
+    {% endif %}
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

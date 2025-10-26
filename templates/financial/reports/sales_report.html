@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -199,7 +200,8 @@
               <i class="fas fa-chart-line"></i>
             </div>
             <div class="stats-card-title">إجمالي المبيعات</div>
-            <div class="stats-card-value">{{ total_sales|currency }}</div>
+            <div class="stats-card-value">{{ total_sales|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -211,7 +213,8 @@
               <i class="fas fa-calendar-day"></i>
             </div>
             <div class="stats-card-title">متوسط المبيعات اليومية</div>
-            <div class="stats-card-value">{{ avg_daily_sales|currency }}</div>
+            <div class="stats-card-value">{{ avg_daily_sales|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

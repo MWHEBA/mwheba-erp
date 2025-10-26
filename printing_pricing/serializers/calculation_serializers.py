@@ -138,16 +138,12 @@ class PrintingCalculationSerializer(serializers.Serializer):
 
 class FinishingCalculationSerializer(serializers.Serializer):
     """
-    مسلسل حساب تكلفة التشطيبات
+    مسلسل حساب تكلفة خدمات الطباعة
     """
     finishing_type = serializers.ChoiceField(choices=[
-        ('cutting', _('تقطيع')),
-        ('folding', _('طي')),
-        ('binding', _('تجليد')),
-        ('lamination', _('تقفيل')),
+        ('finishing', _('خدمات الطباعة')),  # قص، ريجة، تكسير
+        ('packaging', _('خدمات التقفيل')),  # دبوس، بشر، سلك
         ('coating', _('تغطية')),
-        ('embossing', _('بصمة')),
-        ('perforation', _('ثقب')),
         ('numbering', _('ترقيم'))
     ])
     quantity = serializers.DecimalField(max_digits=10, decimal_places=3, min_value=0.001)

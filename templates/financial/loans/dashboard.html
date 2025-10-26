@@ -1,0 +1,387 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+{% load app_tags %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم عام */
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  /* كروت الإحصائيات */
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .stat-card .card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .stat-card .card-body {
+    padding: 1.5rem 1.25rem;
+  }
+  
+  .stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin: 0.5rem 0;
+  }
+  
+  .stat-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+  }
+  
+  .bg-primary-header {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+    color: white;
+  }
+  
+  .bg-success-header {
+    background: linear-gradient(135deg, var(--success-color) 0%, #157347 100%);
+    color: white;
+  }
+  
+  .bg-warning-header {
+    background: linear-gradient(135deg, var(--warning-color) 0%, #d39e00 100%);
+    color: white;
+  }
+  
+  .bg-danger-header {
+    background: linear-gradient(135deg, var(--danger-color) 0%, #b02a37 100%);
+    color: white;
+  }
+  
+  /* جدول القروض */
+  .loan-item {
+    padding: 15px;
+    border-bottom: 1px solid #eee;
+    transition: background-color 0.3s ease;
+  }
+  
+  .loan-item:hover {
+    background-color: #f8f9fa;
+  }
+  
+  .loan-item:last-child {
+    border-bottom: none;
+  }
+  
+  .loan-status {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .loan-status.active {
+    background-color: #d4edda;
+    color: #155724;
+  }
+  
+  .loan-status.completed {
+    background-color: #cce5ff;
+    color: #004085;
+  }
+  
+  .loan-status.overdue {
+    background-color: #f8d7da;
+    color: #721c24;
+  }
+  
+  /* الأقساط */
+  .payment-item {
+    padding: 12px;
+    border-left: 3px solid var(--primary-color);
+    background-color: #f8f9fa;
+    margin-bottom: 10px;
+    border-radius: 5px;
+  }
+  
+  .payment-item.overdue {
+    border-left-color: var(--danger-color);
+    background-color: #fff5f5;
+  }
+  
+  .empty-state {
+    padding: 3rem 1rem;
+    text-align: center;
+    color: #6c757d;
+  }
+  
+  .empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb -->
+  <div class="mb-4">
+    {% if breadcrumb_items %}
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        {% for item in breadcrumb_items %}
+          {% if forloop.last or item.active %}
+            <li class="breadcrumb-item active" aria-current="page">
+              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+              {{ item.title }}
+            </li>
+          {% else %}
+            <li class="breadcrumb-item">
+              <a href="{{ item.url }}">
+                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                {{ item.title }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        {% if page_icon %}
+        <div class="me-3">
+          <i class="{{ page_icon }} fa-2x text-primary"></i>
+        </div>
+        {% endif %}
+        <div>
+          <h1 class="h3 mb-1">{{ page_title }}</h1>
+          <p class="text-muted mb-0">إدارة ومتابعة جميع القروض في النظام</p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:loan_create' %}" class="btn btn-primary">
+          <i class="fas fa-plus me-2"></i>إضافة قرض جديد
+        </a>
+      </div>
+    </div>
+  </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-hand-holding-usd"></i>
+            </div>
+            <div class="stats-card-title">إجمالي القروض</div>
+            <div class="stats-card-value">{{ total_loans|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-card-title">إجمالي المدفوع</div>
+            <div class="stats-card-value">{{ total_paid|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-hourglass-half"></i>
+            </div>
+            <div class="stats-card-title">المتبقي للسداد</div>
+            <div class="stats-card-value">{{ remaining_balance|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
+          </div>
+        </div>
+      </div>
+      
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-list"></i>
+            </div>
+            <div class="stats-card-title">عدد القروض</div>
+            <div class="stats-card-value">{{ loans_count.total }}</div>
+            <div class="stats-card-unit">قرض</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <div class="row">
+    <!-- القروض النشطة -->
+    <div class="col-lg-6 mb-4">
+      <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0">
+            <i class="fas fa-list-ul me-2"></i>
+            القروض النشطة ({{ loans_count.active }})
+          </h5>
+          <a href="{% url 'financial:loan_create' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus me-1"></i>
+            إضافة قرض جديد
+          </a>
+        </div>
+        
+        {% if active_loans %}
+          <div class="list-group">
+            {% for loan in active_loans %}
+            <a href="{% url 'financial:loan_detail' loan.pk %}" class="list-group-item list-group-item-action loan-item">
+              <div class="d-flex justify-content-between align-items-start">
+                <div>
+                  <h6 class="mb-1">{{ loan.loan_number }}</h6>
+                  <p class="mb-1 text-muted small">{{ loan.lender_name }}</p>
+                  <small class="text-muted">
+                    <i class="fas fa-calendar me-1"></i>
+                    {{ loan.start_date|date:"Y/m/d" }}
+                  </small>
+                </div>
+                <div class="text-end">
+                  <div class="fw-bold text-primary">{{ loan.principal_amount|currency }}</div>
+                  <small class="text-muted">متبقي: {{ loan.remaining_balance|currency }}</small>
+                  <div class="mt-1">
+                    <span class="loan-status active">نشط</span>
+                  </div>
+                </div>
+              </div>
+            </a>
+            {% endfor %}
+          </div>
+          
+          <div class="text-center mt-3">
+            <a href="{% url 'financial:loans_list' %}" class="btn btn-outline-primary btn-sm">
+              <i class="fas fa-list me-1"></i>
+              عرض جميع القروض
+            </a>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-inbox empty-state-icon"></i>
+            <p>لا توجد قروض نشطة حالياً</p>
+            <a href="{% url 'financial:loan_create' %}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>
+              إضافة قرض جديد
+            </a>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- الأقساط القادمة والمتأخرة -->
+    <div class="col-lg-6 mb-4">
+      <!-- الأقساط المتأخرة -->
+      {% if overdue_payments %}
+      <div class="section-container mb-3">
+        <h5 class="section-title">
+          <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+          أقساط متأخرة ({{ overdue_count }})
+        </h5>
+        
+        {% for payment in overdue_payments|slice:":5" %}
+        <div class="payment-item overdue">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ payment.loan.loan_number }}</strong>
+              <br>
+              <small class="text-muted">قسط رقم {{ payment.payment_number }}</small>
+            </div>
+            <div class="text-end">
+              <div class="fw-bold text-danger">{{ payment.amount|currency }}</div>
+              <small class="text-muted">{{ payment.scheduled_date|date:"Y/m/d" }}</small>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      
+      <!-- الأقساط القادمة -->
+      <div class="section-container">
+        <h5 class="section-title">
+          <i class="fas fa-calendar-alt me-2"></i>
+          الأقساط القادمة (30 يوم)
+        </h5>
+        
+        {% if upcoming_payments %}
+          {% for payment in upcoming_payments %}
+          <div class="payment-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <div>
+                <strong>{{ payment.loan.loan_number }}</strong>
+                <br>
+                <small class="text-muted">قسط رقم {{ payment.payment_number }}</small>
+              </div>
+              <div class="text-end">
+                <div class="fw-bold text-primary">{{ payment.amount|currency }}</div>
+                <small class="text-muted">{{ payment.scheduled_date|date:"Y/m/d" }}</small>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        {% else %}
+          <div class="empty-state">
+            <i class="fas fa-calendar-check empty-state-icon"></i>
+            <p>لا توجد أقساط قادمة خلال 30 يوم</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// يمكن إضافة JavaScript للتفاعل مع الصفحة
+</script>
+{% endblock %}

@@ -48,6 +48,16 @@ from .account_views import (
     get_partner_balance,
 )
 
+# من loan_views.py
+from .loan_views import (
+    loans_dashboard,
+    loans_list,
+    loan_detail,
+    loan_create,
+    loan_payment_create,
+    get_loan_balance,
+)
+
 # من transaction_views.py  
 from .transaction_views import (
     journal_entries_list,

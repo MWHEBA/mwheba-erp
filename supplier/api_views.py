@@ -4,6 +4,9 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
+from django.urls import reverse
+from django.template.loader import render_to_string
 from .models import Supplier, SpecializedService, SupplierType, SupplierTypeSettings
 from django.contrib import messages
 import json
@@ -145,33 +148,58 @@ def get_category_form_api(request):
             from .forms.dynamic_forms import ServiceFormFactory
             form_choices.update(ServiceFormFactory.get_unified_paper_choices())
 
-        elif category_code == "finishing":
-            # إعداد خيارات خدمات التشطيب
+        elif category_code == "packaging":
+            # إعداد خيارات خدمات التقفيل (دبوس، بشر، سلك)
+            from .models import PackagingServiceDetails
             form_choices.update(
                 {
-                    "finishing_types": [
-                        ("cutting", "قص"),
-                        ("folding", "طي"),
-                        ("binding", "تجليد"),
-                        ("lamination", "تقفيل"),
-                        ("varnish", "ورنيش"),
-                    ]
+                    "packaging_types": list(PackagingServiceDetails.PACKAGING_TYPE_CHOICES),
+                    "calculation_methods": list(PackagingServiceDetails.CALCULATION_METHOD_CHOICES),
                 }
             )
 
-        elif category_code == "packaging":
-            # إعداد خيارات خدمات التقفيل
-            form_choices.update(
-                {
-                    "packaging_types": [
-                        ("lamination", "تقفيل"),
-                        ("cellophane", "سيلوفان"),
-                        ("shrink_wrap", "تغليف حراري"),
-                        ("box_packaging", "تعبئة في صناديق"),
-                        ("custom_packaging", "تعبئة مخصصة"),
-                    ]
-                }
-            )
+        elif category_code == "finishing":
+            # جلب أنواع خدمات الطباعة من الإعدادات
+            try:
+                from printing_pricing.models.settings_models import FinishingType
+                
+                finishing_types = FinishingType.objects.filter(is_active=True).order_by('name')
+                
+                if finishing_types.exists():
+                    form_choices.update(
+                        {
+                            "finishing_types": [
+                                (ft.id, ft.name) for ft in finishing_types
+                            ]
+                        }
+                    )
+                else:
+                    # بيانات افتراضية في حالة عدم وجود بيانات
+                    form_choices.update(
+                        {
+                            "finishing_types": [
+                                ("cutting", "قص"),
+                                ("creasing", "ريجة"),
+                                ("perforation", "تثقيب"),
+                                ("die_cutting", "تكسير"),
+                                ("numbering", "ترقيم"),
+                            ]
+                        }
+                    )
+            except Exception as e:
+                # في حالة الخطأ، استخدام البيانات الافتراضية
+                print(f"ERROR in finishing types: {e}")
+                form_choices.update(
+                    {
+                        "finishing_types": [
+                            ("cutting", "قص"),
+                            ("creasing", "ريجة"),
+                            ("perforation", "تثقيب"),
+                            ("die_cutting", "تكسير"),
+                            ("numbering", "ترقيم"),
+                        ]
+                    }
+                )
 
         elif category_code == "coating":
             # جلب أنواع التغطية من الإعدادات
@@ -473,22 +501,33 @@ def _create_service_details(service, service_type):
             brand="",
             price_per_sheet=0,
         )
-    elif service_type == "packaging":
-        # إنشاء تفاصيل التقفيل كخدمة تشطيب
+    elif service_type == "finishing":
+        # إنشاء تفاصيل خدمات الطباعة (قص، ريجة، تكسير)
         FinishingServiceDetails.objects.create(
             service=service,
-            finishing_type="lamination",
+            finishing_type=None,  # سيتم تحديثه من النموذج
+            calculation_method="per_piece",  # مؤقت - سيتم تحديثه
+            price_per_unit=0,
+            setup_time_minutes=15,
+            turnaround_time_hours=4,
+        )
+    elif service_type == "packaging":
+        # إنشاء تفاصيل التقفيل باستخدام النموذج الصحيح
+        from .models import PackagingServiceDetails
+        PackagingServiceDetails.objects.create(
+            service=service,
+            packaging_type="stapling",
             calculation_method="per_piece",
             price_per_unit=0,
             setup_time_minutes=15,
             turnaround_time_hours=4,
         )
     elif service_type == "coating":
-        # إنشاء تفاصيل التغطية كخدمة تشطيب - بدون قيم افتراضية
-        # سيتم تحديث البيانات لاحقاً في _save_category_details
-        FinishingServiceDetails.objects.create(
+        # إنشاء تفاصيل التغطية باستخدام CoatingServiceDetails
+        from .models import CoatingServiceDetails
+        CoatingServiceDetails.objects.create(
             service=service,
-            finishing_type="varnish",  # مؤقت - سيتم تحديثه
+            coating_type=None,  # سيتم تحديثه من النموذج
             calculation_method="per_piece",  # مؤقت - سيتم تحديثه
             price_per_unit=0,
             setup_time_minutes=30,
@@ -597,26 +636,52 @@ def get_service_details_api(request, service_id):
                     "price_per_sheet": float(details.price_per_sheet),
                 }
             )
-        elif category_code == "packaging" and hasattr(service, "finishing_details"):
-            details = service.finishing_details
+        elif category_code == "packaging" and hasattr(service, "packaging_details"):
+            details = service.packaging_details
             service_data.update(
                 {
-                    "packaging_type": details.finishing_type,
+                    "packaging_type": details.packaging_type,
                     "calculation_method": details.calculation_method,
+                    "price_per_unit": float(details.price_per_unit),
+                    "setup_time_minutes": details.setup_time_minutes,
+                    "turnaround_time_hours": details.turnaround_time_hours,
+                    "max_thickness_mm": float(details.max_thickness_mm) if details.max_thickness_mm else None,
+                    "wire_color_options": details.wire_color_options,
+                    "cover_material_options": details.cover_material_options,
+                }
+            )
+        elif category_code == "coating" and hasattr(service, "coating_details"):
+            details = service.coating_details
+            service_data.update(
+                {
+                    "coating_type": details.coating_type.id if details.coating_type else None,
+                    "calculation_method": details.calculation_method,
+                    "base_price": float(details.price_per_unit),
                     "price_per_unit": float(details.price_per_unit),
                     "setup_time_minutes": details.setup_time_minutes,
                     "turnaround_time_hours": details.turnaround_time_hours,
                 }
             )
-        elif category_code == "coating" and hasattr(service, "finishing_details"):
+        elif category_code == "finishing" and hasattr(service, "finishing_details"):
             details = service.finishing_details
+            
+            # جلب min_quantity من أول شريحة سعرية إن وجدت
+            min_quantity = None
+            first_tier = service.price_tiers.order_by('min_quantity').first()
+            if first_tier:
+                min_quantity = first_tier.min_quantity
+            
             service_data.update(
                 {
-                    "coating_type": details.finishing_type,
+                    "finishing_type": details.finishing_type.id if details.finishing_type else None,
                     "calculation_method": details.calculation_method,
+                    "base_price": float(details.price_per_unit),
                     "price_per_unit": float(details.price_per_unit),
                     "setup_time_minutes": details.setup_time_minutes,
                     "turnaround_time_hours": details.turnaround_time_hours,
+                    "min_size_cm": float(details.min_size_cm) if details.min_size_cm else None,
+                    "max_size_cm": float(details.max_size_cm) if details.max_size_cm else None,
+                    "min_quantity": min_quantity,
                 }
             )
 
@@ -818,27 +883,87 @@ def _save_category_details(service, category_code, data):
             except (ValueError, TypeError):
                 return default
 
-        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
-        finishing_details = service.finishing_details
+        # تحديث أو إنشاء تفاصيل التقفيل
+        from .models import PackagingServiceDetails
         
-        finishing_details.finishing_type = data.get("packaging_type", "lamination")
-        finishing_details.calculation_method = data.get("calculation_method", "per_piece")
-        finishing_details.price_per_unit = safe_float(data.get("price_per_unit"))
-        finishing_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 15)
-        finishing_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 4)
-        finishing_details.save()
+        try:
+            packaging_details = service.packaging_details
+        except PackagingServiceDetails.DoesNotExist:
+            packaging_details = PackagingServiceDetails.objects.create(
+                service=service,
+                packaging_type="stapling",
+                calculation_method="per_piece",
+                price_per_unit=0,
+            )
+        
+        packaging_details.packaging_type = data.get("packaging_type", "stapling")
+        packaging_details.calculation_method = data.get("calculation_method", "per_piece")
+        packaging_details.price_per_unit = safe_float(data.get("price_per_unit"))
+        packaging_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 15)
+        packaging_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 4)
+        packaging_details.max_thickness_mm = safe_float(data.get("max_thickness_mm"))
+        packaging_details.wire_color_options = data.get("wire_color_options", "")
+        packaging_details.cover_material_options = data.get("cover_material_options", "")
+        packaging_details.save()
 
         # تحديث اسم الخدمة تلقائياً
         if not service.name or service.name.strip() == "":
-            packaging_type_display = dict([
-                ("lamination", "تقفيل"),
-                ("cellophane", "سيلوفان"),
-                ("shrink_wrap", "تغليف حراري"),
-                ("box_packaging", "تعبئة في صناديق"),
-                ("custom_packaging", "تعبئة مخصصة"),
-            ]).get(finishing_details.finishing_type, finishing_details.finishing_type)
-            
+            packaging_type_display = dict(PackagingServiceDetails.PACKAGING_TYPE_CHOICES).get(
+                packaging_details.packaging_type, 
+                packaging_details.packaging_type
+            )
             service.name = f"خدمة {packaging_type_display}"
+            service.save()
+
+    elif category_code == "finishing":
+        # دالة مساعدة لتحويل القيم الآمن
+        def safe_float(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return default
+
+        def safe_int(value, default=0):
+            if value is None or value == "" or value == "None":
+                return default
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return default
+
+        # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
+        finishing_details = service.finishing_details
+        
+        finishing_type_id = data.get("finishing_type")
+        if not finishing_type_id or str(finishing_type_id).strip() == "":
+            raise ValueError(f"نوع خدمة الطباعة مطلوب. البيانات المستلمة: {data}")
+            
+        calculation_method = data.get("calculation_method")
+        if not calculation_method or str(calculation_method).strip() == "":
+            raise ValueError(f"طريقة الحساب مطلوبة. البيانات المستلمة: calculation_method='{calculation_method}'")
+        
+        # جلب نوع الخدمة من قاعدة البيانات
+        from printing_pricing.models.settings_models import FinishingType
+        try:
+            finishing_type = FinishingType.objects.get(id=finishing_type_id)
+            finishing_details.finishing_type = finishing_type
+        except FinishingType.DoesNotExist:
+            raise ValueError(f"نوع خدمة الطباعة غير موجود: {finishing_type_id}")
+            
+        finishing_details.calculation_method = calculation_method
+        # استخدام base_price من النموذج
+        finishing_details.price_per_unit = safe_float(data.get("base_price", data.get("price_per_unit", 0)))
+        finishing_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 15)
+        finishing_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 4)
+        finishing_details.min_size_cm = safe_float(data.get("min_size_cm"))
+        finishing_details.max_size_cm = safe_float(data.get("max_size_cm"))
+        finishing_details.save()
+
+        # تحديث اسم الخدمة تلقائياً من نوع الخدمة
+        if not service.name or service.name.strip() == "":
+            service.name = f"خدمة {finishing_type.name}"
             service.save()
 
     elif category_code == "coating":
@@ -860,49 +985,34 @@ def _save_category_details(service, category_code, data):
                 return default
 
         # تحديث التفاصيل الموجودة بدلاً من إنشاء جديدة
-        finishing_details = service.finishing_details
+        coating_details = service.coating_details
         
-        # استخدام البيانات الفعلية من النموذج بدون قيم افتراضية خاطئة
-        print(f"DEBUG: coating data received: {data}")  # للتشخيص
-        print(f"DEBUG: all keys in data: {list(data.keys())}")  # للتشخيص
-        
-        coating_type = data.get("coating_type")
-        if not coating_type or str(coating_type).strip() == "":
-            # محاولة البحث عن أسماء بديلة للحقل
-            coating_type = data.get("finishing_type") or data.get("type")
-            if not coating_type or str(coating_type).strip() == "":
-                raise ValueError(f"نوع التغطية مطلوب. البيانات المستلمة: {data}")
+        coating_type_id = data.get("coating_type")
+        if not coating_type_id or str(coating_type_id).strip() == "":
+            raise ValueError(f"نوع التغطية مطلوب. البيانات المستلمة: {data}")
             
         calculation_method = data.get("calculation_method")
         if not calculation_method or str(calculation_method).strip() == "":
             raise ValueError(f"طريقة الحساب مطلوبة. البيانات المستلمة: calculation_method='{calculation_method}'")
+        
+        # جلب نوع التغطية من قاعدة البيانات (CoatingType)
+        from printing_pricing.models.settings_models import CoatingType
+        try:
+            coating_type = CoatingType.objects.get(id=coating_type_id)
+            coating_details.coating_type = coating_type
+        except CoatingType.DoesNotExist:
+            raise ValueError(f"نوع التغطية غير موجود: {coating_type_id}")
             
-        finishing_details.finishing_type = coating_type
-        finishing_details.calculation_method = calculation_method
+        coating_details.calculation_method = calculation_method
         # استخدام base_price من النموذج
-        finishing_details.price_per_unit = safe_float(data.get("base_price", data.get("price_per_unit", 0)))
-        finishing_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 30)
-        finishing_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 6)
-        finishing_details.save()
+        coating_details.price_per_unit = safe_float(data.get("base_price", data.get("price_per_unit", 0)))
+        coating_details.setup_time_minutes = safe_int(data.get("setup_time_minutes"), 30)
+        coating_details.turnaround_time_hours = safe_int(data.get("turnaround_time_hours"), 6)
+        coating_details.save()
 
-        # تحديث اسم الخدمة تلقائياً
+        # تحديث اسم الخدمة تلقائياً من نوع التغطية
         if not service.name or service.name.strip() == "":
-            # محاولة جلب اسم نوع التغطية من CoatingType model
-            try:
-                from printing_pricing.models.settings_models import CoatingType
-                coating_type_obj = CoatingType.objects.get(id=coating_type)
-                coating_type_display = coating_type_obj.name
-            except (CoatingType.DoesNotExist, ValueError):
-                # في حالة عدم وجود النوع، استخدام قاموس الأسماء الافتراضية
-                coating_type_display = dict([
-                    ("varnish", "ورنيش"),
-                    ("uv_coating", "طلاء UV"),
-                    ("aqueous_coating", "طلاء مائي"),
-                    ("spot_uv", "UV نقطي"),
-                    ("matte_coating", "طلاء مطفي"),
-                ]).get(coating_type, coating_type)
-            
-            service.name = f"خدمة {coating_type_display}"
+            service.name = f"خدمة {coating_type.name}"
             service.save()
 
 

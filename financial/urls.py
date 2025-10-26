@@ -306,6 +306,14 @@ urlpatterns = [
     path("partner/withdraw/", views.create_withdrawal, name="create_withdrawal"),
     # API endpoints للشراكة
     path("api/partner/balance/", views.get_partner_balance, name="get_partner_balance"),
+    # إدارة القروض
+    path("loans/", views.loans_dashboard, name="loans_dashboard"),
+    path("loans/list/", views.loans_list, name="loans_list"),
+    path("loans/create/", views.loan_create, name="loan_create"),
+    path("loans/<int:pk>/", views.loan_detail, name="loan_detail"),
+    path("loans/payment/create/", views.loan_payment_create, name="loan_payment_create"),
+    # API endpoints للقروض
+    path("api/loans/balance/", views.get_loan_balance, name="get_loan_balance"),
     # API endpoints
     path(
         "api/journal-entry/<int:journal_entry_id>/summary/",

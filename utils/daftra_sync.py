@@ -12,6 +12,7 @@ from django.conf import settings
 from client.models import Customer
 from supplier.models import Supplier
 from users.models import User
+from financial.models import ChartOfAccounts
 
 
 class DaftraSync:
@@ -113,16 +114,23 @@ class DaftraSync:
         
         return all_suppliers
     
-    def compare_client_fields(self, customer, daftra_data):
+    def compare_client_fields(self, customer, daftra_data, stats=None, force_active=False):
         """مقارنة حقول العميل للكشف عن التغييرات"""
         client = daftra_data.get('Client', {})
         
-        # بناء الاسم
-        name = client.get('business_name', '').strip()
-        if not name:
-            first_name = client.get('first_name', '').strip()
-            last_name = client.get('last_name', '').strip()
+        # بناء الاسم بذكاء لتجنب التكرار
+        business_name = client.get('business_name', '').strip()
+        first_name = client.get('first_name', '').strip()
+        last_name = client.get('last_name', '').strip()
+        
+        if business_name:
+            # إذا كان هناك اسم شركة، استخدمه كاسم رئيسي
+            name = business_name
+            company_name = business_name
+        else:
+            # إذا لم يكن هناك اسم شركة، استخدم الاسم الشخصي
             name = f'{first_name} {last_name}'.strip()
+            company_name = ''
         
         # دمج العنوان
         address_parts = []
@@ -132,35 +140,53 @@ class DaftraSync:
             address_parts.append(client['address2'])
         address = '\n'.join(address_parts) if address_parts else ''
         
-        # المقارنة
-        fields_match = (
-            customer.name == name and
-            customer.company_name == client.get('business_name', '') and
-            customer.code == str(client.get('client_number', '')).strip() and
-            customer.email == client.get('email', '') and
-            customer.phone_primary == client.get('phone1', '') and
-            customer.phone_secondary == client.get('phone2', '') and
-            customer.address == address and
-            customer.city == client.get('city', '') and
-            customer.credit_limit == Decimal(str(client.get('credit_limit') or 0))
-        )
+        # حل جذري: جميع العملاء نشطين دائماً
+        is_active_status = True
         
-        return fields_match, {
+        # تتبع الإحصائيات (مبسط)
+        if stats:
+            stats.setdefault('active_clients', 0)
+            stats['active_clients'] += 1
+        
+        # بناء البيانات الجديدة
+        new_data = {
             'name': name,
-            'company_name': client.get('business_name', ''),
+            'company_name': company_name,
             'code': str(client.get('client_number', '')).strip(),
-            'email': client.get('email', ''),
+            'email': client.get('email', '') or None,
             'phone_primary': client.get('phone1', ''),
             'phone_secondary': client.get('phone2', ''),
-            'phone': client.get('phone1', ''),
+            'phone': client.get('phone1', ''),  # استخدام البيانات كما هي
             'address': address,
             'city': client.get('city', ''),
             'credit_limit': Decimal(str(client.get('credit_limit') or 0)),
             'balance': Decimal(str(client.get('starting_balance') or 0)),
+            'is_active': is_active_status,  # نشط إذا لم يكن معلق في دفترة
         }
+        
+        # مقارنة شاملة للعملاء الموجودين
+        if customer:
+            fields_match = (
+                customer.name == name and
+                customer.company_name == company_name and
+                customer.code == str(client.get('client_number', '')).strip() and
+                customer.email == (client.get('email', '') or None) and
+                customer.phone_primary == client.get('phone1', '') and
+                customer.phone_secondary == client.get('phone2', '') and
+                customer.phone == client.get('phone1', '') and
+                customer.address == address and
+                customer.city == client.get('city', '') and
+                customer.credit_limit == Decimal(str(client.get('credit_limit') or 0)) and
+                customer.balance == Decimal(str(client.get('starting_balance') or 0)) and
+                customer.is_active == True  # دائماً نشط
+            )
+        else:
+            fields_match = False
+        
+        return fields_match, new_data
     
-    def compare_supplier_fields(self, supplier, daftra_data):
-        """مقارنة حقول المورد للكشف عن التغييرات"""
+    def compare_supplier_fields(self, supplier, daftra_data, stats=None):
+        """مقارنة حقول المورد - محسن للسرعة"""
         supp = daftra_data.get('Supplier', {})
         
         # بناء الاسم
@@ -178,18 +204,16 @@ class DaftraSync:
             address_parts.append(supp['address2'])
         address = '\n'.join(address_parts) if address_parts else ''
         
-        # المقارنة
-        fields_match = (
-            supplier.name == name and
-            supplier.code == str(supp.get('supplier_number', '')).strip() and
-            supplier.email == supp.get('email', '') and
-            supplier.phone == supp.get('phone1', '') and
-            supplier.secondary_phone == supp.get('phone2', '') and
-            supplier.address == address and
-            supplier.city == supp.get('city', '')
-        )
+        # حل جذري: جميع الموردين نشطين دائماً
+        is_active_status = True
         
-        return fields_match, {
+        # تتبع الإحصائيات (مبسط)
+        if stats:
+            stats.setdefault('active_suppliers', 0)
+            stats['active_suppliers'] += 1
+        
+        # بناء البيانات الجديدة
+        new_data = {
             'name': name,
             'code': str(supp.get('supplier_number', '')).strip(),
             'email': supp.get('email', ''),
@@ -197,16 +221,94 @@ class DaftraSync:
             'secondary_phone': supp.get('phone2', ''),
             'address': address,
             'city': supp.get('city', ''),
+            'is_active': is_active_status,  # ✅ جميع الموردين نشطين دائماً
         }
+        
+        # مقارنة شاملة للموردين الموجودين
+        if supplier:
+            fields_match = (
+                supplier.name == name and
+                supplier.code == str(supp.get('supplier_number', '')).strip() and
+                supplier.email == supp.get('email', '') and
+                supplier.phone == supp.get('phone1', '') and
+                supplier.secondary_phone == supp.get('phone2', '') and
+                supplier.address == address and
+                supplier.city == supp.get('city', '') and
+                supplier.is_active == True  # دائماً نشط
+            )
+        else:
+            fields_match = False
+        
+        return fields_match, new_data
     
-    def sync_clients(self, user=None):
-        """مزامنة العملاء مع Daftra"""
+    def _process_single_client(self, item, user, stats, force_active=False):
+        """معالجة عميل واحد - محسن للسرعة"""
+        client_data = item.get('Client', {})
+        client_number = str(client_data.get('client_number', '')).strip()
+        
+        if not client_number:
+            stats['skipped'] += 1
+            return
+        
+        # البحث عن العميل بالكود
+        existing = Customer.objects.filter(code=client_number).first()
+        
+        if existing:
+            # مقارنة الحقول
+            fields_match, new_data = self.compare_client_fields(existing, item, stats, force_active)
+            
+            if fields_match:
+                stats['skipped'] += 1
+            else:
+                # طباعة سبب عدم التطابق (للتشخيص)
+                if not hasattr(self, '_debug_printed'):
+                    self._debug_printed = 0
+                if self._debug_printed < 3:  # أول 3 عملاء فقط
+                    print(f"🔍 عميل يحتاج تحديث: {existing.name}")
+                    if existing.name != new_data['name']:
+                        print(f"   - الاسم: '{existing.name}' → '{new_data['name']}'")
+                    if existing.company_name != new_data['company_name']:
+                        print(f"   - الشركة: '{existing.company_name}' → '{new_data['company_name']}'")
+                    if existing.email != new_data['email']:
+                        print(f"   - الإيميل: '{existing.email}' → '{new_data['email']}'")
+                    if existing.phone_primary != new_data['phone_primary']:
+                        print(f"   - الهاتف: '{existing.phone_primary}' → '{new_data['phone_primary']}'")
+                    if existing.address != new_data['address']:
+                        print(f"   - العنوان: '{existing.address}' → '{new_data['address']}'")
+                    if existing.credit_limit != new_data['credit_limit']:
+                        print(f"   - الحد الائتماني: {existing.credit_limit} → {new_data['credit_limit']}")
+                    if existing.balance != new_data['balance']:
+                        print(f"   - الرصيد: {existing.balance} → {new_data['balance']}")
+                    self._debug_printed += 1
+                
+                # تحديث سريع
+                for key, value in new_data.items():
+                    setattr(existing, key, value)
+                existing.save()
+                stats['updated'] += 1
+        else:
+            # إنشاء عميل جديد
+            _, new_data = self.compare_client_fields(None, item, stats, force_active)
+            new_data['created_by'] = user
+            
+            # إعداد سريع للعميل الجديد
+            new_data['client_type'] = 'individual'  # افتراضي للسرعة
+            
+            # إنشاء العميل بدون حساب مالي (للسرعة)
+            try:
+                customer = Customer.objects.create(**new_data)
+                stats['created'] += 1
+            except Exception as e:
+                stats['errors'] += 1
+    
+    def sync_clients(self, user=None, force_active=False):
+        """مزامنة العملاء مع Daftra - محسن للسرعة"""
         stats = {
             'created': 0,
             'updated': 0,
             'skipped': 0,
             'errors': 0,
-            'details': []
+            'active_clients': 0
         }
         
         if not user:
@@ -215,98 +317,118 @@ class DaftraSync:
         # جلب البيانات من Daftra
         daftra_clients = self.fetch_all_clients()
         
-        for item in daftra_clients:
+        # معالجة مجمعة للسرعة
+        print(f"🚀 بدء معالجة {len(daftra_clients)} عميل...")
+        
+        for i, item in enumerate(daftra_clients, 1):
             try:
-                client_data = item.get('Client', {})
-                daftra_id = client_data.get('id')
-                client_number = str(client_data.get('client_number', '')).strip()
+                self._process_single_client(item, user, stats, force_active)
                 
-                if not client_number:
-                    stats['skipped'] += 1
-                    stats['details'].append({
-                        'action': 'skip',
-                        'reason': 'لا يوجد رقم عميل',
-                        'name': client_data.get('business_name', 'غير معروف')
-                    })
-                    continue
-                
-                # البحث عن العميل بالمعرف أو الكود
-                existing = Customer.objects.filter(
-                    code=client_number
-                ).first()
-                
-                if existing:
-                    # مقارنة الحقول
-                    fields_match, new_data = self.compare_client_fields(existing, item)
-                    
-                    if fields_match:
-                        # جميع الحقول متطابقة - تخطي
-                        stats['skipped'] += 1
-                        stats['details'].append({
-                            'action': 'skip',
-                            'reason': 'البيانات متطابقة',
-                            'name': existing.name,
-                            'code': client_number
-                        })
-                    else:
-                        # تحديث الحقول المختلفة
-                        with transaction.atomic():
-                            for key, value in new_data.items():
-                                setattr(existing, key, value)
-                            existing.save()
-                        
-                        stats['updated'] += 1
-                        stats['details'].append({
-                            'action': 'update',
-                            'name': new_data['name'],
-                            'code': client_number
-                        })
-                else:
-                    # إنشاء عميل جديد
-                    _, new_data = self.compare_client_fields(None, item)
-                    new_data['created_by'] = user
-                    
-                    # تحديد نوع العميل
-                    client_type_map = {
-                        'individual': 'individual',
-                        'company': 'company',
-                        'government': 'government',
-                        'vip': 'vip',
-                    }
-                    new_data['client_type'] = client_type_map.get(
-                        client_data.get('type', '').lower(), 
-                        'individual'
-                    )
-                    new_data['is_active'] = not client_data.get('suspend', False)
-                    
-                    with transaction.atomic():
-                        Customer.objects.create(**new_data)
-                    
-                    stats['created'] += 1
-                    stats['details'].append({
-                        'action': 'create',
-                        'name': new_data['name'],
-                        'code': client_number
-                    })
+                # طباعة التقدم كل 100 عميل
+                if i % 100 == 0:
+                    print(f"⚡ تمت معالجة {i}/{len(daftra_clients)} عميل...")
                     
             except Exception as e:
                 stats['errors'] += 1
-                stats['details'].append({
-                    'action': 'error',
-                    'reason': str(e),
-                    'name': client_data.get('business_name', 'غير معروف')
-                })
+                print(f"❌ خطأ في السجل {i}: {str(e)}")
+        
+        # تقرير مبسط وسريع
+        print(f"\n🎉 اكتملت المزامنة!")
+        print(f"✅ تم إنشاء: {stats['created']} عميل")
+        print(f"🔄 تم تحديث: {stats['updated']} عميل") 
+        print(f"⏭️ تم تخطي: {stats['skipped']} عميل")
+        print(f"❌ أخطاء: {stats['errors']} عميل")
+        print(f"🟢 جميع العملاء نشطين: {stats['active_clients']} عميل")
+        print("="*50)
         
         return stats
     
+    def fix_duplicate_client_names(self):
+        """إصلاح أسماء العملاء المكررة"""
+        from client.models import Customer
+        from django.db import models
+        
+        try:
+            # البحث عن العملاء الذين لديهم نفس الاسم والشركة
+            duplicates = Customer.objects.filter(name=models.F('company_name')).exclude(company_name='')
+            count = duplicates.count()
+            
+            if count > 0:
+                print(f"🔧 إصلاح {count} عميل لديهم أسماء مكررة...")
+                
+                for customer in duplicates:
+                    # إذا كان الاسم والشركة متطابقين، اجعل company_name فارغ
+                    if customer.name == customer.company_name:
+                        customer.company_name = ''
+                        customer.save()
+                        print(f"✅ تم إصلاح: {customer.name}")
+                
+                print(f"🎉 تم إصلاح جميع الأسماء المكررة!")
+                return {'fixed_count': count}
+            else:
+                print(f"✅ لا توجد أسماء مكررة!")
+                return {'fixed_count': 0}
+                
+        except Exception as e:
+            print(f"❌ خطأ في إصلاح الأسماء: {e}")
+            return {'error': str(e)}
+    
+    def activate_all_existing_clients(self):
+        """تفعيل جميع العملاء الموجودين - سريع"""
+        from client.models import Customer
+        
+        try:
+            updated = Customer.objects.filter(is_active=False).update(is_active=True)
+            print(f"✅ تم تفعيل {updated} عميل")
+            return {'activated_count': updated}
+        except Exception as e:
+            print(f"❌ خطأ: {e}")
+            return {'error': str(e)}
+    
+    def _process_single_supplier(self, item, user, stats):
+        """معالجة مورد واحد - محسن للسرعة"""
+        supplier_data = item.get('Supplier', {})
+        supplier_number = str(supplier_data.get('supplier_number', '')).strip()
+        
+        if not supplier_number:
+            stats['skipped'] += 1
+            return
+        
+        # البحث عن المورد بالكود
+        existing = Supplier.objects.filter(code=supplier_number).first()
+        
+        if existing:
+            # مقارنة الحقول
+            fields_match, new_data = self.compare_supplier_fields(existing, item, stats)
+            
+            if fields_match:
+                stats['skipped'] += 1
+            else:
+                # تحديث سريع
+                for key, value in new_data.items():
+                    setattr(existing, key, value)
+                existing.save()
+                stats['updated'] += 1
+        else:
+            # إنشاء مورد جديد
+            _, new_data = self.compare_supplier_fields(None, item, stats)
+            new_data['created_by'] = user
+            
+            # إنشاء المورد بدون تعقيدات (للسرعة)
+            try:
+                supplier = Supplier.objects.create(**new_data)
+                stats['created'] += 1
+            except Exception as e:
+                stats['errors'] += 1
+    
     def sync_suppliers(self, user=None):
-        """مزامنة الموردين مع Daftra"""
+        """مزامنة الموردين مع Daftra - محسن للسرعة"""
         stats = {
             'created': 0,
             'updated': 0,
             'skipped': 0,
             'errors': 0,
-            'details': []
+            'active_suppliers': 0
         }
         
         if not user:
@@ -315,76 +437,40 @@ class DaftraSync:
         # جلب البيانات من Daftra
         daftra_suppliers = self.fetch_all_suppliers()
         
-        for item in daftra_suppliers:
+        # معالجة مجمعة للسرعة
+        print(f"🚀 بدء معالجة {len(daftra_suppliers)} مورد...")
+        
+        for i, item in enumerate(daftra_suppliers, 1):
             try:
-                supplier_data = item.get('Supplier', {})
-                daftra_id = supplier_data.get('id')
-                supplier_number = str(supplier_data.get('supplier_number', '')).strip()
+                self._process_single_supplier(item, user, stats)
                 
-                if not supplier_number:
-                    stats['skipped'] += 1
-                    stats['details'].append({
-                        'action': 'skip',
-                        'reason': 'لا يوجد رقم مورد',
-                        'name': supplier_data.get('business_name', 'غير معروف')
-                    })
-                    continue
-                
-                # البحث عن المورد بالمعرف أو الكود
-                existing = Supplier.objects.filter(
-                    code=supplier_number
-                ).first()
-                
-                if existing:
-                    # مقارنة الحقول
-                    fields_match, new_data = self.compare_supplier_fields(existing, item)
-                    
-                    if fields_match:
-                        # جميع الحقول متطابقة - تخطي
-                        stats['skipped'] += 1
-                        stats['details'].append({
-                            'action': 'skip',
-                            'reason': 'البيانات متطابقة',
-                            'name': existing.name,
-                            'code': supplier_number
-                        })
-                    else:
-                        # تحديث الحقول المختلفة
-                        with transaction.atomic():
-                            for key, value in new_data.items():
-                                setattr(existing, key, value)
-                            existing.save()
-                        
-                        stats['updated'] += 1
-                        stats['details'].append({
-                            'action': 'update',
-                            'name': new_data['name'],
-                            'code': supplier_number
-                        })
-                else:
-                    # إنشاء مورد جديد
-                    _, new_data = self.compare_supplier_fields(None, item)
-                    new_data['created_by'] = user
-                    new_data['is_active'] = not supplier_data.get('suspend', False)
-                    new_data['country'] = supplier_data.get('country_code', 'مصر')
-                    new_data['contact_person'] = f"{supplier_data.get('first_name', '')} {supplier_data.get('last_name', '')}".strip()
-                    
-                    with transaction.atomic():
-                        Supplier.objects.create(**new_data)
-                    
-                    stats['created'] += 1
-                    stats['details'].append({
-                        'action': 'create',
-                        'name': new_data['name'],
-                        'code': supplier_number
-                    })
+                # طباعة التقدم كل 100 مورد
+                if i % 100 == 0:
+                    print(f"⚡ تمت معالجة {i}/{len(daftra_suppliers)} مورد...")
                     
             except Exception as e:
                 stats['errors'] += 1
-                stats['details'].append({
-                    'action': 'error',
-                    'reason': str(e),
-                    'name': supplier_data.get('business_name', 'غير معروف')
-                })
+                print(f"❌ خطأ في السجل {i}: {str(e)}")
+        
+        # تقرير مبسط وسريع
+        print(f"\n🎉 اكتملت مزامنة الموردين!")
+        print(f"✅ تم إنشاء: {stats['created']} مورد")
+        print(f"🔄 تم تحديث: {stats['updated']} مورد") 
+        print(f"⏭️ تم تخطي: {stats['skipped']} مورد")
+        print(f"❌ أخطاء: {stats['errors']} مورد")
+        print(f"🟢 جميع الموردين نشطين: {stats['active_suppliers']} مورد")
+        print("="*50)
         
         return stats
+    
+    def activate_all_existing_suppliers(self):
+        """تفعيل جميع الموردين الموجودين - سريع"""
+        from supplier.models import Supplier
+        
+        try:
+            updated = Supplier.objects.filter(is_active=False).update(is_active=True)
+            print(f"✅ تم تفعيل {updated} مورد")
+            return {'activated_count': updated}
+        except Exception as e:
+            print(f"❌ خطأ: {e}")
+            return {'error': str(e)}

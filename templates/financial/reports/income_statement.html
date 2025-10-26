@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
 {% load custom_filters %}
 {% load app_tags %}
 
@@ -297,7 +298,8 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ total_income|currency }}</div>
+            <div class="stats-card-value">{{ total_income|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -309,7 +311,8 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
-            <div class="stats-card-value">{{ total_expense|currency }}</div>
+            <div class="stats-card-value">{{ total_expense|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -321,7 +324,8 @@
               <i class="fas fa-{% if net_income >= 0 %}chart-line{% else %}chart-line-down{% endif %}"></i>
             </div>
             <div class="stats-card-title">{% trans "صافي الربح/الخسارة" %}</div>
-            <div class="stats-card-value">{{ net_income|currency }}</div>
+            <div class="stats-card-value">{{ net_income|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

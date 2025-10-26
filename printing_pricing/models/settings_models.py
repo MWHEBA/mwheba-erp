@@ -144,7 +144,7 @@ class PrintSide(models.Model):
         return self.name
 
 
-# ==================== نماذج إعدادات التشطيب ====================
+# ==================== نماذج إعدادات خدمات الطباعة ====================
 
 class CoatingType(models.Model):
     """نموذج أنواع التغطية"""
@@ -166,17 +166,35 @@ class CoatingType(models.Model):
 
 
 class FinishingType(models.Model):
-    """نموذج أنواع خدمات ما بعد الطباعة"""
+    """نموذج أنواع خدمات الطباعة (قص، ريجة، تكسير)"""
 
-    name = models.CharField(_("اسم نوع التشطيب"), max_length=100)
+    name = models.CharField(_("اسم نوع خدمة الطباعة"), max_length=100)
     description = models.TextField(_("الوصف"), blank=True)
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
 
     class Meta:
         app_label = "printing_pricing"
-        verbose_name = _("نوع التشطيب")
-        verbose_name_plural = _("أنواع التشطيب")
+        verbose_name = _("نوع خدمة الطباعة")
+        verbose_name_plural = _("أنواع خدمات الطباعة")
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
+class PackagingType(models.Model):
+    """نموذج أنواع خدمات التقفيل (دبوس، بشر، سلك، تجليد)"""
+
+    name = models.CharField(_("اسم نوع التقفيل"), max_length=100)
+    description = models.TextField(_("الوصف"), blank=True)
+    is_active = models.BooleanField(_("نشط"), default=True)
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+
+    class Meta:
+        app_label = "printing_pricing"
+        verbose_name = _("نوع التقفيل")
+        verbose_name_plural = _("أنواع التقفيل")
         ordering = ["name"]
 
     def __str__(self):

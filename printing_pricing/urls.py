@@ -29,6 +29,7 @@ from .views.settings_views import (
     # العروض المتقدمة - تم دمجها في settings_views.py
     CoatingTypeListView, CoatingTypeCreateView, CoatingTypeUpdateView, CoatingTypeDeleteView,
     FinishingTypeListView, FinishingTypeCreateView, FinishingTypeUpdateView, FinishingTypeDeleteView,
+    PackagingTypeListView, PackagingTypeCreateView, PackagingTypeUpdateView, PackagingTypeDeleteView,
     PieceSizeListView, PieceSizeCreateView, PieceSizeUpdateView, PieceSizeDeleteView,
     PlateSizeListView, PlateSizeCreateView, PlateSizeUpdateView, PlateSizeDeleteView,
     ProductTypeListView, ProductTypeCreateView, ProductTypeUpdateView, ProductTypeDeleteView,
@@ -139,11 +140,17 @@ settings_patterns = [
     path('coating-types/<int:pk>/edit/', CoatingTypeUpdateView.as_view(), name='coating_type_edit'),
     path('coating-types/<int:pk>/delete/', CoatingTypeDeleteView.as_view(), name='coating_type_delete'),
     
-    # أنواع التشطيب
+    # أنواع خدمات الطباعة
     path('finishing-types/', FinishingTypeListView.as_view(), name='finishing_type_list'),
     path('finishing-types/create/', FinishingTypeCreateView.as_view(), name='finishing_type_create'),
     path('finishing-types/<int:pk>/edit/', FinishingTypeUpdateView.as_view(), name='finishing_type_edit'),
     path('finishing-types/<int:pk>/delete/', FinishingTypeDeleteView.as_view(), name='finishing_type_delete'),
+    
+    # أنواع التقفيل
+    path('packaging-types/', PackagingTypeListView.as_view(), name='packaging_type_list'),
+    path('packaging-types/create/', PackagingTypeCreateView.as_view(), name='packaging_type_create'),
+    path('packaging-types/<int:pk>/edit/', PackagingTypeUpdateView.as_view(), name='packaging_type_edit'),
+    path('packaging-types/<int:pk>/delete/', PackagingTypeDeleteView.as_view(), name='packaging_type_delete'),
     
     # مقاسات القطع
     path('piece-sizes/', PieceSizeListView.as_view(), name='piece_size_list'),
