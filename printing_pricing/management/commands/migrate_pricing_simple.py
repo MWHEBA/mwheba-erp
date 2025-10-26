@@ -74,7 +74,7 @@ class Command(BaseCommand):
                     'columns': ['name', 'description', 'is_active', 'is_default']
                 },
                 {
-                    'name': 'أنواع التشطيب',
+                    'name': 'أنواع خدمات الطباعة',
                     'old_table': 'pricing_finishingtype',
                     'new_table': 'printing_pricing_finishingtype',
                     'columns': ['name', 'description', 'is_active']

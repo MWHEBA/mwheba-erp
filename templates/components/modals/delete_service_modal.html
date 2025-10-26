@@ -1,0 +1,132 @@
+{% comment %}
+Modal موحد لحذف الخدمات المتخصصة
+يعمل مع جميع أنواع الخدمات ديناميكياً
+{% endcomment %}
+{% load static %}
+
+<!-- CSRF Token للـ Modal -->
+{% csrf_token %}
+
+<!-- Modal حذف الخدمة -->
+<div class="modal fade" id="deleteServiceModal" tabindex="-1" aria-labelledby="deleteServiceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            <!-- Header -->
+            <div class="modal-header bg-danger text-white border-0">
+                <h5 class="modal-title d-flex align-items-center" id="deleteServiceModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2 fs-4"></i>
+                    <span>تأكيد حذف الخدمة</span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body p-4">
+                <!-- رسالة التحذير -->
+                <div class="alert alert-warning border-0 mb-4" style="background-color: #fff3cd;">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-exclamation-circle text-warning fs-3 me-3 mt-1"></i>
+                        <div>
+                            <h6 class="fw-bold mb-2" style="color: #856404;">تحذير هام</h6>
+                            <p class="mb-0" style="color: #856404;">
+                                هذا الإجراء لا يمكن التراجع عنه. سيتم حذف جميع البيانات المرتبطة بهذه الخدمة نهائياً.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- معلومات الخدمة -->
+                <div class="card border-0 shadow-sm mb-3" style="background-color: #f8f9fa;">
+                    <div class="card-body">
+                        <h6 class="text-primary mb-3">
+                            <i class="fas fa-info-circle me-2"></i>
+                            معلومات الخدمة المراد حذفها
+                        </h6>
+                        <div id="service-delete-info">
+                            <!-- سيتم ملؤها ديناميكياً من JavaScript -->
+                            <div class="text-center py-3">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">جاري التحميل...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- قائمة البيانات التي سيتم حذفها -->
+                <div class="alert alert-danger border-0 mb-0" style="background-color: #f8d7da;">
+                    <h6 class="fw-bold mb-2" style="color: #721c24;">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        سيتم حذف البيانات التالية:
+                    </h6>
+                    <ul class="mb-0 ps-4" style="color: #721c24;">
+                        <li>تفاصيل الخدمة المتخصصة</li>
+                        <li>الشرائح السعرية (إن وجدت)</li>
+                        <li>جميع الإعدادات المرتبطة</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer border-0 bg-light">
+                <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    إلغاء
+                </button>
+                <button type="button" class="btn btn-danger px-4" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    <span id="deleteButtonText">نعم، احذف الخدمة</span>
+                    <span id="deleteButtonSpinner" class="d-none">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        جاري الحذف...
+                    </span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* تحسينات إضافية للـ Modal */
+#deleteServiceModal .modal-content {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#deleteServiceModal .modal-header {
+    padding: 1.25rem 1.5rem;
+}
+
+#deleteServiceModal .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+#deleteServiceModal .btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+#deleteServiceModal .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+#deleteServiceModal .alert {
+    border-radius: 8px;
+}
+
+#deleteServiceModal .card {
+    border-radius: 8px;
+}
+
+/* Animation للـ Modal */
+#deleteServiceModal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+}
+
+#deleteServiceModal.show .modal-dialog {
+    transform: none;
+}
+</style>

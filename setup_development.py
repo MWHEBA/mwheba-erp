@@ -203,15 +203,64 @@ def main():
         sys.exit(1)
     print_success("تم تطبيق الهجرات بنجاح")
 
-    # المرحلة 3: تحميل المستخدمين
-    print_step(3, 9, "تحميل المستخدمين الأساسيين")
-    print_info("تحميل المستخدمين (mwheba, fatma)...")
-    if run_command(
-        "python manage.py loaddata users/fixtures/initial_data.json", check=False
-    ):
-        print_success("تم تحميل المستخدمين بنجاح")
-    else:
-        print_warning("فشل تحميل المستخدمين")
+    # المرحلة 3: إنشاء المستخدمين الأساسيين
+    print_step(3, 9, "إنشاء المستخدمين الأساسيين")
+    
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # إنشاء 3 مستخدمين admin
+        users_data = [
+            {
+                'username': 'mwheba',
+                'email': 'info@mwheba.com',
+                'first_name': 'Mohamed',
+                'last_name': 'Yousif',
+                'password': 'MedooAlnems2008'
+            },
+            {
+                'username': 'fatma',
+                'email': 'fatma@mwheba.com',
+                'first_name': 'فاطمة',
+                'last_name': '',
+                'password': '2951096'
+            },
+            {
+                'username': 'admin',
+                'email': 'admin@mwheba.com',
+                'first_name': 'Admin',
+                'last_name': 'Test',
+                'password': 'admin123'
+            }
+        ]
+        
+        for user_data in users_data:
+            username = user_data['username']
+            
+            # حذف المستخدم إن كان موجوداً
+            User.objects.filter(username=username).delete()
+            
+            # إنشاء المستخدم الجديد
+            user = User.objects.create_user(
+                username=username,
+                email=user_data['email'],
+                first_name=user_data['first_name'],
+                last_name=user_data['last_name'],
+                password=user_data['password']
+            )
+            
+            # جعله superuser و staff
+            user.is_superuser = True
+            user.is_staff = True
+            user.save()
+            
+            print_success(f"تم إنشاء المستخدم {username} (كلمة المرور: {user_data['password']})")
+        
+        print_success("تم إنشاء جميع المستخدمين بنجاح")
+        
+    except Exception as e:
+        print_warning(f"فشل في إنشاء المستخدمين: {e}")
 
     # المرحلة 4: تحميل إعدادات النظام
     print_step(4, 9, "تحميل إعدادات النظام")
@@ -254,16 +303,16 @@ def main():
     except Exception as e:
         print_warning(f"خطأ في التحقق من الصلاحيات: {e}")
 
-    # إعطاء جميع الصلاحيات للمستخدمين موهبة وفاطمة
-    print_info("إعطاء جميع الصلاحيات للمستخدمين موهبة وفاطمة...")
+    # إعطاء جميع الصلاحيات للمستخدمين الثلاثة
+    print_info("إعطاء جميع الصلاحيات للمستخدمين...")
     try:
         from django.contrib.auth import get_user_model
         from django.contrib.auth.models import Permission
 
         User = get_user_model()
 
-        # البحث عن المستخدمين
-        users_to_grant = ["mwheba", "fatma"]
+        # البحث عن المستخدمين الثلاثة
+        users_to_grant = ["mwheba", "fatma", "admin"]
 
         for username in users_to_grant:
             try:
@@ -273,7 +322,7 @@ def main():
                 all_permissions = Permission.objects.all()
                 user.user_permissions.set(all_permissions)
 
-                # جعله superuser أيضاً
+                # التأكد من أنه superuser و staff
                 user.is_superuser = True
                 user.is_staff = True
                 user.save()
@@ -400,8 +449,12 @@ def main():
             ("printing_pricing/fixtures/paper_origins.json", "مناشئ الورق"),
             ("printing_pricing/fixtures/piece_plate_sizes.json", "مقاسات القطع والزنكات"),
             ("printing_pricing/fixtures/print_settings.json", "إعدادات الطباعة"),
-            ("printing_pricing/fixtures/coating_finishing.json", "أنواع التغطية والتشطيب"),
+            ("printing_pricing/fixtures/coating_finishing.json", "أنواع التغطية وخدمات الطباعة"),
             ("printing_pricing/fixtures/product_types_sizes.json", "أنواع ومقاسات المنتجات"),
+            ("printing_pricing/fixtures/offset_machines.json", "أنواع ماكينات الأوفست"),
+            ("printing_pricing/fixtures/offset_sheet_sizes.json", "مقاسات ماكينات الأوفست"),
+            ("printing_pricing/fixtures/digital_machines.json", "أنواع ماكينات الديجيتال"),
+            ("printing_pricing/fixtures/digital_sheet_sizes.json", "مقاسات ماكينات الديجيتال"),
         ]
         
         for fixture_path, description in fixtures_to_load:
@@ -510,15 +563,9 @@ def main():
 
     print_colored("\n📊 المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
     print()
-    print_colored("   ✅ المستخدم الأول: mwheba (Mohamed Yousif)", Colors.GREEN)
-    print_colored("   ✅ المستخدم الثاني: fatma", Colors.GREEN)
-
-    print_colored(f"\n{'='*50}", Colors.CYAN)
-
-    print_colored("\n🔐 تغيير كلمة المرور (مهم جداً!):", Colors.RED + Colors.BOLD)
-    print_colored("\n   لتغيير كلمة المرور لاحقاً استخدم:", Colors.WHITE)
-    print()
-    print_colored("   python manage.py changepassword mwheba", Colors.YELLOW)
+    print_colored("   ✅ mwheba (محمد يوسف) - كلمة المرور: 2951096", Colors.GREEN)
+    print_colored("   ✅ fatma - كلمة المرور: 2951096", Colors.GREEN)
+    print_colored("   ✅ admin - كلمة المرور: admin123", Colors.GREEN)
 
     print_colored(f"\n{'='*50}", Colors.CYAN)
 
@@ -551,7 +598,7 @@ def main():
     print_colored("   - نظام طباعة التسعير (printing_pricing) - 8 ملفات fixtures", Colors.GRAY)
     print_colored("   - أنواع الورق والمقاسات والأوزان والمناشئ", Colors.GRAY)
     print_colored("   - مقاسات القطع والزنكات وإعدادات الطباعة", Colors.GRAY)
-    print_colored("   - أنواع التغطية والتشطيب وأنواع المنتجات", Colors.GRAY)
+    print_colored("   - أنواع التغطية وخدمات الطباعة وأنواع المنتجات", Colors.GRAY)
     print_colored("   - النظام الموحد للخدمات (ServiceFormFactory)", Colors.GRAY)
     print_colored("   - نظام الشراكة المالية (من fixtures)", Colors.GRAY)
 
@@ -559,23 +606,6 @@ def main():
     print_colored("   - مخزن: المخزن الرئيسي", Colors.GRAY)
     print_colored("   - منتج: كوشيه 300جم (تكلفة: 5، بيع: 7)", Colors.GRAY)
     print_colored("   - فئة: ورق، ماركة: كوشيه، وحدة: فرخ", Colors.GRAY)
-
-    # سؤال عن تغيير كلمة المرور
-    print_colored(f"{'='*50}", Colors.CYAN)
-    # سؤال تغيير كلمة المرور
-    change_pass = (
-        input("\nهل تريد تغيير كلمة مرور mwheba الآن؟ (yes/no): ").strip().lower()
-    )
-
-    if change_pass == "yes":
-        print("\n🔐 تغيير كلمة مرور المستخدم (mwheba):")
-        if run_command("python manage.py changepassword mwheba", check=False):
-            print_success("تم تغيير كلمة المرور بنجاح!")
-        else:
-            print_warning("فشل في تغيير كلمة المرور")
-            print_info(
-                "يمكنك تغييرها لاحقاً بالأمر: python manage.py changepassword mwheba"
-            )
 
     # النظام جاهز
     print("\n🚀 النظام جاهز للاستخدام!")

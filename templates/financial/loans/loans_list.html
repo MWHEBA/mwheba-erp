@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb -->
+  <div class="mb-4">
+    {% if breadcrumb_items %}
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        {% for item in breadcrumb_items %}
+          {% if forloop.last or item.active %}
+            <li class="breadcrumb-item active" aria-current="page">
+              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+              {{ item.title }}
+            </li>
+          {% else %}
+            <li class="breadcrumb-item">
+              <a href="{{ item.url }}">
+                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                {{ item.title }}
+              </a>
+            </li>
+          {% endif %}
+        {% endfor %}
+      </ol>
+    </nav>
+    {% endif %}
+    
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+      <div class="d-flex align-items-center">
+        {% if page_icon %}
+        <div class="me-3">
+          <i class="{{ page_icon }} fa-2x text-primary"></i>
+        </div>
+        {% endif %}
+        <div>
+          <h1 class="h3 mb-1">{{ page_title }}</h1>
+          <p class="text-muted mb-0">قائمة بجميع القروض في النظام</p>
+        </div>
+      </div>
+      <div>
+        <a href="{% url 'financial:loan_create' %}" class="btn btn-primary">
+          <i class="fas fa-plus me-2"></i>إضافة قرض جديد
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- الفلاتر -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <form method="get" class="row g-3">
+        <div class="col-md-4">
+          <label class="form-label">الحالة</label>
+          <select name="status" class="form-select">
+            <option value="all" {% if status_filter == 'all' %}selected{% endif %}>الكل</option>
+            <option value="active" {% if status_filter == 'active' %}selected{% endif %}>نشط</option>
+            <option value="completed" {% if status_filter == 'completed' %}selected{% endif %}>مكتمل</option>
+            <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>ملغي</option>
+          </select>
+        </div>
+        
+        <div class="col-md-4">
+          <label class="form-label">نوع المُقرض</label>
+          <select name="lender_type" class="form-select">
+            <option value="all" {% if lender_type_filter == 'all' %}selected{% endif %}>الكل</option>
+            <option value="bank" {% if lender_type_filter == 'bank' %}selected{% endif %}>بنك</option>
+            <option value="supplier" {% if lender_type_filter == 'supplier' %}selected{% endif %}>مورد</option>
+            <option value="partner" {% if lender_type_filter == 'partner' %}selected{% endif %}>شريك</option>
+            <option value="individual" {% if lender_type_filter == 'individual' %}selected{% endif %}>فرد</option>
+            <option value="other" {% if lender_type_filter == 'other' %}selected{% endif %}>أخرى</option>
+          </select>
+        </div>
+        
+        <div class="col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-filter me-1"></i>
+            تطبيق الفلتر
+          </button>
+          <a href="{% url 'financial:loans_list' %}" class="btn btn-secondary">
+            <i class="fas fa-redo me-1"></i>
+            إعادة تعيين
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- جدول القروض -->
+  <div class="card">
+    <div class="card-body">
+      {% if loans %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>رقم القرض</th>
+                <th>المُقرض</th>
+                <th>النوع</th>
+                <th>المبلغ الأصلي</th>
+                <th>المدفوع</th>
+                <th>المتبقي</th>
+                <th>معدل الفائدة</th>
+                <th>تاريخ البدء</th>
+                <th>الحالة</th>
+                <th>الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for loan in loans %}
+              <tr>
+                <td><strong>{{ loan.loan_number }}</strong></td>
+                <td>{{ loan.lender_name }}</td>
+                <td>{{ loan.get_lender_type_display }}</td>
+                <td>{{ loan.principal_amount|currency }}</td>
+                <td class="text-success">{{ loan.total_paid|currency }}</td>
+                <td class="text-warning">{{ loan.remaining_balance|currency }}</td>
+                <td>{{ loan.interest_rate }}%</td>
+                <td>{{ loan.start_date|date:"Y/m/d" }}</td>
+                <td>
+                  {% if loan.status == 'active' %}
+                    <span class="badge bg-success">نشط</span>
+                  {% elif loan.status == 'completed' %}
+                    <span class="badge bg-primary">مكتمل</span>
+                  {% else %}
+                    <span class="badge bg-secondary">ملغي</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <a href="{% url 'financial:loan_detail' loan.pk %}" class="btn btn-sm btn-info">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+          <p class="text-muted">لا توجد قروض</p>
+          <a href="{% url 'financial:loan_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-2"></i>إضافة قرض جديد
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

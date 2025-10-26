@@ -169,7 +169,7 @@ class OrderSummary(BaseModel):
         decimal_places=2,
         default=Decimal('0.00'),
         validators=[MinValueValidator(Decimal('0.00'))],
-        verbose_name=_("تكلفة التشطيبات")
+        verbose_name=_("تكلفة خدمات الطباعة")
     )
     
     design_cost = models.DecimalField(

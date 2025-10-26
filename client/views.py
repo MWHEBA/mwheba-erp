@@ -22,8 +22,10 @@ def customer_list(request):
     """
     عرض قائمة العملاء
     """
-    customers = Customer.objects.filter(is_active=True)
+    # جلب جميع العملاء (النشطين وغير النشطين)
+    customers = Customer.objects.all().order_by('-created_at')
     active_customers = customers.filter(is_active=True).count()
+    inactive_customers = customers.filter(is_active=False).count()
 
     # حساب إجمالي المديونية الفعلية
     total_debt = 0
@@ -76,6 +78,7 @@ def customer_list(request):
         "headers": headers,
         "action_buttons": action_buttons,
         "active_customers": active_customers,
+        "inactive_customers": inactive_customers,
         "total_debt": total_debt,
         "page_title": "قائمة العملاء",
         "page_icon": "fas fa-users",

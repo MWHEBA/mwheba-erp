@@ -1,48 +1,15 @@
 {% comment %}
-عرض نوع التشطيب/التغطية
-يدعم كلاً من ID (للتغطية من CoatingType) والنص (للتشطيب التقليدي)
+عرض نوع خدمة التشطيب من نموذج FinishingType
 {% endcomment %}
 
-{% if item.finishing_details.finishing_type %}
-    {% load utils_extras %}
-    
-    <!-- محاولة جلب اسم التغطية من CoatingType إذا كان ID -->
-    {% if item.finishing_details.finishing_type|add:"0" != item.finishing_details.finishing_type %}
-        <!-- إذا كان رقم، جلب من CoatingType -->
-        {% get_coating_type_name item.finishing_details.finishing_type as coating_name %}
-        {% if coating_name %}
-            <span class="badge bg-success">{{ coating_name }}</span>
-        {% else %}
-            <span class="badge bg-light text-dark">{{ item.finishing_details.finishing_type }}</span>
-        {% endif %}
-    {% else %}
-        <!-- إذا كان نص، استخدام القاموس التقليدي -->
-        {% if item.finishing_details.finishing_type == 'cutting' %}
-            <span class="badge bg-primary">قص</span>
-        {% elif item.finishing_details.finishing_type == 'folding' %}
-            <span class="badge bg-success">طي</span>
-        {% elif item.finishing_details.finishing_type == 'binding_spiral' %}
-            <span class="badge bg-info">تجليد حلزوني</span>
-        {% elif item.finishing_details.finishing_type == 'binding_perfect' %}
-            <span class="badge bg-warning">تجليد كعب</span>
-        {% elif item.finishing_details.finishing_type == 'lamination' %}
-            <span class="badge bg-secondary">تقفيل</span>
-        {% elif item.finishing_details.finishing_type == 'uv_coating' %}
-            <span class="badge bg-danger">طلاء UV</span>
-        {% elif item.finishing_details.finishing_type == 'varnish' %}
-            <span class="badge bg-dark">ورنيش</span>
-        {% elif item.finishing_details.finishing_type == 'embossing' %}
-            <span class="badge bg-light text-dark">نقش بارز</span>
-        {% elif item.finishing_details.finishing_type == 'die_cutting' %}
-            <span class="badge bg-primary">تكسير</span>
-        {% elif item.finishing_details.finishing_type == 'perforation' %}
-            <span class="badge bg-success">تثقيب</span>
-        {% elif item.finishing_details.finishing_type == 'stapling' %}
-            <span class="badge bg-info">تدبيس</span>
-        {% else %}
-            <span class="badge bg-light text-dark">{{ item.finishing_details.finishing_type }}</span>
-        {% endif %}
-    {% endif %}
+{% if value and value.finishing_type %}
+    <span class="badge bg-primary">
+        <i class="fas fa-tools me-1"></i>{{ value.finishing_type.name }}
+    </span>
+{% elif item.finishing_details and item.finishing_details.finishing_type %}
+    <span class="badge bg-primary">
+        <i class="fas fa-tools me-1"></i>{{ item.finishing_details.finishing_type.name }}
+    </span>
 {% else %}
     <span class="text-muted">غير محدد</span>
 {% endif %}

@@ -2,6 +2,7 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -364,15 +365,16 @@
                             <div class="balance-display">
                                 <div class="balance-amount">
                                     {% if account.calculated_balance is not None %}
+                                        {{ account.calculated_balance|default:0|remove_trailing_zeros }}
+                                    {% else %}
                                         {{ account.opening_balance|default:0|remove_trailing_zeros }}
                                     {% endif %}
                                 </div>
-                                <div class="stats-card-unit">{{ currency_symbol }}</div>
-                                
-
+                                <div class="balance-currency">{{ currency_symbol }}</div>
                             </div>
                             
                             <!-- معلومات إضافية -->
+                            <div class="account-info-grid">
                                 <div class="info-item">
                                     <div class="info-label">الرصيد الافتتاحي</div>
                                     <div class="info-value">

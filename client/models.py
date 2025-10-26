@@ -39,14 +39,8 @@ class Customer(models.Model):
     )
 
     # معلومات الاتصال المحسنة (من النظام المرجعي)
-    phone_regex = RegexValidator(
-        regex=r"^\+?1?\d{9,15}$",
-        message=_(
-            "يجب أن يكون رقم الهاتف بالصيغة: '+999999999'. يسمح بـ 15 رقم كحد أقصى."
-        ),
-    )
     phone = models.CharField(
-        _("رقم الهاتف"), validators=[phone_regex], max_length=17, blank=True
+        _("رقم الهاتف"), max_length=50, blank=True
     )
     phone_primary = models.CharField(
         _("رقم الهاتف الأساسي"),
@@ -138,6 +132,9 @@ class Customer(models.Model):
         ordering = ["name"]
 
     def __str__(self):
+        # تجنب التكرار في العرض
+        if self.company_name and self.company_name != self.name:
+            return f"{self.name} ({self.company_name})"
         return self.name
 
     @property

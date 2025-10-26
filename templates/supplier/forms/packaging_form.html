@@ -47,8 +47,9 @@
                     <div class="form-floating">
                         <select name="calculation_method" class="form-select" id="calculation-method" required>
                             <option value="">اختر طريقة الحساب</option>
-                            <option value="per_piece">بالقطعة</option>
-                            <option value="per_thousand">بالألف</option>
+                            {% for choice in form_choices.calculation_methods %}
+                                <option value="{{ choice.0 }}">{{ choice.1 }}</option>
+                            {% endfor %}
                         </select>
                         <label for="calculation-method">طريقة الحساب *</label>
                     </div>
@@ -62,26 +63,45 @@
                 </div>
             </div>
             
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="setup_time_minutes" 
+                               id="setup-time" placeholder="وقت التجهيز" min="0" value="15">
+                        <label for="setup-time">وقت التجهيز (دقائق)</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="turnaround_time_hours" 
+                               id="turnaround-time" placeholder="وقت التسليم" min="1" value="4">
+                        <label for="turnaround-time">وقت التسليم (ساعات)</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="form-floating">
+                        <input type="number" class="form-control" name="max_thickness_mm" 
+                               id="max-thickness" placeholder="أقصى سُمك" min="0" step="0.1">
+                        <label for="max-thickness">أقصى سُمك (مم)</label>
+                    </div>
+                </div>
+            </div>
+            
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="form-floating">
-                        <input type="number" class="form-control" name="base_price" 
-                               id="base-price" placeholder="السعر الأساسي" min="0" step="0.01" required>
-                        <label for="base-price">السعر الأساسي ({{ currency_symbol }}) *</label>
+                        <input type="text" class="form-control" name="wire_color_options" 
+                               id="wire-colors" placeholder="ألوان السلك">
+                        <label for="wire-colors">ألوان السلك المتاحة</label>
+                        <small class="text-muted">مثال: أسود، أبيض، فضي، ذهبي</small>
                     </div>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-6">
                     <div class="form-floating">
-                        <input type="number" class="form-control" name="setup_cost" 
-                               id="setup-cost" placeholder="تكلفة التجهيز" min="0" step="0.01" value="0">
-                        <label for="setup-cost">تكلفة التجهيز ({{ currency_symbol }})</label>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="form-floating">
-                        <input type="number" class="form-control" name="min_quantity" 
-                               id="min-quantity" placeholder="الحد الأدنى" min="1" value="100" required>
-                        <label for="min-quantity">الحد الأدنى للكمية *</label>
+                        <input type="text" class="form-control" name="cover_material_options" 
+                               id="cover-materials" placeholder="خامات الغلاف">
+                        <label for="cover-materials">خامات الغلاف المتاحة</label>
+                        <small class="text-muted">مثال: PVC، جلد صناعي، كرتون مقوى</small>
                     </div>
                 </div>
             </div>
@@ -121,14 +141,6 @@
 </div>
 
 <script>
-// تحديث السعر الأساسي من سعر الوحدة
-document.getElementById('price-per-unit').addEventListener('input', function() {
-    const basePriceField = document.getElementById('base-price');
-    if (!basePriceField.value) {
-        basePriceField.value = this.value;
-    }
-});
-
 // تحديث اسم الخدمة تلقائياً
 document.getElementById('packaging-type').addEventListener('change', function() {
     const nameField = document.getElementById('service-name');
@@ -140,22 +152,27 @@ document.getElementById('packaging-type').addEventListener('change', function() 
     }
 });
 
-// تحديث الحد الأدنى حسب نوع التقفيل
+// تحديث الأوقات حسب نوع التقفيل
 document.getElementById('packaging-type').addEventListener('change', function() {
-    const minQuantityField = document.getElementById('min-quantity');
+    const setupTimeField = document.getElementById('setup-time');
+    const turnaroundTimeField = document.getElementById('turnaround-time');
     const packagingType = this.value;
     
-    // تحديد الحد الأدنى المناسب لكل نوع
-    const minQuantities = {
-        'lamination': 100,
-        'cellophane': 500,
-        'shrink_wrap': 50,
-        'box_packaging': 10,
-        'custom_packaging': 1
+    // تحديد الأوقات المناسبة لكل نوع
+    const timings = {
+        'stapling': { setup: 10, turnaround: 2 },
+        'wire_binding': { setup: 20, turnaround: 4 },
+        'spiral_binding': { setup: 15, turnaround: 3 },
+        'perfect_binding': { setup: 30, turnaround: 8 },
+        'saddle_stitch': { setup: 15, turnaround: 3 },
+        'lamination': { setup: 20, turnaround: 4 },
+        'thermal_binding': { setup: 25, turnaround: 6 },
+        'comb_binding': { setup: 15, turnaround: 3 }
     };
     
-    if (packagingType && minQuantities[packagingType]) {
-        minQuantityField.value = minQuantities[packagingType];
+    if (packagingType && timings[packagingType]) {
+        setupTimeField.value = timings[packagingType].setup;
+        turnaroundTimeField.value = timings[packagingType].turnaround;
     }
 });
 </script>

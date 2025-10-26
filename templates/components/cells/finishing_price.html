@@ -1,0 +1,13 @@
+{% comment %}
+عرض سعر الوحدة من finishing_details
+{% endcomment %}
+
+{% load pricing_filters %}
+
+{% if value and value.price_per_unit %}
+    <span class="fw-bold text-success">
+        {{ value.price_per_unit|floatformat:2 }} ر.س
+    </span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

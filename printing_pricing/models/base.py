@@ -98,7 +98,7 @@ class CalculationType(models.TextChoices):
     """
     MATERIAL = 'material', _('تكلفة المواد')
     PRINTING = 'printing', _('تكلفة الطباعة')
-    FINISHING = 'finishing', _('تكلفة التشطيبات')
+    FINISHING = 'finishing', _('تكلفة خدمات الطباعة')
     DESIGN = 'design', _('تكلفة التصميم')
     TOTAL = 'total', _('التكلفة الإجمالية')
 

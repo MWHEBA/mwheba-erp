@@ -50,7 +50,7 @@ class Command(BaseCommand):
             ('اتجاهات الطباعة', PrintDirection),
             ('جوانب الطباعة', PrintSide),
             ('أنواع التغطية', CoatingType),
-            ('أنواع التشطيب', FinishingType),
+            ('أنواع خدمات الطباعة', FinishingType),
             ('أنواع المنتجات', ProductType),
             ('مقاسات المنتجات', ProductSize),
             ('مقاسات القطع', PieceSize),

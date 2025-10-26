@@ -281,7 +281,7 @@ class Command(BaseCommand):
         self.stdout.write(f'أنواع التغطية: تم نقل {migrated_count} من {len(old_data)} عنصر')
 
     def _migrate_finishing_types(self, dry_run):
-        """نقل أنواع التشطيب"""
+        """نقل أنواع خدمات الطباعة"""
         old_data = self._execute_query("SELECT * FROM pricing_finishingtype")
         
         migrated_count = 0
@@ -299,7 +299,7 @@ class Command(BaseCommand):
             else:
                 migrated_count += 1
         
-        self.stdout.write(f'أنواع التشطيب: تم نقل {migrated_count} من {len(old_data)} عنصر')
+        self.stdout.write(f'أنواع خدمات الطباعة: تم نقل {migrated_count} من {len(old_data)} عنصر')
 
     def _migrate_product_types(self, dry_run):
         """نقل أنواع المنتجات"""

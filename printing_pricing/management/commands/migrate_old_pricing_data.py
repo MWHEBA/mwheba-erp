@@ -248,7 +248,7 @@ class Command(BaseCommand):
         self.stdout.write(f'تم نقل {len(old_data)} نوع تغطية')
 
     def _migrate_finishing_types(self, old_conn, dry_run):
-        """نقل أنواع التشطيب"""
+        """نقل أنواع خدمات الطباعة"""
         old_data = self._get_table_data(old_conn, 'finishing_types')
         
         for row in old_data:

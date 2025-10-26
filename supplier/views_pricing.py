@@ -487,26 +487,3 @@ def edit_specialized_service(request, supplier_id, service_id):
     return render(request, "supplier/services/edit_specialized_service.html", context)
 
 
-@login_required
-def delete_specialized_service(request, supplier_id, service_id):
-    """حذف خدمة متخصصة"""
-
-    from .models import Supplier, SpecializedService
-
-    supplier = get_object_or_404(Supplier, pk=supplier_id)
-    service = get_object_or_404(SpecializedService, pk=service_id, supplier=supplier)
-
-    if request.method == "POST":
-        service_name = service.name
-        service.delete()
-        messages.success(request, f'تم حذف الخدمة "{service_name}" بنجاح')
-        return redirect("supplier:supplier_services_detail", pk=supplier.pk)
-
-    context = {
-        "supplier": supplier,
-        "service": service,
-        "page_title": f"حذف الخدمة - {service.name}",
-        "page_icon": "fas fa-trash",
-    }
-
-    return render(request, "supplier/services/delete_specialized_service.html", context)

@@ -382,6 +382,22 @@ def chart_of_accounts_list(request):
                 children_query = children_query.filter(is_active=True)
 
             for child in children_query.order_by("code"):
+                # إخفاء حسابات الموردين والعملاء النهائية ذات الأرصدة الصفرية
+                if child.is_leaf:
+                    child_balance = child.get_balance() or Decimal("0")
+                    # فحص إذا كان الحساب تحت العملاء أو الموردين
+                    is_customer_or_supplier = False
+                    parent = child.parent
+                    while parent:
+                        if any(keyword in parent.name for keyword in ['العملاء', 'الموردون', 'عملاء', 'موردين', 'موردون']):
+                            is_customer_or_supplier = True
+                            break
+                        parent = parent.parent
+                    
+                    # تخطي الحسابات النهائية ذات الرصيد الصفري تحت العملاء والموردين
+                    if is_customer_or_supplier and child_balance == 0:
+                        continue
+                
                 children_data.append(build_tree_data(child, level + 1))
 
             return {
@@ -499,6 +515,21 @@ def chart_tree_api(request):
             tree_data = []
             for child in children:
                 balance = child.get_balance() or Decimal("0")
+                
+                # إخفاء حسابات الموردين والعملاء النهائية ذات الأرصدة الصفرية
+                if child.is_leaf and balance == 0:
+                    # فحص إذا كان الحساب تحت العملاء أو الموردين
+                    is_customer_or_supplier = False
+                    parent = account
+                    while parent:
+                        if any(keyword in parent.name for keyword in ['العملاء', 'الموردون', 'عملاء', 'موردين', 'موردون']):
+                            is_customer_or_supplier = True
+                            break
+                        parent = parent.parent if hasattr(parent, 'parent') else None
+                    
+                    if is_customer_or_supplier:
+                        continue
+                
                 tree_data.append(
                     {
                         "id": child.id,
@@ -527,6 +558,22 @@ def chart_tree_api(request):
                     for child in account.children.filter(is_active=True).order_by(
                         "code"
                     ):
+                        # إخفاء حسابات الموردين والعملاء النهائية ذات الأرصدة الصفرية
+                        if child.is_leaf:
+                            child_balance = child.get_balance() or Decimal("0")
+                            if child_balance == 0:
+                                # فحص إذا كان الحساب تحت العملاء أو الموردين
+                                is_customer_or_supplier = False
+                                parent = child.parent
+                                while parent:
+                                    if any(keyword in parent.name for keyword in ['العملاء', 'الموردون', 'عملاء', 'موردين', 'موردون']):
+                                        is_customer_or_supplier = True
+                                        break
+                                    parent = parent.parent
+                                
+                                if is_customer_or_supplier:
+                                    continue
+                        
                         children_data.append(build_full_tree(child, level + 1))
 
                     return {

@@ -258,6 +258,60 @@ def split(value, delimiter):
     return []
 
 
+@register.filter
+def currency_format(value, decimal_places=2):
+    """
+    تنسيق الأرقام كعملة مع إخفاء العلامة العشرية للأرقام الصحيحة وإضافة علامة الألف
+    مثال: 1000 -> 1,000 | 1000.5 -> 1,000.5 | 1000.00 -> 1,000
+    """
+    if value is None or value == "":
+        return "0"
+    
+    try:
+        # تحويل القيمة إلى Decimal للحصول على دقة أفضل
+        if isinstance(value, str):
+            # إزالة الفواصل الموجودة مسبقاً
+            value = value.replace(',', '')
+        
+        decimal_value = Decimal(str(value))
+        
+        # التحقق من أن الرقم صحيح (لا يحتوي على كسور)
+        if decimal_value == decimal_value.to_integral_value():
+            # رقم صحيح - عرض بدون علامة عشرية
+            formatted = f"{int(decimal_value):,}"
+        else:
+            # رقم عشري - عرض مع العلامة العشرية
+            if decimal_places == 0:
+                # إذا طُلب عدم عرض أي منازل عشرية
+                formatted = f"{int(decimal_value):,}"
+            else:
+                # عرض المنازل العشرية المطلوبة مع إزالة الأصفار الزائدة
+                formatted_float = f"{float(decimal_value):.{decimal_places}f}"
+                # إزالة الأصفار الزائدة من النهاية
+                if '.' in formatted_float:
+                    formatted_float = formatted_float.rstrip('0').rstrip('.')
+                # إضافة فواصل الآلاف
+                if '.' in formatted_float:
+                    integer_part, decimal_part = formatted_float.split('.')
+                    formatted = f"{int(integer_part):,}.{decimal_part}"
+                else:
+                    formatted = f"{int(formatted_float):,}"
+        
+        return formatted
+        
+    except (ValueError, TypeError, Exception):
+        return str(value)
+
+
+@register.filter  
+def smart_float(value, decimal_places=2):
+    """
+    فلتر ذكي للأرقام - يخفي العلامة العشرية للأرقام الصحيحة ويضيف فواصل الآلاف
+    بديل محسن لـ floatformat
+    """
+    return currency_format(value, decimal_places)
+
+
 @register.simple_tag
 def get_coating_type_name(coating_type_id):
     """

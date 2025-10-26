@@ -341,7 +341,7 @@ class CoatingTypeForm(forms.ModelForm):
 
 
 class FinishingTypeForm(forms.ModelForm):
-    """نموذج أنواع التشطيب"""
+    """نموذج أنواع خدمات الطباعة"""
 
     class Meta:
         model = FinishingType
@@ -354,12 +354,12 @@ class FinishingTypeForm(forms.ModelForm):
             'description': forms.Textarea(attrs={
                 'class': 'form-control',
                 'rows': 3,
-                'placeholder': 'وصف اختياري لنوع التشطيب'
+                'placeholder': 'وصف اختياري لنوع خدمات الطباعة'
             }),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         labels = {
-            'name': _('اسم نوع التشطيب'),
+            'name': _('اسم نوع خدمات الطباعة'),
             'description': _('الوصف'),
             'is_active': _('نشط'),
         }

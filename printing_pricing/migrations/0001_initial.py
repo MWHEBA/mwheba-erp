@@ -85,7 +85,7 @@ class Migration(migrations.Migration):
                         choices=[
                             ("material", "تكلفة المواد"),
                             ("printing", "تكلفة الطباعة"),
-                            ("finishing", "تكلفة التشطيبات"),
+                            ("finishing", "تكلفة خدمات الطباعة"),
                             ("design", "تكلفة التصميم"),
                             ("total", "التكلفة الإجمالية"),
                         ],
@@ -307,7 +307,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "name",
-                    models.CharField(max_length=100, verbose_name="اسم نوع التشطيب"),
+                    models.CharField(max_length=100, verbose_name="اسم نوع خدمات الطباعة"),
                 ),
                 ("description", models.TextField(blank=True, verbose_name="الوصف")),
                 ("is_active", models.BooleanField(default=True, verbose_name="نشط")),
@@ -319,8 +319,8 @@ class Migration(migrations.Migration):
                 ),
             ],
             options={
-                "verbose_name": "نوع التشطيب",
-                "verbose_name_plural": "أنواع التشطيب",
+                "verbose_name": "نوع خدمات الطباعة",
+                "verbose_name_plural": "أنواع خدمات الطباعة",
                 "ordering": ["name"],
             },
         ),
@@ -747,7 +747,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.MinValueValidator(Decimal("0.00"))
                         ],
-                        verbose_name="تكلفة التشطيبات",
+                        verbose_name="تكلفة خدمات الطباعة",
                     ),
                 ),
                 (
@@ -1558,7 +1558,7 @@ class Migration(migrations.Migration):
                         validators=[
                             django.core.validators.MinValueValidator(Decimal("0.00"))
                         ],
-                        verbose_name="تكلفة التشطيب",
+                        verbose_name="تكلفة خدمات الطباعة",
                     ),
                 ),
                 (

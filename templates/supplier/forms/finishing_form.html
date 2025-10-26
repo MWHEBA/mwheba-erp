@@ -1,237 +1,110 @@
-<!-- نموذج خدمات الطباعة (التشطيب) -->
+<!-- نموذج خدمات الطباعة -->
 <div class="finishing-service-form">
-    <!-- الحقول الأساسية -->
-    <div class="row g-3 mb-4">
-        <div class="col-md-6">
+    <!-- اسم الخدمة (تلقائي) -->
+    <div class="row g-3 mb-3">
+        <div class="col-md-12">
             <div class="form-floating">
                 <input type="text" class="form-control" name="name" id="service-name" 
-                       placeholder="اسم الخدمة" required>
-                <label for="service-name">اسم الخدمة *</label>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-floating">
-                <select name="finishing_type" class="form-select" id="finishing-type" required>
-                    <option value="">اختر نوع الخدمة</option>
-                    {% for choice in form_choices.finishing_types %}
-                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
-                    {% endfor %}
-                </select>
-                <label for="finishing-type">نوع الخدمة *</label>
+                       placeholder="اسم الخدمة" required readonly
+                       style="background-color: #f8f9fa;"
+                       value="{% if service %}{{ service.name }}{% endif %}">
+                <label for="service-name">اسم الخدمة (تلقائي) *</label>
             </div>
         </div>
     </div>
 
+    <!-- الصف الأول: نوع الخدمة وطريقة الحساب -->
     <div class="row g-3 mb-4">
+        <div class="col-md-6">
+            <div class="form-floating">
+                <select name="finishing_type" class="form-select" id="finishing-type" required>
+                    <option value="">اختر نوع خدمة الطباعة</option>
+                    {% for value, label in form_choices.finishing_types %}
+                        <option value="{{ value }}" {% if service and service.finishing_details and service.finishing_details.finishing_type_id == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <label for="finishing-type">نوع خدمة الطباعة *</label>
+            </div>
+        </div>
         <div class="col-md-6">
             <div class="form-floating">
                 <select name="calculation_method" class="form-select" id="calculation-method" required>
                     <option value="">اختر طريقة الحساب</option>
-                    {% for choice in form_choices.calculation_methods %}
-                        <option value="{{ choice.0 }}">{{ choice.1 }}</option>
-                    {% endfor %}
+                    <option value="per_piece" {% if service and service.finishing_details and service.finishing_details.calculation_method == 'per_piece' %}selected{% endif %}>بالقطعة</option>
+                    <option value="per_thousand" {% if service and service.finishing_details and service.finishing_details.calculation_method == 'per_thousand' %}selected{% endif %}>بالألف</option>
+                    <option value="per_square_meter" {% if service and service.finishing_details and service.finishing_details.calculation_method == 'per_square_meter' %}selected{% endif %}>بالمتر المربع</option>
+                    <option value="per_sheet" {% if service and service.finishing_details and service.finishing_details.calculation_method == 'per_sheet' %}selected{% endif %}>بالفرخ</option>
+                    <option value="per_hour" {% if service and service.finishing_details and service.finishing_details.calculation_method == 'per_hour' %}selected{% endif %}>بالساعة</option>
                 </select>
                 <label for="calculation-method">طريقة الحساب *</label>
             </div>
         </div>
-        <div class="col-md-6">
-            <div class="form-floating">
-                <input type="number" class="form-control" name="price_per_unit" 
-                       id="price-per-unit" placeholder="سعر الوحدة" min="0" required>
-                <label for="price-per-unit">سعر الوحدة *</label>
-            </div>
-        </div>
     </div>
 
-    <!-- أوقات العمل -->
-    <div class="alert alert-primary">
-        <h6 class="alert-heading">
-            <i class="fas fa-clock me-2"></i>
-            أوقات العمل والتسليم
-        </h6>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-6">
-            <div class="form-floating">
-                <input type="number" class="form-control" name="setup_time_minutes" 
-                       id="setup-time" placeholder="وقت التجهيز" min="0" value="0">
-                <label for="setup-time">وقت التجهيز (دقائق)</label>
-            </div>
-        </div>
-        <div class="col-md-6">
-            <div class="form-floating">
-                <input type="number" class="form-control" name="turnaround_time_hours" 
-                       id="turnaround-time" placeholder="وقت التسليم" min="1" value="24" required>
-                <label for="turnaround-time">وقت التسليم (ساعات) *</label>
-            </div>
-        </div>
-    </div>
-
-    <!-- الحقول الأساسية المشتركة -->
+    <!-- الصف الثاني: التسعير والكمية (3 حقول) -->
     <div class="row g-3 mb-4">
         <div class="col-md-4">
             <div class="form-floating">
                 <input type="number" class="form-control" name="base_price" 
-                       id="base-price" placeholder="السعر الأساسي" min="0" required>
+                       id="base-price" placeholder="السعر الأساسي" min="0" step="0.01" required
+                       value="{% if service and service.finishing_details %}{{ service.finishing_details.price_per_unit }}{% endif %}">
                 <label for="base-price">السعر الأساسي ({{ currency_symbol }}) *</label>
             </div>
         </div>
         <div class="col-md-4">
             <div class="form-floating">
                 <input type="number" class="form-control" name="setup_cost" 
-                       id="setup-cost" placeholder="تكلفة التجهيز" min="0" value="0">
+                       id="setup-cost" placeholder="تكلفة التجهيز" min="0" step="0.01"
+                       value="{% if service %}{{ service.setup_cost|default:'' }}{% endif %}">
                 <label for="setup-cost">تكلفة التجهيز ({{ currency_symbol }})</label>
             </div>
         </div>
         <div class="col-md-4">
             <div class="form-floating">
                 <input type="number" class="form-control" name="min_quantity" 
-                       id="min-quantity" placeholder="الحد الأدنى" min="1" value="1" required>
-                <label for="min-quantity">الحد الأدنى للكمية *</label>
+                       id="min-quantity" placeholder="الحد الأدنى" min="1"
+                       value="">
+                <label for="min-quantity">الحد الأدنى للكمية</label>
             </div>
         </div>
     </div>
 
+    <!-- الصف الثالث: الوصف والحالة -->
     <div class="row g-3 mb-4">
         <div class="col-md-8">
             <div class="form-floating">
                 <textarea class="form-control" name="description" id="description" 
-                          placeholder="وصف الخدمة" style="height: 80px;"></textarea>
-                <label for="description">وصف الخدمة</label>
+                          placeholder="وصف الخدمة" style="height: 70px;">{% if service %}{{ service.description }}{% endif %}</textarea>
+                <label for="description">وصف الخدمة (اختياري)</label>
             </div>
         </div>
-        <div class="col-md-4">
-            <div class="form-floating">
-                <textarea class="form-control" name="notes" id="notes" 
-                          placeholder="ملاحظات" style="height: 80px;"></textarea>
-                <label for="notes">ملاحظات</label>
-            </div>
-        </div>
-    </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-12">
+        <div class="col-md-4 d-flex align-items-center justify-content-center">
             <div class="form-check form-switch">
                 <input class="form-check-input" type="checkbox" name="is_active" 
-                       id="is-active" checked>
-                <label class="form-check-label" for="is-active">
-                    الخدمة نشطة
+                       id="is-active" {% if not service or service.is_active %}checked{% endif %}>
+                <label class="form-check-label fw-medium" for="is-active">
+                    الخدمة نشطة ومتاحة
                 </label>
-            </div>
-        </div>
-    </div>
-
-    <!-- معلومات إضافية -->
-    <div class="alert alert-light border">
-        <h6 class="alert-heading">
-            <i class="fas fa-info-circle text-primary me-2"></i>
-            معلومات مهمة عن خدمات الطباعة
-        </h6>
-        <ul class="mb-0 small">
-            <li><strong>بالقطعة:</strong> سعر ثابت لكل قطعة</li>
-            <li><strong>بالألف:</strong> سعر لكل 1000 قطعة</li>
-            <li><strong>بالساعة:</strong> سعر العمل بالساعة</li>
-            <li><strong>بالمتر:</strong> سعر لكل متر طولي</li>
-        </ul>
-    </div>
-
-    <!-- حاسبة سريعة -->
-    <div class="card mt-4">
-        <div class="card-header bg-light">
-            <h6 class="mb-0">
-                <i class="fas fa-calculator me-2"></i>
-                حاسبة سريعة للتكلفة
-            </h6>
-        </div>
-        <div class="card-body">
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">الكمية المطلوبة</label>
-                    <input type="number" class="form-control" id="calc-quantity" 
-                           placeholder="الكمية" min="1" value="100">
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">طريقة الحساب</label>
-                    <select class="form-select" id="calc-method">
-                        <option value="per_piece">بالقطعة</option>
-                        <option value="per_thousand">بالألف</option>
-                    </select>
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">التكلفة المتوقعة</label>
-                    <input type="text" class="form-control bg-light" id="calc-result" 
-                           placeholder="سيتم الحساب تلقائياً" readonly>
-                </div>
             </div>
         </div>
     </div>
 </div>
 
 <script>
-// تحديث السعر الأساسي من سعر الوحدة
-document.getElementById('price-per-unit').addEventListener('input', function() {
-    const basePriceField = document.getElementById('base-price');
-    if (!basePriceField.value) {
-        basePriceField.value = this.value;
-    }
-    calculateQuickCost();
-});
-
-// حاسبة سريعة
-function calculateQuickCost() {
-    const quantity = parseInt(document.getElementById('calc-quantity').value) || 0;
-    const method = document.getElementById('calc-method').value;
-    const pricePerUnit = parseFloat(document.getElementById('price-per-unit').value) || 0;
-    const setupCost = parseFloat(document.getElementById('setup-cost').value) || 0;
+// تحديث اسم الخدمة تلقائياً من نوع خدمة الطباعة
+function updateServiceName() {
+    const nameField = document.getElementById('service-name');
+    const finishingTypeField = document.getElementById('finishing-type');
     
-    if (quantity > 0 && pricePerUnit > 0) {
-        let totalCost = setupCost;
-        
-        switch (method) {
-            case 'per_piece':
-                totalCost += quantity * pricePerUnit;
-                break;
-            case 'per_thousand':
-                totalCost += Math.ceil(quantity / 1000) * pricePerUnit;
-                break;
-            case 'per_hour':
-                // افتراض ساعة واحدة لكل 100 قطعة
-                const hours = Math.ceil(quantity / 100);
-                totalCost += hours * pricePerUnit;
-                break;
-            case 'per_meter':
-                // افتراض متر واحد لكل 10 قطع
-                const meters = Math.ceil(quantity / 10);
-                totalCost += meters * pricePerUnit;
-                break;
-        }
-        
-        const costPerPiece = totalCost / quantity;
-        document.getElementById('calc-result').value = 
-            `${totalCost.toFixed(2)} {{ currency_symbol }} (${costPerPiece.toFixed(3)} {{ currency_symbol }}/قطعة)`;
+    if (finishingTypeField.value) {
+        const selectedOption = finishingTypeField.options[finishingTypeField.selectedIndex];
+        // استخدام نص نوع الخدمة مباشرة كاسم للخدمة
+        nameField.value = `خدمة ${selectedOption.text}`;
+    } else {
+        nameField.value = '';
     }
 }
 
-// ربط الأحداث
-document.getElementById('calc-quantity').addEventListener('input', calculateQuickCost);
-document.getElementById('calc-method').addEventListener('change', calculateQuickCost);
-document.getElementById('setup-cost').addEventListener('input', calculateQuickCost);
-
-// تحديث طريقة الحساب في الحاسبة عند تغيير النموذج
-document.getElementById('calculation-method').addEventListener('change', function() {
-    document.getElementById('calc-method').value = this.value;
-    calculateQuickCost();
-});
-
-// تحديث اسم الخدمة تلقائياً
-document.getElementById('finishing-type').addEventListener('change', function() {
-    const nameField = document.getElementById('service-name');
-    if (!nameField.value) {
-        const selectedOption = this.options[this.selectedIndex];
-        if (selectedOption.value) {
-            nameField.value = `خدمة ${selectedOption.text}`;
-        }
-    }
-});
+// ربط الحدث
+document.getElementById('finishing-type').addEventListener('change', updateServiceName);
 </script>

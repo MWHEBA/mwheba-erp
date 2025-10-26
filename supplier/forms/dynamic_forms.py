@@ -9,6 +9,7 @@ from ..models import (
     PaperServiceDetails,
     DigitalPrintingDetails,
     FinishingServiceDetails,
+    PackagingServiceDetails,
     OffsetPrintingDetails,
     PlateServiceDetails,
     OutdoorPrintingDetails,
@@ -28,11 +29,11 @@ class ServiceFormFactory:
             "offset_printing": OffsetPrintingForm,
             "digital_printing": DigitalPrintingForm,
             "finishing": FinishingServiceForm,
+            "packaging": PackagingServiceForm,
             "plates": PlateServiceForm,
             "outdoor": OutdoorPrintingForm,
             "laser": LaserServiceForm,
             "vip_gifts": VIPGiftForm,
-            "packaging": GenericServiceForm,
             "other": GenericServiceForm,
         }
 
@@ -389,6 +390,10 @@ class ServiceFormFactory:
                 "finishing_types": FinishingServiceDetails.FINISHING_TYPE_CHOICES,
                 "calculation_methods": FinishingServiceDetails.CALCULATION_METHOD_CHOICES,
             },
+            "packaging": {
+                "packaging_types": PackagingServiceDetails.PACKAGING_TYPE_CHOICES,
+                "calculation_methods": PackagingServiceDetails.CALCULATION_METHOD_CHOICES,
+            },
             # تم إزالة plates - يستخدم النظام الموحد الآن
             "outdoor": {
                 "material_types": OutdoorPrintingDetails.MATERIAL_TYPE_CHOICES,
@@ -644,17 +649,58 @@ class DigitalPrintingForm(BaseServiceForm):
 
 
 class FinishingServiceForm(BaseServiceForm):
-    """نموذج خدمات الطباعة (التشطيب)"""
+    """نموذج خدمات الطباعة (قص، ريجة، تكسير)"""
 
-    finishing_type = forms.ChoiceField(
+    finishing_type = forms.ModelChoiceField(
         label=_("نوع الخدمة"),
-        choices=FinishingServiceDetails.FINISHING_TYPE_CHOICES,
+        queryset=None,  # سيتم تعيينه في __init__
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
     calculation_method = forms.ChoiceField(
         label=_("طريقة الحساب"),
         choices=FinishingServiceDetails.CALCULATION_METHOD_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # جلب أنواع خدمات الطباعة من الإعدادات
+        from printing_pricing.models.settings_models import FinishingType
+        self.fields['finishing_type'].queryset = FinishingType.objects.filter(is_active=True).order_by('name')
+
+    price_per_unit = forms.DecimalField(
+        label=_("سعر الوحدة"),
+        max_digits=10,
+        decimal_places=2,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
+    )
+
+    setup_time_minutes = forms.IntegerField(
+        label=_("وقت التجهيز (دقائق)"),
+        initial=0,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "0"}),
+    )
+
+    turnaround_time_hours = forms.IntegerField(
+        label=_("وقت التسليم (ساعات)"),
+        initial=24,
+        widget=forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+    )
+
+
+class PackagingServiceForm(BaseServiceForm):
+    """نموذج خدمات التقفيل (دبوس، بشر، سلك)"""
+
+    packaging_type = forms.ChoiceField(
+        label=_("نوع التقفيل"),
+        choices=PackagingServiceDetails.PACKAGING_TYPE_CHOICES,
+        widget=forms.Select(attrs={"class": "form-select"}),
+    )
+
+    calculation_method = forms.ChoiceField(
+        label=_("طريقة الحساب"),
+        choices=PackagingServiceDetails.CALCULATION_METHOD_CHOICES,
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
@@ -675,6 +721,31 @@ class FinishingServiceForm(BaseServiceForm):
         label=_("وقت التسليم (ساعات)"),
         initial=24,
         widget=forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+    )
+
+    max_thickness_mm = forms.DecimalField(
+        label=_("أقصى سُمك (مم)"),
+        max_digits=6,
+        decimal_places=2,
+        required=False,
+        widget=forms.NumberInput(attrs={"class": "form-control", "step": "0.1"}),
+        help_text=_("أقصى سُمك للكتاب أو المنتج")
+    )
+
+    wire_color_options = forms.CharField(
+        label=_("ألوان السلك المتاحة"),
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "أسود، أبيض، فضي"}),
+        help_text=_("مثال: أسود، أبيض، فضي، ذهبي")
+    )
+
+    cover_material_options = forms.CharField(
+        label=_("خامات الغلاف المتاحة"),
+        max_length=200,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "placeholder": "PVC، جلد صناعي"}),
+        help_text=_("مثال: PVC، جلد صناعي، كرتون مقوى")
     )
 
 

@@ -224,21 +224,12 @@ class PrintingServiceForm(forms.Form):
 
 class FinishingServiceForm(forms.Form):
     """
-    نموذج خدمات التشطيبات
+    نموذج خدمات الطباعة
     """
     FINISHING_CHOICES = [
-        ('cutting', _('تقطيع')),
-        ('folding', _('طي')),
-        ('binding', _('تجليد')),
-        ('lamination', _('تقفيل')),
+        ('finishing', _('خدمات الطباعة')),  # قص، ريجة، تكسير
+        ('packaging', _('خدمات التقفيل')),  # دبوس، بشر، سلك، تجليد
         ('coating', _('تغطية')),
-        ('embossing', _('بصمة')),
-        ('perforation', _('ثقب')),
-        ('numbering', _('ترقيم')),
-        ('die_cutting', _('قص بالاستنسل')),
-        ('gluing', _('لصق')),
-        ('stitching', _('دباسة')),
-        ('spiral_binding', _('تجليد حلزوني'))
     ]
     
     finishing_type = forms.ChoiceField(
@@ -297,7 +288,7 @@ class FinishingServiceForm(forms.Form):
     )
 
     def calculate_finishing_cost(self):
-        """حساب تكلفة التشطيبات"""
+        """حساب تكلفة خدمات الطباعة"""
         if self.is_valid():
             data = self.cleaned_data
             

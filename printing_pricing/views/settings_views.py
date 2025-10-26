@@ -52,7 +52,7 @@ class AjaxDeleteMixin:
 
 from ..models import (
     PaperType, PaperSize, PaperWeight, PaperOrigin,
-    PrintDirection, PrintSide, CoatingType, FinishingType,
+    PrintDirection, PrintSide, CoatingType, FinishingType, PackagingType,
     PieceSize, PlateSize, ProductType, ProductSize, VATSetting,
     OffsetMachineType, OffsetSheetSize, DigitalMachineType, DigitalSheetSize, SystemSetting
 )
@@ -634,10 +634,10 @@ class CoatingTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
     success_url = reverse_lazy('printing_pricing:coating_type_list')
 
 
-# ==================== عروض أنواع التشطيب ====================
+# ==================== عروض أنواع خدمات الطباعة ====================
 
 class FinishingTypeListView(LoginRequiredMixin, ListView):
-    """عرض قائمة أنواع التشطيب"""
+    """عرض قائمة أنواع خدمات الطباعة"""
     model = FinishingType
     template_name = 'printing_pricing/settings/finishing_types/list.html'
     context_object_name = 'finishing_types'
@@ -645,7 +645,7 @@ class FinishingTypeListView(LoginRequiredMixin, ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['page_title'] = _('أنواع التشطيب')
+        context['page_title'] = _('أنواع خدمات الطباعة')
         context['page_icon'] = 'fas fa-magic'
         context['breadcrumb_items'] = [
             {
@@ -659,7 +659,7 @@ class FinishingTypeListView(LoginRequiredMixin, ListView):
                 'icon': 'fas fa-cog'
             },
             {
-                'title': _('أنواع التشطيب'),
+                'title': _('أنواع خدمات الطباعة'),
                 'url': '',
                 'icon': 'fas fa-magic',
                 'active': True
@@ -714,10 +714,90 @@ class FinishingTypeUpdateView(LoginRequiredMixin, UpdateView):
 
 
 class FinishingTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
-    """عرض حذف نوع التشطيب"""
+    """عرض حذف نوع خدمة الطباعة"""
     model = FinishingType
     template_name = 'printing_pricing/settings/finishing_types/delete_modal.html'
     success_url = reverse_lazy('printing_pricing:finishing_type_list')
+
+
+# ==================== عروض أنواع التقفيل ====================
+
+class PackagingTypeListView(LoginRequiredMixin, ListView):
+    """عرض قائمة أنواع التقفيل"""
+    model = PackagingType
+    template_name = 'printing_pricing/settings/packaging_types/list.html'
+    context_object_name = 'packaging_types'
+    paginate_by = 20
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = _('أنواع التقفيل')
+        context['page_icon'] = 'fas fa-box'
+        context['breadcrumb_items'] = [
+            {
+                'title': _('الرئيسية'),
+                'url': '/',
+                'icon': 'fas fa-home'
+            },
+            {
+                'title': _('الإعدادات'),
+                'url': reverse_lazy('printing_pricing:settings_home'),
+                'icon': 'fas fa-cog'
+            },
+            {
+                'title': _('أنواع التقفيل'),
+                'url': '',
+                'icon': 'fas fa-box',
+                'active': True
+            }
+        ]
+        return context
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        search = self.request.GET.get('search')
+        if search:
+            queryset = queryset.filter(
+                Q(name__icontains=search) | Q(description__icontains=search)
+            )
+        return queryset.order_by('name')
+
+
+class PackagingTypeCreateView(LoginRequiredMixin, CreateView):
+    """عرض إنشاء نوع تقفيل جديد"""
+    model = PackagingType
+    template_name = 'printing_pricing/settings/packaging_types/form_modal.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('printing_pricing:packaging_type_list')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم إضافة نوع التقفيل بنجاح')})
+        messages.success(self.request, _('تم إضافة نوع التقفيل بنجاح'))
+        return response
+
+
+class PackagingTypeUpdateView(LoginRequiredMixin, UpdateView):
+    """عرض تحديث نوع التقفيل"""
+    model = PackagingType
+    template_name = 'printing_pricing/settings/packaging_types/form_modal.html'
+    fields = ['name', 'description', 'is_active']
+    success_url = reverse_lazy('printing_pricing:packaging_type_list')
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم تحديث نوع التقفيل بنجاح')})
+        messages.success(self.request, _('تم تحديث نوع التقفيل بنجاح'))
+        return response
+
+
+class PackagingTypeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
+    """عرض حذف نوع التقفيل"""
+    model = PackagingType
+    template_name = 'printing_pricing/settings/packaging_types/delete_modal.html'
+    success_url = reverse_lazy('printing_pricing:packaging_type_list')
 
 
 # ==================== عروض مقاسات القطع ====================
@@ -835,6 +915,7 @@ def settings_home(request):
         'print_sides_count': PrintSide.objects.filter(is_active=True).count(),
         'coating_types_count': CoatingType.objects.filter(is_active=True).count(),
         'finishing_types_count': FinishingType.objects.filter(is_active=True).count(),
+        'packaging_types_count': PackagingType.objects.filter(is_active=True).count(),
         'piece_sizes_count': PieceSize.objects.filter(is_active=True).count(),
         'plate_sizes_count': PlateSize.objects.filter(is_active=True).count(),
         'product_types_count': ProductType.objects.filter(is_active=True).count(),

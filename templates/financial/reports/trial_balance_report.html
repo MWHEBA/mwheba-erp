@@ -1,14 +1,15 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-
-{% block title %}{{ page_title }}{% endblock %}
+{% load pricing_filters %}
+{% load custom_filters %}
+{% load app_tags %}
+{% load utils_extras %}
 
 {% block content %}
 <div class="container-fluid">
     <!-- عنوان الصفحة (مضمن مباشرة) -->
     <div class="mb-4">
-        <!-- Breadcrumbs -->
         {% if breadcrumb_items %}
         <div class="mb-2">
             <nav aria-label="breadcrumb">
@@ -101,23 +102,23 @@
                                     <td>{{ item.account.name }}</td>
                                     <td class="text-end">
                                         {% if item.debit_balance %}
-                                            {{ item.debit_balance|floatformat:2 }}
+                                            {{ item.debit_balance|smart_float:2 }}
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
                                         {% if item.credit_balance %}
-                                            {{ item.credit_balance|floatformat:2 }}
+                                            {{ item.credit_balance|smart_float:2 }}
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
                                         {% if item.debit_balance %}
-                                            {{ item.debit_balance|floatformat:2 }} مدين
+                                            {{ item.debit_balance|smart_float:2 }} مدين
                                         {% elif item.credit_balance %}
-                                            {{ item.credit_balance|floatformat:2 }} دائن
+                                            {{ item.credit_balance|smart_float:2 }} دائن
                                         {% else %}
                                             -
                                         {% endif %}
@@ -126,8 +127,8 @@
                                 {% endfor %}
                                 <tr class="table-active fw-bold">
                                     <td colspan="2">الإجمالي</td>
-                                    <td class="text-end">{{ total_debit|floatformat:2 }}</td>
-                                    <td class="text-end">{{ total_credit|floatformat:2 }}</td>
+                                    <td class="text-end">{{ total_debit|smart_float:2 }}</td>
+                                    <td class="text-end">{{ total_credit|smart_float:2 }}</td>
                                     <td class="text-end">
                                         {% if total_debit == total_credit %}
                                             متوازن ✓

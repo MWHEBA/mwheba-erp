@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
 {% load custom_filters %}
 {% load app_tags %}
 
 {% block title %}{{ page_title|default:"التحليلات المالية" }}{% endblock %}
-
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
@@ -274,7 +274,8 @@
               <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stats-card-title">{% trans "الإيرادات الشهرية" %}</div>
-            <div class="stats-card-value">{{ monthly_income|default:"32500"|currency }}</div>
+            <div class="stats-card-value">{{ monthly_income|default:"32500"|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -299,7 +300,8 @@
               <i class="fas fa-file-invoice-dollar"></i>
             </div>
             <div class="stats-card-title">{% trans "متوسط قيمة الفاتورة" %}</div>
-            <div class="stats-card-value">{{ avg_invoice|default:"1250"|currency }}</div>
+            <div class="stats-card-value">{{ avg_invoice|default:"1250"|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

@@ -46,11 +46,18 @@ class ExternalAPIIntegration:
                     'gold': Decimal('8.00'),
                     'silver': Decimal('7.00')
                 },
-                'finishing': {
-                    'lamination': Decimal('0.10'),
-                    'binding': Decimal('2.00'),
+                'finishing': {  # خدمات الطباعة
                     'cutting': Decimal('0.05'),
-                    'folding': Decimal('0.03')
+                    'folding': Decimal('0.03'),
+                    'die_cutting': Decimal('0.15'),
+                    'perforation': Decimal('0.02')
+                },
+                'packaging': {  # خدمات التقفيل
+                    'lamination': Decimal('0.10'),
+                    'stapling': Decimal('0.05'),
+                    'wire_binding': Decimal('1.50'),
+                    'spiral_binding': Decimal('2.00'),
+                    'perfect_binding': Decimal('3.00')
                 }
             }
             
@@ -108,18 +115,21 @@ class ExternalAPIIntegration:
                     'offset_1color': Decimal('0.15'),
                     'offset_4color': Decimal('0.50')
                 },
-                'finishing': {
-                    'lamination': Decimal('0.10'),
-                    'binding_saddle': Decimal('0.50'),
-                    'binding_perfect': Decimal('2.00'),
-                    'cutting_straight': Decimal('0.10'),
-                    'cutting_die': Decimal('0.50')
+                'finishing': {  # خدمات الطباعة
+                    'cutting': Decimal('0.10'),
+                    'folding': Decimal('0.05'),
+                    'die_cutting': Decimal('0.20'),
+                    'perforation': Decimal('0.03')
                 },
-                'packaging': {
-                    'box_small': Decimal('5.00'),
-                    'box_medium': Decimal('8.00'),
-                    'box_large': Decimal('12.00'),
-                    'shrink_wrap': Decimal('0.20')
+                'packaging': {  # خدمات التقفيل
+                    'lamination': Decimal('0.10'),
+                    'stapling': Decimal('0.05'),
+                    'wire_binding': Decimal('0.50'),
+                    'spiral_binding': Decimal('1.00'),
+                    'perfect_binding': Decimal('2.00'),
+                    'saddle_stitch': Decimal('0.30'),
+                    'thermal_binding': Decimal('1.50'),
+                    'comb_binding': Decimal('0.80')
                 }
             }
             

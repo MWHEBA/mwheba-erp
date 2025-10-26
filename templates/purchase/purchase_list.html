@@ -2,7 +2,9 @@
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
+{% load app_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 {% load app_tags %}
 
 {% block title %}{{ page_title|default:"فواتير المشتريات" }}{% endblock %}
@@ -205,7 +207,8 @@
               <i class="fas fa-credit-card"></i>
             </div>
             <div class="stats-card-title">{% trans "القيمة الإجمالية" %}</div>
-            <div class="stats-card-value">{{ total_amount|currency }}</div>
+            <div class="stats-card-value">{{ total_amount|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

@@ -24,6 +24,7 @@ from .categories import FinancialCategory, CategoryBudget
 from .audit_trail import AuditTrail, PaymentAuditMixin
 from .partner_transactions import PartnerTransaction, PartnerBalance
 from .partner_settings import PartnerSettings, PartnerPermission, PartnerAuditLog
+from .loan_transactions import Loan, LoanPayment
 
 # استيراد آمن للنماذج الاختيارية
 try:
@@ -75,6 +76,9 @@ __all__ = [
     "PartnerSettings",
     "PartnerPermission",
     "PartnerAuditLog",
+    # نماذج القروض
+    "Loan",
+    "LoanPayment",
     # نماذج المعاملات المحسنة
     "FinancialTransaction",
     "ExpenseTransaction",

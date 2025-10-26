@@ -344,7 +344,26 @@
                                 <i class="fas fa-exchange-alt me-2"></i>{% trans "معاملات الشريك" %}
                             </a>
                         </li>
-                        <!-- تم حذف إعدادات الشراكة - النظام المبسط -->
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- إدارة القروض -->
+                        <li class="submenu-title">إدارة القروض</li>
+                        <li>
+                            <a href="{% url 'financial:loans_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "لوحة تحكم القروض" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:loans_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة القروض" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:loan_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة قرض جديد" %}
+                            </a>
+                        </li>
                         
                         <div class="nav-divider"></div>
                         

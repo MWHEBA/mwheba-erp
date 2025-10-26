@@ -62,10 +62,10 @@ class ServiceCalculator(BaseCalculator):
     
     def calculate_finishing_service_cost(self, service_data: Dict[str, Any]) -> Dict[str, Any]:
         """
-        حساب تكلفة خدمات التشطيب
+        حساب تكلفة خدمات الطباعة
         
         Args:
-            service_data: بيانات خدمة التشطيب
+            service_data: بيانات خدمات الطباعة
             
         Returns:
             Dict: نتائج الحساب
@@ -98,7 +98,7 @@ class ServiceCalculator(BaseCalculator):
         except Exception as e:
             return {
                 'success': False,
-                'error': _('خطأ في حساب تكلفة خدمة التشطيب: {}').format(str(e)),
+                'error': _('خطأ في حساب تكلفة خدمات الطباعة: {}').format(str(e)),
                 'details': str(e)
             }
     

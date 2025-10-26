@@ -72,9 +72,9 @@ python manage.py migrate_old_pricing_data --old-db-path /path/to/old/database.db
 - ✅ اتجاهات الطباعة (PrintDirection)
 - ✅ جوانب الطباعة (PrintSide)
 
-### إعدادات التشطيب
+### إعدادات خدمات الطباعة
 - ✅ أنواع التغطية (CoatingType)
-- ✅ أنواع التشطيب (FinishingType)
+- ✅ أنواع خدمات الطباعة (FinishingType)
 
 ### إعدادات المنتجات
 - ✅ أنواع المنتجات (ProductType)

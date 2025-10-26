@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -196,7 +197,8 @@
               <i class="fas fa-warehouse"></i>
             </div>
             <div class="stats-card-title">إجمالي قيمة المخزون</div>
-            <div class="stats-card-value">{{ total_inventory_value|currency }}</div>
+            <div class="stats-card-value">{{ total_inventory_value|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>
@@ -234,7 +236,8 @@
               <i class="fas fa-calculator"></i>
             </div>
             <div class="stats-card-title">متوسط قيمة الحساب</div>
-            <div class="stats-card-value">{{ avg_account_value|currency }}</div>
+            <div class="stats-card-value">{{ avg_account_value|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

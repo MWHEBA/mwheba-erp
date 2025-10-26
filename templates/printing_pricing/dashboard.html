@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
+{% load crispy_forms_tags %}
 {% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load django_bootstrap5 %}
 
 {% block title %}{% trans "لوحة التحكم - نظام التسعير" %}{% endblock %}
 
@@ -9,7 +13,6 @@
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
 {% endblock %}
-
 {% block content %}
 <div class="container-fluid">
   <!-- عنوان الصفحة -->
@@ -100,7 +103,8 @@
               <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ stats.total_revenue|default:"0.00"|currency }}</div>
+            <div class="stats-card-value">{{ stats.total_revenue|default:"0.00"|smart_float:2 }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
           </div>
         </div>
       </div>

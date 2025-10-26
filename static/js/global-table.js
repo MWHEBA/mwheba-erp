@@ -78,6 +78,10 @@ function initializeTable(tableId, options = {}) {
         return;
     }
     
+    // التحقق من وجود مربع بحث خارجي
+    const hasExternalSearch = document.querySelector(`.table-search[data-table="${tableId}"]`) !== null;
+    console.log(`🔍 الجدول ${tableId}: مربع البحث الخارجي ${hasExternalSearch ? 'موجود' : 'غير موجود'}`);
+    
     // إعدادات DataTables الافتراضية
     const defaultOptions = {
         responsive: true,
@@ -88,7 +92,7 @@ function initializeTable(tableId, options = {}) {
         },
         dom: '<"row"<"col-sm-12"tr>>' +
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
-        searching: false,  // تعطيل البحث التلقائي (نستخدم table-controls)
+        searching: hasExternalSearch,  // تفعيل البحث إذا كان هناك مربع بحث خارجي
         lengthChange: false,  // تعطيل قائمة عدد العناصر التلقائية
         order: [[0, 'desc']],
         columnDefs: [
@@ -225,15 +229,21 @@ function setupExternalControls(tableId, dataTable) {
     // ربط البحث الخارجي
     const searchInput = document.querySelector(`.table-search[data-table="${tableId}"]`);
     if (searchInput) {
+        console.log(`🔍 ربط البحث للجدول ${tableId}`);
         searchInput.addEventListener('keyup', function() {
+            console.log(`🔍 البحث في الجدول ${tableId}: "${this.value}"`);
             dataTable.search(this.value).draw();
         });
+    } else {
+        console.warn(`⚠️ لم يتم العثور على مربع البحث للجدول ${tableId}`);
     }
     
     // ربط تحكم عدد العناصر
     const lengthSelect = document.querySelector(`.table-length[data-table="${tableId}"]`);
     if (lengthSelect) {
+        console.log(`📊 ربط تحكم العدد للجدول ${tableId}`);
         lengthSelect.addEventListener('change', function() {
+            console.log(`📊 تغيير عدد العناصر للجدول ${tableId}: ${this.value}`);
             dataTable.page.len(parseInt(this.value)).draw();
         });
     }
