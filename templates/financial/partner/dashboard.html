@@ -3,7 +3,7 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
-{% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -301,7 +301,7 @@
             </div>
             <div class="stats-card-title">رصيد الشريك</div>
             <div class="stats-card-value">{{ partner_balance.current_balance|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -314,7 +314,7 @@
             </div>
             <div class="stats-card-title">إجمالي المساهمات</div>
             <div class="stats-card-value">{{ partner_balance.total_contributions|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -327,7 +327,7 @@
             </div>
             <div class="stats-card-title">إجمالي السحوبات</div>
             <div class="stats-card-value">{{ partner_balance.total_withdrawals|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -376,7 +376,7 @@
                     {% endif %}
                 </div>
                 <div class="col-md-3">
-                    <strong>{{ transaction.amount|currency }}</strong>
+                    <strong>{{ transaction.amount|smart_float:2 }} ج.م</strong>
                 </div>
                 <div class="col-md-4">
                     {{ transaction.description|truncatechars:50 }}

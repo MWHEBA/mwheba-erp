@@ -220,21 +220,15 @@ def loan_payment_create(request):
                 notes = form.cleaned_data.get('notes', '')
                 
                 # حساب توزيع المبلغ على الأصل والفائدة
-                monthly_payment = loan.calculate_monthly_payment()
+                # للدفعات العشوائية: كل المبلغ يذهب للأصل (بدون فوائد)
+                principal_amount = amount
+                interest_amount = Decimal('0.00')
                 
-                # حساب الفائدة والأصل
-                if loan.interest_rate > 0:
-                    interest_amount = (loan.remaining_balance * loan.interest_rate) / (Decimal('100') * Decimal('12'))
-                    principal_amount = amount - interest_amount
-                else:
-                    interest_amount = Decimal('0.00')
-                    principal_amount = amount
-                
-                # إنشاء سجل الدفعة
-                payment_number = loan.payments.count() + 1
+                # إنشاء سجل الدفعة العشوائية
                 payment = LoanPayment.objects.create(
                     loan=loan,
-                    payment_number=payment_number,
+                    payment_type='adhoc',  # ✅ دفعة عشوائية
+                    payment_number=None,   # ✅ لا يوجد رقم قسط
                     scheduled_date=payment_date,
                     actual_payment_date=payment_date,
                     principal_amount=principal_amount,
@@ -250,10 +244,8 @@ def loan_payment_create(request):
                 payment.journal_entry = journal_entry
                 payment.save()
                 
-                # تحديث حالة القرض إذا تم السداد بالكامل
-                if loan.remaining_balance <= 0:
-                    loan.status = 'completed'
-                    loan.save()
+                # إعادة حساب جدول السداد المتبقي
+                loan.recalculate_schedule()
                 
                 messages.success(request, f'تم سداد القسط بنجاح. المبلغ: {amount}')
                 
@@ -277,12 +269,26 @@ def loan_payment_create(request):
                 
                 messages.error(request, error_message)
         else:
+            # معالجة أخطاء النموذج
+            error_messages = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    if field == '__all__':
+                        error_messages.append(error)
+                    else:
+                        field_label = form.fields.get(field).label if field in form.fields else field
+                        error_messages.append(f"{field_label}: {error}")
+            
+            error_message = ' | '.join(error_messages) if error_messages else 'يرجى تصحيح الأخطاء في النموذج'
+            
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
                     'errors': form.errors,
-                    'message': 'يرجى تصحيح الأخطاء في النموذج'
+                    'message': error_message
                 })
+            
+            messages.error(request, error_message)
     
     return redirect('financial:loans_dashboard')
 
@@ -376,7 +382,7 @@ def create_loan_payment_entry(payment, user):
 
 def create_payment_schedule(loan):
     """
-    إنشاء جدول السداد للقرض
+    إنشاء جدول السداد للقرض (دفعات مجدولة فقط)
     """
     monthly_payment = loan.calculate_monthly_payment()
     current_date = loan.start_date
@@ -405,9 +411,10 @@ def create_payment_schedule(loan):
         if i == loan.duration_months:
             principal_amount = remaining_principal
         
-        # إنشاء سجل القسط
+        # إنشاء سجل القسط المجدول
         LoanPayment.objects.create(
             loan=loan,
+            payment_type='scheduled',  # ✅ قسط مجدول
             payment_number=i,
             scheduled_date=payment_date,
             principal_amount=principal_amount,

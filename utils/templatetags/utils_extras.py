@@ -182,37 +182,39 @@ def calculate_total_cost(*args):
 @register.filter
 def remove_trailing_zeros(value):
     """
-    إزالة الأصفار الزائدة من الأرقام العشرية
-    مثال: 7.00 -> 7, 7.50 -> 7.5, 7.25 -> 7.25
+    إزالة الأصفار الزائدة من الأرقام العشرية مع إضافة فواصل الآلاف
+    مثال: 7.00 -> 7 | 7.50 -> 7.5 | 10000 -> 10,000 | 10000.50 -> 10,000.5
     """
     if value is None:
         return ""
 
     try:
-        # التعامل مع Decimal بشكل مباشر
-        if isinstance(value, Decimal):
-            # استخدام normalize لإزالة الأصفار الزائدة
-            normalized = value.normalize()
-            # تحويل إلى string وإزالة الأصفار إذا لزم الأمر
-            result = str(normalized)
-            # التأكد من عدم وجود تدوين علمي
-            if "E" in result.upper():
-                # تحويل إلى float ثم إلى string
-                result = f"{float(normalized):g}"
-            return result
+        # تحويل القيمة إلى Decimal
+        if isinstance(value, str):
+            value = value.replace(',', '')  # إزالة الفواصل الموجودة
+        
+        decimal_value = Decimal(str(value))
+        
+        # استخدام normalize لإزالة الأصفار الزائدة
+        normalized = decimal_value.normalize()
+        
+        # فصل الجزء الصحيح والعشري
+        str_value = str(normalized)
+        if "E" in str_value.upper():
+            str_value = f"{float(normalized):g}"
+        
+        # فصل الجزء الصحيح والعشري
+        if '.' in str_value:
+            integer_part, decimal_part = str_value.split('.')
+            # إضافة فواصل الآلاف للجزء الصحيح
+            integer_part = f"{int(integer_part):,}"
+            result = f"{integer_part}.{decimal_part}"
+        else:
+            # رقم صحيح - إضافة فواصل الآلاف فقط
+            result = f"{int(str_value):,}"
+        
+        return result
 
-        # التعامل مع الأنواع الأخرى
-        if isinstance(value, (int, float, str)):
-            # تحويل إلى Decimal أولاً للحصول على دقة أفضل
-            decimal_value = Decimal(str(value))
-            normalized = decimal_value.normalize()
-            result = str(normalized)
-            # التأكد من عدم وجود تدوين علمي
-            if "E" in result.upper():
-                result = f"{float(normalized):g}"
-            return result
-
-        return str(value)
     except (ValueError, TypeError, Exception):
         return str(value)
 
@@ -229,11 +231,48 @@ def format_dimension(value):
 def get_attr(obj, attr_name):
     """
     الحصول على خاصية من كائن أو dictionary
+    يدعم nested attributes مثل: product.name, product.category.name
     """
+    if obj is None:
+        return ''
+    
+    # التعامل مع dictionaries
     if isinstance(obj, dict):
         return obj.get(attr_name, '')
+    
+    # التعامل مع nested attributes (product.name)
+    if '.' in attr_name:
+        parts = attr_name.split('.')
+        result = obj
+        for part in parts:
+            if result is None:
+                return ''
+            
+            if isinstance(result, dict):
+                result = result.get(part, '')
+            else:
+                # محاولة الحصول على الخاصية
+                attr_value = getattr(result, part, '')
+                # إذا كانت دالة، استدعيها
+                if callable(attr_value):
+                    try:
+                        result = attr_value()
+                    except:
+                        result = attr_value
+                else:
+                    result = attr_value
+        
+        return result
     else:
-        return getattr(obj, attr_name, '')
+        # خاصية بسيطة
+        attr_value = getattr(obj, attr_name, '')
+        # إذا كانت دالة، استدعيها
+        if callable(attr_value):
+            try:
+                return attr_value()
+            except:
+                return attr_value
+        return attr_value
 
 
 @register.filter

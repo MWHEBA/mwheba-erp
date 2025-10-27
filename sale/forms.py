@@ -126,6 +126,13 @@ class SaleItemForm(forms.ModelForm):
         if not product or not quantity or not self.warehouse:
             return cleaned_data
 
+        # التحقق من وجود سعر تكلفة للمنتج
+        if not product.cost_price or product.cost_price == 0:
+            raise ValidationError(
+                f"⚠️ المنتج '{product.name}' ليس له سعر تكلفة محدد. "
+                f"يرجى تحديد سعر التكلفة قبل البيع لضمان دقة الحسابات المحاسبية."
+            )
+
         # التحقق من توفر المخزون الكافي
         available_stock = (
             Stock.objects.filter(product=product, warehouse=self.warehouse)
@@ -178,7 +185,7 @@ class SalePaymentForm(forms.ModelForm):
             ),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01"}
+                attrs={"class": "form-control", "step": "any", "min": "0"}
             ),
             "reference_number": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "رقم المرجع (اختياري)"}
@@ -320,7 +327,7 @@ class SalePaymentEditForm(forms.ModelForm):
             ),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01"}
+                attrs={"class": "form-control", "step": "any", "min": "0"}
             ),
             "reference_number": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "رقم المرجع (اختياري)"}

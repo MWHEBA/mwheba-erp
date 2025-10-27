@@ -2137,6 +2137,15 @@ def partner_dashboard(request):
     # الحسابات النقدية المتاحة باستخدام أدوات التكامل
     cash_accounts = PartnerFinancialIntegration.get_available_cash_accounts()
     
+    # إكمال المعاملات المعلقة (الموافق عليها لكن غير مكتملة)
+    pending_approved = PartnerTransaction.objects.filter(
+        partner_account=partner_account,
+        status='approved',
+        journal_entry__isnull=True
+    )
+    for trans in pending_approved:
+        trans.complete()
+    
     # تحديث الرصيد للتأكد من أحدث البيانات
     partner_balance.update_balance()
     
@@ -2560,6 +2569,9 @@ def create_withdrawal(request):
     """
     إنشاء سحب جديد للشريك
     """
+    from ..utils.partner_integration import PartnerFinancialIntegration
+    from ..models.partner_transactions import PartnerTransaction, PartnerBalance
+    
     try:
         # الحصول على البيانات
         partner_account_id = request.POST.get('partner_account')
@@ -2577,40 +2589,28 @@ def create_withdrawal(request):
         partner_account = get_object_or_404(ChartOfAccounts, id=partner_account_id)
         cash_account = get_object_or_404(ChartOfAccounts, id=cash_account_id)
         
-        # إنشاء قيد محاسبي للسحب
+        # إنشاء المعاملة باستخدام أدوات التكامل المبسطة
         with transaction.atomic():
-            journal_entry = JournalEntry.objects.create(
-                number=f"WD-{timezone.now().strftime('%Y%m%d')}-{JournalEntry.objects.count() + 1}",
-                date=transaction_date or timezone.now().date(),
-                description=f"سحب شريك: {description}",
-                entry_type="manual",
-                status="posted",
-                created_by=request.user
+            partner_transaction = PartnerFinancialIntegration.create_partner_transaction(
+                transaction_type='withdrawal',
+                partner_account=partner_account,
+                cash_account=cash_account,
+                amount=amount,
+                description=description,
+                created_by=request.user,
+                withdrawal_type=withdrawal_type,
+                transaction_date=transaction_date
             )
             
-            # خصم من حساب الشريك
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=partner_account,
-                debit=amount,
-                credit=0,
-                description=f"سحب شريك: {description}"
-            )
-            
-            # دائن في الحساب النقدي
-            JournalEntryLine.objects.create(
-                journal_entry=journal_entry,
-                account=cash_account,
-                debit=0,
-                credit=amount,
-                description=f"سحب شريك: {description}"
-            )
+            # الحصول على الرصيد المحدث
+            partner_balance = PartnerBalance.objects.get(partner_account=partner_account)
             
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': True,
                     'message': 'تم إضافة السحب بنجاح',
-                    'journal_entry_id': journal_entry.id,
+                    'transaction_id': partner_transaction.id,
+                    'new_balance': str(partner_balance.current_balance)
                 })
             else:
                 messages.success(request, 'تم إضافة السحب بنجاح')

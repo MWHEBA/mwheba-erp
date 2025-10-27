@@ -3,6 +3,7 @@
 {% load i18n %}
 {% load custom_filters %}
 {% load utils_extras %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 {% block extra_css %}
@@ -285,7 +286,7 @@
             </div>
             <div class="stats-card-title">إجمالي المساهمات</div>
             <div class="stats-card-value">{{ total_contributions|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -298,7 +299,7 @@
             </div>
             <div class="stats-card-title">إجمالي السحوبات</div>
             <div class="stats-card-value">{{ total_withdrawals|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -311,7 +312,7 @@
             </div>
             <div class="stats-card-title">صافي الرصيد</div>
             <div class="stats-card-value">{{ net_balance|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <small class="text-muted">ج.م</small>
           </div>
         </div>
       </div>
@@ -430,7 +431,7 @@
                                         </td>
                                         <td>
                                             <strong class="{% if transaction.transaction_type == 'contribution' %}text-success{% else %}text-warning{% endif %}">
-                                                {{ transaction.amount|currency }}
+                                                {{ transaction.amount|smart_float:2 }} ج.م
                                             </strong>
                                         </td>
                                         <td>

@@ -196,8 +196,29 @@ class PartnerTransaction(models.Model):
             self.approved_by = approved_by_user
             self.approved_at = timezone.now()
             self.save()
+            # إكمال المعاملة تلقائياً بعد الموافقة
+            self.complete()
             return True
         return False
+    
+    def save(self, *args, **kwargs):
+        """حفظ المعاملة مع إكمال تلقائي للمعاملات المعتمدة"""
+        is_new = self.pk is None
+        old_status = None
+        skip_auto_complete = kwargs.pop('skip_auto_complete', False)
+        
+        if not is_new:
+            try:
+                old_instance = PartnerTransaction.objects.get(pk=self.pk)
+                old_status = old_instance.status
+            except PartnerTransaction.DoesNotExist:
+                pass
+        
+        super().save(*args, **kwargs)
+        
+        # إكمال المعاملة تلقائياً إذا تم الموافقة عليها للتو
+        if not skip_auto_complete and old_status != 'approved' and self.status == 'approved' and not self.journal_entry:
+            self.complete()
     
     def complete(self):
         """إكمال المعاملة وإنشاء القيد المحاسبي"""
@@ -207,7 +228,7 @@ class PartnerTransaction(models.Model):
             if journal_entry:
                 self.journal_entry = journal_entry
                 self.status = "completed"
-                self.save()
+                self.save(skip_auto_complete=True)
                 
                 # تحديث رصيد الشريك تلقائياً
                 partner_balance, created = PartnerBalance.objects.get_or_create(

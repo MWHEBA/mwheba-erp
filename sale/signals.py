@@ -9,6 +9,7 @@ from product.models import StockMovement
 def create_stock_movement_for_sale_item(sender, instance, created, **kwargs):
     """
     إنشاء حركة مخزون عند إنشاء بند فاتورة مبيعات
+    وإنشاء القيد المحاسبي إذا لم يكن موجوداً
     """
     if created and instance.sale.status == "confirmed":
         # التحقق من عدم وجود حركة مخزون مسبقاً لتجنب الازدواجية
@@ -33,6 +34,38 @@ def create_stock_movement_for_sale_item(sender, instance, created, **kwargs):
                     reference_number=f"SALE-{instance.sale.number}-ITEM-{instance.id}",
                     notes=f"مبيعات - فاتورة رقم {instance.sale.number}",
                     created_by=instance.sale.created_by,
+                )
+        
+        # إنشاء القيد المحاسبي إذا لم يكن موجوداً
+        if not instance.sale.journal_entry:
+            try:
+                from financial.services.accounting_integration_service import (
+                    AccountingIntegrationService,
+                )
+                import logging
+
+                logger = logging.getLogger(__name__)
+
+                # إنشاء القيد المحاسبي
+                journal_entry = AccountingIntegrationService.create_sale_journal_entry(
+                    sale=instance.sale, user=instance.sale.created_by
+                )
+
+                if journal_entry:
+                    logger.info(
+                        f"✅ تم إنشاء قيد محاسبي للمبيعات: {journal_entry.number} - فاتورة {instance.sale.number}"
+                    )
+                else:
+                    logger.warning(
+                        f"⚠️ فشل في إنشاء قيد محاسبي للمبيعات - فاتورة {instance.sale.number}"
+                    )
+
+            except Exception as e:
+                import logging
+
+                logger = logging.getLogger(__name__)
+                logger.error(
+                    f"❌ خطأ في إنشاء قيد محاسبي للمبيعات: {str(e)} - فاتورة {instance.sale.number}"
                 )
 
 
@@ -104,47 +137,8 @@ def update_customer_balance_on_sale(sender, instance, created, **kwargs):
             customer.save(update_fields=["balance"])
 
 
-@receiver(post_save, sender=Sale)
-def create_financial_transaction_for_sale(sender, instance, created, **kwargs):
-    """
-    إنشاء قيد محاسبي تلقائي عند إنشاء فاتورة مبيعات جديدة
-
-    يتم إنشاء قيد محاسبي مباشرة عند تأكيد الفاتورة يشمل:
-    - مدين: الصندوق (نقدي) أو العملاء (آجل)
-    - دائن: إيرادات المبيعات
-    - مدين: تكلفة البضاعة المباعة
-    - دائن: المخزون
-    """
-    if created and instance.status == "confirmed":
-        try:
-            from financial.services.accounting_integration_service import (
-                AccountingIntegrationService,
-            )
-            import logging
-
-            logger = logging.getLogger(__name__)
-
-            # إنشاء القيد المحاسبي
-            journal_entry = AccountingIntegrationService.create_sale_journal_entry(
-                sale=instance, user=instance.created_by
-            )
-
-            if journal_entry:
-                logger.info(
-                    f"✅ تم إنشاء قيد محاسبي للمبيعات: {journal_entry.number} - فاتورة {instance.number}"
-                )
-            else:
-                logger.warning(
-                    f"⚠️ فشل في إنشاء قيد محاسبي للمبيعات - فاتورة {instance.number}"
-                )
-
-        except Exception as e:
-            import logging
-
-            logger = logging.getLogger(__name__)
-            logger.error(
-                f"❌ خطأ في إنشاء قيد محاسبي للمبيعات: {str(e)} - فاتورة {instance.number}"
-            )
+# ملاحظة: تم نقل إنشاء القيد المحاسبي إلى Signal الخاص بـ SaleItem
+# لأن القيد يحتاج للبنود لحساب تكلفة البضاعة المباعة
 
 
 @receiver(post_save, sender=SalePayment)
@@ -186,10 +180,43 @@ def create_financial_transaction_for_payment(sender, instance, created, **kwargs
 
 
 @receiver(post_save, sender=SaleReturn)
-def create_financial_transaction_for_return(sender, instance, **kwargs):
+def create_financial_transaction_for_return(sender, instance, created, **kwargs):
     """
-    إنشاء معاملة مالية عند تأكيد مرتجع مبيعات
-    تم تعطيل إنشاء الحسابات التلقائية - يجب استخدام النظام الجديد
+    إنشاء قيد محاسبي تلقائي عند تأكيد مرتجع مبيعات
+    
+    يتم إنشاء قيد محاسبي عكسي يشمل:
+    - مدين: إيرادات المبيعات (عكس الإيراد)
+    - دائن: العملاء (تخفيض الذمم)
+    - مدين: المخزون (إرجاع البضاعة)
+    - دائن: تكلفة البضاعة المباعة (عكس التكلفة)
     """
-    # تم تعطيل هذه الوظيفة مؤقتاً حتى يتم تحديث النظام المحاسبي
-    pass
+    if created and instance.status == "confirmed":
+        try:
+            from financial.services.accounting_integration_service import (
+                AccountingIntegrationService,
+            )
+            import logging
+
+            logger = logging.getLogger(__name__)
+
+            # إنشاء القيد المحاسبي للمرتجع
+            journal_entry = AccountingIntegrationService.create_return_journal_entry(
+                sale_return=instance, user=instance.created_by
+            )
+
+            if journal_entry:
+                logger.info(
+                    f"✅ تم إنشاء قيد محاسبي للمرتجع: {journal_entry.number} - مرتجع {instance.number}"
+                )
+            else:
+                logger.warning(
+                    f"⚠️ فشل في إنشاء قيد محاسبي للمرتجع - مرتجع {instance.number}"
+                )
+
+        except Exception as e:
+            import logging
+
+            logger = logging.getLogger(__name__)
+            logger.error(
+                f"❌ خطأ في إنشاء قيد محاسبي للمرتجع: {str(e)} - مرتجع {instance.number}"
+            )

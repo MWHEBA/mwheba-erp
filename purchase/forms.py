@@ -242,7 +242,7 @@ class PurchasePaymentForm(forms.ModelForm):
             ),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01"}
+                attrs={"class": "form-control", "step": "any", "min": "0"}
             ),
             "reference_number": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "رقم المرجع (اختياري)"}
@@ -384,7 +384,7 @@ class PurchasePaymentEditForm(forms.ModelForm):
             ),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
-                attrs={"class": "form-control", "step": "0.01"}
+                attrs={"class": "form-control", "step": "any", "min": "0"}
             ),
             "reference_number": forms.TextInput(
                 attrs={"class": "form-control", "placeholder": "رقم المرجع (اختياري)"}

@@ -1587,17 +1587,11 @@ def warehouse_detail(request, pk):
 
     # إعداد headers للجدول الموحد - تعديل للعمل مع Stock objects
     stock_headers = [
-        {"key": "product.sku", "label": "كود المنتج", "sortable": True},
+        {"key": "product.sku", "label": "كود المنتج", "sortable": True, "template": "components/cells/product_sku.html"},
         {"key": "product.name", "label": "اسم المنتج", "sortable": True},
-        {"key": "product.category.name", "label": "الفئة", "sortable": True},
-        {"key": "quantity", "label": "الكمية", "sortable": True, "format": "number"},
+        {"key": "product.category.name", "label": "الفئة", "sortable": True, "template": "components/cells/product_category.html"},
+        {"key": "quantity", "label": "الكمية", "sortable": True, "template": "components/cells/stock_quantity.html"},
         {"key": "product.unit.name", "label": "الوحدة", "sortable": False},
-        {
-            "key": "product.min_stock",
-            "label": "الحد الأدنى",
-            "sortable": True,
-            "format": "number",
-        },
         {"key": "status", "label": "الحالة", "sortable": True, "format": "status"},
         {
             "key": "updated_at",
@@ -1718,13 +1712,6 @@ def stock_list(request):
             "width": "120px",
         },
         {
-            "key": "reserved_quantity",
-            "label": "الكمية المحجوزة",
-            "sortable": True,
-            "class": "text-center",
-            "width": "120px",
-        },
-        {
             "key": "updated_at",
             "label": "آخر تحديث",
             "sortable": True,
@@ -1777,10 +1764,29 @@ def stock_detail(request, pk):
     """
     stock = get_object_or_404(Stock, pk=pk)
 
-    # حركات المخزون
+    # حركات المخزون مرتبة من الأقدم للأحدث لحساب الرصيد
     movements = StockMovement.objects.filter(
         product=stock.product, warehouse=stock.warehouse
-    ).order_by("-timestamp")
+    ).order_by("timestamp")
+    
+    # حساب الرصيد قبل وبعد كل حركة
+    current_balance = Decimal('0')
+    for movement in movements:
+        movement.quantity_before = current_balance
+        
+        # تحديث الرصيد حسب نوع الحركة
+        if movement.movement_type in ['in', 'transfer_in']:
+            current_balance += movement.quantity
+        elif movement.movement_type in ['out', 'transfer_out']:
+            current_balance -= movement.quantity
+        elif movement.movement_type == 'adjustment':
+            # التعديل يضبط الرصيد مباشرة
+            current_balance = movement.quantity
+        
+        movement.quantity_after = current_balance
+    
+    # عكس الترتيب لعرض الأحدث أولاً
+    movements = list(reversed(movements))
 
     context = {
         "stock": stock,

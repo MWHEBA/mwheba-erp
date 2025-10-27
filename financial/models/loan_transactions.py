@@ -239,20 +239,30 @@ class Loan(models.Model):
         return self.principal_amount + interest_amount
 
     @property
-    def total_paid(self):
-        """إجمالي المبلغ المدفوع"""
+    def total_paid_principal(self):
+        """إجمالي الأصل المدفوع فقط"""
         result = self.payments.filter(status="completed").aggregate(
-            principal=models.Sum('principal_amount'),
-            interest=models.Sum('interest_amount')
+            total=models.Sum('principal_amount')
         )
-        principal = result['principal'] or Decimal('0.00')
-        interest = result['interest'] or Decimal('0.00')
-        return principal + interest
+        return result['total'] or Decimal('0.00')
+    
+    @property
+    def total_paid_interest(self):
+        """إجمالي الفوائد المدفوعة"""
+        result = self.payments.filter(status="completed").aggregate(
+            total=models.Sum('interest_amount')
+        )
+        return result['total'] or Decimal('0.00')
+
+    @property
+    def total_paid(self):
+        """إجمالي المبلغ المدفوع (أصل + فوائد)"""
+        return self.total_paid_principal + self.total_paid_interest
 
     @property
     def remaining_balance(self):
-        """الرصيد المتبقي"""
-        return self.principal_amount - self.total_paid
+        """الرصيد المتبقي من الأصل فقط"""
+        return self.principal_amount - self.total_paid_principal
 
     @property
     def is_overdue(self):
@@ -272,12 +282,74 @@ class Loan(models.Model):
         numerator = self.principal_amount * monthly_rate * ((1 + monthly_rate) ** self.duration_months)
         denominator = ((1 + monthly_rate) ** self.duration_months) - 1
         return numerator / denominator
+    
+    def recalculate_schedule(self):
+        """
+        إعادة حساب الأقساط المجدولة المتبقية بعد دفعة عشوائية
+        """
+        # 1. حساب الرصيد المتبقي
+        remaining = self.remaining_balance
+        
+        if remaining <= 0:
+            # تم السداد بالكامل - إلغاء جميع الأقساط المجدولة المتبقية
+            self.payments.filter(
+                payment_type='scheduled',
+                status='scheduled'
+            ).update(status='cancelled')
+            self.status = 'completed'
+            self.save()
+            return
+        
+        # 2. الأقساط المجدولة المتبقية
+        scheduled_payments = self.payments.filter(
+            payment_type='scheduled',
+            status='scheduled'
+        ).order_by('payment_number')
+        
+        count = scheduled_payments.count()
+        if count == 0:
+            return
+        
+        # 3. حساب القسط الجديد
+        if self.interest_rate == 0:
+            # بدون فوائد - توزيع متساوي
+            new_payment = remaining / count
+            
+            for payment in scheduled_payments:
+                payment.principal_amount = new_payment
+                payment.interest_amount = Decimal('0.00')
+                payment.save()
+        else:
+            # مع فوائد - إعادة حساب كل قسط
+            current_remaining = remaining
+            
+            for i, payment in enumerate(scheduled_payments):
+                # حساب الفائدة على الرصيد الحالي
+                interest = (current_remaining * self.interest_rate) / (Decimal('100') * Decimal('12'))
+                
+                # القسط الأخير يأخذ كل المتبقي
+                if i == count - 1:
+                    principal = current_remaining
+                else:
+                    # توزيع متساوي للأصل
+                    principal = remaining / count
+                
+                payment.principal_amount = principal
+                payment.interest_amount = interest
+                payment.save()
+                
+                current_remaining -= principal
 
 
 class LoanPayment(models.Model):
     """
     نموذج دفعات القرض - يمثل قسط واحد من أقساط القرض
     """
+    
+    PAYMENT_TYPES = (
+        ("scheduled", _("قسط مجدول")),
+        ("adhoc", _("دفعة عشوائية")),
+    )
     
     STATUS_CHOICES = (
         ("scheduled", _("مجدول")),
@@ -294,10 +366,21 @@ class LoanPayment(models.Model):
         verbose_name=_("القرض")
     )
     
+    # نوع الدفعة
+    payment_type = models.CharField(
+        _("نوع الدفعة"),
+        max_length=20,
+        choices=PAYMENT_TYPES,
+        default="scheduled",
+        help_text=_("مجدول: قسط من جدول السداد | عشوائي: دفعة إضافية")
+    )
+    
     # معلومات الدفعة
     payment_number = models.PositiveIntegerField(
         _("رقم القسط"),
-        help_text=_("رقم القسط من إجمالي الأقساط")
+        null=True,
+        blank=True,
+        help_text=_("رقم القسط من إجمالي الأقساط (للمجدولة فقط)")
     )
     
     scheduled_date = models.DateField(
