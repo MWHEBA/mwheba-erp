@@ -125,10 +125,10 @@
                 <td><strong>{{ loan.loan_number }}</strong></td>
                 <td>{{ loan.lender_name }}</td>
                 <td>{{ loan.get_lender_type_display }}</td>
-                <td>{{ loan.principal_amount|currency }}</td>
-                <td class="text-success">{{ loan.total_paid|currency }}</td>
-                <td class="text-warning">{{ loan.remaining_balance|currency }}</td>
-                <td>{{ loan.interest_rate }}%</td>
+                <td>{{ loan.principal_amount|smart_float:2 }} ج.م</td>
+                <td class="text-success">{{ loan.total_paid|smart_float:2 }} ج.م</td>
+                <td class="text-warning">{{ loan.remaining_balance|smart_float:2 }} ج.م</td>
+                <td>{{ loan.interest_rate|smart_float:2 }}%</td>
                 <td>{{ loan.start_date|date:"Y/m/d" }}</td>
                 <td>
                   {% if loan.status == 'active' %}

@@ -39,6 +39,17 @@ class SaleReturn(models.Model):
         _("الحالة"), max_length=20, choices=RETURN_STATUSES, default="draft"
     )
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
+    
+    # ربط محاسبي
+    journal_entry = models.ForeignKey(
+        "financial.JournalEntry",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("القيد المحاسبي"),
+        related_name="sale_returns",
+    )
+    
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
     created_by = models.ForeignKey(

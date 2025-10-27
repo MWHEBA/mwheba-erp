@@ -34,6 +34,37 @@ def percentage(value):
 
 
 @register.filter
+def smart_float(value, decimal_places=2):
+    """
+    تنسيق الأرقام بذكاء - يحذف الأصفار الزائدة
+    مثال: 10.00 -> 10 | 10.50 -> 10.5 | 10.25 -> 10.25
+    """
+    if value is None or value == '':
+        return '0'
+    
+    try:
+        # تحويل إلى Decimal للدقة
+        if isinstance(value, str):
+            value = value.replace(',', '')
+        
+        decimal_value = Decimal(str(value))
+        
+        # تنسيق حسب عدد الخانات العشرية المطلوبة
+        format_string = f"{{:,.{decimal_places}f}}"
+        formatted = format_string.format(decimal_value)
+        
+        # إزالة الأصفار الزائدة والنقطة العشرية إذا لزم الأمر
+        if '.' in formatted:
+            # إزالة الأصفار من اليمين
+            formatted = formatted.rstrip('0').rstrip('.')
+        
+        return formatted
+        
+    except (ValueError, TypeError, Exception):
+        return str(value)
+
+
+@register.filter
 def format_dimensions(width, height):
     """تنسيق الأبعاد"""
     if not width or not height:
@@ -237,36 +268,38 @@ def abs_value(value):
 @register.filter
 def remove_trailing_zeros(value):
     """
-    إزالة الأصفار الزائدة من الأرقام العشرية
-    مثال: 7.00 -> 7, 7.50 -> 7.5, 7.25 -> 7.25
+    إزالة الأصفار الزائدة من الأرقام العشرية مع إضافة فواصل الآلاف
+    مثال: 7.00 -> 7 | 7.50 -> 7.5 | 10000 -> 10,000 | 10000.50 -> 10,000.5
     """
     if value is None:
         return ""
 
     try:
-        # التعامل مع Decimal بشكل مباشر
-        if isinstance(value, Decimal):
-            # استخدام normalize لإزالة الأصفار الزائدة
-            normalized = value.normalize()
-            # تحويل إلى string وإزالة الأصفار إذا لزم الأمر
-            result = str(normalized)
-            # التأكد من عدم وجود تدوين علمي
-            if "E" in result.upper():
-                # تحويل إلى float ثم إلى string
-                result = f"{float(normalized):g}"
-            return result
+        # تحويل القيمة إلى Decimal
+        if isinstance(value, str):
+            value = value.replace(',', '')  # إزالة الفواصل الموجودة
+        
+        decimal_value = Decimal(str(value))
+        
+        # استخدام normalize لإزالة الأصفار الزائدة
+        normalized = decimal_value.normalize()
+        
+        # فصل الجزء الصحيح والعشري
+        str_value = str(normalized)
+        if "E" in str_value.upper():
+            str_value = f"{float(normalized):g}"
+        
+        # فصل الجزء الصحيح والعشري
+        if '.' in str_value:
+            integer_part, decimal_part = str_value.split('.')
+            # إضافة فواصل الآلاف للجزء الصحيح
+            integer_part = f"{int(integer_part):,}"
+            result = f"{integer_part}.{decimal_part}"
+        else:
+            # رقم صحيح - إضافة فواصل الآلاف فقط
+            result = f"{int(str_value):,}"
+        
+        return result
 
-        # التعامل مع الأنواع الأخرى
-        if isinstance(value, (int, float, str)):
-            # تحويل إلى Decimal أولاً للحصول على دقة أفضل
-            decimal_value = Decimal(str(value))
-            normalized = decimal_value.normalize()
-            result = str(normalized)
-            # التأكد من عدم وجود تدوين علمي
-            if "E" in result.upper():
-                result = f"{float(normalized):g}"
-            return result
-
-        return str(value)
     except (ValueError, TypeError, Exception):
         return str(value)
