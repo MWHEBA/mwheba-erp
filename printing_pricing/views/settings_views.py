@@ -57,7 +57,10 @@ from ..models import (
     OffsetMachineType, OffsetSheetSize, DigitalMachineType, DigitalSheetSize, SystemSetting
 )
 from ..forms.settings_forms import (
-    PaperTypeForm, PaperOriginForm
+    PaperTypeForm, PaperSizeForm, PaperWeightForm, PaperOriginForm,
+    PrintDirectionForm, PrintSideForm, CoatingTypeForm, PieceSizeForm,
+    ProductTypeForm, ProductSizeForm, OffsetMachineTypeForm, DigitalMachineTypeForm,
+    OffsetSheetSizeForm, DigitalSheetSizeForm
 )
 
 logger = logging.getLogger(__name__)
@@ -109,7 +112,7 @@ class PaperTypeListView(LoginRequiredMixin, ListView):
 class PaperTypeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء نوع ورق جديد"""
     model = PaperType
-    fields = ['name', 'description', 'is_active', 'is_default']
+    form_class = PaperTypeForm
     template_name = 'printing_pricing/settings/paper_types/form_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_type_list')
 
@@ -127,7 +130,7 @@ class PaperTypeCreateView(LoginRequiredMixin, CreateView):
 class PaperTypeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث نوع الورق"""
     model = PaperType
-    fields = ['name', 'description', 'is_active', 'is_default']
+    form_class = PaperTypeForm
     template_name = 'printing_pricing/settings/paper_types/form_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_type_list')
 
@@ -193,8 +196,8 @@ class PaperSizeListView(LoginRequiredMixin, ListView):
 class PaperSizeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس ورق جديد"""
     model = PaperSize
+    form_class = PaperSizeForm
     template_name = 'printing_pricing/settings/paper_sizes/form_modal.html'
-    fields = ['name', 'width', 'height', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:paper_size_list')
 
     def get_context_data(self, **kwargs):
@@ -211,8 +214,8 @@ class PaperSizeCreateView(LoginRequiredMixin, CreateView):
 class PaperSizeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس الورق"""
     model = PaperSize
+    form_class = PaperSizeForm
     template_name = 'printing_pricing/settings/paper_sizes/form_modal.html'
-    fields = ['name', 'width', 'height', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:paper_size_list')
 
     def get_context_data(self, **kwargs):
@@ -279,8 +282,8 @@ class PaperWeightListView(LoginRequiredMixin, ListView):
 class PaperWeightCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء وزن ورق جديد"""
     model = PaperWeight
+    form_class = PaperWeightForm
     template_name = 'printing_pricing/settings/paper_weights/form_modal.html'
-    fields = ['name', 'gsm', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:paper_weight_list')
 
     def get_context_data(self, **kwargs):
@@ -305,8 +308,8 @@ class PaperWeightCreateView(LoginRequiredMixin, CreateView):
 class PaperWeightUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث وزن الورق"""
     model = PaperWeight
+    form_class = PaperWeightForm
     template_name = 'printing_pricing/settings/paper_weights/form_modal.html'
-    fields = ['name', 'gsm', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:paper_weight_list')
 
     def get_context_data(self, **kwargs):
@@ -381,7 +384,7 @@ class PaperOriginListView(LoginRequiredMixin, ListView):
 class PaperOriginCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء منشأ ورق جديد"""
     model = PaperOrigin
-    fields = ['name', 'code', 'description', 'is_active', 'is_default']
+    form_class = PaperOriginForm
     template_name = 'printing_pricing/settings/paper_origins/form_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_origin_list')
 
@@ -392,14 +395,22 @@ class PaperOriginCreateView(LoginRequiredMixin, CreateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم إنشاء منشأ الورق بنجاح')})
         messages.success(self.request, _('تم إنشاء منشأ الورق بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
 class PaperOriginUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث منشأ الورق"""
     model = PaperOrigin
-    fields = ['name', 'code', 'description', 'is_active', 'is_default']
+    form_class = PaperOriginForm
     template_name = 'printing_pricing/settings/paper_origins/form_modal.html'
     success_url = reverse_lazy('printing_pricing:paper_origin_list')
 
@@ -410,8 +421,16 @@ class PaperOriginUpdateView(LoginRequiredMixin, UpdateView):
         return context
 
     def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': True, 'message': _('تم تحديث منشأ الورق بنجاح')})
         messages.success(self.request, _('تم تحديث منشأ الورق بنجاح'))
-        return super().form_valid(form)
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({'success': False, 'errors': form.errors})
+        return super().form_invalid(form)
 
 
 class PaperOriginDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
@@ -467,8 +486,8 @@ class PrintDirectionListView(LoginRequiredMixin, ListView):
 class PrintDirectionCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء اتجاه طباعة جديد"""
     model = PrintDirection
+    form_class = PrintDirectionForm
     template_name = 'printing_pricing/settings/print_directions/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:print_direction_list')
 
     def get_context_data(self, **kwargs):
@@ -485,8 +504,8 @@ class PrintDirectionCreateView(LoginRequiredMixin, CreateView):
 class PrintDirectionUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث اتجاه الطباعة"""
     model = PrintDirection
+    form_class = PrintDirectionForm
     template_name = 'printing_pricing/settings/print_directions/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:print_direction_list')
 
     def get_context_data(self, **kwargs):
@@ -520,8 +539,8 @@ class PrintSideListView(LoginRequiredMixin, ListView):
 class PrintSideCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء جانب طباعة جديد"""
     model = PrintSide
+    form_class = PrintSideForm
     template_name = 'printing_pricing/settings/print_sides/form.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:print_side_list')
 
     def form_valid(self, form):
@@ -532,8 +551,8 @@ class PrintSideCreateView(LoginRequiredMixin, CreateView):
 class PrintSideUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث جانب الطباعة"""
     model = PrintSide
+    form_class = PrintSideForm
     template_name = 'printing_pricing/settings/print_sides/form.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:print_side_list')
 
     def form_valid(self, form):
@@ -594,8 +613,8 @@ class CoatingTypeListView(LoginRequiredMixin, ListView):
 class CoatingTypeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء نوع تغطية جديد"""
     model = CoatingType
+    form_class = CoatingTypeForm
     template_name = 'printing_pricing/settings/coating_type/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:coating_type_list')
 
     def get_context_data(self, **kwargs):
@@ -612,8 +631,8 @@ class CoatingTypeCreateView(LoginRequiredMixin, CreateView):
 class CoatingTypeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث نوع التغطية"""
     model = CoatingType
+    form_class = CoatingTypeForm
     template_name = 'printing_pricing/settings/coating_type/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:coating_type_list')
 
     def get_context_data(self, **kwargs):
@@ -844,8 +863,8 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
 class PieceSizeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس قطع جديد"""
     model = PieceSize
+    form_class = PieceSizeForm
     template_name = 'printing_pricing/settings/piece_size/form_modal.html'
-    fields = ['name', 'width', 'height', 'paper_type', 'pieces_per_sheet', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:piece_size_list')
 
     def get_context_data(self, **kwargs):
@@ -870,8 +889,8 @@ class PieceSizeCreateView(LoginRequiredMixin, CreateView):
 class PieceSizeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس القطع"""
     model = PieceSize
+    form_class = PieceSizeForm
     template_name = 'printing_pricing/settings/piece_size/form_modal.html'
-    fields = ['name', 'width', 'height', 'paper_type', 'pieces_per_sheet', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:piece_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1027,8 +1046,8 @@ class OffsetMachineTypeListView(LoginRequiredMixin, ListView):
 class OffsetMachineTypeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء نوع ماكينة أوفست جديد"""
     model = OffsetMachineType
+    form_class = OffsetMachineTypeForm
     template_name = 'printing_pricing/settings/offset_machine_type/form_modal.html'
-    fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:offset_machine_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1053,8 +1072,8 @@ class OffsetMachineTypeCreateView(LoginRequiredMixin, CreateView):
 class OffsetMachineTypeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث نوع ماكينة أوفست"""
     model = OffsetMachineType
+    form_class = OffsetMachineTypeForm
     template_name = 'printing_pricing/settings/offset_machine_type/form_modal.html'
-    fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:offset_machine_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1127,8 +1146,8 @@ class OffsetSheetSizeListView(LoginRequiredMixin, ListView):
 class OffsetSheetSizeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس ماكينة أوفست جديد"""
     model = OffsetSheetSize
+    form_class = OffsetSheetSizeForm
     template_name = 'printing_pricing/settings/offset_sheet_size/form_modal.html'
-    fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
     success_url = reverse_lazy('printing_pricing:offset_sheet_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1145,8 +1164,8 @@ class OffsetSheetSizeCreateView(LoginRequiredMixin, CreateView):
 class OffsetSheetSizeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس ماكينة أوفست"""
     model = OffsetSheetSize
+    form_class = OffsetSheetSizeForm
     template_name = 'printing_pricing/settings/offset_sheet_size/form_modal.html'
-    fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
     success_url = reverse_lazy('printing_pricing:offset_sheet_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1213,8 +1232,8 @@ class DigitalMachineTypeListView(LoginRequiredMixin, ListView):
 class DigitalMachineTypeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء نوع ماكينة ديجيتال جديد"""
     model = DigitalMachineType
+    form_class = DigitalMachineTypeForm
     template_name = 'printing_pricing/settings/digital_machine_type/form_modal.html'
-    fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:digital_machine_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1231,8 +1250,8 @@ class DigitalMachineTypeCreateView(LoginRequiredMixin, CreateView):
 class DigitalMachineTypeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث نوع ماكينة ديجيتال"""
     model = DigitalMachineType
+    form_class = DigitalMachineTypeForm
     template_name = 'printing_pricing/settings/digital_machine_type/form_modal.html'
-    fields = ['name', 'code', 'manufacturer', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:digital_machine_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1297,8 +1316,8 @@ class DigitalSheetSizeListView(LoginRequiredMixin, ListView):
 class DigitalSheetSizeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس ماكينة ديجيتال جديد"""
     model = DigitalSheetSize
+    form_class = DigitalSheetSizeForm
     template_name = 'printing_pricing/settings/digital_sheet_size/form_modal.html'
-    fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
     success_url = reverse_lazy('printing_pricing:digital_sheet_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1315,8 +1334,8 @@ class DigitalSheetSizeCreateView(LoginRequiredMixin, CreateView):
 class DigitalSheetSizeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس ماكينة ديجيتال"""
     model = DigitalSheetSize
+    form_class = DigitalSheetSizeForm
     template_name = 'printing_pricing/settings/digital_sheet_size/form_modal.html'
-    fields = ['name', 'code', 'width_cm', 'height_cm', 'description', 'is_active', 'is_default', 'is_custom_size']
     success_url = reverse_lazy('printing_pricing:digital_sheet_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1495,8 +1514,8 @@ class ProductTypeListView(LoginRequiredMixin, ListView):
 class ProductTypeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء نوع منتج جديد"""
     model = ProductType
+    form_class = ProductTypeForm
     template_name = 'printing_pricing/settings/product_types/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:product_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1513,8 +1532,8 @@ class ProductTypeCreateView(LoginRequiredMixin, CreateView):
 class ProductTypeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث نوع المنتج"""
     model = ProductType
+    form_class = ProductTypeForm
     template_name = 'printing_pricing/settings/product_types/form_modal.html'
-    fields = ['name', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:product_type_list')
 
     def get_context_data(self, **kwargs):
@@ -1579,8 +1598,8 @@ class ProductSizeListView(LoginRequiredMixin, ListView):
 class ProductSizeCreateView(LoginRequiredMixin, CreateView):
     """عرض إنشاء مقاس منتج جديد"""
     model = ProductSize
+    form_class = ProductSizeForm
     template_name = 'printing_pricing/settings/product_sizes/form_modal.html'
-    fields = ['name', 'width', 'height', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:product_size_list')
 
     def get_context_data(self, **kwargs):
@@ -1597,8 +1616,8 @@ class ProductSizeCreateView(LoginRequiredMixin, CreateView):
 class ProductSizeUpdateView(LoginRequiredMixin, UpdateView):
     """عرض تحديث مقاس المنتج"""
     model = ProductSize
+    form_class = ProductSizeForm
     template_name = 'printing_pricing/settings/product_sizes/form_modal.html'
-    fields = ['name', 'width', 'height', 'description', 'is_active', 'is_default']
     success_url = reverse_lazy('printing_pricing:product_size_list')
 
     def get_context_data(self, **kwargs):

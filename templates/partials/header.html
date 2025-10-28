@@ -385,6 +385,18 @@
                                 <small>مشاهدة سجل النشاط الخاص بك</small>
                             </div>
                         </a>
+                        
+                        {% if user.is_superuser %}
+                        <a href="#" class="user-dropdown-item" onclick="resetSystem(event)">
+                            <div class="dropdown-item-icon bg-soft-danger">
+                                <i class="fas fa-undo-alt text-danger"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>إعادة تهيئة النظام</span>
+                                <small>استعادة ضبط مصنع للنظام</small>
+                            </div>
+                        </a>
+                        {% endif %}
                     </div>
                     
                     <div class="user-dropdown-divider"></div>
@@ -407,4 +419,291 @@
             </div>
         </div>
     </div>
-</header> 
+</header>
+
+<script>
+function resetSystem(event) {
+    event.preventDefault();
+    
+    // SweetAlert تحذيري احترافي
+    Swal.fire({
+        title: '⚠️ تحذير هام!',
+        html: `
+            <div style="text-align: right; direction: rtl;">
+                <p style="font-size: 16px; margin-bottom: 15px;">
+                    <strong>هذا الإجراء سيقوم بـ:</strong>
+                </p>
+                <ul style="text-align: right; list-style: none; padding: 0;">
+                    <li style="margin-bottom: 8px;">🗑️ حذف جميع البيانات الموجودة</li>
+                    <li style="margin-bottom: 8px;">🔄 إعادة إنشاء قاعدة البيانات</li>
+                    <li style="margin-bottom: 8px;">👥 إنشاء المستخدمين الافتراضيين</li>
+                    <li style="margin-bottom: 8px;">📊 تحميل البيانات التجريبية</li>
+                    <li style="margin-bottom: 8px;">⚙️ إعادة تهيئة جميع الإعدادات</li>
+                </ul>
+                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-top: 20px;">
+                    <p style="color: #856404; margin: 0; font-weight: bold;">
+                        ⚠️ لا يمكن التراجع عن هذا الإجراء!
+                    </p>
+                </div>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '🔄 نعم، أعد تهيئة النظام',
+        cancelButtonText: '❌ إلغاء',
+        reverseButtons: true,
+        customClass: {
+            popup: 'swal-rtl',
+            title: 'swal-title-rtl',
+            content: 'swal-content-rtl'
+        },
+        showLoaderOnConfirm: true,
+        preConfirm: () => {
+            // الحصول على CSRF token
+            let csrfToken = '';
+            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            
+            if (csrfInput) {
+                csrfToken = csrfInput.value;
+            } else if (csrfMeta) {
+                csrfToken = csrfMeta.getAttribute('content');
+            } else {
+                // محاولة الحصول على CSRF من cookies
+                const cookies = document.cookie.split(';');
+                for (let cookie of cookies) {
+                    const [name, value] = cookie.trim().split('=');
+                    if (name === 'csrftoken') {
+                        csrfToken = value;
+                        break;
+                    }
+                }
+            }
+            
+            // التحقق من وجود CSRF token
+            if (!csrfToken) {
+                throw new Error('لم يتم العثور على CSRF token. يرجى إعادة تحميل الصفحة.');
+            }
+            
+            return fetch('{% url "core:reset_system_with_progress" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.message || 'حدث خطأ غير معروف');
+                }
+                
+                // بدء تتبع التقدم
+                return trackResetProgress(data.operation_id);
+            })
+            .catch(error => {
+                console.error('Reset system error:', error);
+                Swal.showValidationMessage(`خطأ: ${error.message}`);
+                return false;
+            });
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed && result.value) {
+            // عرض رسالة النجاح
+            Swal.fire({
+                title: '✅ تم بنجاح!',
+                text: result.value.message,
+                icon: 'success',
+                timer: 3000,
+                timerProgressBar: true,
+                showConfirmButton: false,
+                customClass: {
+                    popup: 'swal-rtl'
+                }
+            }).then(() => {
+                // إعادة التوجيه لصفحة تسجيل الدخول
+                if (result.value.redirect) {
+                    window.location.href = result.value.redirect;
+                } else {
+                    window.location.reload();
+                }
+            });
+        }
+    });
+}
+
+// دالة تتبع التقدم
+function trackResetProgress(operationId) {
+    return new Promise((resolve, reject) => {
+        // إظهار مودال التقدم
+        Swal.fire({
+            title: '🔄 جاري إعادة تهيئة النظام',
+            html: `
+                <div style="text-align: right; direction: rtl;">
+                    <div class="progress mb-3" style="height: 25px;">
+                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
+                             role="progressbar" style="width: 0%; background: linear-gradient(45deg, #007bff, #0056b3);">
+                            <span id="progressText" style="font-weight: bold; color: white;">0%</span>
+                        </div>
+                    </div>
+                    <div id="currentStep" style="font-size: 16px; margin-bottom: 10px; color: #495057;">
+                        بدء العملية...
+                    </div>
+                    <div id="stepDetails" style="font-size: 14px; color: #6c757d; max-height: 200px; overflow-y: auto;">
+                        <div>⏳ جاري التحضير...</div>
+                    </div>
+                </div>
+            `,
+            allowOutsideClick: false,
+            allowEscapeKey: false,
+            showConfirmButton: false,
+            customClass: {
+                popup: 'swal-rtl swal-progress',
+                title: 'swal-title-rtl'
+            }
+        });
+        
+        // تتبع التقدم كل ثانية
+        const progressInterval = setInterval(() => {
+            fetch(`{% url "core:get_reset_progress" "OPERATION_ID" %}`.replace('OPERATION_ID', operationId))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'not_found') {
+                        clearInterval(progressInterval);
+                        reject(new Error('لم يتم العثور على العملية'));
+                        return;
+                    }
+                    
+                    // تحديث شريط التقدم
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
+                    const currentStep = document.getElementById('currentStep');
+                    const stepDetails = document.getElementById('stepDetails');
+                    
+                    if (progressBar && progressText && currentStep) {
+                        progressBar.style.width = `${data.percentage}%`;
+                        progressText.textContent = `${data.percentage}%`;
+                        currentStep.textContent = `المرحلة ${data.current_step}/${data.total_steps}: ${data.step_name}`;
+                        
+                        // إضافة الرسائل الجديدة
+                        if (data.messages && data.messages.length > 0) {
+                            stepDetails.innerHTML = data.messages.map(msg => 
+                                `<div style="margin-bottom: 5px;">${msg}</div>`
+                            ).join('');
+                            stepDetails.scrollTop = stepDetails.scrollHeight;
+                        }
+                    }
+                    
+                    // التحقق من انتهاء العملية
+                    if (data.status === 'completed') {
+                        clearInterval(progressInterval);
+                        setTimeout(() => {
+                            resolve({
+                                success: true,
+                                message: data.message,
+                                redirect: '/login/'
+                            });
+                        }, 1000);
+                    } else if (data.status === 'failed') {
+                        clearInterval(progressInterval);
+                        let errorMessage = data.message || 'حدث خطأ غير معروف';
+                        if (data.error_details) {
+                            console.error('Error details:', data.error_details);
+                        }
+                        if (data.stderr) {
+                            console.error('Script stderr:', data.stderr);
+                        }
+                        if (data.return_code) {
+                            console.error('Return code:', data.return_code);
+                        }
+                        reject(new Error(errorMessage));
+                    }
+                })
+                .catch(error => {
+                    console.error('Progress tracking error:', error);
+                    clearInterval(progressInterval);
+                    
+                    // عرض خطأ في المودال
+                    const currentStep = document.getElementById('currentStep');
+                    if (currentStep) {
+                        currentStep.textContent = `خطأ في التتبع: ${error.message}`;
+                        currentStep.style.color = '#dc3545';
+                    }
+                    
+                    // إعطاء فرصة أخرى بعد 3 ثوان
+                    setTimeout(() => {
+                        reject(error);
+                    }, 3000);
+                });
+        }, 1000);
+        
+        // timeout بعد 10 دقائق
+        setTimeout(() => {
+            clearInterval(progressInterval);
+            reject(new Error('انتهت مهلة العملية'));
+        }, 600000);
+    });
+}
+
+// إضافة CSS للـ RTL support في SweetAlert
+if (!document.getElementById('swal-rtl-styles')) {
+    const style = document.createElement('style');
+    style.id = 'swal-rtl-styles';
+    style.textContent = `
+        .swal-rtl {
+            direction: rtl !important;
+            text-align: right !important;
+        }
+        .swal-title-rtl {
+            text-align: center !important;
+        }
+        .swal-content-rtl {
+            text-align: right !important;
+        }
+        .swal2-html-container {
+            text-align: right !important;
+        }
+        .swal-progress .swal2-popup {
+            width: 600px !important;
+            max-width: 90vw !important;
+        }
+        .swal-progress .progress {
+            background-color: #e9ecef;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+        }
+        .swal-progress .progress-bar {
+            transition: width 0.3s ease;
+            font-size: 14px;
+            line-height: 25px;
+            border-radius: 12px;
+        }
+        .swal-progress #stepDetails {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 10px;
+            font-family: 'Tajawal', sans-serif;
+        }
+        .swal-progress #currentStep {
+            font-weight: bold;
+            font-family: 'Tajawal', sans-serif;
+        }
+    `;
+    document.head.appendChild(style);
+}
+</script> 

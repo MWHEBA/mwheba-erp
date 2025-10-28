@@ -27,7 +27,13 @@ class Colors:
 
 def print_colored(text, color=""):
     """طباعة نص ملون"""
-    print(f"{color}{text}{Colors.RESET}")
+    try:
+        print(f"{color}{text}{Colors.RESET}")
+    except UnicodeEncodeError:
+        # إزالة الـ emojis والرموز الخاصة في حالة مشاكل الـ encoding
+        import re
+        clean_text = re.sub(r'[^\u0000-\u007F\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]', '', text)
+        print(f"{color}{clean_text}{Colors.RESET}")
 
 
 def print_header(text):
@@ -39,22 +45,22 @@ def print_header(text):
 
 def print_step(step_num, total, text):
     """طباعة خطوة"""
-    print_colored(f"\n📦 المرحلة {step_num}/{total}: {text}...", Colors.YELLOW)
+    print_colored(f"\n[*] المرحلة {step_num}/{total}: {text}...", Colors.YELLOW)
 
 
 def print_success(text):
     """طباعة رسالة نجاح"""
-    print_colored(f"   ✅ {text}", Colors.GREEN)
+    print_colored(f"   [+] {text}", Colors.GREEN)
 
 
 def print_info(text):
     """طباعة معلومة"""
-    print_colored(f"   ℹ️  {text}", Colors.GRAY)
+    print_colored(f"   [i] {text}", Colors.GRAY)
 
 
 def print_warning(text):
     """طباعة تحذير"""
-    print_colored(f"   ⚠️  {text}", Colors.RED)
+    print_colored(f"   [!] {text}", Colors.RED)
 
 
 def run_command(command, check=True):
@@ -71,6 +77,9 @@ def run_command(command, check=True):
 
 def kill_django_processes():
     """محاولة إيقاف عمليات Django التي قد تستخدم قاعدة البيانات"""
+    # التحقق من وجود معامل التأكيد التلقائي
+    auto_confirm = "--auto-confirm" in sys.argv or os.environ.get("AUTO_CONFIRM") == "1"
+    
     try:
         if os.name == "nt":  # Windows
             # البحث عن عمليات Python التي تشغل manage.py
@@ -82,11 +91,15 @@ def kill_django_processes():
             )
             if result.returncode == 0 and "python.exe" in result.stdout:
                 print_info("تم العثور على عمليات Python قيد التشغيل")
-                kill_confirm = (
-                    input("هل تريد محاولة إيقاف عمليات Python؟ (yes/no): ")
-                    .strip()
-                    .lower()
-                )
+                if auto_confirm:
+                    kill_confirm = "yes"
+                    print_colored("إيقاف تلقائي لعمليات Python...", Colors.YELLOW)
+                else:
+                    kill_confirm = (
+                        input("هل تريد محاولة إيقاف عمليات Python؟ (yes/no): ")
+                        .strip()
+                        .lower()
+                    )
                 if kill_confirm == "yes":
                     subprocess.run(
                         "taskkill /F /IM python.exe", shell=True, capture_output=True
@@ -102,11 +115,15 @@ def kill_django_processes():
             )
             if result.stdout.strip():
                 print_info("تم العثور على عمليات Django قيد التشغيل")
-                kill_confirm = (
-                    input("هل تريد محاولة إيقاف عمليات Django؟ (yes/no): ")
-                    .strip()
-                    .lower()
-                )
+                if auto_confirm:
+                    kill_confirm = "yes"
+                    print_colored("إيقاف تلقائي لعمليات Django...", Colors.YELLOW)
+                else:
+                    kill_confirm = (
+                        input("هل تريد محاولة إيقاف عمليات Django؟ (yes/no): ")
+                        .strip()
+                        .lower()
+                    )
                 if kill_confirm == "yes":
                     subprocess.run("pkill -f 'manage.py runserver'", shell=True)
                     print_success("تم إيقاف عمليات Django")
@@ -134,14 +151,21 @@ def main():
     # طباعة العنوان
     print_header("ERP System - Development Setup")
 
-    # سؤال بسيط للإعداد
-    print_colored("\n🛠️  إعداد النظام", Colors.CYAN)
-    print("سيتم تنفيذ الإعداد الكامل (قاعدة بيانات جديدة + بيانات تجريبية)")
-    confirm = input("هل تريد المتابعة؟ (yes/no): ").strip().lower()
+    # التحقق من وجود معامل auto-confirm
+    auto_confirm = "--auto-confirm" in sys.argv or os.environ.get("AUTO_CONFIRM") == "1"
+    
+    if not auto_confirm:
+        # سؤال بسيط للإعداد
+        print_colored("\n[*] إعداد النظام", Colors.CYAN)
+        print("سيتم تنفيذ الإعداد الكامل (قاعدة بيانات جديدة + بيانات تجريبية)")
+        confirm = input("هل تريد المتابعة؟ (yes/no): ").strip().lower()
 
-    if confirm != "yes":
-        print_colored("\n❌ تم إلغاء العملية", Colors.YELLOW)
-        sys.exit(0)
+        if confirm != "yes":
+            print_colored("\n[X] تم إلغاء العملية", Colors.YELLOW)
+            sys.exit(0)
+    else:
+        print_colored("\n[*] إعداد النظام (تلقائي)", Colors.CYAN)
+        print_colored("سيتم تنفيذ الإعداد الكامل تلقائياً...", Colors.GREEN)
 
     load_test_data = True
 
@@ -164,7 +188,23 @@ def main():
             print_colored("   3. أعد تشغيل السكريبت بعد إغلاق العمليات", Colors.WHITE)
 
             # محاولة إيقاف العمليات تلقائياً
-            if kill_django_processes():
+            if auto_confirm:
+                print_info("إيقاف تلقائي للعمليات...")
+                kill_django_processes()
+                # محاولة إضافية لإيقاف العمليات
+                if os.name == "nt":  # Windows
+                    try:
+                        subprocess.run("taskkill /F /IM python.exe", shell=True, capture_output=True)
+                        print_success("تم إيقاف عمليات Python")
+                    except:
+                        pass
+                
+                # انتظار لإغلاق العمليات
+                import time
+                print_info("انتظار إغلاق العمليات...")
+                time.sleep(3)
+                
+            if auto_confirm or kill_django_processes():
                 # انتظار قصير ثم محاولة الحذف مرة أخرى
                 import time
 
@@ -177,21 +217,30 @@ def main():
 
             # محاولة أخرى بعد تحذير المستخدم
             if db_path.exists():
-                retry = input("\nهل تريد المحاولة مرة أخرى؟ (yes/no): ").strip().lower()
+                if auto_confirm:
+                    retry = "yes"
+                    print_colored("\nمحاولة تلقائية لحذف قاعدة البيانات...", Colors.YELLOW)
+                else:
+                    retry = input("\nهل تريد المحاولة مرة أخرى؟ (yes/no): ").strip().lower()
+                
                 if retry == "yes":
                     try:
                         db_path.unlink()
                         print_success("تم حذف قاعدة البيانات بنجاح!")
                     except PermissionError:
-                        print_colored("\n❌ لا يمكن حذف قاعدة البيانات", Colors.RED)
-                        print_colored(
-                            "   يرجى إغلاق جميع العمليات التي تستخدم قاعدة البيانات يدوياً",
-                            Colors.GRAY,
-                        )
-                        print_colored("   ثم إعادة تشغيل السكريبت", Colors.GRAY)
-                        sys.exit(1)
+                        if auto_confirm:
+                            # في الوضع التلقائي، نحاول إنشاء قاعدة بيانات جديدة بدلاً من التوقف
+                            print_warning("لا يمكن حذف قاعدة البيانات، سيتم المتابعة مع قاعدة البيانات الموجودة")
+                        else:
+                            print_colored("\n[X] لا يمكن حذف قاعدة البيانات", Colors.RED)
+                            print_colored(
+                                "   يرجى إغلاق جميع العمليات التي تستخدم قاعدة البيانات يدوياً",
+                                Colors.GRAY,
+                            )
+                            print_colored("   ثم إعادة تشغيل السكريبت", Colors.GRAY)
+                            sys.exit(1)
                 else:
-                    print_colored("\n❌ تم إلغاء العملية", Colors.YELLOW)
+                    print_colored("\n[X] تم إلغاء العملية", Colors.YELLOW)
                     sys.exit(0)
     else:
         print_info("لا توجد قاعدة بيانات سابقة")
@@ -199,7 +248,7 @@ def main():
     # المرحلة 2: تطبيق الهجرات
     print_step(2, 9, "تطبيق الهجرات")
     if not run_command("python manage.py migrate"):
-        print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
+        print_colored("\n[X] فشل تطبيق الهجرات", Colors.RED)
         sys.exit(1)
     print_success("تم تطبيق الهجرات بنجاح")
 
@@ -559,17 +608,17 @@ def main():
     print_success("نظام الشراكة المالية جاهز")
 
     # النتيجة النهائية
-    print_header("✅ تم تهيئة النظام بنجاح للتطوير!")
+    print_header("[+] تم تهيئة النظام بنجاح للتطوير!")
 
-    print_colored("\n📊 المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
+    print_colored("\n[*] المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
     print()
-    print_colored("   ✅ mwheba (محمد يوسف) - كلمة المرور: 2951096", Colors.GREEN)
-    print_colored("   ✅ fatma - كلمة المرور: 2951096", Colors.GREEN)
-    print_colored("   ✅ admin - كلمة المرور: admin123", Colors.GREEN)
+    print_colored("   [+] mwheba (محمد يوسف) - كلمة المرور: 2951096", Colors.GREEN)
+    print_colored("   [+] fatma - كلمة المرور: 2951096", Colors.GREEN)
+    print_colored("   [+] admin - كلمة المرور: admin123", Colors.GREEN)
 
     print_colored(f"\n{'='*50}", Colors.CYAN)
 
-    print_colored("\n📝 الخطوات التالية:", Colors.CYAN + Colors.BOLD)
+    print_colored("\n[*] الخطوات التالية:", Colors.CYAN + Colors.BOLD)
     print_colored("   1. قم بتشغيل السيرفر: python manage.py runserver", Colors.WHITE)
     print_colored("   2. افتح المتصفح على: http://127.0.0.1:8000", Colors.WHITE)
     print_colored(
@@ -578,23 +627,23 @@ def main():
     print_colored("   4. راجع دليل الحسابات المحاسبي المحمّل", Colors.WHITE)
     print_colored("   5. جرب إنشاء طلب تسعير جديد", Colors.WHITE)
 
-    print_colored("\n💡 نصائح:", Colors.CYAN + Colors.BOLD)
+    print_colored("\n[i] نصائح:", Colors.CYAN + Colors.BOLD)
     print_colored("   - النظام يحتوي على نظام تسعير مستقل متكامل", Colors.GRAY)
     print_colored("   - نظام تزامن المدفوعات مفعّل تلقائياً", Colors.GRAY)
     print_colored("   - القيود المحاسبية تُنشأ تلقائياً مع كل عملية", Colors.GRAY)
     print_colored("   - نظام التسعير مربوط بالعملاء والموردين فقط", Colors.GRAY)
     print()
     print_colored(
-        "📦 البيانات التجريبية المحملة (إن اخترت yes):", Colors.CYAN + Colors.BOLD
+        "[*] البيانات التجريبية المحملة (إن اخترت yes):", Colors.CYAN + Colors.BOLD
     )
 
-    print_colored("\n   🏢 العملاء والموردين:", Colors.YELLOW + Colors.BOLD)
+    print_colored("\n   [*] العملاء والموردين:", Colors.YELLOW + Colors.BOLD)
     print_colored(
         "   - 3 عملاء: راقيات الابداع، شركة النهضة، مكتبة المعرفة", Colors.GRAY
     )
     print_colored("   - 3 موردين: مخزن مكة، مطبعة الأهرام، ورشة التجليد", Colors.GRAY)
 
-    print_colored("\n📋 نظام التسعير الموحد (محمل من fixtures):", Colors.YELLOW + Colors.BOLD)
+    print_colored("\n[*] نظام التسعير الموحد (محمل من fixtures):", Colors.YELLOW + Colors.BOLD)
     print_colored("   - نظام طباعة التسعير (printing_pricing) - 8 ملفات fixtures", Colors.GRAY)
     print_colored("   - أنواع الورق والمقاسات والأوزان والمناشئ", Colors.GRAY)
     print_colored("   - مقاسات القطع والزنكات وإعدادات الطباعة", Colors.GRAY)
@@ -602,13 +651,13 @@ def main():
     print_colored("   - النظام الموحد للخدمات (ServiceFormFactory)", Colors.GRAY)
     print_colored("   - نظام الشراكة المالية (من fixtures)", Colors.GRAY)
 
-    print_colored("\n   🏭 المخازن والمنتجات:", Colors.YELLOW + Colors.BOLD)
+    print_colored("\n   [*] المخازن والمنتجات:", Colors.YELLOW + Colors.BOLD)
     print_colored("   - مخزن: المخزن الرئيسي", Colors.GRAY)
     print_colored("   - منتج: كوشيه 300جم (تكلفة: 5، بيع: 7)", Colors.GRAY)
     print_colored("   - فئة: ورق، ماركة: كوشيه، وحدة: فرخ", Colors.GRAY)
 
     # النظام جاهز
-    print("\n🚀 النظام جاهز للاستخدام!")
+    print("\n[*] النظام جاهز للاستخدام!")
     print("   لتشغيل السيرفر استخدم: python manage.py runserver")
     print("   ثم افتح المتصفح على: http://127.0.0.1:8000")
 
@@ -617,8 +666,8 @@ if __name__ == "__main__":
     try:
         main()
     except KeyboardInterrupt:
-        print_colored("\n\n❌ تم إلغاء العملية بواسطة المستخدم", Colors.YELLOW)
+        print_colored("\n\n[X] تم إلغاء العملية بواسطة المستخدم", Colors.YELLOW)
         sys.exit(0)
     except Exception as e:
-        print_colored(f"\n❌ حدث خطأ: {e}", Colors.RED)
+        print_colored(f"\n[X] حدث خطأ: {e}", Colors.RED)
         sys.exit(1)

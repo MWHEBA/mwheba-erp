@@ -202,12 +202,42 @@ function submitForm(formId) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('formModal')).hide();
             location.reload();
         } else {
-            // عرض الأخطاء
-            console.log(data.errors);
+            displayFormErrors(data.errors);
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء معالجة الطلب');
     });
+}
+
+function displayFormErrors(errors) {
+    // إزالة الأخطاء السابقة
+    document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+    document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+    
+    // عرض الأخطاء الجديدة
+    for (const [field, fieldErrors] of Object.entries(errors)) {
+        const fieldElement = document.querySelector(`[name="${field}"]`);
+        if (fieldElement) {
+            fieldElement.classList.add('is-invalid');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'invalid-feedback';
+            errorDiv.textContent = fieldErrors.join(', ');
+            fieldElement.parentNode.appendChild(errorDiv);
+        }
+    }
+    
+    // عرض الأخطاء العامة (non-field errors)
+    if (errors.__all__) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-danger mt-3';
+        alertDiv.textContent = errors.__all__.join(', ');
+        document.querySelector('#formModal .modal-body').prepend(alertDiv);
+    }
 }
 </script>
 {% endblock %}
