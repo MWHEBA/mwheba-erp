@@ -5,6 +5,11 @@ from django.utils import timezone
 from datetime import timedelta
 from django.urls import reverse
 from django.contrib import messages
+from django.http import JsonResponse
+from django.contrib.auth.decorators import user_passes_test
+import subprocess
+import os
+import sys
 
 from sale.models import Sale
 from purchase.models import Purchase
@@ -272,3 +277,120 @@ def notifications_list(request):
     }
 
     return render(request, "core/notifications_list.html", context)
+
+
+def is_superuser(user):
+    """التحقق من أن المستخدم superuser"""
+    return user.is_superuser
+
+
+
+
+@user_passes_test(is_superuser)
+def reset_system_with_progress(request):
+    """إعادة تهيئة النظام مع شريط تقدم في الوقت الفعلي"""
+    if request.method == 'POST':
+        try:
+            import threading
+            import time
+            from django.core.cache import cache
+            from django.core.management import call_command
+            
+            # إنشاء معرف فريد للعملية
+            operation_id = f"reset_system_{int(time.time())}"
+            
+            # تهيئة بيانات التقدم
+            initial_data = {
+                'status': 'starting',
+                'current_step': 0,
+                'total_steps': 10,
+                'step_name': 'بدء العملية...',
+                'percentage': 0,
+                'messages': []
+            }
+            
+            cache.set(f"progress_{operation_id}", initial_data, timeout=600)  # 10 دقائق
+            
+            # تأكيد حفظ البيانات في الكاش
+            test_data = cache.get(f"progress_{operation_id}")
+            if not test_data:
+                return JsonResponse({
+                    'success': False,
+                    'message': 'فشل في تهيئة نظام التتبع - مشكلة في الكاش'
+                })
+            
+            def run_reset_command():
+                """تشغيل Django management command في thread منفصل"""
+                try:
+                    # تحديث التقدم: بدء تشغيل الأمر
+                    progress_data = cache.get(f"progress_{operation_id}", {})
+                    progress_data.update({
+                        'status': 'starting_command',
+                        'step_name': 'بدء تشغيل أمر إعادة التهيئة...',
+                        'percentage': 5
+                    })
+                    progress_data['messages'].append("تشغيل Django management command")
+                    cache.set(f"progress_{operation_id}", progress_data, timeout=600)
+                    
+                    # تشغيل Django management command
+                    call_command('reset_system', operation_id=operation_id)
+                    
+                except Exception as e:
+                    import traceback
+                    error_details = traceback.format_exc()
+                    cache.set(f"progress_{operation_id}", {
+                        'status': 'failed',
+                        'success': False,
+                        'message': f'فشل في إعادة التهيئة: {str(e)}',
+                        'error_details': error_details
+                    }, timeout=600)
+            
+            import threading
+            reset_thread = threading.Thread(target=run_reset_command)
+            reset_thread.daemon = True
+            reset_thread.start()
+            
+            return JsonResponse({
+                'success': True,
+                'operation_id': operation_id,
+                'message': 'تم بدء عملية إعادة التهيئة'
+            }, content_type='application/json')
+            
+        except Exception as e:
+            import traceback
+            error_details = traceback.format_exc()
+            return JsonResponse({
+                'success': False,
+                'message': f'فشل في بدء عملية إعادة التهيئة: {str(e)}',
+                'error_details': error_details
+            }, content_type='application/json')
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'طريقة الطلب غير صحيحة'
+    })
+
+def get_reset_progress(request, operation_id):
+    """الحصول على تقدم عملية إعادة التهيئة"""
+    try:
+        from django.core.cache import cache
+        progress_data = cache.get(f"progress_{operation_id}")
+        
+        if not progress_data:
+            return JsonResponse({
+                'status': 'not_found',
+                'message': 'لم يتم العثور على العملية'
+            }, content_type='application/json')
+        
+        return JsonResponse(progress_data, content_type='application/json')
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        return JsonResponse({
+            'status': 'error',
+            'success': False,
+            'message': f'خطأ في تتبع التقدم: {str(e)}',
+            'error_details': error_details,
+            'operation_id': operation_id
+        }, content_type='application/json')

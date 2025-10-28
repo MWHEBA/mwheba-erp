@@ -10,6 +10,9 @@ urlpatterns = [
     path("settings/system/", views.system_settings, name="system_settings"),
     # صفحة عرض كل الإشعارات
     path("notifications/", views.notifications_list, name="notifications_list"),
+    # إعادة تهيئة النظام
+    path("reset-system-progress/", views.reset_system_with_progress, name="reset_system_with_progress"),
+    path("reset-progress/<str:operation_id>/", views.get_reset_progress, name="get_reset_progress"),
     # مسارات API الأساسية - معلقة مؤقتاً
     # path('api/dashboard-stats/', api.DashboardStatsAPIView.as_view(), name='api_dashboard_stats'),
     # path('api/system-health/', api.SystemHealthAPIView.as_view(), name='api_system_health'),

@@ -55,19 +55,17 @@ class PaperTypeForm(forms.ModelForm):
                 raise ValidationError(_('هذا الاسم موجود مسبقاً'))
         return name
 
-    def clean(self):
-        """التحقق من وجود افتراضي واحد فقط"""
-        cleaned_data = super().clean()
-        is_default = cleaned_data.get('is_default')
-
-        if is_default:
-            existing_default = PaperType.objects.filter(is_default=True)
-            if self.instance.pk:
-                existing_default = existing_default.exclude(pk=self.instance.pk)
-            if existing_default.exists():
-                raise ValidationError(_('يمكن أن يكون هناك نوع افتراضي واحد فقط'))
-
-        return cleaned_data
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PaperType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 # ==================== نماذج مقاسات الورق ====================
@@ -131,6 +129,18 @@ class PaperSizeForm(forms.ModelForm):
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
         return height
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PaperSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 # ==================== نماذج أوزان الورق ====================
 
@@ -182,6 +192,18 @@ class PaperWeightForm(forms.ModelForm):
                 raise ValidationError(_('هذا الوزن موجود مسبقاً'))
 
         return gsm
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PaperWeight.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 # ==================== نماذج مناشئ الورق ====================
@@ -241,6 +263,18 @@ class PaperOriginForm(forms.ModelForm):
                 raise ValidationError(_('هذا الرمز موجود مسبقاً'))
         return code
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PaperOrigin.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 # ==================== نماذج اتجاهات الطباعة ====================
 
@@ -270,6 +304,18 @@ class PrintDirectionForm(forms.ModelForm):
             'is_default': _('افتراضي'),
         }
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PrintDirection.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 # ==================== نماذج جوانب الطباعة ====================
 
@@ -298,6 +344,18 @@ class PrintSideForm(forms.ModelForm):
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
         }
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PrintSide.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 # ==================== النماذج المتقدمة المدموجة ====================
@@ -338,6 +396,18 @@ class CoatingTypeForm(forms.ModelForm):
             if existing.exists():
                 raise ValidationError(_('هذا الاسم موجود مسبقاً'))
         return name
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            CoatingType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class FinishingTypeForm(forms.ModelForm):
@@ -438,6 +508,18 @@ class PieceSizeForm(forms.ModelForm):
             raise ValidationError(_('عدد القطع يجب أن يكون أكبر من صفر'))
         return pieces
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            PieceSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 class PlateSizeForm(forms.ModelForm):
     """نموذج مقاسات الزنكات"""
@@ -523,6 +605,18 @@ class ProductTypeForm(forms.ModelForm):
                 raise ValidationError(_('هذا الاسم موجود مسبقاً'))
         return name
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            ProductType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 class ProductSizeForm(forms.ModelForm):
     """نموذج مقاسات المنتجات"""
@@ -588,6 +682,18 @@ class ProductSizeForm(forms.ModelForm):
         if height and height <= 0:
             raise ValidationError(_('الطول يجب أن يكون أكبر من صفر'))
         return height
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            ProductSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class VATSettingForm(forms.ModelForm):
@@ -676,6 +782,18 @@ class OffsetMachineTypeForm(forms.ModelForm):
             'is_default': _('افتراضي'),
         }
 
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            OffsetMachineType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
+
 
 class DigitalMachineTypeForm(forms.ModelForm):
     """نموذج أنواع ماكينات الديجيتال"""
@@ -713,6 +831,18 @@ class DigitalMachineTypeForm(forms.ModelForm):
             'is_active': _('نشط'),
             'is_default': _('افتراضي'),
         }
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            DigitalMachineType.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 # ==================== نماذج مقاسات الفرخ ====================
@@ -764,6 +894,18 @@ class OffsetSheetSizeForm(forms.ModelForm):
             'is_default': _('افتراضي'),
             'is_custom_size': _('مقاس مخصص'),
         }
+
+    def save(self, commit=True):
+        """حفظ النموذج مع إدارة الافتراضي تلقائياً"""
+        instance = super().save(commit=False)
+        
+        # إذا تم تعيين هذا العنصر كافتراضي، إلغاء الافتراضي من العناصر الأخرى
+        if instance.is_default:
+            OffsetSheetSize.objects.filter(is_default=True).exclude(pk=instance.pk).update(is_default=False)
+        
+        if commit:
+            instance.save()
+        return instance
 
 
 class DigitalSheetSizeForm(forms.ModelForm):
