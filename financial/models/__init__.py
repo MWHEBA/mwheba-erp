@@ -22,6 +22,7 @@ from .payment_sync import (
 from .bank_reconciliation import BankReconciliation, BankReconciliationItem
 from .categories import FinancialCategory, CategoryBudget
 from .audit_trail import AuditTrail, PaymentAuditMixin
+from .invoice_audit_log import InvoiceAuditLog
 from .partner_transactions import PartnerTransaction, PartnerBalance
 from .partner_settings import PartnerSettings, PartnerPermission, PartnerAuditLog
 from .loan_transactions import Loan, LoanPayment
@@ -70,6 +71,7 @@ __all__ = [
     # نماذج التدقيق
     "AuditTrail",
     "PaymentAuditMixin",
+    "InvoiceAuditLog",
     # نماذج معاملات الشريك
     "PartnerTransaction",
     "PartnerBalance",

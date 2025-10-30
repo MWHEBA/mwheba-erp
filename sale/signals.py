@@ -1,4 +1,4 @@
-from django.db.models.signals import post_save, post_delete
+from django.db.models.signals import post_save, post_delete, pre_delete
 from django.dispatch import receiver
 from django.db import transaction
 from .models import SaleItem, SalePayment, Sale, SaleReturn
@@ -9,64 +9,39 @@ from product.models import StockMovement
 def create_stock_movement_for_sale_item(sender, instance, created, **kwargs):
     """
     إنشاء حركة مخزون عند إنشاء بند فاتورة مبيعات
-    وإنشاء القيد المحاسبي إذا لم يكن موجوداً
+    
+    ⚠️ هذا الـ Signal معطل عملياً - حركات المخزون والقيود المحاسبية
+    يتم إنشاؤها من الـ View بعد حفظ كل البنود لضمان حساب التكلفة الصحيحة
+    
+    الـ Signal يشتغل فقط في حالات خاصة (مثل إضافة بند لفاتورة موجودة من Admin)
     """
-    if created and instance.sale.status == "confirmed":
-        # التحقق من عدم وجود حركة مخزون مسبقاً لتجنب الازدواجية
-        existing_movement = StockMovement.objects.filter(
-            product=instance.product,
-            warehouse=instance.sale.warehouse,
-            document_type="sale",
-            document_number=instance.sale.number,
-            reference_number=f"SALE-{instance.sale.number}-ITEM-{instance.id}",
-        ).exists()
+    # عدم تشغيل الـ Signal إذا كانت الفاتورة قيد الإنشاء (draft) أو لها قيد محاسبي
+    if not created or instance.sale.status != "confirmed" or instance.sale.journal_entry:
+        return
+    
+    # التحقق من عدم وجود حركة مخزون مسبقاً لتجنب الازدواجية
+    existing_movement = StockMovement.objects.filter(
+        product=instance.product,
+        warehouse=instance.sale.warehouse,
+        document_type="sale",
+        document_number=instance.sale.number,
+        reference_number=f"SALE-{instance.sale.number}-ITEM-{instance.id}",
+    ).exists()
 
-        if not existing_movement:
-            with transaction.atomic():
-                # إنشاء حركة مخزون للصادر
-                StockMovement.objects.create(
-                    product=instance.product,
-                    warehouse=instance.sale.warehouse,
-                    movement_type="out",
-                    quantity=instance.quantity,
-                    document_type="sale",
-                    document_number=instance.sale.number,
-                    reference_number=f"SALE-{instance.sale.number}-ITEM-{instance.id}",
-                    notes=f"مبيعات - فاتورة رقم {instance.sale.number}",
-                    created_by=instance.sale.created_by,
-                )
-        
-        # إنشاء القيد المحاسبي إذا لم يكن موجوداً
-        if not instance.sale.journal_entry:
-            try:
-                from financial.services.accounting_integration_service import (
-                    AccountingIntegrationService,
-                )
-                import logging
-
-                logger = logging.getLogger(__name__)
-
-                # إنشاء القيد المحاسبي
-                journal_entry = AccountingIntegrationService.create_sale_journal_entry(
-                    sale=instance.sale, user=instance.sale.created_by
-                )
-
-                if journal_entry:
-                    logger.info(
-                        f"✅ تم إنشاء قيد محاسبي للمبيعات: {journal_entry.number} - فاتورة {instance.sale.number}"
-                    )
-                else:
-                    logger.warning(
-                        f"⚠️ فشل في إنشاء قيد محاسبي للمبيعات - فاتورة {instance.sale.number}"
-                    )
-
-            except Exception as e:
-                import logging
-
-                logger = logging.getLogger(__name__)
-                logger.error(
-                    f"❌ خطأ في إنشاء قيد محاسبي للمبيعات: {str(e)} - فاتورة {instance.sale.number}"
-                )
+    if not existing_movement:
+        with transaction.atomic():
+            # إنشاء حركة مخزون للصادر
+            StockMovement.objects.create(
+                product=instance.product,
+                warehouse=instance.sale.warehouse,
+                movement_type="out",
+                quantity=instance.quantity,
+                document_type="sale",
+                document_number=instance.sale.number,
+                reference_number=f"SALE-{instance.sale.number}-ITEM-{instance.id}",
+                notes=f"مبيعات - فاتورة رقم {instance.sale.number}",
+                created_by=instance.sale.created_by,
+            )
 
 
 @receiver(post_delete, sender=SaleItem)
@@ -135,6 +110,62 @@ def update_customer_balance_on_sale(sender, instance, created, **kwargs):
         if customer:
             customer.balance += instance.total
             customer.save(update_fields=["balance"])
+
+
+@receiver(pre_delete, sender=Sale)
+def handle_deleted_sale(sender, instance, **kwargs):
+    """
+    معالجة حذف فاتورة المبيعات (قبل الحذف)
+    
+    ⚠️ يستخدم pre_delete بدلاً من post_delete لأن:
+    - القيد المحاسبي له on_delete=SET_NULL
+    - لو استخدمنا post_delete، Django هيعمل SET_NULL قبل ما نوصل للقيد
+    - pre_delete يشتغل قبل ما Django يحذف الفاتورة، فنقدر نوصل للقيد ونحذفه
+    
+    الإجراءات:
+    - حذف القيد المحاسبي المرتبط
+    - حذف حركات المخزون المرتبطة
+    - تحديث رصيد العميل
+    """
+    try:
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        # 1. حذف القيد المحاسبي (قبل ما Django يعمل SET_NULL)
+        if instance.journal_entry:
+            journal_number = instance.journal_entry.number
+            journal_entry = instance.journal_entry
+            
+            # إلغاء الترحيل أولاً إذا كان القيد مرحلاً
+            if journal_entry.status == 'posted':
+                journal_entry.status = 'draft'
+                journal_entry.save(update_fields=['status'])
+                logger.info(f"✅ تم إلغاء ترحيل القيد: {journal_number}")
+            
+            # الآن يمكن حذف القيد
+            journal_entry.delete()
+            logger.info(f"✅ تم حذف القيد المحاسبي: {journal_number} - فاتورة {instance.number}")
+        
+        # 2. حذف حركات المخزون المرتبطة
+        deleted_movements = StockMovement.objects.filter(
+            document_type="sale",
+            document_number=instance.number
+        ).delete()
+        if deleted_movements[0] > 0:
+            logger.info(f"✅ تم حذف {deleted_movements[0]} حركة مخزون - فاتورة {instance.number}")
+        
+        # 3. تحديث رصيد العميل (عكس العملية)
+        if instance.payment_method == "credit":
+            customer = instance.customer
+            if customer:
+                customer.balance -= instance.total
+                customer.save(update_fields=["balance"])
+                logger.info(f"✅ تم تحديث رصيد العميل: {customer.name} - فاتورة {instance.number}")
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"❌ خطأ في معالجة حذف فاتورة المبيعات: {str(e)} - فاتورة {instance.number}")
 
 
 # ملاحظة: تم نقل إنشاء القيد المحاسبي إلى Signal الخاص بـ SaleItem

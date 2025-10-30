@@ -6,7 +6,7 @@ from datetime import timedelta
 from django.urls import reverse
 from django.contrib import messages
 from django.http import JsonResponse
-from django.contrib.auth.decorators import user_passes_test
+from django.conf import settings
 import subprocess
 import os
 import sys
@@ -279,118 +279,90 @@ def notifications_list(request):
     return render(request, "core/notifications_list.html", context)
 
 
-def is_superuser(user):
-    """التحقق من أن المستخدم superuser"""
-    return user.is_superuser
-
-
-
-
-@user_passes_test(is_superuser)
-def reset_system_with_progress(request):
-    """إعادة تهيئة النظام مع شريط تقدم في الوقت الفعلي"""
-    if request.method == 'POST':
-        try:
-            import threading
-            import time
-            from django.core.cache import cache
-            from django.core.management import call_command
-            
-            # إنشاء معرف فريد للعملية
-            operation_id = f"reset_system_{int(time.time())}"
-            
-            # تهيئة بيانات التقدم
-            initial_data = {
-                'status': 'starting',
-                'current_step': 0,
-                'total_steps': 10,
-                'step_name': 'بدء العملية...',
-                'percentage': 0,
-                'messages': []
-            }
-            
-            cache.set(f"progress_{operation_id}", initial_data, timeout=600)  # 10 دقائق
-            
-            # تأكيد حفظ البيانات في الكاش
-            test_data = cache.get(f"progress_{operation_id}")
-            if not test_data:
-                return JsonResponse({
-                    'success': False,
-                    'message': 'فشل في تهيئة نظام التتبع - مشكلة في الكاش'
-                })
-            
-            def run_reset_command():
-                """تشغيل Django management command في thread منفصل"""
-                try:
-                    # تحديث التقدم: بدء تشغيل الأمر
-                    progress_data = cache.get(f"progress_{operation_id}", {})
-                    progress_data.update({
-                        'status': 'starting_command',
-                        'step_name': 'بدء تشغيل أمر إعادة التهيئة...',
-                        'percentage': 5
-                    })
-                    progress_data['messages'].append("تشغيل Django management command")
-                    cache.set(f"progress_{operation_id}", progress_data, timeout=600)
-                    
-                    # تشغيل Django management command
-                    call_command('reset_system', operation_id=operation_id)
-                    
-                except Exception as e:
-                    import traceback
-                    error_details = traceback.format_exc()
-                    cache.set(f"progress_{operation_id}", {
-                        'status': 'failed',
-                        'success': False,
-                        'message': f'فشل في إعادة التهيئة: {str(e)}',
-                        'error_details': error_details
-                    }, timeout=600)
-            
-            import threading
-            reset_thread = threading.Thread(target=run_reset_command)
-            reset_thread.daemon = True
-            reset_thread.start()
-            
-            return JsonResponse({
-                'success': True,
-                'operation_id': operation_id,
-                'message': 'تم بدء عملية إعادة التهيئة'
-            }, content_type='application/json')
-            
-        except Exception as e:
-            import traceback
-            error_details = traceback.format_exc()
-            return JsonResponse({
-                'success': False,
-                'message': f'فشل في بدء عملية إعادة التهيئة: {str(e)}',
-                'error_details': error_details
-            }, content_type='application/json')
+@login_required
+def system_reset(request):
+    """
+    إعادة تهيئة النظام - استعادة ضبط المصنع
+    """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'message': 'طريقة الطلب غير صحيحة'})
     
-    return JsonResponse({
-        'success': False,
-        'message': 'طريقة الطلب غير صحيحة'
-    })
-
-def get_reset_progress(request, operation_id):
-    """الحصول على تقدم عملية إعادة التهيئة"""
+    # التحقق من صلاحيات المدير
+    if not request.user.is_superuser:
+        return JsonResponse({'success': False, 'message': 'ليس لديك صلاحية لتنفيذ هذا الإجراء'})
+    
     try:
-        from django.core.cache import cache
-        progress_data = cache.get(f"progress_{operation_id}")
+        # تحديد السكريبت
+        base_dir = settings.BASE_DIR
+        script_name = 'setup_development.py'
+        script_path = os.path.join(base_dir, script_name)
         
-        if not progress_data:
+        # التحقق من وجود السكريبت
+        if not os.path.exists(script_path):
             return JsonResponse({
-                'status': 'not_found',
-                'message': 'لم يتم العثور على العملية'
-            }, content_type='application/json')
+                'success': False, 
+                'message': f'لم يتم العثور على السكريبت: {script_name}'
+            })
         
-        return JsonResponse(progress_data, content_type='application/json')
+        # تشغيل السكريبت في الخلفية
+        python_executable = sys.executable
         
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
+        # تشغيل السكريبت في الخلفية بدون انتظار
+        import time
+        import logging
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"🔄 بدء تشغيل سكريبت إعادة التهيئة: {script_name}")
+        
+        # إنشاء ملف log لتتبع العملية
+        log_file = os.path.join(base_dir, 'system_reset.log')
+        
+        if os.name == 'nt':  # Windows
+            # على Windows، نستخدم CREATE_NEW_PROCESS_GROUP فقط (بدون DETACHED)
+            # عشان نقدر نشوف الـ output في terminal جديد
+            CREATE_NEW_PROCESS_GROUP = 0x00000200
+            CREATE_NO_WINDOW = 0x08000000
+            
+            # فتح ملف log للكتابة
+            log_handle = open(log_file, 'w', encoding='utf-8')
+            
+            process = subprocess.Popen(
+                [python_executable, script_path, '--auto'],
+                cwd=base_dir,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                creationflags=CREATE_NEW_PROCESS_GROUP
+            )
+            
+            logger.info(f"✅ تم بدء العملية - PID: {process.pid}")
+            logger.info(f"📝 يمكنك متابعة التقدم في: {log_file}")
+            
+        else:  # Linux/Mac
+            log_handle = open(log_file, 'w', encoding='utf-8')
+            
+            process = subprocess.Popen(
+                [python_executable, script_path, '--auto'],
+                cwd=base_dir,
+                stdout=log_handle,
+                stderr=subprocess.STDOUT,
+                text=True,
+                start_new_session=True
+            )
+            
+            logger.info(f"✅ تم بدء العملية - PID: {process.pid}")
+        
+        # إرجاع استجابة فورية بدون انتظار
         return JsonResponse({
-            'status': 'error',
+            'success': True,
+            'message': 'تم بدء عملية إعادة التهيئة',
+            'details': 'العملية تعمل في الخلفية. سيتم إعادة تشغيل الخادم تلقائياً عند الانتهاء.',
+            'log_file': 'system_reset.log',
+            'pid': process.pid
+        })
+                
+    except Exception as e:
+        return JsonResponse({
             'success': False,
-            'message': f'خطأ في تتبع التقدم: {str(e)}',
-            'error_details': error_details,
-            'operation_id': operation_id
-        }, content_type='application/json')
+            'message': f'حدث خطأ أثناء تشغيل السكريبت: {str(e)}'
+        })
