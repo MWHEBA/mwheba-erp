@@ -387,13 +387,13 @@
                         </a>
                         
                         {% if user.is_superuser %}
-                        <a href="#" class="user-dropdown-item" onclick="resetSystem(event)">
+                        <a href="#" class="user-dropdown-item" id="systemResetBtn">
                             <div class="dropdown-item-icon bg-soft-danger">
                                 <i class="fas fa-undo-alt text-danger"></i>
                             </div>
                             <div class="dropdown-item-text">
                                 <span>إعادة تهيئة النظام</span>
-                                <small>استعادة ضبط مصنع للنظام</small>
+                                <small>استعادة ضبط المصنع</small>
                             </div>
                         </a>
                         {% endif %}
@@ -421,289 +421,267 @@
     </div>
 </header>
 
+{% if user.is_superuser %}
 <script>
-function resetSystem(event) {
-    event.preventDefault();
+document.addEventListener('DOMContentLoaded', function() {
+    const systemResetBtn = document.getElementById('systemResetBtn');
     
-    // SweetAlert تحذيري احترافي
-    Swal.fire({
-        title: '⚠️ تحذير هام!',
-        html: `
-            <div style="text-align: right; direction: rtl;">
-                <p style="font-size: 16px; margin-bottom: 15px;">
-                    <strong>هذا الإجراء سيقوم بـ:</strong>
-                </p>
-                <ul style="text-align: right; list-style: none; padding: 0;">
-                    <li style="margin-bottom: 8px;">🗑️ حذف جميع البيانات الموجودة</li>
-                    <li style="margin-bottom: 8px;">🔄 إعادة إنشاء قاعدة البيانات</li>
-                    <li style="margin-bottom: 8px;">👥 إنشاء المستخدمين الافتراضيين</li>
-                    <li style="margin-bottom: 8px;">📊 تحميل البيانات التجريبية</li>
-                    <li style="margin-bottom: 8px;">⚙️ إعادة تهيئة جميع الإعدادات</li>
-                </ul>
-                <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 8px; padding: 15px; margin-top: 20px;">
-                    <p style="color: #856404; margin: 0; font-weight: bold;">
-                        ⚠️ لا يمكن التراجع عن هذا الإجراء!
-                    </p>
-                </div>
-            </div>
-        `,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#dc3545',
-        cancelButtonColor: '#6c757d',
-        confirmButtonText: '🔄 نعم، أعد تهيئة النظام',
-        cancelButtonText: '❌ إلغاء',
-        reverseButtons: true,
-        customClass: {
-            popup: 'swal-rtl',
-            title: 'swal-title-rtl',
-            content: 'swal-content-rtl'
-        },
-        showLoaderOnConfirm: true,
-        preConfirm: () => {
-            // الحصول على CSRF token
-            let csrfToken = '';
-            const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
-            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (systemResetBtn) {
+        systemResetBtn.addEventListener('click', function(e) {
+            e.preventDefault();
             
-            if (csrfInput) {
-                csrfToken = csrfInput.value;
-            } else if (csrfMeta) {
-                csrfToken = csrfMeta.getAttribute('content');
-            } else {
-                // محاولة الحصول على CSRF من cookies
-                const cookies = document.cookie.split(';');
-                for (let cookie of cookies) {
-                    const [name, value] = cookie.trim().split('=');
-                    if (name === 'csrftoken') {
-                        csrfToken = value;
-                        break;
-                    }
-                }
+            // إغلاق قائمة المستخدم
+            const userDropdown = bootstrap.Dropdown.getInstance(document.getElementById('userDropdown'));
+            if (userDropdown) {
+                userDropdown.hide();
             }
             
-            // التحقق من وجود CSRF token
-            if (!csrfToken) {
-                throw new Error('لم يتم العثور على CSRF token. يرجى إعادة تحميل الصفحة.');
-            }
-            
-            return fetch('{% url "core:reset_system_with_progress" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
-            })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (!data.success) {
-                    throw new Error(data.message || 'حدث خطأ غير معروف');
-                }
-                
-                // بدء تتبع التقدم
-                return trackResetProgress(data.operation_id);
-            })
-            .catch(error => {
-                console.error('Reset system error:', error);
-                Swal.showValidationMessage(`خطأ: ${error.message}`);
-                return false;
-            });
-        },
-        allowOutsideClick: () => !Swal.isLoading()
-    }).then((result) => {
-        if (result.isConfirmed && result.value) {
-            // عرض رسالة النجاح
+            // عرض تحذير Sweet Alert احترافي
             Swal.fire({
-                title: '✅ تم بنجاح!',
-                text: result.value.message,
-                icon: 'success',
-                timer: 3000,
-                timerProgressBar: true,
-                showConfirmButton: false,
+                title: '⚠️ تحذير خطير',
+                html: `
+                    <div class="text-start">
+                        <p class="mb-3"><strong>هذا الإجراء سيقوم بـ:</strong></p>
+                        <ul class="text-danger fw-bold">
+                            <li>حذف جميع البيانات الموجودة</li>
+                            <li>إعادة إنشاء قاعدة البيانات</li>
+                            <li>استعادة البيانات الأساسية فقط</li>
+                            <li>إعادة تشغيل الخادم</li>
+                        </ul>
+                        <div class="alert alert-danger mt-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>تحذير:</strong> لا يمكن التراجع عن هذا الإجراء!
+                        </div>
+                        <p class="text-muted">سيتم استخدام السكريبت المناسب حسب بيئة التشغيل الحالية.</p>
+                    </div>
+                `,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: '<i class="fas fa-undo-alt me-2"></i>نعم، أعد التهيئة',
+                cancelButtonText: '<i class="fas fa-times me-2"></i>إلغاء',
+                reverseButtons: true,
                 customClass: {
-                    popup: 'swal-rtl'
-                }
-            }).then(() => {
-                // إعادة التوجيه لصفحة تسجيل الدخول
-                if (result.value.redirect) {
-                    window.location.href = result.value.redirect;
-                } else {
-                    window.location.reload();
+                    popup: 'swal2-rtl',
+                    title: 'text-danger',
+                    confirmButton: 'btn btn-danger me-2',
+                    cancelButton: 'btn btn-secondary ms-2',
+                    actions: 'd-flex justify-content-center gap-3 mt-4'
+                },
+                buttonsStyling: false,
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                focusCancel: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // تأكيد إضافي
+                    Swal.fire({
+                        title: '⚠️ تأكيد نهائي',
+                        html: `
+                            <div class="text-center">
+                                <p class="mb-3">للمتابعة، اكتب <strong class="text-danger">"إعادة تهيئة"</strong> في الحقل أدناه:</p>
+                                <div class="alert alert-warning d-inline-block">
+                                    <i class="fas fa-exclamation-circle me-2"></i>
+                                    هذا هو التأكيد الأخير قبل بدء العملية
+                                </div>
+                            </div>
+                        `,
+                        input: 'text',
+                        inputPlaceholder: 'إعادة تهيئة',
+                        showCancelButton: true,
+                        confirmButtonText: '<i class="fas fa-check-circle me-2"></i>تأكيد نهائي',
+                        cancelButtonText: '<i class="fas fa-times-circle me-2"></i>إلغاء',
+                        reverseButtons: true,
+                        customClass: {
+                            popup: 'swal2-rtl',
+                            title: 'text-danger fw-bold',
+                            confirmButton: 'btn btn-danger me-2',
+                            cancelButton: 'btn btn-secondary ms-2',
+                            actions: 'd-flex justify-content-center gap-3 mt-4',
+                            input: 'form-control text-center fw-bold'
+                        },
+                        buttonsStyling: false,
+                        allowOutsideClick: false,
+                        allowEscapeKey: false,
+                        focusCancel: true,
+                        inputValidator: (value) => {
+                            if (value !== 'إعادة تهيئة') {
+                                return 'يجب كتابة "إعادة تهيئة" بالضبط للمتابعة'
+                            }
+                        }
+                    }).then((confirmResult) => {
+                        if (confirmResult.isConfirmed) {
+                            executeSystemReset();
+                        }
+                    });
                 }
             });
-        }
-    });
-}
-
-// دالة تتبع التقدم
-function trackResetProgress(operationId) {
-    return new Promise((resolve, reject) => {
-        // إظهار مودال التقدم
+        });
+    }
+    
+    function executeSystemReset() {
+        // عرض مؤشر التحميل
         Swal.fire({
-            title: '🔄 جاري إعادة تهيئة النظام',
+            title: 'جاري إعادة التهيئة...',
             html: `
-                <div style="text-align: right; direction: rtl;">
-                    <div class="progress mb-3" style="height: 25px;">
-                        <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" 
-                             role="progressbar" style="width: 0%; background: linear-gradient(45deg, #007bff, #0056b3);">
-                            <span id="progressText" style="font-weight: bold; color: white;">0%</span>
-                        </div>
+                <div class="text-center">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
                     </div>
-                    <div id="currentStep" style="font-size: 16px; margin-bottom: 10px; color: #495057;">
-                        بدء العملية...
-                    </div>
-                    <div id="stepDetails" style="font-size: 14px; color: #6c757d; max-height: 200px; overflow-y: auto;">
-                        <div>⏳ جاري التحضير...</div>
-                    </div>
+                    <p>يرجى الانتظار، لا تغلق المتصفح...</p>
+                    <small class="text-muted">قد تستغرق العملية عدة دقائق</small>
                 </div>
             `,
             allowOutsideClick: false,
             allowEscapeKey: false,
             showConfirmButton: false,
             customClass: {
-                popup: 'swal-rtl swal-progress',
-                title: 'swal-title-rtl'
+                popup: 'swal2-rtl'
             }
         });
         
-        // تتبع التقدم كل ثانية
-        const progressInterval = setInterval(() => {
-            fetch(`{% url "core:get_reset_progress" "OPERATION_ID" %}`.replace('OPERATION_ID', operationId))
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    if (data.status === 'not_found') {
-                        clearInterval(progressInterval);
-                        reject(new Error('لم يتم العثور على العملية'));
-                        return;
-                    }
-                    
-                    // تحديث شريط التقدم
-                    const progressBar = document.getElementById('progressBar');
-                    const progressText = document.getElementById('progressText');
-                    const currentStep = document.getElementById('currentStep');
-                    const stepDetails = document.getElementById('stepDetails');
-                    
-                    if (progressBar && progressText && currentStep) {
-                        progressBar.style.width = `${data.percentage}%`;
-                        progressText.textContent = `${data.percentage}%`;
-                        currentStep.textContent = `المرحلة ${data.current_step}/${data.total_steps}: ${data.step_name}`;
-                        
-                        // إضافة الرسائل الجديدة
-                        if (data.messages && data.messages.length > 0) {
-                            stepDetails.innerHTML = data.messages.map(msg => 
-                                `<div style="margin-bottom: 5px;">${msg}</div>`
-                            ).join('');
-                            stepDetails.scrollTop = stepDetails.scrollHeight;
-                        }
-                    }
-                    
-                    // التحقق من انتهاء العملية
-                    if (data.status === 'completed') {
-                        clearInterval(progressInterval);
-                        setTimeout(() => {
-                            resolve({
-                                success: true,
-                                message: data.message,
-                                redirect: '/login/'
-                            });
-                        }, 1000);
-                    } else if (data.status === 'failed') {
-                        clearInterval(progressInterval);
-                        let errorMessage = data.message || 'حدث خطأ غير معروف';
-                        if (data.error_details) {
-                            console.error('Error details:', data.error_details);
-                        }
-                        if (data.stderr) {
-                            console.error('Script stderr:', data.stderr);
-                        }
-                        if (data.return_code) {
-                            console.error('Return code:', data.return_code);
-                        }
-                        reject(new Error(errorMessage));
-                    }
-                })
-                .catch(error => {
-                    console.error('Progress tracking error:', error);
-                    clearInterval(progressInterval);
-                    
-                    // عرض خطأ في المودال
-                    const currentStep = document.getElementById('currentStep');
-                    if (currentStep) {
-                        currentStep.textContent = `خطأ في التتبع: ${error.message}`;
-                        currentStep.style.color = '#dc3545';
-                    }
-                    
-                    // إعطاء فرصة أخرى بعد 3 ثوان
-                    setTimeout(() => {
-                        reject(error);
-                    }, 3000);
-                });
-        }, 1000);
+        // إرسال طلب إعادة التهيئة
+        const csrfToken = document.querySelector('meta[name="csrf-token"]');
+        const headers = {
+            'Content-Type': 'application/json'
+        };
         
-        // timeout بعد 10 دقائق
-        setTimeout(() => {
-            clearInterval(progressInterval);
-            reject(new Error('انتهت مهلة العملية'));
-        }, 600000);
-    });
-}
-
-// إضافة CSS للـ RTL support في SweetAlert
-if (!document.getElementById('swal-rtl-styles')) {
-    const style = document.createElement('style');
-    style.id = 'swal-rtl-styles';
-    style.textContent = `
-        .swal-rtl {
-            direction: rtl !important;
-            text-align: right !important;
+        // إضافة CSRF token إذا كان موجوداً
+        if (csrfToken) {
+            headers['X-CSRFToken'] = csrfToken.getAttribute('content');
         }
-        .swal-title-rtl {
-            text-align: center !important;
-        }
-        .swal-content-rtl {
-            text-align: right !important;
-        }
-        .swal2-html-container {
-            text-align: right !important;
-        }
-        .swal-progress .swal2-popup {
-            width: 600px !important;
-            max-width: 90vw !important;
-        }
-        .swal-progress .progress {
-            background-color: #e9ecef;
-            border-radius: 12px;
-            overflow: hidden;
-            box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
-        }
-        .swal-progress .progress-bar {
-            transition: width 0.3s ease;
-            font-size: 14px;
-            line-height: 25px;
-            border-radius: 12px;
-        }
-        .swal-progress #stepDetails {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 8px;
-            padding: 10px;
-            font-family: 'Tajawal', sans-serif;
-        }
-        .swal-progress #currentStep {
-            font-weight: bold;
-            font-family: 'Tajawal', sans-serif;
-        }
-    `;
-    document.head.appendChild(style);
-}
-</script> 
+        
+        fetch('{% url "core:system_reset" %}', {
+            method: 'POST',
+            headers: headers
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.success) {
+                Swal.fire({
+                    title: '✅ تم بدء عملية إعادة التهيئة',
+                    html: `
+                        <div class="text-start">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                ${data.message}
+                            </div>
+                            <p class="text-muted mb-2">
+                                <i class="fas fa-spinner fa-spin me-2"></i>
+                                ${data.details}
+                            </p>
+                            <p class="text-primary mt-3 mb-0">
+                                <strong>سيتم إعادة تحميل الصفحة خلال <span id="countdown">90</span> ثانية...</strong>
+                            </p>
+                        </div>
+                    `,
+                    icon: 'info',
+                    timer: 90000,
+                    timerProgressBar: true,
+                    showConfirmButton: true,
+                    confirmButtonText: 'حسناً',
+                    allowOutsideClick: false,
+                    customClass: {
+                        popup: 'swal2-rtl'
+                    },
+                    didOpen: () => {
+                        // عداد تنازلي
+                        let secondsLeft = 90;
+                        const countdownElement = document.getElementById('countdown');
+                        
+                        const countdownInterval = setInterval(() => {
+                            secondsLeft--;
+                            if (countdownElement) {
+                                countdownElement.textContent = secondsLeft;
+                            }
+                            
+                            if (secondsLeft <= 0) {
+                                clearInterval(countdownInterval);
+                            }
+                        }, 1000);
+                        
+                        // حفظ الـ interval للتنظيف لاحقاً
+                        Swal.getPopup().countdownInterval = countdownInterval;
+                    },
+                    willClose: () => {
+                        // تنظيف الـ interval عند إغلاق المودال
+                        const popup = Swal.getPopup();
+                        if (popup && popup.countdownInterval) {
+                            clearInterval(popup.countdownInterval);
+                        }
+                    }
+                }).then(() => {
+                    // إعادة تحميل الصفحة بعد 90 ثانية
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire({
+                    title: '❌ فشلت العملية',
+                    html: `
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ${data.message}
+                        </div>
+                        ${data.error_output ? `
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-outline-danger" type="button" data-bs-toggle="collapse" data-bs-target="#errorDetails">
+                                    <i class="fas fa-bug me-1"></i> عرض تفاصيل الخطأ
+                                </button>
+                                <div class="collapse mt-2" id="errorDetails">
+                                    <div class="card card-body bg-light">
+                                        <small class="text-danger" style="white-space: pre-line; font-family: monospace;">${data.error_output}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${data.script_output ? `
+                            <div class="mt-2">
+                                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#scriptOutput">
+                                    <i class="fas fa-terminal me-1"></i> ناتج السكريبت
+                                </button>
+                                <div class="collapse mt-2" id="scriptOutput">
+                                    <div class="card card-body bg-light">
+                                        <small class="text-muted" style="white-space: pre-line; font-family: monospace;">${data.script_output}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    `,
+                    icon: 'error',
+                    confirmButtonText: 'حسناً',
+                    customClass: {
+                        popup: 'swal2-rtl',
+                        confirmButton: 'btn btn-primary'
+                    },
+                    buttonsStyling: false
+                });
+            }
+        })
+        .catch(error => {
+            console.error('خطأ في executeSystemReset:', error);
+            Swal.fire({
+                title: '❌ خطأ في الشبكة',
+                html: `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        حدث خطأ أثناء الاتصال بالخادم
+                    </div>
+                    <small class="text-muted">تفاصيل الخطأ: ${error.message || 'خطأ غير معروف'}</small>
+                `,
+                icon: 'error',
+                confirmButtonText: 'حسناً',
+                customClass: {
+                    popup: 'swal2-rtl',
+                    confirmButton: 'btn btn-primary'
+                },
+                buttonsStyling: false
+            });
+        });
+    }
+});
+</script>
+{% endif %} 

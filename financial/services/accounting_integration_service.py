@@ -442,21 +442,45 @@ class AccountingIntegrationService:
         """حساب تكلفة البضاعة المباعة"""
         try:
             total_cost = Decimal("0.00")
+            items_without_cost = []
+            
             for item in sale.items.all():
-                if hasattr(item.product, "cost_price") and item.product.cost_price:
-                    total_cost += item.product.cost_price * item.quantity
+                # التحقق من وجود حقل cost_price
+                if not hasattr(item.product, "cost_price"):
+                    logger.warning(f"المنتج {item.product.name} لا يحتوي على حقل cost_price")
+                    items_without_cost.append(item.product.name)
+                    continue
+                
+                # التحقق من أن التكلفة ليست None
+                if item.product.cost_price is None:
+                    logger.warning(f"المنتج {item.product.name} ليس له تكلفة محددة (None)")
+                    items_without_cost.append(item.product.name)
+                    continue
+                
+                # حساب تكلفة البند (حتى لو كانت صفر)
+                item_cost = item.product.cost_price * item.quantity
+                total_cost += item_cost
+                
+                logger.debug(
+                    f"  البند: {item.product.name}, الكمية: {item.quantity}, "
+                    f"التكلفة: {item.product.cost_price}, الإجمالي: {item_cost}"
+                )
 
-            # تسجيل للتشخيص
-            if total_cost == 0:
-                logger.warning(f"تكلفة البضاعة المباعة = 0 للفاتورة {sale.number}")
-                for item in sale.items.all():
-                    logger.warning(
-                        f"  - المنتج: {item.product.name}, التكلفة: {item.product.cost_price}, الكمية: {item.quantity}"
-                    )
+            # تسجيل تحذير إذا كانت هناك منتجات بدون تكلفة
+            if items_without_cost:
+                logger.warning(
+                    f"⚠️ الفاتورة {sale.number} تحتوي على منتجات بدون تكلفة محددة: "
+                    f"{', '.join(items_without_cost)}"
+                )
+            
+            # تسجيل إجمالي التكلفة
+            logger.info(f"إجمالي تكلفة البضاعة المباعة للفاتورة {sale.number}: {total_cost}")
 
             return total_cost
         except Exception as e:
             logger.error(f"خطأ في حساب تكلفة البضاعة: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
             return Decimal("0.00")
 
     @classmethod
@@ -750,4 +774,358 @@ class AccountingIntegrationService:
             
         except Exception as e:
             logger.error(f"❌ خطأ في الحصول على حساب العميل: {e}")
+            return None
+
+    @classmethod
+    def create_sale_adjustment_entry(
+        cls,
+        sale,
+        old_total: Decimal,
+        old_cost: Decimal,
+        user: Optional[User] = None,
+        reason: str = ""
+    ) -> Optional[JournalEntry]:
+        """
+        إنشاء قيد تصحيحي لتعديل فاتورة مبيعات مرحّلة
+        
+        يتم إنشاء قيد تصحيحي يُسجل الفرق بين القيم القديمة والجديدة
+        مع الحفاظ على القيد الأصلي للأثر التدقيقي
+        
+        يتضمن:
+        - التحقق من إغلاق الفترة المحاسبية
+        - إنشاء سجل تدقيق مفصل
+        - ربط القيد التصحيحي بالفاتورة
+        """
+        try:
+            with transaction.atomic():
+                # حساب الفروقات
+                new_total = sale.total
+                new_cost = cls._calculate_sale_cost(sale)
+                
+                total_difference = new_total - old_total
+                cost_difference = new_cost - old_cost
+                
+                # إذا لم يكن هناك فرق، لا حاجة لقيد تصحيحي
+                if total_difference == 0 and cost_difference == 0:
+                    logger.info(f"لا توجد فروقات تتطلب قيد تصحيحي للفاتورة {sale.number}")
+                    return None
+                
+                # التحقق من إغلاق الفترة المحاسبية
+                current_date = timezone.now().date()
+                accounting_period = cls._get_accounting_period(current_date)
+                
+                if accounting_period and accounting_period.status == 'closed':
+                    error_msg = f"لا يمكن إنشاء قيد تصحيحي - الفترة المحاسبية {accounting_period.name} مغلقة"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg)
+                
+                # الحصول على الحسابات المطلوبة
+                accounts = cls._get_required_accounts_for_sale()
+                if not accounts:
+                    logger.error("لا يمكن العثور على الحسابات المحاسبية المطلوبة")
+                    return None
+                
+                # إنشاء القيد التصحيحي
+                adjustment_entry = JournalEntry.objects.create(
+                    number=cls._generate_journal_number("ADJ-SALE", sale.number),
+                    date=current_date,
+                    entry_type="adjustment",
+                    status="posted",
+                    reference=f"تصحيح فاتورة مبيعات {sale.number}",
+                    description=f"تصحيح بسبب تعديل الفاتورة - الفرق: {total_difference} ج.م",
+                    created_by=user,
+                    accounting_period=accounting_period,
+                )
+                
+                # معالجة فرق الإجمالي (الإيرادات والعملاء)
+                if total_difference != 0:
+                    customer_account = cls._get_customer_account(sale.customer)
+                    if not customer_account:
+                        customer_account = accounts["accounts_receivable"]
+                    
+                    if total_difference > 0:  # زيادة في الفاتورة
+                        # مدين العميل (زيادة الذمة)
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=customer_account,
+                            debit=total_difference,
+                            credit=Decimal("0.00"),
+                            description=f"زيادة ذمة العميل {sale.customer.name} - تصحيح فاتورة {sale.number}",
+                        )
+                        # دائن الإيرادات (زيادة الإيرادات)
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["sales_revenue"],
+                            debit=Decimal("0.00"),
+                            credit=total_difference,
+                            description=f"زيادة إيرادات - تصحيح فاتورة {sale.number}",
+                        )
+                    else:  # نقص في الفاتورة
+                        abs_diff = abs(total_difference)
+                        # دائن العميل (تخفيض الذمة)
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=customer_account,
+                            debit=Decimal("0.00"),
+                            credit=abs_diff,
+                            description=f"تخفيض ذمة العميل {sale.customer.name} - تصحيح فاتورة {sale.number}",
+                        )
+                        # مدين الإيرادات (تخفيض الإيرادات)
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["sales_revenue"],
+                            debit=abs_diff,
+                            credit=Decimal("0.00"),
+                            description=f"تخفيض إيرادات - تصحيح فاتورة {sale.number}",
+                        )
+                
+                # معالجة فرق التكلفة (تكلفة البضاعة والمخزون)
+                if cost_difference != 0:
+                    if cost_difference > 0:  # زيادة في التكلفة
+                        # مدين تكلفة البضاعة المباعة
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["cost_of_goods_sold"],
+                            debit=cost_difference,
+                            credit=Decimal("0.00"),
+                            description=f"زيادة تكلفة البضاعة - تصحيح فاتورة {sale.number}",
+                        )
+                        # دائن المخزون
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["inventory"],
+                            debit=Decimal("0.00"),
+                            credit=cost_difference,
+                            description=f"تخفيض المخزون - تصحيح فاتورة {sale.number}",
+                        )
+                    else:  # نقص في التكلفة
+                        abs_cost_diff = abs(cost_difference)
+                        # دائن تكلفة البضاعة المباعة
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["cost_of_goods_sold"],
+                            debit=Decimal("0.00"),
+                            credit=abs_cost_diff,
+                            description=f"تخفيض تكلفة البضاعة - تصحيح فاتورة {sale.number}",
+                        )
+                        # مدين المخزون
+                        JournalEntryLine.objects.create(
+                            journal_entry=adjustment_entry,
+                            account=accounts["inventory"],
+                            debit=abs_cost_diff,
+                            credit=Decimal("0.00"),
+                            description=f"زيادة المخزون - تصحيح فاتورة {sale.number}",
+                        )
+                
+                # إنشاء سجل تدقيق مفصل
+                from financial.models import InvoiceAuditLog
+                
+                audit_log = InvoiceAuditLog.objects.create(
+                    invoice_type="sale",
+                    invoice_id=sale.id,
+                    invoice_number=sale.number,
+                    action_type="adjustment",
+                    old_total=old_total,
+                    old_cost=old_cost,
+                    new_total=new_total,
+                    new_cost=new_cost,
+                    total_difference=total_difference,
+                    cost_difference=cost_difference,
+                    adjustment_entry=adjustment_entry,
+                    reason=reason,
+                    notes=f"تم إنشاء قيد تصحيحي {adjustment_entry.number}",
+                    created_by=user,
+                )
+                
+                logger.info(
+                    f"✅ تم إنشاء قيد تصحيحي للمبيعات: {adjustment_entry.number} - "
+                    f"فاتورة {sale.number} (فرق الإجمالي: {total_difference}, فرق التكلفة: {cost_difference}) - "
+                    f"سجل تدقيق: {audit_log.id}"
+                )
+                return adjustment_entry
+                
+        except Exception as e:
+            logger.error(f"❌ خطأ في إنشاء قيد تصحيحي للمبيعات: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    @classmethod
+    def create_purchase_adjustment_entry(
+        cls,
+        purchase,
+        old_total: Decimal,
+        user: Optional[User] = None,
+        reason: str = ""
+    ) -> Optional[JournalEntry]:
+        """
+        إنشاء قيد تصحيحي لتعديل فاتورة مشتريات مرحّلة
+        
+        يتم إنشاء قيد تصحيحي يُسجل الفرق بين القيم القديمة والجديدة
+        
+        يتضمن:
+        - التحقق من إغلاق الفترة المحاسبية
+        - إنشاء سجل تدقيق مفصل
+        - ربط القيد التصحيحي بالفاتورة
+        """
+        try:
+            with transaction.atomic():
+                # حساب الفرق
+                new_total = purchase.total
+                total_difference = new_total - old_total
+                
+                # إذا لم يكن هناك فرق، لا حاجة لقيد تصحيحي
+                if total_difference == 0:
+                    logger.info(f"لا توجد فروقات تتطلب قيد تصحيحي للفاتورة {purchase.number}")
+                    return None
+                
+                # التحقق من إغلاق الفترة المحاسبية
+                current_date = timezone.now().date()
+                accounting_period = cls._get_accounting_period(current_date)
+                
+                if accounting_period and accounting_period.status == 'closed':
+                    error_msg = f"لا يمكن إنشاء قيد تصحيحي - الفترة المحاسبية {accounting_period.name} مغلقة"
+                    logger.error(error_msg)
+                    raise ValidationError(error_msg)
+                
+                # الحصول على الحسابات المطلوبة
+                accounts = cls._get_required_accounts_for_purchase()
+                if not accounts:
+                    logger.error("لا يمكن العثور على الحسابات المحاسبية المطلوبة")
+                    return None
+                
+                # إنشاء القيد التصحيحي
+                adjustment_entry = JournalEntry.objects.create(
+                    number=cls._generate_journal_number("ADJ-PURCHASE", purchase.number),
+                    date=current_date,
+                    entry_type="adjustment",
+                    status="posted",
+                    reference=f"تصحيح فاتورة مشتريات {purchase.number}",
+                    description=f"تصحيح بسبب تعديل الفاتورة - الفرق: {total_difference} ج.م",
+                    created_by=user,
+                    accounting_period=accounting_period,
+                )
+                
+                # معالجة الفرق
+                supplier_account = cls._get_supplier_account(purchase.supplier)
+                if not supplier_account:
+                    supplier_account = accounts["accounts_payable"]
+                
+                if total_difference > 0:  # زيادة في الفاتورة
+                    # مدين المخزون (زيادة المخزون)
+                    JournalEntryLine.objects.create(
+                        journal_entry=adjustment_entry,
+                        account=accounts["inventory"],
+                        debit=total_difference,
+                        credit=Decimal("0.00"),
+                        description=f"زيادة مخزون - تصحيح فاتورة {purchase.number}",
+                    )
+                    # دائن المورد (زيادة المديونية)
+                    JournalEntryLine.objects.create(
+                        journal_entry=adjustment_entry,
+                        account=supplier_account,
+                        debit=Decimal("0.00"),
+                        credit=total_difference,
+                        description=f"زيادة مديونية المورد {purchase.supplier.name} - تصحيح فاتورة {purchase.number}",
+                    )
+                else:  # نقص في الفاتورة
+                    abs_diff = abs(total_difference)
+                    # دائن المخزون (تخفيض المخزون)
+                    JournalEntryLine.objects.create(
+                        journal_entry=adjustment_entry,
+                        account=accounts["inventory"],
+                        debit=Decimal("0.00"),
+                        credit=abs_diff,
+                        description=f"تخفيض مخزون - تصحيح فاتورة {purchase.number}",
+                    )
+                    # مدين المورد (تخفيض المديونية)
+                    JournalEntryLine.objects.create(
+                        journal_entry=adjustment_entry,
+                        account=supplier_account,
+                        debit=abs_diff,
+                        credit=Decimal("0.00"),
+                        description=f"تخفيض مديونية المورد {purchase.supplier.name} - تصحيح فاتورة {purchase.number}",
+                    )
+                
+                # إنشاء سجل تدقيق مفصل
+                from financial.models import InvoiceAuditLog
+                
+                audit_log = InvoiceAuditLog.objects.create(
+                    invoice_type="purchase",
+                    invoice_id=purchase.id,
+                    invoice_number=purchase.number,
+                    action_type="adjustment",
+                    old_total=old_total,
+                    old_cost=None,  # المشتريات لا تحتاج تتبع التكلفة
+                    new_total=new_total,
+                    new_cost=None,
+                    total_difference=total_difference,
+                    cost_difference=None,
+                    adjustment_entry=adjustment_entry,
+                    reason=reason,
+                    notes=f"تم إنشاء قيد تصحيحي {adjustment_entry.number}",
+                    created_by=user,
+                )
+                
+                logger.info(
+                    f"✅ تم إنشاء قيد تصحيحي للمشتريات: {adjustment_entry.number} - "
+                    f"فاتورة {purchase.number} (الفرق: {total_difference}) - "
+                    f"سجل تدقيق: {audit_log.id}"
+                )
+                return adjustment_entry
+                
+        except Exception as e:
+            logger.error(f"❌ خطأ في إنشاء قيد تصحيحي للمشتريات: {str(e)}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    @classmethod
+    def get_invoice_audit_logs(cls, invoice_type: str, invoice_id: int):
+        """
+        الحصول على سجلات التدقيق لفاتورة معينة
+        
+        Args:
+            invoice_type: نوع الفاتورة ('sale' أو 'purchase')
+            invoice_id: رقم الفاتورة في قاعدة البيانات
+            
+        Returns:
+            QuerySet من سجلات التدقيق
+        """
+        try:
+            from financial.models import InvoiceAuditLog
+            
+            return InvoiceAuditLog.objects.filter(
+                invoice_type=invoice_type,
+                invoice_id=invoice_id
+            ).select_related('adjustment_entry', 'created_by').order_by('-created_at')
+            
+        except Exception as e:
+            logger.error(f"❌ خطأ في الحصول على سجلات التدقيق: {str(e)}")
+            return None
+
+    @classmethod
+    def get_adjustment_entries_for_invoice(cls, invoice_type: str, invoice_number: str):
+        """
+        الحصول على جميع القيود التصحيحية لفاتورة معينة
+        
+        Args:
+            invoice_type: نوع الفاتورة ('sale' أو 'purchase')
+            invoice_number: رقم الفاتورة
+            
+        Returns:
+            QuerySet من القيود التصحيحية
+        """
+        try:
+            from financial.models import JournalEntry
+            
+            reference_pattern = f"تصحيح فاتورة {'مبيعات' if invoice_type == 'sale' else 'مشتريات'} {invoice_number}"
+            
+            return JournalEntry.objects.filter(
+                entry_type='adjustment',
+                reference=reference_pattern
+            ).prefetch_related('lines').order_by('-date')
+            
+        except Exception as e:
+            logger.error(f"❌ خطأ في الحصول على القيود التصحيحية: {str(e)}")
             return None

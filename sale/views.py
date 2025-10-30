@@ -215,6 +215,12 @@ def sale_create(request, customer_id=None):
                     sale.subtotal = Decimal(request.POST.get("subtotal", "0"))
                     sale.total = Decimal(request.POST.get("total", "0"))
                     sale.created_by = request.user
+                    
+                    # حفظ الحالة الأصلية
+                    original_status = sale.status
+                    
+                    # تعيين الحالة كمسودة مؤقتاً لمنع تشغيل Signals أثناء إضافة البنود
+                    sale.status = 'draft'
 
                     # التأكد من وجود رقم للفاتورة
                     if not sale.number:
@@ -370,6 +376,37 @@ def sale_create(request, customer_id=None):
                             # تحديث المخزون يدوياً
                             stock.quantity = quantity_before - item.quantity
                             stock.save()
+
+                    # الآن بعد إضافة كل البنود، نرجع الحالة الأصلية ونأكد الفاتورة
+                    sale.status = original_status
+                    sale.save(update_fields=['status'])
+                    logger.info(f"تم تأكيد الفاتورة {sale.number} بحالة: {sale.status}")
+
+                    # إنشاء القيد المحاسبي للفاتورة (بعد حفظ كل البنود وتأكيد الفاتورة)
+                    if not sale.journal_entry and sale.status == 'confirmed':
+                        try:
+                            from financial.services.accounting_integration_service import (
+                                AccountingIntegrationService,
+                            )
+
+                            journal_entry = AccountingIntegrationService.create_sale_journal_entry(
+                                sale=sale, user=request.user
+                            )
+
+                            if journal_entry:
+                                logger.info(
+                                    f"✅ تم إنشاء قيد محاسبي للمبيعات: {journal_entry.number} - فاتورة {sale.number}"
+                                )
+                            else:
+                                logger.warning(
+                                    f"⚠️ فشل في إنشاء قيد محاسبي للمبيعات - فاتورة {sale.number}"
+                                )
+
+                        except Exception as e:
+                            logger.error(
+                                f"❌ خطأ في إنشاء قيد محاسبي للمبيعات: {str(e)} - فاتورة {sale.number}"
+                            )
+                            # لا نوقف العملية، فقط نسجل الخطأ
 
                     # إنشاء دفعة تلقائية للفواتير النقدية
                     if sale.payment_method == "cash":
@@ -569,7 +606,7 @@ def sale_detail(request, pk):
 @login_required
 def sale_edit(request, pk):
     """
-    تعديل فاتورة المبيعات
+    تعديل فاتورة المبيعات مع دعم القيود التصحيحية للفواتير المرحّلة
     """
     sale = get_object_or_404(Sale, pk=pk)
     products = Product.objects.filter(is_active=True)
@@ -581,6 +618,26 @@ def sale_edit(request, pk):
         messages.error(request, "لا يمكن تعديل الفاتورة لأنها تحتوي على مرتجعات مؤكدة")
         return redirect("sale:sale_detail", pk=sale.pk)
 
+    # التحقق من حالة القيد المحاسبي
+    has_posted_entry = (
+        sale.journal_entry and 
+        sale.journal_entry.status == 'posted'
+    )
+
+    # حفظ القيم الأصلية للمقارنة (قبل التعديل)
+    original_total = sale.total
+    original_cost = Decimal("0.00")
+    
+    # حساب التكلفة الأصلية
+    if has_posted_entry:
+        try:
+            from financial.services.accounting_integration_service import (
+                AccountingIntegrationService,
+            )
+            original_cost = AccountingIntegrationService._calculate_sale_cost(sale)
+        except Exception as e:
+            logger.warning(f"لم يتم حساب التكلفة الأصلية: {str(e)}")
+    
     # حفظ البنود الحالية للفاتورة قبل التعديل للاستفادة منها لاحقاً
     original_items = {}
     for item in sale.items.all():
@@ -752,7 +809,43 @@ def sale_edit(request, pk):
                                 created_by=request.user,
                             )
 
-                    messages.success(request, "تم تعديل فاتورة المبيعات بنجاح")
+                    # إنشاء قيد تصحيحي إذا كانت الفاتورة مرحّلة
+                    if has_posted_entry:
+                        try:
+                            from financial.services.accounting_integration_service import (
+                                AccountingIntegrationService,
+                            )
+                            
+                            adjustment_entry = AccountingIntegrationService.create_sale_adjustment_entry(
+                                sale=updated_sale,
+                                old_total=original_total,
+                                old_cost=original_cost,
+                                user=request.user
+                            )
+                            
+                            if adjustment_entry:
+                                messages.success(
+                                    request,
+                                    f"تم تعديل فاتورة المبيعات بنجاح وإنشاء قيد تصحيحي: {adjustment_entry.number}"
+                                )
+                                logger.info(
+                                    f"✅ تم إنشاء قيد تصحيحي {adjustment_entry.number} "
+                                    f"لتعديل فاتورة {updated_sale.number}"
+                                )
+                            else:
+                                messages.success(
+                                    request,
+                                    "تم تعديل فاتورة المبيعات بنجاح (لا توجد فروقات تتطلب قيد تصحيحي)"
+                                )
+                        except Exception as e:
+                            logger.error(f"❌ خطأ في إنشاء القيد التصحيحي: {str(e)}")
+                            messages.warning(
+                                request,
+                                f"تم تعديل الفاتورة لكن فشل إنشاء القيد التصحيحي: {str(e)}"
+                            )
+                    else:
+                        messages.success(request, "تم تعديل فاتورة المبيعات بنجاح")
+                    
                     return redirect("sale:sale_detail", pk=updated_sale.pk)
 
             except Exception as e:

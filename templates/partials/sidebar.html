@@ -261,44 +261,19 @@
                                 <i class="fas fa-exchange-alt me-2"></i>{% trans "حركات المخزون" %}
                             </a>
                         </li>
-                        
-                        <div class="nav-divider"></div>
-                        
-                        <!-- التقارير المتقدمة -->
-                        <li class="submenu-title">التقارير المتقدمة</li>
-                        <li>
-                            <a href="{% url 'product:abc_analysis_report' %}" class="submenu-link">
-                                <i class="fas fa-chart-bar me-2"></i>{% trans "تحليل ABC" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'product:inventory_turnover_report' %}" class="submenu-link">
-                                <i class="fas fa-sync-alt me-2"></i>{% trans "معدل دوران المخزون" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'product:stock_aging_report' %}" class="submenu-link">
-                                <i class="fas fa-clock me-2"></i>{% trans "تقرير عمر المخزون" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'product:reorder_point_report' %}" class="submenu-link">
-                                <i class="fas fa-exclamation-triangle me-2"></i>{% trans "نقطة إعادة الطلب" %}
-                            </a>
-                        </li>
                     </ul>
                 </li>
 
-                <!-- الإدارة المالية -->
+                <!-- الإدارة المالية والمحاسبية -->
                 {% has_module_access 'enhanced_financial' as can_access_enhanced_financial %}
                 {% if can_access_enhanced_financial %}
                 <li class="sidebar-item">
-                    <a href="#financialManagementMenu" class="sidebar-link collapsed {% if active_menu == 'financial_management' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                    <a href="#financialManagementMenu" class="sidebar-link collapsed {% if active_menu == 'financial_management' or active_menu == 'accounting' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-money-bill-wave sidebar-icon"></i>
                         <span class="sidebar-text">{% trans "الإدارة المالية" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'financial_management' %}show{% endif %}" id="financialManagementMenu">
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'financial_management' or active_menu == 'accounting' %}show{% endif %}" id="financialManagementMenu">
                         <!-- الحسابات والخزن -->
                         <li class="submenu-title">الحسابات والخزن</li>
                         <li>
@@ -319,6 +294,8 @@
                         
                         <div class="nav-divider"></div>
                         
+                        <!-- المصروفات والإيرادات -->
+                        <li class="submenu-title">المصروفات والإيرادات</li>
                         <li>
                             <a href="{% url 'financial:expense_list' %}" class="submenu-link">
                                 <i class="fas fa-money-bill-alt me-2"></i>{% trans "المصروفات" %}
@@ -327,6 +304,21 @@
                         <li>
                             <a href="{% url 'financial:income_list' %}" class="submenu-link">
                                 <i class="fas fa-coins me-2"></i>{% trans "الإيرادات" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- القيود والفترات المحاسبية -->
+                        <li class="submenu-title">القيود والفترات المحاسبية</li>
+                        <li>
+                            <a href="{% url 'financial:journal_entries_list' %}" class="submenu-link">
+                                <i class="fas fa-book me-2"></i>{% trans "القيود اليومية" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:accounting_periods_list' %}" class="submenu-link">
+                                <i class="fas fa-calendar-alt me-2"></i>{% trans "الفترات المحاسبية" %}
                             </a>
                         </li>
                         
@@ -359,15 +351,10 @@
                                 <i class="fas fa-list me-2"></i>{% trans "قائمة القروض" %}
                             </a>
                         </li>
-                        <li>
-                            <a href="{% url 'financial:loan_create' %}" class="submenu-link">
-                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة قرض جديد" %}
-                            </a>
-                        </li>
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- إدارة الدفعات المحسنة -->
+                        <!-- إدارة الدفعات -->
                         <li class="submenu-title">إدارة الدفعات</li>
                         <li>
                             <a href="{% url 'financial:payment_list' %}" class="submenu-link">
@@ -393,29 +380,16 @@
                 </li>
                 {% endif %}
 
-                <!-- التقارير والمحاسبة -->
+                <!-- التقارير -->
                 <li class="sidebar-item">
-                    <a href="#reportsAccountingMenu" class="sidebar-link collapsed {% if active_menu == 'reports_accounting' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
-                        <i class="fas fa-chart-line sidebar-icon"></i>
-                        <span class="sidebar-text">{% trans "الحسابات العامة" %}</span>
+                    <a href="#reportsMenu" class="sidebar-link collapsed {% if active_menu == 'reports' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-chart-bar sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "التقارير" %}</span>
                         <i class="fas fa-chevron-down sidebar-arrow"></i>
                     </a>
-                    <ul class="collapse list-unstyled submenu {% if active_menu == 'reports_accounting' %}show{% endif %}" id="reportsAccountingMenu">
-                        <!-- القيود المحاسبية -->
-                        <li>
-                            <a href="{% url 'financial:journal_entries_list' %}" class="submenu-link">
-                                <i class="fas fa-book me-2"></i>{% trans "القيود اليومية" %}
-                            </a>
-                        </li>
-                        <li>
-                            <a href="{% url 'financial:accounting_periods_list' %}" class="submenu-link">
-                                <i class="fas fa-calendar-alt me-2"></i>{% trans "الفترات المحاسبية" %}
-                            </a>
-                        </li>
-                        
-                        <div class="nav-divider"></div>
-                        
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'reports' %}show{% endif %}" id="reportsMenu">
                         <!-- التقارير المحاسبية -->
+                        <li class="submenu-title">التقارير المحاسبية</li>
                         <li>
                             <a href="{% url 'financial:ledger_report' %}" class="submenu-link">
                                 <i class="fas fa-book-open me-2"></i>{% trans "دفتر الأستاذ" %}
@@ -429,11 +403,11 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- التقارير المالية الأساسية -->
+                        <!-- التقارير المالية -->
                         <li class="submenu-title">التقارير المالية</li>
                         <li>
                             <a href="{% url 'financial:balance_sheet' %}" class="submenu-link">
-                                <i class="fas fa-file-alt me-2"></i>{% trans "الميزانية العمومية" %}
+                                <i class="fas fa-file-invoice me-2"></i>{% trans "الميزانية العمومية" %}
                             </a>
                         </li>
                         <li>
@@ -443,7 +417,7 @@
                         </li>
                         <li>
                             <a href="{% url 'financial:financial_analytics' %}" class="submenu-link">
-                                <i class="fas fa-analytics me-2"></i>{% trans "التحليلات المالية" %}
+                                <i class="fas fa-chart-pie me-2"></i>{% trans "التحليلات المالية" %}
                             </a>
                         </li>
                         
@@ -453,19 +427,45 @@
                         <li class="submenu-title">تقارير العمليات</li>
                         <li>
                             <a href="{% url 'financial:sales_report' %}" class="submenu-link">
-                                <i class="fas fa-chart-line me-2"></i>{% trans "تقرير المبيعات" %}
+                                <i class="fas fa-shopping-cart me-2"></i>{% trans "تقرير المبيعات" %}
                             </a>
                         </li>
                         <li>
                             <a href="{% url 'financial:purchases_report' %}" class="submenu-link">
-                                <i class="fas fa-chart-pie me-2"></i>{% trans "تقرير المشتريات" %}
+                                <i class="fas fa-shopping-bag me-2"></i>{% trans "تقرير المشتريات" %}
                             </a>
                         </li>
                         <li>
                             <a href="{% url 'financial:inventory_report' %}" class="submenu-link">
-                                <i class="fas fa-boxes me-2"></i>{% trans "تقرير المخزون" %}
+                                <i class="fas fa-boxes me-2"></i>{% trans "تقرير المخزون المالي" %}
                             </a>
                         </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- تقارير المخزون المتقدمة -->
+                        <li class="submenu-title">تقارير المخزون المتقدمة</li>
+                        <li>
+                            <a href="{% url 'product:abc_analysis_report' %}" class="submenu-link">
+                                <i class="fas fa-chart-bar me-2"></i>{% trans "تحليل ABC" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:inventory_turnover_report' %}" class="submenu-link">
+                                <i class="fas fa-sync-alt me-2"></i>{% trans "معدل دوران المخزون" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:stock_aging_report' %}" class="submenu-link">
+                                <i class="fas fa-clock me-2"></i>{% trans "تقرير عمر المخزون" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'product:reorder_point_report' %}" class="submenu-link">
+                                <i class="fas fa-exclamation-triangle me-2"></i>{% trans "نقطة إعادة الطلب" %}
+                            </a>
+                        </li>
+                        
                     </ul>
                 </li>
 
@@ -522,7 +522,32 @@
                             <a href="{% url 'printing_pricing:settings_home' %}" class="submenu-link">
                                 <i class="fas fa-calculator me-2"></i>{% trans "إعدادات التسعير" %}
                             </a>
-                        </li>                        
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- الصيانة والنسخ الاحتياطي -->
+                        <li class="submenu-title">الصيانة والنسخ الاحتياطي</li>
+                        <li>
+                            <a href="{% url 'financial:data_integrity_check' %}" class="submenu-link">
+                                <i class="fas fa-check-circle me-2"></i>{% trans "فحص سلامة البيانات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:general_backup' %}" class="submenu-link">
+                                <i class="fas fa-database me-2"></i>{% trans "النسخ الاحتياطي العام" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:financial_backup_advanced' %}" class="submenu-link">
+                                <i class="fas fa-file-archive me-2"></i>{% trans "النسخ الاحتياطي المالي" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'financial:restore_data' %}" class="submenu-link">
+                                <i class="fas fa-undo-alt me-2"></i>{% trans "استعادة البيانات" %}
+                            </a>
+                        </li>
                     </ul>
                 </li>
             </ul>

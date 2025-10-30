@@ -21,7 +21,7 @@ from .forms import (
     PurchaseReturnForm,
     PurchaseUpdateForm,
 )
-from product.models import Product, Warehouse
+from product.models import Product, Warehouse, Stock
 from decimal import Decimal
 import logging
 from django.db import models
@@ -456,7 +456,7 @@ def purchase_detail(request, pk):
 @login_required
 def purchase_update(request, pk):
     """
-    تعديل فاتورة مشتريات
+    تعديل فاتورة مشتريات مع دعم القيود التصحيحية للفواتير المرحّلة
     """
     purchase = get_object_or_404(Purchase, pk=pk)
 
@@ -469,6 +469,15 @@ def purchase_update(request, pk):
     if purchase.payment_status == "paid":
         messages.error(request, "لا يمكن تعديل فاتورة مدفوعة بالكامل")
         return redirect("purchase:purchase_detail", pk=purchase.pk)
+
+    # التحقق من حالة القيد المحاسبي
+    has_posted_entry = (
+        purchase.journal_entry and 
+        purchase.journal_entry.status == 'posted'
+    )
+
+    # حفظ القيم الأصلية للمقارنة (قبل التعديل)
+    original_total = purchase.total
 
     # الحصول على البنود الأصلية قبل التعديل
     original_items = {}
@@ -639,7 +648,42 @@ def purchase_update(request, pk):
 
                     # تحديث مديونية المورد (يتم تنفيذه من خلال الإشارة في signals.py)
 
-                messages.success(request, _("تم تعديل فاتورة المشتريات بنجاح"))
+                    # إنشاء قيد تصحيحي إذا كانت الفاتورة مرحّلة
+                    if has_posted_entry:
+                        try:
+                            from financial.services.accounting_integration_service import (
+                                AccountingIntegrationService,
+                            )
+                            
+                            adjustment_entry = AccountingIntegrationService.create_purchase_adjustment_entry(
+                                purchase=updated_purchase,
+                                old_total=original_total,
+                                user=request.user
+                            )
+                            
+                            if adjustment_entry:
+                                messages.success(
+                                    request,
+                                    f"تم تعديل فاتورة المشتريات بنجاح وإنشاء قيد تصحيحي: {adjustment_entry.number}"
+                                )
+                                logger.info(
+                                    f"✅ تم إنشاء قيد تصحيحي {adjustment_entry.number} "
+                                    f"لتعديل فاتورة {updated_purchase.number}"
+                                )
+                            else:
+                                messages.success(
+                                    request,
+                                    "تم تعديل فاتورة المشتريات بنجاح (لا توجد فروقات تتطلب قيد تصحيحي)"
+                                )
+                        except Exception as e:
+                            logger.error(f"❌ خطأ في إنشاء القيد التصحيحي: {str(e)}")
+                            messages.warning(
+                                request,
+                                f"تم تعديل الفاتورة لكن فشل إنشاء القيد التصحيحي: {str(e)}"
+                            )
+                    else:
+                        messages.success(request, _("تم تعديل فاتورة المشتريات بنجاح"))
+                    
                 return redirect("purchase:purchase_detail", pk=pk)
             except Exception as e:
                 messages.error(request, f"حدث خطأ أثناء تعديل الفاتورة: {str(e)}")
@@ -656,6 +700,7 @@ def purchase_update(request, pk):
     # جلب البيانات المطلوبة للقوائم المنسدلة
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    products = Product.objects.filter(is_active=True).order_by("name")
 
     context = {
         "form": form,
