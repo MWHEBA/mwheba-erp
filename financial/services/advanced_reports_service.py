@@ -569,19 +569,19 @@ class AdvancedReportsService:
             return "operating"  # افتراضي
 
     @classmethod
-    def generate_accounts_aging_report(
-        cls, account_type: str, as_of_date: date  # 'receivables' or 'payables'
+    def generate_customer_supplier_balances_report(
+        cls, account_type: str, as_of_date: date  # 'customers' or 'suppliers'
     ) -> Dict:
         """
-        تقرير أعمار الحسابات (الذمم)
+        تقرير أرصدة العملاء والموردين
         """
         # تحديد نوع الحساب
-        if account_type == "receivables":
+        if account_type == "customers":
             base_account_code = "11030"  # العملاء
-            title = "أعمار الذمم المدينة"
+            title = "تقرير أرصدة العملاء"
         else:
             base_account_code = "21010"  # الموردين
-            title = "أعمار الذمم الدائنة"
+            title = "تقرير أرصدة الموردين"
 
         # الحصول على الحساب الأساسي
         try:
