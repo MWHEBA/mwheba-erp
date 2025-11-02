@@ -101,7 +101,7 @@ from .api_views import (
     income_statement,
     financial_analytics,
     cash_flow_statement,
-    accounts_aging_report,
+    customer_supplier_balances_report,
 )
 
 # من income_views.py

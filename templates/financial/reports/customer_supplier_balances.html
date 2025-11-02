@@ -20,7 +20,7 @@
     border: 1px solid rgba(0, 0, 0, 0.05);
   }
   
-  .aging-card {
+  .balances-card {
     background-color: var(--primary-color);
     color: white;
     border-radius: var(--border-radius);
@@ -29,14 +29,14 @@
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   }
   
-  .aging-summary {
+  .balances-summary {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 1.5rem;
     margin-top: 1.5rem;
   }
   
-  .aging-period {
+  .balance-period {
     background: rgba(255, 255, 255, 0.15);
     backdrop-filter: blur(10px);
     border-radius: 10px;
@@ -45,7 +45,7 @@
     transition: all 0.3s ease;
   }
   
-  .aging-period:hover {
+  .balance-period:hover {
     background: rgba(255, 255, 255, 0.25);
     transform: translateY(-5px);
   }
@@ -151,11 +151,11 @@
   }
   
   /* تحسين الجدول */
-  .aging-table {
+  .balances-table {
     font-size: 0.95rem;
   }
   
-  .aging-table thead th {
+  .balances-table thead th {
     background-color: var(--primary-color);
     color: white;
     font-weight: 600;
@@ -164,29 +164,29 @@
     white-space: nowrap;
   }
   
-  .aging-table tbody td {
+  .balances-table tbody td {
     padding: 0.875rem 0.75rem;
     vertical-align: middle;
     border-color: var(--border-color);
   }
   
-  .aging-table tbody tr:hover {
+  .balances-table tbody tr:hover {
     background-color: rgba(13, 110, 253, 0.05);
     transition: background-color 0.2s ease;
   }
   
-  .aging-table .text-end {
+  .balances-table .text-end {
     font-family: 'Tajawal', sans-serif;
     font-weight: 500;
   }
   
-  .aging-table .table-active {
+  .balances-table .table-active {
     background-color: var(--primary-color) !important;
     color: white;
     font-weight: 700;
   }
   
-  .aging-table .table-active td {
+  .balances-table .table-active td {
     border-color: var(--primary-color);
     padding: 1rem 0.75rem;
   }
@@ -218,7 +218,7 @@
                         <a href="#">التقارير المالية</a>
                     </li>
                     <li class="breadcrumb-item active" aria-current="page">
-                        <i class="fas fa-calendar-alt me-1"></i>{{ page_title|default:"تقرير أعمار الحسابات" }}
+                        <i class="fas fa-calendar-alt me-1"></i>{{ page_title|default:"تقرير الأرصدة" }}
                     </li>
                 </ol>
             </nav>
@@ -231,7 +231,7 @@
                     <i class="fas fa-calendar-alt fa-2x text-primary"></i>
                 </div>
                 <div>
-                    <h1 class="h3 mb-1">{{ page_title|default:"تقرير أعمار الحسابات" }}</h1>
+                    <h1 class="h3 mb-1">{{ page_title|default:"تقرير الأرصدة" }}</h1>
                     <p class="text-muted mb-0">
                         كما في تاريخ: {{ as_of_date|date:"Y-m-d" }}
                     </p>
@@ -286,17 +286,17 @@
     </div>
     {% endif %}
 
-    <!-- بطاقة الأعمار -->
+    <!-- بطاقة الأرصدة -->
     {% if report_data.aging_periods %}
-    <div class="aging-card">
+    <div class="balances-card">
         <h5 class="mb-3">
             <i class="fas fa-clock me-2"></i>
-            توزيع الأعمار
+            توزيع الأرصدة حسب فترات الاستحقاق
         </h5>
         
-        <div class="aging-summary">
+        <div class="balances-summary">
             {% for period_key, period_data in report_data.aging_periods.items %}
-            <div class="aging-period">
+            <div class="balance-period">
                 <div class="period-label">{{ period_data.label }}</div>
                 <div class="period-amount">{{ period_data.amount|smart_float }}</div>
                 <div class="period-days">{{ period_data.days }}</div>
@@ -316,7 +316,7 @@
         <div class="chart-header">
             <h5 class="chart-title">
                 <i class="fas fa-chart-pie me-2"></i>
-                التوزيع البياني للأعمار
+                التوزيع البياني للأرصدة
             </h5>
             <div class="text-muted small">
                 <i class="fas fa-info-circle me-1"></i>
@@ -324,7 +324,7 @@
             </div>
         </div>
         <div style="position: relative; max-width: 500px; height: 200px; margin: 0 auto;">
-            <canvas id="agingChart"></canvas>
+            <canvas id="balancesChart"></canvas>
         </div>
     </div>
 
@@ -342,7 +342,7 @@
             </span>
         </div>
         <div class="table-responsive">
-            <table class="table aging-table table-hover mb-0">
+            <table class="table balances-table table-hover mb-0">
                 <thead>
                     <tr>
                         <th style="width: 100px;">الكود</th>
@@ -435,7 +435,7 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // بيانات الرسم البياني
-    const agingData = {
+    const balancesData = {
         labels: [
             {% for period_key, period_data in report_data.aging_periods.items %}
                 '{{ period_data.label }}',
@@ -465,11 +465,11 @@
     };
 
     // إنشاء الرسم البياني
-    const ctx = document.getElementById('agingChart');
+    const ctx = document.getElementById('balancesChart');
     if (ctx) {
         new Chart(ctx, {
             type: 'doughnut',
-            data: agingData,
+            data: balancesData,
             options: {
                 responsive: true,
                 maintainAspectRatio: false,

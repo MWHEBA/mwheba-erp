@@ -238,7 +238,7 @@
                         {% with empty_message="لا توجد منتجات متاحة" %}
                           {% with clickable_rows=True row_click_url="/products/0/" %}
                             {% with show_export=True export_filename="products" %}
-                              {% with custom_export_buttons='<a href="?export=pdf" class="btn btn-sm btn-danger" target="_blank"><i class="fas fa-file-pdf me-1"></i> PDF</a>' %}
+                              {% with custom_export_buttons='<a href="?export=pdf" class="btn btn-sm btn-outline-danger" target="_blank"><i class="fas fa-file-pdf me-1"></i>تصدير PDF</a>' %}
                                 {% include "components/data_table.html" %}
                               {% endwith %}
                             {% endwith %}

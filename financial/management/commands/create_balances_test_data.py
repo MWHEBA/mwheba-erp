@@ -1,6 +1,6 @@
-# financial/management/commands/create_aging_test_data.py
+# financial/management/commands/create_balances_test_data.py
 """
-أمر لإنشاء بيانات وهمية لاختبار تقارير أعمار الذمم
+أمر لإنشاء بيانات وهمية لاختبار تقارير أرصدة العملاء والموردين
 """
 
 from django.core.management.base import BaseCommand
@@ -15,7 +15,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'إنشاء بيانات وهمية لاختبار تقارير أعمار الذمم'
+    help = 'إنشاء بيانات وهمية لاختبار تقارير أرصدة العملاء والموردين'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -36,7 +36,7 @@ class Command(BaseCommand):
         sales_count = options['sales']
         purchases_count = options['purchases']
         
-        self.stdout.write(self.style.SUCCESS('🚀 بدء إنشاء بيانات أعمار الذمم...'))
+        self.stdout.write(self.style.SUCCESS('🚀 بدء إنشاء بيانات أرصدة العملاء والموردين...'))
         
         # الحصول على مستخدم
         user = User.objects.first()
