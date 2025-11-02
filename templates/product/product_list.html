@@ -198,9 +198,6 @@
                 </div>
             </div>
             <div>
-                <a href="?export=pdf" class="btn btn-danger me-2" target="_blank">
-                    <i class="fas fa-file-pdf me-2"></i>تصدير PDF
-                </a>
                 <a href="{% url 'product:product_create' %}" class="btn btn-success">
                     <i class="fas fa-plus me-2"></i>إضافة منتج جديد
                 </a>
@@ -241,7 +238,9 @@
                         {% with empty_message="لا توجد منتجات متاحة" %}
                           {% with clickable_rows=True row_click_url="/products/0/" %}
                             {% with show_export=True export_filename="products" %}
-                              {% include "components/data_table.html" %}
+                              {% with custom_export_buttons='<a href="?export=pdf" class="btn btn-sm btn-danger" target="_blank"><i class="fas fa-file-pdf me-1"></i> PDF</a>' %}
+                                {% include "components/data_table.html" %}
+                              {% endwith %}
                             {% endwith %}
                           {% endwith %}
                         {% endwith %}
