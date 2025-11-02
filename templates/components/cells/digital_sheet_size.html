@@ -6,7 +6,7 @@
         {% if item.digital_details.paper_size == 'custom' and item.digital_details.custom_width_cm and item.digital_details.custom_height_cm %}
             <span class="badge bg-warning text-dark fw-bold">
                 <i class="fas fa-ruler-combined me-1"></i>
-                {{ item.digital_details.custom_width_cm|remove_trailing_zeros }}×{{ item.digital_details.custom_height_cm|remove_trailing_zeros }}
+                {{ item.digital_details.custom_width_cm|smart_float }}×{{ item.digital_details.custom_height_cm|smart_float }}
             </span>
             <small class="text-muted d-block mt-1">مخصص</small>
         {% else %}

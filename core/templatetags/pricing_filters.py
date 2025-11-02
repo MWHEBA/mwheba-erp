@@ -11,14 +11,18 @@ register = template.Library()
 
 @register.filter
 def currency(value):
-    """تنسيق العملة"""
-    if value is None:
-        return "0.00"
+    """تنسيق العملة - ذكي (يخفي العلامات العشرية للأرقام الصحيحة)"""
+    if value is None or value == '':
+        return "0"
     try:
         value = Decimal(str(value))
+        # إذا الرقم صحيح، اعرضه بدون علامات عشرية
+        if value == value.to_integral_value():
+            return f"{int(value):,}"
+        # إذا الرقم عشري، اعرضه بمنزلتين عشريتين
         return f"{value:,.2f}"
     except (ValueError, TypeError):
-        return "0.00"
+        return "0"
 
 
 @register.filter

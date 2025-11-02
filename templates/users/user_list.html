@@ -60,7 +60,7 @@
                 </div>
             </div>
             <div>
-                <a href="#" class="btn btn-primary">
+                <a href="{% url 'users:user_create' %}" class="btn btn-primary">
                     <i class="fas fa-plus me-2"></i> إضافة مستخدم
                 </a>
             </div>
@@ -123,8 +123,158 @@
         </div>
     </div>
 </div>
+
+<!-- Modal تعديل المستخدم -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editUserModalLabel">
+                    <i class="fas fa-user-edit me-2"></i>
+                    تعديل بيانات المستخدم
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editUserForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="edit_user_id" name="user_id">
+                    
+                    <!-- المعلومات الأساسية -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_first_name" class="form-label">الاسم الأول <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_last_name" class="form-label">الاسم الأخير <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                        </div>
+                    </div>
+                    
+                    <!-- معلومات الاتصال -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_email" class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="edit_email" name="email" required dir="ltr">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_phone" class="form-label">الهاتف</label>
+                            <input type="text" class="form-control" id="edit_phone" name="phone" dir="ltr">
+                        </div>
+                    </div>
+                    
+                    <!-- اسم المستخدم -->
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_username" name="username" required dir="ltr" readonly>
+                        <small class="text-muted">لا يمكن تغيير اسم المستخدم</small>
+                    </div>
+                    
+                    <!-- الحالة -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active">
+                        <label class="form-check-label" for="edit_is_active">
+                            حساب نشط
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>
+                        إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        حفظ التغييرات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
-<!-- الجدول الموحد يتولى جميع الوظائف -->
+<script>
+// فتح modal التعديل وتعبئة البيانات
+function openEditModal(userId) {
+    // جلب بيانات المستخدم من الجدول
+    const row = document.querySelector(`tr[data-id="${userId}"]`);
+    if (!row) return;
+    
+    // استخراج البيانات من الصف
+    const cells = row.querySelectorAll('td');
+    const fullName = cells[1].textContent.trim();
+    const username = cells[2].textContent.trim();
+    const email = cells[3].textContent.trim();
+    const phone = cells[4].textContent.trim();
+    const isActive = cells[6].querySelector('.badge').textContent.includes('نشط');
+    
+    // تقسيم الاسم الكامل
+    const nameParts = fullName.split(' ');
+    const firstName = nameParts[0] || '';
+    const lastName = nameParts.slice(1).join(' ') || '';
+    
+    // تعبئة النموذج
+    document.getElementById('edit_user_id').value = userId;
+    document.getElementById('edit_first_name').value = firstName;
+    document.getElementById('edit_last_name').value = lastName;
+    document.getElementById('edit_username').value = username;
+    document.getElementById('edit_email').value = email;
+    document.getElementById('edit_phone').value = phone;
+    document.getElementById('edit_is_active').checked = isActive;
+    
+    // فتح الـ modal
+    const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    modal.show();
+}
+
+// حفظ التعديلات
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    
+    fetch(`/users/users/${userId}/edit/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // إغلاق الـ modal
+            bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+            
+            // إظهار رسالة نجاح
+            alert(data.message || 'تم تحديث البيانات بنجاح');
+            
+            // إعادة تحميل الصفحة
+            location.reload();
+        } else {
+            alert(data.message || 'حدث خطأ أثناء التحديث');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء التحديث');
+    });
+});
+
+// تعديل زر التعديل في الجدول
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة event listener لأزرار التعديل
+    document.querySelectorAll('a[href*="/edit/"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.href.match(/\/users\/(\d+)\/edit\//)[1];
+            openEditModal(userId);
+        });
+    });
+});
+</script>
 {% endblock %} 

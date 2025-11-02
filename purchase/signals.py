@@ -131,12 +131,19 @@ def update_product_prices_on_purchase(sender, instance, created, **kwargs):
 def handle_deleted_purchase_item(sender, instance, **kwargs):
     """
     إلغاء حركة المخزون عند حذف بند الفاتورة
+    
+    ✅ التحسينات:
+    - إنشاء حركة معاكسة واحدة فقط (لا ازدواجية)
+    - حذف الحركة الأصلية بدون تشغيل signal لتجنب الخصم الثلاثي
     """
     try:
         # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
         from product.models import StockMovement
+        import logging
         
-        # البحث عن حركة المخزون المرتبطة وحذفها
+        logger = logging.getLogger(__name__)
+        
+        # البحث عن حركة المخزون المرتبطة
         related_movement = StockMovement.objects.filter(
             product=instance.product,
             warehouse=instance.purchase.warehouse,
@@ -147,7 +154,7 @@ def handle_deleted_purchase_item(sender, instance, **kwargs):
 
         if related_movement:
             with transaction.atomic():
-                # إنشاء حركة مخزون معاكسة (إخراج المخزون)
+                # ✅ إنشاء حركة مخزون معاكسة واحدة (إخراج المخزون)
                 StockMovement.objects.create(
                     product=instance.product,
                     warehouse=instance.purchase.warehouse,
@@ -159,16 +166,33 @@ def handle_deleted_purchase_item(sender, instance, **kwargs):
                     notes=f"إلغاء بند مشتريات - فاتورة رقم {instance.purchase.number}",
                     created_by=instance.purchase.created_by,
                 )
+                
+                logger.info(
+                    f"✅ تم إنشاء حركة إرجاع للمنتج '{instance.product.name}' - "
+                    f"الكمية: {related_movement.quantity}"
+                )
 
-                # حذف الحركة الأصلية
-                related_movement.delete()
+                # ✅ حذف الحركة الأصلية بطريقة مباشرة لتجنب تشغيل signal
+                # هذا يمنع الخصم الثلاثي من المخزون
+                StockMovement.objects.filter(pk=related_movement.pk).delete()
+                
+                logger.info(
+                    f"✅ تم حذف حركة المخزون الأصلية للمنتج '{instance.product.name}'"
+                )
+        else:
+            logger.warning(
+                f"⚠️ لم يتم العثور على حركة مخزون للبند المحذوف: "
+                f"{instance.product.name} - فاتورة {instance.purchase.number}"
+            )
 
     except Exception as e:
-        # تسجيل الخطأ دون إيقاف العملية
+        # تسجيل الخطأ ورفعه لإيقاف العملية
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.error(f"خطأ في معالجة حذف بند المشتريات: {str(e)}")
+        logger.error(f"❌ خطأ في معالجة حذف بند المشتريات: {str(e)}")
+        # ✅ رفع الخطأ لإيقاف عملية الحذف إذا فشلت معالجة المخزون
+        raise
 
 
 @receiver(post_save, sender=PurchasePayment)

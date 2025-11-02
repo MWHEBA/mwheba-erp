@@ -11,6 +11,7 @@ urlpatterns = [
     path("<int:pk>/", views.product_detail, name="product_detail"),
     path("<int:pk>/edit/", views.product_edit, name="product_edit"),
     path("<int:pk>/delete/", views.product_delete, name="product_delete"),
+    path("<int:pk>/upload-image/", views.product_image_upload, name="product_image_upload"),
     path("api/add-image/", views.add_product_image, name="add_product_image"),
     path(
         "api/delete-image/<int:pk>/",
@@ -127,11 +128,6 @@ urlpatterns = [
         "reports/inventory-turnover/",
         inventory_views.inventory_turnover_report,
         name="inventory_turnover_report",
-    ),
-    path(
-        "reports/stock-aging/",
-        inventory_views.stock_aging_report,
-        name="stock_aging_report",
     ),
     path(
         "reports/reorder-point/",

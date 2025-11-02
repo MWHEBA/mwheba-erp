@@ -71,7 +71,7 @@
                     <div class="col-md-3">
                         <div class="card border-success">
                             <div class="card-body text-center py-3">
-                                <h5 class="text-success mb-1">{{ service.min_quantity|remove_trailing_zeros }}</h5>
+                                <h5 class="text-success mb-1">{{ service.min_quantity|smart_float }}</h5>
                                 <small class="text-muted">الحد الأدنى</small>
                             </div>
                         </div>
@@ -194,7 +194,7 @@
                                     {% if form.min_quantity.errors %}
                                         <div class="text-danger small">{{ form.min_quantity.errors.0 }}</div>
                                     {% endif %}
-                                    <div class="help-text">الحد الحالي: {{ service.min_quantity|remove_trailing_zeros }}</div>
+                                    <div class="help-text">الحد الحالي: {{ service.min_quantity|smart_float }}</div>
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -266,9 +266,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحديد الحقول المتغيرة
     const originalValues = {
         name: '{{ service.name|escapejs }}',
-        base_price: '{{ service.base_price|remove_trailing_zeros }}',
-        setup_cost: '{{ service.setup_cost|remove_trailing_zeros }}',
-        min_quantity: '{{ service.min_quantity|remove_trailing_zeros }}'
+        base_price: '{{ service.base_price|smart_float }}',
+        setup_cost: '{{ service.setup_cost|smart_float }}',
+        min_quantity: '{{ service.min_quantity|smart_float }}'
     };
     
     // مراقبة التغييرات

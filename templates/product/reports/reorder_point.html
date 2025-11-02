@@ -54,16 +54,16 @@
   }
   
   .status-critical { 
-    background: linear-gradient(45deg, #dc3545, #e83e8c); 
+    background-color: #dc3545; 
     animation: pulse 2s infinite;
   }
-  .status-low { background: linear-gradient(45deg, #ffc107, #fd7e14); }
-  .status-normal { background: linear-gradient(45deg, #28a745, #20c997); }
-  .status-overstock { background: linear-gradient(45deg, #17a2b8, #6f42c1); }
+  .status-low { background-color: #ffc107; color: #000; }
+  .status-normal { background-color: #28a745; }
+  .status-overstock { background-color: #17a2b8; }
 
   /* تنبيه عاجل */
   .urgent-alert {
-    background: linear-gradient(45deg, #dc3545, #fd7e14);
+    background-color: #dc3545;
     color: white;
     border-radius: 12px;
     padding: 1.5rem;
@@ -400,12 +400,12 @@
                                 {% endif %}
                             </td>
                             <td class="text-end">
-                                <strong>{{ item.current_stock|remove_trailing_zeros }}</strong>
+                                <strong>{{ item.current_stock|smart_float }}</strong>
                                 {% if item.unit %}
                                     <small class="text-muted">{{ item.unit.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.reorder_point|remove_trailing_zeros }}</td>
+                            <td class="text-end">{{ item.reorder_point|smart_float }}</td>
                             <td class="text-end">-</td>
                             <td>
                                 <div class="progress progress-stock">
@@ -414,25 +414,25 @@
                                         {% elif item.stock_percentage <= 50 %}bg-warning
                                         {% elif item.stock_percentage <= 100 %}bg-success
                                         {% else %}bg-info{% endif %}" 
-                                        style="width: {{ item.stock_percentage|remove_trailing_zeros }}%">
+                                        style="width: {{ item.stock_percentage|smart_float }}%">
                                     </div>
                                 </div>
-                                <small class="text-muted">{{ item.stock_percentage|remove_trailing_zeros }}%</small>
+                                <small class="text-muted">{{ item.stock_percentage|smart_float }}%</small>
                             </td>
                             <td class="text-end">
                                 {% if item.days_supply %}
-                                    {{ item.days_supply|remove_trailing_zeros }} يوم
+                                    {{ item.days_supply|smart_float }} يوم
                                 {% else %}
                                     <span class="text-muted">غير محدد</span>
                                 {% endif %}
                             </td>
                             <td class="text-end">
                                 {% if item.suggested_quantity > 0 %}
-                                    <strong class="text-primary">{{ item.suggested_quantity|remove_trailing_zeros }}</strong>
+                                    <strong class="text-primary">{{ item.suggested_quantity|smart_float }}</strong>
                                     <div class="reorder-suggestion">
                                         <small>
                                             <i class="fas fa-lightbulb text-warning"></i>
-                                            اطلب {{ item.suggested_quantity|remove_trailing_zeros }} وحدة
+                                            اطلب {{ item.suggested_quantity|smart_float }} وحدة
                                         </small>
                                     </div>
                                 {% else %}
@@ -524,12 +524,12 @@
         '{% if item.urgency == "critical" %}عاجل{% elif item.urgency == "high" %}عالي{% elif item.urgency == "medium" %}متوسط{% else %}منخفض{% endif %}',
         '{{ item.product.code }}',
         '{{ item.product.name }}',
-        '{{ item.current_stock|remove_trailing_zeros }}',
-        '{{ item.reorder_point|remove_trailing_zeros }}',
+        '{{ item.current_stock|smart_float }}',
+        '{{ item.reorder_point|smart_float }}',
         '-',
-        '{{ item.stock_percentage|remove_trailing_zeros }}%',
-        '{% if item.days_supply %}{{ item.days_supply|remove_trailing_zeros }} يوم{% else %}غير محدد{% endif %}',
-        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|remove_trailing_zeros }}{% else %}غير مطلوب{% endif %}',
+        '{{ item.stock_percentage|smart_float }}%',
+        '{% if item.days_supply %}{{ item.days_supply|smart_float }} يوم{% else %}غير محدد{% endif %}',
+        '{% if item.suggested_quantity > 0 %}{{ item.suggested_quantity|smart_float }}{% else %}غير مطلوب{% endif %}',
         '{% if item.current_stock <= 0 %}نفد{% elif item.current_stock <= item.reorder_point %}حرج{% elif item.current_stock <= item.reorder_point_threshold %}منخفض{% else %}طبيعي{% endif %}'
       ]);
       {% endfor %}

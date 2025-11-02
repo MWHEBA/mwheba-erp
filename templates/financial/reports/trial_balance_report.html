@@ -1,155 +1,630 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load pricing_filters %}
 {% load custom_filters %}
-{% load app_tags %}
 {% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم احترافي موحد */
+  .section-container {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+  }
+  
+  .section-title {
+    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  /* كروت الإحصائيات */
+  .stats-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .stats-card-header {
+    height: 4px;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  .stats-card-body {
+    padding: 1.5rem;
+    text-align: center;
+  }
+  
+  .stats-card-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+  }
+  
+  .stats-card-title {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+  }
+  
+  .stats-card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+    font-family: 'Tajawal', sans-serif;
+  }
+  
+  .stats-card-unit {
+    font-size: 0.85rem;
+    color: #6c757d;
+  }
+  
+  /* ألوان الكروت */
+  .stats-card-primary .stats-card-header { background: #0d6efd; }
+  .stats-card-primary .stats-card-icon { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
+  .stats-card-primary .stats-card-value { color: #0d6efd; }
+  
+  .stats-card-success .stats-card-header { background: #198754; }
+  .stats-card-success .stats-card-icon { background: rgba(25, 135, 84, 0.1); color: #198754; }
+  .stats-card-success .stats-card-value { color: #198754; }
+  
+  .stats-card-danger .stats-card-header { background: #dc3545; }
+  .stats-card-danger .stats-card-icon { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
+  .stats-card-danger .stats-card-value { color: #dc3545; }
+  
+  .stats-card-info .stats-card-header { background: #0dcaf0; }
+  .stats-card-info .stats-card-icon { background: rgba(13, 202, 240, 0.1); color: #0dcaf0; }
+  .stats-card-info .stats-card-value { color: #0dcaf0; }
+  
+  /* بطاقة الملخص */
+  .balance-summary-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .balance-summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1rem;
+  }
+  
+  .balance-summary-item {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  
+  .balance-summary-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+  }
+  
+  .balance-summary-value {
+    font-size: 2rem;
+    font-weight: 700;
+  }
+  
+  /* جدول محسّن */
+  .trial-balance-table {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: separate;
+    border-spacing: 0;
+  }
+  
+  .trial-balance-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 0.875rem 0.75rem;
+    text-align: center;
+    border: none;
+    font-size: 0.9rem;
+    white-space: nowrap;
+  }
+  
+  .trial-balance-table thead tr:first-child th:first-child {
+    border-top-right-radius: var(--border-radius);
+  }
+  
+  .trial-balance-table thead tr:first-child th:last-child {
+    border-top-left-radius: var(--border-radius);
+  }
+  
+  .trial-balance-table tbody td {
+    padding: 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+  }
+  
+  .trial-balance-table tbody tr:hover {
+    background-color: var(--bg-light);
+  }
+  
+  /* عناوين المجموعات */
+  .group-header {
+    background-color: var(--bg-light);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--primary-color);
+    text-align: right;
+  }
+  
+  .group-header td {
+    text-align: right !important;
+  }
+  
+  .group-subtotal {
+    background-color: var(--bg-soft-primary);
+    font-weight: 600;
+  }
+  
+  .group-subtotal td:first-child {
+    text-align: center;
+  }
+  
+  .grand-total {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1.05rem;
+  }
+  
+  .grand-total td:first-child {
+    text-align: center;
+  }
+  
+  /* أرقام */
+  .number-cell {
+    text-align: center;
+    font-family: 'Tajawal', sans-serif;
+    direction: ltr;
+    font-weight: 500;
+  }
+  
+  .debit-cell {
+    color: var(--success-color);
+    font-weight: 600;
+  }
+  
+  .credit-cell {
+    color: var(--danger-color);
+    font-weight: 600;
+  }
+  
+  /* حالة التوازن */
+  .balance-status {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    display: inline-block;
+  }
+  
+  .balance-status.balanced {
+    background-color: var(--bg-soft-success);
+    color: var(--success-color);
+  }
+  
+  .balance-status.unbalanced {
+    background-color: var(--bg-soft-danger);
+    color: var(--danger-color);
+  }
+  
+  /* حالة فارغة */
+  .empty-state {
+    padding: 4rem 2rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: var(--text-light);
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+  
+  /* طباعة */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    
+    .section-container {
+      box-shadow: none;
+      border: 1px solid #ddd;
+    }
+    
+    .balance-summary-card {
+      background: #f8f9fa !important;
+      color: #000 !important;
+    }
+  }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        {% if breadcrumb_items %}
+    <!-- Breadcrumb -->
+    <div class="mb-4 no-print">
         <div class="mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">التقارير المالية</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-balance-scale me-1"></i>{{ page_title|default:"ميزان المراجعة" }}
+                    </li>
                 </ol>
             </nav>
         </div>
-        {% endif %}
         
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
             <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
+                <div class="me-3">
+                    <i class="fas fa-balance-scale fa-2x text-primary"></i>
+                </div>
                 <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">تقرير ميزان المراجعة لجميع الحسابات</p>
+                    <h1 class="h3 mb-1">{{ page_title|default:"ميزان المراجعة" }}</h1>
+                    <p class="text-muted mb-0">
+                        {% if date_from and date_to %}
+                            من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}
+                        {% elif date_from %}
+                            من {{ date_from|date:"Y-m-d" }}
+                        {% elif date_to %}
+                            حتى {{ date_to|date:"Y-m-d" }}
+                        {% else %}
+                            عرض أرصدة الحسابات المدينة والدائنة
+                        {% endif %}
+                    </p>
                 </div>
             </div>
-            <div>
-                <button class="btn btn-outline-success ms-2" onclick="window.print()">
+            <div class="d-flex gap-2">
+                <button class="btn btn-outline-success" onclick="window.print()">
                     <i class="fas fa-print me-2"></i>طباعة
                 </button>
+                <a href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}{% if group_by_type %}group_by_type=1&{% endif %}export=excel" class="btn btn-outline-primary">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </a>
+            </div>
+    </div>
+
+    <!-- فلتر البحث -->
+    <div class="section-container no-print">
+        <h5 class="section-title">
+            <i class="fas fa-filter me-2"></i>تصفية وبحث
+        </h5>
+        <form method="GET" action="" class="row g-3" id="filterForm">
+            <div class="col-md-4">
+                <label for="date_from" class="form-label">
+                    <i class="fas fa-calendar-alt me-1"></i>من تاريخ:
+                </label>
+                <input type="date" name="date_from" id="date_from" class="form-control" 
+                       value="{% if date_from %}{{ date_from|date:'Y-m-d' }}{% endif %}">
+            </div>
+            <div class="col-md-4">
+                <label for="date_to" class="form-label">
+                    <i class="fas fa-calendar-check me-1"></i>إلى تاريخ:
+                </label>
+                <input type="date" name="date_to" id="date_to" class="form-control" 
+                       value="{% if date_to %}{{ date_to|date:'Y-m-d' }}{% endif %}">
+            </div>
+            <div class="col-md-3">
+                <label for="group_by_type" class="form-label">
+                    <i class="fas fa-layer-group me-1"></i>تجميع حسب النوع:
+                </label>
+                <select name="group_by_type" id="group_by_type" class="form-select">
+                    <option value="1" {% if group_by_type %}selected{% endif %}>نعم</option>
+                    <option value="0" {% if not group_by_type %}selected{% endif %}>لا</option>
+                </select>
+            </div>
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100" title="بحث">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </form>
+        {% if date_from or date_to or group_by_type %}
+        <div class="mt-3">
+            <a href="{% url 'financial:trial_balance_report' %}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-times me-1"></i>إلغاء الفلتر
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if trial_balance_data %}
+        <!-- كروت الإحصائيات -->
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات ميزان المراجعة</h5>
+            <div class="row">
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stats-card stats-card-success">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-arrow-up"></i>
+                            </div>
+                            <div class="stats-card-title">إجمالي المدين</div>
+                            <div class="stats-card-value">{{ trial_balance_data.total_debit|smart_float }}</div>
+                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stats-card stats-card-danger">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-arrow-down"></i>
+                            </div>
+                            <div class="stats-card-title">إجمالي الدائن</div>
+                            <div class="stats-card-value">{{ trial_balance_data.total_credit|smart_float }}</div>
+                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stats-card stats-card-warning">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-equals"></i>
+                            </div>
+                            <div class="stats-card-title">الفرق</div>
+                            <div class="stats-card-value">{{ trial_balance_data.difference|smart_float }}</div>
+                            <div class="stats-card-unit">{% currency_symbol %}</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 col-lg-3 mb-4">
+                    <div class="stats-card {% if trial_balance_data.is_balanced %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas {% if trial_balance_data.is_balanced %}fa-check-circle{% else %}fa-exclamation-triangle{% endif %}"></i>
+                            </div>
+                            <div class="stats-card-title">الحالة</div>
+                            <div class="stats-card-value" style="font-size: 1.3rem;">
+                                {% if trial_balance_data.is_balanced %}متوازن{% else %}غير متوازن{% endif %}
+                            </div>
+                            <div class="stats-card-unit">{{ trial_balance_data.accounts_count }} حساب</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
-<div class="row">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h6 class="mb-0">
-                    <i class="fas fa-balance-scale me-2"></i>ميزان المراجعة
-                </h6>
+
+        <!-- بطاقة الملخص (مخفية - البيانات في الكروت) -->
+        <div class="balance-summary-card" style="display: none;">
+            <h5 class="mb-3">
+                <i class="fas fa-chart-line me-2"></i>
+                ملخص ميزان المراجعة
+            </h5>
+            <div class="balance-summary-grid">
+                <div class="balance-summary-item">
+                    <div class="balance-summary-label">إجمالي المدين</div>
+                    <div class="balance-summary-value">{{ trial_balance_data.total_debit|floatformat:2 }}</div>
+                </div>
+                <div class="balance-summary-item">
+                    <div class="balance-summary-label">إجمالي الدائن</div>
+                    <div class="balance-summary-value">{{ trial_balance_data.total_credit|floatformat:2 }}</div>
+                </div>
+                <div class="balance-summary-item">
+                    <div class="balance-summary-label">الفرق</div>
+                    <div class="balance-summary-value">{{ trial_balance_data.difference|floatformat:2 }}</div>
+                </div>
+                <div class="balance-summary-item">
+                    <div class="balance-summary-label">الحالة</div>
+                    <div class="balance-summary-value">
+                        {% if trial_balance_data.is_balanced %}
+                            ✓ متوازن
+                        {% else %}
+                            ⚠ غير متوازن
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="balance-summary-item">
+                    <div class="balance-summary-label">عدد الحسابات</div>
+                    <div class="balance-summary-value">{{ trial_balance_data.accounts_count }}</div>
+                </div>
             </div>
-            <div class="card-body">
-                <!-- نموذج الفلترة -->
-                <form method="get" class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <label for="date_from" class="form-label">من تاريخ:</label>
-                        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
-                    </div>
-                    <div class="col-md-4">
-                        <label for="date_to" class="form-label">إلى تاريخ:</label>
-                        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
-                    </div>
-                    <div class="col-md-4 d-flex align-items-end">
-                        <button type="submit" class="btn btn-primary me-2">
-                            <i class="fas fa-filter me-1"></i>فلترة
-                        </button>
-                        <a href="{% url 'financial:trial_balance_report' %}" class="btn btn-secondary">
-                            <i class="fas fa-undo me-1"></i>إعادة تعيين
-                        </a>
-                    </div>
-                </form>
-                
+        </div>
+
+        <!-- الجدول -->
+        <div class="section-container">
+            <h5 class="section-title">
+                <i class="fas fa-table me-2"></i>
+                تفاصيل ميزان المراجعة
+            </h5>
+            
+            {% if trial_balance_data.accounts %}
                 <div class="table-responsive">
-                    <table class="table table-sm">
+                    <table class="table trial-balance-table">
                         <thead>
                             <tr>
-                                <th>كود الحساب</th>
-                                <th>اسم الحساب</th>
-                                <th>مدين</th>
-                                <th>دائن</th>
-                                <th>الرصيد</th>
+                                <th style="width: 10%">الكود</th>
+                                <th style="width: 35%">الحساب</th>
+                                <th style="width: 15%">النوع</th>
+                                <th style="width: 15%">مدين</th>
+                                <th style="width: 15%">دائن</th>
+                                <th style="width: 10%">الرصيد</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% if trial_balance %}
-                                {% for item in trial_balance %}
+                            {% if group_by_type and trial_balance_data.grouped %}
+                                <!-- عرض مجمع حسب النوع -->
+                                {% for type_key, type_data in trial_balance_data.grouped.items %}
+                                    <!-- عنوان المجموعة -->
+                                    <tr class="group-header">
+                                        <td colspan="6">
+                                            <i class="fas fa-folder-open me-2"></i>
+                                            {{ type_data.name }}
+                                        </td>
+                                    </tr>
+                                    
+                                    <!-- حسابات المجموعة -->
+                                    {% for account_data in type_data.accounts %}
+                                    <tr>
+                                        <td>{{ account_data.account.code }}</td>
+                                        <td>{{ account_data.account.name }}</td>
+                                        <td>{{ account_data.account_type_name }}</td>
+                                        <td class="number-cell debit-cell">
+                                            {% if account_data.debit_balance > 0 %}
+                                                {{ account_data.debit_balance|smart_float }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="number-cell credit-cell">
+                                            {% if account_data.credit_balance > 0 %}
+                                                {{ account_data.credit_balance|smart_float }}
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                        <td class="number-cell">
+                                            {% if account_data.debit_balance > 0 %}
+                                                <span class="text-success">{{ account_data.debit_balance|smart_float }} م</span>
+                                            {% elif account_data.credit_balance > 0 %}
+                                                <span class="text-danger">{{ account_data.credit_balance|smart_float }} د</span>
+                                            {% else %}
+                                                -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                    
+                                    <!-- إجمالي المجموعة -->
+                                    <tr class="group-subtotal">
+                                        <td colspan="3"><strong>إجمالي {{ type_data.name }}:</strong></td>
+                                        <td class="number-cell debit-cell"><strong>{{ type_data.total_debit|smart_float }}</strong></td>
+                                        <td class="number-cell credit-cell"><strong>{{ type_data.total_credit|smart_float }}</strong></td>
+                                        <td></td>
+                                    </tr>
+                                    
+                                    <!-- سطر فارغ -->
+                                    <tr style="height: 10px;">
+                                        <td colspan="6" style="border: none;"></td>
+                                    </tr>
+                                {% endfor %}
+                            {% else %}
+                                <!-- عرض عادي بدون تجميع -->
+                                {% for account_data in trial_balance_data.accounts %}
                                 <tr>
-                                    <td>{{ item.account.code }}</td>
-                                    <td>{{ item.account.name }}</td>
-                                    <td class="text-end">
-                                        {% if item.debit_balance %}
-                                            {{ item.debit_balance|smart_float:2 }}
+                                    <td>{{ account_data.account.code }}</td>
+                                    <td>{{ account_data.account.name }}</td>
+                                    <td>{{ account_data.account_type_name }}</td>
+                                    <td class="number-cell debit-cell">
+                                        {% if account_data.debit_balance > 0 %}
+                                            {{ account_data.debit_balance|smart_float }}
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
-                                    <td class="text-end">
-                                        {% if item.credit_balance %}
-                                            {{ item.credit_balance|smart_float:2 }}
+                                    <td class="number-cell credit-cell">
+                                        {% if account_data.credit_balance > 0 %}
+                                            {{ account_data.credit_balance|smart_float }}
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
-                                    <td class="text-end">
-                                        {% if item.debit_balance %}
-                                            {{ item.debit_balance|smart_float:2 }} مدين
-                                        {% elif item.credit_balance %}
-                                            {{ item.credit_balance|smart_float:2 }} دائن
+                                    <td class="number-cell">
+                                        {% if account_data.debit_balance > 0 %}
+                                            <span class="text-success">{{ account_data.debit_balance|smart_float }} م</span>
+                                        {% elif account_data.credit_balance > 0 %}
+                                            <span class="text-danger">{{ account_data.credit_balance|smart_float }} د</span>
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
                                 </tr>
                                 {% endfor %}
-                                <tr class="table-active fw-bold">
-                                    <td colspan="2">الإجمالي</td>
-                                    <td class="text-end">{{ total_debit|smart_float:2 }}</td>
-                                    <td class="text-end">{{ total_credit|smart_float:2 }}</td>
-                                    <td class="text-end">
-                                        {% if total_debit == total_credit %}
-                                            متوازن ✓
-                                        {% else %}
-                                            غير متوازن ⚠️
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% else %}
-                                <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">
-                                        <i class="fas fa-chart-bar fa-2x mb-3"></i>
-                                        <p>لا توجد بيانات لعرضها في ميزان المراجعة</p>
-                                    </td>
-                                </tr>
                             {% endif %}
+                            
+                            <!-- الإجمالي النهائي -->
+                            <tr class="grand-total">
+                                <td colspan="3"><strong>الإجمالي النهائي:</strong></td>
+                                <td class="number-cell"><strong>{{ trial_balance_data.total_debit|smart_float }}</strong></td>
+                                <td class="number-cell"><strong>{{ trial_balance_data.total_credit|smart_float }}</strong></td>
+                                <td class="text-center">
+                                    {% if trial_balance_data.is_balanced %}
+                                        <span class="balance-status balanced">✓ متوازن</span>
+                                    {% else %}
+                                        <span class="balance-status unbalanced">⚠ غير متوازن</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
+            {% else %}
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-inbox"></i>
+                    </div>
+                    <h5 class="text-muted">لا توجد بيانات</h5>
+                    <p class="text-muted">لا توجد حسابات نشطة في الفترة المحددة</p>
+                </div>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="section-container">
+            <div class="empty-state">
+                <div class="empty-state-icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <h5 class="text-muted">خطأ في تحميل البيانات</h5>
+                <p class="text-muted">حدث خطأ أثناء تحميل ميزان المراجعة</p>
             </div>
         </div>
-    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // تحسين تجربة المستخدم
+    $(document).ready(function() {
+        // لا حاجة لـ JavaScript إضافي - كل شيء في Python
+    });
+</script>
 {% endblock %}

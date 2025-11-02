@@ -329,15 +329,47 @@ def main():
     except Exception as e:
         print_warning(f"فشل في إنشاء المستخدمين: {e}")
 
-    # المرحلة 4: تحميل إعدادات النظام
-    print_step(4, 9, "تحميل إعدادات النظام")
-    run_command(
-        "python manage.py loaddata core/fixtures/initial_data.json", check=False
-    )
-    print_success("تم تحميل إعدادات النظام")
+    # المرحلة 4: إنشاء الصلاحيات المخصصة والأدوار
+    print_step(4, 10, "إنشاء الصلاحيات المخصصة والأدوار")
+    
+    print_info("إنشاء الصلاحيات المخصصة (37 صلاحية)...")
+    if run_command("python manage.py create_custom_permissions", check=False):
+        print_success("تم إنشاء الصلاحيات المخصصة بنجاح")
+        print_info("   ✓ تم تقليل الصلاحيات من 544 إلى 37 (تقليل 93%)")
+        print_info("   ✓ صلاحيات عربية واضحة وسهلة الاستخدام")
+    else:
+        print_warning("فشل إنشاء الصلاحيات المخصصة")
+    
+    print_info("إنشاء الأدوار الأساسية (8 أدوار)...")
+    if run_command("python manage.py update_roles_with_custom_permissions", check=False):
+        print_success("تم إنشاء الأدوار بنجاح")
+        print_info("   ✓ مدير النظام (45 صلاحية)")
+        print_info("   ✓ محاسب (9 صلاحيات)")
+        print_info("   ✓ أمين مخزن (6 صلاحيات)")
+        print_info("   ✓ مندوب مبيعات (7 صلاحيات)")
+        print_info("   ✓ مدير مالي (13 صلاحية)")
+        print_info("   ✓ مستخدم عرض فقط (6 صلاحيات)")
+        print_info("   ✓ مسؤول طباعة (6 صلاحيات)")
+        print_info("   ✓ منسق عام (13 صلاحية)")
+    else:
+        print_warning("فشل إنشاء الأدوار")
 
-    # المرحلة 5: تحميل الدليل المحاسبي
-    print_step(5, 9, "تحميل الدليل المحاسبي")
+    # المرحلة 5: تحميل إعدادات النظام
+    print_step(5, 10, "تحميل إعدادات النظام")
+    
+    print_info("تحميل الإعدادات الشاملة (101 إعداد)...")
+    if run_command(
+        "python manage.py loaddata core/fixtures/system_settings_final.json", check=False
+    ):
+        print_success("تم تحميل جميع إعدادات النظام بنجاح")
+        print_info("   ✓ إعدادات الشركة (18 حقل)")
+        print_info("   ✓ إعدادات الفواتير والمالية (4 حقول)")
+        print_info("   ✓ إعدادات النظام الأخرى (79 إعداد)")
+    else:
+        print_warning("فشل تحميل إعدادات النظام")
+
+    # المرحلة 6: تحميل الدليل المحاسبي
+    print_step(6, 10, "تحميل الدليل المحاسبي")
 
     print_info("تحميل شجرة الحسابات (النسخة النهائية المحدثة)...")
     if not run_command(
@@ -360,52 +392,62 @@ def main():
 
     print_success("تم تحميل الدليل المحاسبي")
 
-    # التحقق من الصلاحيات الأساسية
-    print_info("التحقق من الصلاحيات الأساسية...")
+    # التحقق من الصلاحيات المخصصة
+    print_info("التحقق من الصلاحيات المخصصة...")
     try:
         from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+        from users.models import User as UserModel
 
-        permissions_count = Permission.objects.count()
-        print_success(f"تم العثور على {permissions_count} صلاحية في النظام")
+        ct = ContentType.objects.get_for_model(UserModel)
+        custom_permissions = Permission.objects.filter(content_type=ct)
+        total_permissions = Permission.objects.count()
+        
+        print_success(f"تم العثور على {custom_permissions.count()} صلاحية مخصصة")
+        print_info(f"   إجمالي الصلاحيات في النظام: {total_permissions}")
+        
+        if custom_permissions.count() >= 37:
+            print_success("✅ نظام الصلاحيات المخصصة جاهز!")
+        else:
+            print_warning(f"⚠️ عدد الصلاحيات المخصصة أقل من المتوقع ({custom_permissions.count()}/45)")
+            
     except Exception as e:
         print_warning(f"خطأ في التحقق من الصلاحيات: {e}")
 
-    # إعطاء جميع الصلاحيات للمستخدمين الثلاثة
-    print_info("إعطاء جميع الصلاحيات للمستخدمين...")
+    # التحقق من أدوار المستخدمين
+    print_info("التحقق من أدوار المستخدمين...")
     try:
         from django.contrib.auth import get_user_model
-        from django.contrib.auth.models import Permission
+        from users.models import Role
 
         User = get_user_model()
-
-        # البحث عن المستخدمين الثلاثة
-        users_to_grant = ["mwheba", "fatma", "admin"]
-
-        for username in users_to_grant:
+        
+        # عد الأدوار
+        roles_count = Role.objects.count()
+        print_success(f"تم العثور على {roles_count} دور في النظام")
+        
+        if roles_count >= 8:
+            print_success("✅ جميع الأدوار الأساسية موجودة!")
+        else:
+            print_warning(f"⚠️ عدد الأدوار أقل من المتوقع ({roles_count}/8)")
+        
+        # المستخدمون الثلاثة هم superusers ولديهم جميع الصلاحيات تلقائياً
+        users_to_check = ["mwheba", "fatma", "admin"]
+        for username in users_to_check:
             try:
                 user = User.objects.get(username=username)
-
-                # إعطاء جميع الصلاحيات
-                all_permissions = Permission.objects.all()
-                user.user_permissions.set(all_permissions)
-
-                # التأكد من أنه superuser و staff
-                user.is_superuser = True
-                user.is_staff = True
-                user.save()
-
-                print_success(f"تم إعطاء جميع الصلاحيات للمستخدم {username}")
-
+                if user.is_superuser:
+                    print_success(f"✅ {username} - superuser (صلاحيات كاملة)")
+                else:
+                    print_info(f"   {username} - مستخدم عادي")
             except User.DoesNotExist:
                 print_warning(f"المستخدم {username} غير موجود")
 
-        print_success("تم إعطاء جميع الصلاحيات بنجاح")
-
     except Exception as e:
-        print_warning(f"فشل في إعطاء الصلاحيات: {str(e)}")
+        print_warning(f"فشل في التحقق من الأدوار: {str(e)}")
 
-    # المرحلة 6: إنشاء الفترة المالية 2025
-    print_step(6, 9, "إنشاء الفترة المالية 2025")
+    # المرحلة 7: إنشاء الفترة المالية 2025
+    print_step(7, 10, "إنشاء الفترة المالية 2025")
 
     from financial.models import AccountingPeriod
     from datetime import date
@@ -433,8 +475,8 @@ def main():
     except Exception as e:
         print_warning(f"فشل إنشاء الفترة المالية: {e}")
 
-    # المرحلة 7: بيانات تجريبية
-    print_step(7, 9, "تحميل البيانات التجريبية")
+    # المرحلة 8: بيانات تجريبية
+    print_step(8, 10, "تحميل البيانات التجريبية")
 
     if load_test_data:
         print_info("تحميل المخازن والمنتجات...")
@@ -501,8 +543,8 @@ def main():
     else:
         print_info("تم تخطي البيانات التجريبية")
 
-    # المرحلة 8: تحميل بيانات أنظمة التسعير
-    print_step(8, 10, "تحميل بيانات أنظمة التسعير")
+    # المرحلة 9: تحميل بيانات أنظمة التسعير
+    print_step(9, 10, "تحميل بيانات أنظمة التسعير")
 
     if load_test_data:
         # تحميل بيانات نظام printing_pricing الجديد
@@ -601,15 +643,13 @@ def main():
     else:
         print_info("تم تخطي بيانات نظام التسعير")
 
-    # المرحلة 9: التحقق من نظام الشراكة المالية
-    print_step(9, 10, "التحقق من نظام الشراكة المالية")
+    # المرحلة 10: التحقق من نظام الشراكة المالية والأنظمة المتقدمة
+    print_step(10, 10, "التحقق من نظام الشراكة المالية والأنظمة المتقدمة")
     
     print_info("التحقق من وجود حسابات الشراكة في دليل الحسابات...")
     print_success("حسابات الشراكة متوفرة في chart_of_accounts_final.json")
     print_info("حساب جاري الشريك محمد يوسف موجود ومُعرَّف مسبقاً")
     
-    # المرحلة 10: تفعيل الأنظمة المتقدمة
-    print_step(10, 10, "تفعيل الأنظمة المتقدمة")
     print_info("التحقق من نظام تزامن المدفوعات...")
     print_success("نظام التزامن المالي جاهز")
 

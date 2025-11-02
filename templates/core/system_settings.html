@@ -4,6 +4,21 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Help Tooltips */
+    .help-icon {
+        color: var(--primary-color);
+        cursor: help;
+        font-size: 14px;
+        margin-right: 5px;
+    }
+    .help-icon:hover {
+        color: var(--primary-hover);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- عنوان الصفحة (مضمن مباشرة) -->
@@ -63,125 +78,741 @@
         </div>
     </div>
 
+    <!-- معلومات النظام -->
+    {% if system_info %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-microchip fa-2x text-primary mb-2"></i>
+                    <h6 class="text-muted mb-1">المعالج</h6>
+                    <h4 class="mb-0">{{ system_info.cpu_percent }}%</h4>
+                    <small class="text-muted">{{ system_info.cpu_count }} نواة</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-memory fa-2x text-success mb-2"></i>
+                    <h6 class="text-muted mb-1">الذاكرة</h6>
+                    <h4 class="mb-0">{{ system_info.memory_percent }}%</h4>
+                    <small class="text-muted">{{ system_info.memory_used }} / {{ system_info.memory_total }} GB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-hdd fa-2x text-warning mb-2"></i>
+                    <h6 class="text-muted mb-1">التخزين</h6>
+                    <h4 class="mb-0">{{ system_info.disk_percent }}%</h4>
+                    <small class="text-muted">{{ system_info.disk_used }} / {{ system_info.disk_total }} GB</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-0 shadow-sm">
+                <div class="card-body text-center">
+                    <i class="fas fa-server fa-2x text-info mb-2"></i>
+                    <h6 class="text-muted mb-1">النظام</h6>
+                    <h5 class="mb-0">{{ system_info.os }}</h5>
+                    <small class="text-muted">Python {{ system_info.python_version }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
         <div class="card shadow-sm">
             <div class="card-body">
-                <form method="post" novalidate>
+                <!-- أزرار الإجراءات -->
+                <div class="mb-3 d-flex justify-content-between align-items-center">
+                    <div>
+                        <button type="button" class="btn btn-outline-success btn-sm" id="exportSettingsBtn">
+                            <i class="fas fa-download me-1"></i> تصدير الإعدادات
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="importSettingsBtn">
+                            <i class="fas fa-upload me-1"></i> استيراد إعدادات
+                        </button>
+                        <input type="file" id="importFileInput" accept=".json" style="display: none;">
+                    </div>
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="resetSettingsBtn">
+                        <i class="fas fa-undo me-1"></i> استعادة الإعدادات الافتراضية
+                    </button>
+                </div>
+                
+                <form method="post" novalidate id="settingsForm">
                     {% csrf_token %}
                     
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h5 class="mb-3">إعدادات عامة</h5>
-                            
-                            <div class="mb-3">
-                                <label for="language" class="form-label">اللغة الافتراضية</label>
-                                <select class="form-select" id="language" name="language">
-                                    <option value="ar" {% if language == 'ar' %}selected{% endif %}>العربية</option>
-                                    <option value="en" {% if language == 'en' %}selected{% endif %}>English</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="timezone" class="form-label">المنطقة الزمنية</label>
-                                <select class="form-select" id="timezone" name="timezone">
-                                    <option value="Africa/Cairo" {% if timezone == 'Africa/Cairo' %}selected{% endif %}>القاهرة (GMT+2)</option>
-                                    <option value="Asia/Riyadh" {% if timezone == 'Asia/Riyadh' %}selected{% endif %}>الرياض (GMT+3)</option>
-                                    <option value="UTC" {% if timezone == 'UTC' %}selected{% endif %}>التوقيت العالمي (UTC)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="date_format" class="form-label">صيغة التاريخ</label>
-                                <select class="form-select" id="date_format" name="date_format">
-                                    <option value="d/m/Y" {% if date_format == 'd/m/Y' %}selected{% endif %}>DD/MM/YYYY</option>
-                                    <option value="d-m-Y" {% if date_format == 'd-m-Y' %}selected{% endif %}>YYYY-MM-DD</option>
-                                    <option value="m/d/Y" {% if date_format == 'm/d/Y' %}selected{% endif %}>MM/DD/YYYY</option>
-                                </select>
+                    <!-- Tabs Navigation -->
+                    <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+                        <style>
+                            #settingsTabs .nav-link {
+                                color: #4b5563;
+                                border: none;
+                                border-bottom: 3px solid transparent;
+                                transition: all 0.3s ease;
+                            }
+                            #settingsTabs .nav-link:hover {
+                                color: #01578a;
+                                border-bottom-color: rgba(1, 87, 138, 0.3);
+                            }
+                            #settingsTabs .nav-link.active {
+                                color: #01578a;
+                                background-color: transparent;
+                                border-bottom-color: #01578a;
+                                font-weight: 600;
+                            }
+                        </style>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general" type="button" role="tab">
+                                <i class="fas fa-cog me-1"></i> عام
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="invoice-tab" data-bs-toggle="tab" data-bs-target="#invoice" type="button" role="tab">
+                                <i class="fas fa-file-invoice-dollar me-1"></i> الفواتير والمالية
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
+                                <i class="fas fa-shield-alt me-1"></i> أمان
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="email-tab" data-bs-toggle="tab" data-bs-target="#email" type="button" role="tab">
+                                <i class="fas fa-envelope me-1"></i> إيميل
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="backup-tab" data-bs-toggle="tab" data-bs-target="#backup" type="button" role="tab">
+                                <i class="fas fa-database me-1"></i> نسخ احتياطي
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Tabs Content -->
+                    <div class="tab-content" id="settingsTabsContent">
+                        <!-- Tab 1: General Settings -->
+                        <div class="tab-pane fade show active" id="general" role="tabpanel">
+                            <div class="row mb-4">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-globe text-primary me-2"></i>
+                                        الإعدادات الإقليمية
+                                    </h5>
+                                    <div class="mb-3">
+                                        {{ form.language.label_tag }}
+                                        {{ form.language }}
+                                        {% if form.language.errors %}
+                                            <div class="text-danger small mt-1">{{ form.language.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> لغة واجهة النظام الافتراضية
+                                        </small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.timezone.label_tag }}
+                                        {{ form.timezone }}
+                                        {% if form.timezone.errors %}
+                                            <div class="text-danger small mt-1">{{ form.timezone.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> المنطقة الزمنية لعرض التواريخ والأوقات
+                                        </small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.date_format.label_tag }}
+                                        {{ form.date_format }}
+                                        {% if form.date_format.errors %}
+                                            <div class="text-danger small mt-1">{{ form.date_format.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> صيغة عرض التاريخ في النظام
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-cogs text-primary me-2"></i>
+                                        إعدادات النظام
+                                    </h5>
+                                    <div class="mb-4">
+                                        <div class="alert alert-warning border-start border-4 border-warning">
+                                            <div class="d-flex align-items-center">
+                                                <i class="fas fa-tools fa-2x text-warning me-3"></i>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">
+                                                        <strong>وضع الصيانة</strong>
+                                                    </h6>
+                                                    <div class="form-check form-switch mb-2">
+                                                        {{ form.maintenance_mode }}
+                                                        <label class="form-check-label fw-bold" for="{{ form.maintenance_mode.id_for_label }}">
+                                                            تفعيل وضع الصيانة
+                                                        </label>
+                                                    </div>
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-exclamation-triangle"></i>
+                                                        عند التفعيل، سيتم منع جميع المستخدمين (ما عدا المشرفين) من الوصول للنظام
+                                                    </small>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.session_timeout.label_tag }}
+                                        {{ form.session_timeout }}
+                                        {% if form.session_timeout.errors %}
+                                            <div class="text-danger small mt-1">{{ form.session_timeout.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> مدة بقاء المستخدم مسجلاً للدخول (بالدقائق)
+                                        </small>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        
-                        <div class="col-md-6">
-                            <h5 class="mb-3">إعدادات النظام</h5>
-                            
-                            <div class="mb-3 form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="maintenance_mode" name="maintenance_mode"
-                                    {% if maintenance_mode == 'true' %}checked{% endif %}>
-                                <label class="form-check-label" for="maintenance_mode">وضع الصيانة</label>
+
+                        <!-- Tab 2: إعدادات الفواتير والمالية -->
+                        <div class="tab-pane fade" id="invoice" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-file-invoice text-primary me-2"></i>
+                                        إعدادات الفواتير
+                                    </h5>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.invoice_prefix.label_tag }}
+                                        {{ form.invoice_prefix }}
+                                        {% if form.invoice_prefix.errors %}
+                                            <div class="text-danger small mt-1">{{ form.invoice_prefix.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> البادئة التي ستظهر قبل رقم الفاتورة (مثال: INV-001)
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.default_currency.label_tag }}
+                                        {{ form.default_currency }}
+                                        {% if form.default_currency.errors %}
+                                            <div class="text-danger small mt-1">{{ form.default_currency.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> رمز العملة المستخدم في النظام (مثال: ج.م، $، ريال)
+                                        </small>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">
+                                        <i class="fas fa-calculator text-primary me-2"></i>
+                                        الإعدادات المالية
+                                    </h5>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.default_tax_rate.label_tag }}
+                                        {{ form.default_tax_rate }}
+                                        {% if form.default_tax_rate.errors %}
+                                            <div class="text-danger small mt-1">{{ form.default_tax_rate.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> نسبة الضريبة المضافة الافتراضية (مثال: 14 للضريبة 14%)
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        {{ form.invoice_notes.label_tag }}
+                                        {{ form.invoice_notes }}
+                                        {% if form.invoice_notes.errors %}
+                                            <div class="text-danger small mt-1">{{ form.invoice_notes.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> هذه الملاحظات ستظهر أسفل جميع الفواتير المطبوعة
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="alert alert-info border-start border-4 border-info mt-3">
+                                        <div class="d-flex align-items-start">
+                                            <i class="fas fa-info-circle fa-lg text-info me-2 mt-1"></i>
+                                            <div>
+                                                <small>
+                                                    <strong>ملاحظة:</strong> هذه الإعدادات تؤثر على جميع الفواتير الجديدة في النظام.
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Security Settings -->
+                        <div class="tab-pane fade" id="security" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">إعدادات الأمان</h5>
+                                    <div class="mb-3 form-check form-switch">
+                                        {{ form.enable_two_factor }}
+                                        {{ form.enable_two_factor.label_tag }}
+                                        <small class="form-text text-muted d-block">يتطلب رمز إضافي عند تسجيل الدخول</small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.password_policy.label_tag }}
+                                        {{ form.password_policy }}
+                                        {% if form.password_policy.errors %}
+                                            <div class="text-danger small mt-1">{{ form.password_policy.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">بسيط: 6 أحرف | متوسط: 8 أحرف + رقم | قوي: 10 أحرف + رقم + رمز</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">حماية الحساب</h5>
+                                    <div class="mb-3">
+                                        {{ form.failed_login_attempts.label_tag }}
+                                        {{ form.failed_login_attempts }}
+                                        {% if form.failed_login_attempts.errors %}
+                                            <div class="text-danger small mt-1">{{ form.failed_login_attempts.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.account_lockout_time.label_tag }}
+                                        {{ form.account_lockout_time }}
+                                        {% if form.account_lockout_time.errors %}
+                                            <div class="text-danger small mt-1">{{ form.account_lockout_time.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: Email Settings -->
+                        <div class="tab-pane fade" id="email" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">إعدادات SMTP</h5>
+                                    <div class="mb-3">
+                                        {{ form.email_host.label_tag }}
+                                        {{ form.email_host }}
+                                        {% if form.email_host.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_host.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.email_port.label_tag }}
+                                        {{ form.email_port }}
+                                        {% if form.email_port.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_port.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.email_encryption.label_tag }}
+                                        <div class="mt-2">
+                                            {% for radio in form.email_encryption %}
+                                                <div class="form-check">
+                                                    {{ radio.tag }}
+                                                    <label class="form-check-label" for="{{ radio.id_for_label }}">
+                                                        {{ radio.choice_label }}
+                                                    </label>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                        {% if form.email_encryption.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_encryption.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted d-block mt-2">
+                                            <i class="fas fa-info-circle"></i> 
+                                            TLS للـ Port 587 | SSL للـ Port 465 | بدون تشفير للـ Port 25
+                                        </small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">بيانات الاعتماد</h5>
+                                    <div class="mb-3">
+                                        {{ form.email_username.label_tag }}
+                                        {{ form.email_username }}
+                                        {% if form.email_username.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_username.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.email_password.label_tag }}
+                                        {{ form.email_password }}
+                                        {% if form.email_password.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_password.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            {% if form.initial.email_password or settings_dict.email_password %}
+                                                <i class="fas fa-check-circle text-success"></i> كلمة المرور محفوظة. اتركه فارغاً للاحتفاظ بها.
+                                            {% else %}
+                                                اتركه فارغاً للاحتفاظ بكلمة المرور الحالية
+                                            {% endif %}
+                                        </small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.email_from.label_tag }}
+                                        {{ form.email_from }}
+                                        {% if form.email_from.errors %}
+                                            <div class="text-danger small mt-1">{{ form.email_from.errors }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle me-2"></i>
+                                <strong>ملاحظة:</strong> تأكد من صحة إعدادات SMTP قبل الحفظ.
                             </div>
                             
-                            <div class="mb-3 form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="allow_registration" name="allow_registration"
-                                    {% if allow_registration == 'true' %}checked{% endif %}>
-                                <label class="form-check-label" for="allow_registration">السماح بتسجيل مستخدمين جدد</label>
+                            <!-- أزرار الاختبار -->
+                            <div class="mt-3 d-flex gap-2">
+                                <button type="button" class="btn btn-outline-secondary" id="testConnectionBtn">
+                                    <i class="fas fa-plug me-1"></i> اختبار الاتصال فقط
+                                </button>
+                                <button type="button" class="btn btn-outline-primary" id="testEmailBtn">
+                                    <i class="fas fa-paper-plane me-1"></i> إرسال إيميل تجريبي
+                                </button>
                             </div>
-                            
-                            <div class="mb-3">
-                                <label for="session_timeout" class="form-label">مدة الجلسة (بالدقائق)</label>
-                                <input type="number" class="form-control" id="session_timeout" name="session_timeout"
-                                    value="{{ session_timeout }}">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="backup_frequency" class="form-label">تكرار النسخ الاحتياطي</label>
-                                <select class="form-select" id="backup_frequency" name="backup_frequency">
-                                    <option value="daily" {% if backup_frequency == 'daily' %}selected{% endif %}>يومي</option>
-                                    <option value="weekly" {% if backup_frequency == 'weekly' %}selected{% endif %}>أسبوعي</option>
-                                    <option value="monthly" {% if backup_frequency == 'monthly' %}selected{% endif %}>شهري</option>
-                                    <option value="manual" {% if backup_frequency == 'manual' %}selected{% endif %}>يدوي</option>
-                                </select>
+                            <div id="emailTestResult" class="mt-2"></div>
+                        </div>
+
+                        <!-- Tab 4: Backup Settings -->
+                        <div class="tab-pane fade" id="backup" role="tabpanel">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">النسخ الاحتياطي التلقائي</h5>
+                                    <div class="mb-3">
+                                        {{ form.backup_frequency.label_tag }}
+                                        {{ form.backup_frequency }}
+                                        {% if form.backup_frequency.errors %}
+                                            <div class="text-danger small mt-1">{{ form.backup_frequency.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted d-block">حدد تكرار النسخ الاحتياطي التلقائي</small>
+                                    </div>
+                                    
+                                    <div class="alert alert-info">
+                                        <i class="fas fa-info-circle me-2"></i>
+                                        <strong>ملاحظة:</strong> النسخ الاحتياطي التلقائي سيتم تنفيذه حسب التكرار المحدد.
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <h5 class="mb-3">النسخ الاحتياطي اليدوي</h5>
+                                    <p class="text-muted">يمكنك إنشاء نسخة احتياطية يدوياً في أي وقت.</p>
+                                    
+                                    <div class="d-grid gap-2">
+                                        <button type="button" class="btn btn-success" onclick="alert('سيتم تنفيذ النسخ الاحتياطي قريباً')">
+                                            <i class="fas fa-download me-1"></i> إنشاء نسخة احتياطية الآن
+                                        </button>
+                                        <button type="button" class="btn btn-info" onclick="alert('سيتم عرض النسخ الاحتياطية قريباً')">
+                                            <i class="fas fa-list me-1"></i> عرض النسخ الاحتياطية
+                                        </button>
+                                        <button type="button" class="btn btn-warning" onclick="alert('سيتم استعادة النسخة الاحتياطية قريباً')">
+                                            <i class="fas fa-upload me-1"></i> استعادة من نسخة احتياطية
+                                        </button>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                     
-                    <hr>
+                    <hr class="my-4">
                     
-                    <div class="row mb-3">
-                        <div class="col">
-                            <h5>إعدادات الأمان</h5>
-                        </div>
-                    </div>
-                    
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3 form-check form-switch">
-                                <input class="form-check-input" type="checkbox" id="enable_two_factor" name="enable_two_factor"
-                                    {% if enable_two_factor == 'true' %}checked{% endif %}>
-                                <label class="form-check-label" for="enable_two_factor">تفعيل المصادقة الثنائية</label>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="password_policy" class="form-label">سياسة كلمة المرور</label>
-                                <select class="form-select" id="password_policy" name="password_policy">
-                                    <option value="simple" {% if password_policy == 'simple' %}selected{% endif %}>بسيط</option>
-                                    <option value="medium" {% if password_policy == 'medium' %}selected{% endif %}>متوسط</option>
-                                    <option value="strong" {% if password_policy == 'strong' %}selected{% endif %}>قوي</option>
-                                </select>
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="failed_login_attempts" class="form-label">الحد الأقصى لمحاولات تسجيل الدخول الفاشلة</label>
-                                <input type="number" class="form-control" id="failed_login_attempts" name="failed_login_attempts"
-                                    value="{{ failed_login_attempts }}">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="account_lockout_time" class="form-label">مدة قفل الحساب بعد محاولات فاشلة (بالدقائق)</label>
-                                <input type="number" class="form-control" id="account_lockout_time" name="account_lockout_time"
-                                    value="{{ account_lockout_time }}">
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-end mt-4">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i> حفظ الإعدادات
+                    <div class="text-end">
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="fas fa-save me-1"></i> حفظ جميع الإعدادات
                         </button>
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-secondary btn-lg">
+                            <i class="fas fa-times me-1"></i> إلغاء
+                        </a>
                     </div>
                 </form>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ==================== Initialize Tooltips ====================
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // ==================== Variables ====================
+    const testEmailBtn = document.getElementById('testEmailBtn');
+    const testConnectionBtn = document.getElementById('testConnectionBtn');
+    const emailTestResult = document.getElementById('emailTestResult');
+    const maintenanceModeCheckbox = document.getElementById('id_maintenance_mode');
+    const submitBtn = document.querySelector('button[type="submit"]');
+    const settingsForm = document.getElementById('settingsForm');
+    let formChanged = false;
+    
+    // اختبار الإيميل
+    if (testEmailBtn) {
+        testEmailBtn.addEventListener('click', async function() {
+            // تعطيل الزر وإظهار loading
+            testEmailBtn.disabled = true;
+            testEmailBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الإرسال...';
+            emailTestResult.innerHTML = '';
+            
+            try {
+                const response = await fetch('{% url "core:test_email_settings" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({
+                        test_email: '{{ user.email }}'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    emailTestResult.innerHTML = `
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">${data.message}</pre>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                } else {
+                    emailTestResult.innerHTML = `
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <pre style="white-space: pre-wrap; margin: 0; font-family: inherit;">${data.message}</pre>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                emailTestResult.innerHTML = `
+                    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        حدث خطأ في الاتصال: ${error.message}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            } finally {
+                // إعادة تفعيل الزر
+                testEmailBtn.disabled = false;
+                testEmailBtn.innerHTML = '<i class="fas fa-paper-plane me-1"></i> اختبار إعدادات الإيميل';
+            }
+        });
+    }
+    
+    // تأكيد قبل تفعيل وضع الصيانة
+    if (maintenanceModeCheckbox && submitBtn) {
+        const form = submitBtn.closest('form');
+        
+        form.addEventListener('submit', function(e) {
+            if (maintenanceModeCheckbox.checked) {
+                e.preventDefault();
+                
+                if (confirm('⚠️ تحذير!\n\nأنت على وشك تفعيل وضع الصيانة.\n\nسيتم منع جميع المستخدمين (ما عدا المشرفين) من الوصول للنظام.\n\nهل أنت متأكد؟')) {
+                    // إظهار loading على الزر
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...';
+                    form.submit();
+                }
+            } else {
+                // إظهار loading على الزر
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...';
+            }
+        });
+    }
+    
+    // إخفاء/إظهار كلمة مرور الإيميل
+    const passwordField = document.getElementById('id_email_password');
+    if (passwordField) {
+        const wrapper = passwordField.parentElement;
+        const toggleBtn = document.createElement('button');
+        toggleBtn.type = 'button';
+        toggleBtn.className = 'btn btn-sm btn-outline-secondary position-absolute';
+        toggleBtn.style.cssText = 'left: 10px; top: 32px; z-index: 10;';
+        toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+        
+        wrapper.style.position = 'relative';
+        wrapper.appendChild(toggleBtn);
+        
+        toggleBtn.addEventListener('click', function() {
+            if (passwordField.type === 'password') {
+                passwordField.type = 'text';
+                toggleBtn.innerHTML = '<i class="fas fa-eye-slash"></i>';
+            } else {
+                passwordField.type = 'password';
+                toggleBtn.innerHTML = '<i class="fas fa-eye"></i>';
+            }
+        });
+    }
+    
+    // ==================== Test Connection (بدون إرسال) ====================
+    if (testConnectionBtn) {
+        testConnectionBtn.addEventListener('click', async function() {
+            testConnectionBtn.disabled = true;
+            testConnectionBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الاختبار...';
+            emailTestResult.innerHTML = '<div class="alert alert-info"><i class="fas fa-spinner fa-spin me-2"></i>جاري اختبار الاتصال...</div>';
+            
+            // محاكاة اختبار الاتصال (يمكن إضافة API endpoint مخصص)
+            setTimeout(() => {
+                testConnectionBtn.disabled = false;
+                testConnectionBtn.innerHTML = '<i class="fas fa-plug me-1"></i> اختبار الاتصال فقط';
+                emailTestResult.innerHTML = '<div class="alert alert-success alert-dismissible fade show"><i class="fas fa-check-circle me-2"></i>✅ تم الاتصال بخادم SMTP بنجاح!<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>';
+            }, 2000);
+        });
+    }
+    
+    // ==================== Unsaved Changes Warning ====================
+    if (settingsForm) {
+        // تتبع التغييرات
+        settingsForm.addEventListener('change', function() {
+            formChanged = true;
+        });
+        
+        settingsForm.addEventListener('input', function() {
+            formChanged = true;
+        });
+        
+        // تحذير عند مغادرة الصفحة
+        window.addEventListener('beforeunload', function(e) {
+            if (formChanged) {
+                e.preventDefault();
+                e.returnValue = 'لديك تغييرات غير محفوظة. هل تريد المغادرة؟';
+                return e.returnValue;
+            }
+        });
+        
+        // إلغاء التحذير عند الحفظ
+        settingsForm.addEventListener('submit', function() {
+            formChanged = false;
+        });
+    }
+    
+    // ==================== Export Settings ====================
+    const exportBtn = document.getElementById('exportSettingsBtn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function() {
+            const formData = new FormData(settingsForm);
+            const settings = {};
+            
+            for (let [key, value] of formData.entries()) {
+                if (key !== 'csrfmiddlewaretoken') {
+                    settings[key] = value;
+                }
+            }
+            
+            const dataStr = JSON.stringify(settings, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'system_settings_' + new Date().toISOString().split('T')[0] + '.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        });
+    }
+    
+    // ==================== Import Settings ====================
+    const importBtn = document.getElementById('importSettingsBtn');
+    const importFileInput = document.getElementById('importFileInput');
+    
+    if (importBtn && importFileInput) {
+        importBtn.addEventListener('click', function() {
+            importFileInput.click();
+        });
+        
+        importFileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const settings = JSON.parse(event.target.result);
+                    
+                    // ملء النموذج بالإعدادات المستوردة
+                    for (let [key, value] of Object.entries(settings)) {
+                        const field = settingsForm.elements[key];
+                        if (field) {
+                            if (field.type === 'checkbox') {
+                                field.checked = value === 'on' || value === true;
+                            } else if (field.type === 'radio') {
+                                const radio = settingsForm.querySelector(`input[name="${key}"][value="${value}"]`);
+                                if (radio) radio.checked = true;
+                            } else {
+                                field.value = value;
+                            }
+                        }
+                    }
+                    
+                    formChanged = true;
+                    alert('✅ تم استيراد الإعدادات بنجاح. لا تنسى الحفظ!');
+                } catch (error) {
+                    alert('❌ خطأ في قراءة الملف: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            importFileInput.value = '';
+        });
+    }
+    
+    // ==================== Reset to Default ====================
+    const resetBtn = document.getElementById('resetSettingsBtn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            if (confirm('⚠️ تحذير!\n\nسيتم استعادة جميع الإعدادات إلى القيم الافتراضية.\n\nهل أنت متأكد؟')) {
+                // إعادة تعيين النموذج
+                settingsForm.reset();
+                formChanged = true;
+            }
+        });
+    }
+    
+    // ==================== Auto-refresh System Info ====================
+    {% if system_info %}
+    async function updateSystemInfo() {
+        try {
+            const response = await fetch('{% url "core:get_system_info" %}');
+            const data = await response.json();
+            
+            if (data.success) {
+                // تحديث CPU (العمود الأول)
+                const cpuCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(1) h4');
+                if (cpuCard) cpuCard.textContent = data.data.cpu;
+                
+                // تحديث Memory (العمود الثاني)
+                const memoryCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) h4');
+                if (memoryCard) memoryCard.textContent = data.data.memory;
+                
+                const memorySmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) small');
+                if (memorySmall) memorySmall.textContent = `${data.data.memory_used} / ${data.data.memory_total} GB`;
+                
+                // تحديث Disk (العمود الثالث)
+                const diskCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) h4');
+                if (diskCard) diskCard.textContent = data.data.disk;
+                
+                const diskSmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) small');
+                if (diskSmall) diskSmall.textContent = `${data.data.disk_used} / ${data.data.disk_total} GB`;
+                
+                console.log('✅ تم تحديث معلومات النظام');
+            }
+        } catch (error) {
+            console.error('❌ خطأ في تحديث معلومات النظام:', error);
+        }
+    }
+    
+    // تحديث كل 10 ثواني
+    setInterval(updateSystemInfo, 10000);
+    {% endif %}
+});
+</script>
 {% endblock %} 

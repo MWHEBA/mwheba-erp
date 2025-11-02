@@ -23,7 +23,7 @@
             <div class="card-body">
                 <h6 class="card-title">{{ piece_size.name }}</h6>
                 <p class="card-text">
-                    <strong>الأبعاد:</strong> {{ piece_size.width|remove_trailing_zeros }}×{{ piece_size.height|remove_trailing_zeros }} سم<br>
+                    <strong>الأبعاد:</strong> {{ piece_size.width|smart_float }}×{{ piece_size.height|smart_float }} سم<br>
                     {% if piece_size.paper_types.exists %}
                         <strong>مقاسات الورق الأساسية:</strong> 
                         {% for paper_type in piece_size.paper_types.all %}

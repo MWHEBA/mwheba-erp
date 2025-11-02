@@ -1,0 +1,516 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .aging-card {
+    background-color: var(--primary-color);
+    color: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .aging-summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+    margin-top: 1.5rem;
+  }
+  
+  .aging-period {
+    background: rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(10px);
+    border-radius: 10px;
+    padding: 1.5rem;
+    text-align: center;
+    transition: all 0.3s ease;
+  }
+  
+  .aging-period:hover {
+    background: rgba(255, 255, 255, 0.25);
+    transform: translateY(-5px);
+  }
+  
+  .period-label {
+    font-size: 0.9rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+  }
+  
+  .period-amount {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 0.25rem;
+  }
+  
+  .period-days {
+    font-size: 0.85rem;
+    opacity: 0.8;
+  }
+  
+  .total-section {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+  
+  .total-label {
+    font-size: 1rem;
+    opacity: 0.9;
+    margin-bottom: 0.5rem;
+  }
+  
+  .total-amount {
+    font-size: 2.5rem;
+    font-weight: 700;
+  }
+  
+  .chart-container {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    margin-bottom: 2rem;
+  }
+  
+  .chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-color);
+  }
+  
+  .chart-title {
+    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+  }
+  
+  .account-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  .account-info-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid #dee2e6;
+  }
+  
+  .account-info-item:last-child {
+    border-bottom: none;
+  }
+  
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  
+  .status-current {
+    background: #d1f2eb;
+    color: #0f5132;
+  }
+  
+  .status-warning {
+    background: #fff3cd;
+    color: #664d03;
+  }
+  
+  .status-danger {
+    background: #f8d7da;
+    color: #842029;
+  }
+  
+  /* تحسين الجدول */
+  .aging-table {
+    font-size: 0.95rem;
+  }
+  
+  .aging-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .aging-table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+  }
+  
+  .aging-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  
+  .aging-table .text-end {
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+  }
+  
+  .aging-table .table-active {
+    background-color: var(--primary-color) !important;
+    color: white;
+    font-weight: 700;
+  }
+  
+  .aging-table .table-active td {
+    border-color: var(--primary-color);
+    padding: 1rem 0.75rem;
+  }
+  
+  .account-code-badge {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <div class="mb-4 no-print">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">التقارير المالية</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-calendar-alt me-1"></i>{{ page_title|default:"تقرير أعمار الحسابات" }}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"تقرير أعمار الحسابات" }}</h1>
+                    <p class="text-muted mb-0">
+                        كما في تاريخ: {{ as_of_date|date:"Y-m-d" }}
+                    </p>
+                </div>
+            </div>
+                <button class="btn btn-outline-success" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+                <a href="?as_of_date={{ as_of_date|date:'Y-m-d' }}&export=excel" class="btn btn-outline-primary">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلتر التاريخ -->
+    <div class="section-container mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label class="form-label">كما في تاريخ</label>
+                <input type="date" name="as_of_date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>عرض التقرير
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- معلومات التقرير -->
+    {% if report_data.summary %}
+    <div class="account-info">
+        <div class="account-info-item">
+            <strong>نوع التقرير:</strong>
+            <span>
+                {% if account_type == 'receivables' %}
+                    <span class="status-badge status-warning">ذمم مدينة (عملاء)</span>
+                {% else %}
+                    <span class="status-badge status-danger">ذمم دائنة (موردين)</span>
+                {% endif %}
+            </span>
+        </div>
+        <div class="account-info-item">
+            <strong>عدد الحسابات:</strong>
+            <span>{{ report_data.summary.total_accounts }}</span>
+        </div>
+        <div class="account-info-item">
+            <strong>تاريخ التقرير:</strong>
+            <span>{{ as_of_date|date:"Y-m-d" }}</span>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- بطاقة الأعمار -->
+    {% if report_data.aging_periods %}
+    <div class="aging-card">
+        <h5 class="mb-3">
+            <i class="fas fa-clock me-2"></i>
+            توزيع الأعمار
+        </h5>
+        
+        <div class="aging-summary">
+            {% for period_key, period_data in report_data.aging_periods.items %}
+            <div class="aging-period">
+                <div class="period-label">{{ period_data.label }}</div>
+                <div class="period-amount">{{ period_data.amount|smart_float }}</div>
+                <div class="period-days">{{ period_data.days }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        
+        <div class="total-section">
+            <div class="total-label">إجمالي الرصيد</div>
+            <div class="total-amount">{{ report_data.summary.total_balance|smart_float }} جنيه</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الرسم البياني -->
+    <div class="chart-container">
+        <div class="chart-header">
+            <h5 class="chart-title">
+                <i class="fas fa-chart-pie me-2"></i>
+                التوزيع البياني للأعمار
+            </h5>
+            <div class="text-muted small">
+                <i class="fas fa-info-circle me-1"></i>
+                توزيع الأرصدة حسب الفترات الزمنية
+            </div>
+        </div>
+        <div style="position: relative; max-width: 500px; height: 200px; margin: 0 auto;">
+            <canvas id="agingChart"></canvas>
+        </div>
+    </div>
+
+    <!-- جدول الحسابات التفصيلي -->
+    {% if report_data.accounts %}
+    <div class="section-container mt-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>
+                تفاصيل الحسابات
+            </h5>
+            <span class="badge bg-primary">
+                <i class="fas fa-list me-1"></i>
+                {{ report_data.accounts|length }} حساب
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table aging-table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">الكود</th>
+                        <th>اسم الحساب</th>
+                        <th class="text-end" style="width: 120px;">حالي<br><small class="opacity-75">(0-30 يوم)</small></th>
+                        <th class="text-end" style="width: 120px;">متأخر<br><small class="opacity-75">(31-60)</small></th>
+                        <th class="text-end" style="width: 120px;">متأخر<br><small class="opacity-75">(61-90)</small></th>
+                        <th class="text-end" style="width: 120px;">متأخر<br><small class="opacity-75">(91-120)</small></th>
+                        <th class="text-end" style="width: 120px;">متأخر جداً<br><small class="opacity-75">(+120)</small></th>
+                        <th class="text-end" style="width: 130px;"><i class="fas fa-calculator me-1"></i>الإجمالي</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for account in report_data.accounts %}
+                    <tr>
+                        <td>
+                            <span class="account-code-badge">{{ account.account_code }}</span>
+                        </td>
+                        <td>
+                            <strong class="text-dark">{{ account.account_name }}</strong>
+                        </td>
+                        <td class="text-end">
+                            {% if account.current > 0 %}
+                                <span class="text-success">{{ account.current|smart_float }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if account.days_1_30 > 0 %}
+                                <span class="text-warning">{{ account.days_1_30|smart_float }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if account.days_31_60 > 0 %}
+                                <span class="text-warning">{{ account.days_31_60|smart_float }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if account.days_61_90 > 0 %}
+                                <span class="text-danger">{{ account.days_61_90|smart_float }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if account.over_90 > 0 %}
+                                <span class="text-danger fw-bold">{{ account.over_90|smart_float }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <strong class="text-primary">{{ account.total_balance|smart_float }}</strong>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    <tr class="table-active">
+                        <td colspan="2">
+                            <i class="fas fa-sigma me-2"></i>
+                            <strong>الإجمالي الكلي</strong>
+                        </td>
+                        <td class="text-end">{{ report_data.aging_periods.current.amount|smart_float }}</td>
+                        <td class="text-end">{{ report_data.aging_periods.days_1_30.amount|smart_float }}</td>
+                        <td class="text-end">{{ report_data.aging_periods.days_31_60.amount|smart_float }}</td>
+                        <td class="text-end">{{ report_data.aging_periods.days_61_90.amount|smart_float }}</td>
+                        <td class="text-end">{{ report_data.aging_periods.over_90.amount|smart_float }}</td>
+                        <td class="text-end">{{ report_data.summary.total_balance|smart_float }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% else %}
+    <div class="section-container mt-4">
+        <div class="alert alert-info text-center mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            لا توجد حسابات مستحقة حتى تاريخ {{ as_of_date|date:"Y-m-d" }}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // بيانات الرسم البياني
+    const agingData = {
+        labels: [
+            {% for period_key, period_data in report_data.aging_periods.items %}
+                '{{ period_data.label }}',
+            {% endfor %}
+        ],
+        datasets: [{
+            label: 'الرصيد',
+            data: [
+                {% for period_key, period_data in report_data.aging_periods.items %}
+                    {{ period_data.amount }},
+                {% endfor %}
+            ],
+            backgroundColor: [
+                'rgba(25, 135, 84, 0.8)',   // أخضر - جاري
+                'rgba(255, 193, 7, 0.8)',   // أصفر - 30-60
+                'rgba(255, 152, 0, 0.8)',   // برتقالي - 60-90
+                'rgba(220, 53, 69, 0.8)',   // أحمر - أكثر من 90
+            ],
+            borderColor: [
+                'rgba(25, 135, 84, 1)',
+                'rgba(255, 193, 7, 1)',
+                'rgba(255, 152, 0, 1)',
+                'rgba(220, 53, 69, 1)',
+            ],
+            borderWidth: 2
+        }]
+    };
+
+    // إنشاء الرسم البياني
+    const ctx = document.getElementById('agingChart');
+    if (ctx) {
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: agingData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            font: {
+                                family: 'Tajawal, sans-serif',
+                                size: 13
+                            },
+                            padding: 15,
+                            usePointStyle: true
+                        }
+                    },
+                    tooltip: {
+                        rtl: true,
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                const value = context.parsed.toLocaleString('ar-EG', {
+                                    minimumFractionDigits: 0,
+                                    maximumFractionDigits: 2
+                                });
+                                label += value + ' جنيه';
+                                
+                                // حساب النسبة المئوية
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                label += ' (' + percentage + '%)';
+                                
+                                return label;
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+</script>
+{% endblock %}

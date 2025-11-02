@@ -5,7 +5,11 @@
     <div class="footer-container">
         <div class="footer-content">
             <div class="footer-logo">
-                <img src="{% static 'img/logo.png' %}" alt="{{ SITE_NAME }}" width="70">
+                {% if settings.company_logo %}
+                    <img src="/media/{{ settings.company_logo }}" alt="{{ settings.company_name|default:SITE_NAME }}" width="70">
+                {% else %}
+                    <img src="{% static 'img/logo.png' %}" alt="{{ SITE_NAME }}" width="70">
+                {% endif %}
             </div>
             <div class="footer-copyright">
                 <p>جميع الحقوق محفوظة &copy; {{ current_year|default:'2023' }} {{ SITE_NAME }}</p>

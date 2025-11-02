@@ -233,6 +233,9 @@ def _create_low_stock_alert(product, stock):
                 title=title,
                 message=message,
                 notification_type=notification_type,
+                related_model="Product",
+                related_id=product.id,
+                link_url=f"/products/{product.id}/"
             )
 
     except Exception as e:

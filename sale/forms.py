@@ -94,6 +94,13 @@ class SaleForm(forms.ModelForm):
             raise ValidationError("رقم الفاتورة موجود بالفعل")
         return number
 
+    def clean_date(self):
+        """التحقق من أن تاريخ الفاتورة ليس في المستقبل"""
+        date = self.cleaned_data.get("date")
+        if date and date > timezone.now().date():
+            raise ValidationError("تاريخ الفاتورة لا يمكن أن يكون في المستقبل")
+        return date
+
     def clean_discount(self):
         discount = self.cleaned_data.get("discount", 0)
         if discount < 0:
@@ -235,6 +242,13 @@ class SalePaymentForm(forms.ModelForm):
             if "class" not in field.widget.attrs:
                 field.widget.attrs["class"] = "form-control"
 
+    def clean_payment_date(self):
+        """التحقق من أن تاريخ الدفعة ليس في المستقبل"""
+        payment_date = self.cleaned_data.get("payment_date")
+        if payment_date and payment_date > timezone.now().date():
+            raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
+        return payment_date
+
     def clean_amount(self):
         amount = self.cleaned_data.get("amount")
         if amount is None or amount <= 0:
@@ -371,6 +385,13 @@ class SalePaymentEditForm(forms.ModelForm):
             for field in self.fields.values():
                 field.help_text = "تحذير: تعديل هذه الدفعة سيؤثر على الأرصدة المحاسبية"
 
+    def clean_payment_date(self):
+        """التحقق من أن تاريخ الدفعة ليس في المستقبل"""
+        payment_date = self.cleaned_data.get("payment_date")
+        if payment_date and payment_date > timezone.now().date():
+            raise ValidationError("تاريخ الدفعة لا يمكن أن يكون في المستقبل")
+        return payment_date
+
     def clean_amount(self):
         amount = self.cleaned_data.get("amount")
         if amount is None or amount <= 0:
@@ -443,6 +464,13 @@ class SaleReturnForm(forms.ModelForm):
         # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
         if not self.initial.get("date"):
             self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
+
+    def clean_date(self):
+        """التحقق من أن تاريخ المرتجع ليس في المستقبل"""
+        date = self.cleaned_data.get("date")
+        if date and date > timezone.now().date():
+            raise ValidationError("تاريخ المرتجع لا يمكن أن يكون في المستقبل")
+        return date
 
 
 class SaleReturnItemForm(forms.ModelForm):

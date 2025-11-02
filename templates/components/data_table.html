@@ -105,7 +105,7 @@
                                                     <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> 0</strong>
                                                 {% endif %}
                                             {% else %}
-                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> {{ field_value|remove_trailing_zeros }}</strong>
+                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> {{ field_value|smart_float }}</strong>
                                             {% endif %}
                                         </span>
                                     {% elif header.format == 'boolean' %}
@@ -256,7 +256,7 @@
                                     {% elif header.format == 'rating' %}
                                         <div class="rating-display text-center">
                                             <div class="rating-stars text-warning mb-1">
-                                                {% with rating=field_value|default:0|remove_trailing_zeros %}
+                                                {% with rating=field_value|default:0|smart_float %}
                                                     {% for i in "12345" %}
                                                         {% if forloop.counter <= rating|add:0 %}
                                                             <i class="fas fa-star"></i>
@@ -323,6 +323,26 @@
                                         {% comment %} التحقق من الشرط إذا كان موجوداً {% endcomment %}
                                         {% if button.condition == 'not_fully_paid' %}
                                             {% if item.payment_status != 'paid' %}
+                                                {% if ':' in button.url %}
+                                                    {% with url_name=button.url %}
+                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
+                                                           class="action-button {{ button.class|default:'action-view' }}" 
+                                                           title="{{ button.label }}"
+                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                            <i class="fas {{ button.icon }}"></i>
+                                                        </a>
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+                                                       class="action-button {{ button.class|default:'action-view' }}" 
+                                                       title="{{ button.label }}"
+                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                        <i class="fas {{ button.icon }}"></i>
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% elif button.condition == 'no_posted_payments' %}
+                                            {% if not item.has_posted_payments %}
                                                 {% if ':' in button.url %}
                                                     {% with url_name=button.url %}
                                                         <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 

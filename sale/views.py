@@ -150,7 +150,7 @@ def sale_list(request):
             "icon": "fa-trash",
             "label": _("حذف"),
             "class": "action-delete",
-            "condition": "not_fully_paid",
+            "condition": "no_posted_payments",
         },
         {
             "url": "sale:sale_add_payment",
@@ -903,6 +903,16 @@ def sale_delete(request, pk):
         messages.error(request, "لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات مؤكدة")
         return redirect("sale:sale_detail", pk=sale.pk)
 
+    # التحقق من وجود دفعات مرحلة
+    has_posted_payments = sale.payments.filter(status="posted").exists()
+
+    if has_posted_payments:
+        messages.error(
+            request,
+            "لا يمكن حذف الفاتورة لأنها تحتوي على دفعات مرحلة. يجب إلغاء ترحيل الدفعات أولاً."
+        )
+        return redirect("sale:sale_detail", pk=sale.pk)
+
     if request.method == "POST":
         try:
             with transaction.atomic():
@@ -1206,7 +1216,7 @@ def sale_return_list(request):
             "width": "50px",
         },
         {
-            "key": "sale.invoice_number",
+            "key": "sale.number",
             "label": "رقم الفاتورة",
             "sortable": True,
             "class": "text-center",

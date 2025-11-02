@@ -245,6 +245,7 @@ urlpatterns = [
     path("reports/sales/", views.sales_report, name="sales_report"),
     path("reports/purchases/", views.purchases_report, name="purchases_report"),
     path("reports/inventory/", views.inventory_report, name="inventory_report"),
+    path("reports/abc-analysis/", views.abc_analysis_report, name="abc_analysis_report"),
     # النسخ الاحتياطي والصيانة
     path("backup/general/", views.general_backup, name="general_backup"),
     path(
@@ -265,9 +266,14 @@ urlpatterns = [
     path("reports/income-statement/", views.income_statement, name="income_statement"),
     # alias للاختبارات
     path("income-statement/", views.income_statement, name="income-statement"),
+    path("reports/cash-flow-statement/", views.cash_flow_statement, name="cash_flow_statement"),
+    # alias للاختبارات
+    path("cash-flow/", views.cash_flow_statement, name="cash-flow"),
+    path("reports/accounts-aging/<str:account_type>/", views.accounts_aging_report, name="accounts_aging_report"),
+    # aliases محددة
+    path("reports/accounts-receivable-aging/", views.accounts_aging_report, {"account_type": "receivables"}, name="accounts_receivable_aging"),
+    path("reports/accounts-payable-aging/", views.accounts_aging_report, {"account_type": "payables"}, name="accounts_payable_aging"),
     path("reports/analytics/", views.financial_analytics, name="financial_analytics"),
-    # alias للاختبارات - Cash Flow
-    path("cash-flow/", views.balance_sheet, name="cash-flow"),  # استخدام مؤقت
     # إدارة الدفعات المحسنة
     path("payments/list/", views.payment_list, name="payment_list"),
     path(

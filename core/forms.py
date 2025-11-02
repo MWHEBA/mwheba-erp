@@ -4,6 +4,7 @@ from django.utils.translation import gettext_lazy as _
 from django.core.exceptions import ValidationError
 import datetime
 import pytz
+from .models import NotificationPreference
 
 
 class SearchForm(forms.Form):
@@ -316,3 +317,220 @@ class SettingsForm(forms.Form):
             except pytz.exceptions.UnknownTimeZoneError:
                 raise ValidationError(_("منطقة زمنية غير صالحة"))
         return timezone_str
+
+
+class SystemSettingsForm(forms.Form):
+    """
+    نموذج إعدادات النظام الشامل
+    """
+    # إعدادات عامة
+    language = forms.ChoiceField(
+        label='اللغة الافتراضية',
+        choices=[('ar', 'العربية'), ('en', 'English')],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    timezone = forms.ChoiceField(
+        label='المنطقة الزمنية',
+        choices=[
+            ('Africa/Cairo', 'القاهرة (GMT+2)'),
+            ('Asia/Riyadh', 'الرياض (GMT+3)'),
+            ('UTC', 'التوقيت العالمي (UTC)')
+        ],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    date_format = forms.ChoiceField(
+        label='صيغة التاريخ',
+        choices=[
+            ('d/m/Y', 'DD/MM/YYYY'),
+            ('Y-m-d', 'YYYY-MM-DD'),
+            ('m/d/Y', 'MM/DD/YYYY')
+        ],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    # إعدادات الفواتير والمالية (منقولة من company_settings)
+    invoice_prefix = forms.CharField(
+        label='بادئة الفواتير',
+        max_length=10,
+        initial='INV-',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'INV-'})
+    )
+    default_currency = forms.CharField(
+        label='العملة الافتراضية',
+        max_length=10,
+        initial='ج.م',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ج.م'})
+    )
+    default_tax_rate = forms.DecimalField(
+        label='نسبة الضريبة الافتراضية (%)',
+        min_value=0,
+        max_value=100,
+        initial=14,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'})
+    )
+    invoice_notes = forms.CharField(
+        label='ملاحظات الفاتورة الافتراضية',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    
+    # إعدادات النظام
+    maintenance_mode = forms.BooleanField(
+        label='وضع الصيانة',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    session_timeout = forms.IntegerField(
+        label='مدة الجلسة (بالدقائق)',
+        min_value=5,
+        max_value=10080,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    backup_frequency = forms.ChoiceField(
+        label='تكرار النسخ الاحتياطي',
+        choices=[
+            ('daily', 'يومي'),
+            ('weekly', 'أسبوعي'),
+            ('monthly', 'شهري'),
+            ('manual', 'يدوي')
+        ],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    
+    # إعدادات الأمان
+    enable_two_factor = forms.BooleanField(
+        label='تفعيل المصادقة الثنائية',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    password_policy = forms.ChoiceField(
+        label='سياسة كلمة المرور',
+        choices=[
+            ('simple', 'بسيط'),
+            ('medium', 'متوسط'),
+            ('strong', 'قوي')
+        ],
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    failed_login_attempts = forms.IntegerField(
+        label='الحد الأقصى لمحاولات تسجيل الدخول الفاشلة',
+        min_value=3,
+        max_value=10,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    account_lockout_time = forms.IntegerField(
+        label='مدة قفل الحساب بعد محاولات فاشلة (بالدقائق)',
+        min_value=5,
+        max_value=1440,
+        widget=forms.NumberInput(attrs={'class': 'form-control'})
+    )
+    
+    # إعدادات الإيميل
+    email_host = forms.CharField(
+        label='SMTP Host',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'mail.example.com'})
+    )
+    email_port = forms.IntegerField(
+        label='SMTP Port',
+        required=False,
+        min_value=1,
+        max_value=65535,
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': '587'})
+    )
+    email_username = forms.CharField(
+        label='Email Username',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'user@example.com'})
+    )
+    email_password = forms.CharField(
+        label='Email Password',
+        required=False,
+        widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'})
+    )
+    email_encryption = forms.ChoiceField(
+        label='نوع التشفير',
+        choices=[
+            ('none', 'بدون تشفير'),
+            ('tls', 'TLS (Port 587)'),
+            ('ssl', 'SSL (Port 465)')
+        ],
+        initial='tls',
+        widget=forms.RadioSelect(attrs={'class': 'form-check-input'})
+    )
+    email_from = forms.EmailField(
+        label='البريد الافتراضي للإرسال',
+        required=False,
+        widget=forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'noreply@example.com'})
+    )
+
+
+class NotificationSettingsForm(forms.ModelForm):
+    """
+    نموذج إعدادات الإشعارات
+    """
+    
+    class Meta:
+        model = NotificationPreference
+        exclude = ['user', 'created_at', 'updated_at']
+        widgets = {
+            'daily_summary_time': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'do_not_disturb_start': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'do_not_disturb_end': forms.TimeInput(attrs={'type': 'time', 'class': 'form-control'}),
+            'email_for_notifications': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'example@email.com'}),
+            'phone_for_notifications': forms.TextInput(attrs={'class': 'form-control', 'placeholder': '+20 xxx xxx xxxx'}),
+            'inventory_check_frequency': forms.Select(attrs={'class': 'form-select'}),
+            'invoice_check_frequency': forms.Select(attrs={'class': 'form-select'}),
+            'auto_delete_after_days': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '365'}),
+            'auto_archive_after_months': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '24'}),
+            'invoice_due_days_before': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '30'}),
+            'invoice_overdue_days_after': forms.NumberInput(attrs={'class': 'form-control', 'min': '1', 'max': '30'}),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # تخصيص الـ labels والـ help_text
+        for field_name, field in self.fields.items():
+            # إضافة class للـ checkboxes
+            if isinstance(field.widget, forms.CheckboxInput):
+                field.widget.attrs.update({'class': 'form-check-input'})
+    
+    def clean(self):
+        """
+        التحقق من صحة البيانات
+        """
+        cleaned_data = super().clean()
+        
+        # التحقق من البريد الإلكتروني إذا تم تفعيل إشعارات البريد
+        notify_email = cleaned_data.get('notify_email')
+        email_for_notifications = cleaned_data.get('email_for_notifications')
+        
+        if notify_email and not email_for_notifications:
+            self.add_error('email_for_notifications', _('يجب إدخال البريد الإلكتروني لتفعيل إشعارات البريد'))
+        
+        # التحقق من رقم الهاتف إذا تم تفعيل إشعارات SMS
+        notify_sms = cleaned_data.get('notify_sms')
+        phone_for_notifications = cleaned_data.get('phone_for_notifications')
+        
+        if notify_sms and not phone_for_notifications:
+            self.add_error('phone_for_notifications', _('يجب إدخال رقم الهاتف لتفعيل إشعارات SMS'))
+        
+        # التحقق من أوقات عدم الإزعاج
+        enable_do_not_disturb = cleaned_data.get('enable_do_not_disturb')
+        do_not_disturb_start = cleaned_data.get('do_not_disturb_start')
+        do_not_disturb_end = cleaned_data.get('do_not_disturb_end')
+        
+        if enable_do_not_disturb:
+            if not do_not_disturb_start:
+                self.add_error('do_not_disturb_start', _('يجب تحديد وقت بداية عدم الإزعاج'))
+            if not do_not_disturb_end:
+                self.add_error('do_not_disturb_end', _('يجب تحديد وقت نهاية عدم الإزعاج'))
+        
+        # التحقق من تفعيل طريقة إشعار واحدة على الأقل
+        notify_in_app = cleaned_data.get('notify_in_app')
+        
+        if not notify_in_app and not notify_email and not notify_sms:
+            raise ValidationError(_('يجب تفعيل طريقة إشعار واحدة على الأقل'))
+        
+        return cleaned_data

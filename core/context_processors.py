@@ -48,9 +48,15 @@ def global_settings(request):
         pass
 
     # إعادة قاموس الإعدادات
+    # تحويل maintenance_mode من string إلى boolean
+    maintenance_value = settings_dict.get("maintenance_mode", False)
+    if isinstance(maintenance_value, str):
+        maintenance_value = maintenance_value.lower() in ["true", "1", "yes", "نعم"]
+    
     return {
         "settings": settings_dict,
         "SITE_NAME": settings_dict.get("site_name", "موهبة ERP"),
+        "maintenance_mode": maintenance_value,
     }
 
 
@@ -104,35 +110,9 @@ def notifications(request):
         else:
             user_notifications = list(unread_notifications)
 
-        # تحويل كل إشعار إلى قاموس بالمعلومات المطلوبة
-        notifications_data = []
-        for notification in user_notifications:
-            # تحديد الرابط بناء على نوع الإشعار (يمكن تخصيصه حسب أنواع الإشعارات)
-            link = "#"
-            if notification.type == "inventory_alert":
-                link = "/product/inventory/"
-            elif notification.type == "payment_received":
-                link = "/financial/payments/"
-            elif notification.type == "new_invoice":
-                link = "/sale/invoices/"
-            elif notification.type == "return_request":
-                link = "/sale/returns/"
-
-            # إضافة بيانات الإشعار
-            notifications_data.append(
-                {
-                    "id": notification.id,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "notification_type": notification.type,
-                    "read": notification.is_read,
-                    "created_at": notification.created_at,
-                    "link": link,
-                }
-            )
     except Exception:
         # في حالة حدوث أي استثناء، عد بقائمة فارغة
         pass
 
-    # إعادة قائمة الإشعارات
-    return {"notifications": notifications_data}
+    # إعادة قائمة الإشعارات (كـ objects مباشرة)
+    return {"notifications": user_notifications}

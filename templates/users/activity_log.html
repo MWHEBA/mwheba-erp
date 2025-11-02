@@ -61,34 +61,45 @@
             <div class="card-body p-0">
                 <!-- أدوات البحث والفلترة -->
                 <div class="p-3 border-bottom">
-                    <div class="row g-3">
-                        <div class="col-md-5">
-                            <div class="input-group">
-                                <input type="text" class="form-control" placeholder="بحث عن نشاط">
-                                <button class="btn btn-outline-primary" type="button">
-                                    <i class="fas fa-search"></i>
+                    <form method="get" action="{% url 'users:activity_log' %}" id="filterForm">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <select name="user" class="form-select" onchange="this.form.submit()">
+                                    <option value="">جميع المستخدمين</option>
+                                    {% for user in users %}
+                                    <option value="{{ user.id }}" {% if selected_user == user.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ user.get_full_name|default:user.username }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="text" name="action" class="form-control" placeholder="بحث في النشاط" value="{{ selected_action }}">
+                            </div>
+                            <div class="col-md-4">
+                                <div class="input-group">
+                                    <span class="input-group-text">من</span>
+                                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                                    <span class="input-group-text">إلى</span>
+                                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-filter me-1"></i> فلترة
                                 </button>
                             </div>
                         </div>
-                        <div class="col-md-3 col-sm-6">
-                            <select class="form-select">
-                                <option value="">نوع النشاط</option>
-                                <option value="login">تسجيل دخول</option>
-                                <option value="logout">تسجيل خروج</option>
-                                <option value="create">إنشاء</option>
-                                <option value="update">تحديث</option>
-                                <option value="delete">حذف</option>
-                            </select>
-                        </div>
-                        <div class="col-md-4 col-sm-6">
-                            <div class="input-group">
-                                <span class="input-group-text">التاريخ</span>
-                                <input type="date" class="form-control">
-                                <span class="input-group-text">إلى</span>
-                                <input type="date" class="form-control">
+                        {% if selected_user or selected_action or date_from or date_to %}
+                        <div class="row mt-2">
+                            <div class="col-12">
+                                <a href="{% url 'users:activity_log' %}" class="btn btn-sm btn-outline-secondary">
+                                    <i class="fas fa-times me-1"></i> إلغاء الفلترة
+                                </a>
                             </div>
                         </div>
-                    </div>
+                        {% endif %}
+                    </form>
                 </div>
                 
                 <!-- جدول البيانات -->
@@ -114,22 +125,10 @@
                                     {{ activity.user.get_full_name|default:activity.user.username }}
                                 </td>
                                 <td>
-                                    {% if activity.action_type == 'login' %}
-                                    <span class="badge bg-success">تسجيل دخول</span>
-                                    {% elif activity.action_type == 'logout' %}
-                                    <span class="badge bg-secondary">تسجيل خروج</span>
-                                    {% elif activity.action_type == 'create' %}
-                                    <span class="badge bg-primary">إنشاء</span>
-                                    {% elif activity.action_type == 'update' %}
-                                    <span class="badge bg-info">تحديث</span>
-                                    {% elif activity.action_type == 'delete' %}
-                                    <span class="badge bg-danger">حذف</span>
-                                    {% else %}
-                                    <span class="badge bg-warning">{{ activity.action_type }}</span>
-                                    {% endif %}
+                                    <span class="badge bg-primary">{{ activity.action }}</span>
                                 </td>
-                                <td>{{ activity.model_name }}</td>
-                                <td>{{ activity.description }}</td>
+                                <td>{{ activity.model_name|default:"—" }}</td>
+                                <td>{{ activity.action }}</td>
                                 <td>{{ activity.ip_address }}</td>
                             </tr>
                             {% empty %}

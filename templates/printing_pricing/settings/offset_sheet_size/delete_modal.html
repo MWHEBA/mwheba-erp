@@ -24,7 +24,7 @@
                 <h6 class="card-title">{{ sheet_size.name }}</h6>
                 <p class="card-text">
                     <strong>الكود:</strong> <code>{{ sheet_size.code }}</code><br>
-                    <strong>الأبعاد:</strong> {{ sheet_size.width_cm|remove_trailing_zeros }}×{{ sheet_size.height_cm|remove_trailing_zeros }} سم<br>
+                    <strong>الأبعاد:</strong> {{ sheet_size.width_cm|smart_float }}×{{ sheet_size.height_cm|smart_float }} سم<br>
                     {% if sheet_size.description %}
                         <strong>الوصف:</strong> {{ sheet_size.description|truncatewords:10 }}
                     {% endif %}

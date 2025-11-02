@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {# صفحة حركات الحساب النقدي - القيود تُنشأ تلقائياً من المعاملات المالية فقط #}
 
@@ -85,10 +86,6 @@
     margin-bottom: var(--spacing-4);
   }
 
-  .badge {
-    font-size: 0.75rem;
-    font-weight: var(--font-weight-medium);
-  }
 
   .btn-group-sm .btn {
     padding: 0.25rem 0.5rem;
@@ -258,16 +255,16 @@
       <div class="alert alert-light border" style="background-color: #f8f9fa; border-color: #dee2e6;">
         <div class="row text-center">
           <div class="col-md-4 summary-col">
-            <h6 class="mb-1 text-success">{{ total_debit|custom_number_format }}</h6>
+            <h6 class="mb-1 text-success">{{ total_debit|smart_float }}</h6>
             <small class="text-muted">إجمالي المدين</small>
           </div>
           <div class="col-md-4 summary-col">
-            <h6 class="mb-1 text-danger">{{ total_credit|custom_number_format }}</h6>
+            <h6 class="mb-1 text-danger">{{ total_credit|smart_float }}</h6>
             <small class="text-muted">إجمالي الدائن</small>
           </div>
           <div class="col-md-4">
             <div class="current-balance-box">
-              <div class="current-balance-value">{{ current_balance|custom_number_format }}</div>
+              <div class="current-balance-value">{{ current_balance|smart_float }}</div>
               <div class="current-balance-label">الرصيد الحالي</div>
             </div>
           </div>
@@ -344,7 +341,7 @@
                   <td>
                     {% if movement.debit %}
                       <span class="movement-amount debit">
-                        {{ movement.debit|custom_number_format }}
+                        {{ movement.debit|smart_float }}
                       </span>
                     {% else %}
                       <span class="text-muted">-</span>
@@ -353,7 +350,7 @@
                   <td>
                     {% if movement.credit %}
                       <span class="movement-amount credit">
-                        {{ movement.credit|custom_number_format }}
+                        {{ movement.credit|smart_float }}
                       </span>
                     {% else %}
                       <span class="text-muted">-</span>
@@ -361,7 +358,7 @@
                   </td>
                   <td>
                     <span class="text-primary fw-bold">
-                      {{ movement.running_balance|custom_number_format }}
+                      {{ movement.running_balance|smart_float }}
                     </span>
                   </td>
                   <td>

@@ -4,11 +4,12 @@
 from django.db import models
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.utils.translation import gettext_lazy as _
 from datetime import datetime, timedelta
 from decimal import Decimal
 import logging
 
-from ..models import Notification, SystemSetting
+from ..models import Notification, SystemSetting, NotificationPreference
 from product.models import Product
 from sale.models import Sale
 from purchase.models import Purchase
@@ -23,15 +24,59 @@ class NotificationService:
     """
 
     @staticmethod
-    def create_notification(user, title, message, notification_type="info", **kwargs):
+    def create_notification(user, title, message, notification_type="info", related_model=None, related_id=None, link_url=None, **kwargs):
         """
-        إنشاء إشعار جديد
+        إنشاء إشعار جديد مع مراعاة تفضيلات المستخدم
+        
+        Args:
+            user: المستخدم المستهدف
+            title: عنوان الإشعار
+            message: نص الإشعار
+            notification_type: نوع الإشعار
+            related_model: اسم النموذج المرتبط (مثل: Sale, Purchase, Product)
+            related_id: معرف الكائن المرتبط
+            link_url: رابط مباشر (اختياري)
         """
         try:
-            notification = Notification.objects.create(
-                user=user, title=title, message=message, type=notification_type
-            )
-            logger.info(f"تم إنشاء إشعار جديد: {title} للمستخدم {user.username}")
+            # الحصول على تفضيلات المستخدم
+            preference = NotificationPreference.get_or_create_for_user(user)
+            
+            # التحقق من تفعيل هذا النوع من الإشعارات
+            if not preference.is_notification_enabled(notification_type):
+                logger.info(f"الإشعار {notification_type} معطل للمستخدم {user.username}")
+                return None
+            
+            # التحقق من فترة عدم الإزعاج
+            if preference.is_in_do_not_disturb_period():
+                logger.info(f"المستخدم {user.username} في فترة عدم الإزعاج")
+                return None
+            
+            # إنشاء الإشعار داخل النظام إذا كان مفعلاً
+            notification = None
+            if preference.notify_in_app:
+                notification = Notification.objects.create(
+                    user=user, 
+                    title=title, 
+                    message=message, 
+                    type=notification_type,
+                    related_model=related_model,
+                    related_id=related_id,
+                    link_url=link_url
+                )
+                logger.info(f"تم إنشاء إشعار جديد: {title} للمستخدم {user.username}")
+            
+            # إرسال إشعار بريد إلكتروني إذا كان مفعلاً
+            if preference.notify_email and preference.email_for_notifications:
+                NotificationService._send_email_notification(
+                    user, title, message, preference.email_for_notifications
+                )
+            
+            # إرسال إشعار SMS إذا كان مفعلاً
+            if preference.notify_sms and preference.phone_for_notifications:
+                NotificationService._send_sms_notification(
+                    user, title, message, preference.phone_for_notifications
+                )
+            
             return notification
         except Exception as e:
             logger.error(f"خطأ في إنشاء الإشعار: {e}")
@@ -153,15 +198,15 @@ class NotificationService:
                 # التحقق من عدم وجود تنبيه حديث (خلال آخر 7 أيام)
                 recent_alert = Notification.objects.filter(
                     type="warning",
-                    title__contains=f"فاتورة مبيعات متأخرة: {sale.invoice_number}",
+                    title__contains=f"فاتورة مبيعات متأخرة: {sale.number}",
                     created_at__gte=timezone.now() - timedelta(days=7),
                 ).exists()
 
                 if not recent_alert:
                     days_overdue = (today - sale.due_date).days
-                    title = f"فاتورة مبيعات متأخرة: {sale.invoice_number}"
+                    title = f"فاتورة مبيعات متأخرة: {sale.number}"
                     message = (
-                        f"فاتورة المبيعات رقم {sale.invoice_number} متأخرة منذ {days_overdue} يوم.\n"
+                        f"فاتورة المبيعات رقم {sale.number} متأخرة منذ {days_overdue} يوم.\n"
                         f"العميل: {sale.customer.name}\n"
                         f"المبلغ المستحق: {sale.remaining_amount} {SystemSetting.get_currency_symbol()}\n"
                         f"تاريخ الاستحقاق: {sale.due_date}\n"
@@ -183,15 +228,15 @@ class NotificationService:
                 # التحقق من عدم وجود تنبيه حديث (خلال آخر 7 أيام)
                 recent_alert = Notification.objects.filter(
                     type="danger",
-                    title__contains=f"فاتورة مشتريات مستحقة: {purchase.invoice_number}",
+                    title__contains=f"فاتورة مشتريات مستحقة: {purchase.number}",
                     created_at__gte=timezone.now() - timedelta(days=7),
                 ).exists()
 
                 if not recent_alert:
                     days_overdue = (today - purchase.due_date).days
-                    title = f"فاتورة مشتريات مستحقة: {purchase.invoice_number}"
+                    title = f"فاتورة مشتريات مستحقة: {purchase.number}"
                     message = (
-                        f"فاتورة المشتريات رقم {purchase.invoice_number} مستحقة منذ {days_overdue} يوم.\n"
+                        f"فاتورة المشتريات رقم {purchase.number} مستحقة منذ {days_overdue} يوم.\n"
                         f"المورد: {purchase.supplier.name}\n"
                         f"المبلغ المستحق: {purchase.remaining_amount} {SystemSetting.get_currency_symbol()}\n"
                         f"تاريخ الاستحقاق: {purchase.due_date}\n"
@@ -312,3 +357,120 @@ class NotificationService:
         except Exception as e:
             logger.error(f"خطأ في الحصول على إحصائيات الإشعارات: {e}")
             return {"total": 0, "unread": 0, "read": 0, "by_type": {}}
+    
+    @staticmethod
+    def _send_email_notification(user, title, message, email):
+        """
+        إرسال إشعار عبر البريد الإلكتروني
+        (يحتاج إعداد SMTP في settings.py)
+        """
+        try:
+            from django.core.mail import send_mail
+            from django.conf import settings
+            
+            subject = f"[{SystemSetting.get_site_name()}] {title}"
+            html_message = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; direction: rtl; text-align: right;">
+                    <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px;">
+                        <h2 style="color: #333;">{title}</h2>
+                        <p style="color: #666; line-height: 1.6;">{message}</p>
+                        <hr style="border: 1px solid #ddd; margin: 20px 0;">
+                        <p style="color: #999; font-size: 12px;">
+                            هذا إشعار تلقائي من نظام {SystemSetting.get_site_name()}
+                        </p>
+                    </div>
+                </body>
+            </html>
+            """
+            
+            send_mail(
+                subject=subject,
+                message=message,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                recipient_list=[email],
+                html_message=html_message,
+                fail_silently=True
+            )
+            
+            logger.info(f"تم إرسال إشعار بريد إلكتروني إلى {email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"خطأ في إرسال إشعار البريد الإلكتروني: {e}")
+            return False
+    
+    @staticmethod
+    def _send_sms_notification(user, title, message, phone):
+        """
+        إرسال إشعار عبر SMS
+        يدعم Twilio و Nexmo - يتم التفعيل من خلال إعدادات Django
+        """
+        try:
+            from django.conf import settings
+            
+            # التحقق من تفعيل خدمة SMS
+            sms_provider = getattr(settings, 'SMS_PROVIDER', None)
+            
+            if not sms_provider:
+                logger.info(f"خدمة SMS غير مفعلة - تخطي الإرسال إلى {phone}")
+                return False
+            
+            # تكامل مع Twilio
+            if sms_provider == 'twilio':
+                from twilio.rest import Client
+                
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+                from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+                
+                if not all([account_sid, auth_token, from_number]):
+                    logger.error("إعدادات Twilio غير مكتملة")
+                    return False
+                
+                client = Client(account_sid, auth_token)
+                sms_message = client.messages.create(
+                    body=f"{title}: {message[:140]}",  # تحديد الطول
+                    from_=from_number,
+                    to=phone
+                )
+                
+                logger.info(f"تم إرسال SMS عبر Twilio إلى {phone} - SID: {sms_message.sid}")
+                return True
+            
+            # تكامل مع Nexmo/Vonage
+            elif sms_provider == 'nexmo':
+                import nexmo
+                
+                api_key = getattr(settings, 'NEXMO_API_KEY', None)
+                api_secret = getattr(settings, 'NEXMO_API_SECRET', None)
+                from_number = getattr(settings, 'NEXMO_PHONE_NUMBER', None)
+                
+                if not all([api_key, api_secret, from_number]):
+                    logger.error("إعدادات Nexmo غير مكتملة")
+                    return False
+                
+                client = nexmo.Client(key=api_key, secret=api_secret)
+                response = client.send_message({
+                    'from': from_number,
+                    'to': phone,
+                    'text': f"{title}: {message[:140]}"
+                })
+                
+                if response['messages'][0]['status'] == '0':
+                    logger.info(f"تم إرسال SMS عبر Nexmo إلى {phone}")
+                    return True
+                else:
+                    logger.error(f"فشل إرسال SMS عبر Nexmo: {response['messages'][0]['error-text']}")
+                    return False
+            
+            else:
+                logger.warning(f"مزود SMS غير مدعوم: {sms_provider}")
+                return False
+            
+        except ImportError as e:
+            logger.error(f"مكتبة SMS غير مثبتة: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"خطأ في إرسال إشعار SMS: {e}")
+            return False

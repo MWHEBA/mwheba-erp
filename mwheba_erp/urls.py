@@ -34,7 +34,6 @@ urlpatterns = [
     path("users/", include("users.urls")),
     path("client/", include("client.urls")),
     path("supplier/", include("supplier.urls")),
-    path("services/", include("services.urls")),  # الخدمات المتخصصة الجديدة
     path("products/", include("product.urls")),
     path("printing-pricing/", include("printing_pricing.urls")),  # نظام التسعير الجديد والمحسن
     path("sales/", include("sale.urls")),
@@ -43,7 +42,7 @@ urlpatterns = [
     path("utils/", include("utils.urls")),
     # مكتبات الجهات الخارجية
     path("select2/", include("django_select2.urls")),
-    # مسارات إعادة تعيين كلمة المرور
+    # مسارات تغيير كلمة المرور (AJAX من صفحة الملف الشخصي)
     path(
         "password-change/",
         auth_views.PasswordChangeView.as_view(
@@ -51,14 +50,7 @@ urlpatterns = [
         ),
         name="password_change",
     ),
-    path(
-        "password-change/done/",
-        auth_views.PasswordChangeDoneView.as_view(
-            template_name="users/password_change_done.html"
-        ),
-        name="password_change_done",
-    ),
-    # مسارات إعادة تعيين كلمة المرور
+    # مسارات إعادة تعيين كلمة المرور (نسيت كلمة المرور)
     path(
         "password-reset/",
         auth_views.PasswordResetView.as_view(

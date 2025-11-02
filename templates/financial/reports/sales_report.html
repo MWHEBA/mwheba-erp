@@ -47,23 +47,23 @@
   
   .stats-card-header {
     height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background-color: var(--primary-color);
   }
   
   .stats-card-primary .stats-card-header {
-    background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
+    background-color: #0d6efd;
   }
   
   .stats-card-success .stats-card-header {
-    background: linear-gradient(90deg, #198754 0%, #146c43 100%);
+    background-color: #198754;
   }
   
   .stats-card-danger .stats-card-header {
-    background: linear-gradient(90deg, #dc3545 0%, #b02a37 100%);
+    background-color: #dc3545;
   }
   
   .stats-card-info .stats-card-header {
-    background: linear-gradient(90deg, #0dcaf0 0%, #0aa2c0 100%);
+    background-color: #0dcaf0;
   }
   
   .stats-card-body {
@@ -131,6 +131,56 @@
     0% { transform: translateY(0px); }
     50% { transform: translateY(-15px); }
     100% { transform: translateY(0px); }
+  }
+  
+  /* تحسين الجدول */
+  .sales-table {
+    font-size: 0.95rem;
+  }
+  
+  .sales-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .sales-table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+  }
+  
+  .sales-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  
+  .sales-table .text-end {
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+  }
+  
+  .sales-table .table-active {
+    background-color: var(--primary-color) !important;
+    color: white;
+    font-weight: 700;
+  }
+  
+  .sales-table .table-active td {
+    border-color: var(--primary-color);
+    padding: 1rem 0.75rem;
+  }
+  
+  .account-code-badge {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
   }
 </style>
 {% endblock %}
@@ -200,8 +250,8 @@
               <i class="fas fa-chart-line"></i>
             </div>
             <div class="stats-card-title">إجمالي المبيعات</div>
-            <div class="stats-card-value">{{ total_sales|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ total_sales|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -213,8 +263,8 @@
               <i class="fas fa-calendar-day"></i>
             </div>
             <div class="stats-card-title">متوسط المبيعات اليومية</div>
-            <div class="stats-card-value">{{ avg_daily_sales|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ avg_daily_sales|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -235,71 +285,85 @@
   </div>
 
   <!-- تصفية وبحث -->
-  <div class="section-container">
+  <div class="section-container no-print">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
-    <div class="filter-section mb-4">
-      <form method="GET" action="" class="row g-3">
-        <div class="col-md-4">
-          <label for="date_from" class="form-label">من تاريخ:</label>
-          <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
-        </div>
-        <div class="col-md-4">
-          <label for="date_to" class="form-label">إلى تاريخ:</label>
-          <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
-        </div>
-        <div class="col-md-4 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary me-2">
-            <i class="fas fa-filter me-1"></i>فلترة
-          </button>
-          <a href="{% url 'financial:sales_report' %}" class="btn btn-secondary">
-            <i class="fas fa-undo me-1"></i>إعادة تعيين
-          </a>
-        </div>
-      </form>
-    </div>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-4">
+        <label for="date_from" class="form-label">من تاريخ:</label>
+        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+      </div>
+      <div class="col-md-4">
+        <label for="date_to" class="form-label">إلى تاريخ:</label>
+        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary me-2">
+          <i class="fas fa-filter me-1"></i>فلترة
+        </button>
+        <a href="{% url 'financial:sales_report' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-undo me-1"></i>إعادة تعيين
+        </a>
+      </div>
+    </form>
   </div>
 
   <!-- جدول المبيعات -->
   <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-table me-2"></i>تفاصيل المبيعات حسب الحساب</h5>
-                    {% if sales_data %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>كود الحساب</th>
-                                    <th>اسم الحساب</th>
-                                    <th>عدد المعاملات</th>
-                                    <th>المبلغ</th>
-                                    <th>النسبة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in sales_data %}
-                                <tr>
-                                    <td>{{ item.account.code }}</td>
-                                    <td>{{ item.account.name }}</td>
-                                    <td>{{ item.transactions_count }}</td>
-                                    <td class="text-end">{{ item.amount|currency }}</td>
-                                    <td class="text-end">
-                                        {% if total_sales > 0 %}
-                                            {% widthratio item.amount total_sales 100 %}%
-                                        {% else %}
-                                            0%
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot>
-                                <tr class="table-active fw-bold">
-                                    <td colspan="3">الإجمالي</td>
-                                    <td class="text-end">{{ total_sales|currency }}</td>
-                                    <td class="text-end">100%</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-3" style="border-bottom: 1px solid #eee;">
+      <h5 class="mb-0" style="color: #344767; font-size: 1.2rem; font-weight: 600;">
+        <i class="fas fa-table me-2"></i>تفاصيل المبيعات حسب الحساب
+      </h5>
+      {% if sales_data %}
+      <span class="badge bg-primary">
+        <i class="fas fa-list me-1"></i>
+        {{ sales_data|length }} حساب
+      </span>
+      {% endif %}
+    </div>
+    {% if sales_data %}
+    <div class="table-responsive">
+      <table class="table sales-table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width: 100px;">كود الحساب</th>
+            <th>اسم الحساب</th>
+            <th class="text-center" style="width: 120px;">عدد المعاملات</th>
+            <th class="text-end" style="width: 150px;">المبلغ</th>
+            <th class="text-end" style="width: 100px;">النسبة %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in sales_data %}
+          <tr>
+            <td>
+              <span class="account-code-badge">{{ item.account_code }}</span>
+            </td>
+            <td>
+              <strong class="text-dark">{{ item.account_name }}</strong>
+            </td>
+            <td class="text-center">
+              {{ item.transaction_count }}
+            </td>
+            <td class="text-end">
+              {{ item.total_amount|smart_float }}
+            </td>
+            <td class="text-end">
+              {{ item.percentage|smart_float:1 }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-active">
+            <td colspan="3">
+              <i class="fas fa-sigma me-2"></i>الإجمالي
+            </td>
+            <td class="text-end">{{ total_sales|smart_float }}</td>
+            <td class="text-end">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
     {% else %}
         <div class="empty-state">
             <div class="empty-state-icon">

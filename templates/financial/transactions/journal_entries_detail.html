@@ -275,14 +275,14 @@
                                     <td>{{ line.description|default:"-" }}</td>
                                     <td class="text-end">
                                         {% if line.debit %}
-                                            <span class="text-success fw-bold">{{ line.debit|remove_trailing_zeros }}</span>
+                                            <span class="text-success fw-bold">{{ line.debit|smart_float }}</span>
                                         {% else %}
                                             -
                                         {% endif %}
                                     </td>
                                     <td class="text-end">
                                         {% if line.credit %}
-                                            <span class="text-danger fw-bold">{{ line.credit|remove_trailing_zeros }}</span>
+                                            <span class="text-danger fw-bold">{{ line.credit|smart_float }}</span>
                                         {% else %}
                                             -
                                         {% endif %}
@@ -294,10 +294,10 @@
                                 <tr>
                                     <th colspan="2">الإجمالي</th>
                                     <th class="text-end">
-                                        <span class="text-success fw-bold">{{ total_debits|remove_trailing_zeros }}</span>
+                                        <span class="text-success fw-bold">{{ total_debits|smart_float }}</span>
                                     </th>
                                     <th class="text-end">
-                                        <span class="text-danger fw-bold">{{ total_credits|remove_trailing_zeros }}</span>
+                                        <span class="text-danger fw-bold">{{ total_credits|smart_float }}</span>
                                     </th>
                                 </tr>
                             </tfoot>
@@ -362,7 +362,7 @@
                             <div class="mb-0">
                                 <small class="text-muted d-block">إجمالي المدين</small>
                                 <h5 class="mb-0 text-success">
-                                    {{ total_debits|remove_trailing_zeros }}
+                                    {{ total_debits|smart_float }}
                                     <small class="text-muted">{{ currency_symbol }}</small>
                                 </h5>
                             </div>
@@ -372,7 +372,7 @@
                             <div class="mb-0">
                                 <small class="text-muted d-block">إجمالي الدائن</small>
                                 <h5 class="mb-0 text-danger">
-                                    {{ total_credits|remove_trailing_zeros }}
+                                    {{ total_credits|smart_float }}
                                     <small class="text-muted">{{ currency_symbol }}</small>
                                 </h5>
                             </div>
@@ -507,9 +507,6 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.badge {
-    font-size: 0.875em;
-}
 
 .table th, .table td {
     vertical-align: middle;

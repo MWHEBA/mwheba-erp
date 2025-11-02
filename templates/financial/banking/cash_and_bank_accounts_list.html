@@ -365,9 +365,9 @@
                             <div class="balance-display">
                                 <div class="balance-amount">
                                     {% if account.calculated_balance is not None %}
-                                        {{ account.calculated_balance|default:0|remove_trailing_zeros }}
+                                        {{ account.calculated_balance|default:0|smart_float }}
                                     {% else %}
-                                        {{ account.opening_balance|default:0|remove_trailing_zeros }}
+                                        {{ account.opening_balance|default:0|smart_float }}
                                     {% endif %}
                                 </div>
                                 <div class="balance-currency">{{ currency_symbol }}</div>
@@ -378,7 +378,7 @@
                                 <div class="info-item">
                                     <div class="info-label">الرصيد الافتتاحي</div>
                                     <div class="info-value">
-                                        {{ account.opening_balance|default:0|remove_trailing_zeros }}
+                                        {{ account.opening_balance|default:0|smart_float }}
                                     </div>
                                 </div>
                                 <div class="info-item">
@@ -429,7 +429,7 @@
                         </div>
                         <div class="col-md-3">
                             <div class="stat-item">
-                                <div class="stat-number">{{ total_balance|remove_trailing_zeros }}</div>
+                                <div class="stat-number">{{ total_balance|smart_float }}</div>
                                 <div class="stat-label">إجمالي الأرصدة ({{ currency_symbol }})</div>
                             </div>
                         </div>

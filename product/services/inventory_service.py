@@ -147,6 +147,9 @@ class InventoryService:
                         title=title,
                         message=message,
                         notification_type="inventory_alert",
+                        related_model="Product",
+                        related_id=product.id,
+                        link_url=f"/products/{product.id}/"
                     )
         except Exception as e:
             logger.error(f"خطأ في فحص تنبيه المخزون المنخفض: {e}")

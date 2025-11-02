@@ -154,7 +154,7 @@ def purchase_list(request):
             "icon": "fa-trash",
             "label": _("حذف"),
             "class": "action-delete",
-            "condition": "not_fully_paid",
+            "condition": "no_posted_payments",
         },
         {
             "url": "purchase:purchase_add_payment",
@@ -329,17 +329,16 @@ def purchase_create(request, supplier_id=None):
         # إضافة المورد المحدد إلى البيانات الافتراضية
         if selected_supplier:
             initial_data["supplier"] = selected_supplier
-        
-        # إضافة أول مخزن متاح كافتراضي
-        warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
-        if warehouses.exists():
-            initial_data["warehouse"] = warehouses.first()
             
         form = PurchaseForm(initial=initial_data)
 
-    # جلب البيانات المطلوبة للقوائم المنسدلة
+    # جلب البيانات المطلوبة للقوائم المنسدلة (مطلوب في كل الحالات)
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
-    # المخازن تم جلبها بالفعل أعلاه، لا حاجة لإعادة جلبها
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    
+    # إضافة أول مخزن متاح كافتراضي للنموذج الجديد
+    if request.method == "GET" and warehouses.exists():
+        form.initial["warehouse"] = warehouses.first()
 
     # إنشاء رقم فاتورة مشتريات جديد
     last_purchase = Purchase.objects.order_by("-id").first()
@@ -743,37 +742,56 @@ def purchase_delete(request, pk):
         messages.error(request, "لا يمكن حذف الفاتورة لأنها تحتوي على مرتجعات مؤكدة")
         return redirect("purchase:purchase_detail", pk=purchase.pk)
 
+    # التحقق من وجود دفعات مرحلة
+    has_posted_payments = purchase.payments.filter(status="posted").exists()
+
+    if has_posted_payments:
+        messages.error(
+            request,
+            "لا يمكن حذف الفاتورة لأنها تحتوي على دفعات مرحلة. يجب إلغاء ترحيل الدفعات أولاً."
+        )
+        return redirect("purchase:purchase_detail", pk=purchase.pk)
+
     if request.method == "POST":
         try:
-            # استيراد StockMovement محلياً لتجنب مشاكل الاستيراد الدائري
-            from product.models import StockMovement
+            # استيراد Stock محلياً لتجنب مشاكل الاستيراد الدائري
+            from product.models import Stock
+            
+            # ✅ التحقق من المخزون المتاح قبل الحذف
+            insufficient_stock_items = []
+            for item in purchase.items.all():
+                stock = Stock.objects.filter(
+                    product=item.product,
+                    warehouse=purchase.warehouse
+                ).first()
+                
+                current_quantity = stock.quantity if stock else 0
+                
+                if current_quantity < item.quantity:
+                    insufficient_stock_items.append({
+                        'product': item.product.name,
+                        'required': item.quantity,
+                        'available': current_quantity,
+                        'sold': item.quantity - current_quantity
+                    })
+            
+            # إذا كان هناك منتجات تم بيعها، منع الحذف
+            if insufficient_stock_items:
+                error_message = "لا يمكن حذف الفاتورة - تم بيع جزء من المنتجات:\n\n"
+                for item_info in insufficient_stock_items:
+                    error_message += (
+                        f"• {item_info['product']}: "
+                        f"الكمية المطلوب إرجاعها {item_info['required']}، "
+                        f"المتاح في المخزون {item_info['available']}، "
+                        f"تم بيع {item_info['sold']}\n"
+                    )
+                error_message += "\nيجب إنشاء مرتجع مشتريات بدلاً من حذف الفاتورة."
+                messages.error(request, error_message)
+                return redirect("purchase:purchase_detail", pk=purchase.pk)
             
             with transaction.atomic():
-                # حساب عدد حركات المخزون المرتبطة بالفاتورة (للعرض فقط)
-                movement_count = StockMovement.objects.filter(
-                    reference_number__startswith=f"PURCHASE-{purchase.number}"
-                ).count()
-
-                # إنشاء حركات إرجاع للمخزون للإشارة إلى أن الفاتورة تم حذفها
-                for item in purchase.items.all():
-                    # إنشاء حركة مخزون جديدة للإرجاع (خصم كمية)
-                    movement = StockMovement(
-                        product=item.product,
-                        warehouse=purchase.warehouse,
-                        movement_type="return_out",
-                        quantity=item.quantity,
-                        reference_number=f"RETURN-DELETE-PURCHASE-{purchase.number}-ITEM{item.id}",
-                        document_type="purchase_return",
-                        document_number=purchase.number,
-                        notes=f"إرجاع بسبب حذف فاتورة المشتريات رقم {purchase.number}",
-                        created_by=request.user,
-                    )
-                    movement.save()
-
-                # لم نعد نحذف حركات المخزون
-                # StockMovement.objects.filter(
-                #     reference_number__startswith=f"PURCHASE-{purchase.number}"
-                # ).delete()
+                # ✅ تم إزالة إنشاء حركات return_out لتجنب الازدواجية
+                # signal handle_deleted_purchase_item سيتولى إنشاء الحركات المعاكسة
 
                 # إلغاء ترحيل وحذف القيد المحاسبي المرتبط بالفاتورة إذا وُجد
                 journal_entry_info = ""
@@ -802,13 +820,13 @@ def purchase_delete(request, pk):
                     journal_entry.delete()
                     logger.info(f"✅ تم حذف القيد المحاسبي {journal_entry_number} المرتبط بفاتورة المشتريات {purchase.number}")
 
-                # حذف الفاتورة
+                # حذف الفاتورة (CASCADE سيحذف البنود و signals ستعالج المخزون)
                 purchase_number = purchase.number
                 purchase.delete()
 
                 messages.success(
                     request,
-                    f"تم حذف فاتورة المشتريات {purchase_number} بنجاح{journal_entry_info}. تم إضافة حركات مخزون للإرجاع والاحتفاظ بـ {movement_count} حركة مخزون للسجل",
+                    f"تم حذف فاتورة المشتريات {purchase_number} بنجاح{journal_entry_info}. تم إرجاع المخزون بشكل صحيح.",
                 )
                 return redirect("purchase:purchase_list")
 
@@ -1187,7 +1205,7 @@ def purchase_return_list(request):
             "width": "50px",
         },
         {
-            "key": "purchase.invoice_number",
+            "key": "purchase.number",
             "label": "رقم الفاتورة",
             "sortable": True,
             "class": "text-center",

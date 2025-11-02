@@ -8,8 +8,7 @@ class CoreConfig(AppConfig):
 
     def ready(self):
         """
-        تحميل templatetags عند بدء التطبيق
+        تحميل الإشارات (Signals) عند بدء التطبيق
         """
-        # استيراد ال templatetags - معلق مؤقتاً
-        # import core.templatetags
-        pass
+        # استيراد الإشارات لتفعيل الإشعارات التلقائية
+        import core.signals

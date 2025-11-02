@@ -2,6 +2,7 @@
 {% load i18n %}
 {% load static %}
 {% load pricing_filters %}
+{% load utils_extras %}
 
 {% block title %}{% trans "تفاصيل المعاملة المالية" %} #{{ transaction.id }}{% endblock %}
 
@@ -256,7 +257,7 @@
               <td><span class="badge bg-danger">{% trans "مصروف" %}</span></td>
               <td>{{ expense.title }}</td>
               <td>{{ expense.date }}</td>
-              <td>{{ expense.amount|remove_trailing_zeros }}</td>
+              <td>{{ expense.amount|smart_float }}</td>
               <td>
                 {% if expense.status == 'pending' %}
                   <span class="badge bg-warning text-dark">{% trans "قيد الانتظار" %}</span>
@@ -279,7 +280,7 @@
               <td><span class="badge bg-success">{% trans "إيراد" %}</span></td>
               <td>{{ income.title }}</td>
               <td>{{ income.date }}</td>
-              <td>{{ income.amount|remove_trailing_zeros }}</td>
+              <td>{{ income.amount|smart_float }}</td>
               <td>
                 {% if income.status == 'pending' %}
                   <span class="badge bg-warning text-dark">{% trans "قيد الانتظار" %}</span>

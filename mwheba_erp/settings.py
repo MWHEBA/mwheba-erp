@@ -77,7 +77,6 @@ INSTALLED_APPS = [
     "users",
     "client",
     "supplier",
-    "services",  # الخدمات المتخصصة الجديدة
     "product.apps.ProductConfig",
     "printing_pricing",  # نظام التسعير الجديد والمحسن
     "sale",
@@ -98,6 +97,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
+    "core.middleware.NoCacheMiddleware",  # منع الـ cache للصفحات الديناميكية
 ]
 
 # تعطيل Debug Toolbar مؤقتا
@@ -260,7 +260,16 @@ SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
 # Email settings
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = env("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = env("EMAIL_HOST", default="")
+EMAIL_PORT = env.int("EMAIL_PORT", default=25)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="")
+SERVER_EMAIL = env("SERVER_EMAIL", default="")
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
 
 # MPTT settings
 MPTT_ADMIN_LEVEL_INDENT = 20
@@ -342,18 +351,99 @@ MESSAGE_TAGS = {
     messages.ERROR: "danger",
 }
 
-# Cache settings: force local in-memory cache in development
-# This avoids external Redis dependency and silences connection attempts
-CACHES = {
-    "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-        "LOCATION": "unique-erp-local",
-        "TIMEOUT": 300,  # 5 minutes
-        "OPTIONS": {
-            "MAX_ENTRIES": 10000,
+# Cache settings: Redis for production, LocMem for development
+# Redis provides better performance and persistence for production environments
+REDIS_URL = env("REDIS_URL", default=None)
+
+if REDIS_URL and not DEBUG:
+    # Production: Use Redis for caching
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": 300,  # 5 minutes default
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                "PARSER_CLASS": "redis.connection.HiredisParser",
+                "CONNECTION_POOL_CLASS_KWARGS": {
+                    "max_connections": 50,
+                    "retry_on_timeout": True,
+                },
+                "SOCKET_CONNECT_TIMEOUT": 5,
+                "SOCKET_TIMEOUT": 5,
+            },
+            "KEY_PREFIX": "mwheba_erp",
+            "VERSION": 1,
+        },
+        # Separate cache for sessions
+        "sessions": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+            "TIMEOUT": 86400,  # 24 hours
+            "KEY_PREFIX": "mwheba_erp_session",
         },
     }
-}
+    
+    # Use Redis for session storage in production
+    SESSION_ENGINE = "django.contrib.sessions.backends.cache"
+    SESSION_CACHE_ALIAS = "sessions"
+else:
+    # Development: Use local memory cache
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "unique-erp-local",
+            "TIMEOUT": 300,  # 5 minutes
+            "OPTIONS": {
+                "MAX_ENTRIES": 10000,
+            },
+        }
+    }
 
 # Ensure django-select2 uses the default cache backend
 SELECT2_CACHE_BACKEND = "default"
+
+# ==============================================================================
+# SENTRY ERROR TRACKING
+# ==============================================================================
+# Sentry configuration for error tracking in production
+# Get your DSN from https://sentry.io after creating a project
+SENTRY_DSN = env("SENTRY_DSN", default=None)
+
+if SENTRY_DSN and not DEBUG:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.logging import LoggingIntegration
+    
+    # Configure Sentry
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[
+            DjangoIntegration(),
+            LoggingIntegration(
+                level=None,  # Capture all log levels
+                event_level=None  # Send all events
+            ),
+        ],
+        # Set traces_sample_rate to 1.0 to capture 100% of transactions for performance monitoring.
+        # Adjust this value in production.
+        traces_sample_rate=0.1,  # 10% of transactions
+        
+        # Set profiles_sample_rate to 1.0 to profile 100% of sampled transactions.
+        # Adjust this value in production.
+        profiles_sample_rate=0.1,  # 10% of transactions
+        
+        # Send default PII (Personally Identifiable Information)
+        send_default_pii=False,
+        
+        # Environment
+        environment="production" if not DEBUG else "development",
+        
+        # Release tracking
+        release=env("RELEASE_VERSION", default="1.0.0"),
+        
+        # Before send callback to filter sensitive data
+        before_send=lambda event, hint: event if not DEBUG else None,
+    )
+    
+    print("✅ Sentry Error Tracking initialized successfully")

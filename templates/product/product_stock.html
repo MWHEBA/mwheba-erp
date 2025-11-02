@@ -121,19 +121,19 @@
     <div class="row mb-4">
       <div class="col-md-3">
         <div class="stat-item">
-          <h3 class="stat-value">{{ total_stock|remove_trailing_zeros }}</h3>
+          <h3 class="stat-value">{{ total_stock|smart_float }}</h3>
           <p class="stat-label">{% trans "إجمالي المخزون" %}</p>
         </div>
       </div>
       <div class="col-md-3">
         <div class="stat-item">
-          <h3 class="stat-value">{{ product.min_stock|remove_trailing_zeros }}</h3>
+          <h3 class="stat-value">{{ product.min_stock|smart_float }}</h3>
           <p class="stat-label">{% trans "الحد الأدنى" %}</p>
         </div>
       </div>
       <div class="col-md-3">
         <div class="stat-item">
-          <h3 class="stat-value">{{ product.max_stock|remove_trailing_zeros }}</h3>
+          <h3 class="stat-value">{{ product.max_stock|smart_float }}</h3>
           <p class="stat-label">{% trans "الحد الأقصى" %}</p>
         </div>
       </div>
@@ -157,7 +157,7 @@
           </div>
           <div class="card-body">
             <div class="text-center mb-3">
-              <h2 class="display-4 fw-bold">{{ stock.quantity|remove_trailing_zeros }}</h2>
+              <h2 class="display-4 fw-bold">{{ stock.quantity|smart_float }}</h2>
               <div class="mt-2">
                 {% if stock.quantity <= 0 %}
                 <span class="badge bg-danger">{% trans "نفذ من المخزون" %}</span>

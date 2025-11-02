@@ -203,270 +203,356 @@ def export_transactions(request):
 @login_required
 def ledger_report(request):
     """
-    تقرير دفتر الأستاذ العام
+    تقرير دفتر الأستاذ العام - محسّن واحترافي
+    يستخدم LedgerService للحسابات الديناميكية والدقيقة
     """
-    transactions = []
-    accounts = AccountHelperService.get_all_active_accounts().order_by("account_type", "name")
-
-    # فلترة
+    from ..services.ledger_service import LedgerService
+    from django.http import HttpResponse
+    from django.core.paginator import Paginator
+    
+    # معالجة الفلاتر
     account_id = request.GET.get("account")
-    date_from = request.GET.get("date_from")
-    date_to = request.GET.get("date_to")
-
-    # في حالة تحديد حساب معين، نعرض التفاصيل من خلال بنود القيود المحاسبية
+    date_from_str = request.GET.get("date_from")
+    date_to_str = request.GET.get("date_to")
+    export_format = request.GET.get("export")  # excel أو pdf
+    
+    # تحويل التواريخ
+    date_from = None
+    date_to = None
+    
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ البداية غير صحيح")
+    
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
+    
+    # جلب جميع الحسابات للفلتر
+    accounts = ChartOfAccounts.objects.filter(
+        is_leaf=True,
+        is_active=True
+    ).select_related('account_type').order_by('code')
+    
+    # معالجة التصدير
+    if export_format == 'excel':
+        try:
+            account = None
+            if account_id:
+                account = get_object_or_404(ChartOfAccounts, id=account_id)
+            
+            excel_data = LedgerService.export_to_excel(account, date_from, date_to)
+            
+            response = HttpResponse(
+                excel_data,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            filename = f"ledger_report_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+    
+    # عرض تفاصيل حساب معين
     if account_id:
-        account = get_object_or_404(Account, id=account_id)
-        journal_entry_lines = JournalEntryLine.objects.filter(
-            account=account
-        ).select_related("journal_entry")
-
-        if date_from:
-            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-            journal_entry_lines = journal_entry_lines.filter(
-                journal_entry__date__gte=date_from
+        try:
+            account = get_object_or_404(ChartOfAccounts, id=account_id)
+            
+            # جلب المعاملات والملخص
+            transactions = LedgerService.get_account_transactions(
+                account,
+                date_from,
+                date_to
             )
-
-        if date_to:
-            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-            journal_entry_lines = journal_entry_lines.filter(journal_entry__date__lte=date_to)
-
-        transactions = journal_entry_lines.order_by(
-            "journal_entry__date", "journal_entry__id"
-        )
-
-        # حساب المجاميع
-        total_debit = journal_entry_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_entry_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_debit - total_credit
-
-        context = {
-            "page_title": f"دفتر الأستاذ - {account.name}",
-            "page_icon": "fas fa-book",
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
-            ],
-            "account": account,
-            "transactions": transactions,
-            "total_debit": total_debit,
-            "total_credit": total_credit,
-            "balance": balance,
-            "accounts": accounts,
-            "date_from": date_from,
-            "date_to": date_to,
-            "title": f"دفتر الأستاذ - {account.name}",
-        }
+            summary = LedgerService.get_account_summary(
+                account,
+                date_from,
+                date_to
+            )
+            
+            # Pagination للمعاملات
+            paginator = Paginator(transactions, 30)  # 30 معاملة في الصفحة
+            page_number = request.GET.get('page', 1)
+            page_obj = paginator.get_page(page_number)
+            
+            context = {
+                "page_title": f"دفتر الأستاذ - {account.name}",
+                "page_icon": "fas fa-book-open",
+                "breadcrumb_items": [
+                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book-open"},
+                ],
+                "account": account,
+                "summary": summary,
+                "page_obj": page_obj,
+                "transactions": transactions,  # للتصدير
+                "accounts": accounts,
+                "date_from": date_from,
+                "date_to": date_to,
+                "selected_account_id": int(account_id),
+            }
+            
+        except ChartOfAccounts.DoesNotExist:
+            messages.error(request, "الحساب المطلوب غير موجود")
+            return redirect('financial:ledger_report')
+        except Exception as e:
+            messages.error(request, f"خطأ في تحميل تفاصيل الحساب: {e}")
+            return redirect('financial:ledger_report')
+    
     else:
-        # إذا لم يتم تحديد حساب، نعرض ملخص لكل الحسابات
-        account_balances = []
-
-        for account in accounts:
-            # حساب الإجماليات لكل حساب
-            journal_entry_lines = JournalEntryLine.objects.filter(account=account)
-
-            if date_from:
-                date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-                journal_entry_lines = journal_entry_lines.filter(
-                    journal_entry__date__gte=date_from
-                )
-
-            if date_to:
-                date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-                journal_entry_lines = journal_entry_lines.filter(
-                    journal_entry__date__lte=date_to
-                )
-
-            total_debit = journal_entry_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            total_credit = (
-                journal_entry_lines.aggregate(Sum("credit"))["credit__sum"] or 0
+        # عرض ملخص جميع الحسابات
+        try:
+            account_summaries = LedgerService.get_all_accounts_summary(
+                date_from,
+                date_to,
+                only_active=True
             )
-
-            # حساب الرصيد النهائي حسب نوع الحساب
-            if account.account_type in ["asset", "expense"]:
-                # الأصول والمصروفات لها رصيد مدين
-                balance = total_debit - total_credit
-            else:
-                # الخصوم والإيرادات وحقوق الملكية لها رصيد دائن
-                balance = total_credit - total_debit
-
-            if total_debit > 0 or total_credit > 0:  # عرض الحسابات النشطة فقط
-                account_balances.append(
-                    {
-                        "account": account,
-                        "total_debit": total_debit,
-                        "total_credit": total_credit,
-                        "balance": balance,
-                    }
-                )
-
-        context = {
-            "page_title": "دفتر الأستاذ العام",
-            "page_icon": "fas fa-book",
-            "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
-            ],
-            "account_balances": account_balances,
-            "accounts": accounts,
-            "date_from": date_from,
-            "date_to": date_to,
-            "title": "دفتر الأستاذ العام",
-        }
-
+            
+            # Pagination للحسابات
+            paginator = Paginator(account_summaries, 30)  # 30 حساب في الصفحة
+            page_number = request.GET.get('page', 1)
+            page_obj = paginator.get_page(page_number)
+            
+            context = {
+                "page_title": "دفتر الأستاذ العام",
+                "page_icon": "fas fa-book",
+                "breadcrumb_items": [
+                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+                ],
+                "page_obj": page_obj,
+                "account_summaries": account_summaries,  # للتصدير
+                "accounts": accounts,
+                "date_from": date_from,
+                "date_to": date_to,
+            }
+            
+        except Exception as e:
+            messages.error(request, f"خطأ في تحميل ملخص الحسابات: {e}")
+            context = {
+                "page_title": "دفتر الأستاذ العام",
+                "page_icon": "fas fa-book",
+                "breadcrumb_items": [
+                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+                ],
+                "accounts": accounts,
+                "date_from": date_from,
+                "date_to": date_to,
+                "error": str(e)
+            }
+    
     return render(request, "financial/reports/ledger_report.html", context)
 
 
 @login_required
 def balance_sheet(request):
     """
-    تقرير الميزانية العمومية
+    تقرير الميزانية العمومية - محسّن واحترافي
+    يستخدم BalanceSheetService للحسابات الديناميكية والدقيقة
     """
-    # تحديد تاريخ الميزانية (افتراضيًا التاريخ الحالي)
-    balance_date = request.GET.get("date")
-    if balance_date:
-        balance_date = datetime.strptime(balance_date, "%Y-%m-%d").date()
+    from ..services.balance_sheet_service import BalanceSheetService
+    from django.http import HttpResponse
+    
+    # معالجة الفلاتر
+    date_str = request.GET.get("date")
+    group_by_subtype = request.GET.get("group_by_subtype", "1") == "1"
+    export_format = request.GET.get("export")
+    
+    # تحويل التاريخ
+    balance_date = None
+    if date_str:
+        try:
+            balance_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق التاريخ غير صحيح")
+            balance_date = timezone.now().date()
     else:
         balance_date = timezone.now().date()
-
-    # جمع الأصول
-    assets = []
-    assets_total = 0
-    asset_accounts = AccountHelperService.get_accounts_by_category("asset")
-
-    for account in asset_accounts:
-        journal_lines = JournalEntryLine.objects.filter(
-            account=account, journal_entry__date__lte=balance_date
+    
+    # معالجة التصدير
+    if export_format == 'excel':
+        try:
+            excel_data = BalanceSheetService.export_to_excel(
+                balance_date,
+                group_by_subtype
+            )
+            
+            response = HttpResponse(
+                excel_data,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            filename = f"balance_sheet_{balance_date.strftime('%Y%m%d')}.xlsx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+    
+    # إنشاء الميزانية العمومية
+    try:
+        balance_sheet_data = BalanceSheetService.generate_balance_sheet(
+            balance_date,
+            group_by_subtype
         )
-
-        total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_debit - total_credit
-
-        if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-            assets.append(
-                {
-                    "account": account,
-                    "balance": balance,
-                    "total_debit": total_debit,
-                    "total_credit": total_credit,
-                    "balance": balance,
-                }
-            )
-            assets_total += balance
-
-    # جمع الخصوم
-    liabilities = []
-    liabilities_total = 0
-    liability_accounts = AccountHelperService.get_accounts_by_category("liability")
-
-    for account in liability_accounts:
-        journal_lines = JournalEntryLine.objects.filter(
-            account=account, journal_entry__date__lte=balance_date
-        )
-
-        total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_credit - total_debit  # الخصوم لها رصيد دائن
-
-        if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-            liabilities.append({"account": account, "balance": balance})
-            liabilities_total += balance
-
-    # جمع حقوق الملكية
-    equity = []
-    equity_total = 0
-    equity_accounts = AccountHelperService.get_accounts_by_category("equity")
-
-    for account in equity_accounts:
-        journal_lines = JournalEntryLine.objects.filter(
-            account=account, journal_entry__date__lte=balance_date
-        )
-
-        total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_credit - total_debit  # حقوق الملكية لها رصيد دائن
-
-        if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-            equity.append({"account": account, "balance": balance})
-            equity_total += balance
-
-    # حساب صافي الربح/الخسارة من حسابات الإيرادات والمصروفات
-    # (يتم حسابه فقط إذا كان تاريخ الميزانية العمومية هو تاريخ اليوم)
-    net_income = 0
-    if balance_date == timezone.now().date():
-        # حساب إجمالي الإيرادات
-        income_accounts = AccountHelperService.get_accounts_by_category("revenue")
-        total_income = 0
-
-        for account in income_accounts:
-            journal_lines = JournalEntryLine.objects.filter(
-                account=account, journal_entry__date__lte=balance_date
-            )
-
-            total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-            balance = total_credit - total_debit  # الإيرادات لها رصيد دائن
-            total_income += balance
-
-        # حساب إجمالي المصروفات
-        expense_accounts = AccountHelperService.get_accounts_by_category("expense")
-        total_expense = 0
-
-        for account in expense_accounts:
-            journal_lines = JournalEntryLine.objects.filter(
-                account=account, journal_entry__date__lte=balance_date
-            )
-
-            total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-            balance = total_debit - total_credit  # المصروفات لها رصيد مدين
-            total_expense += balance
-
-        net_income = total_income - total_expense
-
-        # إضافة صافي الربح/الخسارة إلى حقوق الملكية
-        if net_income != 0:
-            equity.append(
-                {"account": {"name": "صافي الربح/الخسارة"}, "balance": net_income}
-            )
-            equity_total += net_income
-
-    # إجماليات الميزانية
-    total_assets = assets_total
-    total_liabilities_equity = liabilities_total + equity_total
-
-    context = {
-        "page_title": "الميزانية العمومية",
-        "page_icon": "fas fa-balance-scale",
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "الميزانية العمومية", "active": True, "icon": "fas fa-balance-scale"},
-        ],
-        "assets": assets,
-        "liabilities": liabilities,
-        "equity": equity,
-        "total_assets": total_assets,
-        "total_liabilities": liabilities_total,
-        "total_equity": equity_total,
-        "total_liabilities_equity": total_liabilities_equity,
-        "balance_date": balance_date,
-        "title": "الميزانية العمومية",
-    }
-
+        
+        # حساب النسب المالية
+        financial_ratios = BalanceSheetService.calculate_financial_ratios(balance_sheet_data)
+        
+        context = {
+            "page_title": "الميزانية العمومية",
+            "page_icon": "fas fa-balance-scale",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "الميزانية العمومية", "active": True, "icon": "fas fa-balance-scale"},
+            ],
+            "balance_sheet_data": balance_sheet_data,
+            "financial_ratios": financial_ratios,
+            "balance_date": balance_date,
+            "group_by_subtype": group_by_subtype,
+        }
+        
+    except Exception as e:
+        messages.error(request, f"خطأ في إنشاء الميزانية العمومية: {e}")
+        context = {
+            "page_title": "الميزانية العمومية",
+            "page_icon": "fas fa-balance-scale",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "الميزانية العمومية", "active": True, "icon": "fas fa-balance-scale"},
+            ],
+            "balance_sheet_data": {
+                'assets': {'accounts': [], 'grouped': {}, 'total': 0},
+                'liabilities': {'accounts': [], 'grouped': {}, 'total': 0},
+                'equity': {'accounts': [], 'total': 0, 'net_income': 0},
+                'total_assets': 0,
+                'total_liabilities': 0,
+                'total_equity': 0,
+                'total_liabilities_equity': 0,
+                'is_balanced': False,
+                'error': str(e)
+            },
+            "financial_ratios": {},
+            "balance_date": balance_date,
+            "group_by_subtype": group_by_subtype,
+        }
+    
     return render(request, "financial/reports/balance_sheet.html", context)
 
 
 @login_required
 def income_statement(request):
     """
-    تقرير قائمة الإيرادات والمصروفات (الأرباح والخسائر)
+    تقرير قائمة الدخل - محسّن واحترافي
+    يستخدم IncomeStatementService للحسابات الديناميكية والدقيقة
     """
+    from ..services.income_statement_service import IncomeStatementService
+    from django.http import HttpResponse
+    
+    # معالجة الفلاتر
+    date_from_str = request.GET.get("date_from")
+    date_to_str = request.GET.get("date_to")
+    export_format = request.GET.get("export")
+    
+    # تحويل التواريخ
+    date_from = None
+    date_to = None
+    
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ البداية غير صحيح")
+    
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
+    
+    # معالجة التصدير
+    if export_format == 'excel':
+        try:
+            excel_data = IncomeStatementService.export_to_excel(date_from, date_to)
+            
+            response = HttpResponse(
+                excel_data,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            filename = f"income_statement_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+    
+    # إنشاء قائمة الدخل
+    try:
+        income_statement_data = IncomeStatementService.generate_income_statement(date_from, date_to)
+        
+        context = {
+            "page_title": "قائمة الدخل",
+            "page_icon": "fas fa-file-invoice-dollar",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
+            ],
+            "income_statement_data": income_statement_data,
+            "date_from": income_statement_data.get('date_from'),
+            "date_to": income_statement_data.get('date_to'),
+        }
+        
+    except Exception as e:
+        messages.error(request, f"خطأ في إنشاء قائمة الدخل: {e}")
+        context = {
+            "page_title": "قائمة الدخل",
+            "page_icon": "fas fa-file-invoice-dollar",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
+            ],
+            "income_statement_data": {
+                'revenues': [],
+                'expenses': [],
+                'total_revenue': 0,
+                'total_expense': 0,
+                'net_income': 0,
+                'error': str(e)
+            },
+            "date_from": date_from,
+            "date_to": date_to,
+        }
+    
+    return render(request, "financial/reports/income_statement.html", context)
+
+
+@login_required
+def cash_flow_statement(request):
+    """
+    تقرير قائمة التدفقات النقدية
+    """
+    from ..services.cash_flow_service import CashFlowService
+    from django.http import HttpResponse
+    
     # تحديد فترة التقرير
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")
@@ -484,198 +570,178 @@ def income_statement(request):
         # افتراضيًا، تاريخ اليوم
         date_to = timezone.now().date()
 
-    # جمع الإيرادات
-    income_items = []
-    total_income = 0
-    income_accounts = AccountHelperService.get_accounts_by_category("revenue")
+    try:
+        # إنشاء خدمة التدفقات النقدية
+        cash_flow_service = CashFlowService(date_from=date_from, date_to=date_to)
+        
+        # التحقق من طلب التصدير
+        if request.GET.get('export') == 'excel':
+            # إنشاء التقرير
+            report_data = cash_flow_service.generate_cash_flow_statement()
+            
+            # تصدير إلى Excel
+            excel_content = cash_flow_service.export_to_excel(report_data)
+            
+            if excel_content:
+                response = HttpResponse(
+                    excel_content,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="cash_flow_{date_from}_{date_to}.xlsx"'
+                return response
+            else:
+                messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
+        
+        # إنشاء التقرير
+        report_data = cash_flow_service.generate_cash_flow_statement()
 
-    for account in income_accounts:
-        journal_lines = JournalEntryLine.objects.filter(
-            account=account,
-            journal_entry__date__gte=date_from,
-            journal_entry__date__lte=date_to,
-        )
+        context = {
+            "page_title": "قائمة التدفقات النقدية",
+            "page_icon": "fas fa-money-bill-wave",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "قائمة التدفقات النقدية", "active": True, "icon": "fas fa-money-bill-wave"},
+            ],
+            "cash_flow_data": report_data,
+            "date_from": date_from,
+            "date_to": date_to,
+        }
 
-        total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_credit - total_debit  # الإيرادات لها رصيد دائن
+        return render(request, "financial/reports/cash_flow_statement.html", context)
 
-        if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-            income_items.append({"account": account, "amount": balance})
-            total_income += balance
+    except Exception as e:
+        messages.error(request, f"خطأ في تحميل قائمة التدفقات النقدية: {e}")
+        return redirect("core:dashboard")
 
-    # جمع المصروفات
-    expense_items = []
-    total_expense = 0
-    expense_accounts = AccountHelperService.get_accounts_by_category("expense")
 
-    for account in expense_accounts:
-        journal_lines = JournalEntryLine.objects.filter(
-            account=account,
-            journal_entry__date__gte=date_from,
-            journal_entry__date__lte=date_to,
-        )
-
-        total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-        total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-        balance = total_debit - total_credit  # المصروفات لها رصيد مدين
-
-        if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-            expense_items.append({"account": account, "amount": balance})
-            total_expense += balance
-
-    # حساب صافي الربح/الخسارة
-    net_income = total_income - total_expense
-
-    context = {
-        "page_title": "قائمة الدخل",
-        "page_icon": "fas fa-file-invoice-dollar",
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
-        ],
-        "income_items": income_items,
-        "expense_items": expense_items,
-        "total_income": total_income,
-        "total_expense": total_expense,
-        "net_income": net_income,
-        "date_from": date_from,
-        "date_to": date_to,
-        "title": "قائمة الإيرادات والمصروفات",
-    }
-
-    return render(request, "financial/reports/income_statement.html", context)
+@login_required
+def accounts_aging_report(request, account_type):
+    """
+    تقرير أعمار الذمم (المدينة أو الدائنة)
+    account_type: 'receivables' أو 'payables'
+    """
+    from ..services.accounts_aging_service import AccountsAgingService
+    from django.http import HttpResponse
+    
+    # تحديد تاريخ التقرير
+    as_of_date = request.GET.get("as_of_date")
+    
+    if as_of_date:
+        as_of_date = datetime.strptime(as_of_date, "%Y-%m-%d").date()
+    else:
+        # افتراضيًا، تاريخ اليوم
+        as_of_date = timezone.now().date()
+    
+    try:
+        # إنشاء خدمة أعمار الذمم
+        aging_service = AccountsAgingService(as_of_date=as_of_date)
+        
+        # التحقق من طلب التصدير
+        if request.GET.get('export') == 'excel':
+            # إنشاء التقرير
+            if account_type == "receivables":
+                report_data = aging_service.generate_ar_aging_report()
+                report_type = 'ar'
+                filename = f'ar_aging_{as_of_date}.xlsx'
+            else:
+                report_data = aging_service.generate_ap_aging_report()
+                report_type = 'ap'
+                filename = f'ap_aging_{as_of_date}.xlsx'
+            
+            # تصدير إلى Excel
+            excel_content = aging_service.export_to_excel(report_data, report_type)
+            
+            if excel_content:
+                response = HttpResponse(
+                    excel_content,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            else:
+                messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
+        
+        # إنشاء التقرير
+        if account_type == "receivables":
+            report_data = aging_service.generate_ar_aging_report()
+        else:
+            report_data = aging_service.generate_ap_aging_report()
+        
+        # التحقق من وجود خطأ
+        if "error" in report_data:
+            messages.error(request, report_data["error"])
+            return redirect("core:dashboard")
+        
+        # تحديد العنوان والأيقونة حسب النوع
+        if account_type == "receivables":
+            page_title = "أعمار الذمم المدينة"
+            page_icon = "fas fa-user-clock"
+        else:
+            page_title = "أعمار الذمم الدائنة"
+            page_icon = "fas fa-file-invoice-dollar"
+        
+        context = {
+            "page_title": page_title,
+            "page_icon": page_icon,
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": page_title, "active": True, "icon": page_icon},
+            ],
+            "report_data": report_data,
+            "as_of_date": as_of_date,
+            "account_type": account_type,
+        }
+        
+        return render(request, "financial/reports/accounts_aging.html", context)
+    
+    except Exception as e:
+        messages.error(request, f"خطأ في تحميل تقرير أعمار الذمم: {e}")
+        return redirect("core:dashboard")
 
 
 @login_required
 def financial_analytics(request):
     """
-    عرض صفحة التحليلات المالية
+    عرض صفحة التحليلات المالية - محدّث ✅
     تعرض مجموعة من المؤشرات المالية الرئيسية والرسوم البيانية
     """
-    # التحقق من تسجيل دخول المستخدم
-    if not request.user.is_authenticated:
-        return redirect("users:login")
+    from financial.services.financial_analytics_service import FinancialAnalyticsService
+    from django.utils import timezone
 
-    # بيانات لوحة التحكم (استخدام النظام الجديد)
-    monthly_income = 0
-    total_income = 0
-    total_expenses = 0
+    # الحصول على الفترة الزمنية من الطلب
+    date_from = request.GET.get("date_from")
+    date_to = request.GET.get("date_to")
 
-    try:
-        # استخدام النماذج الجديدة إذا كانت متوفرة
-        from .models.transactions import IncomeTransaction, ExpenseTransaction
-
-        monthly_income = (
-            IncomeTransaction.objects.filter(
-                date__gte=datetime.now().replace(day=1, hour=0, minute=0, second=0)
-            ).aggregate(total=Sum("amount"))["total"]
-            or 0
-        )
-
-        total_income = (
-            IncomeTransaction.objects.filter(
-                date__gte=datetime.now().replace(day=1, hour=0, minute=0, second=0)
-                - timedelta(days=30)
-            ).aggregate(total=Sum("amount"))["total"]
-            or 0
-        )
-
-        total_expenses = (
-            ExpenseTransaction.objects.filter(
-                date__gte=datetime.now().replace(day=1, hour=0, minute=0, second=0)
-                - timedelta(days=30)
-            ).aggregate(total=Sum("amount"))["total"]
-            or 0
-        )
-    except ImportError:
-        # في حالة عدم توفر النماذج الجديدة، استخدم القيود المحاسبية
+    # تحويل التواريخ إذا كانت موجودة
+    if date_from:
         try:
-            current_month = datetime.now().replace(day=1, hour=0, minute=0, second=0)
-            last_month = current_month - timedelta(days=30)
+            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except ValueError:
+            date_from = None
 
-            # حساب الإيرادات من القيود المحاسبية
-            income_accounts = ChartOfAccounts.objects.filter(
-                account_type__category="income"
-            )
-
-            monthly_income = (
-                JournalEntryLine.objects.filter(
-                    account__in=income_accounts, journal_entry__date__gte=current_month
-                ).aggregate(total=Sum("credit"))["total"]
-                or 0
-            )
-
-            total_income = (
-                JournalEntryLine.objects.filter(
-                    account__in=income_accounts, journal_entry__date__gte=last_month
-                ).aggregate(total=Sum("credit"))["total"]
-                or 0
-            )
-
-            # حساب المصروفات من القيود المحاسبية
-            expense_accounts = ChartOfAccounts.objects.filter(
-                account_type__category="expense"
-            )
-
-            total_expenses = (
-                JournalEntryLine.objects.filter(
-                    account__in=expense_accounts, journal_entry__date__gte=last_month
-                ).aggregate(total=Sum("debit"))["total"]
-                or 0
-            )
-        except Exception:
-            pass
-
-    profit_margin = 0
-    if total_income > 0:
-        profit_margin = round(((total_income - total_expenses) / total_income) * 100)
-
-    # متوسط قيمة الفاتورة والمعاملات اليومية
-    avg_invoice = 0
-    daily_transactions = 0
-
-    try:
-        # استخدام النماذج الجديدة إذا كانت متوفرة
-        from .models.transactions import FinancialTransaction
-
-        recent_transactions = FinancialTransaction.objects.filter(
-            date__gte=datetime.now() - timedelta(days=30)
-        )
-
-        transaction_count = recent_transactions.count()
-        total_amount = recent_transactions.aggregate(total=Sum("amount"))["total"] or 0
-
-        if transaction_count > 0:
-            avg_invoice = total_amount / transaction_count
-
-        daily_transactions = FinancialTransaction.objects.filter(
-            date__gte=datetime.now() - timedelta(days=1)
-        ).count()
-    except ImportError:
-        # في حالة عدم توفر النماذج الجديدة، استخدم القيود المحاسبية
+    if date_to:
         try:
-            recent_entries = JournalEntry.objects.filter(
-                date__gte=datetime.now() - timedelta(days=30)
-            )
+            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            date_to = None
 
-            if recent_entries.exists():
-                # حساب متوسط قيمة القيود
-                total_amount = 0
-                for entry in recent_entries:
-                    entry_total = entry.lines.aggregate(Sum("debit"))["debit__sum"] or 0
-                    total_amount += entry_total
+    # إنشاء خدمة التحليلات
+    analytics_service = FinancialAnalyticsService(
+        date_from=date_from,
+        date_to=date_to
+    )
 
-                if recent_entries.count() > 0:
-                    avg_invoice = total_amount / recent_entries.count()
+    # الحصول على جميع التحليلات
+    analytics = analytics_service.get_complete_analytics()
 
-            daily_transactions = JournalEntry.objects.filter(
-                date__gte=datetime.now() - timedelta(days=1)
-            ).count()
-        except Exception:
-            pass
+    # تحويل البيانات إلى JSON للاستخدام في JavaScript
+    import json
+    monthly_trends_json = json.dumps(analytics["monthly_trends"])
+    expense_distribution_json = json.dumps(analytics["expense_distribution"])
 
     # إعداد سياق البيانات
     context = {
@@ -687,10 +753,26 @@ def financial_analytics(request):
             {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
             {"title": "التحليلات المالية", "active": True, "icon": "fas fa-chart-pie"},
         ],
-        "monthly_income": monthly_income,
-        "profit_margin": profit_margin,
-        "avg_invoice": avg_invoice,
-        "daily_transactions": daily_transactions,
+        # المؤشرات الأساسية
+        "monthly_income": analytics["basic_metrics"]["monthly_income"],
+        "monthly_expenses": analytics["basic_metrics"]["monthly_expenses"],
+        "net_profit": analytics["basic_metrics"]["net_profit"],
+        "profit_margin": analytics["basic_metrics"]["profit_margin"],
+        "avg_invoice": analytics["basic_metrics"]["avg_entry_value"],
+        "daily_transactions": analytics["basic_metrics"]["daily_transactions"],
+        # المؤشرات المتقدمة
+        "collection_rate": analytics["advanced_metrics"]["collection_rate"],
+        "new_customers": analytics["advanced_metrics"]["new_customers"],
+        "sales_cycle": analytics["advanced_metrics"]["sales_cycle"],
+        "due_debt": analytics["advanced_metrics"]["due_debt"],
+        "total_receivables": analytics["advanced_metrics"]["total_receivables"],
+        # الاتجاهات الشهرية (JSON)
+        "monthly_trends": monthly_trends_json,
+        # توزيع المصروفات (JSON)
+        "expense_distribution": expense_distribution_json,
+        # الفترة الزمنية
+        "date_from": analytics["date_from"],
+        "date_to": analytics["date_to"],
     }
     return render(request, "financial/reports/analytics.html", context)
 
@@ -785,147 +867,150 @@ def payment_sync_resolve_errors_api(request):
 @login_required
 def trial_balance_report(request):
     """
-    تقرير ميزان المراجعة
+    تقرير ميزان المراجعة - محسّن واحترافي
+    يستخدم TrialBalanceService للحسابات الديناميكية والدقيقة
     """
-    trial_balance = []
-    total_debit = 0
-    total_credit = 0
+    from ..services.trial_balance_service import TrialBalanceService
+    from django.http import HttpResponse
     
+    # معالجة الفلاتر
+    date_from_str = request.GET.get("date_from")
+    date_to_str = request.GET.get("date_to")
+    group_by_type = request.GET.get("group_by_type", "1") == "1"
+    export_format = request.GET.get("export")
+    
+    # تحويل التواريخ
+    date_from = None
+    date_to = None
+    
+    if date_from_str:
+        try:
+            date_from = datetime.strptime(date_from_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ البداية غير صحيح")
+    
+    if date_to_str:
+        try:
+            date_to = datetime.strptime(date_to_str, "%Y-%m-%d").date()
+        except ValueError:
+            messages.warning(request, "تنسيق تاريخ النهاية غير صحيح")
+    
+    # معالجة التصدير
+    if export_format == 'excel':
+        try:
+            excel_data = TrialBalanceService.export_to_excel(
+                date_from,
+                date_to,
+                group_by_type
+            )
+            
+            response = HttpResponse(
+                excel_data,
+                content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            filename = f"trial_balance_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            
+            return response
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+    
+    # إنشاء ميزان المراجعة
     try:
-        # الحصول على جميع الحسابات النشطة
-        accounts = AccountHelperService.get_all_active_accounts().order_by("account_type", "name")
+        trial_balance_data = TrialBalanceService.generate_trial_balance(
+            date_from,
+            date_to,
+            group_by_type=group_by_type
+        )
         
-        # فلترة التواريخ
-        date_from = request.GET.get("date_from")
-        date_to = request.GET.get("date_to")
-        
-        for account in accounts:
-            # حساب الأرصدة لكل حساب
-            journal_entry_lines = JournalEntryLine.objects.filter(account=account)
-            
-            if date_from:
-                date_from_parsed = datetime.strptime(date_from, "%Y-%m-%d").date()
-                journal_entry_lines = journal_entry_lines.filter(
-                    journal_entry__date__gte=date_from_parsed
-                )
-            
-            if date_to:
-                date_to_parsed = datetime.strptime(date_to, "%Y-%m-%d").date()
-                journal_entry_lines = journal_entry_lines.filter(
-                    journal_entry__date__lte=date_to_parsed
-                )
-            
-            # حساب المجاميع
-            account_debit = journal_entry_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            account_credit = journal_entry_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-            
-            # حساب الرصيد النهائي حسب نوع الحساب
-            if account.account_type in ["asset", "expense"]:
-                # الأصول والمصروفات لها رصيد مدين
-                balance = account_debit - account_credit
-                debit_balance = balance if balance > 0 else 0
-                credit_balance = abs(balance) if balance < 0 else 0
-            else:
-                # الخصوم والإيرادات وحقوق الملكية لها رصيد دائن
-                balance = account_credit - account_debit
-                credit_balance = balance if balance > 0 else 0
-                debit_balance = abs(balance) if balance < 0 else 0
-            
-            # إضافة الحساب للتقرير إذا كان له رصيد
-            if account_debit > 0 or account_credit > 0:
-                trial_balance.append({
-                    "account": account,
-                    "debit_balance": debit_balance,
-                    "credit_balance": credit_balance,
-                })
-                
-                total_debit += debit_balance
-                total_credit += credit_balance
+        context = {
+            "page_title": "ميزان المراجعة",
+            "page_icon": "fas fa-balance-scale",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-balance-scale"},
+            ],
+            "trial_balance_data": trial_balance_data,
+            "date_from": date_from,
+            "date_to": date_to,
+            "group_by_type": group_by_type,
+        }
         
     except Exception as e:
-        messages.error(request, f"خطأ في إنشاء ميزان المراجعة: {str(e)}")
+        messages.error(request, f"خطأ في إنشاء ميزان المراجعة: {e}")
+        context = {
+            "page_title": "ميزان المراجعة",
+            "page_icon": "fas fa-balance-scale",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-balance-scale"},
+            ],
+            "trial_balance_data": {
+                'accounts': [],
+                'grouped': {},
+                'total_debit': 0,
+                'total_credit': 0,
+                'is_balanced': False,
+                'error': str(e)
+            },
+            "date_from": date_from,
+            "date_to": date_to,
+            "group_by_type": group_by_type,
+        }
     
-    # الحصول على جميع الحسابات للفلترة
-    all_accounts = AccountHelperService.get_all_active_accounts().order_by("name")
-    
-    context = {
-        "page_title": "ميزان المراجعة",
-        "page_icon": "fas fa-calculator",
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-calculator"},
-        ],
-        "trial_balance": trial_balance,
-        "total_debit": total_debit,
-        "total_credit": total_credit,
-        "accounts": all_accounts,
-        "date_from": date_from,
-        "date_to": date_to,
-    }
     return render(request, "financial/reports/trial_balance_report.html", context)
 
 
 @login_required
 def sales_report(request):
     """
-    تقرير المبيعات - بناءً على حسابات الإيرادات
+    تقرير المبيعات - محدّث ✅
+    بناءً على حسابات الإيرادات مع تحليلات متقدمة
     """
+    from financial.services.sales_report_service import SalesReportService
+    import json
+
     # تحديد فترة التقرير
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")
     
     if date_from:
-        date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-    else:
-        # افتراضياً، بداية الشهر الحالي
-        today = timezone.now().date()
-        date_from = datetime(today.year, today.month, 1).date()
+        try:
+            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except ValueError:
+            date_from = None
     
     if date_to:
-        date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-    else:
-        # افتراضياً، تاريخ اليوم
-        date_to = timezone.now().date()
+        try:
+            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            date_to = None
     
-    # جمع بيانات المبيعات من حسابات الإيرادات
-    sales_data = []
-    total_sales = 0
+    # إنشاء خدمة التقرير
+    sales_service = SalesReportService(
+        date_from=date_from,
+        date_to=date_to
+    )
     
-    try:
-        revenue_accounts = AccountHelperService.get_accounts_by_category("revenue")
-        
-        for account in revenue_accounts:
-            journal_lines = JournalEntryLine.objects.filter(
-                account=account,
-                journal_entry__date__gte=date_from,
-                journal_entry__date__lte=date_to,
-            )
-            
-            total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-            balance = total_credit - total_debit  # الإيرادات لها رصيد دائن
-            
-            if balance > 0:  # عرض الحسابات ذات الإيرادات فقط
-                sales_data.append({
-                    "account": account,
-                    "amount": balance,
-                    "transactions_count": journal_lines.count()
-                })
-                total_sales += balance
-        
-        # ترتيب حسب المبلغ (الأعلى أولاً)
-        sales_data.sort(key=lambda x: x["amount"], reverse=True)
-        
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل بيانات المبيعات: {str(e)}")
+    # الحصول على التقرير الكامل
+    report = sales_service.get_complete_report()
     
-    # حساب إحصائيات إضافية
-    avg_daily_sales = 0
-    days_count = (date_to - date_from).days + 1
-    if days_count > 0:
-        avg_daily_sales = total_sales / days_count
+    # تحويل البيانات إلى JSON للاستخدام في JavaScript
+    from decimal import Decimal
+    
+    class DecimalEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return super(DecimalEncoder, self).default(obj)
+    
+    daily_trend_json = json.dumps(report["daily_trend"], cls=DecimalEncoder)
+    monthly_comparison_json = json.dumps(report["monthly_comparison"], cls=DecimalEncoder)
+    sales_by_category_json = json.dumps(report["sales_by_category"], cls=DecimalEncoder)
     
     context = {
         "page_title": "تقرير المبيعات",
@@ -936,12 +1021,17 @@ def sales_report(request):
             {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
             {"title": "تقرير المبيعات", "active": True, "icon": "fas fa-chart-line"},
         ],
-        "sales_data": sales_data,
-        "total_sales": total_sales,
-        "avg_daily_sales": avg_daily_sales,
-        "date_from": date_from,
-        "date_to": date_to,
-        "days_count": days_count,
+        "sales_data": report["sales_data"],
+        "total_sales": report["total_sales"],
+        "statistics": report["statistics"],
+        "daily_trend": daily_trend_json,
+        "monthly_comparison": monthly_comparison_json,
+        "sales_by_category": sales_by_category_json,
+        "date_from": report["date_from"],
+        "date_to": report["date_to"],
+        # للتوافق مع القالب القديم
+        "avg_daily_sales": report["statistics"]["avg_daily_sales"],
+        "days_count": report["statistics"]["days_count"],
     }
     return render(request, "financial/reports/sales_report.html", context)
 
@@ -949,62 +1039,48 @@ def sales_report(request):
 @login_required
 def purchases_report(request):
     """
-    تقرير المشتريات - بناءً على حسابات المصروفات
+    تقرير المشتريات - محدّث ✅
+    بناءً على حسابات المصروفات مع تحليلات متقدمة
     """
+    from financial.services.purchases_report_service import PurchasesReportService
+    import json
+
     # تحديد فترة التقرير
     date_from = request.GET.get("date_from")
     date_to = request.GET.get("date_to")
     
     if date_from:
-        date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-    else:
-        # افتراضياً، بداية الشهر الحالي
-        today = timezone.now().date()
-        date_from = datetime(today.year, today.month, 1).date()
+        try:
+            date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
+        except ValueError:
+            date_from = None
     
     if date_to:
-        date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-    else:
-        # افتراضياً، تاريخ اليوم
-        date_to = timezone.now().date()
+        try:
+            date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
+        except ValueError:
+            date_to = None
     
-    # جمع بيانات المشتريات من حسابات المصروفات
-    purchases_data = []
-    total_purchases = 0
+    # إنشاء خدمة التقرير
+    purchases_service = PurchasesReportService(
+        date_from=date_from,
+        date_to=date_to
+    )
     
-    try:
-        expense_accounts = AccountHelperService.get_accounts_by_category("expense")
-        
-        for account in expense_accounts:
-            journal_lines = JournalEntryLine.objects.filter(
-                account=account,
-                journal_entry__date__gte=date_from,
-                journal_entry__date__lte=date_to,
-            )
-            
-            total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-            total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-            balance = total_debit - total_credit  # المصروفات لها رصيد مدين
-            
-            if balance > 0:  # عرض الحسابات ذات المصروفات فقط
-                purchases_data.append({
-                    "account": account,
-                    "amount": balance,
-                    "transactions_count": journal_lines.count()
-                })
-                total_purchases += balance
-        
-        # ترتيب حسب المبلغ (الأعلى أولاً)
-        purchases_data.sort(key=lambda x: x["amount"], reverse=True)
-        
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل بيانات المشتريات: {str(e)}")
+    # الحصول على التقرير الكامل
+    report = purchases_service.get_complete_report()
     
-    # حساب إحصائيات إضافية
-    avg_daily_purchases = 0
-    days_count = (date_to - date_from).days + 1
-    if days_count > 0:
-        avg_daily_purchases = total_purchases / days_count
+    # تحويل البيانات إلى JSON للاستخدام في JavaScript
+    from decimal import Decimal
+    
+    class DecimalEncoder(json.JSONEncoder):
+        def default(self, obj):
+            if isinstance(obj, Decimal):
+                return float(obj)
+            return super(DecimalEncoder, self).default(obj)
+    
+    monthly_comparison_json = json.dumps(report["monthly_comparison"], cls=DecimalEncoder)
+    purchases_by_category_json = json.dumps(report["purchases_by_category"], cls=DecimalEncoder)
     
     context = {
         "page_title": "تقرير المشتريات",
@@ -1015,12 +1091,16 @@ def purchases_report(request):
             {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
             {"title": "تقرير المشتريات", "active": True, "icon": "fas fa-shopping-cart"},
         ],
-        "purchases_data": purchases_data,
-        "total_purchases": total_purchases,
-        "avg_daily_purchases": avg_daily_purchases,
-        "date_from": date_from,
-        "date_to": date_to,
-        "days_count": days_count,
+        "purchases_data": report["purchases_data"],
+        "total_purchases": report["total_purchases"],
+        "statistics": report["statistics"],
+        "monthly_comparison": monthly_comparison_json,
+        "purchases_by_category": purchases_by_category_json,
+        "date_from": report["date_from"],
+        "date_to": report["date_to"],
+        # للتوافق مع القالب القديم
+        "avg_daily_purchases": report["statistics"]["avg_daily_purchases"],
+        "days_count": report["statistics"]["days_count"],
     }
     return render(request, "financial/reports/purchases_report.html", context)
 
@@ -1028,86 +1108,184 @@ def purchases_report(request):
 @login_required
 def inventory_report(request):
     """
-    تقرير المخزون - بناءً على حسابات الأصول المتعلقة بالمخزون
+    تقرير المخزون - محدّث ✅
+    بناءً على حسابات الأصول المتعلقة بالمخزون مع تحليلات متقدمة
     """
+    from financial.services.inventory_report_service import InventoryReportService
+    from django.http import HttpResponse
+
     # تحديد تاريخ التقرير
     report_date = request.GET.get("date")
     if report_date:
-        report_date = datetime.strptime(report_date, "%Y-%m-%d").date()
-    else:
-        report_date = timezone.now().date()
+        try:
+            report_date = datetime.strptime(report_date, "%Y-%m-%d").date()
+        except ValueError:
+            report_date = None
+
+    # إنشاء خدمة التقرير
+    inventory_service = InventoryReportService(report_date=report_date)
+
+    # التحقق من طلب التصدير
+    if request.GET.get('export') == 'excel':
+        try:
+            excel_data = inventory_service.export_to_excel()
+            
+            if excel_data:
+                response = HttpResponse(
+                    excel_data,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                )
+                filename = f"inventory_report_{inventory_service.report_date.strftime('%Y%m%d')}.xlsx"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            else:
+                messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+
+    # الحصول على التقرير الكامل
+    try:
+        report = inventory_service.get_complete_report()
+
+        context = {
+            "page_title": "تقرير المخزون",
+            "page_icon": "fas fa-boxes",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "تقرير المخزون", "active": True, "icon": "fas fa-boxes"},
+            ],
+            "inventory_data": report["inventory_data"],
+            "total_inventory_value": report["total_inventory_value"],
+            "statistics": report["statistics"],
+            "inventory_by_category": report["inventory_by_category"],
+            "turnover_analysis": report["turnover_analysis"],
+            "report_date": report["report_date"],
+            # للتوافق مع القالب القديم
+            "total_accounts": report["statistics"]["total_accounts"],
+            "avg_account_value": report["statistics"]["avg_account_value"],
+            "active_accounts": report["statistics"]["active_accounts"],
+        }
+    except Exception as e:
+        messages.error(request, f"خطأ في تحميل تقرير المخزون: {e}")
+        context = {
+            "page_title": "تقرير المخزون",
+            "page_icon": "fas fa-boxes",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "تقرير المخزون", "active": True, "icon": "fas fa-boxes"},
+            ],
+            "inventory_data": [],
+            "total_inventory_value": 0,
+            "total_accounts": 0,
+            "avg_account_value": 0,
+            "active_accounts": 0,
+            "report_date": inventory_service.report_date,
+            "error": str(e)
+        }
+
+    return render(request, "financial/reports/inventory_report.html", context)
+
+
+@login_required
+def abc_analysis_report(request):
+    """
+    تقرير تحليل ABC - محدّث ✅
+    تصنيف المخزون حسب الأهمية (A, B, C)
+    """
+    from financial.services.abc_analysis_service import ABCAnalysisService
+    from django.http import HttpResponse
+
+    # تحديد تاريخ التحليل وفترة التحليل
+    analysis_date = request.GET.get("date")
+    days_period = request.GET.get("days_period", "365")
     
-    # جمع بيانات المخزون من حسابات الأصول
-    inventory_data = []
-    total_inventory_value = 0
+    if analysis_date:
+        try:
+            analysis_date = datetime.strptime(analysis_date, "%Y-%m-%d").date()
+        except ValueError:
+            analysis_date = None
     
     try:
-        # الحصول على حسابات الأصول التي قد تكون مخزون
-        asset_accounts = AccountHelperService.get_accounts_by_category("asset")
-        
-        # فلترة الحسابات التي تحتوي على كلمات مفتاحية للمخزون
-        inventory_keywords = ['مخزون', 'بضاعة', 'مواد', 'منتجات', 'سلع', 'خامات']
-        
-        for account in asset_accounts:
-            # التحقق من وجود كلمات مفتاحية في اسم الحساب
-            is_inventory = any(keyword in account.name for keyword in inventory_keywords)
+        days_period = int(days_period)
+    except ValueError:
+        days_period = 365
+
+    # إنشاء خدمة التحليل
+    abc_service = ABCAnalysisService(
+        analysis_date=analysis_date,
+        days_period=days_period
+    )
+
+    # التحقق من طلب التصدير
+    if request.GET.get('export') == 'excel':
+        try:
+            excel_data = abc_service.export_to_excel()
             
-            if is_inventory:
-                journal_lines = JournalEntryLine.objects.filter(
-                    account=account,
-                    journal_entry__date__lte=report_date,
+            if excel_data:
+                response = HttpResponse(
+                    excel_data,
+                    content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
                 )
-                
-                total_debit = journal_lines.aggregate(Sum("debit"))["debit__sum"] or 0
-                total_credit = journal_lines.aggregate(Sum("credit"))["credit__sum"] or 0
-                balance = total_debit - total_credit  # الأصول لها رصيد مدين
-                
-                if balance != 0:  # عرض الحسابات ذات الرصيد فقط
-                    # حساب عدد الحركات في آخر 30 يوم
-                    recent_date = report_date - timedelta(days=30)
-                    recent_movements = journal_lines.filter(
-                        journal_entry__date__gte=recent_date
-                    ).count()
-                    
-                    inventory_data.append({
-                        "account": account,
-                        "balance": balance,
-                        "recent_movements": recent_movements,
-                        "transactions_count": journal_lines.count()
-                    })
-                    total_inventory_value += balance
-        
-        # ترتيب حسب القيمة (الأعلى أولاً)
-        inventory_data.sort(key=lambda x: x["balance"], reverse=True)
-        
-        # إضافة إحصائيات إضافية
-        total_accounts = len(inventory_data)
-        avg_account_value = total_inventory_value / total_accounts if total_accounts > 0 else 0
-        active_accounts = len([item for item in inventory_data if item["recent_movements"] > 0])
-        
+                filename = f"abc_analysis_{abc_service.analysis_date.strftime('%Y%m%d')}.xlsx"
+                response['Content-Disposition'] = f'attachment; filename="{filename}"'
+                return response
+            else:
+                messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
+        except Exception as e:
+            messages.error(request, f"خطأ في تصدير Excel: {e}")
+
+    # الحصول على التحليل الكامل
+    try:
+        analysis = abc_service.get_complete_analysis()
+
+        context = {
+            "page_title": "تحليل ABC للمخزون",
+            "page_icon": "fas fa-chart-pie",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "تحليل ABC", "active": True, "icon": "fas fa-chart-pie"},
+            ],
+            "inventory_data": analysis["inventory_data"],
+            "total_value": analysis["total_value"],
+            "statistics": analysis["statistics"],
+            "recommendations": analysis["recommendations"],
+            "analysis_date": analysis["analysis_date"],
+            "days_period": analysis["days_period"],
+            "date_from": analysis["date_from"],
+        }
     except Exception as e:
-        messages.error(request, f"خطأ في تحميل بيانات المخزون: {str(e)}")
-        total_accounts = 0
-        avg_account_value = 0
-        active_accounts = 0
-    
-    context = {
-        "page_title": "تقرير المخزون",
-        "page_icon": "fas fa-boxes",
-        "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "تقرير المخزون", "active": True, "icon": "fas fa-boxes"},
-        ],
-        "inventory_data": inventory_data,
-        "total_inventory_value": total_inventory_value,
-        "total_accounts": total_accounts,
-        "avg_account_value": avg_account_value,
-        "active_accounts": active_accounts,
-        "report_date": report_date,
-    }
-    return render(request, "financial/reports/inventory_report.html", context)
+        messages.error(request, f"خطأ في تحميل تحليل ABC: {e}")
+        context = {
+            "page_title": "تحليل ABC للمخزون",
+            "page_icon": "fas fa-chart-pie",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
+                {"title": "تحليل ABC", "active": True, "icon": "fas fa-chart-pie"},
+            ],
+            "inventory_data": [],
+            "total_value": 0,
+            "statistics": {
+                "category_a": {"count": 0, "value": 0, "percentage_count": 0, "percentage_value": 0, "avg_value": 0},
+                "category_b": {"count": 0, "value": 0, "percentage_count": 0, "percentage_value": 0, "avg_value": 0},
+                "category_c": {"count": 0, "value": 0, "percentage_count": 0, "percentage_value": 0, "avg_value": 0},
+                "total_items": 0,
+                "total_value": 0,
+            },
+            "recommendations": {"category_a": [], "category_b": [], "category_c": []},
+            "analysis_date": abc_service.analysis_date,
+            "days_period": days_period,
+            "error": str(e)
+        }
+
+    return render(request, "financial/reports/abc_analysis.html", context)
 
 
 @login_required
@@ -1177,20 +1355,269 @@ def restore_data(request):
 @login_required
 def data_integrity_check(request):
     """
-    التحقق من سلامة البيانات
+    التحقق من سلامة البيانات - فحص شامل
     """
+    from financial.models import JournalEntry, ChartOfAccounts
+    from sale.models import Sale
+    from purchase.models import Purchase
+    from product.models import Stock, StockMovement
+    from client.models import Customer
+    from supplier.models import Supplier
+    from django.db.models import Sum, Q, Count
+    from decimal import Decimal
+    
+    results = {
+        'checks': [],
+        'errors': [],
+        'warnings': [],
+        'summary': {
+            'total_checks': 0,
+            'passed': 0,
+            'failed': 0,
+            'warnings': 0
+        }
+    }
+    
     if request.method == "POST":
         try:
-            # يمكن إضافة منطق فحص سلامة البيانات هنا لاحقاً
-            messages.success(
-                request, "تم فحص سلامة البيانات بنجاح. لم يتم العثور على أخطاء."
-            )
+            # ==================== 1. فحص القيود المحاسبية ====================
+            check_name = "توازن القيود المحاسبية"
+            results['summary']['total_checks'] += 1
+            
+            unbalanced_entries = []
+            for entry in JournalEntry.objects.all():
+                debits = entry.lines.aggregate(total=Sum('debit'))['total'] or Decimal('0')
+                credits = entry.lines.aggregate(total=Sum('credit'))['total'] or Decimal('0')
+                if debits != credits:
+                    unbalanced_entries.append({
+                        'entry': entry,
+                        'difference': abs(debits - credits)
+                    })
+            
+            if unbalanced_entries:
+                results['errors'].append({
+                    'check': check_name,
+                    'count': len(unbalanced_entries),
+                    'details': unbalanced_entries[:10],  # أول 10 فقط
+                    'severity': 'high'
+                })
+                results['summary']['failed'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 2. فحص أرصدة العملاء ====================
+            check_name = "أرصدة العملاء"
+            results['summary']['total_checks'] += 1
+            
+            customer_issues = []
+            try:
+                from client.models import CustomerPayment
+                
+                for customer in Customer.objects.all():
+                    calculated_balance = Decimal('0')
+                    
+                    # حساب من المبيعات
+                    sales_total = Sale.objects.filter(customer=customer).aggregate(
+                        total=Sum('total')
+                    )['total'] or Decimal('0')
+                    
+                    # حساب من الدفعات
+                    if CustomerPayment:
+                        payments_total = CustomerPayment.objects.filter(customer=customer).aggregate(
+                            total=Sum('amount')
+                        )['total'] or Decimal('0')
+                    else:
+                        payments_total = Decimal('0')
+                    
+                    calculated_balance = sales_total - payments_total
+                    
+                    if abs(calculated_balance - customer.balance) > Decimal('0.01'):
+                        customer_issues.append({
+                            'customer': customer,
+                            'system_balance': customer.balance,
+                            'calculated_balance': calculated_balance,
+                            'difference': abs(customer.balance - calculated_balance)
+                        })
+            except Exception as e:
+                # تجاهل الخطأ إذا كان النموذج غير موجود
+                pass
+            
+            if customer_issues:
+                results['warnings'].append({
+                    'check': check_name,
+                    'count': len(customer_issues),
+                    'details': customer_issues[:10],
+                    'severity': 'medium'
+                })
+                results['summary']['warnings'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 3. فحص أرصدة الموردين ====================
+            check_name = "أرصدة الموردين"
+            results['summary']['total_checks'] += 1
+            
+            supplier_issues = []
+            try:
+                from purchase.models import PurchasePayment
+                
+                for supplier in Supplier.objects.all():
+                    calculated_balance = Decimal('0')
+                    
+                    # حساب من المشتريات
+                    purchases_total = Purchase.objects.filter(supplier=supplier).aggregate(
+                        total=Sum('total')
+                    )['total'] or Decimal('0')
+                    
+                    # حساب من الدفعات
+                    if PurchasePayment:
+                        payments_total = PurchasePayment.objects.filter(purchase__supplier=supplier).aggregate(
+                            total=Sum('amount')
+                        )['total'] or Decimal('0')
+                    else:
+                        payments_total = Decimal('0')
+                    
+                    calculated_balance = purchases_total - payments_total
+                    
+                    if abs(calculated_balance - supplier.balance) > Decimal('0.01'):
+                        supplier_issues.append({
+                            'supplier': supplier,
+                            'system_balance': supplier.balance,
+                            'calculated_balance': calculated_balance,
+                            'difference': abs(supplier.balance - calculated_balance)
+                        })
+            except Exception as e:
+                # تجاهل الخطأ إذا كان النموذج غير موجود
+                pass
+            
+            if supplier_issues:
+                results['warnings'].append({
+                    'check': check_name,
+                    'count': len(supplier_issues),
+                    'details': supplier_issues[:10],
+                    'severity': 'medium'
+                })
+                results['summary']['warnings'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 4. فحص المخزون ====================
+            check_name = "أرصدة المخزون"
+            results['summary']['total_checks'] += 1
+            
+            stock_issues = []
+            for stock in Stock.objects.all():
+                # حساب من حركات المخزون
+                movements_in = StockMovement.objects.filter(
+                    product=stock.product,
+                    movement_type__in=['purchase', 'return_in', 'adjustment_in']
+                ).aggregate(total=Sum('quantity'))['total'] or 0
+                
+                movements_out = StockMovement.objects.filter(
+                    product=stock.product,
+                    movement_type__in=['sale', 'return_out', 'adjustment_out']
+                ).aggregate(total=Sum('quantity'))['total'] or 0
+                
+                calculated_quantity = movements_in - movements_out
+                
+                if abs(calculated_quantity - stock.quantity) > 0.01:
+                    stock_issues.append({
+                        'product': stock.product,
+                        'system_quantity': stock.quantity,
+                        'calculated_quantity': calculated_quantity,
+                        'difference': abs(stock.quantity - calculated_quantity)
+                    })
+            
+            if stock_issues:
+                results['errors'].append({
+                    'check': check_name,
+                    'count': len(stock_issues),
+                    'details': stock_issues[:10],
+                    'severity': 'high'
+                })
+                results['summary']['failed'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 5. فحص القيود اليتيمة ====================
+            check_name = "القيود بدون مستند مرجعي"
+            results['summary']['total_checks'] += 1
+            
+            orphan_entries = JournalEntry.objects.filter(
+                Q(reference_type__isnull=True) | Q(reference_id__isnull=True)
+            ).exclude(entry_type='manual').count()
+            
+            if orphan_entries > 0:
+                results['warnings'].append({
+                    'check': check_name,
+                    'count': orphan_entries,
+                    'message': f"يوجد {orphan_entries} قيد بدون مستند مرجعي",
+                    'severity': 'low'
+                })
+                results['summary']['warnings'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 6. فحص الحسابات المكررة ====================
+            check_name = "الحسابات المكررة"
+            results['summary']['total_checks'] += 1
+            
+            duplicate_accounts = ChartOfAccounts.objects.values('code').annotate(
+                count=Count('id')
+            ).filter(count__gt=1)
+            
+            if duplicate_accounts.exists():
+                results['errors'].append({
+                    'check': check_name,
+                    'count': duplicate_accounts.count(),
+                    'message': f"يوجد {duplicate_accounts.count()} رمز حساب مكرر",
+                    'severity': 'high'
+                })
+                results['summary']['failed'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # ==================== 7. فحص المخزون السالب ====================
+            check_name = "المخزون السالب"
+            results['summary']['total_checks'] += 1
+            
+            negative_stock = Stock.objects.filter(quantity__lt=0).count()
+            
+            if negative_stock > 0:
+                results['warnings'].append({
+                    'check': check_name,
+                    'count': negative_stock,
+                    'message': f"يوجد {negative_stock} منتج برصيد سالب",
+                    'severity': 'medium'
+                })
+                results['summary']['warnings'] += 1
+            else:
+                results['checks'].append({'name': check_name, 'status': 'passed'})
+                results['summary']['passed'] += 1
+            
+            # رسالة النجاح
+            if results['summary']['failed'] == 0 and results['summary']['warnings'] == 0:
+                messages.success(request, "✅ تم فحص سلامة البيانات بنجاح. جميع الفحوصات اجتازت بنجاح!")
+            elif results['summary']['failed'] > 0:
+                messages.error(request, f"⚠️ تم العثور على {results['summary']['failed']} مشكلة حرجة تحتاج إلى إصلاح فوري!")
+            else:
+                messages.warning(request, f"⚠️ تم العثور على {results['summary']['warnings']} تحذير يحتاج إلى مراجعة.")
+                
         except Exception as e:
             messages.error(request, f"حدث خطأ أثناء فحص البيانات: {str(e)}")
+            import traceback
+            traceback.print_exc()
 
     context = {
         "page_title": "التحقق من سلامة البيانات",
         "page_icon": "fas fa-shield-alt",
+        "results": results,
     }
     return render(request, "financial/reports/data_integrity_check.html", context)
 

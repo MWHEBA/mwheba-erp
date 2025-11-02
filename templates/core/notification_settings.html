@@ -1,0 +1,562 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }} | {{ SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/notification_settings.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumbs -->
+    {% if breadcrumb_items %}
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb mb-0">
+            {% for item in breadcrumb_items %}
+                {% if forloop.last or item.active %}
+                    <li class="breadcrumb-item active" aria-current="page">
+                        {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                        {{ item.title }}
+                    </li>
+                {% else %}
+                    <li class="breadcrumb-item">
+                        <a href="{{ item.url }}">
+                            {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                            {{ item.title }}
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+    {% endif %}
+    
+    <!-- Header -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    {% if page_icon %}
+                    <div>
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                    {% endif %}
+                    <div>
+                        <h1 class="h3 mb-1">{{ page_title }}</h1>
+                        <p class="text-muted mb-0">تخصيص تفضيلات الإشعارات الخاصة بك</p>
+                    </div>
+                </div>
+                
+                <div>
+                    <a href="{% url 'core:notifications_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-bell me-1"></i>
+                        عرض الإشعارات
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- النموذج الرئيسي -->
+        <div class="col-lg-8">
+            <form method="post" id="notification-settings-form">
+                {% csrf_token %}
+                
+                <!-- أنواع الإشعارات -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bell me-2"></i>
+                            أنواع الإشعارات
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">اختر أنواع الإشعارات التي تريد استلامها</p>
+                        
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_inventory_alerts }}
+                                    <label class="form-check-label" for="{{ form.enable_inventory_alerts.id_for_label }}">
+                                        <i class="fas fa-box text-warning me-2"></i>
+                                        <strong>{{ form.enable_inventory_alerts.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_inventory_alerts.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_invoice_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_invoice_notifications.id_for_label }}">
+                                        <i class="fas fa-file-invoice text-info me-2"></i>
+                                        <strong>{{ form.enable_invoice_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_invoice_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_payment_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_payment_notifications.id_for_label }}">
+                                        <i class="fas fa-money-bill-wave text-success me-2"></i>
+                                        <strong>{{ form.enable_payment_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_payment_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_return_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_return_notifications.id_for_label }}">
+                                        <i class="fas fa-undo text-danger me-2"></i>
+                                        <strong>{{ form.enable_return_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_return_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_customer_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_customer_notifications.id_for_label }}">
+                                        <i class="fas fa-users text-primary me-2"></i>
+                                        <strong>{{ form.enable_customer_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_customer_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_product_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_product_notifications.id_for_label }}">
+                                        <i class="fas fa-shopping-bag text-secondary me-2"></i>
+                                        <strong>{{ form.enable_product_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_product_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_user_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_user_notifications.id_for_label }}">
+                                        <i class="fas fa-user text-info me-2"></i>
+                                        <strong>{{ form.enable_user_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_user_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-check form-switch">
+                                    {{ form.enable_system_notifications }}
+                                    <label class="form-check-label" for="{{ form.enable_system_notifications.id_for_label }}">
+                                        <i class="fas fa-cog text-dark me-2"></i>
+                                        <strong>{{ form.enable_system_notifications.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.enable_system_notifications.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- طرق الإشعار -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-paper-plane me-2"></i>
+                            طرق الإشعار
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="text-muted mb-3">اختر كيف تريد استلام الإشعارات</p>
+                        
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    {{ form.notify_in_app }}
+                                    <label class="form-check-label" for="{{ form.notify_in_app.id_for_label }}">
+                                        <i class="fas fa-desktop text-primary me-2"></i>
+                                        <strong>{{ form.notify_in_app.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.notify_in_app.help_text }}</small>
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    {{ form.notify_email }}
+                                    <label class="form-check-label" for="{{ form.notify_email.id_for_label }}">
+                                        <i class="fas fa-envelope text-info me-2"></i>
+                                        <strong>{{ form.notify_email.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.notify_email.help_text }}</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="mt-2 email-field" style="{% if not preference.notify_email %}display: none;{% endif %}">
+                                    <label for="{{ form.email_for_notifications.id_for_label }}" class="form-label">
+                                        {{ form.email_for_notifications.label }}
+                                    </label>
+                                    {{ form.email_for_notifications }}
+                                    {% if form.email_for_notifications.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.email_for_notifications.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-12">
+                                <div class="form-check form-switch">
+                                    {{ form.notify_sms }}
+                                    <label class="form-check-label" for="{{ form.notify_sms.id_for_label }}">
+                                        <i class="fas fa-sms text-success me-2"></i>
+                                        <strong>{{ form.notify_sms.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.notify_sms.help_text }}</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="mt-2 sms-field" style="{% if not preference.notify_sms %}display: none;{% endif %}">
+                                    <label for="{{ form.phone_for_notifications.id_for_label }}" class="form-label">
+                                        {{ form.phone_for_notifications.label }}
+                                    </label>
+                                    {{ form.phone_for_notifications }}
+                                    {% if form.phone_for_notifications.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.phone_for_notifications.errors }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- جدولة التنبيهات -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-clock me-2"></i>
+                            جدولة التنبيهات
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.inventory_check_frequency.id_for_label }}" class="form-label">
+                                    <i class="fas fa-box me-1"></i>
+                                    {{ form.inventory_check_frequency.label }}
+                                </label>
+                                {{ form.inventory_check_frequency }}
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <label for="{{ form.invoice_check_frequency.id_for_label }}" class="form-label">
+                                    <i class="fas fa-file-invoice me-1"></i>
+                                    {{ form.invoice_check_frequency.label }}
+                                </label>
+                                {{ form.invoice_check_frequency }}
+                            </div>
+                            
+                            <div class="col-12">
+                                <hr>
+                                <div class="form-check form-switch">
+                                    {{ form.send_daily_summary }}
+                                    <label class="form-check-label" for="{{ form.send_daily_summary.id_for_label }}">
+                                        <strong>{{ form.send_daily_summary.label }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ form.send_daily_summary.help_text }}</small>
+                                    </label>
+                                </div>
+                                
+                                <div class="mt-2 daily-summary-field" style="{% if not preference.send_daily_summary %}display: none;{% endif %}">
+                                    <label for="{{ form.daily_summary_time.id_for_label }}" class="form-label">
+                                        {{ form.daily_summary_time.label }}
+                                    </label>
+                                    {{ form.daily_summary_time }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- حدود التنبيهات -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-sliders-h me-2"></i>
+                            حدود التنبيهات
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <h6 class="mb-3">تنبيهات المخزون</h6>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    {{ form.alert_on_minimum_stock }}
+                                    <label class="form-check-label" for="{{ form.alert_on_minimum_stock.id_for_label }}">
+                                        {{ form.alert_on_minimum_stock.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    {{ form.alert_on_half_minimum }}
+                                    <label class="form-check-label" for="{{ form.alert_on_half_minimum.id_for_label }}">
+                                        {{ form.alert_on_half_minimum.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check form-switch">
+                                    {{ form.alert_on_out_of_stock }}
+                                    <label class="form-check-label" for="{{ form.alert_on_out_of_stock.id_for_label }}">
+                                        {{ form.alert_on_out_of_stock.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h6 class="mb-3">تنبيهات الفواتير المستحقة</h6>
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="{{ form.invoice_due_days_before.id_for_label }}" class="form-label">
+                                    {{ form.invoice_due_days_before.label }}
+                                </label>
+                                {{ form.invoice_due_days_before }}
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mt-4">
+                                    {{ form.alert_on_invoice_due }}
+                                    <label class="form-check-label" for="{{ form.alert_on_invoice_due.id_for_label }}">
+                                        {{ form.alert_on_invoice_due.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="form-check form-switch mt-4">
+                                    {{ form.alert_on_invoice_overdue }}
+                                    <label class="form-check-label" for="{{ form.alert_on_invoice_overdue.id_for_label }}">
+                                        {{ form.alert_on_invoice_overdue.label }}
+                                    </label>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <label for="{{ form.invoice_overdue_days_after.id_for_label }}" class="form-label">
+                                    {{ form.invoice_overdue_days_after.label }}
+                                </label>
+                                {{ form.invoice_overdue_days_after }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- عدم الإزعاج -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-moon me-2"></i>
+                            عدم الإزعاج
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            {{ form.enable_do_not_disturb }}
+                            <label class="form-check-label" for="{{ form.enable_do_not_disturb.id_for_label }}">
+                                <strong>{{ form.enable_do_not_disturb.label }}</strong>
+                                <br>
+                                <small class="text-muted">{{ form.enable_do_not_disturb.help_text }}</small>
+                            </label>
+                        </div>
+                        
+                        <div class="dnd-fields" style="{% if not preference.enable_do_not_disturb %}display: none;{% endif %}">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="{{ form.do_not_disturb_start.id_for_label }}" class="form-label">
+                                        {{ form.do_not_disturb_start.label }}
+                                    </label>
+                                    {{ form.do_not_disturb_start }}
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <label for="{{ form.do_not_disturb_end.id_for_label }}" class="form-label">
+                                        {{ form.do_not_disturb_end.label }}
+                                    </label>
+                                    {{ form.do_not_disturb_end }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- إدارة الإشعارات القديمة -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-trash-alt me-2"></i>
+                            إدارة الإشعارات القديمة
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="form-check form-switch mb-3">
+                            {{ form.auto_delete_read_notifications }}
+                            <label class="form-check-label" for="{{ form.auto_delete_read_notifications.id_for_label }}">
+                                <strong>{{ form.auto_delete_read_notifications.label }}</strong>
+                                <br>
+                                <small class="text-muted">{{ form.auto_delete_read_notifications.help_text }}</small>
+                            </label>
+                        </div>
+                        
+                        <div class="auto-delete-field" style="{% if not preference.auto_delete_read_notifications %}display: none;{% endif %}">
+                            <label for="{{ form.auto_delete_after_days.id_for_label }}" class="form-label">
+                                {{ form.auto_delete_after_days.label }}
+                            </label>
+                            {{ form.auto_delete_after_days }}
+                        </div>
+                        
+                        <hr class="my-3">
+                        
+                        <div class="form-check form-switch mb-3">
+                            {{ form.auto_archive_old_notifications }}
+                            <label class="form-check-label" for="{{ form.auto_archive_old_notifications.id_for_label }}">
+                                <strong>{{ form.auto_archive_old_notifications.label }}</strong>
+                                <br>
+                                <small class="text-muted">{{ form.auto_archive_old_notifications.help_text }}</small>
+                            </label>
+                        </div>
+                        
+                        <div class="auto-archive-field" style="{% if not preference.auto_archive_old_notifications %}display: none;{% endif %}">
+                            <label for="{{ form.auto_archive_after_months.id_for_label }}" class="form-label">
+                                {{ form.auto_archive_after_months.label }}
+                            </label>
+                            {{ form.auto_archive_after_months }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- أزرار الحفظ -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'core:notifications_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>
+                                إلغاء
+                            </a>
+                            
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                حفظ الإعدادات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+        
+        <!-- الشريط الجانبي - الإحصائيات -->
+        <div class="col-lg-4">
+            <!-- إحصائيات الإشعارات -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        إحصائيات الإشعارات
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">آخر 30 يوم</p>
+                    
+                    <div class="stat-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">إجمالي الإشعارات</span>
+                            <strong class="h4 mb-0">{{ total_notifications }}</strong>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar bg-primary" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">المقروءة</span>
+                            <strong class="text-success">{{ read_notifications }}</strong>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar bg-success" style="width: {{ read_percentage }}%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="stat-item mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span class="text-muted">غير المقروءة</span>
+                            <strong class="text-danger">{{ unread_notifications }}</strong>
+                        </div>
+                        <div class="progress" style="height: 5px;">
+                            <div class="progress-bar bg-danger" style="width: {{ 100|add:read_percentage|add:'-100' }}%"></div>
+                        </div>
+                    </div>
+                    
+                    {% if type_stats %}
+                    <hr class="my-3">
+                    <h6 class="mb-3">الأكثر شيوعاً</h6>
+                    {% for stat in type_stats %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="text-muted">{{ stat.label }}</span>
+                        <span class="badge bg-secondary">{{ stat.count }}</span>
+                    </div>
+                    {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- نصائح -->
+            <div class="card shadow-sm mb-4 border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        نصائح
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0 ps-3">
+                        <li class="mb-2">يمكنك تفعيل طرق إشعار متعددة في نفس الوقت</li>
+                        <li class="mb-2">استخدم عدم الإزعاج لتجنب الإشعارات في أوقات الراحة</li>
+                        <li class="mb-2">قم بتفعيل الحذف التلقائي للحفاظ على نظافة قائمة الإشعارات</li>
+                        <li class="mb-0">راجع إحصائيات الإشعارات بانتظام لتحسين تفضيلاتك</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/notification_settings.js' %}"></script>
+{% endblock %}

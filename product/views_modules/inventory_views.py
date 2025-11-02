@@ -455,7 +455,7 @@ def mark_notifications_read(request):
 @login_required
 def abc_analysis_report(request):
     """
-    تقرير تحليل ABC للمنتجات
+    تقرير تحليل ABC للمنتجات - محدّث ✅
     """
     if not AdvancedReportsService:
         messages.error(request, "خدمة التقارير المتقدمة غير متاحة")
@@ -464,6 +464,7 @@ def abc_analysis_report(request):
     # فلاتر البحث
     warehouse_id = request.GET.get("warehouse")
     period_months = int(request.GET.get("period_months", 12))
+    category_id = request.GET.get("category")
 
     warehouse = None
     if warehouse_id:
@@ -475,20 +476,31 @@ def abc_analysis_report(request):
     )
 
     # ترقيم الصفحات
-    products = report_data.get("products", [])
-    paginator = Paginator(products, 50)
+    analysis_data = report_data.get("analysis_data", [])
+    
+    # فلترة حسب التصنيف إذا تم اختياره
+    if category_id:
+        analysis_data = [item for item in analysis_data if item.get('category') == category_id]
+    
+    paginator = Paginator(analysis_data, 50)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
     context = {
-        "page_obj": page_obj,
+        "analysis_data": page_obj,
         "summary": report_data.get("summary", {}),
-        "total_value": report_data.get("total_value", 0),
-        "period": report_data.get("period", ""),
+        "date_from": report_data.get("date_from"),
+        "date_to": report_data.get("date_to"),
         "warehouses": Warehouse.objects.filter(is_active=True),
+        "categories": [
+            {"id": "A", "name": "فئة A - عالية القيمة"},
+            {"id": "B", "name": "فئة B - متوسطة القيمة"},
+            {"id": "C", "name": "فئة C - منخفضة القيمة"},
+        ],
         "filters": {
             "warehouse_id": warehouse_id,
             "period_months": period_months,
+            "category": category_id,
         },
         "error": report_data.get("error"),
     }
@@ -499,465 +511,133 @@ def abc_analysis_report(request):
 @login_required
 def inventory_turnover_report(request):
     """
-    تقرير معدل دوران المخزون - باستخدام البيانات الفعلية
+    تقرير معدل دوران المخزون - محدّث ✅
     """
-    try:
-        # فلاتر البحث
-        warehouse_id = request.GET.get("warehouse")
-        period_months = int(request.GET.get("period_months", 12))
+    if not AdvancedReportsService:
+        messages.error(request, "خدمة التقارير المتقدمة غير متاحة")
+        return redirect("product:inventory_dashboard")
 
-        warehouse = None
-        if warehouse_id:
-            warehouse = get_object_or_404(Warehouse, id=warehouse_id)
+    # فلاتر البحث
+    warehouse_id = request.GET.get("warehouse")
+    period_months = int(request.GET.get("period_months", 12))
+    category_filter = request.GET.get("category")
 
-        # تحديد فترة التحليل
-        end_date = timezone.now().date()
-        start_date = end_date - timedelta(days=period_months * 30)
+    warehouse = None
+    if warehouse_id:
+        warehouse = get_object_or_404(Warehouse, id=warehouse_id)
 
-        # جلب المنتجات مع المخزون
-        products_query = Product.objects.filter(is_active=True)
+    # الحصول على التقرير من الخدمة
+    report_data = AdvancedReportsService.inventory_turnover_analysis(
+        warehouse=warehouse, period_months=period_months
+    )
 
-        if warehouse:
-            products_query = products_query.filter(stocks__warehouse=warehouse)
+    # فلترة حسب التصنيف إذا تم اختياره
+    analysis_data = report_data.get("analysis_data", [])
+    if category_filter:
+        analysis_data = [item for item in analysis_data if item.get('category') == category_filter]
 
-        products_data = []
+    # ترقيم الصفحات
+    paginator = Paginator(analysis_data, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
-        for product in products_query.distinct():
-            # حساب المخزون الحالي
-            if warehouse:
-                current_stock = (
-                    product.stocks.filter(warehouse=warehouse).aggregate(
-                        total=Sum("quantity")
-                    )["total"]
-                    or 0
-                )
-                avg_cost_obj = product.stocks.filter(warehouse=warehouse).first()
-                avg_cost = (
-                    avg_cost_obj.quantity * product.cost_price
-                    if avg_cost_obj
-                    else product.cost_price
-                )
-            else:
-                current_stock = (
-                    product.stocks.aggregate(total=Sum("quantity"))["total"] or 0
-                )
-                avg_cost = product.cost_price
+    context = {
+        "page_obj": page_obj,
+        "analysis_data": page_obj,  # للتوافق
+        "turnover_data": analysis_data,  # للتوافق مع Template القديم
+        "summary": report_data.get("summary", {}),
+        "date_from": report_data.get("date_from"),
+        "date_to": report_data.get("date_to"),
+        "warehouses": Warehouse.objects.filter(is_active=True),
+        "categories": [
+            {"id": "fast", "name": "سريع الدوران"},
+            {"id": "medium", "name": "متوسط الدوران"},
+            {"id": "slow", "name": "بطيء الدوران"},
+            {"id": "stagnant", "name": "راكد"},
+        ],
+        "filters": {
+            "warehouse_id": warehouse_id,
+            "period_months": period_months,
+            "category": category_filter,
+        },
+        "selected_warehouse": warehouse,
+        "error": report_data.get("error"),
+    }
 
-            # حساب تكلفة البضاعة المباعة (COGS)
-            cogs_movements = StockMovement.objects.filter(
-                product=product,
-                movement_type="out",
-                timestamp__date__range=[start_date, end_date],
-            )
-
-            if warehouse:
-                cogs_movements = cogs_movements.filter(warehouse=warehouse)
-
-            # حساب COGS باستخدام تكلفة المنتج
-            total_out_quantity = (
-                cogs_movements.aggregate(total=Sum("quantity"))["total"] or 0
-            )
-            cogs = total_out_quantity * avg_cost
-
-            # متوسط قيمة المخزون (تبسيط: المخزون الحالي × متوسط التكلفة)
-            avg_inventory_value = current_stock * avg_cost
-
-            # حساب معدل الدوران
-            if avg_inventory_value > 0:
-                turnover_ratio = float(cogs / avg_inventory_value)
-            else:
-                turnover_ratio = 0
-
-            # تصنيف معدل الدوران
-            if turnover_ratio >= 6:
-                category = "سريع"
-                category_class = "success"
-            elif turnover_ratio >= 3:
-                category = "متوسط"
-                category_class = "warning"
-            elif turnover_ratio >= 1:
-                category = "بطيء"
-                category_class = "danger"
-            else:
-                category = "راكد"
-                category_class = "dark"
-
-            # حساب أيام التخزين
-            days_in_stock = int(365 / turnover_ratio) if turnover_ratio > 0 else 365
-
-            # إضافة المنتج للتقرير حتى لو لم يكن له مبيعات
-            products_data.append(
-                {
-                    "product": product,
-                    "current_stock": current_stock,
-                    "avg_inventory_value": avg_inventory_value,
-                    "average_inventory": avg_inventory_value,  # للتوافق مع Template
-                    "cogs": cogs,
-                    "turnover_ratio": round(turnover_ratio, 2),
-                    "days_in_stock": days_in_stock,
-                    "category": category,
-                    "category_class": category_class,
-                    "warehouse_name": warehouse.name
-                    if warehouse
-                    else "جميع المخازن",
-                }
-            )
-
-        # ترتيب حسب معدل الدوران (تنازلي)
-        products_data.sort(key=lambda x: x["turnover_ratio"], reverse=True)
-
-        # حساب الإحصائيات
-        if products_data:
-            avg_turnover = sum(p["turnover_ratio"] for p in products_data) / len(
-                products_data
-            )
-            fast_count = len([p for p in products_data if p["category"] == "سريع"])
-            medium_count = len([p for p in products_data if p["category"] == "متوسط"])
-            slow_count = len([p for p in products_data if p["category"] == "بطيء"])
-            stagnant_count = len([p for p in products_data if p["category"] == "راكد"])
-        else:
-            avg_turnover = 0
-            fast_count = medium_count = slow_count = stagnant_count = 0
-
-        summary = {
-            "avg_turnover": round(avg_turnover, 2),
-            "fast_count": fast_count,
-            "medium_count": medium_count,
-            "slow_count": slow_count,
-            "stagnant_count": stagnant_count,
-            "total_products": len(products_data),
-        }
-
-        # ترقيم الصفحات
-        paginator = Paginator(products_data, 25)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
-
-        context = {
-            "page_obj": page_obj,
-            "turnover_data": products_data,  # للتوافق مع Template
-            "summary": summary,
-            "period": f"{start_date} إلى {end_date}",
-            "warehouses": Warehouse.objects.filter(is_active=True),
-            "filters": {
-                "warehouse_id": warehouse_id,
-                "period_months": period_months,
-            },
-            "selected_warehouse": warehouse,
-        }
-
-        return render(request, "product/reports/inventory_turnover.html", context)
-
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل تقرير معدل الدوران: {e}")
-        return redirect("product:product_list")
-
-
-@login_required
-def stock_aging_report(request):
-    """
-    تقرير عمر المخزون - باستخدام البيانات الفعلية
-    """
-    try:
-        # فلاتر البحث
-        warehouse_id = request.GET.get("warehouse")
-
-        warehouse = None
-        if warehouse_id:
-            warehouse = get_object_or_404(Warehouse, id=warehouse_id)
-
-        # جلب المنتجات مع المخزون
-        products_query = Product.objects.filter(is_active=True)
-
-        if warehouse:
-            products_query = products_query.filter(stocks__warehouse=warehouse)
-
-        aging_data = []
-        today = timezone.now().date()
-
-        for product in products_query.distinct():
-            # حساب المخزون الحالي
-            if warehouse:
-                stocks = product.stocks.filter(warehouse=warehouse, quantity__gt=0)
-            else:
-                stocks = product.stocks.filter(quantity__gt=0)
-
-            for stock in stocks:
-                # البحث عن آخر حركة دخول لهذا المنتج
-                last_in_movement = (
-                    StockMovement.objects.filter(
-                        product=product, warehouse=stock.warehouse, movement_type="in"
-                    )
-                    .order_by("-timestamp")
-                    .first()
-                )
-
-                # حساب عمر المخزون
-                if last_in_movement:
-                    entry_date = last_in_movement.timestamp.date()
-                    age_days = (today - entry_date).days
-                else:
-                    # إذا لم توجد حركة، استخدم تاريخ إنشاء المنتج
-                    entry_date = product.created_at.date()
-                    age_days = (today - entry_date).days
-
-                # تحديد فئة العمر
-                if age_days <= 30:
-                    age_category = "جديد"
-                    category_class = "success"
-                elif age_days <= 90:
-                    age_category = "جيد"
-                    category_class = "info"
-                elif age_days <= 180:
-                    age_category = "تحذير"
-                    category_class = "warning"
-                elif age_days <= 365:
-                    age_category = "خطر"
-                    category_class = "danger"
-                else:
-                    age_category = "حرج"
-                    category_class = "dark"
-
-                # حساب تاريخ انتهاء الصلاحية (افتراضي: سنة من تاريخ الدخول)
-                expiry_date = entry_date + timedelta(days=365) if entry_date else None
-                days_until_expiry = (expiry_date - today).days if expiry_date else None
-
-                # قيمة المخزون
-                total_value = stock.quantity * product.cost_price
-
-                aging_data.append(
-                    {
-                        "product": product,
-                        "warehouse": stock.warehouse,
-                        "quantity": stock.quantity,
-                        "entry_date": entry_date,
-                        "age_days": age_days,
-                        "expiry_date": expiry_date,
-                        "days_until_expiry": days_until_expiry,
-                        "total_value": total_value,
-                        "age_category": age_category,
-                        "category_class": category_class,
-                    }
-                )
-
-        # ترتيب حسب عمر المخزون (تنازلي)
-        aging_data.sort(key=lambda x: x["age_days"], reverse=True)
-
-        # حساب الإحصائيات
-        if aging_data:
-            fresh_count = len(
-                [item for item in aging_data if item["age_category"] == "جديد"]
-            )
-            good_count = len(
-                [item for item in aging_data if item["age_category"] == "جيد"]
-            )
-            warning_count = len(
-                [item for item in aging_data if item["age_category"] == "تحذير"]
-            )
-            danger_count = len(
-                [item for item in aging_data if item["age_category"] == "خطر"]
-            )
-            critical_count = len(
-                [item for item in aging_data if item["age_category"] == "حرج"]
-            )
-
-            total_value = sum(item["total_value"] for item in aging_data)
-            critical_value = sum(
-                item["total_value"]
-                for item in aging_data
-                if item["age_category"] == "حرج"
-            )
-        else:
-            fresh_count = good_count = warning_count = danger_count = critical_count = 0
-            total_value = critical_value = 0
-
-        summary = {
-            "fresh_count": fresh_count,
-            "good_count": good_count,
-            "warning_count": warning_count,
-            "danger_count": danger_count,
-            "critical_count": critical_count,
-            "total_items": len(aging_data),
-            "total_value": total_value,
-            "critical_value": critical_value,
-            "critical_percentage": round((critical_value / total_value * 100), 2)
-            if total_value > 0
-            else 0,
-        }
-
-        # ترقيم الصفحات
-        paginator = Paginator(aging_data, 25)
-        page_number = request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
-
-        context = {
-            "page_obj": page_obj,
-            "aging_data": aging_data,  # للرسوم البيانية
-            "summary": summary,
-            "warehouses": Warehouse.objects.filter(is_active=True),
-            "filters": {
-                "warehouse_id": warehouse_id,
-            },
-            "selected_warehouse": warehouse,
-        }
-
-        return render(request, "product/reports/stock_aging.html", context)
-
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل تقرير عمر المخزون: {e}")
-        return redirect("product:product_list")
+    return render(request, "product/reports/inventory_turnover.html", context)
 
 
 @login_required
 def reorder_point_report(request):
     """
-    تقرير نقاط إعادة الطلب - باستخدام البيانات الفعلية
+    تقرير نقاط إعادة الطلب - محدّث ✅
     """
-    try:
-        # فلاتر البحث
-        warehouse_id = request.GET.get("warehouse")
+    if not AdvancedReportsService:
+        messages.error(request, "خدمة التقارير المتقدمة غير متاحة")
+        return redirect("product:inventory_dashboard")
 
-        warehouse = None
-        if warehouse_id:
-            warehouse = get_object_or_404(Warehouse, id=warehouse_id)
+    # فلاتر البحث
+    warehouse_id = request.GET.get("warehouse")
+    analysis_days = int(request.GET.get("analysis_days", 30))
+    lead_time_days = int(request.GET.get("lead_time_days", 7))
+    safety_stock_days = int(request.GET.get("safety_stock_days", 3))
+    status_filter = request.GET.get("status")
 
-        # جلب المنتجات مع المخزون
-        products_query = Product.objects.filter(is_active=True)
+    warehouse = None
+    if warehouse_id:
+        warehouse = get_object_or_404(Warehouse, id=warehouse_id)
 
-        if warehouse:
-            products_query = products_query.filter(stocks__warehouse=warehouse)
+    # الحصول على التقرير من الخدمة
+    report_data = AdvancedReportsService.reorder_point_analysis(
+        warehouse=warehouse,
+        analysis_days=analysis_days,
+        lead_time_days=lead_time_days,
+        safety_stock_days=safety_stock_days
+    )
 
-        products_data = []
+    # فلترة حسب الحالة إذا تم اختيارها
+    analysis_data = report_data.get("analysis_data", [])
+    if status_filter:
+        analysis_data = [item for item in analysis_data if item.get('status') == status_filter]
 
-        for product in products_query.distinct():
-            # حساب إجمالي المخزون
-            if warehouse:
-                current_stock = (
-                    product.stocks.filter(warehouse=warehouse).aggregate(
-                        total=Sum("quantity")
-                    )["total"]
-                    or 0
-                )
-            else:
-                current_stock = (
-                    product.stocks.aggregate(total=Sum("quantity"))["total"] or 0
-                )
+    # ترقيم الصفحات
+    paginator = Paginator(analysis_data, 25)
+    page_number = request.GET.get("page")
+    page_obj = paginator.get_page(page_number)
 
-            # حساب متوسط الاستهلاك من حركات المخزون (آخر 30 يوم)
-            thirty_days_ago = timezone.now().date() - timedelta(days=30)
+    # فصل البيانات للعرض السريع
+    critical_items = [p for p in analysis_data if p["status"] == "out_of_stock"][:5]
+    low_stock_items = [p for p in analysis_data if p["status"] == "need_reorder"][:5]
 
-            consumption = (
-                StockMovement.objects.filter(
-                    product=product,
-                    movement_type="out",
-                    timestamp__date__gte=thirty_days_ago,
-                ).aggregate(total=Sum("quantity"))["total"]
-                or 0
-            )
+    context = {
+        "page_obj": page_obj,
+        "analysis_data": page_obj,  # للتوافق
+        "reorder_data": analysis_data,  # للتوافق مع Template القديم
+        "summary": report_data.get("summary", {}),
+        "critical_items": critical_items,
+        "low_stock_items": low_stock_items,
+        "analysis_days": analysis_days,
+        "lead_time_days": lead_time_days,
+        "safety_stock_days": safety_stock_days,
+        "warehouses": Warehouse.objects.filter(is_active=True),
+        "statuses": [
+            {"id": "out_of_stock", "name": "نفد المخزون"},
+            {"id": "need_reorder", "name": "يحتاج طلب"},
+            {"id": "under_watch", "name": "مراقبة"},
+            {"id": "normal", "name": "طبيعي"},
+        ],
+        "filters": {
+            "warehouse_id": warehouse_id,
+            "analysis_days": analysis_days,
+            "lead_time_days": lead_time_days,
+            "safety_stock_days": safety_stock_days,
+            "status": status_filter,
+        },
+        "selected_warehouse": warehouse,
+        "error": report_data.get("error"),
+    }
 
-            daily_consumption = consumption / 30 if consumption > 0 else 0
-
-            # حساب نقطة إعادة الطلب
-            lead_time_days = 7  # مهلة التوريد
-            safety_days = 3  # مخزون الأمان
-            reorder_point = daily_consumption * (lead_time_days + safety_days)
-
-            # تحديد الحالة
-            if current_stock <= 0:
-                status = "نفد المخزون"
-                urgency = "critical"
-            elif current_stock <= reorder_point:
-                status = "يحتاج طلب"
-                urgency = "high"
-            elif current_stock <= reorder_point * 1.5:
-                status = "مراقبة"
-                urgency = "medium"
-            else:
-                status = "طبيعي"
-                urgency = "low"
-
-            # الكمية المقترحة للطلب
-            suggested_qty = (
-                max(0, (daily_consumption * 30) - current_stock)
-                if daily_consumption > 0
-                else 0
-            )
-
-            # الأيام المتبقية
-            days_remaining = (
-                int(current_stock / daily_consumption) if daily_consumption > 0 else 999
-            )
-
-            # إضافة البيانات مع جميع الحقول المطلوبة للـ template
-            item_data = {
-                "product": product,
-                "current_stock": current_stock,
-                "reorder_point": round(reorder_point, 1),
-                "daily_consumption": round(daily_consumption, 2),
-                "suggested_quantity": round(suggested_qty, 1),
-                "days_remaining": days_remaining,
-                "status": status,
-                "urgency": urgency,
-                "warehouse_name": warehouse.name if warehouse else "جميع المخازن",
-                # حقول إضافية للتوافق مع Template
-                "max_stock": current_stock * 2,  # افتراضي
-                "stock_percentage": min(
-                    100, (current_stock / max(reorder_point * 2, 1)) * 100
-                ),
-                "days_supply": days_remaining if days_remaining < 999 else None,
-                "reorder_point_threshold": reorder_point * 1.5,
-                "unit": product.unit if hasattr(product, "unit") else None,
-                "supplier": None,
-            }
-
-            products_data.append(item_data)
-
-        # ترتيب حسب الأولوية
-        products_data.sort(
-            key=lambda x: (
-                0
-                if x["urgency"] == "critical"
-                else 1
-                if x["urgency"] == "high"
-                else 2
-                if x["urgency"] == "medium"
-                else 3,
-                x["days_remaining"],
-            )
-        )
-
-        # حساب الإحصائيات
-        summary = {
-            "critical_count": len(
-                [p for p in products_data if p["urgency"] == "critical"]
-            ),
-            "low_count": len([p for p in products_data if p["urgency"] == "high"]),
-            "watch_count": len([p for p in products_data if p["urgency"] == "medium"]),
-            "normal_count": len([p for p in products_data if p["urgency"] == "low"]),
-            "total_products": len(products_data),
-        }
-
-        # فصل البيانات للعرض السريع
-        critical_items = [p for p in products_data if p["urgency"] == "critical"][:5]
-        low_stock_items = [p for p in products_data if p["urgency"] == "high"][:5]
-
-        context = {
-            "reorder_data": products_data,
-            "summary": summary,
-            "critical_items": critical_items,
-            "low_stock_items": low_stock_items,
-            "warehouses": Warehouse.objects.filter(is_active=True),
-            "filters": {
-                "warehouse_id": warehouse_id,
-            },
-            "selected_warehouse": warehouse,
-        }
-
-        return render(request, "product/reports/reorder_point.html", context)
-
-    except Exception as e:
-        messages.error(request, f"خطأ في تحميل تقرير نقاط إعادة الطلب: {e}")
-        return redirect("product:product_list")
+    return render(request, "product/reports/reorder_point.html", context)
 
 
 # تم تعطيل نظام الحجوزات - غير مطلوب في النظام التجاري

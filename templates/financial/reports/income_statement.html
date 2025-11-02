@@ -154,14 +154,15 @@
   
   .account-balance {
     font-weight: 600;
-    color: #28a745;
+    color: var(--success-color);
+    font-family: 'Tajawal', sans-serif;
   }
   
   .total-row {
-    background: linear-gradient(45deg, #0d6efd, #198754);
+    background-color: var(--primary-color);
     color: white;
     font-weight: 700;
-    font-size: 1.1rem;
+    font-size: 1.05rem;
     border: none;
     margin-top: 1rem;
   }
@@ -171,14 +172,14 @@
   }
   
   .final-row {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: var(--primary-color);
     color: white;
     font-weight: 700;
-    font-size: 1.2rem;
-    border-radius: 12px;
+    font-size: 1.15rem;
+    border-radius: var(--border-radius);
     padding: 1.5rem;
     margin-top: 2rem;
-    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   }
   
   .profit {
@@ -250,7 +251,7 @@
               </div>
           </div>
           <div>
-              <button type="button" class="btn btn-success" onclick="window.print()">
+              <button type="button" class="btn btn-outline-success" onclick="window.print()">
                   <i class="fas fa-print me-2"></i>{% trans "طباعة" %}
               </button>
           </div>
@@ -272,14 +273,12 @@
           <input type="date" class="form-control" id="date_to" name="date_to" 
                  value="{{ date_to|date:'Y-m-d' }}">
         </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary w-100">
-            <i class="fas fa-search me-2"></i>{% trans "عرض" %}
+        <div class="col-md-3 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض' %}">
+            <i class="fas fa-search"></i>
           </button>
-        </div>
-        <div class="col-md-3 d-flex align-items-end">
-          <a href="{% url 'financial:income_statement' %}" class="btn btn-secondary w-100">
-            <i class="fas fa-calendar-alt me-2"></i>{% trans "الشهر الحالي" %}
+          <a href="{% url 'financial:income_statement' %}" class="btn btn-outline-secondary flex-fill" title="{% trans 'الشهر الحالي' %}">
+            <i class="fas fa-calendar-alt"></i>
           </a>
         </div>
       </form>
@@ -298,8 +297,8 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ total_income|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ income_statement_data.total_revenue|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -311,21 +310,21 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
-            <div class="stats-card-value">{{ total_expense|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ income_statement_data.total_expense|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
       <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card {% if net_income >= 0 %}stats-card-primary{% else %}stats-card-warning{% endif %}">
+        <div class="stats-card {% if income_statement_data.is_profit %}stats-card-primary{% else %}stats-card-warning{% endif %}">
           <div class="stats-card-header"></div>
           <div class="stats-card-body">
             <div class="stats-card-icon">
-              <i class="fas fa-{% if net_income >= 0 %}chart-line{% else %}chart-line-down{% endif %}"></i>
+              <i class="fas fa-{% if income_statement_data.is_profit %}chart-line{% else %}chart-line-down{% endif %}"></i>
             </div>
             <div class="stats-card-title">{% trans "صافي الربح/الخسارة" %}</div>
-            <div class="stats-card-value">{{ net_income|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ income_statement_data.net_income|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -371,8 +370,8 @@
           <div class="col-md-6">
             <div class="income-statement-section">
               <h5 class="income-statement-title">{% trans "الإيرادات" %}</h5>
-              {% if income_items %}
-                {% for item in income_items %}
+              {% if income_statement_data.revenues %}
+                {% for item in income_statement_data.revenues %}
                 <div class="account-row">
                   <span class="account-name">{{ item.account.name }}</span>
                   <span class="account-balance">{{ item.amount|currency }}</span>
@@ -380,7 +379,7 @@
                 {% endfor %}
                 <div class="account-row total-row">
                   <span>{% trans "إجمالي الإيرادات" %}</span>
-                  <span>{{ total_income|currency }}</span>
+                  <span>{{ income_statement_data.total_revenue|currency }}</span>
                 </div>
               {% else %}
                 <div class="empty-state">
@@ -398,8 +397,8 @@
           <div class="col-md-6">
             <div class="income-statement-section">
               <h5 class="income-statement-title">{% trans "المصروفات" %}</h5>
-              {% if expense_items %}
-                {% for item in expense_items %}
+              {% if income_statement_data.expenses %}
+                {% for item in income_statement_data.expenses %}
                 <div class="account-row">
                   <span class="account-name">{{ item.account.name }}</span>
                   <span class="account-balance">{{ item.amount|currency }}</span>
@@ -407,7 +406,7 @@
                 {% endfor %}
                 <div class="account-row total-row">
                   <span>{% trans "إجمالي المصروفات" %}</span>
-                  <span>{{ total_expense|currency }}</span>
+                  <span>{{ income_statement_data.total_expense|currency }}</span>
                 </div>
               {% else %}
                 <div class="text-center text-muted py-3">
@@ -422,8 +421,8 @@
         <div class="final-row">
           <div class="account-row">
             <span>{% trans "صافي الربح (الخسارة)" %}</span>
-            <span class="{% if net_income >= 0 %}profit{% else %}loss{% endif %}">
-              {{ net_income|currency }}
+            <span class="{% if income_statement_data.is_profit %}profit{% else %}loss{% endif %}">
+              {{ income_statement_data.net_income|currency }}
             </span>
           </div>
         </div>
@@ -472,23 +471,23 @@
       
       // الإيرادات
       csvContent += 'الإيرادات\n';
-      {% if income_items %}
-        {% for item in income_items %}
+      {% if income_statement_data.revenues %}
+        {% for item in income_statement_data.revenues %}
           csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
         {% endfor %}
-        csvContent += '"إجمالي الإيرادات","{{ total_income|currency }}"\n\n';
+        csvContent += '"إجمالي الإيرادات","{{ income_statement_data.total_revenue|currency }}"\n\n';
       {% endif %}
       
       // المصروفات
       csvContent += 'المصروفات\n';
-      {% if expense_items %}
-        {% for item in expense_items %}
+      {% if income_statement_data.expenses %}
+        {% for item in income_statement_data.expenses %}
           csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
         {% endfor %}
-        csvContent += '"إجمالي المصروفات","{{ total_expense|currency }}"\n\n';
+        csvContent += '"إجمالي المصروفات","{{ income_statement_data.total_expense|currency }}"\n\n';
       {% endif %}
       
-      csvContent += '"صافي الربح (الخسارة)","{{ net_income|currency }}"\n';
+      csvContent += '"صافي الربح (الخسارة)","{{ income_statement_data.net_income|currency }}"\n';
       
       // تحميل الملف
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -519,25 +518,25 @@
       
       // الإيرادات
       data.push(['الإيرادات']);
-      {% if income_items %}
-        {% for item in income_items %}
+      {% if income_statement_data.revenues %}
+        {% for item in income_statement_data.revenues %}
           data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
         {% endfor %}
-        data.push(['إجمالي الإيرادات', '{{ total_income|currency }}']);
+        data.push(['إجمالي الإيرادات', '{{ income_statement_data.total_revenue|currency }}']);
       {% endif %}
       data.push([]);
       
       // المصروفات
       data.push(['المصروفات']);
-      {% if expense_items %}
-        {% for item in expense_items %}
+      {% if income_statement_data.expenses %}
+        {% for item in income_statement_data.expenses %}
           data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
         {% endfor %}
-        data.push(['إجمالي المصروفات', '{{ total_expense|currency }}']);
+        data.push(['إجمالي المصروفات', '{{ income_statement_data.total_expense|currency }}']);
       {% endif %}
       data.push([]);
       
-      data.push(['صافي الربح (الخسارة)', '{{ net_income|currency }}']);
+      data.push(['صافي الربح (الخسارة)', '{{ income_statement_data.net_income|currency }}']);
       
       // إنشاء ملف Excel
       const ws = XLSX.utils.aoa_to_sheet(data);
@@ -599,12 +598,12 @@
     // بيانات الإيرادات
     const incomeData = {
       labels: [
-        {% for item in income_items %}
+        {% for item in income_statement_data.revenues %}
           '{{ item.account.name|escapejs }}',
         {% endfor %}
       ],
       values: [
-        {% for item in income_items %}
+        {% for item in income_statement_data.revenues %}
           {{ item.amount|default:0 }},
         {% endfor %}
       ]
@@ -613,12 +612,12 @@
     // بيانات المصروفات
     const expenseData = {
       labels: [
-        {% for item in expense_items %}
+        {% for item in income_statement_data.expenses %}
           '{{ item.account.name|escapejs }}',
         {% endfor %}
       ],
       values: [
-        {% for item in expense_items %}
+        {% for item in income_statement_data.expenses %}
           {{ item.amount|default:0 }},
         {% endfor %}
       ]

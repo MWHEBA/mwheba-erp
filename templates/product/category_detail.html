@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ category.name }}{% endblock %}
 
@@ -136,14 +137,14 @@
                                         <a href="{% url 'product:product_detail' product.pk %}">{{ product.name }}</a>
                                     </td>
                                     <td class="text-center"><code>{{ product.sku }}</code></td>
-                                    <td class="text-center">{{ product.selling_price|custom_number_format }}</td>
+                                    <td class="text-center">{{ product.selling_price|smart_float }}</td>
                                     <td class="text-center">
                                         {% if product.current_stock <= 0 %}
-                                        <span class="badge bg-danger">{{ product.current_stock|custom_number_format }}</span>
+                                        <span class="badge bg-danger">{{ product.current_stock|smart_float }}</span>
                                         {% elif product.current_stock < product.min_stock %}
-                                        <span class="badge bg-warning">{{ product.current_stock|custom_number_format }}</span>
+                                        <span class="badge bg-warning">{{ product.current_stock|smart_float }}</span>
                                         {% else %}
-                                        <span class="badge bg-success">{{ product.current_stock|custom_number_format }}</span>
+                                        <span class="badge bg-success">{{ product.current_stock|smart_float }}</span>
                                         {% endif %}
                                     </td>
                                     <td class="text-center">

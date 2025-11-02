@@ -220,26 +220,10 @@ class PaymentIntegrationService:
                     f"استخدام حساب العميل المحدد: {customer_account.code} - {customer_account.name}"
                 )
             else:
-                # إذا لم يكن للعميل حساب محدد، استخدم الحساب العام
-                customer_account_code = cls.DEFAULT_ACCOUNTS["accounts_receivable"]
-                try:
-                    customer_account = ChartOfAccounts.objects.get(
-                        code=customer_account_code, is_active=True
-                    )
-                except ChartOfAccounts.DoesNotExist:
-                    logger.warning(
-                        f"حساب العملاء {customer_account_code} غير موجود - سيتم استخدام حساب بديل"
-                    )
-                    # محاولة إيجاد أي حساب عملاء
-                    customer_account = ChartOfAccounts.objects.filter(
-                        name__icontains="عميل",
-                        is_active=True,
-                        is_leaf=True,  # التأكد من أنه حساب نهائي
-                    ).first()
-                    if not customer_account:
-                        raise PaymentIntegrationError(
-                            f"لا يوجد حساب عملاء نشط ونهائي في النظام"
-                        )
+                # إذا لم يكن للعميل حساب محدد، رفض العملية
+                error_msg = f"❌ العميل {customer.name} ليس له حساب محاسبي. يجب إنشاء حساب محاسبي للعميل أولاً."
+                logger.error(error_msg)
+                raise PaymentIntegrationError(error_msg)
 
             # التحقق من أن الحساب يمكن إدراج قيود عليه
             if not customer_account.can_post_entries():
@@ -269,26 +253,10 @@ class PaymentIntegrationService:
                     f"استخدام حساب المورد المحدد: {supplier_account.code} - {supplier_account.name}"
                 )
             else:
-                # إذا لم يكن للمورد حساب محدد، استخدم الحساب العام
-                supplier_account_code = cls.DEFAULT_ACCOUNTS["accounts_payable"]
-                try:
-                    supplier_account = ChartOfAccounts.objects.get(
-                        code=supplier_account_code, is_active=True
-                    )
-                except ChartOfAccounts.DoesNotExist:
-                    logger.warning(
-                        f"حساب الموردين {supplier_account_code} غير موجود - سيتم استخدام حساب بديل"
-                    )
-                    # محاولة إيجاد أي حساب موردين
-                    supplier_account = ChartOfAccounts.objects.filter(
-                        name__icontains="مورد",
-                        is_active=True,
-                        is_leaf=True,  # التأكد من أنه حساب نهائي
-                    ).first()
-                    if not supplier_account:
-                        raise PaymentIntegrationError(
-                            f"لا يوجد حساب موردين نشط ونهائي في النظام"
-                        )
+                # إذا لم يكن للمورد حساب محدد، رفض العملية
+                error_msg = f"❌ المورد {supplier.name} ليس له حساب محاسبي. يجب إنشاء حساب محاسبي للمورد أولاً."
+                logger.error(error_msg)
+                raise PaymentIntegrationError(error_msg)
 
             # التحقق من أن الحساب يمكن إدراج قيود عليه
             if not supplier_account.can_post_entries():

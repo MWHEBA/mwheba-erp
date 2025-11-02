@@ -88,7 +88,7 @@
                         <td>
                             <span class="text-info">
                                 <i class="fas fa-ruler me-1"></i>
-                                {{ sheet_size.width_cm|remove_trailing_zeros }} × {{ sheet_size.height_cm|remove_trailing_zeros }}
+                                {{ sheet_size.width_cm|smart_float }} × {{ sheet_size.height_cm|smart_float }}
                             </span>
                         </td>
                         <td>

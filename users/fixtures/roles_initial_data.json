@@ -1,0 +1,119 @@
+[
+    {
+        "model": "users.role",
+        "pk": 1,
+        "fields": {
+            "name": "admin",
+            "display_name": "مدير النظام",
+            "description": "صلاحيات كاملة على جميع أجزاء النظام",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 2,
+        "fields": {
+            "name": "accountant",
+            "display_name": "محاسب",
+            "description": "إدارة الحسابات والقيود المحاسبية والتقارير المالية",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 3,
+        "fields": {
+            "name": "sales_manager",
+            "display_name": "مدير مبيعات",
+            "description": "إدارة المبيعات والعملاء والفواتير",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 4,
+        "fields": {
+            "name": "purchase_manager",
+            "display_name": "مدير مشتريات",
+            "description": "إدارة المشتريات والموردين وفواتير الشراء",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 5,
+        "fields": {
+            "name": "warehouse_manager",
+            "display_name": "أمين مخزن",
+            "description": "إدارة المخزون والمنتجات وحركات المخزن",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 6,
+        "fields": {
+            "name": "sales_rep",
+            "display_name": "مندوب مبيعات",
+            "description": "إنشاء فواتير المبيعات والتعامل مع العملاء",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 7,
+        "fields": {
+            "name": "printing_manager",
+            "display_name": "مسؤول طباعة",
+            "description": "إدارة طلبات الطباعة والتسعير وإعدادات الطباعة",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 8,
+        "fields": {
+            "name": "general_coordinator",
+            "display_name": "منسق عام",
+            "description": "التنسيق بين الأقسام المختلفة ومتابعة سير العمل",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    },
+    {
+        "model": "users.role",
+        "pk": 9,
+        "fields": {
+            "name": "viewer",
+            "display_name": "مراجع (قراءة فقط)",
+            "description": "عرض البيانات والتقارير بدون صلاحيات تعديل",
+            "is_system_role": true,
+            "is_active": true,
+            "created_at": "2025-01-01T00:00:00Z",
+            "updated_at": "2025-01-01T00:00:00Z"
+        }
+    }
+]

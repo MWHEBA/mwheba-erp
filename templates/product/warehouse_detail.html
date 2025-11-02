@@ -229,7 +229,7 @@
                                     <small class="text-muted">#{{ movement.reference_number }}</small>
                                 </div>
                                 <div class="text-end">
-                                    <div class="fw-bold">{{ movement.quantity|remove_trailing_zeros }}</div>
+                                    <div class="fw-bold">{{ movement.quantity|smart_float }}</div>
                                     <small class="text-muted">{{ movement.timestamp|date:"d-m-Y H:i" }}</small>
                                 </div>
                             </div>

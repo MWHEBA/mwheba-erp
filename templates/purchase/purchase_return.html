@@ -3,6 +3,7 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -162,7 +163,7 @@
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                             {{ item.product.name }}
                                         </td>
-                                        <td>{{ item.quantity|custom_number_format }}</td>
+                                        <td>{{ item.quantity|smart_float }}</td>
                                         <td>
                                             <input type="number" name="return_quantity" class="form-control return-quantity-input" 
                                                    min="0" max="{{ item.quantity }}" value="0">

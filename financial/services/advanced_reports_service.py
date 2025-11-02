@@ -603,7 +603,13 @@ class AdvancedReportsService:
         total_balance = Decimal("0")
 
         for period_key, days_from, days_to, period_name in aging_periods:
-            period_from = as_of_date - timedelta(days=days_to)
+            # تجنب الأخطاء في التواريخ الكبيرة جداً
+            if days_to >= 999999:
+                # للفترة الأخيرة، نستخدم تاريخ بعيد جداً (10 سنوات)
+                period_from = as_of_date - timedelta(days=3650)
+            else:
+                period_from = as_of_date - timedelta(days=days_to)
+            
             period_to = as_of_date - timedelta(days=days_from)
 
             balance = EnhancedBalanceService.get_account_balance_optimized(

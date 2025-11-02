@@ -1,7 +1,7 @@
 from django import template
 from django.template.defaultfilters import floatformat
 from django.utils.safestring import mark_safe
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 register = template.Library()
 
@@ -74,12 +74,23 @@ def percentage(value, arg):
 @register.filter
 def currency(value):
     """تنسيق العملة"""
-    if value is None:
+    if value is None or value == '':
         return "0.00"
     try:
-        value = Decimal(str(value))
-        return f"{value:,.2f}"
-    except (ValueError, TypeError):
+        # تحويل آمن لـ Decimal
+        if isinstance(value, Decimal):
+            return f"{value:,.2f}"
+        elif isinstance(value, (int, float)):
+            value = Decimal(str(value))
+            return f"{value:,.2f}"
+        else:
+            # محاولة تحويل النص
+            value_str = str(value).strip()
+            if not value_str or value_str == 'None':
+                return "0.00"
+            value = Decimal(value_str)
+            return f"{value:,.2f}"
+    except (ValueError, TypeError, InvalidOperation):
         return "0.00"
 
 
@@ -319,16 +330,13 @@ def currency_format(value, decimal_places=2):
             # رقم صحيح - عرض بدون علامة عشرية
             formatted = f"{int(decimal_value):,}"
         else:
-            # رقم عشري - عرض مع العلامة العشرية
+            # رقم عشري - عرض مع العلامة العشرية (منزلتين ثابتة)
             if decimal_places == 0:
                 # إذا طُلب عدم عرض أي منازل عشرية
                 formatted = f"{int(decimal_value):,}"
             else:
-                # عرض المنازل العشرية المطلوبة مع إزالة الأصفار الزائدة
+                # عرض المنازل العشرية المطلوبة بدون إزالة الأصفار
                 formatted_float = f"{float(decimal_value):.{decimal_places}f}"
-                # إزالة الأصفار الزائدة من النهاية
-                if '.' in formatted_float:
-                    formatted_float = formatted_float.rstrip('0').rstrip('.')
                 # إضافة فواصل الآلاف
                 if '.' in formatted_float:
                     integer_part, decimal_part = formatted_float.split('.')
