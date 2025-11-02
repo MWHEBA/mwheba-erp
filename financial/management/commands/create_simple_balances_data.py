@@ -47,12 +47,12 @@ class Command(BaseCommand):
         
         # الحصول على الحسابات
         try:
-            # حسابات الأصول (سنستخدمها للذمم المدينة)
+            # حسابات الأصول (سنستخدمها لأرصدة العملاء)
             asset_accounts = list(ChartOfAccounts.objects.filter(
                 account_type__category='asset'
             )[:5])  # أول 5 حسابات
             
-            # حسابات الخصوم (سنستخدمها للذمم الدائنة)
+            # حسابات الخصوم (سنستخدمها لأرصدة الموردين)
             liability_accounts = list(ChartOfAccounts.objects.filter(
                 account_type__category='liability'
             )[:5])  # أول 5 حسابات

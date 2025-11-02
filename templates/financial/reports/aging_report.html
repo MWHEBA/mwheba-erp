@@ -6,7 +6,7 @@
 
 {% block extra_css %}
 <style>
-    .aging-filters {
+    .balances-filters {
         background: white;
         padding: 1.5rem;
         border-radius: 8px;
@@ -14,19 +14,19 @@
         margin-bottom: 1.5rem;
     }
     
-    .aging-table {
+    .balances-table {
         background: white;
         border-radius: 8px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         overflow: hidden;
     }
     
-    .aging-table table {
+    .balances-table table {
         width: 100%;
         margin: 0;
     }
     
-    .aging-table th {
+    .balances-table th {
         background: var(--primary-color);
         color: white;
         padding: 1rem;
@@ -34,17 +34,17 @@
         font-weight: 600;
     }
     
-    .aging-table td {
+    .balances-table td {
         padding: 0.75rem 1rem;
         text-align: center;
         border-bottom: 1px solid #eee;
     }
     
-    .aging-table tbody tr:hover {
+    .balances-table tbody tr:hover {
         background: #f8f9fa;
     }
     
-    .aging-summary {
+    .balances-summary {
         background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
         color: white;
         padding: 1.5rem;
@@ -154,13 +154,13 @@
     </div>
     
     <!-- الفلاتر -->
-    <div class="aging-filters">
+    <div class="balances-filters">
         <div class="row g-3">
             <div class="col-md-3">
                 <label class="form-label">{% trans "نوع التقرير" %}</label>
                 <select id="reportType" class="form-select">
-                    <option value="customers">{% trans "أعمار ذمم العملاء" %}</option>
-                    <option value="suppliers">{% trans "أعمار ذمم الموردين" %}</option>
+                    <option value="customers">{% trans "أرصدة العملاء" %}</option>
+                    <option value="suppliers">{% trans "أرصدة الموردين" %}</option>
                 </select>
             </div>
             
@@ -199,8 +199,8 @@
     </div>
     
     <!-- الملخص -->
-    <div id="summarySection" class="aging-summary" style="display: none;">
-        <h5 class="mb-3">{% trans "ملخص أعمار الذمم" %}</h5>
+    <div id="summarySection" class="balances-summary" style="display: none;">
+        <h5 class="mb-3">{% trans "ملخص الأرصدة" %}</h5>
         <div class="row g-3">
             <div class="col-md-2">
                 <div class="summary-card">
@@ -242,7 +242,7 @@
     </div>
     
     <!-- الجدول -->
-    <div id="tableSection" class="aging-table" style="display: none;">
+    <div id="tableSection" class="balances-table" style="display: none;">
         <table>
             <thead>
                 <tr>
@@ -308,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingOverlay.classList.add('active');
         
         // بناء URL
-        let url = `/financial/api/aging-report/?type=${type}&date=${date}`;
+        let url = `/financial/api/balances-report/?type=${type}&date=${date}`;
         if (entityId) {
             url += `&entity_id=${entityId}`;
         }
