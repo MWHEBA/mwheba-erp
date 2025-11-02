@@ -130,7 +130,10 @@ boto3==1.35.80
 # DEPENDENCIES (Auto-installed by above packages)
 # ==============================================================================
 annotated-types==0.7.0
-Brotli==1.1.0
+# Brotli - SECURITY WARNING: Version 1.1.0 has CVE vulnerability (decompression bomb DoS)
+# Keep at 1.1.0 until 1.2.0 is released on PyPI, then upgrade immediately
+# Mitigation: Avoid decompressing untrusted Brotli data from external sources
+Brotli==1.1.0  # TODO: Upgrade to >=1.2.0 when available on PyPI
 cffi==1.17.1
 charset-normalizer==3.4.1
 click==8.1.8
