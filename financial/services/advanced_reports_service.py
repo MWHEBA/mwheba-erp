@@ -591,18 +591,18 @@ class AdvancedReportsService:
         except ChartOfAccounts.DoesNotExist:
             return {"error": f"الحساب {base_account_code} غير موجود"}
 
-        # تحليل الأعمار
-        aging_periods = [
+        # تحليل فترات الاستحقاق
+        due_periods = [
             ("current", 0, 30, "جاري"),
             ("30_60", 31, 60, "31-60 يوم"),
             ("60_90", 61, 90, "61-90 يوم"),
             ("over_90", 91, 999999, "أكثر من 90 يوم"),
         ]
 
-        aging_data = {}
+        due_data = {}
         total_balance = Decimal("0")
 
-        for period_key, days_from, days_to, period_name in aging_periods:
+        for period_key, days_from, days_to, period_name in due_periods:
             # تجنب الأخطاء في التواريخ الكبيرة جداً
             if days_to >= 999999:
                 # للفترة الأخيرة، نستخدم تاريخ بعيد جداً (10 سنوات)
@@ -616,7 +616,7 @@ class AdvancedReportsService:
                 base_account, date_from=period_from, date_to=period_to
             )
 
-            aging_data[period_key] = {
+            due_data[period_key] = {
                 "name": period_name,
                 "balance": balance,
                 "days_from": days_from,
@@ -632,7 +632,7 @@ class AdvancedReportsService:
                 "generated_at": timezone.now(),
                 "account_type": account_type,
             },
-            "aging_periods": aging_data,
+            "due_periods": due_data,
             "total_balance": total_balance,
             "base_account": {"code": base_account.code, "name": base_account.name},
         }
