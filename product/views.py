@@ -4,7 +4,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Sum, Count, F
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.template.loader import render_to_string
+from django.template.loader import render_to_string, get_template
 from django.views.decorators.csrf import csrf_exempt
 from .models import (
     Product,
@@ -224,6 +224,10 @@ def product_list(request):
 
         # تطبيق التصفية
         filter_form = ProductSearchForm(request.GET)
+        
+        # معالجة تصدير PDF
+        if request.GET.get('export') == 'pdf':
+            return export_products_pdf(request, products)
 
         # تعريف أعمدة جدول المنتجات
         product_headers = [
@@ -2736,12 +2740,49 @@ def add_product_image(request):
             )
 
         except Exception as e:
-            return JsonResponse({"success": False, "error": "خطأ في العملية"})
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error in add_product_image: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": _("حدث خطأ أثناء إضافة الصورة")})
 
-    return JsonResponse({"success": False, "error": _("طلب غير صالح")})
+    return JsonResponse({"success": False, "error": _("طريقة طلب غير صحيحة")})
 
 
 @login_required
+def export_products_pdf(request, products):
+    """
+    تصدير قائمة المنتجات إلى PDF
+    """
+    try:
+        # حساب إجمالي المخزون لكل منتج
+        for product in products:
+            product.total_stock = product.stocks.aggregate(total=Sum('quantity'))['total'] or 0
+        
+        # تحضير البيانات للقالب
+        template = get_template("product/exports/products_pdf.html")
+        context = {
+            "products": products,
+            "today": timezone.now(),
+            "request": request,
+            "total_products": products.count(),
+        }
+        html = template.render(context)
+
+        # إنشاء PDF
+        result = BytesIO()
+        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
+
+        if not pdf.err:
+            response = HttpResponse(result.getvalue(), content_type="application/pdf")
+            response["Content-Disposition"] = 'attachment; filename="products_list.pdf"'
+            return response
+
+        return HttpResponse("خطأ في إنشاء ملف PDF", status=400)
+
+    except Exception as e:
+        messages.error(request, f"خطأ في تصدير PDF: {str(e)}")
+        return redirect("product:product_list")
+
+
 @csrf_exempt
 def delete_product_image(request, pk):
     """
@@ -2765,17 +2806,10 @@ def delete_product_image(request, pk):
             return JsonResponse({"success": False, "error": "الصورة غير موجودة"})
         except Exception as e:
             logger = logging.getLogger(__name__)
-            logger.error(f"Error in views.py: {str(e)}", exc_info=True)
-            return JsonResponse({"success": False, "error": "حدث خطأ: خطأ في العملية"})
+            logger.error(f"Error in delete_product_image: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "error": _("حدث خطأ أثناء حذف الصورة")})
 
-    # دعم GET للاختبار
-    elif request.method == "GET":
-        return JsonResponse({"success": False, "error": "يجب استخدام POST لحذف الصورة"})
-
-    return JsonResponse({"success": False, "error": "طريقة طلب غير مدعومة"})
-
-
-@login_required
+    return JsonResponse({"success": False, "error": _("طريقة طلب غير مدعومة")})
 def get_stock_by_warehouse(request):
     """
     API للحصول على المخزون المتاح في مخزن معين
