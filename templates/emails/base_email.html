@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>{% block title %}MWHEBA ERP{% endblock %}</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            text-align: right;
+            background-color: #01578a;
+            margin: 0;
+            padding: 40px 20px;
+        }
+        .email-wrapper {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Header - Logo Area */
+        .email-header {
+            background-color: #01578a;
+            padding: 50px 30px;
+            text-align: center;
+        }
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 40px;
+            font-weight: bold;
+            color: #01578a;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        .logo-text {
+            font-size: 32px;
+            font-weight: bold;
+            color: #ffffff;
+            letter-spacing: 3px;
+            margin-bottom: 8px;
+        }
+        .logo-subtitle {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.85);
+            letter-spacing: 1px;
+            font-weight: 400;
+        }
+        
+        /* Body */
+        .email-body {
+            padding: 50px 40px;
+            background-color: #ffffff;
+            color: #4b5563;
+            line-height: 1.8;
+            font-size: 16px;
+            text-align: center;
+            direction: rtl;
+        }
+        .main-title {
+            font-size: 36px;
+            color: #1f2937;
+            margin-bottom: 25px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            text-align: center;
+        }
+        .main-message {
+            font-size: 16px;
+            color: #6b7280;
+            margin-bottom: 35px;
+            line-height: 1.6;
+            text-align: center;
+        }
+        
+        /* Buttons */
+        .button {
+            display: inline-block;
+            padding: 16px 45px;
+            background-color: #01578a;
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            margin: 10px 0 30px;
+            font-weight: 600;
+            font-size: 16px;
+            letter-spacing: 0.5px;
+        }
+        .button:hover {
+            background-color: #013e61;
+        }
+        .help-text {
+            font-size: 15px;
+            color: #6b7280;
+            margin: 30px 0 20px;
+            line-height: 1.6;
+            text-align: center;
+        }
+        .signature {
+            font-size: 15px;
+            color: #4b5563;
+            margin-top: 30px;
+            font-weight: 500;
+            text-align: center;
+        }
+        
+        /* Info Boxes */
+        .info-box {
+            background-color: #e0f7ff;
+            border-right: 4px solid #0ea5e9;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: right;
+        }
+        .warning-box {
+            background-color: #fff8e0;
+            border-right: 4px solid #f59e0b;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: right;
+        }
+        .success-box {
+            background-color: #dffcf0;
+            border-right: 4px solid #22c55e;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: right;
+        }
+        .danger-box {
+            background-color: #ffebeb;
+            border-right: 4px solid #ef4444;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: right;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        .data-table th {
+            background-color: #01578a;
+            color: #ffffff;
+            padding: 15px;
+            text-align: right;
+            font-weight: 600;
+        }
+        .data-table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #ecf0f1;
+            color: #2c3e50;
+        }
+        .data-table tr:hover {
+            background-color: #f8f9fa;
+        }
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+        
+        /* Footer */
+        .email-footer {
+            background-color: #f9fafb;
+            padding: 35px 30px;
+            text-align: center;
+            border-top: 1px solid #e5e7eb;
+        }
+        .footer-links {
+            margin: 0 0 20px;
+        }
+        .footer-link {
+            color: #1f2937;
+            text-decoration: underline;
+            margin: 0 12px;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .footer-link:hover {
+            color: #01578a;
+        }
+        .footer-note {
+            font-size: 13px;
+            color: #6b7280;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
+        .footer-address {
+            font-size: 13px;
+            color: #9ca3af;
+            margin-top: 20px;
+            line-height: 1.5;
+        }
+        
+        /* Divider */
+        .divider {
+            height: 2px;
+            background-color: #e5e7eb;
+            margin: 30px 0;
+        }
+        
+        /* Responsive */
+        @media only screen and (max-width: 600px) {
+            .email-wrapper {
+                margin: 10px;
+                border-radius: 8px;
+            }
+            .email-header {
+                padding: 30px 20px;
+            }
+            .email-body {
+                padding: 30px 20px;
+            }
+            .logo-text {
+                font-size: 28px;
+            }
+            .header-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-wrapper">
+        <!-- Header -->
+        <div class="email-header">
+            <div class="logo-text">MWHEBA ERP</div>
+            <div class="logo-subtitle">نظام إدارة موارد المؤسسة</div>
+        </div>
+
+        <!-- Body -->
+        <div class="email-body">
+            {% block content %}
+            <h1 class="main-title">مرحباً بك!</h1>
+            <p class="main-message">
+                نحن سعداء بانضمامك. للبدء، يرجى تأكيد حسابك بالضغط على الزر أدناه.
+            </p>
+            <a href="#" class="button">تأكيد الحساب</a>
+            <p class="help-text">
+                إذا كان لديك أي استفسار، يمكنك الرد على هذا الإيميل وسنكون سعداء بمساعدتك.
+            </p>
+            <p class="signature">فريق MWHEBA</p>
+            {% endblock %}
+        </div>
+
+        <!-- Footer -->
+        <div class="email-footer">
+            {% block footer %}
+            <div class="footer-links">
+                <a href="https://mwheba.co.uk" class="footer-link">لوحة التحكم</a>
+                <a href="mailto:info@mwheba.co.uk" class="footer-link">الفواتير</a>
+                <a href="#" class="footer-link">المساعدة</a>
+            </div>
+            <p class="footer-note">
+                إذا كانت هذه الإيميلات مزعجة، يمكنك <a href="#" style="color: #01578a; text-decoration: underline;">إلغاء الاشتراك</a>.
+            </p>
+            <p class="footer-address">
+                MWHEBA Agency<br>
+                info@mwheba.co.uk
+            </p>
+            {% endblock %}
+        </div>
+    </div>
+</body>
+</html>

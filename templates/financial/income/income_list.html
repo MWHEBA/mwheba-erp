@@ -3,6 +3,7 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -74,9 +75,7 @@
         width: 100%;
         text-align: center;
     }
-    .badge {
-        font-size: 0.8rem;
-    }
+
     .filter-section {
         background-color: #f8f9fa;
         border-radius: 0.5rem;
@@ -142,7 +141,7 @@
                             <i class="fas fa-money-bill-wave"></i>
                         </div>
                         <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-                        <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
+                        <div class="stats-card-value">{{ total_income|smart_float }}</div>
                         <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
@@ -155,7 +154,7 @@
                             <i class="fas fa-check-circle"></i>
                         </div>
                         <div class="stats-card-title">{% trans "الإيرادات المستلمة" %}</div>
-                        <div class="stats-card-value">{{ received_incomes|custom_number_format }}</div>
+                        <div class="stats-card-value">{{ received_incomes|smart_float }}</div>
                         <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
@@ -168,7 +167,7 @@
                             <i class="fas fa-clock"></i>
                         </div>
                         <div class="stats-card-title">{% trans "الإيرادات المعلقة" %}</div>
-                        <div class="stats-card-value">{{ pending_incomes|default:"0.00" }}</div>
+                        <div class="stats-card-value">{{ pending_incomes|smart_float }}</div>
                         <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>
@@ -181,7 +180,7 @@
                             <i class="fas fa-chart-line"></i>
                         </div>
                         <div class="stats-card-title">{% trans "متوسط الإيرادات الشهرية" %}</div>
-                        <div class="stats-card-value">{{ monthly_average|default:"0.00" }}</div>
+                        <div class="stats-card-value">{{ monthly_average|smart_float }}</div>
                         <div class="stats-card-unit">{{ currency_symbol }}</div>
                     </div>
                 </div>

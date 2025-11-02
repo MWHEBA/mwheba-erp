@@ -1,5 +1,6 @@
 {% load static %}
 {% load i18n %}
+{% load arabic_time %}
 
 <header class="header">
     <div class="header-container">
@@ -164,7 +165,7 @@
                     <i class="fas fa-bell"></i>
                     {% with unread_count=0 %}
                     {% for notification in notifications %}
-                        {% if not notification.read %}
+                        {% if not notification.is_read %}
                             {% with unread_count=unread_count|add:1 %}{% endwith %}
                         {% endif %}
                     {% endfor %}
@@ -180,7 +181,7 @@
                             {% trans "التنبيهات" %}
                             {% with unread_count=0 %}
                             {% for notification in notifications %}
-                                {% if not notification.read %}
+                                {% if not notification.is_read %}
                                     {% with unread_count=unread_count|add:1 %}{% endwith %}
                                 {% endif %}
                             {% endfor %}
@@ -191,7 +192,7 @@
                         </span>
                         {% with unread_count=0 %}
                         {% for notification in notifications %}
-                            {% if not notification.read %}
+                            {% if not notification.is_read %}
                                 {% with unread_count=unread_count|add:1 %}{% endwith %}
                             {% endif %}
                         {% endfor %}
@@ -207,91 +208,64 @@
                     <div class="notification-list ps-custom">
                         {% if notifications %}
                             <!-- الإشعارات غير المقروءة -->
-                            {% with unread_notifications='' %}
-                            {% with has_unread=False %}
-                            <div class="notification-category">
-                                <div class="notification-category-title">
-                                    <span>{% trans "جديدة" %}</span>
-                                </div>
-                                {% for notification in notifications %}
-                                    {% if not notification.read %}
-                                        {% with has_unread=True %}{% endwith %}
-                                        <a href="{{ notification.link }}" class="notification-item unread" data-id="{{ notification.id }}">
-                                            <div class="notification-icon bg-{{ notification.notification_type }}">
-                                                <i class="fas 
-                                                    {% if notification.notification_type == 'info' %}fa-info
-                                                    {% elif notification.notification_type == 'warning' %}fa-exclamation-triangle
-                                                    {% elif notification.notification_type == 'success' %}fa-check
-                                                    {% elif notification.notification_type == 'danger' %}fa-times
-                                                    {% elif notification.notification_type == 'inventory_alert' %}fa-box
-                                                    {% elif notification.notification_type == 'payment_received' %}fa-money-bill-wave
-                                                    {% elif notification.notification_type == 'new_invoice' %}fa-file-invoice
-                                                    {% elif notification.notification_type == 'return_request' %}fa-undo
-                                                    {% else %}fa-bell
-                                                    {% endif %}">
-                                                </i>
-                                </div>
-                                <div class="notification-content">
-                                    <div class="notification-title">{{ notification.title }}</div>
-                                    <div class="notification-text">{{ notification.message }}</div>
-                                                <div class="notification-time">
-                                                    <i class="far fa-clock me-1"></i>
-                                                    {{ notification.created_at|timesince }}
-                                                </div>
+                            {% for notification in notifications %}
+                                {% if not notification.is_read %}
+                                    <a href="{% if notification.get_link_url %}{{ notification.get_link_url }}{% else %}#{% endif %}" class="notification-item unread" data-id="{{ notification.id }}">
+                                        <div class="notification-icon bg-{{ notification.type }}">
+                                            <i class="fas 
+                                                {% if notification.type == 'info' %}fa-info
+                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
+                                                {% elif notification.type == 'success' %}fa-check
+                                                {% elif notification.type == 'danger' %}fa-times
+                                                {% elif notification.type == 'inventory_alert' %}fa-box
+                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
+                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
+                                                {% elif notification.type == 'return_request' %}fa-undo
+                                                {% else %}fa-bell
+                                                {% endif %}">
+                                            </i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-title">{{ notification.title }}</div>
+                                            <div class="notification-text">{{ notification.message }}</div>
+                                            <div class="notification-time">
+                                                <i class="far fa-clock me-1"></i>
+                                                {{ notification.created_at|arabic_timesince }}
                                             </div>
-                                            <button type="button" class="btn-mark-read" data-id="{{ notification.id }}" data-url="{% url 'core:mark_notification_read' notification.id %}">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                        </a>
-                                    {% endif %}
-                                {% endfor %}
-                            </div>
-                            {% if not has_unread %}
-                                <style>.notification-category:first-child { display: none; }</style>
-                            {% endif %}
-                            {% endwith %}
-                            {% endwith %}
-                            
-                            <!-- الإشعارات المقروءة مؤخرًا -->
-                            {% with has_read=False %}
-                            <div class="notification-category">
-                                <div class="notification-category-title">
-                                    <span>{% trans "سابقة" %}</span>
-                                </div>
-                                {% for notification in notifications %}
-                                    {% if notification.read %}
-                                        {% with has_read=True %}{% endwith %}
-                                        <a href="{{ notification.link }}" class="notification-item">
-                                            <div class="notification-icon bg-light text-{{ notification.notification_type }}">
-                                                <i class="fas 
-                                                    {% if notification.notification_type == 'info' %}fa-info
-                                                    {% elif notification.notification_type == 'warning' %}fa-exclamation-triangle
-                                                    {% elif notification.notification_type == 'success' %}fa-check
-                                                    {% elif notification.notification_type == 'danger' %}fa-times
-                                                    {% elif notification.notification_type == 'inventory_alert' %}fa-box
-                                                    {% elif notification.notification_type == 'payment_received' %}fa-money-bill-wave
-                                                    {% elif notification.notification_type == 'new_invoice' %}fa-file-invoice
-                                                    {% elif notification.notification_type == 'return_request' %}fa-undo
-                                                    {% else %}fa-bell
-                                                    {% endif %}">
-                                                </i>
-                                            </div>
-                                            <div class="notification-content">
-                                                <div class="notification-title">{{ notification.title }}</div>
-                                                <div class="notification-text">{{ notification.message }}</div>
-                                                <div class="notification-time">
-                                                    <i class="far fa-clock me-1"></i>
-                                                    {{ notification.created_at|timesince }}
-                                                </div>
-                                </div>
-                            </a>
-                                    {% endif %}
+                                        </div>
+                                    </a>
+                                {% endif %}
                             {% endfor %}
-                            </div>
-                            {% if not has_read %}
-                                <style>.notification-category:last-child { display: none; }</style>
-                            {% endif %}
-                            {% endwith %}
+                            
+                            <!-- الإشعارات المقروءة (آخر 5) -->
+                            {% for notification in notifications %}
+                                {% if notification.is_read %}
+                                    <a href="{% if notification.get_link_url %}{{ notification.get_link_url }}{% else %}#{% endif %}" class="notification-item">
+                                        <div class="notification-icon bg-light text-{{ notification.type }}">
+                                            <i class="fas 
+                                                {% if notification.type == 'info' %}fa-info
+                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
+                                                {% elif notification.type == 'success' %}fa-check
+                                                {% elif notification.type == 'danger' %}fa-times
+                                                {% elif notification.type == 'inventory_alert' %}fa-box
+                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
+                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
+                                                {% elif notification.type == 'return_request' %}fa-undo
+                                                {% else %}fa-bell
+                                                {% endif %}">
+                                            </i>
+                                        </div>
+                                        <div class="notification-content">
+                                            <div class="notification-title">{{ notification.title }}</div>
+                                            <div class="notification-text">{{ notification.message }}</div>
+                                            <div class="notification-time">
+                                                <i class="far fa-clock me-1"></i>
+                                                {{ notification.created_at|arabic_timesince }}
+                                            </div>
+                                        </div>
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
                         {% else %}
                             <div class="dropdown-item text-center py-5">
                                 <div class="empty-notifications">
@@ -315,9 +289,11 @@
                     <div class="avatar-wrapper">
                         <div class="avatar">
                             {% if user.profile_image %}
-                                <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="avatar-img">
+                                <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="avatar-img" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<div class=\'avatar-placeholder\'><i class=\'fas fa-user\'></i></div>';">
                             {% else %}
-                                <img src="{% static 'img/user.png' %}" alt="{{ user.get_full_name }}" class="avatar-img">
+                                <div class="avatar-placeholder">
+                                    <i class="fas fa-user"></i>
+                                </div>
                             {% endif %}
                         </div>
                         <span class="user-name-short d-none d-md-inline-block">{{ user.get_full_name|default:"المستخدم" }}</span>
@@ -329,9 +305,11 @@
                         <div class="user-dropdown-profile">
                             <div class="user-avatar-large">
                                 {% if user.profile_image %}
-                                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="user-avatar-img">
+                                    <img src="{{ user.profile_image.url }}" alt="{{ user.get_full_name }}" class="user-avatar-img" onerror="this.onerror=null; this.style.display='none'; this.parentElement.innerHTML='<div class=\'avatar-placeholder-large\'><i class=\'fas fa-user\'></i></div>';">
                                 {% else %}
-                                    <img src="{% static 'img/user.png' %}" alt="{{ user.get_full_name }}" class="user-avatar-img">
+                                    <div class="avatar-placeholder-large">
+                                        <i class="fas fa-user"></i>
+                                    </div>
                                 {% endif %}
                             </div>
                             <div class="user-info-wrapper">
@@ -345,7 +323,7 @@
                     <div class="user-dropdown-divider"></div>
                     
                     <div class="user-dropdown-menu-items">
-                        <a href="#" class="user-dropdown-item">
+                        <a href="{% url 'users:profile' %}" class="user-dropdown-item">
                             <div class="dropdown-item-icon bg-soft-primary">
                                 <i class="fas fa-user-circle text-primary"></i>
                             </div>
@@ -355,34 +333,23 @@
                             </div>
                         </a>
                         
-                        <a href="#" class="user-dropdown-item">
+                        <a href="{% url 'core:company_settings' %}" class="user-dropdown-item">
                             <div class="dropdown-item-icon bg-soft-success">
                                 <i class="fas fa-cog text-success"></i>
                             </div>
                             <div class="dropdown-item-text">
-                                <span>الإعدادات</span>
-                                <small>تخصيص إعدادات النظام</small>
+                                <span>إعدادات الشركة</span>
+                                <small>تخصيص إعدادات الشركة والنظام</small>
                             </div>
                         </a>
                         
-                        <a href="#" class="user-dropdown-item">
+                        <a href="{% url 'core:notification_settings' %}" class="user-dropdown-item">
                             <div class="dropdown-item-icon bg-soft-info">
                                 <i class="fas fa-bell text-info"></i>
                             </div>
                             <div class="dropdown-item-text">
-                                <span>الإشعارات</span>
-                                <small>إدارة تفضيلات الإشعارات</small>
-                            </div>
-                            <span class="badge rounded-pill bg-danger ms-auto">3</span>
-                        </a>
-                        
-                        <a href="#" class="user-dropdown-item">
-                            <div class="dropdown-item-icon bg-soft-warning">
-                                <i class="fas fa-history text-warning"></i>
-                            </div>
-                            <div class="dropdown-item-text">
-                                <span>النشاط</span>
-                                <small>مشاهدة سجل النشاط الخاص بك</small>
+                                <span>إعدادات الإشعارات</span>
+                                <small>تخصيص تفضيلات الإشعارات</small>
                             </div>
                         </a>
                         

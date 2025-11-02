@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  :root {
+    --category-a-color: #dc3545;
+    --category-b-color: #ffc107;
+    --category-c-color: #28a745;
+  }
+
+  .section-container {
+    background-color: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid var(--border-color);
+  }
+  
+  .section-title {
+    color: var(--text-primary);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+  }
+  
+  /* كروت الإحصائيات */
+  .stats-card {
+    background: var(--card-bg);
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    height: 100%;
+  }
+  
+  .stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-md);
+  }
+  
+  .stats-card-header {
+    height: 4px;
+  }
+  
+  .stats-card-category-a .stats-card-header {
+    background: var(--category-a-color);
+  }
+  
+  .stats-card-category-b .stats-card-header {
+    background: var(--category-b-color);
+  }
+  
+  .stats-card-category-c .stats-card-header {
+    background: var(--category-c-color);
+  }
+  
+  .stats-card-body {
+    padding: 1.5rem;
+    text-align: center;
+  }
+  
+  .stats-card-icon {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .stats-card-category-a .stats-card-icon {
+    color: var(--category-a-color);
+  }
+  
+  .stats-card-category-b .stats-card-icon {
+    color: var(--category-b-color);
+  }
+  
+  .stats-card-category-c .stats-card-icon {
+    color: var(--category-c-color);
+  }
+  
+  .stats-card-title {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+  }
+  
+  .stats-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+  }
+  
+  .stats-card-unit {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  /* تصنيف ABC */
+  .category-badge {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    font-size: 0.875rem;
+  }
+  
+  .category-a {
+    background-color: var(--category-a-color);
+    color: white;
+  }
+  
+  .category-b {
+    background-color: var(--category-b-color);
+    color: #000;
+  }
+  
+  .category-c {
+    background-color: var(--category-c-color);
+    color: white;
+  }
+
+  /* حالة فارغة */
+  .empty-state {
+    padding: 4rem 1rem;
+    text-align: center;
+  }
+  
+  .empty-state-icon {
+    font-size: 4rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+  
+  /* تحسين الجدول */
+  .abc-table {
+    font-size: 0.95rem;
+  }
+  
+  .abc-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .abc-table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+  }
+  
+  .abc-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  
+  .abc-table .text-end {
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+  }
+  
+  .abc-table .table-active {
+    background-color: var(--primary-color) !important;
+    color: white;
+    font-weight: 700;
+  }
+  
+  .abc-table .table-active td {
+    border-color: var(--primary-color);
+    padding: 1rem 0.75rem;
+  }
+  
+  .account-code-badge {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        {% if breadcrumb_items %}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    {% for item in breadcrumb_items %}
+                        {% if forloop.last or item.active %}
+                            <li class="breadcrumb-item active" aria-current="page">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </li>
+                        {% else %}
+                            <li class="breadcrumb-item">
+                                <a href="{{ item.url }}">
+                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                    {{ item.title }}
+                                </a>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ol>
+            </nav>
+        </div>
+        {% endif %}
+        
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                {% if page_icon %}
+                    <div class="me-3">
+                        <i class="{{ page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">تصنيف المخزون حسب الأهمية (A: عالية، B: متوسطة، C: منخفضة)</p>
+                </div>
+            </div>
+            <div>
+                <a href="?date={{ analysis_date|date:'Y-m-d' }}&days_period={{ days_period }}&export=excel" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </a>
+                <button class="btn btn-outline-primary ms-2" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- الفلترة -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>معايير التحليل</h5>
+        <form method="GET" action="" class="row g-3">
+            <div class="col-md-4">
+                <label for="date" class="form-label">تاريخ التحليل:</label>
+                <input type="date" name="date" id="date" class="form-control" value="{{ analysis_date|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label for="days_period" class="form-label">فترة التحليل (بالأيام):</label>
+                <select name="days_period" id="days_period" class="form-select">
+                    <option value="30" {% if days_period == 30 %}selected{% endif %}>30 يوم</option>
+                    <option value="90" {% if days_period == 90 %}selected{% endif %}>90 يوم (3 أشهر)</option>
+                    <option value="180" {% if days_period == 180 %}selected{% endif %}>180 يوم (6 أشهر)</option>
+                    <option value="365" {% if days_period == 365 %}selected{% endif %}>365 يوم (سنة)</option>
+                </select>
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-sync me-1"></i>تحديث التحليل
+                </button>
+                <a href="{% url 'financial:abc_analysis_report' %}" class="btn btn-secondary">
+                    <i class="fas fa-undo me-1"></i>إعادة تعيين
+                </a>
+            </div>
+        </form>
+        <div class="mt-2">
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                فترة التحليل: من {{ date_from|date:"Y-m-d" }} إلى {{ analysis_date|date:"Y-m-d" }}
+            </small>
+        </div>
+    </div>
+
+    <!-- إحصائيات الفئات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات الفئات</h5>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-category-a">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stats-card-title">فئة A - عالية الأهمية</div>
+                        <div class="stats-card-value">{{ statistics.category_a.count }}</div>
+                        <div class="stats-card-unit">صنف ({{ statistics.category_a.percentage_count|smart_float:1 }}%)</div>
+                        <hr>
+                        <div class="mt-2">
+                            <strong>{{ statistics.category_a.value|smart_float }}</strong> {% currency_symbol %}<br>
+                            <small class="text-muted">({{ statistics.category_a.percentage_value|smart_float:1 }}% من القيمة)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-category-b">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="stats-card-title">فئة B - متوسطة الأهمية</div>
+                        <div class="stats-card-value">{{ statistics.category_b.count }}</div>
+                        <div class="stats-card-unit">صنف ({{ statistics.category_b.percentage_count|smart_float:1 }}%)</div>
+                        <hr>
+                        <div class="mt-2">
+                            <strong>{{ statistics.category_b.value|smart_float }}</strong> {% currency_symbol %}<br>
+                            <small class="text-muted">({{ statistics.category_b.percentage_value|smart_float:1 }}% من القيمة)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-category-c">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-dot-circle"></i>
+                        </div>
+                        <div class="stats-card-title">فئة C - منخفضة الأهمية</div>
+                        <div class="stats-card-value">{{ statistics.category_c.count }}</div>
+                        <div class="stats-card-unit">صنف ({{ statistics.category_c.percentage_count|smart_float:1 }}%)</div>
+                        <hr>
+                        <div class="mt-2">
+                            <strong>{{ statistics.category_c.value|smart_float }}</strong> {% currency_symbol %}<br>
+                            <small class="text-muted">({{ statistics.category_c.percentage_value|smart_float:1 }}% من القيمة)</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول التصنيف -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3 pb-3" style="border-bottom: 1px solid #eee;">
+            <h5 class="mb-0" style="color: #344767; font-size: 1.2rem; font-weight: 600;">
+                <i class="fas fa-table me-2"></i>تفاصيل التصنيف
+            </h5>
+            {% if inventory_data %}
+            <span class="badge bg-primary">
+                <i class="fas fa-list me-1"></i>
+                {{ inventory_data|length }} صنف
+            </span>
+            {% endif %}
+        </div>
+        {% if inventory_data %}
+        <div class="table-responsive">
+            <table class="table abc-table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">كود الحساب</th>
+                        <th>اسم الحساب</th>
+                        <th class="text-end" style="width: 130px;">القيمة</th>
+                        <th class="text-end" style="width: 90px;">النسبة %</th>
+                        <th class="text-end" style="width: 110px;">نسبة تراكمية %</th>
+                        <th class="text-center" style="width: 100px;">عدد المعاملات</th>
+                        <th class="text-end" style="width: 120px;">معدل الدوران</th>
+                        <th class="text-center" style="width: 80px;">الفئة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory_data %}
+                    <tr>
+                        <td>
+                            <span class="account-code-badge">{{ item.account_code }}</span>
+                        </td>
+                        <td>
+                            <strong class="text-dark">{{ item.account_name }}</strong>
+                        </td>
+                        <td class="text-end">{{ item.value|smart_float }}</td>
+                        <td class="text-end">{{ item.percentage|smart_float:1 }}%</td>
+                        <td class="text-end">{{ item.cumulative_percentage|smart_float:1 }}%</td>
+                        <td class="text-center">{{ item.transactions_count }}</td>
+                        <td class="text-end">{{ item.turnover|smart_float }}</td>
+                        <td class="text-center">
+                            <span class="category-badge category-{{ item.category|lower }}">
+                                {{ item.category }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <td colspan="2">
+                            <i class="fas fa-sigma me-2"></i>الإجمالي
+                        </td>
+                        <td class="text-end">{{ total_value|smart_float }}</td>
+                        <td class="text-end">100%</td>
+                        <td class="text-end">-</td>
+                        <td class="text-center">-</td>
+                        <td class="text-end">-</td>
+                        <td class="text-center">{{ statistics.total_items }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-chart-pie"></i>
+            </div>
+            <h5 class="text-muted mb-3">لا توجد بيانات للتحليل</h5>
+            <p class="text-muted mb-4">لا توجد حسابات مخزون مسجلة في النظام</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- التوصيات -->
+    {% if inventory_data %}
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-lightbulb me-2"></i>التوصيات</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white">
+                        <strong>فئة A - عالية الأهمية</strong>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>التوصية:</strong> مراقبة دقيقة ومستمرة</p>
+                        <ul class="small">
+                            <li>جرد دوري متكرر (شهري)</li>
+                            <li>تحكم صارم في المخزون</li>
+                            <li>مراجعة يومية للحركة</li>
+                            <li>تحديد نقاط إعادة الطلب بدقة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-warning">
+                    <div class="card-header bg-warning">
+                        <strong>فئة B - متوسطة الأهمية</strong>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>التوصية:</strong> مراقبة متوسطة ومنتظمة</p>
+                        <ul class="small">
+                            <li>جرد دوري منتظم (ربع سنوي)</li>
+                            <li>تحكم معتدل في المخزون</li>
+                            <li>مراجعة أسبوعية للحركة</li>
+                            <li>نقاط إعادة طلب معتدلة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white">
+                        <strong>فئة C - منخفضة الأهمية</strong>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>التوصية:</strong> مراقبة بسيطة</p>
+                        <ul class="small">
+                            <li>جرد دوري سنوي</li>
+                            <li>تحكم بسيط في المخزون</li>
+                            <li>مراجعة شهرية للحركة</li>
+                            <li>كميات طلب أكبر لتقليل التكاليف</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

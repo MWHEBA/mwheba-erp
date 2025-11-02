@@ -14,7 +14,7 @@ import math
 import locale
 
 
-def format_currency(amount, currency_symbol=None, decimal_places=2, show_symbol=True):
+def format_currency(amount, currency_symbol=None, decimal_places=2, show_symbol=True, smart=True):
     """
     تنسيق المبلغ بعملة معينة
 
@@ -23,9 +23,18 @@ def format_currency(amount, currency_symbol=None, decimal_places=2, show_symbol=
     currency_symbol (str): رمز العملة (مثل: ج.م، ر.س، $) - إذا كان None سيستخدم العملة الافتراضية
     decimal_places (int): عدد المنازل العشرية
     show_symbol (bool): عرض رمز العملة أم لا
+    smart (bool): إخفاء العلامات العشرية للأرقام الصحيحة (افتراضي: True)
 
     تُرجع: سلسلة نصية تمثل المبلغ بتنسيق العملة المحددة
     """
+    # إذا كان smart=True، تحقق من الرقم صحيح أم لا
+    if smart and amount is not None:
+        from decimal import Decimal
+        num = Decimal(str(amount)) if not isinstance(amount, Decimal) else amount
+        # إذا الرقم صحيح، اجعل decimal_places = 0
+        if num == int(num):
+            decimal_places = 0
+    
     # تنسيق المبلغ كرقم
     formatted_amount = format_number(amount, decimal_places=decimal_places)
 

@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ title }}{% endblock %}
 
@@ -221,7 +222,7 @@
                                 {% for item in purchase_return.items.all %}
                                 <tr>
                                     <td>{{ item.product.name }}</td>
-                                    <td>{{ item.quantity|custom_number_format }}</td>
+                                    <td>{{ item.quantity|smart_float }}</td>
                                     <td>{{ item.unit_price|currency }}</td>
                                     <td>{{ item.discount|currency }}</td>
                                     <td>{{ item.total|currency }}</td>

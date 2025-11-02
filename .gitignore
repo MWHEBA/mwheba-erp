@@ -67,6 +67,7 @@ staticfiles/
 *_ENHANCEMENT.md
 *_SOLUTION.md
 *_TEMPLATES.md
+system_reset.log
 
 # pytest
 pytest.ini

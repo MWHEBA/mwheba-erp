@@ -106,10 +106,10 @@
     min-width: 80px;
     font-size: 0.85em;
   }
-  .turnover-high { background: linear-gradient(45deg, #28a745, #20c997); }
-  .turnover-medium { background: linear-gradient(45deg, #ffc107, #fd7e14); }
-  .turnover-low { background: linear-gradient(45deg, #dc3545, #e83e8c); }
-  .turnover-zero { background: linear-gradient(45deg, #6c757d, #495057); }
+  .turnover-high { background-color: #28a745; }
+  .turnover-medium { background-color: #ffc107; color: #000; }
+  .turnover-low { background-color: #dc3545; }
+  .turnover-zero { background-color: #6c757d; }
 
   .progress-thin {
     height: 8px;
@@ -235,7 +235,7 @@
               <i class="fas fa-sync-alt"></i>
             </div>
             <div class="stats-card-title">{% trans "متوسط معدل الدوران" %}</div>
-            <div class="stats-card-value">{{ summary.average_turnover|remove_trailing_zeros|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.average_turnover|smart_float|default:"0" }}</div>
             <div class="stats-card-unit">{% trans "مرة في السنة" %}</div>
           </div>
         </div>
@@ -330,11 +330,11 @@
                                     <br><small class="text-muted">{{ item.product.category.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.current_stock|remove_trailing_zeros }}</td>
-                            <td class="text-end">{{ item.average_inventory|remove_trailing_zeros }}</td>
-                            <td class="text-end">{{ item.cogs|currency }}</td>
+                            <td class="text-end">{{ item.current_stock|smart_float }}</td>
+                            <td class="text-end">{{ item.average_inventory|smart_float }}</td>
+                            <td class="text-end">{{ item.cogs|smart_float }}</td>
                             <td class="text-end">
-                                <strong>{{ item.turnover_ratio|remove_trailing_zeros }}</strong>
+                                <strong>{{ item.turnover_ratio|smart_float }}</strong>
                                 <div class="progress progress-thin mt-1">
                                     <div class="progress-bar 
                                         {% if item.turnover_ratio >= 6 %}bg-success
@@ -344,7 +344,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td class="text-end">{{ item.days_in_inventory|remove_trailing_zeros }} يوم</td>
+                            <td class="text-end">{{ item.days_in_inventory|smart_float }} يوم</td>
                             <td>
                                 {% if item.turnover_ratio >= 6 %}
                                     <span class="turnover-indicator turnover-high">عالي</span>

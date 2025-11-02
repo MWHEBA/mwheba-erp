@@ -58,7 +58,7 @@ class LoginRequiredMiddleware(MiddlewareMixin):
 
 class MaintenanceModeMiddleware(MiddlewareMixin):
     """
-    وسيط لوضع الصيانة
+    وسيط لوضع الصيانة - يقرأ من قاعدة البيانات
     """
 
     def __init__(self, get_response):
@@ -70,6 +70,7 @@ class MaintenanceModeMiddleware(MiddlewareMixin):
             r"^/maintenance/",
             r"^/static/",
             r"^/media/",
+            r"^/settings/system/$",  # السماح بالوصول لصفحة الإعدادات لإلغاء وضع الصيانة
         ]
         # إضافة URLs مخصصة من الإعدادات
         if hasattr(settings, "MAINTENANCE_ALLOWED_URLS"):
@@ -77,14 +78,26 @@ class MaintenanceModeMiddleware(MiddlewareMixin):
 
     def process_request(self, request):
         """
-        معالجة الطلب والتحقق من وضع الصيانة
+        معالجة الطلب والتحقق من وضع الصيانة من قاعدة البيانات
         """
-        # التحقق مما إذا كان وضع الصيانة مفعل
-        maintenance_mode = getattr(settings, "MAINTENANCE_MODE", False)
+        # قراءة وضع الصيانة من قاعدة البيانات
+        try:
+            from core.models import SystemSetting
+            maintenance_setting = SystemSetting.objects.filter(
+                key='maintenance_mode',
+                is_active=True
+            ).first()
+            
+            maintenance_mode = False
+            if maintenance_setting:
+                maintenance_mode = maintenance_setting.value.lower() == 'true'
+        except:
+            # في حالة حدوث خطأ (مثل عدم وجود جدول)، استخدم الإعداد من settings.py
+            maintenance_mode = getattr(settings, "MAINTENANCE_MODE", False)
 
         if maintenance_mode:
             # السماح للمشرفين بالوصول خلال وضع الصيانة
-            if request.user.is_superuser or request.user.is_staff:
+            if request.user.is_authenticated and (request.user.is_superuser or request.user.is_staff):
                 return None
 
             path = request.path_info
@@ -94,10 +107,58 @@ class MaintenanceModeMiddleware(MiddlewareMixin):
                 if re.match(allowed_url, path):
                     return None
 
-            # عرض صفحة الصيانة
-            return HttpResponse(
-                "النظام في وضع الصيانة. يرجى المحاولة لاحقًا.", status=503
-            )
+            # عرض صفحة صيانة احترافية
+            maintenance_html = """
+            <!DOCTYPE html>
+            <html dir="rtl" lang="ar">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>وضع الصيانة - MWHEBA ERP</title>
+                <style>
+                    body {
+                        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        height: 100vh;
+                        margin: 0;
+                        direction: rtl;
+                    }
+                    .container {
+                        background: white;
+                        padding: 3rem;
+                        border-radius: 12px;
+                        box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                        text-align: center;
+                        max-width: 500px;
+                    }
+                    .icon {
+                        font-size: 80px;
+                        margin-bottom: 20px;
+                    }
+                    h1 {
+                        color: #01578a;
+                        margin-bottom: 15px;
+                    }
+                    p {
+                        color: #6b7280;
+                        line-height: 1.6;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="icon">🔧</div>
+                    <h1>النظام في وضع الصيانة</h1>
+                    <p>نعتذر عن الإزعاج. نقوم حالياً بإجراء بعض التحديثات لتحسين تجربتك.</p>
+                    <p>سنعود قريباً. شكراً لصبرك.</p>
+                </div>
+            </body>
+            </html>
+            """
+            return HttpResponse(maintenance_html, status=503)
 
         return None
 
@@ -373,4 +434,25 @@ class AjaxRedirectMiddleware(MiddlewareMixin):
             # تحويل الاستجابة إلى JSON للتعامل مع إعادة التوجيه في الجانب الأمامي
             return JsonResponse({"redirect": response.url})
 
+        return response
+
+
+class NoCacheMiddleware(MiddlewareMixin):
+    """
+    وسيط لمنع الـ cache للصفحات الديناميكية
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def process_response(self, request, response):
+        """
+        إضافة headers لمنع الـ cache
+        """
+        # منع الـ cache للصفحات HTML فقط
+        if response.get('Content-Type', '').startswith('text/html'):
+            response['Cache-Control'] = 'no-cache, no-store, must-revalidate, max-age=0'
+            response['Pragma'] = 'no-cache'
+            response['Expires'] = '0'
+        
         return response

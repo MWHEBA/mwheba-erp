@@ -4,6 +4,7 @@
 {% load app_tags %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ customer.name }} - {% trans "تفاصيل العميل" %}{% endblock %}
 
@@ -411,7 +412,7 @@
               <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
-            <div class="stats-card-value">{{ total_payments|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_payments|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
@@ -425,7 +426,7 @@
               <i class="fas fa-shopping-cart"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
-            <div class="stats-card-value">{{ total_sales|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_sales|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
@@ -467,7 +468,7 @@
               <i class="fas fa-wallet"></i>
             </div>
             <div class="stats-card-title">{% trans "الرصيد المتاح" %}</div>
-            <div class="stats-card-value">{{ available_credit|custom_number_format }}</div>
+            <div class="stats-card-value">{{ available_credit|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
@@ -481,7 +482,7 @@
               <i class="fas fa-credit-card"></i>
             </div>
             <div class="stats-card-title">{% trans "حد الائتمان" %}</div>
-            <div class="stats-card-value">{{ customer.credit_limit|custom_number_format|default:"0" }}</div>
+            <div class="stats-card-value">{{ customer.credit_limit|smart_float|default:"0" }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>

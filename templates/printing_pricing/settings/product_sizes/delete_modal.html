@@ -23,7 +23,7 @@
             <div class="card-body">
                 <h6 class="card-title">{{ product_size.name }}</h6>
                 <p class="card-text">
-                    <strong>الأبعاد:</strong> <code>{{ product_size.width|remove_trailing_zeros }}×{{ product_size.height|remove_trailing_zeros }} سم</code><br>
+                    <strong>الأبعاد:</strong> <code>{{ product_size.width|smart_float }}×{{ product_size.height|smart_float }} سم</code><br>
                     {% if product_size.description %}
                         <strong>الوصف:</strong> {{ product_size.description|truncatewords:10 }}<br>
                     {% endif %}

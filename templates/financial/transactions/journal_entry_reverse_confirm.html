@@ -66,14 +66,14 @@
                                             <td>{{ line.account.code }} - {{ line.account.name }}</td>
                                             <td class="text-end">
                                                 {% if line.debit > 0 %}
-                                                {{ line.debit|remove_trailing_zeros }}
+                                                {{ line.debit|smart_float }}
                                                 {% else %}
                                                 -
                                                 {% endif %}
                                             </td>
                                             <td class="text-end">
                                                 {% if line.credit > 0 %}
-                                                {{ line.credit|remove_trailing_zeros }}
+                                                {{ line.credit|smart_float }}
                                                 {% else %}
                                                 -
                                                 {% endif %}

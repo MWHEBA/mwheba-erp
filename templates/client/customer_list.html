@@ -4,6 +4,7 @@
 {% load crispy_forms_tags %}
 {% load app_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
@@ -297,7 +298,7 @@
               <i class="fas fa-money-bill-wave"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المديونية" %}</div>
-            <div class="stats-card-value">{{ total_debt|default:"0"|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_debt|default:"0"|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>

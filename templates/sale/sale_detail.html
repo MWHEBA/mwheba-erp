@@ -348,14 +348,6 @@
         background-color: var(--gray-50);
     }
     
-    .badge {
-        display: inline-block;
-        padding: 0.3rem 0.8rem;
-        border-radius: 20px;
-        font-size: 0.8rem;
-        font-weight: 600;
-    }
-    
     /* تنسيق أزرار الإجراءات في الجداول */
     .btn-sm {
         padding: 0.25rem 0.5rem;
@@ -592,7 +584,7 @@
                                     <tr>
                                         <td>{{ forloop.counter }}</td>
                                         <td class="fw-bold">{{ item.product.name }}</td>
-                                        <td class="fw-bold">{{ item.quantity|remove_trailing_zeros }}</td>
+                                        <td class="fw-bold">{{ item.quantity|smart_float }}</td>
                                         <td>{{ item.unit_price|currency }}</td>
                                         <td>{{ item.discount|currency }}</td>
                                         <td class="fw-bold">{{ item.total|currency }}</td>

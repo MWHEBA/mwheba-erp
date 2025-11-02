@@ -70,8 +70,6 @@ urlpatterns = [
         api_views.delete_specialized_service_api,
         name="delete_service_api",
     ),
-    path("by-type/", views.suppliers_by_type, name="suppliers_by_type"),
-    path("service-comparison/", views.service_comparison, name="service_comparison"),
     path(
         "<int:pk>/specialized-services/",
         views.supplier_services_detail,

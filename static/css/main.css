@@ -99,10 +99,6 @@ a:hover {
     transition: right var(--transition-speed);
 }
 
-.content-wrapper {
-    padding: calc(var(--header-height)) 3rem var(--footer-height) 3rem;
-    min-height: calc(100vh - var(--footer-height));
-}
 
 .footer {
     height: var(--footer-height);
@@ -210,13 +206,6 @@ label {
     border-color: var(--primary-dark);
 }
 
-/* Badges */
-.badge {
-    font-weight: 600;
-    padding: 0.65em 1em;
-    font-size: 0.75em;
-    border-radius: 10rem;
-}
 
 /* Navbar */
 .navbar .user-avatar {
@@ -226,16 +215,27 @@ label {
     object-fit: cover;
 }
 
+/* Badge العداد */
 .notification-badge {
     position: absolute;
-    top: 5px;
-    right: 5px;
-    padding: 0.25rem 0.5rem;
-    font-size: 0.65rem;
-    line-height: 1;
+    top: -5px;
+    left: -5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
     border-radius: 50%;
     background-color: var(--danger-color);
     color: white;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    border: 2px solid var(--white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+    transform-origin: center;
+    animation: pulse 2s infinite;
 }
 
 .dropdown-menu {
@@ -310,13 +310,10 @@ label {
 }
 
 
+/* تحسين responsive للشاشات المختلفة */
 @media (max-width: 767.98px) {
-    .content-wrapper {
-        padding: calc(var(--header-height) + 1rem) 1rem var(--footer-height) 1rem;
-    }
-    
     .footer {
-        padding: 0.5rem 1rem;
+        padding: 0.5rem 0.75rem;
     }
 }
 
@@ -468,4 +465,59 @@ html[dir="rtl"] .page-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
     .header-subtitle {
         max-width: 100%;
     }
+}
+
+/*===================================================
+  Maintenance Mode Notification (Floating)
+===================================================*/
+.maintenance-notification {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    background: rgba(255, 152, 0, 0.65);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.maintenance-notification i.fa-tools {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+.maintenance-notification a {
+    color: white;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+.maintenance-notification a:hover {
+    opacity: 1;
 } 

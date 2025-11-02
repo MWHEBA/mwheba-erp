@@ -327,6 +327,9 @@ class ExpiryService:
                     title=title,
                     message=message,
                     notification_type=notification_type,
+                    related_model="ProductBatch",
+                    related_id=batch.id,
+                    link_url=f"/products/{batch.product.id}/"
                 )
 
         except Exception as e:

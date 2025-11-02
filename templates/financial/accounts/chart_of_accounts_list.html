@@ -166,35 +166,35 @@
                         <div class="col-md-2">
                             <div class="text-center p-3 border rounded">
                                 <i class="fas fa-building fa-2x text-primary mb-2"></i>
-                                <h5 class="mb-0 text-primary">{{ stats.assets_balance|remove_trailing_zeros }}</h5>
+                                <h5 class="mb-0 text-primary">{{ stats.assets_balance|smart_float }}</h5>
                                 <small class="text-muted">الأصول</small>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="text-center p-3 border rounded">
                                 <i class="fas fa-file-invoice-dollar fa-2x text-danger mb-2"></i>
-                                <h5 class="mb-0 text-danger">{{ stats.liabilities_balance|remove_trailing_zeros }}</h5>
+                                <h5 class="mb-0 text-danger">{{ stats.liabilities_balance|smart_float }}</h5>
                                 <small class="text-muted">الخصوم</small>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="text-center p-3 border rounded">
                                 <i class="fas fa-landmark fa-2x text-info mb-2"></i>
-                                <h5 class="mb-0 text-info">{{ stats.equity_balance|remove_trailing_zeros }}</h5>
+                                <h5 class="mb-0 text-info">{{ stats.equity_balance|smart_float }}</h5>
                                 <small class="text-muted">حقوق الملكية</small>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="text-center p-3 border rounded">
                                 <i class="fas fa-arrow-up fa-2x text-success mb-2"></i>
-                                <h5 class="mb-0 text-success">{{ stats.revenue_balance|remove_trailing_zeros }}</h5>
+                                <h5 class="mb-0 text-success">{{ stats.revenue_balance|smart_float }}</h5>
                                 <small class="text-muted">الإيرادات</small>
                             </div>
                         </div>
                         <div class="col-md-2">
                             <div class="text-center p-3 border rounded">
                                 <i class="fas fa-arrow-down fa-2x text-warning mb-2"></i>
-                                <h5 class="mb-0 text-warning">{{ stats.expense_balance|remove_trailing_zeros }}</h5>
+                                <h5 class="mb-0 text-warning">{{ stats.expense_balance|smart_float }}</h5>
                                 <small class="text-muted">المصروفات</small>
                             </div>
                         </div>
@@ -202,7 +202,7 @@
                             <div class="text-center p-3 border rounded bg-light">
                                 <i class="fas fa-balance-scale fa-2x text-dark mb-2"></i>
                                 <h5 class="mb-0 {% if stats.net_assets >= 0 %}text-success{% else %}text-danger{% endif %}">
-                                    {{ stats.net_assets|remove_trailing_zeros }}
+                                    {{ stats.net_assets|smart_float }}
                                 </h5>
                                 <small class="text-muted">صافي الأصول</small>
                             </div>

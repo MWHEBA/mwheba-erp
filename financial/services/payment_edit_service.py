@@ -225,9 +225,12 @@ class PaymentEditService:
         new_data: Dict = None,
         reason: str = "",
     ):
-        """تسجيل تغيير الدفعة - نظام بسيط"""
-
-        # يمكن توسيع هذا لاحقاً بنموذج قاعدة بيانات منفصل
+        """
+        تسجيل تغيير الدفعة
+        يحفظ في ActivityLog لتتبع التغييرات
+        """
+        from core.models import ActivityLog
+        
         log_entry = {
             "payment_id": payment.id,
             "payment_type": payment_type,
@@ -246,10 +249,32 @@ class PaymentEditService:
                     changes[key] = {"old": old_value, "new": new_value}
             log_entry["changes"] = changes
 
-        # تسجيل في الـ logger للآن
+        # تسجيل في الـ logger
         logger.info(f"Payment Change Log: {log_entry}")
-
-        # TODO: يمكن حفظ في جدول منفصل لاحقاً إذا لزم الأمر
+        
+        # حفظ في ActivityLog للتتبع
+        try:
+            action_description = {
+                'edited': 'تعديل دفعة',
+                'unposted': 'إلغاء ترحيل دفعة',
+                'posted': 'ترحيل دفعة',
+                'deleted': 'حذف دفعة'
+            }.get(action, action)
+            
+            details = f"{action_description} - {payment_type} #{payment.id}"
+            if reason:
+                details += f" - السبب: {reason}"
+            if log_entry.get("changes"):
+                details += f" - التغييرات: {len(log_entry['changes'])} حقل"
+            
+            ActivityLog.objects.create(
+                user=user,
+                action=action_description,
+                details=details,
+                ip_address=None  # يمكن إضافته من request إذا توفر
+            )
+        except Exception as e:
+            logger.error(f"فشل حفظ سجل النشاط: {e}")
 
     @classmethod
     def validate_payment_data(cls, payment_data: Dict[str, Any]) -> Dict[str, Any]:

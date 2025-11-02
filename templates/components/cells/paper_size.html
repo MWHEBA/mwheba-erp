@@ -7,7 +7,7 @@
         </span>
         {% if object.paper_details.custom_width and object.paper_details.custom_height %}
             <small class="text-muted">
-                {{ object.paper_details.custom_width|remove_trailing_zeros }}×{{ object.paper_details.custom_height|remove_trailing_zeros }} سم
+                {{ object.paper_details.custom_width|smart_float }}×{{ object.paper_details.custom_height|smart_float }} سم
             </small>
         {% endif %}
     </div>

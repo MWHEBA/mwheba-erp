@@ -298,7 +298,7 @@
               <i class="fas fa-dollar-sign"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي القيمة" %}</div>
-            <div class="stats-card-value">{{ summary.total_amount|remove_trailing_zeros|default:"0" }}</div>
+            <div class="stats-card-value">{{ summary.total_amount|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>

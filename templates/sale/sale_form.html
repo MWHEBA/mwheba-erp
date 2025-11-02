@@ -289,7 +289,7 @@
                                 <div class="col-md-2">
                                     <div class="form-group mb-2">
                                         <label class="form-label required-field">الكمية</label>
-                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|remove_trailing_zeros }}" required oninput="this.value = this.value <= 0 ? 1 : this.value">
+                                        <input type="number" name="quantity[]" class="form-control quantity" min="1" step="1" value="{{ item.quantity|smart_float }}" required oninput="this.value = this.value <= 0 ? 1 : this.value">
                                     </div>
                                 </div>
                                 

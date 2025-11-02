@@ -1,0 +1,43 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ notification_title }} - MWHEBA ERP{% endblock %}
+
+{% block content %}
+<h1 class="main-title">{{ notification_title }}</h1>
+<p class="main-message">
+    مرحباً {{ user_name }}،<br>
+    {{ notification_message }}
+</p>
+
+{% if notification_type == 'success' %}
+<div class="success-box" style="text-align: right;">
+    <strong style="color: #22c55e; font-size: 18px;">✓ تم بنجاح</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">{{ notification_details }}</p>
+</div>
+{% elif notification_type == 'warning' %}
+<div class="warning-box" style="text-align: right;">
+    <strong style="color: #f59e0b; font-size: 18px;">⚠ تنبيه</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">{{ notification_details }}</p>
+</div>
+{% elif notification_type == 'danger' %}
+<div class="danger-box" style="text-align: right;">
+    <strong style="color: #ef4444; font-size: 18px;">✕ تحذير</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">{{ notification_details }}</p>
+</div>
+{% else %}
+<div class="info-box" style="text-align: right;">
+    <strong style="color: #0ea5e9; font-size: 18px;">ℹ معلومة</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">{{ notification_details }}</p>
+</div>
+{% endif %}
+
+{% if action_url %}
+<a href="{{ action_url }}" class="button">{{ action_text|default:"عرض التفاصيل" }}</a>
+{% endif %}
+
+<p class="help-text">
+    إذا كان لديك أي استفسار، يمكنك الرد على هذا الإيميل وسنكون سعداء بمساعدتك.
+</p>
+
+<p class="signature">فريق MWHEBA</p>
+{% endblock %}

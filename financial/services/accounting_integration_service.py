@@ -66,9 +66,15 @@ class AccountingIntegrationService:
                 # قيد العميل (مدين) - استخدام حساب العميل المحدد
                 customer_account = cls._get_customer_account(sale.customer)
                 if not customer_account:
-                    # استخدام الحساب العام كحل أخير
-                    customer_account = accounts["accounts_receivable"]
-                    logger.warning(f"استخدام حساب العملاء العام للعميل {sale.customer.name}")
+                    # إنشاء حساب جديد للعميل تلقائياً
+                    logger.warning(f"⚠️ العميل {sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                    customer_account = cls._create_customer_account(sale.customer, user or sale.created_by)
+                    
+                    if not customer_account:
+                        # فشل إنشاء الحساب - إيقاف العملية
+                        error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
                 
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
@@ -160,9 +166,15 @@ class AccountingIntegrationService:
                 # قيد المورد (دائن) - استخدام حساب المورد المحدد
                 supplier_account = cls._get_supplier_account(purchase.supplier)
                 if not supplier_account:
-                    # استخدام الحساب العام كحل أخير
-                    supplier_account = accounts["accounts_payable"]
-                    logger.warning(f"استخدام حساب الموردين العام للمورد {purchase.supplier.name}")
+                    # إنشاء حساب جديد للمورد تلقائياً
+                    logger.warning(f"⚠️ المورد {purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                    supplier_account = cls._create_supplier_account(purchase.supplier, user or purchase.created_by)
+                    
+                    if not supplier_account:
+                        # فشل إنشاء الحساب - إيقاف العملية
+                        error_msg = f"❌ فشل إنشاء حساب محاسبي للمورد {purchase.supplier.name}. يجب إنشاء حساب محاسبي للمورد أولاً."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
                 
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
@@ -235,9 +247,22 @@ class AccountingIntegrationService:
                     description=f"عكس إيرادات - مرتجع {sale_return.number}",
                 )
 
+                # استخدام حساب العميل المحدد
+                customer_account = cls._get_customer_account(sale_return.sale.customer)
+                if not customer_account:
+                    # إنشاء حساب جديد للعميل تلقائياً
+                    logger.warning(f"⚠️ العميل {sale_return.sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                    customer_account = cls._create_customer_account(sale_return.sale.customer, user or sale_return.created_by)
+                    
+                    if not customer_account:
+                        # فشل إنشاء الحساب - إيقاف العملية
+                        error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale_return.sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
+
                 JournalEntryLine.objects.create(
                     journal_entry=journal_entry,
-                    account=accounts["accounts_receivable"],
+                    account=customer_account,
                     debit=Decimal("0.00"),
                     credit=total_return,
                     description=f"تخفيض ذمم العميل {sale_return.sale.customer.name} - مرتجع {sale_return.number}",
@@ -300,8 +325,21 @@ class AccountingIntegrationService:
                         if payment.payment_method == "cash"
                         else accounts["bank"]
                     )
-                    # دائن العملاء
-                    account_credit = accounts["accounts_receivable"]
+                    
+                    # دائن حساب العميل المحدد
+                    customer_account = cls._get_customer_account(payment.sale.customer)
+                    if not customer_account:
+                        # إنشاء حساب جديد للعميل تلقائياً
+                        logger.warning(f"⚠️ العميل {payment.sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                        customer_account = cls._create_customer_account(payment.sale.customer, user or payment.created_by)
+                        
+                        if not customer_account:
+                            # فشل إنشاء الحساب - إيقاف العملية
+                            error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {payment.sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
+                            logger.error(error_msg)
+                            raise ValueError(error_msg)
+                    
+                    account_credit = customer_account
 
                 elif payment_type == "purchase_payment":
                     # دفعة لمورد
@@ -310,7 +348,18 @@ class AccountingIntegrationService:
 
                     # مدين حساب المورد المحدد
                     supplier_account = cls._get_supplier_account(payment.purchase.supplier)
-                    account_debit = supplier_account if supplier_account else accounts["accounts_payable"]
+                    if not supplier_account:
+                        # إنشاء حساب جديد للمورد تلقائياً
+                        logger.warning(f"⚠️ المورد {payment.purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                        supplier_account = cls._create_supplier_account(payment.purchase.supplier, user or payment.created_by)
+                        
+                        if not supplier_account:
+                            # فشل إنشاء الحساب - إيقاف العملية
+                            error_msg = f"❌ فشل إنشاء حساب محاسبي للمورد {payment.purchase.supplier.name}. يجب إنشاء حساب محاسبي للمورد أولاً."
+                            logger.error(error_msg)
+                            raise ValueError(error_msg)
+                    
+                    account_debit = supplier_account
                     
                     # دائن الصندوق/البنك
                     account_credit = (
@@ -777,6 +826,136 @@ class AccountingIntegrationService:
             return None
 
     @classmethod
+    def _create_customer_account(cls, customer, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
+        """
+        إنشاء حساب محاسبي جديد للعميل تلقائياً
+        يستخدم نفس المنطق الموجود في client/views.py:customer_create_account
+        """
+        try:
+            # التحقق من أن العميل لا يملك حساب بالفعل
+            if customer.financial_account:
+                logger.warning(f"⚠️ العميل {customer.name} مربوط بالفعل بحساب محاسبي {customer.financial_account.code}")
+                return customer.financial_account
+            
+            # البحث عن حساب العملاء الرئيسي (11030)
+            customers_account = ChartOfAccounts.objects.filter(code="11030").first()
+            
+            if not customers_account:
+                logger.error("❌ لا يمكن العثور على حساب العملاء الرئيسي (11030) في النظام")
+                return None
+            
+            # إنشاء كود فريد للحساب الجديد
+            # البحث عن آخر حساب فرعي تحت حساب العملاء
+            # النمط المتوقع: 1103001, 1103002, 1103003...
+            last_customer_account = ChartOfAccounts.objects.filter(
+                parent=customers_account,
+                code__regex=r'^1103\d{3}$'  # يبدأ بـ 1103 ويتبعه 3 أرقام
+            ).order_by('-code').first()
+            
+            if last_customer_account:
+                # استخراج الرقم التسلسلي من آخر 3 أرقام
+                last_number = int(last_customer_account.code[-3:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            # تكوين الكود الجديد: 1103 + رقم تسلسلي من 3 أرقام
+            new_code = f"1103{new_number:03d}"
+            
+            # إنشاء اسم مناسب للحساب
+            account_name = f"عميل - {customer.name}"
+            
+            # إنشاء الحساب الجديد
+            new_account = ChartOfAccounts.objects.create(
+                code=new_code,
+                name=account_name,
+                parent=customers_account,
+                account_type=customers_account.account_type,
+                is_active=True,
+                is_leaf=True,
+                description=f"حساب محاسبي للعميل: {customer.name} (كود العميل: {customer.code})",
+                created_by=user if user else None
+            )
+            
+            # ربط العميل بالحساب الجديد
+            customer.financial_account = new_account
+            customer.save(update_fields=['financial_account'])
+            
+            logger.info(f"✅ تم إنشاء حساب جديد للعميل: {new_account.code} - {new_account.name}")
+            return new_account
+            
+        except Exception as e:
+            logger.error(f"❌ فشل في إنشاء حساب جديد للعميل {customer.name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    @classmethod
+    def _create_supplier_account(cls, supplier, user: Optional[User] = None) -> Optional[ChartOfAccounts]:
+        """
+        إنشاء حساب محاسبي جديد للمورد تلقائياً
+        يستخدم نفس المنطق الموجود في supplier/views.py:supplier_create_account
+        """
+        try:
+            # التحقق من أن المورد لا يملك حساب بالفعل
+            if supplier.financial_account:
+                logger.warning(f"⚠️ المورد {supplier.name} مربوط بالفعل بحساب محاسبي {supplier.financial_account.code}")
+                return supplier.financial_account
+            
+            # البحث عن حساب الموردين الرئيسي (21010)
+            suppliers_account = ChartOfAccounts.objects.filter(code="21010").first()
+            
+            if not suppliers_account:
+                logger.error("❌ لا يمكن العثور على حساب الموردين الرئيسي (21010) في النظام")
+                return None
+            
+            # إنشاء كود فريد للحساب الجديد
+            # البحث عن آخر حساب فرعي تحت حساب الموردين
+            # النمط المتوقع: 2101001, 2101002, 2101003...
+            last_supplier_account = ChartOfAccounts.objects.filter(
+                parent=suppliers_account,
+                code__regex=r'^2101\d{3}$'  # يبدأ بـ 2101 ويتبعه 3 أرقام
+            ).order_by('-code').first()
+            
+            if last_supplier_account:
+                # استخراج الرقم التسلسلي من آخر 3 أرقام
+                last_number = int(last_supplier_account.code[-3:])
+                new_number = last_number + 1
+            else:
+                new_number = 1
+            
+            # تكوين الكود الجديد: 2101 + رقم تسلسلي من 3 أرقام
+            new_code = f"2101{new_number:03d}"
+            
+            # إنشاء اسم مناسب للحساب
+            account_name = f"مورد - {supplier.name}"
+            
+            # إنشاء الحساب الجديد
+            new_account = ChartOfAccounts.objects.create(
+                code=new_code,
+                name=account_name,
+                parent=suppliers_account,
+                account_type=suppliers_account.account_type,
+                is_active=True,
+                is_leaf=True,
+                description=f"حساب محاسبي للمورد: {supplier.name} (كود المورد: {supplier.code})",
+                created_by=user if user else None
+            )
+            
+            # ربط المورد بالحساب الجديد
+            supplier.financial_account = new_account
+            supplier.save(update_fields=['financial_account'])
+            
+            logger.info(f"✅ تم إنشاء حساب جديد للمورد: {new_account.code} - {new_account.name}")
+            return new_account
+            
+        except Exception as e:
+            logger.error(f"❌ فشل في إنشاء حساب جديد للمورد {supplier.name}: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return None
+
+    @classmethod
     def create_sale_adjustment_entry(
         cls,
         sale,
@@ -841,7 +1020,15 @@ class AccountingIntegrationService:
                 if total_difference != 0:
                     customer_account = cls._get_customer_account(sale.customer)
                     if not customer_account:
-                        customer_account = accounts["accounts_receivable"]
+                        # إنشاء حساب جديد للعميل تلقائياً
+                        logger.warning(f"⚠️ العميل {sale.customer.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                        customer_account = cls._create_customer_account(sale.customer, user)
+                        
+                        if not customer_account:
+                            # فشل إنشاء الحساب - إيقاف العملية
+                            error_msg = f"❌ فشل إنشاء حساب محاسبي للعميل {sale.customer.name}. يجب إنشاء حساب محاسبي للعميل أولاً."
+                            logger.error(error_msg)
+                            raise ValueError(error_msg)
                     
                     if total_difference > 0:  # زيادة في الفاتورة
                         # مدين العميل (زيادة الذمة)
@@ -1009,7 +1196,15 @@ class AccountingIntegrationService:
                 # معالجة الفرق
                 supplier_account = cls._get_supplier_account(purchase.supplier)
                 if not supplier_account:
-                    supplier_account = accounts["accounts_payable"]
+                    # إنشاء حساب جديد للمورد تلقائياً
+                    logger.warning(f"⚠️ المورد {purchase.supplier.name} ليس له حساب محاسبي - سيتم إنشاء حساب جديد")
+                    supplier_account = cls._create_supplier_account(purchase.supplier, user)
+                    
+                    if not supplier_account:
+                        # فشل إنشاء الحساب - إيقاف العملية
+                        error_msg = f"❌ فشل إنشاء حساب محاسبي للمورد {purchase.supplier.name}. يجب إنشاء حساب محاسبي للمورد أولاً."
+                        logger.error(error_msg)
+                        raise ValueError(error_msg)
                 
                 if total_difference > 0:  # زيادة في الفاتورة
                     # مدين المخزون (زيادة المخزون)

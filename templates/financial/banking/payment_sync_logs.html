@@ -51,7 +51,7 @@
                                 <td>{{ log.executed_at|date:"Y-m-d H:i:s" }}</td>
                                 <td>
                                     {% if log.execution_time %}
-                                        <small class="text-muted">{{ log.execution_time|remove_trailing_zeros }}s</small>
+                                        <small class="text-muted">{{ log.execution_time|smart_float }}s</small>
                                     {% else %}
                                         <small class="text-muted">-</small>
                                     {% endif %}

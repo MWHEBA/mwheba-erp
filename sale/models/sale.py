@@ -146,6 +146,13 @@ class Sale(models.Model):
         """
         return self.amount_due <= 0
 
+    @property
+    def has_posted_payments(self):
+        """
+        هل الفاتورة تحتوي على دفعات مرحلة
+        """
+        return self.payments.filter(status="posted").exists()
+
     def update_payment_status(self):
         """
         تحديث حالة الدفع

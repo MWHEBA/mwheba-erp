@@ -1,0 +1,1214 @@
+[
+  {
+    "model": "core.systemsetting",
+    "pk": 1,
+    "fields": {
+      "key": "company_name",
+      "value": "مؤسسة موهبة",
+      "data_type": "string",
+      "description": "اسم الشركة الرسمي",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 2,
+    "fields": {
+      "key": "company_name_en",
+      "value": "MWHEBA Foundation",
+      "data_type": "string",
+      "description": "اسم الشركة بالإنجليزية",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 3,
+    "fields": {
+      "key": "company_address",
+      "value": "القاهرة، مصر",
+      "data_type": "string",
+      "description": "عنوان الشركة الرئيسي",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 4,
+    "fields": {
+      "key": "company_phone",
+      "value": "+201234567890",
+      "data_type": "string",
+      "description": "رقم هاتف الشركة الرئيسي",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 5,
+    "fields": {
+      "key": "company_mobile",
+      "value": "+201012345678",
+      "data_type": "string",
+      "description": "رقم الموبايل الرئيسي",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 6,
+    "fields": {
+      "key": "company_email",
+      "value": "info@mwheba-erp.com",
+      "data_type": "string",
+      "description": "البريد الإلكتروني الرسمي",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 7,
+    "fields": {
+      "key": "company_website",
+      "value": "https://mwheba-erp.com",
+      "data_type": "string",
+      "description": "موقع الشركة الإلكتروني",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 8,
+    "fields": {
+      "key": "company_tax_number",
+      "value": "123-456-789",
+      "data_type": "string",
+      "description": "الرقم الضريبي للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 9,
+    "fields": {
+      "key": "company_commercial_register",
+      "value": "987654321",
+      "data_type": "string",
+      "description": "رقم السجل التجاري",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 10,
+    "fields": {
+      "key": "company_logo_path",
+      "value": "img/logo.png",
+      "data_type": "string",
+      "description": "مسار شعار الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 11,
+    "fields": {
+      "key": "default_currency",
+      "value": "ج.م",
+      "data_type": "string",
+      "description": "رمز العملة الافتراضية",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 12,
+    "fields": {
+      "key": "currency_name",
+      "value": "جنيه مصري",
+      "data_type": "string",
+      "description": "اسم العملة الافتراضية",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 13,
+    "fields": {
+      "key": "currency_code",
+      "value": "EGP",
+      "data_type": "string",
+      "description": "كود العملة الدولي (ISO 4217)",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 14,
+    "fields": {
+      "key": "default_tax_rate",
+      "value": "14",
+      "data_type": "decimal",
+      "description": "نسبة ضريبة القيمة المضافة الافتراضية",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 15,
+    "fields": {
+      "key": "enable_tax",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل الضرائب في النظام",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 16,
+    "fields": {
+      "key": "tax_inclusive",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "الضريبة شاملة في السعر",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 17,
+    "fields": {
+      "key": "decimal_places",
+      "value": "2",
+      "data_type": "integer",
+      "description": "عدد المنازل العشرية في الأسعار",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 18,
+    "fields": {
+      "key": "enable_discount",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل الخصومات في الفواتير",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 19,
+    "fields": {
+      "key": "max_discount_percentage",
+      "value": "50",
+      "data_type": "decimal",
+      "description": "الحد الأقصى لنسبة الخصم المسموح بها",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 20,
+    "fields": {
+      "key": "invoice_prefix",
+      "value": "INV-",
+      "data_type": "string",
+      "description": "بادئة رقم فاتورة البيع",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 21,
+    "fields": {
+      "key": "invoice_notes",
+      "value": "شكراً لتعاملكم معنا. جميع الأسعار شاملة ضريبة القيمة المضافة.",
+      "data_type": "string",
+      "description": "ملاحظات الفاتورة الافتراضية",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 22,
+    "fields": {
+      "key": "invoice_number_length",
+      "value": "6",
+      "data_type": "integer",
+      "description": "طول رقم الفاتورة (عدد الأرقام)",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 23,
+    "fields": {
+      "key": "invoice_starting_number",
+      "value": "1",
+      "data_type": "integer",
+      "description": "رقم البداية للفواتير",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 24,
+    "fields": {
+      "key": "enable_invoice_approval",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل نظام الموافقة على الفواتير",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 25,
+    "fields": {
+      "key": "default_payment_terms",
+      "value": "30",
+      "data_type": "integer",
+      "description": "شروط الدفع الافتراضية (بالأيام)",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 26,
+    "fields": {
+      "key": "enable_credit_limit",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل حد الائتمان للعملاء",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 27,
+    "fields": {
+      "key": "default_credit_limit",
+      "value": "50000",
+      "data_type": "decimal",
+      "description": "حد الائتمان الافتراضي للعملاء الجدد",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 28,
+    "fields": {
+      "key": "allow_negative_stock",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "السماح بالبيع من مخزون سالب",
+      "group": "sales",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 29,
+    "fields": {
+      "key": "purchase_prefix",
+      "value": "PUR-",
+      "data_type": "string",
+      "description": "بادئة رقم فاتورة الشراء",
+      "group": "purchases",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 30,
+    "fields": {
+      "key": "purchase_number_length",
+      "value": "6",
+      "data_type": "integer",
+      "description": "طول رقم فاتورة الشراء",
+      "group": "purchases",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 31,
+    "fields": {
+      "key": "enable_purchase_approval",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل نظام الموافقة على المشتريات",
+      "group": "purchases",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 32,
+    "fields": {
+      "key": "default_supplier_payment_terms",
+      "value": "30",
+      "data_type": "integer",
+      "description": "شروط الدفع الافتراضية للموردين (بالأيام)",
+      "group": "purchases",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 33,
+    "fields": {
+      "key": "auto_update_cost_price",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تحديث سعر التكلفة تلقائياً عند الشراء",
+      "group": "purchases",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 34,
+    "fields": {
+      "key": "enable_low_stock_alert",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل تنبيهات المخزون المنخفض",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 35,
+    "fields": {
+      "key": "default_minimum_stock",
+      "value": "10",
+      "data_type": "integer",
+      "description": "الحد الأدنى الافتراضي للمخزون",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 36,
+    "fields": {
+      "key": "default_maximum_stock",
+      "value": "1000",
+      "data_type": "integer",
+      "description": "الحد الأقصى الافتراضي للمخزون",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 37,
+    "fields": {
+      "key": "enable_batch_tracking",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل تتبع الدفعات (Batch)",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 38,
+    "fields": {
+      "key": "enable_serial_tracking",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل تتبع الأرقام التسلسلية (Serial)",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 39,
+    "fields": {
+      "key": "enable_expiry_tracking",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل تتبع تواريخ الصلاحية",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 40,
+    "fields": {
+      "key": "expiry_alert_days",
+      "value": "30",
+      "data_type": "integer",
+      "description": "التنبيه قبل انتهاء الصلاحية بـ (أيام)",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 41,
+    "fields": {
+      "key": "inventory_valuation_method",
+      "value": "FIFO",
+      "data_type": "string",
+      "description": "طريقة تقييم المخزون (FIFO, LIFO, Average)",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 42,
+    "fields": {
+      "key": "enable_multi_warehouse",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل نظام المخازن المتعددة",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 43,
+    "fields": {
+      "key": "default_warehouse",
+      "value": "1",
+      "data_type": "integer",
+      "description": "المخزن الافتراضي",
+      "group": "inventory",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 44,
+    "fields": {
+      "key": "date_format",
+      "value": "d/m/Y",
+      "data_type": "string",
+      "description": "صيغة التاريخ (d/m/Y, Y-m-d, m/d/Y)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 45,
+    "fields": {
+      "key": "time_format",
+      "value": "H:i",
+      "data_type": "string",
+      "description": "صيغة الوقت (H:i, h:i A)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 46,
+    "fields": {
+      "key": "timezone",
+      "value": "Africa/Cairo",
+      "data_type": "string",
+      "description": "المنطقة الزمنية",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 47,
+    "fields": {
+      "key": "language",
+      "value": "ar",
+      "data_type": "string",
+      "description": "اللغة الافتراضية للنظام",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 48,
+    "fields": {
+      "key": "items_per_page",
+      "value": "25",
+      "data_type": "integer",
+      "description": "عدد العناصر في الصفحة الواحدة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 49,
+    "fields": {
+      "key": "enable_email_notifications",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل إشعارات البريد الإلكتروني",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 50,
+    "fields": {
+      "key": "enable_sms_notifications",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل إشعارات الرسائل النصية",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 51,
+    "fields": {
+      "key": "enable_system_logs",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل سجلات النظام",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 52,
+    "fields": {
+      "key": "log_retention_days",
+      "value": "90",
+      "data_type": "integer",
+      "description": "مدة الاحتفاظ بالسجلات (بالأيام)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 53,
+    "fields": {
+      "key": "enable_backup",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل النسخ الاحتياطي التلقائي",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 54,
+    "fields": {
+      "key": "backup_frequency",
+      "value": "daily",
+      "data_type": "string",
+      "description": "تكرار النسخ الاحتياطي (daily, weekly, monthly)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 55,
+    "fields": {
+      "key": "backup_retention_days",
+      "value": "30",
+      "data_type": "integer",
+      "description": "مدة الاحتفاظ بالنسخ الاحتياطية (بالأيام)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 56,
+    "fields": {
+      "key": "enable_two_factor_auth",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل المصادقة الثنائية",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 57,
+    "fields": {
+      "key": "session_timeout",
+      "value": "60",
+      "data_type": "integer",
+      "description": "مدة انتهاء الجلسة (بالدقائق)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 58,
+    "fields": {
+      "key": "password_min_length",
+      "value": "8",
+      "data_type": "integer",
+      "description": "الحد الأدنى لطول كلمة المرور",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 59,
+    "fields": {
+      "key": "password_require_uppercase",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "كلمة المرور تتطلب حروف كبيرة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 60,
+    "fields": {
+      "key": "password_require_numbers",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "كلمة المرور تتطلب أرقام",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 61,
+    "fields": {
+      "key": "password_require_special_chars",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "كلمة المرور تتطلب رموز خاصة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 62,
+    "fields": {
+      "key": "enable_daftra_sync",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "تفعيل المزامنة مع دفترة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 63,
+    "fields": {
+      "key": "daftra_api_key",
+      "value": "",
+      "data_type": "string",
+      "description": "مفتاح API لدفترة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 64,
+    "fields": {
+      "key": "daftra_sync_frequency",
+      "value": "hourly",
+      "data_type": "string",
+      "description": "تكرار المزامنة مع دفترة (hourly, daily)",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 65,
+    "fields": {
+      "key": "enable_printing_pricing",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل وحدة تسعير الطباعة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 66,
+    "fields": {
+      "key": "printing_order_prefix",
+      "value": "PO-",
+      "data_type": "string",
+      "description": "بادئة رقم طلب الطباعة",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 67,
+    "fields": {
+      "key": "enable_financial_module",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل الوحدة المالية",
+      "group": "system",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 68,
+    "fields": {
+      "key": "fiscal_year_start",
+      "value": "01-01",
+      "data_type": "string",
+      "description": "بداية السنة المالية (MM-DD)",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 69,
+    "fields": {
+      "key": "fiscal_year_end",
+      "value": "12-31",
+      "data_type": "string",
+      "description": "نهاية السنة المالية (MM-DD)",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 70,
+    "fields": {
+      "key": "enable_auto_journal_entry",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "تفعيل القيود المحاسبية التلقائية",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 71,
+    "fields": {
+      "key": "journal_entry_prefix",
+      "value": "JE-",
+      "data_type": "string",
+      "description": "بادئة رقم القيد المحاسبي",
+      "group": "finance",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 72,
+    "fields": {
+      "key": "company_fax",
+      "value": "+20212345678",
+      "data_type": "string",
+      "description": "رقم الفاكس الخاص بالشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 73,
+    "fields": {
+      "key": "company_city",
+      "value": "القاهرة",
+      "data_type": "string",
+      "description": "المدينة التي تقع فيها الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 74,
+    "fields": {
+      "key": "company_state",
+      "value": "القاهرة",
+      "data_type": "string",
+      "description": "المحافظة أو الولاية",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 75,
+    "fields": {
+      "key": "company_country",
+      "value": "مصر",
+      "data_type": "string",
+      "description": "الدولة التي تقع فيها الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 76,
+    "fields": {
+      "key": "company_postal_code",
+      "value": "11511",
+      "data_type": "string",
+      "description": "الرمز البريدي للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 77,
+    "fields": {
+      "key": "company_legal_form",
+      "value": "شركة ذات مسؤولية محدودة",
+      "data_type": "string",
+      "description": "الشكل القانوني للشركة (مؤسسة، شركة، إلخ)",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 78,
+    "fields": {
+      "key": "company_established_date",
+      "value": "2020-01-01",
+      "data_type": "date",
+      "description": "تاريخ تأسيس الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 79,
+    "fields": {
+      "key": "company_capital",
+      "value": "1000000",
+      "data_type": "decimal",
+      "description": "رأس مال الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 80,
+    "fields": {
+      "key": "company_industry",
+      "value": "طباعة ونشر",
+      "data_type": "string",
+      "description": "مجال عمل الشركة أو الصناعة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 81,
+    "fields": {
+      "key": "company_description",
+      "value": "شركة متخصصة في خدمات الطباعة والنشر وإدارة المشاريع",
+      "data_type": "string",
+      "description": "وصف مختصر عن الشركة ونشاطها",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 82,
+    "fields": {
+      "key": "company_ceo_name",
+      "value": "محمد يوسف",
+      "data_type": "string",
+      "description": "اسم المدير التنفيذي أو صاحب الشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 83,
+    "fields": {
+      "key": "company_contact_person",
+      "value": "أحمد محمود",
+      "data_type": "string",
+      "description": "اسم الشخص المسؤول عن التواصل",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 84,
+    "fields": {
+      "key": "company_contact_person_phone",
+      "value": "+201098765432",
+      "data_type": "string",
+      "description": "رقم هاتف الشخص المسؤول عن التواصل",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 85,
+    "fields": {
+      "key": "company_contact_person_email",
+      "value": "contact@mwheba-erp.com",
+      "data_type": "string",
+      "description": "بريد إلكتروني للشخص المسؤول عن التواصل",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 86,
+    "fields": {
+      "key": "company_bank_name",
+      "value": "البنك الأهلي المصري",
+      "data_type": "string",
+      "description": "اسم البنك الرئيسي للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 87,
+    "fields": {
+      "key": "company_bank_account",
+      "value": "1234567890123456",
+      "data_type": "string",
+      "description": "رقم الحساب البنكي للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 88,
+    "fields": {
+      "key": "company_bank_iban",
+      "value": "EG380002000156789012345180002",
+      "data_type": "string",
+      "description": "رقم الآيبان الدولي (IBAN)",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 89,
+    "fields": {
+      "key": "company_bank_swift",
+      "value": "NBEGEGCXXXX",
+      "data_type": "string",
+      "description": "كود السويفت للبنك (SWIFT Code)",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 90,
+    "fields": {
+      "key": "company_facebook",
+      "value": "https://facebook.com/mwheba",
+      "data_type": "string",
+      "description": "رابط صفحة الشركة على فيسبوك",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 91,
+    "fields": {
+      "key": "company_twitter",
+      "value": "https://twitter.com/mwheba",
+      "data_type": "string",
+      "description": "رابط حساب الشركة على تويتر",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 92,
+    "fields": {
+      "key": "company_linkedin",
+      "value": "https://linkedin.com/company/mwheba",
+      "data_type": "string",
+      "description": "رابط صفحة الشركة على لينكد إن",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 93,
+    "fields": {
+      "key": "company_instagram",
+      "value": "https://instagram.com/mwheba",
+      "data_type": "string",
+      "description": "رابط حساب الشركة على إنستجرام",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 94,
+    "fields": {
+      "key": "company_youtube",
+      "value": "https://youtube.com/@mwheba",
+      "data_type": "string",
+      "description": "رابط قناة الشركة على يوتيوب",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 95,
+    "fields": {
+      "key": "company_whatsapp",
+      "value": "+201234567890",
+      "data_type": "string",
+      "description": "رقم واتساب الشركة للتواصل",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 96,
+    "fields": {
+      "key": "company_working_hours",
+      "value": "من الأحد إلى الخميس: 9 صباحاً - 5 مساءً",
+      "data_type": "string",
+      "description": "ساعات العمل الرسمية للشركة",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 97,
+    "fields": {
+      "key": "company_support_email",
+      "value": "support@mwheba-erp.com",
+      "data_type": "string",
+      "description": "البريد الإلكتروني للدعم الفني",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 98,
+    "fields": {
+      "key": "company_support_phone",
+      "value": "+201555555555",
+      "data_type": "string",
+      "description": "رقم هاتف الدعم الفني",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 99,
+    "fields": {
+      "key": "company_sales_email",
+      "value": "sales@mwheba-erp.com",
+      "data_type": "string",
+      "description": "البريد الإلكتروني لقسم المبيعات",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 100,
+    "fields": {
+      "key": "company_sales_phone",
+      "value": "+201666666666",
+      "data_type": "string",
+      "description": "رقم هاتف قسم المبيعات",
+      "group": "general",
+      "is_active": true
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 101,
+    "fields": {
+      "key": "company_slogan",
+      "value": "نحو تميز مستدام في خدمات الطباعة",
+      "data_type": "string",
+      "description": "شعار الشركة أو العبارة الترويجية",
+      "group": "general",
+      "is_active": true
+    }
+  }
+]

@@ -228,6 +228,14 @@ def product_list(request):
         # تعريف أعمدة جدول المنتجات
         product_headers = [
             {
+                "key": "image",
+                "label": "الصورة",
+                "sortable": False,
+                "class": "text-center",
+                "template": "components/cells/product_image.html",
+                "width": "80px",
+            },
+            {
                 "key": "sku",
                 "label": "كود المنتج",
                 "sortable": True,
@@ -474,6 +482,48 @@ def product_detail(request, pk):
     }
 
     return render(request, "product/product_detail.html", context)
+
+
+@login_required
+@require_POST
+def product_image_upload(request, pk):
+    """
+    رفع صورة للمنتج من صفحة التفاصيل
+    """
+    product = get_object_or_404(Product, pk=pk)
+    
+    try:
+        # التحقق من وجود ملف الصورة
+        if 'image' not in request.FILES:
+            return JsonResponse({'success': False, 'message': 'لم يتم اختيار صورة'})
+        
+        image_file = request.FILES['image']
+        alt_text = request.POST.get('alt_text', '')
+        is_primary = request.POST.get('is_primary') == 'on'
+        
+        # إذا كانت الصورة رئيسية، إلغاء تفعيل الصور الرئيسية الأخرى
+        if is_primary:
+            ProductImage.objects.filter(product=product, is_primary=True).update(is_primary=False)
+        
+        # إنشاء الصورة الجديدة
+        product_image = ProductImage.objects.create(
+            product=product,
+            image=image_file,
+            alt_text=alt_text,
+            is_primary=is_primary
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'تم رفع الصورة بنجاح',
+            'image_url': product_image.image.url
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'حدث خطأ أثناء رفع الصورة: {str(e)}'
+        })
 
 
 @login_required

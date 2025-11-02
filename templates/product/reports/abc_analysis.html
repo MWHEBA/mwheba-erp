@@ -19,9 +19,9 @@
     display: inline-block;
     min-width: 40px;
 }
-.abc-a { background: linear-gradient(45deg, #28a745, #20c997); }
-.abc-b { background: linear-gradient(45deg, #ffc107, #fd7e14); }
-.abc-c { background: linear-gradient(45deg, #dc3545, #e83e8c); }
+.abc-a { background-color: #28a745; }
+.abc-b { background-color: #ffc107; color: #000; }
+.abc-c { background-color: #dc3545; }
 
 .summary-card {
     border: none;
@@ -38,23 +38,45 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="fas fa-chart-pie me-2 text-primary"></i>
-                تحليل ABC للمخزون
-            </h1>
-            <p class="text-muted mb-0">تصنيف المنتجات حسب قيمة المبيعات والأهمية</p>
+    <!-- Breadcrumb -->
+    <div class="mb-4 no-print">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">تقارير المخزون</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-chart-pie me-1"></i>تحليل ABC للمخزون
+                    </li>
+                </ol>
+            </nav>
         </div>
         
-        <div class="btn-group">
-            <button class="btn btn-outline-primary" onclick="window.print()">
-                <i class="fas fa-print me-1"></i> طباعة
-            </button>
-            <button class="btn btn-success" onclick="alert('ميزة التصدير ستكون متاحة قريباً')">
-                <i class="fas fa-file-excel me-1"></i> تصدير Excel
-            </button>
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-chart-pie fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">تحليل ABC للمخزون</h1>
+                    <p class="text-muted mb-0">تصنيف المنتجات حسب قيمة المبيعات والأهمية</p>
+                </div>
+            </div>
+            <div>
+                <button class="btn btn-outline-success" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+                <button class="btn btn-outline-primary" onclick="alert('ميزة التصدير ستكون متاحة قريباً')">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </button>
+            </div>
         </div>
     </div>
 
@@ -93,6 +115,22 @@
         </div>
     </div>
 
+    <!-- رسالة عدم وجود بيانات -->
+    {% if summary.total_products == 0 %}
+    <div class="alert alert-info text-center" role="alert">
+        <i class="fas fa-info-circle fa-3x mb-3"></i>
+        <h4 class="alert-heading">لا توجد بيانات مبيعات</h4>
+        <p class="mb-0">
+            لا توجد مبيعات مسجلة في الفترة المحددة (آخر {{ filters.period_months|default:12 }} شهر).
+            <br>
+            تحليل ABC يعتمد على بيانات المبيعات الفعلية.
+        </p>
+        <hr>
+        <p class="mb-0 text-muted">
+            <small>💡 قم بإضافة فواتير مبيعات أولاً لرؤية التحليل</small>
+        </p>
+    </div>
+    {% else %}
     <!-- Summary Cards -->
     <div class="row mb-4">
         <div class="col-md-4">
@@ -107,7 +145,7 @@
                                 {{ summary.category_a_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_a_percentage|remove_trailing_zeros }}% من المنتجات
+                                {{ summary.category_a_percentage|smart_float }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -130,7 +168,7 @@
                                 {{ summary.category_b_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_b_percentage|remove_trailing_zeros }}% من المنتجات
+                                {{ summary.category_b_percentage|smart_float }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -153,7 +191,7 @@
                                 {{ summary.category_c_count }} منتج
                             </div>
                             <div class="text-xs text-muted">
-                                {{ summary.category_c_percentage|remove_trailing_zeros }}% من المنتجات
+                                {{ summary.category_c_percentage|smart_float }}% من المنتجات
                             </div>
                         </div>
                         <div class="col-auto">
@@ -164,8 +202,10 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Chart -->
+    {% if summary.total_products > 0 %}
     <div class="card mb-4">
         <div class="card-header">
             <h6 class="m-0 font-weight-bold text-primary">
@@ -181,6 +221,9 @@
     </div>
 
     <!-- Products Table -->
+    <div class="card">
+    {% else %}
+    <!-- جدول فارغ مع رسالة -->
     <div class="card">
         <div class="card-header">
             <h6 class="m-0 font-weight-bold text-primary">
@@ -217,9 +260,9 @@
                                     <br><small class="text-muted">{{ item.product.category.name }}</small>
                                 {% endif %}
                             </td>
-                            <td class="text-end">{{ item.quantity_sold|remove_trailing_zeros }}</td>
-                            <td class="text-end">{{ item.sales_value|currency }}</td>
-                            <td class="text-end">{{ item.cumulative_percentage|remove_trailing_zeros }}%</td>
+                            <td class="text-end">{{ item.quantity_sold|smart_float }}</td>
+                            <td class="text-end">{{ item.sales_value|smart_float }}</td>
+                            <td class="text-end">{{ item.cumulative_percentage|smart_float }}%</td>
                             <td>
                                 {% if item.category == 'A' %}
                                     <span class="badge bg-success">عالية</span>
@@ -243,79 +286,82 @@
             </div>
         </div>
     </div>
+    {% endif %}
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js" 
-        integrity="sha512-VBmVTmO9TmU4Zp7LdHqaYlVOWBFWXwwOjWnBtxOJzOFzMJYrKDk4YLvAe8oX8fECCbm/LoWy7rqvOKGJemS4Q==" 
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" 
-        integrity="sha512-r22gChDnGvBylk90+2e/ycr3RVrDi8DIOkIGNhJlKfuyQM4tIRAI062MaV8sfjQKYVGjOBaZBOA87z+IhZE9DA==" 
-        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script>
 // ABC Analysis Chart
-const ctx = document.getElementById('abcChart').getContext('2d');
-const abcChart = new Chart(ctx, {
-    type: 'doughnut',
-    data: {
-        labels: ['فئة A (عالية)', 'فئة B (متوسطة)', 'فئة C (منخفضة)'],
-        datasets: [{
-            data: [
-                {{ summary.category_a_count }},
-                {{ summary.category_b_count }},
-                {{ summary.category_c_count }}
-            ],
-            backgroundColor: [
-                '#28a745',
-                '#ffc107', 
-                '#dc3545'
-            ],
-            borderWidth: 2,
-            borderColor: '#ffffff'
-        }]
-    },
-    options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-            legend: {
-                position: 'bottom',
-                labels: {
-                    padding: 20,
-                    usePointStyle: true
-                }
-            },
-            tooltip: {
-                callbacks: {
-                    label: function(context) {
-                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                        const percentage = ((context.parsed / total) * 100).toFixed(1);
-                        return context.label + ': ' + context.parsed + ' منتج (' + percentage + '%)';
+{% if summary.total_products > 0 %}
+const ctx = document.getElementById('abcChart');
+if (ctx) {
+    const abcChart = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['فئة A (عالية)', 'فئة B (متوسطة)', 'فئة C (منخفضة)'],
+            datasets: [{
+                data: [
+                    {{ summary.category_a_count|default:0 }},
+                    {{ summary.category_b_count|default:0 }},
+                    {{ summary.category_c_count|default:0 }}
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107', 
+                    '#dc3545'
+                ],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            if (total === 0) return context.label + ': 0 منتج';
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' منتج (' + percentage + '%)';
+                        }
                     }
                 }
             }
         }
-    }
-});
-
+    });
+}
+{% endif %}
 
 // DataTable initialization
 $(document).ready(function() {
-    $('#dataTable').DataTable({
-        language: {
-            url: '{% static "js/datatables/ar.json" %}'
-        },
-        order: [[4, 'desc']], // Sort by sales value descending
-        columnDefs: [
-            {
-                targets: [3, 4, 5], // Numeric columns
-                className: 'text-end'
-            }
-        ],
-        pageLength: 25,
-        responsive: true
-    });
+    const table = $('#dataTable');
+    // تحقق من وجود بيانات في الجدول
+    if (table.find('tbody tr').length > 0 && !table.find('tbody tr td[colspan]').length) {
+        table.DataTable({
+            language: {
+                url: '{% static "js/datatables/ar.json" %}'
+            },
+            order: [[4, 'desc']], // Sort by sales value descending
+            columnDefs: [
+                {
+                    targets: [3, 4, 5], // Numeric columns
+                    className: 'text-end'
+                }
+            ],
+            pageLength: 25,
+            responsive: true
+        });
+    }
 });
 </script>
 {% endblock %}

@@ -1,0 +1,322 @@
+/* ==================== صفحة الأدوار ==================== */
+
+.role-card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background: var(--bg-card);
+}
+
+.role-card:hover {
+    border-color: var(--primary-color);
+}
+
+.role-card.role-inactive {
+    opacity: 0.7;
+    background-color: var(--gray-50);
+}
+
+.role-stats {
+    display: flex;
+    gap: var(--spacing-3);
+    padding-top: var(--spacing-2);
+    border-top: 1px solid var(--border-color);
+}
+
+.role-stats .stat-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    font-size: 0.8rem;
+    color: var(--text-medium);
+}
+
+.role-stats .stat-item i {
+    font-size: 0.875rem;
+}
+
+/* الإحصائيات المضمنة */
+.role-stats-inline {
+    display: flex;
+    gap: var(--spacing-3);
+    align-items: center;
+}
+
+.stat-item-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    white-space: nowrap;
+}
+
+.stat-item-inline i {
+    font-size: 0.875rem;
+}
+
+.stat-item-inline small {
+    font-size: 0.75rem;
+    color: var(--text-medium);
+    font-weight: 500;
+}
+
+/* ==================== نموذج الدور ==================== */
+
+.permissions-container {
+    max-height: 600px;
+    overflow-y: auto;
+    padding: var(--spacing-3);
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+}
+
+.permission-group {
+    background: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+    border: 1px solid var(--border-color);
+}
+
+.permission-group-header {
+    padding: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+}
+
+.permission-group-header .form-check-label {
+    font-size: 0.9rem;
+    color: var(--text-dark);
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+.permission-group-body {
+    padding: var(--spacing-2);
+}
+
+.permission-item {
+    border-radius: 4px;
+    transition: background-color 0.2s;
+}
+
+.permission-item:hover {
+    background-color: var(--gray-50);
+}
+
+.permission-item .form-check-input {
+    margin-top: 0.25rem;
+    width: 1.1rem;
+    height: 1.1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.permission-item .form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.permission-item .form-check-input:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.1);
+}
+
+.permission-item .form-check-input:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.permission-item .form-check-label {
+    font-size: 0.85rem;
+    color: var(--text-dark);
+    cursor: pointer;
+    margin-bottom: 0;
+    padding-right: 0.5rem;
+}
+
+.permission-item .permission-name {
+    font-weight: 400;
+    color: var(--text-dark);
+}
+
+.permission-item .form-check-input:disabled + label {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* تحسين checkbox المجموعة */
+.group-checkbox {
+    width: 1.2rem;
+    height: 1.2rem;
+    border: 2px solid var(--primary-color);
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.group-checkbox:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.group-checkbox:indeterminate {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    opacity: 0.7;
+}
+
+/* ==================== صفحة صلاحيات المستخدم ==================== */
+
+.avatar-placeholder {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    margin: 0 auto;
+}
+
+.stat-box {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3);
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-3);
+    border: 1px solid var(--border-color);
+}
+
+.stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--white);
+    font-size: 1.5rem;
+}
+
+.stat-icon.bg-primary {
+    background-color: var(--primary-color);
+}
+
+.stat-icon.bg-success {
+    background-color: var(--success-color);
+}
+
+.stat-icon.bg-warning {
+    background-color: var(--warning-color);
+}
+
+.stat-info h4 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--text-dark);
+}
+
+.stat-info p {
+    margin: 0;
+    font-size: 0.875rem;
+    color: var(--text-medium);
+}
+
+/* ==================== Responsive ==================== */
+
+@media (max-width: 768px) {
+    .role-stats {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .permissions-container {
+        max-height: 400px;
+    }
+    
+    .permission-item {
+        margin-bottom: 0.5rem;
+    }
+}
+
+/* ==================== تحسينات إضافية ==================== */
+
+/* تحسين شكل الـ badges */
+.badge {
+    font-weight: 500;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+}
+
+.bg-success-subtle {
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.bg-secondary-subtle {
+    background-color: rgba(108, 117, 125, 0.1);
+}
+
+.text-success {
+    color: var(--success-color);
+}
+
+.text-secondary {
+    color: var(--text-medium);
+}
+
+/* تحسين الأزرار */
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* تحسين الـ cards */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: none;
+}
+
+.card-header {
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* تحسين الـ alerts */
+.alert {
+    border-radius: var(--border-radius);
+    border: 1px solid transparent;
+}
+
+.alert-warning {
+    background-color: var(--warning-soft);
+    border-color: var(--warning-color);
+    color: var(--warning-dark);
+}
+
+.alert-info {
+    background-color: var(--info-soft);
+    border-color: var(--info-color);
+    color: var(--info-dark);
+}

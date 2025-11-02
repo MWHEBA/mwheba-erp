@@ -86,6 +86,7 @@ from .api_views import (
     sales_report,
     purchases_report,
     inventory_report,
+    abc_analysis_report,
     general_backup,
     financial_backup_advanced,
     restore_data,
@@ -99,6 +100,8 @@ from .api_views import (
     journal_entry_summary_api,
     income_statement,
     financial_analytics,
+    cash_flow_statement,
+    accounts_aging_report,
 )
 
 # من income_views.py

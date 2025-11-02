@@ -47,23 +47,23 @@
   
   .stats-card-header {
     height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    background-color: var(--primary-color);
   }
   
   .stats-card-primary .stats-card-header {
-    background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
+    background-color: #0d6efd;
   }
   
   .stats-card-success .stats-card-header {
-    background: linear-gradient(90deg, #198754 0%, #146c43 100%);
+    background-color: #198754;
   }
   
   .stats-card-danger .stats-card-header {
-    background: linear-gradient(90deg, #dc3545 0%, #b02a37 100%);
+    background-color: #dc3545;
   }
   
   .stats-card-info .stats-card-header {
-    background: linear-gradient(90deg, #0dcaf0 0%, #0aa2c0 100%);
+    background-color: #0dcaf0;
   }
   
   .stats-card-body {
@@ -132,6 +132,56 @@
     50% { transform: translateY(-15px); }
     100% { transform: translateY(0px); }
   }
+  
+  /* تحسين الجدول */
+  .inventory-table {
+    font-size: 0.95rem;
+  }
+  
+  .inventory-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .inventory-table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+  }
+  
+  .inventory-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  
+  .inventory-table .text-end {
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+  }
+  
+  .inventory-table .table-active {
+    background-color: var(--primary-color) !important;
+    color: white;
+    font-weight: 700;
+  }
+  
+  .inventory-table .table-active td {
+    border-color: var(--primary-color);
+    padding: 1rem 0.75rem;
+  }
+  
+  .account-code-badge {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
 </style>
 {% endblock %}
 
@@ -178,7 +228,10 @@
                 </div>
             </div>
             <div>
-                <button class="btn btn-outline-success ms-2" onclick="window.print()">
+                <a href="?date={{ report_date|date:'Y-m-d' }}&export=excel" class="btn btn-outline-success">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </a>
+                <button class="btn btn-outline-primary ms-2" onclick="window.print()">
                     <i class="fas fa-print me-2"></i>طباعة
                 </button>
             </div>
@@ -197,8 +250,8 @@
               <i class="fas fa-warehouse"></i>
             </div>
             <div class="stats-card-title">إجمالي قيمة المخزون</div>
-            <div class="stats-card-value">{{ total_inventory_value|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ total_inventory_value|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -236,8 +289,8 @@
               <i class="fas fa-calculator"></i>
             </div>
             <div class="stats-card-title">متوسط قيمة الحساب</div>
-            <div class="stats-card-value">{{ avg_account_value|smart_float:2 }}</div>
-            <small class="text-muted">{% currency_symbol %}</small>
+            <div class="stats-card-value">{{ avg_account_value|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
           </div>
         </div>
       </div>
@@ -245,80 +298,100 @@
   </div>
 
   <!-- تصفية وبحث -->
-  <div class="section-container">
+  <div class="section-container no-print">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
-    <div class="filter-section mb-4">
-      <form method="GET" action="" class="row g-3">
-        <div class="col-md-6">
-          <label for="date" class="form-label">تاريخ التقرير:</label>
-          <input type="date" name="date" id="date" class="form-control" value="{{ report_date|date:'Y-m-d' }}">
-        </div>
-        <div class="col-md-6 d-flex align-items-end">
-          <button type="submit" class="btn btn-primary me-2">
-            <i class="fas fa-sync me-1"></i>تحديث التقرير
-          </button>
-          <a href="{% url 'financial:inventory_report' %}" class="btn btn-secondary">
-            <i class="fas fa-undo me-1"></i>إعادة تعيين
-          </a>
-        </div>
-      </form>
-    </div>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-6">
+        <label for="date" class="form-label">تاريخ التقرير:</label>
+        <input type="date" name="date" id="date" class="form-control" value="{{ report_date|date:'Y-m-d' }}">
+      </div>
+      <div class="col-md-6 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary me-2">
+          <i class="fas fa-sync me-1"></i>تحديث التقرير
+        </button>
+        <a href="{% url 'financial:inventory_report' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-undo me-1"></i>إعادة تعيين
+        </a>
+      </div>
+    </form>
   </div>
 
   <!-- جدول المخزون -->
   <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-table me-2"></i>تفاصيل المخزون حسب الحساب</h5>
-                    {% if inventory_data %}
-                    <div class="table-responsive">
-                        <table class="table table-striped">
-                            <thead>
-                                <tr>
-                                    <th>كود الحساب</th>
-                                    <th>اسم الحساب</th>
-                                    <th>القيمة الحالية</th>
-                                    <th>عدد المعاملات</th>
-                                    <th>الحركات الأخيرة (30 يوم)</th>
-                                    <th>النسبة</th>
-                                    <th>الحالة</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for item in inventory_data %}
-                                <tr>
-                                    <td>{{ item.account.code }}</td>
-                                    <td>{{ item.account.name }}</td>
-                                    <td class="text-end">{{ item.balance|currency }}</td>
-                                    <td>{{ item.transactions_count }}</td>
-                                    <td>{{ item.recent_movements }}</td>
-                                    <td class="text-end">
-                                        {% if total_inventory_value > 0 %}
-                                            {% widthratio item.balance total_inventory_value 100 %}%
-                                        {% else %}
-                                            0%
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if item.recent_movements > 0 %}
-                                            <span class="badge bg-success">نشط</span>
-                                        {% else %}
-                                            <span class="badge bg-warning">راكد</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                            <tfoot>
-                                <tr class="table-active fw-bold">
-                                    <td colspan="2">الإجمالي</td>
-                                    <td class="text-end">{{ total_inventory_value|currency }}</td>
-                                    <td>-</td>
-                                    <td>-</td>
-                                    <td class="text-end">100%</td>
-                                    <td>{{ active_accounts }}/{{ total_accounts }} نشط</td>
-                                </tr>
-                            </tfoot>
-                        </table>
-                    </div>
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-3" style="border-bottom: 1px solid #eee;">
+      <h5 class="mb-0" style="color: #344767; font-size: 1.2rem; font-weight: 600;">
+        <i class="fas fa-table me-2"></i>تفاصيل المخزون حسب الحساب
+      </h5>
+      {% if inventory_data %}
+      <span class="badge bg-primary">
+        <i class="fas fa-list me-1"></i>
+        {{ inventory_data|length }} حساب
+      </span>
+      {% endif %}
+    </div>
+    {% if inventory_data %}
+    <div class="table-responsive">
+      <table class="table inventory-table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width: 100px;">كود الحساب</th>
+            <th>اسم الحساب</th>
+            <th class="text-end" style="width: 130px;">القيمة الحالية</th>
+            <th class="text-center" style="width: 100px;">عدد المعاملات</th>
+            <th class="text-center" style="width: 120px;">حركات (30 يوم)</th>
+            <th class="text-end" style="width: 80px;">النسبة</th>
+            <th class="text-center" style="width: 90px;">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in inventory_data %}
+          <tr>
+            <td>
+              <span class="account-code-badge">{{ item.account.code }}</span>
+            </td>
+            <td>
+              <strong class="text-dark">{{ item.account.name }}</strong>
+            </td>
+            <td class="text-end">
+              {{ item.balance|smart_float }}
+            </td>
+            <td class="text-center">
+              {{ item.transactions_count }}
+            </td>
+            <td class="text-center">
+              {{ item.recent_movements }}
+            </td>
+            <td class="text-end">
+              {% if total_inventory_value > 0 %}
+                {% widthratio item.balance total_inventory_value 100 %}%
+              {% else %}
+                0%
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if item.recent_movements > 0 %}
+                <span class="badge bg-success">نشط</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">راكد</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-active">
+            <td colspan="2">
+              <i class="fas fa-sigma me-2"></i>الإجمالي
+            </td>
+            <td class="text-end">{{ total_inventory_value|smart_float }}</td>
+            <td class="text-center">-</td>
+            <td class="text-center">-</td>
+            <td class="text-end">100%</td>
+            <td class="text-center">{{ active_accounts }}/{{ total_accounts }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
     {% else %}
         <div class="empty-state">
             <div class="empty-state-icon">

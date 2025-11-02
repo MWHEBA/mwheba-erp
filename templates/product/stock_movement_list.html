@@ -148,7 +148,7 @@
                                 <span class="text-muted">{% trans "إجمالي الحركات" %}</span>
                             </div>
                             <div class="col-6">
-                                <h4>{{ total_quantity|default:"0"|remove_trailing_zeros }}</h4>
+                                <h4>{{ total_quantity|default:"0"|smart_float }}</h4>
                                 <span class="text-muted">{% trans "إجمالي الكميات" %}</span>
                             </div>
                         </div>

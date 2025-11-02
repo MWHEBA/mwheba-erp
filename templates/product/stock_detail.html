@@ -122,9 +122,9 @@
                     
                     <div class="progress mb-3">
                         {% if stock.product.min_stock > 0 %}
-                            {% with percentage=stock.quantity|remove_trailing_zeros|default:"0"|stringformat:"i"|add:"0" %}
-                                {% with min_stock=stock.product.min_stock|remove_trailing_zeros|default:"0"|stringformat:"i"|add:"0" %}
-                                    {% with percent=percentage|divide:min_stock|multiply:100|remove_trailing_zeros %}
+                            {% with percentage=stock.quantity|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                                {% with min_stock=stock.product.min_stock|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                                    {% with percent=percentage|divide:min_stock|multiply:100|smart_float %}
                                         <div class="progress-bar 
                                             {% if stock.quantity <= 0 %}bg-danger
                                             {% elif stock.quantity < stock.product.min_stock %}bg-warning

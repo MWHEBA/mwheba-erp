@@ -4,15 +4,15 @@
 {% if value %}
   {% if value <= 0 %}
     <span class="badge bg-danger fw-bold">
-      <i class="fas fa-exclamation-triangle me-1"></i>{{ value|remove_trailing_zeros }}
+      <i class="fas fa-exclamation-triangle me-1"></i>{{ value|smart_float }}
     </span>
   {% elif value <= 10 %}
     <span class="badge bg-warning fw-bold">
-      <i class="fas fa-exclamation me-1"></i>{{ value|remove_trailing_zeros }}
+      <i class="fas fa-exclamation me-1"></i>{{ value|smart_float }}
     </span>
   {% else %}
     <span class="badge bg-success fw-bold">
-      <i class="fas fa-check-circle me-1"></i>{{ value|remove_trailing_zeros }}
+      <i class="fas fa-check-circle me-1"></i>{{ value|smart_float }}
     </span>
   {% endif %}
 {% else %}

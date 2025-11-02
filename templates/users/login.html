@@ -175,7 +175,11 @@
 {% block content %}
 <div class="auth-container">
     <div class="logo-container">
-        <img src="{% static 'img/logo.png' %}" alt="شعار نظام موهبة" class="img-fluid">
+        {% if settings.company_logo %}
+            <img src="/media/{{ settings.company_logo }}" alt="{{ settings.company_name|default:'شعار النظام' }}" class="img-fluid">
+        {% else %}
+            <img src="{% static 'img/logo.png' %}" alt="شعار نظام موهبة" class="img-fluid">
+        {% endif %}
     </div>
     
     <div class="welcome-message">

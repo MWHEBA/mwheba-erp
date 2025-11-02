@@ -15,6 +15,11 @@
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token }}">
     
+    <!-- Cache Control -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    
     <!-- خط Tajawal المحلي -->
     <style>
         @font-face {
@@ -68,7 +73,7 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.2/css/buttons.bootstrap5.min.css">
     
     <!-- Custom CSS -->
-    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ request.session.session_key|slice:':8' }}">
     <link rel="stylesheet" href="{% static 'css/footer.css' %}">
     <link rel="stylesheet" href="{% static 'css/components.css' %}">
     <link rel="stylesheet" href="{% static 'css/tables.css' %}">
@@ -91,6 +96,22 @@
         <main class="main-content">
             <!-- Header -->
             {% include 'partials/header.html' %}
+
+            <!-- Maintenance Mode Notification -->
+            {% if maintenance_mode %}
+            <div class="maintenance-notification">
+                <i class="fas fa-tools me-2"></i>
+                <span>وضع الصيانة مفعّل</span>
+                <a href="{% url 'core:system_settings' %}" class="ms-2">
+                    <i class="fas fa-cog"></i>
+                </a>
+            </div>
+            {% endif %}
+            
+            <!-- Debug: عرض قيمة maintenance_mode -->
+            {% if user.is_superuser %}
+            <!-- DEBUG: maintenance_mode = {{ maintenance_mode }} -->
+            {% endif %}
 
             <!-- Content Area -->
             <div class="content-wrapper">
@@ -140,7 +161,7 @@
     <script src="{% static 'js/datatables-ar.js' %}"></script>
     
     <!-- XLSX Library for Excel Export -->
-    <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script> -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" crossorigin="anonymous"></script>
     
     <!-- Select2 JavaScript -->
     <script src="{% static 'django_select2/django_select2.js' %}"></script>
@@ -156,6 +177,9 @@
     
     <!-- Toastr System -->
     <script src="{% static 'js/toastr-system.js' %}"></script>
+    
+    <!-- نظام الإشعارات -->
+    <script src="{% static 'js/notifications.js' %}"></script>
     
     {% block extra_js %}{% endblock %}
 </body>

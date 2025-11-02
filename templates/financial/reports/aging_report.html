@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .aging-filters {
+        background: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-bottom: 1.5rem;
+    }
+    
+    .aging-table {
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        overflow: hidden;
+    }
+    
+    .aging-table table {
+        width: 100%;
+        margin: 0;
+    }
+    
+    .aging-table th {
+        background: var(--primary-color);
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        font-weight: 600;
+    }
+    
+    .aging-table td {
+        padding: 0.75rem 1rem;
+        text-align: center;
+        border-bottom: 1px solid #eee;
+    }
+    
+    .aging-table tbody tr:hover {
+        background: #f8f9fa;
+    }
+    
+    .aging-summary {
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+    }
+    
+    .summary-card {
+        background: rgba(255,255,255,0.1);
+        border-radius: 8px;
+        padding: 1rem;
+        text-align: center;
+    }
+    
+    .summary-card h4 {
+        font-size: 0.9rem;
+        margin-bottom: 0.5rem;
+        opacity: 0.9;
+    }
+    
+    .summary-card .amount {
+        font-size: 1.5rem;
+        font-weight: bold;
+    }
+    
+    .amount-current { color: #28a745; }
+    .amount-30 { color: #ffc107; }
+    .amount-60 { color: #fd7e14; }
+    .amount-90 { color: #dc3545; }
+    .amount-over { color: #6c757d; }
+    
+    .loading-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 9999;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    .loading-overlay.active {
+        display: flex;
+    }
+    
+    .spinner {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid var(--primary-color);
+        border-radius: 50%;
+        width: 50px;
+        height: 50px;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb -->
+    <div class="mb-4 no-print">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">التقارير المالية</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="fas fa-clock me-1"></i>{{ page_title|default:"تقرير أعمار الديون" }}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-clock fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title|default:"تقرير أعمار الديون" }}</h1>
+                    <p class="text-muted mb-0">عرض أعمار الذمم المدينة والدائنة</p>
+                </div>
+            </div>
+            <div>
+                <button class="btn btn-success" onclick="window.print()">
+                    <i class="fas fa-print me-2"></i>طباعة
+                </button>
+                <button class="btn btn-primary" onclick="exportToExcel()">
+                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الفلاتر -->
+    <div class="aging-filters">
+        <div class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">{% trans "نوع التقرير" %}</label>
+                <select id="reportType" class="form-select">
+                    <option value="customers">{% trans "أعمار ذمم العملاء" %}</option>
+                    <option value="suppliers">{% trans "أعمار ذمم الموردين" %}</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3" id="customerFilter">
+                <label class="form-label">{% trans "العميل" %}</label>
+                <select id="customerId" class="form-select">
+                    <option value="">{% trans "جميع العملاء" %}</option>
+                    {% for customer in customers %}
+                    <option value="{{ customer.id }}">{{ customer.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3" id="supplierFilter" style="display: none;">
+                <label class="form-label">{% trans "المورد" %}</label>
+                <select id="supplierId" class="form-select">
+                    <option value="">{% trans "جميع الموردين" %}</option>
+                    {% for supplier in suppliers %}
+                    <option value="{{ supplier.id }}">{{ supplier.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">{% trans "تاريخ التقرير" %}</label>
+                <input type="date" id="reportDate" class="form-control" value="{{ today|date:'Y-m-d' }}">
+            </div>
+            
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="button" id="generateReport" class="btn btn-primary w-100">
+                    <i class="fas fa-chart-bar me-2"></i>
+                    {% trans "إنشاء التقرير" %}
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الملخص -->
+    <div id="summarySection" class="aging-summary" style="display: none;">
+        <h5 class="mb-3">{% trans "ملخص أعمار الذمم" %}</h5>
+        <div class="row g-3">
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "حالي (0-30 يوم)" %}</h4>
+                    <div class="amount" id="summaryCurrent">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "31-60 يوم" %}</h4>
+                    <div class="amount" id="summary30">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "61-90 يوم" %}</h4>
+                    <div class="amount" id="summary60">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "91-120 يوم" %}</h4>
+                    <div class="amount" id="summary90">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "أكثر من 120 يوم" %}</h4>
+                    <div class="amount" id="summaryOver">0.00</div>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <div class="summary-card">
+                    <h4>{% trans "الإجمالي" %}</h4>
+                    <div class="amount" id="summaryTotal">0.00</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الجدول -->
+    <div id="tableSection" class="aging-table" style="display: none;">
+        <table>
+            <thead>
+                <tr>
+                    <th>{% trans "الكود" %}</th>
+                    <th>{% trans "الاسم" %}</th>
+                    <th class="amount-current">{% trans "حالي (0-30)" %}</th>
+                    <th class="amount-30">{% trans "31-60 يوم" %}</th>
+                    <th class="amount-60">{% trans "61-90 يوم" %}</th>
+                    <th class="amount-90">{% trans "91-120 يوم" %}</th>
+                    <th class="amount-over">{% trans "أكثر من 120" %}</th>
+                    <th>{% trans "الإجمالي" %}</th>
+                </tr>
+            </thead>
+            <tbody id="reportTableBody">
+                <!-- سيتم ملؤها بالـ JavaScript -->
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- رسالة عدم وجود بيانات -->
+    <div id="noDataMessage" class="alert alert-info text-center" style="display: none;">
+        <i class="fas fa-info-circle me-2"></i>
+        {% trans "لا توجد بيانات لعرضها" %}
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+    <div class="spinner"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const reportType = document.getElementById('reportType');
+    const customerId = document.getElementById('customerId');
+    const supplierId = document.getElementById('supplierId');
+    const reportDate = document.getElementById('reportDate');
+    const generateBtn = document.getElementById('generateReport');
+    const customerFilter = document.getElementById('customerFilter');
+    const supplierFilter = document.getElementById('supplierFilter');
+    const loadingOverlay = document.getElementById('loadingOverlay');
+    
+    // تبديل الفلاتر حسب نوع التقرير
+    reportType.addEventListener('change', function() {
+        if (this.value === 'customers') {
+            customerFilter.style.display = 'block';
+            supplierFilter.style.display = 'none';
+        } else {
+            customerFilter.style.display = 'none';
+            supplierFilter.style.display = 'block';
+        }
+    });
+    
+    // إنشاء التقرير
+    generateBtn.addEventListener('click', function() {
+        const type = reportType.value;
+        const date = reportDate.value;
+        const entityId = type === 'customers' ? customerId.value : supplierId.value;
+        
+        // عرض Loading
+        loadingOverlay.classList.add('active');
+        
+        // بناء URL
+        let url = `/financial/api/aging-report/?type=${type}&date=${date}`;
+        if (entityId) {
+            url += `&entity_id=${entityId}`;
+        }
+        
+        // جلب البيانات
+        fetch(url)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    displayReport(data);
+                } else {
+                    alert('خطأ: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ أثناء جلب البيانات');
+            })
+            .finally(() => {
+                loadingOverlay.classList.remove('active');
+            });
+    });
+    
+    function displayReport(data) {
+        // عرض الملخص
+        document.getElementById('summaryCurrent').textContent = formatNumber(data.summary.current);
+        document.getElementById('summary30').textContent = formatNumber(data.summary.days_1_30);
+        document.getElementById('summary60').textContent = formatNumber(data.summary.days_31_60);
+        document.getElementById('summary90').textContent = formatNumber(data.summary.days_61_90);
+        document.getElementById('summaryOver').textContent = formatNumber(data.summary.over_90);
+        document.getElementById('summaryTotal').textContent = formatNumber(data.summary.total_due);
+        document.getElementById('summarySection').style.display = 'block';
+        
+        // عرض الجدول
+        const tbody = document.getElementById('reportTableBody');
+        tbody.innerHTML = '';
+        
+        if (data.data.length === 0) {
+            document.getElementById('tableSection').style.display = 'none';
+            document.getElementById('noDataMessage').style.display = 'block';
+        } else {
+            document.getElementById('tableSection').style.display = 'block';
+            document.getElementById('noDataMessage').style.display = 'none';
+            
+            data.data.forEach(item => {
+                const row = document.createElement('tr');
+                const code = data.report_type === 'customers' ? item.customer_code : item.supplier_code;
+                const name = data.report_type === 'customers' ? item.customer_name : item.supplier_name;
+                
+                row.innerHTML = `
+                    <td>${code || '-'}</td>
+                    <td style="text-align: right;">${name}</td>
+                    <td class="amount-current">${formatNumber(item.current)}</td>
+                    <td class="amount-30">${formatNumber(item.days_1_30)}</td>
+                    <td class="amount-60">${formatNumber(item.days_31_60)}</td>
+                    <td class="amount-90">${formatNumber(item.days_61_90)}</td>
+                    <td class="amount-over">${formatNumber(item.over_90)}</td>
+                    <td><strong>${formatNumber(item.total_due)}</strong></td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+    }
+    
+    function formatNumber(num) {
+        return new Intl.NumberFormat('ar-EG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(num);
+    }
+});
+</script>
+{% endblock %}

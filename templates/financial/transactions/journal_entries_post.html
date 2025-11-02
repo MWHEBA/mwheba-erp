@@ -94,14 +94,14 @@
                                         <td>{{ line.description }}</td>
                                         <td class="text-end">
                                             {% if line.debit > 0 %}
-                                                <strong class="text-success">{{ line.debit|remove_trailing_zeros }}</strong>
+                                                <strong class="text-success">{{ line.debit|smart_float }}</strong>
                                             {% else %}
                                                 -
                                             {% endif %}
                                         </td>
                                         <td class="text-end">
                                             {% if line.credit > 0 %}
-                                                <strong class="text-danger">{{ line.credit|remove_trailing_zeros }}</strong>
+                                                <strong class="text-danger">{{ line.credit|smart_float }}</strong>
                                             {% else %}
                                                 -
                                             {% endif %}
@@ -114,10 +114,10 @@
                                         <th colspan="2">{% trans "الإجمالي" %}</th>
                                         <th class="text-end">
                                             {% widthratio journal_entry.lines.all|length 1 1 as total_debit %}
-                                            {{ journal_entry.total_debit|remove_trailing_zeros }}
+                                            {{ journal_entry.total_debit|smart_float }}
                                         </th>
                                         <th class="text-end">
-                                            {{ journal_entry.total_credit|remove_trailing_zeros }}
+                                            {{ journal_entry.total_credit|smart_float }}
                                         </th>
                                     </tr>
                                 </tfoot>

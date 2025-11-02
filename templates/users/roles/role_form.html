@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/roles.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة -->
+    <div class="mb-4">
+        <!-- Breadcrumbs -->
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>
+                            الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">
+                            <i class="fas fa-users me-1"></i>
+                            المستخدمين
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'users:role_list' %}">
+                            <i class="fas fa-user-tag me-1"></i>
+                            الأدوار
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        <i class="{{ page_icon }} me-1"></i>
+                        {{ page_title }}
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        <!-- Header -->
+        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="{{ page_icon }} fa-2x text-primary"></i>
+                </div>
+                <div>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
+                    <p class="text-muted mb-0">تحديد الصلاحيات والإعدادات للدور</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" id="roleForm">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- معلومات الدور -->
+            <div class="col-lg-4">
+                <div class="card mb-3">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            معلومات الدور
+                        </h6>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="mb-3">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">
+                                اسم الدور <span class="text-danger">*</span>
+                            </label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                            <div class="text-danger small mt-1">{{ form.name.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                اسم فريد بالإنجليزية (مثال: admin, accountant)
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.display_name.id_for_label }}" class="form-label">
+                                الاسم المعروض <span class="text-danger">*</span>
+                            </label>
+                            {{ form.display_name }}
+                            {% if form.display_name.errors %}
+                            <div class="text-danger small mt-1">{{ form.display_name.errors }}</div>
+                            {% endif %}
+                            <small class="form-text text-muted">
+                                الاسم الذي سيظهر في الواجهة
+                            </small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                الوصف
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                            <div class="text-danger small mt-1">{{ form.description.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-check">
+                            {{ form.is_active }}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                نشط
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- أزرار الحفظ -->
+                <div class="card">
+                    <div class="card-body p-3">
+                        <button type="submit" class="btn btn-primary w-100 mb-2">
+                            <i class="fas fa-save me-2"></i>
+                            حفظ الدور
+                        </button>
+                        <a href="{% url 'users:role_list' %}" class="btn btn-secondary w-100">
+                            <i class="fas fa-times me-2"></i>
+                            إلغاء
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- الصلاحيات -->
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header py-2">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h6 class="mb-0">
+                                <i class="fas fa-key me-2"></i>
+                                الصلاحيات
+                            </h6>
+                            <div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" id="selectAll">
+                                    تحديد الكل
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" id="deselectAll">
+                                    إلغاء الكل
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-3">
+                        <!-- شريط البحث -->
+                        <div class="mb-2">
+                            <input type="text" id="permissionSearch" class="form-control" 
+                                   placeholder="بحث في الصلاحيات...">
+                        </div>
+
+                        <!-- الصلاحيات مقسمة حسب الفئة -->
+                        <div class="permissions-container">
+                            {% for group_name, perms in grouped_permissions.items %}
+                            <div class="permission-group mb-4" data-group="{{ group_name }}">
+                                <div class="permission-group-header">
+                                    <div class="form-check">
+                                        <input class="form-check-input group-checkbox" type="checkbox" 
+                                               id="group_{{ forloop.counter }}" data-group="{{ group_name }}">
+                                        <label class="form-check-label fw-bold" for="group_{{ forloop.counter }}">
+                                            <i class="fas fa-folder ms-2"></i>
+                                            {{ group_name }}
+                                            <span class="badge bg-secondary ms-2">{{ perms|length }}</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="permission-group-body">
+                                    <div class="row">
+                                        {% for perm in perms %}
+                                        <div class="col-md-6 mb-2">
+                                            <div class="form-check permission-item" data-group="{{ group_name }}">
+                                                <input class="form-check-input permission-checkbox" 
+                                                       type="checkbox" 
+                                                       name="permissions" 
+                                                       value="{{ perm.id }}" 
+                                                       id="perm_{{ perm.id }}"
+                                                       {% if role and perm in role.permissions.all %}checked{% endif %}>
+                                                <label class="form-check-label" style="margin-bottom: unset;" for="perm_{{ perm.id }}">
+                                                    <span class="permission-name">{{ perm.name }}</span>
+                                                </label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/roles.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديد/إلغاء تحديد الكل
+    document.getElementById('selectAll').addEventListener('click', function() {
+        document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = true);
+        document.querySelectorAll('.app-checkbox').forEach(cb => cb.checked = true);
+    });
+
+    document.getElementById('deselectAll').addEventListener('click', function() {
+        document.querySelectorAll('.permission-checkbox').forEach(cb => cb.checked = false);
+        document.querySelectorAll('.app-checkbox').forEach(cb => cb.checked = false);
+    });
+
+    // تحديد/إلغاء تحديد مجموعة كاملة
+    document.querySelectorAll('.group-checkbox').forEach(groupCheckbox => {
+        groupCheckbox.addEventListener('change', function() {
+            const group = this.dataset.group;
+            const checked = this.checked;
+            document.querySelectorAll(`.permission-item[data-group="${group}"] .permission-checkbox`)
+                .forEach(cb => cb.checked = checked);
+        });
+    });
+
+    // تحديث checkbox المجموعة عند تغيير الصلاحيات
+    document.querySelectorAll('.permission-checkbox').forEach(permCheckbox => {
+        permCheckbox.addEventListener('change', function() {
+            const group = this.closest('.permission-item').dataset.group;
+            const groupCheckbox = document.querySelector(`.group-checkbox[data-group="${group}"]`);
+            const allPerms = document.querySelectorAll(`.permission-item[data-group="${group}"] .permission-checkbox`);
+            const checkedPerms = document.querySelectorAll(`.permission-item[data-group="${group}"] .permission-checkbox:checked`);
+            
+            groupCheckbox.checked = allPerms.length === checkedPerms.length;
+            groupCheckbox.indeterminate = checkedPerms.length > 0 && checkedPerms.length < allPerms.length;
+        });
+    });
+
+    // البحث في الصلاحيات
+    document.getElementById('permissionSearch').addEventListener('input', function() {
+        const searchTerm = this.value.toLowerCase();
+        
+        document.querySelectorAll('.permission-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            if (text.includes(searchTerm)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        // إخفاء/إظهار مجموعات التطبيقات
+        document.querySelectorAll('.permission-group').forEach(group => {
+            const visibleItems = group.querySelectorAll('.permission-item:not([style*="display: none"])');
+            group.style.display = visibleItems.length > 0 ? '' : 'none';
+        });
+    });
+
+    // تهيئة حالة checkboxes التطبيقات
+    document.querySelectorAll('.app-checkbox').forEach(appCheckbox => {
+        const app = appCheckbox.dataset.app;
+        const allPerms = document.querySelectorAll(`.permission-item[data-app="${app}"] .permission-checkbox`);
+        const checkedPerms = document.querySelectorAll(`.permission-item[data-app="${app}"] .permission-checkbox:checked`);
+        
+        if (checkedPerms.length === allPerms.length && allPerms.length > 0) {
+            appCheckbox.checked = true;
+        } else if (checkedPerms.length > 0) {
+            appCheckbox.indeterminate = true;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -422,7 +422,7 @@
                     <!-- أزرار الإجراءات -->
                     <div class="action-buttons">
                         {% if financial_info.can_edit %}
-                        <a href="{% url 'sale:add_payment' sale.pk %}" class="btn btn-primary">
+                        <a href="{% url 'sale:edit_payment' payment.id %}" class="btn btn-primary">
                             <i class="fas fa-edit me-1"></i>تعديل الدفعة
                         </a>
                         {% endif %}

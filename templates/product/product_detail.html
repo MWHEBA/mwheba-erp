@@ -383,7 +383,7 @@
                     <i class="fas fa-tag me-2" style="color: #94a3b8;"></i>سعر البيع
                 </h5>
                 <div class="highlight-price">{{ product.selling_price|currency }}</div>
-                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|remove_trailing_zeros }}%</small>
+                <small style="color: #94a3b8;">هامش الربح: {{ product.profit_margin|smart_float }}%</small>
             </div>
         </div>
         <div class="col-md-3 d-flex">
@@ -391,8 +391,8 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-boxes me-2" style="color: #86a889;"></i>المخزون
                 </h5>
-                <div class="highlight-price">{{ product.current_stock|remove_trailing_zeros }}</div>
-                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|remove_trailing_zeros }}</small>
+                <div class="highlight-price">{{ product.current_stock|smart_float }}</div>
+                <small style="color: #86a889;">الحد الأدنى: {{ product.min_stock|smart_float }}</small>
             </div>
         </div>
         <div class="col-md-3 d-flex">
@@ -409,7 +409,7 @@
                 <h5 style="color: #64748b; font-size: 0.875rem; font-weight: 500; margin-bottom: 0.5rem;">
                     <i class="fas fa-shopping-cart me-2" style="color: #94a3b8;"></i>الكمية المباعة
                 </h5>
-                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|remove_trailing_zeros|default:"0" }}</div>
+                <div class="highlight-price" style="color: #475569;">{{ sales_stats.total_sold_quantity|smart_float|default:"0" }}</div>
                 <small style="color: #94a3b8;">متوسط السعر: {{ sales_stats.average_sale_price|default:0|currency }}</small>
             </div>
         </div>
@@ -563,7 +563,7 @@
                                 </td>
                                 <td>
                                     {% if sp.last_purchase_quantity %}
-                                    {{ sp.last_purchase_quantity|remove_trailing_zeros }}
+                                    {{ sp.last_purchase_quantity|smart_float }}
                                     {% else %}
                                     -
                                     {% endif %}
@@ -616,26 +616,26 @@
                 {% if sales_stats.total_sales_count > 0 %}
                 <!-- الإحصائيات الأساسية -->
                 <div class="row mb-4">
-                    <div class="col-md-3">
-                        <div class="sales-stat-card text-center">
+                    <div class="col-md-3 d-flex">
+                        <div class="sales-stat-card text-center w-100">
                             <div class="stat-icon">
                                 <i class="fas fa-boxes text-primary"></i>
                             </div>
-                            <div class="stat-value">{{ sales_stats.total_sold_quantity|remove_trailing_zeros }}</div>
+                            <div class="stat-value">{{ sales_stats.total_sold_quantity|smart_float }}</div>
                             <div class="stat-label">إجمالي الكمية المباعة</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="sales-stat-card text-center">
+                    <div class="col-md-3 d-flex">
+                        <div class="sales-stat-card text-center w-100">
                             <div class="stat-icon">
                                 <i class="fas fa-money-bill-wave text-success"></i>
                             </div>
-                            <div class="stat-value">{{ sales_stats.total_sales_value|custom_number_format }}</div>
+                            <div class="stat-value">{{ sales_stats.total_sales_value|smart_float }}</div>
                             <div class="stat-label">إجمالي قيمة المبيعات</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="sales-stat-card text-center">
+                    <div class="col-md-3 d-flex">
+                        <div class="sales-stat-card text-center w-100">
                             <div class="stat-icon">
                                 <i class="fas fa-receipt text-info"></i>
                             </div>
@@ -643,12 +643,12 @@
                             <div class="stat-label">عدد الفواتير</div>
                         </div>
                     </div>
-                    <div class="col-md-3">
-                        <div class="sales-stat-card text-center">
+                    <div class="col-md-3 d-flex">
+                        <div class="sales-stat-card text-center w-100">
                             <div class="stat-icon">
                                 <i class="fas fa-calculator text-warning"></i>
                             </div>
-                            <div class="stat-value">{{ sales_stats.average_sale_price|custom_number_format }}</div>
+                            <div class="stat-value">{{ sales_stats.average_sale_price|smart_float }}</div>
                             <div class="stat-label">متوسط سعر البيع</div>
                         </div>
                     </div>
@@ -680,7 +680,7 @@
                                     </td>
                                     <td>{{ sale_item.sale.customer.name }}</td>
                                     <td>{{ sale_item.sale.date|date:"d/m/Y" }}</td>
-                                    <td>{{ sale_item.quantity|remove_trailing_zeros }}</td>
+                                    <td>{{ sale_item.quantity|smart_float }}</td>
                                     <td>{{ sale_item.unit_price|currency }}</td>
                                     <td><strong>{{ sale_item.total|currency }}</strong></td>
                                 </tr>
@@ -706,7 +706,7 @@
                                         <small class="text-muted">{{ customer.sales_count }} فاتورة</small>
                                     </div>
                                     <div class="text-end">
-                                        <div class="customer-quantity">{{ customer.total_quantity|remove_trailing_zeros }}</div>
+                                        <div class="customer-quantity">{{ customer.total_quantity|smart_float }}</div>
                                         <small class="text-muted">{{ customer.total_value|currency }}</small>
                                     </div>
                                 </div>
@@ -734,8 +734,8 @@
                             </div>
                             <div class="month-info">
                                 <div class="month-name">{{ month.month }}</div>
-                                <div class="month-quantity">{{ month.quantity|remove_trailing_zeros }}</div>
-                                <div class="month-value">{{ month.value|custom_number_format }}</div>
+                                <div class="month-quantity">{{ month.quantity|smart_float }}</div>
+                                <div class="month-value">{{ month.value|smart_float }}</div>
                             </div>
                         </div>
                         {% endfor %}
@@ -799,7 +799,7 @@
                                     </a>
                                 </td>
                                 <td>
-                                    <strong>{{ stock.quantity|remove_trailing_zeros }}</strong>
+                                    <strong>{{ stock.quantity|smart_float }}</strong>
                                     {% if stock.quantity <= 0 %}
                                     <span class="stock-badge stock-out ms-2">نفد</span>
                                     {% elif stock.quantity < product.min_stock %}
@@ -875,7 +875,7 @@
                 
                 <div class="info-row">
                     <span class="info-label">الكمية المباعة</span>
-                    <span class="info-value">{{ sales_stats.total_sold_quantity|remove_trailing_zeros }}</span>
+                    <span class="info-value">{{ sales_stats.total_sold_quantity|smart_float }}</span>
                 </div>
                 
                 <div class="info-row">
@@ -1329,7 +1329,49 @@
     }
     
     function uploadImage() {
-        alert('ميزة رفع الصور ستكون متاحة قريباً');
+        // فتح مودال رفع الصور
+        const modal = new bootstrap.Modal(document.getElementById('uploadImageModal'));
+        modal.show();
+    }
+    
+    function submitImageUpload() {
+        const form = document.getElementById('uploadImageForm');
+        const formData = new FormData(form);
+        const submitBtn = document.getElementById('uploadImageBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        // تعطيل الزر وإظهار مؤشر التحميل
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الرفع...';
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // إغلاق المودال
+                const modal = bootstrap.Modal.getInstance(document.getElementById('uploadImageModal'));
+                modal.hide();
+                
+                // إعادة تحميل الصفحة لعرض الصورة الجديدة
+                location.reload();
+            } else {
+                alert(data.message || 'حدث خطأ أثناء رفع الصورة');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ أثناء رفع الصورة');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
     }
     
     // تفاعل مع الرسم البياني للمبيعات الشهرية
@@ -1458,5 +1500,47 @@
         modal.show();
     }
 </script>
+
+<!-- مودال رفع الصور -->
+<div class="modal fade" id="uploadImageModal" tabindex="-1" aria-labelledby="uploadImageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="uploadImageModalLabel">
+                    <i class="fas fa-upload me-2"></i>رفع صورة للمنتج
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="uploadImageForm" action="{% url 'product:product_image_upload' product.pk %}" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="imageFile" class="form-label">اختر صورة</label>
+                        <input type="file" class="form-control" id="imageFile" name="image" accept="image/*" required>
+                        <small class="text-muted">الصيغ المدعومة: JPG, PNG, GIF (الحد الأقصى: 5MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="altText" class="form-label">وصف الصورة (اختياري)</label>
+                        <input type="text" class="form-control" id="altText" name="alt_text" placeholder="مثال: صورة المنتج من الأمام">
+                    </div>
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="isPrimary" name="is_primary" checked>
+                        <label class="form-check-label" for="isPrimary">
+                            جعلها الصورة الرئيسية
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="button" class="btn btn-primary" id="uploadImageBtn" onclick="submitImageUpload()">
+                        <i class="fas fa-upload me-2"></i>رفع الصورة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
  

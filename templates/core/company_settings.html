@@ -4,12 +4,77 @@
 
 {% block title %}{{ title }}{% endblock %}
 
+{% block extra_css %}
+<style>
+    /* Tabs Styling */
+    #companyTabs .nav-link {
+        color: var(--gray-600);
+        border: none;
+        border-bottom: 3px solid transparent;
+        transition: all 0.3s ease;
+        padding: 0.75rem 1.5rem;
+    }
+    #companyTabs .nav-link:hover {
+        color: var(--primary-color);
+        border-bottom-color: rgba(1, 87, 138, 0.3);
+    }
+    #companyTabs .nav-link.active {
+        color: var(--primary-color);
+        background-color: transparent;
+        border-bottom-color: var(--primary-color);
+        font-weight: 600;
+    }
+    
+    /* Form Sections */
+    .form-section {
+        background: var(--white);
+        border-radius: var(--border-radius);
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-dark);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    
+    .form-section-title i {
+        color: var(--primary-color);
+    }
+    
+    /* Logo Preview */
+    .logo-preview {
+        max-width: 200px;
+        max-height: 150px;
+        padding: 0.5rem;
+    }
+    
+    /* Help Text */
+    .help-text {
+        font-size: 0.875rem;
+        color: var(--text-light);
+        margin-top: 0.25rem;
+        display: flex;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .help-text i {
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <!-- عنوان الصفحة -->
     <div class="mb-4">
         <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
         <div class="mb-2">
             <nav aria-label="breadcrumb">
                 <ol class="breadcrumb mb-0">
@@ -31,32 +96,15 @@
                 </ol>
             </nav>
         </div>
-        {% else %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                    <li class="breadcrumb-item"><a href="#"><i class="fas fa-cogs me-1"></i>الإعدادات</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">إعدادات الشركة</li>
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
         
         <!-- Header -->
         <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
             <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% else %}
-                    <div class="me-3">
-                        <i class="fas fa-building fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
+                <div class="me-3">
+                    <i class="{{ page_icon }} fa-2x text-primary"></i>
+                </div>
                 <div>
-                    <h1 class="h3 mb-1">{{ title }}</h1>
+                    <h1 class="h3 mb-1">{{ page_title }}</h1>
                     <p class="text-muted mb-0">تخصيص معلومات وإعدادات الشركة</p>
                 </div>
             </div>
@@ -67,108 +115,612 @@
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' or message.tags == 'danger' %}exclamation-circle{% elif message.tags == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
                 {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
         {% endfor %}
     {% endif %}
 
-    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
-        <div class="card shadow-sm">
-            <div class="card-body">
-                <form method="post" novalidate enctype="multipart/form-data">
-                    {% csrf_token %}
-                    
-                    <div class="row mb-4">
-                        <div class="col-md-6">
-                            <h5 class="mb-3">معلومات الشركة الأساسية</h5>
-                            
-                            <div class="mb-3">
-                                <label for="company_name" class="form-label">اسم الشركة</label>
-                                <input type="text" class="form-control" id="company_name" name="company_name" 
-                                    value="{{ company_name }}">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_address" class="form-label">عنوان الشركة</label>
-                                <textarea class="form-control" id="company_address" name="company_address" rows="3">{{ company_address }}</textarea>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_phone" class="form-label">رقم الهاتف</label>
-                                <input type="text" class="form-control" id="company_phone" name="company_phone" 
-                                    value="{{ company_phone }}">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_email" class="form-label">البريد الإلكتروني</label>
-                                <input type="email" class="form-control" id="company_email" name="company_email" 
-                                    value="{{ company_email }}" dir="ltr">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_website" class="form-label">الموقع الإلكتروني</label>
-                                <input type="url" class="form-control" id="company_website" name="company_website" 
-                                    value="{{ company_website }}" dir="ltr">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_tax_number" class="form-label">الرقم الضريبي</label>
-                                <input type="text" class="form-control" id="company_tax_number" name="company_tax_number" 
-                                    value="{{ company_tax_number }}">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="company_logo" class="form-label">شعار الشركة</label>
-                                <input type="file" class="form-control" id="company_logo" name="company_logo">
-                                {% if company_logo %}
-                                    <div class="mt-2">
-                                        <img src="{{ company_logo }}" 
-                                            class="img-thumbnail" alt="شعار الشركة" style="max-height: 100px;">
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <div class="col-md-6">
-                            <h5 class="mb-3">إعدادات الفواتير</h5>
-                            
-                            <div class="mb-3">
-                                <label for="invoice_prefix" class="form-label">بادئة الفواتير</label>
-                                <input type="text" class="form-control" id="invoice_prefix" name="invoice_prefix" 
-                                    value="{{ invoice_prefix }}">
-                                <small class="form-text text-muted">مثال: INV-</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="default_currency" class="form-label">العملة الافتراضية</label>
-                                <input type="text" class="form-control" id="default_currency" name="default_currency" 
-                                    value="{{ default_currency }}">
-                                <small class="form-text text-muted">مثال: {{ currency_symbol }}, $, ريال</small>
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="default_tax_rate" class="form-label">نسبة الضريبة الافتراضية (%)</label>
-                                <input type="number" class="form-control" id="default_tax_rate" name="default_tax_rate" 
-                                    value="{{ default_tax_rate }}" min="0" max="100">
-                            </div>
-                            
-                            <div class="mb-3">
-                                <label for="invoice_notes" class="form-label">ملاحظات الفاتورة الافتراضية</label>
-                                <textarea class="form-control" id="invoice_notes" name="invoice_notes" rows="4">{{ invoice_notes }}</textarea>
-                                <small class="form-text text-muted">سيتم عرض هذه الملاحظات أسفل جميع الفواتير</small>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="text-end mt-3">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save me-1"></i> حفظ الإعدادات
+    <!-- محتوى الصفحة -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body">
+            <form method="post" novalidate enctype="multipart/form-data" id="companySettingsForm">
+                {% csrf_token %}
+                
+                <!-- Tabs Navigation -->
+                <ul class="nav nav-tabs mb-4" id="companyTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="basic-tab" data-bs-toggle="tab" data-bs-target="#basic" type="button" role="tab">
+                            <i class="fas fa-building me-1"></i> معلومات أساسية
                         </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="contact-tab" data-bs-toggle="tab" data-bs-target="#contact" type="button" role="tab">
+                            <i class="fas fa-address-card me-1"></i> بيانات الاتصال
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="bank-tab" data-bs-toggle="tab" data-bs-target="#bank" type="button" role="tab">
+                            <i class="fas fa-university me-1"></i> المعلومات البنكية
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="branding-tab" data-bs-toggle="tab" data-bs-target="#branding" type="button" role="tab">
+                            <i class="fas fa-palette me-1"></i> الهوية البصرية
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Tabs Content -->
+                <div class="tab-content" id="companyTabsContent">
+                    <!-- Tab 1: معلومات أساسية -->
+                    <div class="tab-pane fade show active" id="basic" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_name" class="form-label">اسم الشركة (عربي) <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_name" name="company_name" 
+                                        value="{{ company_name }}" required>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        الاسم الرسمي للشركة كما سيظهر في الفواتير والمستندات
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_name_en" class="form-label">اسم الشركة (English)</label>
+                                    <input type="text" class="form-control" id="company_name_en" name="company_name_en" 
+                                        value="{{ company_name_en }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        اسم الشركة بالإنجليزية
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_tax_number" class="form-label">الرقم الضريبي <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_tax_number" name="company_tax_number" 
+                                        value="{{ company_tax_number }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم التسجيل الضريبي للشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_commercial_register" class="form-label">السجل التجاري <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_commercial_register" name="company_commercial_register" 
+                                        value="{{ company_commercial_register }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم السجل التجاري للشركة
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_country" class="form-label">الدولة <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_country" name="company_country" 
+                                        value="{{ company_country }}">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        الدولة التي تعمل فيها الشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_city" class="form-label">المدينة</label>
+                                    <input type="text" class="form-control" id="company_city" name="company_city" 
+                                        value="{{ company_city }}">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        المدينة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_state" class="form-label">المحافظة</label>
+                                    <input type="text" class="form-control" id="company_state" name="company_state" 
+                                        value="{{ company_state }}">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        المحافظة
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info border-start border-4 border-info">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-lightbulb fa-2x text-info me-3 mt-1"></i>
+                                        <div>
+                                            <h6 class="mb-2"><strong>نصيحة</strong></h6>
+                                            <p class="mb-0 small">
+                                                تأكد من إدخال معلومات الشركة بدقة. هذه المعلومات ستظهر في جميع الفواتير والتقارير المطبوعة.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </form>
-            </div>
+
+                    <!-- Tab 2: بيانات الاتصال -->
+                    <div class="tab-pane fade" id="contact" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_address" class="form-label">عنوان الشركة <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="company_address" name="company_address" rows="3">{{ company_address }}</textarea>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        العنوان الكامل للشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_phone" class="form-label">رقم الهاتف <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_phone" name="company_phone" 
+                                        value="{{ company_phone }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم الهاتف الرئيسي للشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_mobile" class="form-label">رقم الموبايل <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_mobile" name="company_mobile" 
+                                        value="{{ company_mobile }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم الموبايل للتواصل
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_whatsapp" class="form-label">رقم واتساب <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_whatsapp" name="company_whatsapp" 
+                                        value="{{ company_whatsapp }}" dir="ltr" placeholder="+201234567890">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم واتساب للتواصل السريع
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_email" class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="company_email" name="company_email" 
+                                        value="{{ company_email }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        البريد الإلكتروني الرسمي للشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_website" class="form-label">الموقع الإلكتروني</label>
+                                    <input type="url" class="form-control" id="company_website" name="company_website" 
+                                        value="{{ company_website }}" dir="ltr" placeholder="https://example.com">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رابط الموقع الإلكتروني للشركة (اختياري)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_working_hours" class="form-label">ساعات العمل</label>
+                                    <textarea class="form-control" id="company_working_hours" name="company_working_hours" rows="3">{{ company_working_hours }}</textarea>
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        ساعات العمل الرسمية (مثال: من الأحد إلى الخميس: 9 صباحاً - 5 مساءً)
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: المعلومات البنكية -->
+                    <div class="tab-pane fade" id="bank" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_bank_name" class="form-label">اسم البنك <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_bank_name" name="company_bank_name" 
+                                        value="{{ company_bank_name }}">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        اسم البنك الذي تتعامل معه الشركة
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_bank_account" class="form-label">رقم الحساب البنكي <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="company_bank_account" name="company_bank_account" 
+                                        value="{{ company_bank_account }}" dir="ltr">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم الحساب البنكي للشركة
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="company_bank_iban" class="form-label">رقم الآيبان (IBAN)</label>
+                                    <input type="text" class="form-control" id="company_bank_iban" name="company_bank_iban" 
+                                        value="{{ company_bank_iban }}" dir="ltr" placeholder="EG380002000156789012345180002">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        رقم الحساب البنكي الدولي (IBAN)
+                                    </div>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="company_bank_swift" class="form-label">كود السويفت (SWIFT)</label>
+                                    <input type="text" class="form-control" id="company_bank_swift" name="company_bank_swift" 
+                                        value="{{ company_bank_swift }}" dir="ltr" placeholder="NBEGEGCXXXX">
+                                    <div class="help-text">
+                                        <i class="fas fa-info-circle"></i>
+                                        كود السويفت للتحويلات الدولية
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info border-start border-4 border-info mt-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-info-circle fa-lg text-info me-2 mt-1"></i>
+                                        <div>
+                                            <small>
+                                                <strong>ملاحظة:</strong> المعلومات البنكية ستظهر في الفواتير والعقود. تأكد من صحتها.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 4: الهوية البصرية -->
+                    <div class="tab-pane fade" id="branding" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-section-title">
+                                    <i class="fas fa-images"></i>
+                                    شعارات الشركة
+                                </div>
+                                
+                                <!-- شعار عادي -->
+                                <div class="mb-4 p-3 border rounded">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-image text-primary me-2"></i>
+                                        الشعار الأساسي
+                                    </h6>
+                                    <div class="mb-3">
+                                        <label for="company_logo" class="form-label">رفع الشعار الأساسي</label>
+                                        <input type="file" class="form-control logo-upload" id="company_logo" name="company_logo" accept="image/*" data-logo-type="company_logo">
+                                        <div class="help-text">
+                                            <i class="fas fa-info-circle"></i>
+                                            يُستخدم في الصفحات الرئيسية والفواتير (300×100 بكسل)
+                                        </div>
+                                    </div>
+                                    {% if company_logo %}
+                                    <div class="mt-2" id="preview-company_logo">
+                                        <div class="p-2 border rounded d-inline-block bg-light">
+                                            <img src="/media/{{ company_logo }}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;">
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle"></i> تم الرفع
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- شعار فاتح -->
+                                <div class="mb-4 p-3 border rounded">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-sun text-warning me-2"></i>
+                                        الشعار الفاتح (Light)
+                                    </h6>
+                                    <div class="mb-3">
+                                        <label for="company_logo_light" class="form-label">رفع الشعار الفاتح</label>
+                                        <input type="file" class="form-control logo-upload" id="company_logo_light" name="company_logo_light" accept="image/*" data-logo-type="company_logo_light">
+                                        <div class="help-text">
+                                            <i class="fas fa-info-circle"></i>
+                                            يُستخدم في الـ Sidebar والخلفيات الداكنة (بخلفية شفافة)
+                                        </div>
+                                    </div>
+                                    {% if company_logo_light %}
+                                    <div class="mt-2" id="preview-company_logo_light">
+                                        <div class="p-2 border rounded d-inline-block bg-secondary">
+                                            <img src="/media/{{ company_logo_light }}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;">
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle"></i> تم الرفع
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                
+                                <!-- شعار مصغر -->
+                                <div class="mb-4 p-3 border rounded">
+                                    <h6 class="mb-3">
+                                        <i class="fas fa-compress text-info me-2"></i>
+                                        الشعار المصغر (Mini)
+                                    </h6>
+                                    <div class="mb-3">
+                                        <label for="company_logo_mini" class="form-label">رفع الشعار المصغر</label>
+                                        <input type="file" class="form-control logo-upload" id="company_logo_mini" name="company_logo_mini" accept="image/*" data-logo-type="company_logo_mini">
+                                        <div class="help-text">
+                                            <i class="fas fa-info-circle"></i>
+                                            يُستخدم عند تصغير الـ Sidebar (مربع 50×50 بكسل)
+                                        </div>
+                                    </div>
+                                    {% if company_logo_mini %}
+                                    <div class="mt-2" id="preview-company_logo_mini">
+                                        <div class="p-2 border rounded d-inline-block bg-secondary">
+                                            <img src="/media/{{ company_logo_mini }}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;">
+                                        </div>
+                                        <div class="mt-1">
+                                            <small class="text-success">
+                                                <i class="fas fa-check-circle"></i> تم الرفع
+                                            </small>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="alert alert-info border-start border-4 border-info">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-info-circle fa-2x text-info me-3 mt-1"></i>
+                                        <div>
+                                            <h6 class="mb-2"><strong>معلومات الشعارات</strong></h6>
+                                            <ul class="mb-0 small ps-3">
+                                                <li><strong>الصيغ:</strong> PNG, JPG, SVG</li>
+                                                <li><strong>الحجم:</strong> حد أقصى 2 MB</li>
+                                                <li><strong>الأساسي:</strong> 300×100 بكسل</li>
+                                                <li><strong>الفاتح:</strong> خلفية شفافة</li>
+                                                <li><strong>المصغر:</strong> مربع 50×50</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-warning border-start border-4 border-warning mt-3">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-lightbulb fa-lg text-warning me-2 mt-1"></i>
+                                        <div>
+                                            <h6 class="mb-2"><strong>نصيحة</strong></h6>
+                                            <small>
+                                                يتم رفع كل شعار فوراً عند اختياره. لا حاجة لحفظ النموذج.
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <hr class="my-4">
+                
+                <!-- أزرار الحفظ -->
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'core:dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-times me-1"></i> إلغاء
+                    </a>
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save me-1"></i> حفظ جميع الإعدادات
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
-{% endblock %} 
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // ==================== Variables ====================
+    const form = document.getElementById('companySettingsForm');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    let formChanged = false;
+    
+    // ==================== Track Form Changes ====================
+    const formInputs = form.querySelectorAll('input, textarea, select');
+    formInputs.forEach(input => {
+        input.addEventListener('change', function() {
+            formChanged = true;
+        });
+    });
+    
+    // ==================== Warn Before Leaving ====================
+    window.addEventListener('beforeunload', function(e) {
+        if (formChanged) {
+            e.preventDefault();
+            e.returnValue = '';
+            return '';
+        }
+    });
+    
+    // ==================== Form Submission ====================
+    form.addEventListener('submit', function(e) {
+        formChanged = false; // Reset flag
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الحفظ...';
+    });
+    
+    // ==================== Logo Upload via AJAX (Multiple Logos) ====================
+    const logoInputs = document.querySelectorAll('.logo-upload');
+    logoInputs.forEach(logoInput => {
+        logoInput.addEventListener('change', async function(e) {
+            const logoType = this.dataset.logoType; // company_logo, company_logo_light, company_logo_mini
+            const file = e.target.files[0];
+            if (!file) return;
+            
+            // Validate file size (2MB)
+            if (file.size > 2 * 1024 * 1024) {
+                alert('حجم الملف كبير جداً. الحد الأقصى 2 ميجابايت.');
+                this.value = '';
+                return;
+            }
+            
+            // Validate file type
+            const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
+            if (!validTypes.includes(file.type)) {
+                alert('نوع الملف غير مدعوم. يرجى استخدام PNG, JPG, أو SVG.');
+                this.value = '';
+                return;
+            }
+            
+            // Show preview immediately
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                let previewContainer = document.getElementById(`preview-${logoType}`);
+                if (previewContainer) {
+                    const img = previewContainer.querySelector('img');
+                    if (img) {
+                        img.src = e.target.result;
+                    }
+                    // Show loading
+                    const statusDiv = previewContainer.querySelector('.mt-1');
+                    if (statusDiv) {
+                        statusDiv.innerHTML = '<small class="text-muted"><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</small>';
+                    }
+                }
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload via AJAX
+            const formData = new FormData();
+            formData.append(logoType, file);
+            
+            try {
+                const response = await fetch('{% url "core:upload_company_logo" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Update preview with uploaded image
+                    let previewContainer = document.getElementById(`preview-${logoType}`);
+                    if (previewContainer) {
+                        const img = previewContainer.querySelector('img');
+                        if (img) {
+                            img.src = data.logo_url;
+                        }
+                        const statusDiv = previewContainer.querySelector('.mt-1');
+                        if (statusDiv) {
+                            statusDiv.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small>';
+                        }
+                    } else {
+                        // Create preview if doesn't exist
+                        const parentDiv = logoInput.closest('.mb-4');
+                        const newPreview = document.createElement('div');
+                        newPreview.className = 'mt-2';
+                        newPreview.id = `preview-${logoType}`;
+                        
+                        let imgHTML = '';
+                        if (logoType === 'company_logo_light') {
+                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-secondary"><img src="${data.logo_url}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;"></div>`;
+                        } else if (logoType === 'company_logo_mini') {
+                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-secondary"><img src="${data.logo_url}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;"></div>`;
+                        } else {
+                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-light"><img src="${data.logo_url}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;"></div>`;
+                        }
+                        
+                        newPreview.innerHTML = imgHTML + '<div class="mt-1"><small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small></div>';
+                        parentDiv.appendChild(newPreview);
+                    }
+                    
+                    // Show toast notification
+                    if (typeof toastr !== 'undefined') {
+                        toastr.success(data.message);
+                    }
+                    
+                    console.log(`✅ تم رفع ${logoType} بنجاح`);
+                } else {
+                    alert(data.message);
+                    logoInput.value = '';
+                }
+            } catch (error) {
+                console.error('خطأ في رفع الشعار:', error);
+                alert('حدث خطأ أثناء رفع الشعار. يرجى المحاولة مرة أخرى.');
+                logoInput.value = '';
+            }
+        });
+    });
+    
+    // ==================== Form Validation ====================
+    const companyName = document.getElementById('company_name');
+    if (companyName) {
+        companyName.addEventListener('blur', function() {
+            if (!this.value.trim()) {
+                this.classList.add('is-invalid');
+            } else {
+                this.classList.remove('is-invalid');
+            }
+        });
+    }
+    
+    // ==================== Auto-save Draft (Optional) ====================
+    let autoSaveTimer;
+    formInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            clearTimeout(autoSaveTimer);
+            autoSaveTimer = setTimeout(() => {
+                // Save to localStorage
+                const formData = {};
+                formInputs.forEach(inp => {
+                    if (inp.type !== 'file') {
+                        formData[inp.name] = inp.value;
+                    }
+                });
+                localStorage.setItem('company_settings_draft', JSON.stringify(formData));
+                console.log('✅ تم حفظ المسودة تلقائياً');
+            }, 2000);
+        });
+    });
+    
+    // ==================== Restore Draft on Load ====================
+    const savedDraft = localStorage.getItem('company_settings_draft');
+    if (savedDraft) {
+        const draftData = JSON.parse(savedDraft);
+        const shouldRestore = confirm('تم العثور على مسودة محفوظة. هل تريد استعادتها؟');
+        if (shouldRestore) {
+            Object.keys(draftData).forEach(key => {
+                const input = form.querySelector(`[name="${key}"]`);
+                if (input && input.type !== 'file') {
+                    input.value = draftData[key];
+                }
+            });
+            formChanged = true;
+        } else {
+            localStorage.removeItem('company_settings_draft');
+        }
+    }
+    
+    // ==================== Clear Draft on Successful Submit ====================
+    form.addEventListener('submit', function() {
+        localStorage.removeItem('company_settings_draft');
+    });
+    
+    console.log('✅ نظام إعدادات الشركة جاهز');
+});
+</script>
+{% endblock %}

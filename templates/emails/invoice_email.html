@@ -1,0 +1,74 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}فاتورة جديدة - MWHEBA ERP{% endblock %}
+
+{% block content %}
+<h1 class="main-title">فاتورة جديدة</h1>
+<p class="main-message">
+    عزيزي {{ customer_name }}،<br>
+    تم إصدار فاتورة جديدة لك. يمكنك مراجعة التفاصيل أدناه.
+</p>
+
+<div class="info-box" style="text-align: right;">
+    <table style="width: 100%; border: none;">
+        <tr>
+            <td style="border: none; padding: 8px 0;"><strong>رقم الفاتورة:</strong></td>
+            <td style="border: none; padding: 8px 0;">{{ invoice_number }}</td>
+        </tr>
+        <tr>
+            <td style="border: none; padding: 8px 0;"><strong>التاريخ:</strong></td>
+            <td style="border: none; padding: 8px 0;">{{ invoice_date }}</td>
+        </tr>
+        <tr>
+            <td style="border: none; padding: 8px 0;"><strong>تاريخ الاستحقاق:</strong></td>
+            <td style="border: none; padding: 8px 0;">{{ due_date }}</td>
+        </tr>
+    </table>
+</div>
+
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>البند</th>
+            <th>الكمية</th>
+            <th>السعر</th>
+            <th>الإجمالي</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.price }} جنيه</td>
+            <td>{{ item.total }} جنيه</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<div class="success-box" style="text-align: right;">
+    <table style="width: 100%; border: none;">
+        <tr>
+            <td style="border: none; padding: 5px 0;"><strong>المجموع الفرعي:</strong></td>
+            <td style="border: none; padding: 5px 0; text-align: left;">{{ subtotal }} جنيه</td>
+        </tr>
+        <tr>
+            <td style="border: none; padding: 5px 0;"><strong>الضريبة ({{ tax_rate }}%):</strong></td>
+            <td style="border: none; padding: 5px 0; text-align: left;">{{ tax_amount }} جنيه</td>
+        </tr>
+        <tr style="font-size: 18px; color: #22c55e;">
+            <td style="border: none; padding: 10px 0;"><strong>الإجمالي:</strong></td>
+            <td style="border: none; padding: 10px 0; text-align: left;"><strong>{{ total }} جنيه</strong></td>
+        </tr>
+    </table>
+</div>
+
+<a href="{{ invoice_url }}" class="button">عرض الفاتورة الكاملة</a>
+
+<p class="help-text">
+    إذا كان لديك أي استفسار بخصوص هذه الفاتورة، يمكنك الرد على هذا الإيميل.
+</p>
+
+<p class="signature">فريق MWHEBA</p>
+{% endblock %}

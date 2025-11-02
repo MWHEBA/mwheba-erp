@@ -1,7 +1,8 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
 {% load custom_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
@@ -73,7 +74,7 @@
               <i class="fas fa-coins"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الأصول" %}</div>
-            <div class="stats-card-value">{{ total_assets|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_assets|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
@@ -86,7 +87,7 @@
               <i class="fas fa-arrow-down"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
-            <div class="stats-card-value">{{ total_income|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_income|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>
@@ -99,7 +100,7 @@
               <i class="fas fa-arrow-up"></i>
             </div>
             <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
-            <div class="stats-card-value">{{ total_expenses|custom_number_format }}</div>
+            <div class="stats-card-value">{{ total_expenses|smart_float }}</div>
             <div class="stats-card-unit">{{ currency_symbol }}</div>
           </div>
         </div>

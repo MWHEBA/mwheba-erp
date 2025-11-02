@@ -342,7 +342,7 @@
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">أقصى مقاس:</span>
-                                <span class="detail-value">{{ service_data.details.max_width_cm|remove_trailing_zeros }} × {{ service_data.details.max_height_cm|remove_trailing_zeros }} سم</span>
+                                <span class="detail-value">{{ service_data.details.max_width_cm|smart_float }} × {{ service_data.details.max_height_cm|smart_float }} سم</span>
                             </div>
                             <div class="detail-row">
                                 <span class="detail-label">سعر الصفحة أبيض/أسود:</span>
@@ -435,11 +435,8 @@
             <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-outline-primary me-2">
                 <i class="fas fa-arrow-left"></i> العودة لبيانات المورد
             </a>
-            <a href="{% url 'supplier:service_comparison' %}" class="btn btn-primary me-2">
-                <i class="fas fa-balance-scale"></i> مقارنة مع موردين آخرين
-            </a>
-            <a href="{% url 'services:services_home' %}" class="btn btn-success">
-                <i class="fas fa-cogs"></i> جميع الخدمات المتخصصة
+            <a href="{% url 'supplier:supplier_list' %}" class="btn btn-success">
+                <i class="fas fa-list"></i> جميع الموردين
             </a>
         </div>
     </div>

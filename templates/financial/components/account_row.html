@@ -30,7 +30,7 @@
     <td class="text-end">
         {% if account.current_balance %}
             <strong class="{% if account.current_balance < 0 %}text-danger{% endif %}">
-                {{ account.current_balance|remove_trailing_zeros }}
+                {{ account.current_balance|smart_float }}
             </strong>
         {% else %}
             <span class="text-muted">0.00</span>

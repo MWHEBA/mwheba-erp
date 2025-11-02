@@ -209,14 +209,14 @@
                                 </td>
                                 <td class="text-center">
                                     {% if line.debit_amount > 0 %}
-                                        <span class="debit-amount">{{ line.debit_amount|remove_trailing_zeros }}</span>
+                                        <span class="debit-amount">{{ line.debit_amount|smart_float }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
                                 </td>
                                 <td class="text-center">
                                     {% if line.credit_amount > 0 %}
-                                        <span class="credit-amount">{{ line.credit_amount|remove_trailing_zeros }}</span>
+                                        <span class="credit-amount">{{ line.credit_amount|smart_float }}</span>
                                     {% else %}
                                         -
                                     {% endif %}
@@ -227,8 +227,8 @@
                         <tfoot class="table-header">
                             <tr>
                                 <th>الإجمالي</th>
-                                <th class="text-center debit-amount">{{ expense_amount|remove_trailing_zeros }}</th>
-                                <th class="text-center credit-amount">{{ expense_amount|remove_trailing_zeros }}</th>
+                                <th class="text-center debit-amount">{{ expense_amount|smart_float }}</th>
+                                <th class="text-center credit-amount">{{ expense_amount|smart_float }}</th>
                             </tr>
                         </tfoot>
                     </table>

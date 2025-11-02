@@ -4,9 +4,108 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    
+    /* Check Items */
+    .check-item {
+        background: var(--white);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        padding: 1rem;
+        margin-bottom: 0.75rem;
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .check-item .icon {
+        font-size: 1.5rem;
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 50%;
+    }
+    
+    .check-item.success .icon {
+        background: var(--bg-soft-success);
+        color: var(--success-color);
+    }
+    
+    .check-item.error .icon {
+        background: var(--bg-soft-danger);
+        color: var(--danger-color);
+    }
+    
+    .check-item.warning .icon {
+        background: var(--bg-soft-warning);
+        color: var(--warning-color);
+    }
+    
+    .check-item .content {
+        flex: 1;
+    }
+    
+    .check-item .title {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+    }
+    
+    .check-item .count {
+        font-size: 1.25rem;
+        font-weight: 700;
+    }
+    
+    /* Details Table */
+    .details-table {
+        font-size: 0.875rem;
+        margin-top: 1rem;
+    }
+    
+    .details-table th {
+        background: var(--bg-light);
+        font-weight: 600;
+        padding: 0.75rem;
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    .details-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--border-color);
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
+    {# Header #}
     <div class="mb-4">
+        {# Breadcrumb #}
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item">
+                        <a href="{% url 'core:dashboard' %}">
+                            <i class="fas fa-home me-1"></i>الرئيسية
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">المالية</a>
+                    </li>
+                    <li class="breadcrumb-item">
+                        <a href="#">الصيانة</a>
+                    </li>
+                    <li class="breadcrumb-item active" aria-current="page">
+                        فحص سلامة البيانات
+                    </li>
+                </ol>
+            </nav>
+        </div>
+        
+        {# Header Box #}
         <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
             <div class="d-flex align-items-center">
                 <div class="me-3">
@@ -14,32 +113,294 @@
                 </div>
                 <div>
                     <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">فحص سلامة وتكامل البيانات</p>
+                    <p class="text-muted mb-0">فحص شامل لسلامة وتكامل البيانات المحاسبية والمخزنية</p>
                 </div>
             </div>
-        </div>
-    </div>
-    
-    <div class="section-container">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-shield-alt me-2"></i>
-                    التحقق من سلامة البيانات
-                </h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted">هذه الميزة تحت التطوير حالياً.</p>
-                
-                <form method="post">
+            <div>
+                <form method="post" id="scanForm">
                     {% csrf_token %}
-                    <button type="submit" class="btn btn-info">
-                        <i class="fas fa-shield-alt me-1"></i>
-                        فحص سلامة البيانات
+                    <button type="submit" class="btn btn-primary" id="scanBtn">
+                        <i class="fas fa-search me-2"></i>
+                        بدء الفحص
                     </button>
                 </form>
             </div>
         </div>
     </div>
+    
+    {% if results.summary.total_checks > 0 %}
+    {# Summary Cards #}
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الفحوصات</div>
+                    <div class="stats-card-value">{{ results.summary.total_checks }}</div>
+                    <div class="stats-card-unit">فحص</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-title">نجح</div>
+                    <div class="stats-card-value">{{ results.summary.passed }}</div>
+                    <div class="stats-card-unit">فحص</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stats-card-title">فشل</div>
+                    <div class="stats-card-value">{{ results.summary.failed }}</div>
+                    <div class="stats-card-unit">مشكلة</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-card-title">تحذيرات</div>
+                    <div class="stats-card-value">{{ results.summary.warnings }}</div>
+                    <div class="stats-card-unit">تحذير</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {# Passed Checks #}
+    {% if results.checks %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                الفحوصات الناجحة ({{ results.checks|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for check in results.checks %}
+            <div class="check-item success">
+                <div class="icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ check.name }}</div>
+                    <small class="text-success">لا توجد مشاكل</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {# Errors #}
+    {% if results.errors %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-times-circle text-danger me-2"></i>
+                مشاكل حرجة ({{ results.errors|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for error in results.errors %}
+            <div class="check-item error mb-3">
+                <div class="icon">
+                    <i class="fas fa-times"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ error.check }}</div>
+                    <small class="text-danger">{{ error.count }} مشكلة</small>
+                </div>
+                <div class="count text-danger">{{ error.count }}</div>
+            </div>
+            
+            {% if error.message %}
+            <div class="alert alert-danger">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ error.message }}
+            </div>
+            {% endif %}
+            
+            {% if error.details %}
+            <div class="table-responsive">
+                <table class="table details-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>التفاصيل</th>
+                            <th>الفرق</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in error.details %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                {% if detail.entry %}
+                                    قيد #{{ detail.entry.id }} - {{ detail.entry.date }}
+                                {% elif detail.product %}
+                                    {{ detail.product.name }}
+                                {% else %}
+                                    {{ detail }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if detail.difference %}
+                                    <span class="badge bg-danger">{{ detail.difference }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if error.count > 10 %}
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                يتم عرض أول 10 مشاكل فقط. الإجمالي: {{ error.count }}
+            </small>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {# Warnings #}
+    {% if results.warnings %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                تحذيرات ({{ results.warnings|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for warning in results.warnings %}
+            <div class="check-item warning mb-3">
+                <div class="icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ warning.check }}</div>
+                    <small class="text-warning">{{ warning.count }} تحذير</small>
+                </div>
+                <div class="count text-warning">{{ warning.count }}</div>
+            </div>
+            
+            {% if warning.message %}
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ warning.message }}
+            </div>
+            {% endif %}
+            
+            {% if warning.details %}
+            <div class="table-responsive">
+                <table class="table details-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>الاسم</th>
+                            <th>الرصيد الحالي</th>
+                            <th>الرصيد المحسوب</th>
+                            <th>الفرق</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in warning.details %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>
+                                {% if detail.customer %}
+                                    {{ detail.customer.name }}
+                                {% elif detail.supplier %}
+                                    {{ detail.supplier.name }}
+                                {% endif %}
+                            </td>
+                            <td>{{ detail.system_balance }}</td>
+                            <td>{{ detail.calculated_balance }}</td>
+                            <td>
+                                <span class="badge bg-warning">{{ detail.difference }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if warning.count > 10 %}
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                يتم عرض أول 10 تحذيرات فقط. الإجمالي: {{ warning.count }}
+            </small>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    {# No Results Yet #}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-shield-alt fa-5x text-muted mb-4"></i>
+            <h3 class="mb-3">جاهز لفحص سلامة البيانات</h3>
+            <p class="text-muted mb-4">
+                سيتم فحص جميع البيانات المحاسبية والمخزنية للتأكد من سلامتها وتكاملها
+            </p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="alert alert-info text-start">
+                        <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>الفحوصات التي سيتم إجراؤها:</h6>
+                        <ul class="mb-0">
+                            <li>✓ توازن القيود المحاسبية (المدين = الدائن)</li>
+                            <li>✓ أرصدة العملاء (مقارنة مع المبيعات والدفعات)</li>
+                            <li>✓ أرصدة الموردين (مقارنة مع المشتريات والدفعات)</li>
+                            <li>✓ أرصدة المخزون (مقارنة مع الحركات)</li>
+                            <li>✓ القيود بدون مستند مرجعي</li>
+                            <li>✓ الحسابات المكررة</li>
+                            <li>✓ المخزون السالب</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const scanBtn = document.getElementById('scanBtn');
+    const scanForm = document.getElementById('scanForm');
+    
+    if (scanForm) {
+        scanForm.addEventListener('submit', function() {
+            scanBtn.disabled = true;
+            scanBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الفحص...';
+        });
+    }
+});
+</script>
 {% endblock %}
