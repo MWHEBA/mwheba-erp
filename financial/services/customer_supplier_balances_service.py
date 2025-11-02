@@ -31,7 +31,7 @@ class CustomerSupplierBalancesService:
         Returns:
             قاموس يحتوي على:
             - accounts: قائمة الحسابات مع الأرصدة
-            - aging_periods: التوزيع حسب فترات الاستحقاق
+            - due_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
         # محاولة استخدام القيود المحاسبية مباشرة
@@ -48,7 +48,7 @@ class CustomerSupplierBalancesService:
             return {
                 'error': 'نماذج المبيعات غير متوفرة',
                 'accounts': [],
-                'aging_periods': {},
+                'due_periods': {},
                 'summary': {}
             }
         
@@ -82,7 +82,7 @@ class CustomerSupplierBalancesService:
         # حساب النسب المئوية
         total_balance = total_current + total_30 + total_60 + total_90 + total_over_90
         
-        aging_periods = {
+        due_periods = {
             'current': {
                 'amount': total_current,
                 'percentage': (total_current / total_balance * 100) if total_balance > 0 else 0,
@@ -123,7 +123,7 @@ class CustomerSupplierBalancesService:
         
         return {
             'accounts': accounts_data,
-            'aging_periods': aging_periods,
+            'due_periods': due_periods,
             'summary': summary,
             'as_of_date': self.as_of_date,
         }
@@ -135,7 +135,7 @@ class CustomerSupplierBalancesService:
         Returns:
             قاموس يحتوي على:
             - accounts: قائمة الحسابات مع الأرصدة
-            - aging_periods: التوزيع حسب فترات الاستحقاق
+            - due_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
         # محاولة استخدام القيود المحاسبية مباشرة
@@ -152,7 +152,7 @@ class CustomerSupplierBalancesService:
             return {
                 'error': 'نماذج المشتريات غير متوفرة',
                 'accounts': [],
-                'aging_periods': {},
+                'due_periods': {},
                 'summary': {}
             }
         
@@ -186,7 +186,7 @@ class CustomerSupplierBalancesService:
         # حساب النسب المئوية
         total_balance = total_current + total_30 + total_60 + total_90 + total_over_90
         
-        aging_periods = {
+        due_periods = {
             'current': {
                 'amount': total_current,
                 'percentage': (total_current / total_balance * 100) if total_balance > 0 else 0,
@@ -227,7 +227,7 @@ class CustomerSupplierBalancesService:
         
         return {
             'accounts': accounts_data,
-            'aging_periods': aging_periods,
+            'due_periods': due_periods,
             'summary': summary,
             'as_of_date': self.as_of_date,
         }
@@ -420,12 +420,12 @@ class CustomerSupplierBalancesService:
             # الإجماليات
             row += 2
             ws.cell(row=row, column=2, value='الإجمالي').font = Font(bold=True)
-            aging_periods = report_data['aging_periods']
-            ws.cell(row=row, column=3, value=float(aging_periods['current']['amount'])).font = Font(bold=True)
-            ws.cell(row=row, column=4, value=float(aging_periods['days_1_30']['amount'])).font = Font(bold=True)
-            ws.cell(row=row, column=5, value=float(aging_periods['days_31_60']['amount'])).font = Font(bold=True)
-            ws.cell(row=row, column=6, value=float(aging_periods['days_61_90']['amount'])).font = Font(bold=True)
-            ws.cell(row=row, column=7, value=float(aging_periods['over_90']['amount'])).font = Font(bold=True)
+            due_periods = report_data['due_periods']
+            ws.cell(row=row, column=3, value=float(due_periods['current']['amount'])).font = Font(bold=True)
+            ws.cell(row=row, column=4, value=float(due_periods['days_1_30']['amount'])).font = Font(bold=True)
+            ws.cell(row=row, column=5, value=float(due_periods['days_31_60']['amount'])).font = Font(bold=True)
+            ws.cell(row=row, column=6, value=float(due_periods['days_61_90']['amount'])).font = Font(bold=True)
+            ws.cell(row=row, column=7, value=float(due_periods['over_90']['amount'])).font = Font(bold=True)
             ws.cell(row=row, column=8, value=float(report_data['summary']['total_balance'])).font = Font(bold=True)
             
             # تنسيق الأعمدة
@@ -451,10 +451,22 @@ class CustomerSupplierBalancesService:
         from financial.models.chart_of_accounts import ChartOfAccounts
         from financial.models.journal_entry import JournalEntryLine
         
-        # جلب حسابات الأصول (أرصدة العملاء)
-        asset_accounts = ChartOfAccounts.objects.filter(
-            account_type__category='asset'
-        )
+        # جلب حسابات العملاء فقط (كود 11030)
+        try:
+            base_account = ChartOfAccounts.objects.get(code='11030', is_active=True)
+            # جلب الحساب الرئيسي وجميع الحسابات الفرعية
+            asset_accounts = ChartOfAccounts.objects.filter(
+                code__startswith='11030',
+                is_active=True
+            )
+        except ChartOfAccounts.DoesNotExist:
+            # إذا لم يوجد حساب العملاء، نرجع بيانات فارغة
+            return {
+                'accounts': [],
+                'due_periods': {},
+                'summary': {'total_balance': Decimal('0'), 'accounts_count': 0},
+                'as_of_date': self.as_of_date,
+            }
         
         accounts_data = []
         total_current = Decimal('0')
@@ -481,7 +493,7 @@ class CustomerSupplierBalancesService:
         # حساب الإجماليات
         total_balance = total_current + total_30 + total_60 + total_90 + total_over_90
         
-        aging_periods = {
+        due_periods = {
             'current': {
                 'amount': total_current,
                 'percentage': (total_current / total_balance * 100) if total_balance > 0 else 0,
@@ -521,7 +533,7 @@ class CustomerSupplierBalancesService:
         
         return {
             'accounts': accounts_data,
-            'aging_periods': aging_periods,
+            'due_periods': due_periods,
             'summary': summary,
             'as_of_date': self.as_of_date,
         }
@@ -582,10 +594,22 @@ class CustomerSupplierBalancesService:
         """
         from financial.models.chart_of_accounts import ChartOfAccounts
         
-        # جلب حسابات الخصوم (أرصدة الموردين)
-        liability_accounts = ChartOfAccounts.objects.filter(
-            account_type__category='liability'
-        )
+        # جلب حسابات الموردين فقط (كود 21010)
+        try:
+            base_account = ChartOfAccounts.objects.get(code='21010', is_active=True)
+            # جلب الحساب الرئيسي وجميع الحسابات الفرعية
+            liability_accounts = ChartOfAccounts.objects.filter(
+                code__startswith='21010',
+                is_active=True
+            )
+        except ChartOfAccounts.DoesNotExist:
+            # إذا لم يوجد حساب الموردين، نرجع بيانات فارغة
+            return {
+                'accounts': [],
+                'due_periods': {},
+                'summary': {'total_balance': Decimal('0'), 'accounts_count': 0},
+                'as_of_date': self.as_of_date,
+            }
         
         accounts_data = []
         total_current = Decimal('0')
@@ -612,7 +636,7 @@ class CustomerSupplierBalancesService:
         # حساب الإجماليات
         total_balance = total_current + total_30 + total_60 + total_90 + total_over_90
         
-        aging_periods = {
+        due_periods = {
             'current': {
                 'amount': total_current,
                 'percentage': (total_current / total_balance * 100) if total_balance > 0 else 0,
@@ -652,7 +676,7 @@ class CustomerSupplierBalancesService:
         
         return {
             'accounts': accounts_data,
-            'aging_periods': aging_periods,
+            'due_periods': due_periods,
             'summary': summary,
             'as_of_date': self.as_of_date,
         }
