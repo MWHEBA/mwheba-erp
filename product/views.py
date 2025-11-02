@@ -4,8 +4,9 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Sum, Count, F
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
-from django.template.loader import render_to_string, get_template
+from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from .models import (
     Product,
     Category,
@@ -35,8 +36,6 @@ from django.urls import reverse
 from django.utils import timezone
 import csv
 from io import BytesIO
-from xhtml2pdf import pisa
-from django.template.loader import get_template
 from django.views.decorators.http import require_POST
 from django.core.exceptions import ValidationError
 import logging
@@ -227,7 +226,8 @@ def product_list(request):
         
         # معالجة تصدير PDF
         if request.GET.get('export') == 'pdf':
-            return export_products_pdf(request, products)
+            # استخدام WeasyPrint للحل الجذري للعربي
+            return export_products_pdf_weasy(request, products)
 
         # تعريف أعمدة جدول المنتجات
         product_headers = [
@@ -2418,7 +2418,7 @@ def add_stock_movement(request):
 @login_required
 def export_stock_movements(request):
     """
-    تصدير حركات المخزون كملف CSV أو PDF
+    تصدير حركات المخزون كملف CSV
     """
     # الحصول على الحركات مع تطبيق الفلاتر
     movements = (
@@ -2457,79 +2457,47 @@ def export_stock_movements(request):
     if date_to:
         movements = movements.filter(timestamp__date__lte=date_to)
 
-    # تحديد نوع التصدير
-    export_format = request.GET.get("format", "csv")
+    # تصدير CSV
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = 'attachment; filename="stock_movements.csv"'
 
-    if export_format == "csv":
-        # تصدير CSV
-        response = HttpResponse(content_type="text/csv")
-        response["Content-Disposition"] = 'attachment; filename="stock_movements.csv"'
+    writer = csv.writer(response)
+    writer.writerow(
+        [
+            "ID",
+            "المنتج",
+            "المخزن",
+            "النوع",
+            "الكمية",
+            "المخزون قبل",
+            "المخزون بعد",
+            "المخزن المستلم",
+            "رقم المرجع",
+            "ملاحظات",
+            "التاريخ",
+        ]
+    )
 
-        writer = csv.writer(response)
+    for movement in movements:
         writer.writerow(
             [
-                "ID",
-                "المنتج",
-                "المخزن",
-                "النوع",
-                "الكمية",
-                "المخزون قبل",
-                "المخزون بعد",
-                "المخزن المستلم",
-                "رقم المرجع",
-                "ملاحظات",
-                "التاريخ",
+                movement.id,
+                movement.product.name,
+                movement.warehouse.name,
+                movement.get_movement_type_display(),
+                movement.quantity,
+                movement.quantity_before,
+                movement.quantity_after,
+                movement.destination_warehouse.name
+                if movement.destination_warehouse
+                else "",
+                movement.reference_number,
+                movement.notes,
+                movement.timestamp.strftime("%Y-%m-%d %H:%M"),
             ]
         )
 
-        for movement in movements:
-            writer.writerow(
-                [
-                    movement.id,
-                    movement.product.name,
-                    movement.warehouse.name,
-                    movement.get_movement_type_display(),
-                    movement.quantity,
-                    movement.quantity_before,
-                    movement.quantity_after,
-                    movement.destination_warehouse.name
-                    if movement.destination_warehouse
-                    else "",
-                    movement.reference_number,
-                    movement.notes,
-                    movement.timestamp.strftime("%Y-%m-%d %H:%M"),
-                ]
-            )
-
-        return response
-
-    elif export_format == "pdf":
-        # تصدير PDF
-        # هنا سنستخدم HTML كوسيط لإنشاء PDF
-        template = get_template("product/exports/stock_movements_pdf.html")
-        context = {
-            "movements": movements,
-            "today": timezone.now(),
-            "request": request,
-        }
-        html = template.render(context)
-
-        # إنشاء PDF
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
-
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type="application/pdf")
-            response[
-                "Content-Disposition"
-            ] = 'attachment; filename="stock_movements.pdf"'
-            return response
-
-        return HttpResponse("Error generating PDF", status=400)
-
-    else:
-        # نوع تصدير غير معروف
-        return HttpResponse("Invalid export format", status=400)
+    return response
 
 
 @login_required
@@ -2748,36 +2716,227 @@ def add_product_image(request):
 
 
 @login_required
-def export_products_pdf(request, products):
+def export_products_pdf_weasy(request, products):
     """
-    تصدير قائمة المنتجات إلى PDF
+    تصدير قائمة المنتجات إلى PDF باستخدام WeasyPrint (الحل الجذري للعربي)
     """
     try:
-        # حساب إجمالي المخزون لكل منتج
-        for product in products:
-            product.total_stock = product.stocks.aggregate(total=Sum('quantity'))['total'] or 0
+        from weasyprint import HTML, CSS
+        from django.utils import timezone
+        import os
+        import pytz
         
-        # تحضير البيانات للقالب
-        template = get_template("product/exports/products_pdf.html")
-        context = {
-            "products": products,
-            "today": timezone.now(),
-            "request": request,
-            "total_products": products.count(),
-        }
-        html = template.render(context)
-
-        # إنشاء PDF
-        result = BytesIO()
-        pdf = pisa.pisaDocument(BytesIO(html.encode("UTF-8")), result)
-
-        if not pdf.err:
-            response = HttpResponse(result.getvalue(), content_type="application/pdf")
-            response["Content-Disposition"] = 'attachment; filename="products_list.pdf"'
-            return response
-
-        return HttpResponse("خطأ في إنشاء ملف PDF", status=400)
-
+        # الحصول على التوقيت المحلي
+        local_tz = pytz.timezone('Africa/Cairo')
+        now_local = timezone.now().astimezone(local_tz)
+        
+        # مسار الخطوط
+        font_dir = os.path.join(settings.BASE_DIR, 'static', 'fonts')
+        tajawal_regular = f'file:///{font_dir}/Tajawal-Regular.ttf'.replace('\\', '/')
+        tajawal_bold = f'file:///{font_dir}/Tajawal-Bold.ttf'.replace('\\', '/')
+        
+        # إنشاء HTML للـ PDF
+        html_content = f"""
+        <!DOCTYPE html>
+        <html dir="rtl" lang="ar">
+        <head>
+            <meta charset="UTF-8">
+            <style>
+                @page {{
+                    size: A4;
+                    margin: 0.5cm;
+                }}
+                
+                @font-face {{
+                    font-family: 'Tajawal';
+                    src: url('{tajawal_regular}');
+                    font-weight: normal;
+                }}
+                @font-face {{
+                    font-family: 'Tajawal';
+                    src: url('{tajawal_bold}');
+                    font-weight: bold;
+                }}
+                
+                * {{
+                    font-family: 'Tajawal', Arial, sans-serif;
+                }}
+                
+                body {{
+                    direction: rtl;
+                    margin: 0;
+                    padding: 0;
+                    color: #333;
+                }}
+                
+                .header {{
+                    text-align: center;
+                    margin-bottom: 20px;
+                    border-bottom: 3px solid #344767;
+                    padding-bottom: 15px;
+                }}
+                
+                .logo {{
+                    max-width: 150px;
+                    height: auto;
+                    margin-bottom: 10px;
+                }}
+                
+                h1 {{
+                    color: #344767;
+                    font-weight: bold;
+                    font-size: 22px;
+                    margin: 10px 0;
+                }}
+                
+                .info {{
+                    display: flex;
+                    justify-content: space-between;
+                    margin-bottom: 15px;
+                    font-size: 11px;
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 5px;
+                }}
+                
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin-top: 10px;
+                    direction: rtl;
+                    font-size: 10px;
+                }}
+                
+                th {{
+                    background-color: #344767;
+                    color: white;
+                    padding: 10px 5px;
+                    text-align: center;
+                    font-weight: bold;
+                    border: 1px solid #2c3a57;
+                }}
+                
+                td {{
+                    padding: 8px 5px;
+                    text-align: center;
+                    border: 1px solid #dee2e6;
+                    vertical-align: middle;
+                }}
+                
+                td:has(.product-img) {{
+                    padding: 2px;
+                }}
+                
+                tr:nth-child(even) {{
+                    background-color: #f8f9fa;
+                }}
+                
+                .product-img {{
+                    width: 60px;
+                    height: 60px;
+                    object-fit: cover;
+                    border-radius: 4px;
+                }}
+                
+                .status-active {{
+                    color: #28a745;
+                    font-weight: bold;
+                }}
+                
+                .status-inactive {{
+                    color: #dc3545;
+                    font-weight: bold;
+                }}
+                
+                .footer {{
+                    margin-top: 20px;
+                    text-align: center;
+                    font-size: 9px;
+                    color: #6c757d;
+                    border-top: 1px solid #dee2e6;
+                    padding-top: 10px;
+                }}
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1>قائمة المنتجات</h1>
+            </div>
+            
+            <div class="info">
+                <div><strong>تاريخ الطباعة:</strong> {now_local.strftime("%d/%m/%Y - %H:%M")}</div>
+                <div><strong>إجمالي المنتجات:</strong> {products.count()} منتج</div>
+            </div>
+            
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 5%;">#</th>
+                        <th style="width: 12%;">الصورة</th>
+                        <th style="width: 12%;">كود المنتج</th>
+                        <th style="width: 20%;">اسم المنتج</th>
+                        <th style="width: 15%;">التصنيف</th>
+                        <th style="width: 12%;">النوع</th>
+                        <th style="width: 10%;">سعر البيع</th>
+                        <th style="width: 8%;">المخزون</th>
+                        <th style="width: 8%;">الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
+        # إضافة صفوف المنتجات
+        for idx, product in enumerate(products, 1):
+            total_stock = product.stocks.aggregate(total=Sum('quantity'))['total'] or 0
+            status = 'نشط' if product.is_active else 'غير نشط'
+            status_class = 'status-active' if product.is_active else 'status-inactive'
+            
+            # الحصول على صورة المنتج
+            image_html = ''
+            primary_image = product.images.filter(is_primary=True).first()
+            if primary_image and primary_image.image:
+                image_path = os.path.join(settings.MEDIA_ROOT, str(primary_image.image))
+                if os.path.exists(image_path):
+                    image_url = f'file:///{image_path}'.replace('\\', '/')
+                    image_html = f'<img src="{image_url}" class="product-img" />'
+                else:
+                    image_html = '<span style="color: #999;">-</span>'
+            else:
+                image_html = '<span style="color: #999;">-</span>'
+            
+            html_content += f"""
+                    <tr>
+                        <td>{idx}</td>
+                        <td>{image_html}</td>
+                        <td>{product.sku}</td>
+                        <td style="text-align: right; padding-right: 10px;">{product.name}</td>
+                        <td>{product.category.name if product.category else '-'}</td>
+                        <td>{product.brand.name if product.brand else '-'}</td>
+                        <td>{product.selling_price:.2f} ج.م</td>
+                        <td>{int(total_stock)}</td>
+                        <td class="{status_class}">{status}</td>
+                    </tr>
+            """
+        
+        html_content += f"""
+                </tbody>
+            </table>
+            
+            <div class="footer">
+                تم الإنشاء بواسطة نظام MWHEBA ERP - جميع الحقوق محفوظة © {now_local.year}
+            </div>
+        </body>
+        </html>
+        """
+        
+        # تحويل HTML إلى PDF
+        pdf = HTML(string=html_content).write_pdf()
+        
+        # إرجاع الاستجابة
+        response = HttpResponse(pdf, content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="products_list.pdf"'
+        return response
+        
     except Exception as e:
         messages.error(request, f"خطأ في تصدير PDF: {str(e)}")
         return redirect("product:product_list")

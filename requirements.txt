@@ -57,9 +57,8 @@ odfpy==1.4.1
 # Data Analysis
 pandas==2.2.3
 
-# PDF Generation
-reportlab==3.6.13
-xhtml2pdf>=0.2.11
+# PDF Generation - موحد على WeasyPrint
+weasyprint==62.3
 
 # ==============================================================================
 # DATABASE

@@ -216,30 +216,30 @@ class FinancialReportsTestSuite:
         except ImportError as e:
             self.print_test("استيراد التدفقات النقدية", False, str(e))
     
-    def test_aging_report(self):
-        """اختبار تقرير الأعمار"""
-        self.print_header("[6] اختبار تقرير الأعمار (Aging Report)")
+    def test_balances_report(self):
+        """اختبار تقرير الأرصدة"""
+        self.print_header("[6] اختبار تقرير الأرصدة (Balances Report)")
         
         try:
-            from financial.views.api_views import accounts_aging_report
+            from financial.views.api_views import customer_supplier_balances_report
             from django.test import RequestFactory
             from django.contrib.auth import get_user_model
             
             User = get_user_model()
             
             factory = RequestFactory()
-            request = factory.get('/financial/reports/aging/?account_type=receivable')
+            request = factory.get('/financial/reports/balances/?account_type=customers')
             request.user = User.objects.first()
             
             try:
-                response = accounts_aging_report(request, account_type='receivable')
+                response = customer_supplier_balances_report(request, account_type='customers')
                 success = response.status_code == 200
-                self.print_test("تنفيذ تقرير الأعمار", success)
+                self.print_test("تنفيذ تقرير الأرصدة", success)
             except Exception as e:
-                self.print_test("تنفيذ تقرير الأعمار", False, str(e))
+                self.print_test("تنفيذ تقرير الأرصدة", False, str(e))
                 
         except ImportError as e:
-            self.print_test("استيراد تقرير الأعمار", False, str(e))
+            self.print_test("استيراد تقرير الأرصدة", False, str(e))
     
     def test_sales_report(self):
         """اختبار تقرير المبيعات"""
@@ -389,7 +389,7 @@ class FinancialReportsTestSuite:
         self.test_balance_sheet()
         self.test_income_statement()
         self.test_cash_flow()
-        self.test_aging_report()
+        self.test_balances_report()
         self.test_sales_report()
         self.test_purchases_report()
         self.test_inventory_report()

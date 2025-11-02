@@ -1,7 +1,7 @@
-# financial/services/accounts_aging_service.py
+# financial/services/customer_supplier_balances_service.py
 """
-خدمة تقارير أعمار الذمم (المدينة والدائنة)
-تحليل الفواتير المستحقة حسب فترات العمر
+خدمة تقارير أرصدة العملاء والموردين
+تحليل الفواتير المستحقة حسب فترات الاستحقاق
 """
 
 from django.db.models import Sum, Q, F, Case, When, Value, DecimalField
@@ -11,8 +11,8 @@ from datetime import date, timedelta
 from typing import Dict, List, Optional, Any
 
 
-class AccountsAgingService:
-    """خدمة تقارير أعمار الذمم"""
+class CustomerSupplierBalancesService:
+    """خدمة تقارير أرصدة العملاء والموردين"""
     
     def __init__(self, as_of_date: Optional[date] = None):
         """
@@ -24,19 +24,19 @@ class AccountsAgingService:
         from django.utils import timezone
         self.as_of_date = as_of_date or timezone.now().date()
     
-    def generate_ar_aging_report(self) -> Dict[str, Any]:
+    def generate_customer_balances_report(self) -> Dict[str, Any]:
         """
-        إنشاء تقرير أعمار الذمم المدينة (Accounts Receivable)
+        إنشاء تقرير أرصدة العملاء
         
         Returns:
             قاموس يحتوي على:
             - accounts: قائمة الحسابات مع الأرصدة
-            - aging_periods: التوزيع حسب فترات العمر
+            - aging_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
         # محاولة استخدام القيود المحاسبية مباشرة
         try:
-            return self._generate_ar_from_journal_entries()
+            return self._generate_customer_from_journal_entries()
         except Exception:
             pass
         
@@ -64,7 +64,7 @@ class AccountsAgingService:
         
         for customer in customers:
             # حساب رصيد العميل
-            account_data = self._calculate_customer_aging(customer)
+            account_data = self._calculate_customer_balance(customer)
             
             if account_data['total_balance'] > 0:
                 accounts_data.append(account_data)
@@ -128,19 +128,19 @@ class AccountsAgingService:
             'as_of_date': self.as_of_date,
         }
     
-    def generate_ap_aging_report(self) -> Dict[str, Any]:
+    def generate_supplier_balances_report(self) -> Dict[str, Any]:
         """
-        إنشاء تقرير أعمار الذمم الدائنة (Accounts Payable)
+        إنشاء تقرير أرصدة الموردين
         
         Returns:
             قاموس يحتوي على:
             - accounts: قائمة الحسابات مع الأرصدة
-            - aging_periods: التوزيع حسب فترات العمر
+            - aging_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
         # محاولة استخدام القيود المحاسبية مباشرة
         try:
-            return self._generate_ap_from_journal_entries()
+            return self._generate_supplier_from_journal_entries()
         except Exception:
             pass
         
@@ -168,7 +168,7 @@ class AccountsAgingService:
         
         for supplier in suppliers:
             # حساب رصيد المورد
-            account_data = self._calculate_supplier_aging(supplier)
+            account_data = self._calculate_supplier_balance(supplier)
             
             if account_data['total_balance'] > 0:
                 accounts_data.append(account_data)
@@ -232,12 +232,12 @@ class AccountsAgingService:
             'as_of_date': self.as_of_date,
         }
     
-    def _calculate_customer_aging(self, customer) -> Dict[str, Any]:
-        """حساب أعمار ذمم عميل معين"""
+    def _calculate_customer_balance(self, customer) -> Dict[str, Any]:
+        """حساب رصيد عميل معين حسب فترات الاستحقاق"""
         try:
             from sale.models import Sale
         except ImportError:
-            return self._empty_aging_data(customer.name, customer.id)
+            return self._empty_balance_data(customer.name, customer.id)
         
         # جلب الفواتير غير المدفوعة بالكامل
         sales = Sale.objects.filter(
@@ -288,12 +288,12 @@ class AccountsAgingService:
             'total_balance': total_balance,
         }
     
-    def _calculate_supplier_aging(self, supplier) -> Dict[str, Any]:
-        """حساب أعمار ذمم مورد معين"""
+    def _calculate_supplier_balance(self, supplier) -> Dict[str, Any]:
+        """حساب رصيد مورد معين حسب فترات الاستحقاق"""
         try:
             from purchase.models import Purchase
         except ImportError:
-            return self._empty_aging_data(supplier.name, supplier.id)
+            return self._empty_balance_data(supplier.name, supplier.id)
         
         # جلب الفواتير غير المدفوعة بالكامل
         purchases = Purchase.objects.filter(
@@ -344,7 +344,7 @@ class AccountsAgingService:
             'total_balance': total_balance,
         }
     
-    def _empty_aging_data(self, name: str, account_id: int) -> Dict[str, Any]:
+    def _empty_balance_data(self, name: str, account_id: int) -> Dict[str, Any]:
         """بيانات فارغة لحساب بدون رصيد"""
         return {
             'account_id': account_id,
@@ -378,7 +378,7 @@ class AccountsAgingService:
             wb = openpyxl.Workbook()
             ws = wb.active
             
-            title = 'أعمار الذمم المدينة' if report_type == 'ar' else 'أعمار الذمم الدائنة'
+            title = 'تقرير أرصدة العملاء' if report_type == 'ar' else 'تقرير أرصدة الموردين'
             ws.title = title
             
             # تنسيق العنوان
@@ -444,14 +444,14 @@ class AccountsAgingService:
         except ImportError:
             return b''
     
-    def _generate_ar_from_journal_entries(self) -> Dict[str, Any]:
+    def _generate_customer_from_journal_entries(self) -> Dict[str, Any]:
         """
-        إنشاء تقرير أعمار الذمم المدينة من القيود المحاسبية مباشرة
+        إنشاء تقرير أرصدة العملاء من القيود المحاسبية مباشرة
         """
         from financial.models.chart_of_accounts import ChartOfAccounts
         from financial.models.journal_entry import JournalEntryLine
         
-        # جلب حسابات الأصول (الذمم المدينة)
+        # جلب حسابات الأصول (أرصدة العملاء)
         asset_accounts = ChartOfAccounts.objects.filter(
             account_type__category='asset'
         )
@@ -464,16 +464,16 @@ class AccountsAgingService:
         total_over_90 = Decimal('0')
         
         for account in asset_accounts:
-            # حساب الرصيد المدين لكل فترة عمرية
-            account_aging = self._calculate_account_aging_from_entries(account, 'debit')
+            # حساب الرصيد المدين لكل فترة استحقاق
+            account_balance = self._calculate_account_balance_from_entries(account, 'debit')
             
-            if account_aging['total_balance'] > 0:
-                accounts_data.append(account_aging)
-                total_current += account_aging['current']
-                total_30 += account_aging['days_1_30']
-                total_60 += account_aging['days_31_60']
-                total_90 += account_aging['days_61_90']
-                total_over_90 += account_aging['over_90']
+            if account_balance['total_balance'] > 0:
+                accounts_data.append(account_balance)
+                total_current += account_balance['current']
+                total_30 += account_balance['days_1_30']
+                total_60 += account_balance['days_31_60']
+                total_90 += account_balance['days_61_90']
+                total_over_90 += account_balance['over_90']
         
         # ترتيب حسب الرصيد
         accounts_data.sort(key=lambda x: x['total_balance'], reverse=True)
@@ -526,9 +526,9 @@ class AccountsAgingService:
             'as_of_date': self.as_of_date,
         }
     
-    def _calculate_account_aging_from_entries(self, account, balance_type='debit') -> Dict[str, Any]:
+    def _calculate_account_balance_from_entries(self, account, balance_type='debit') -> Dict[str, Any]:
         """
-        حساب أعمار الذمم لحساب معين من القيود المحاسبية
+        حساب رصيد حساب معين حسب فترات الاستحقاق من القيود المحاسبية
         """
         from financial.models.journal_entry import JournalEntryLine
         
@@ -576,13 +576,13 @@ class AccountsAgingService:
             'total_balance': total_balance,
         }
     
-    def _generate_ap_from_journal_entries(self) -> Dict[str, Any]:
+    def _generate_supplier_from_journal_entries(self) -> Dict[str, Any]:
         """
-        إنشاء تقرير أعمار الذمم الدائنة من القيود المحاسبية مباشرة
+        إنشاء تقرير أرصدة الموردين من القيود المحاسبية مباشرة
         """
         from financial.models.chart_of_accounts import ChartOfAccounts
         
-        # جلب حسابات الخصوم (الذمم الدائنة)
+        # جلب حسابات الخصوم (أرصدة الموردين)
         liability_accounts = ChartOfAccounts.objects.filter(
             account_type__category='liability'
         )
@@ -595,16 +595,16 @@ class AccountsAgingService:
         total_over_90 = Decimal('0')
         
         for account in liability_accounts:
-            # حساب الرصيد الدائن لكل فترة عمرية
-            account_aging = self._calculate_account_aging_from_entries(account, 'credit')
+            # حساب الرصيد الدائن لكل فترة استحقاق
+            account_balance = self._calculate_account_balance_from_entries(account, 'credit')
             
-            if account_aging['total_balance'] > 0:
-                accounts_data.append(account_aging)
-                total_current += account_aging['current']
-                total_30 += account_aging['days_1_30']
-                total_60 += account_aging['days_31_60']
-                total_90 += account_aging['days_61_90']
-                total_over_90 += account_aging['over_90']
+            if account_balance['total_balance'] > 0:
+                accounts_data.append(account_balance)
+                total_current += account_balance['current']
+                total_30 += account_balance['days_1_30']
+                total_60 += account_balance['days_31_60']
+                total_90 += account_balance['days_61_90']
+                total_over_90 += account_balance['over_90']
         
         # ترتيب حسب الرصيد
         accounts_data.sort(key=lambda x: x['total_balance'], reverse=True)

@@ -617,12 +617,12 @@ def cash_flow_statement(request):
 
 
 @login_required
-def accounts_aging_report(request, account_type):
+def customer_supplier_balances_report(request, account_type):
     """
-    تقرير أعمار الذمم (المدينة أو الدائنة)
-    account_type: 'receivables' أو 'payables'
+    تقرير أرصدة العملاء والموردين
+    account_type: 'customers' أو 'suppliers'
     """
-    from ..services.accounts_aging_service import AccountsAgingService
+    from ..services.customer_supplier_balances_service import CustomerSupplierBalancesService
     from django.http import HttpResponse
     
     # تحديد تاريخ التقرير
@@ -635,23 +635,23 @@ def accounts_aging_report(request, account_type):
         as_of_date = timezone.now().date()
     
     try:
-        # إنشاء خدمة أعمار الذمم
-        aging_service = AccountsAgingService(as_of_date=as_of_date)
+        # إنشاء خدمة تقارير الأرصدة
+        balances_service = CustomerSupplierBalancesService(as_of_date=as_of_date)
         
         # التحقق من طلب التصدير
         if request.GET.get('export') == 'excel':
             # إنشاء التقرير
-            if account_type == "receivables":
-                report_data = aging_service.generate_ar_aging_report()
+            if account_type == "customers":
+                report_data = balances_service.generate_customer_balances_report()
                 report_type = 'ar'
-                filename = f'ar_aging_{as_of_date}.xlsx'
+                filename = f'customer_balances_{as_of_date}.xlsx'
             else:
-                report_data = aging_service.generate_ap_aging_report()
+                report_data = balances_service.generate_supplier_balances_report()
                 report_type = 'ap'
-                filename = f'ap_aging_{as_of_date}.xlsx'
+                filename = f'supplier_balances_{as_of_date}.xlsx'
             
             # تصدير إلى Excel
-            excel_content = aging_service.export_to_excel(report_data, report_type)
+            excel_content = balances_service.export_to_excel(report_data, report_type)
             
             if excel_content:
                 response = HttpResponse(
@@ -664,10 +664,10 @@ def accounts_aging_report(request, account_type):
                 messages.warning(request, "تصدير Excel غير متاح. يرجى تثبيت openpyxl")
         
         # إنشاء التقرير
-        if account_type == "receivables":
-            report_data = aging_service.generate_ar_aging_report()
+        if account_type == "customers":
+            report_data = balances_service.generate_customer_balances_report()
         else:
-            report_data = aging_service.generate_ap_aging_report()
+            report_data = balances_service.generate_supplier_balances_report()
         
         # التحقق من وجود خطأ
         if "error" in report_data:
@@ -675,12 +675,12 @@ def accounts_aging_report(request, account_type):
             return redirect("core:dashboard")
         
         # تحديد العنوان والأيقونة حسب النوع
-        if account_type == "receivables":
-            page_title = "أعمار الذمم المدينة"
-            page_icon = "fas fa-user-clock"
+        if account_type == "customers":
+            page_title = "تقرير أرصدة العملاء"
+            page_icon = "fas fa-users"
         else:
-            page_title = "أعمار الذمم الدائنة"
-            page_icon = "fas fa-file-invoice-dollar"
+            page_title = "تقرير أرصدة الموردين"
+            page_icon = "fas fa-truck"
         
         context = {
             "page_title": page_title,
@@ -696,10 +696,10 @@ def accounts_aging_report(request, account_type):
             "account_type": account_type,
         }
         
-        return render(request, "financial/reports/accounts_aging.html", context)
+        return render(request, "financial/reports/customer_supplier_balances.html", context)
     
     except Exception as e:
-        messages.error(request, f"خطأ في تحميل تقرير أعمار الذمم: {e}")
+        messages.error(request, f"خطأ في تحميل تقرير الأرصدة: {e}")
         return redirect("core:dashboard")
 
 

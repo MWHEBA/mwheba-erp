@@ -269,10 +269,10 @@ urlpatterns = [
     path("reports/cash-flow-statement/", views.cash_flow_statement, name="cash_flow_statement"),
     # alias للاختبارات
     path("cash-flow/", views.cash_flow_statement, name="cash-flow"),
-    path("reports/accounts-aging/<str:account_type>/", views.accounts_aging_report, name="accounts_aging_report"),
+    path("reports/balances/<str:account_type>/", views.customer_supplier_balances_report, name="customer_supplier_balances_report"),
     # aliases محددة
-    path("reports/accounts-receivable-aging/", views.accounts_aging_report, {"account_type": "receivables"}, name="accounts_receivable_aging"),
-    path("reports/accounts-payable-aging/", views.accounts_aging_report, {"account_type": "payables"}, name="accounts_payable_aging"),
+    path("reports/customer-balances/", views.customer_supplier_balances_report, {"account_type": "customers"}, name="customer_balances_report"),
+    path("reports/supplier-balances/", views.customer_supplier_balances_report, {"account_type": "suppliers"}, name="supplier_balances_report"),
     path("reports/analytics/", views.financial_analytics, name="financial_analytics"),
     # إدارة الدفعات المحسنة
     path("payments/list/", views.payment_list, name="payment_list"),

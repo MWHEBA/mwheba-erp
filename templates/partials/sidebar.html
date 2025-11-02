@@ -400,16 +400,16 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- تقارير الذمم -->
-                        <li class="submenu-title">تقارير الذمم</li>
+                        <!-- تقارير الأرصدة -->
+                        <li class="submenu-title">تقارير الأرصدة</li>
                         <li>
-                            <a href="{% url 'financial:accounts_receivable_aging' %}" class="submenu-link">
-                                <i class="fas fa-user-clock me-2"></i>{% trans "أعمار الذمم المدينة" %}
+                            <a href="{% url 'financial:customer_balances_report' %}" class="submenu-link">
+                                <i class="fas fa-users me-2"></i>{% trans "أرصدة العملاء" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'financial:accounts_payable_aging' %}" class="submenu-link">
-                                <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "أعمار الذمم الدائنة" %}
+                            <a href="{% url 'financial:supplier_balances_report' %}" class="submenu-link">
+                                <i class="fas fa-truck me-2"></i>{% trans "أرصدة الموردين" %}
                             </a>
                         </li>
                         {% comment %}
