@@ -135,10 +135,10 @@ class FinancialAnalyticsService:
         ).count()
 
         # متوسط دورة المبيعات (من تاريخ القيد إلى التحصيل)
-        # نحسبها من متوسط عمر الذمم المدينة
+        # نحسبها من متوسط عمر أرصدة العملاء
         avg_sales_cycle = self._calculate_avg_sales_cycle()
 
-        # الديون المستحقة (الذمم المدينة المتأخرة)
+        # الديون المستحقة (أرصدة العملاء المتأخرة)
         due_debt = self._calculate_due_debt()
 
         return {
@@ -267,7 +267,7 @@ class FinancialAnalyticsService:
         Returns:
             Decimal: متوسط الأيام
         """
-        # نحسب متوسط عمر الذمم المدينة
+        # نحسب متوسط عمر أرصدة العملاء
         receivable_accounts = ChartOfAccounts.objects.filter(
             account_type__category="asset",
             name__icontains="عملاء"
@@ -276,7 +276,7 @@ class FinancialAnalyticsService:
         if not receivable_accounts.exists():
             return Decimal("0")
 
-        # جلب آخر قيود للذمم المدينة
+        # جلب آخر قيود لأرصدة العملاء
         recent_entries = JournalEntryLine.objects.filter(
             account__in=receivable_accounts,
             journal_entry__status='posted',
