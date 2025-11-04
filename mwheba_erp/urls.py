@@ -39,6 +39,7 @@ urlpatterns = [
     path("sales/", include("sale.urls")),
     path("purchases/", include("purchase.urls")),
     path("financial/", include("financial.urls")),
+    path("hr/", include("hr.urls")),  # نظام إدارة الموارد البشرية
     path("utils/", include("utils.urls")),
     # مكتبات الجهات الخارجية
     path("select2/", include("django_select2.urls")),

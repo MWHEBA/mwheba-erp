@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, api
+from . import views, api, views_logs
 
 app_name = "core"
 
@@ -9,6 +9,9 @@ urlpatterns = [
     path("settings/company/", views.company_settings, name="company_settings"),
     path("settings/system/", views.system_settings, name="system_settings"),
     path("system/reset/", views.system_reset, name="system_reset"),
+    # مسارات الأخطاء والـ Logs (للـ Admin فقط)
+    path("logs/errors/", views_logs.view_error_logs, name="view_error_logs"),
+    path("logs/errors/clear/", views_logs.clear_error_logs, name="clear_error_logs"),
     # صفحة عرض كل الإشعارات
     path("notifications/", views.notifications_list, name="notifications_list"),
     path("notifications/settings/", views.notification_settings, name="notification_settings"),

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}إنهاء العقد{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:contract_list' %}"><i class="fas fa-file-contract me-1"></i>العقود</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-ban me-1"></i>إنهاء عقد</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-ban fa-2x text-danger"></i></div>
+              <div>
+                  <h1 class="h3 mb-1 text-danger">إنهاء العقد: {{ contract.contract_number }}</h1>
+                  <p class="text-muted mb-0">إنهاء عقد الموظف</p>
+              </div>
+          </div>
+          <div><a href="{% url 'hr:contract_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a></div>
+      </div>
+  </div>
+
+  <div class="section-container">
+    <div class="row"><div class="col-lg-8 mx-auto">
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        هل أنت متأكد من إنهاء هذا العقد؟
+                    </div>
+
+                    <table class="table table-bordered mb-4">
+                        <tr>
+                            <th width="40%">رقم العقد</th>
+                            <td>{{ contract.contract_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>الموظف</th>
+                            <td>{{ contract.employee.get_full_name_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>تاريخ البداية</th>
+                            <td>{{ contract.start_date|date:"Y-m-d" }}</td>
+                        </tr>
+                    </table>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">تاريخ الإنهاء</label>
+                            <input type="date" class="form-control" name="termination_date">
+                            <small class="text-muted">اتركه فارغاً لاستخدام تاريخ اليوم</small>
+                        </div>
+
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-ban me-2"></i>
+                            تأكيد الإنهاء
+                        </button>
+                        <a href="{% url 'hr:contract_detail' contract.pk %}" class="btn btn-secondary">إلغاء</a>
+                    </form>
+        </div></div>
+  </div>
+</div>
+{% endblock %}

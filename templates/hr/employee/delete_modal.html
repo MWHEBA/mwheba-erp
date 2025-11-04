@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}حذف موظف{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb + Header -->
+    <div class="mb-4">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users-cog me-1"></i>الموظفين</a></li>
+                    <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف موظف</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% include 'hr/components/delete_modal.html' with delete_url=request.path confirmation_message="هل أنت متأكد من حذف الموظف التالي؟" item_title=employee.get_full_name_ar item_info=item_fields display_as_table=True related_items_count=0 show_final_warning=True final_warning_message="سيتم حذف جميع البيانات المرتبطة بهذا الموظف (الحضور، الإجازات، الرواتب). هذا الإجراء لا يمكن التراجع عنه!" %}
+</div>
+
+<!-- تشغيل المودال تلقائياً -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+    
+    // الرجوع للقائمة عند إغلاق المودال
+    document.getElementById('deleteModal').addEventListener('hidden.bs.modal', function () {
+        window.location.href = "{% url 'hr:employee_list' %}";
+    });
+});
+</script>
+{% endblock %}

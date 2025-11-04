@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% if device %}تعديل ماكينة بصمة{% else %}إضافة ماكينة بصمة{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  {% if not device %}
+                  <li class="breadcrumb-item"><a href="{% url 'hr:hr_settings' %}"><i class="fas fa-cog me-1"></i>الإعدادات</a></li>
+                  {% endif %}
+                  <li class="breadcrumb-item"><a href="{% url 'hr:biometric_device_list' %}"><i class="fas fa-fingerprint me-1"></i>ماكينات البصمة</a></li>
+                  <li class="breadcrumb-item active"><i class="fas {% if device %}fa-edit{% else %}fa-plus{% endif %} me-1"></i>{% if device %}تعديل ماكينة{% else %}إضافة ماكينة{% endif %}</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-fingerprint fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% if device %}تعديل ماكينة: {{ device.device_name }}{% else %}إضافة ماكينة بصمة جديدة{% endif %}</h1>
+                  <p class="text-muted mb-0">{% if device %}تعديل بيانات الماكينة{% else %}إضافة جهاز بصمة جديد للنظام{% endif %}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+    <form method="post">
+        {% csrf_token %}
+        
+        <h5 class="mb-3">معلومات الجهاز</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">اسم الماكينة <span class="text-danger">*</span></label>
+                    {{ form.device_name }}
+                    {% if form.device_name.errors %}
+                        <div class="text-danger">{{ form.device_name.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">كود الماكينة <span class="text-danger">*</span></label>
+                    {{ form.device_code }}
+                    {% if form.device_code.errors %}
+                        <div class="text-danger">{{ form.device_code.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">نوع الجهاز <span class="text-danger">*</span></label>
+                    {{ form.device_type }}
+                    {% if form.device_type.errors %}
+                        <div class="text-danger">{{ form.device_type.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">الرقم التسلسلي <span class="text-danger">*</span></label>
+                    {{ form.serial_number }}
+                    {% if form.serial_number.errors %}
+                        <div class="text-danger">{{ form.serial_number.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mb-3 mt-4">معلومات الاتصال</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">عنوان IP <span class="text-danger">*</span></label>
+                    {{ form.ip_address }}
+                    {% if form.ip_address.errors %}
+                        <div class="text-danger">{{ form.ip_address.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">المنفذ <span class="text-danger">*</span></label>
+                    {{ form.port }}
+                    {% if form.port.errors %}
+                        <div class="text-danger">{{ form.port.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mb-3 mt-4">الموقع والإعدادات</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">الموقع <span class="text-danger">*</span></label>
+                    {{ form.location }}
+                    {% if form.location.errors %}
+                        <div class="text-danger">{{ form.location.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">القسم</label>
+                    {{ form.department }}
+                    {% if form.department.errors %}
+                        <div class="text-danger">{{ form.department.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">المنطقة الزمنية</label>
+                    {{ form.timezone }}
+                    {% if form.timezone.errors %}
+                        <div class="text-danger">{{ form.timezone.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">الحالة</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">{{ form.status.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-check mb-3">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        نشط
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>
+                {% if device %}حفظ التعديلات{% else %}حفظ{% endif %}
+            </button>
+            <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times me-2"></i>
+                إلغاء
+            </a>
+        </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

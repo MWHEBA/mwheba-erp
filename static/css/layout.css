@@ -402,39 +402,6 @@
     padding: 0 1rem;
 }
 
-.search-box {
-    width: 450px;
-    max-width: 100%;
-}
-
-.search-form .input-group {
-    background-color: var(--light);
-    border-radius: 30px;
-    overflow: hidden;
-    border: 1px solid #eaeaea;
-}
-
-.search-form .input-group-text {
-    background-color: transparent;
-    border: none;
-    color: var(--gray-500);
-    padding-right: 0.75rem;
-    padding-left: 0;
-}
-
-.search-form .form-control {
-    background-color: transparent;
-    border: none;
-    padding-right: 0;
-    padding-left: 0.5rem;
-    box-shadow: none;
-    height: 40px;
-}
-
-.search-form .form-control:focus {
-    box-shadow: none;
-}
-
 /* Header Right Section - المستخدم، التنبيهات، البحث، الإجراءات */
 .header-right {
     display: flex;
@@ -591,7 +558,7 @@
     align-items: center;
     justify-content: center;
     background: rgba(255, 255, 255, 0.3);
-    color: #01578a;
+    color: var(--primary-color);
     font-size: 1.5rem;
 }
 
@@ -847,14 +814,14 @@
 }
 
 /* ألوان الأيقونات الديناميكية */
-.notification-icon.bg-info { background-color: #17a2b8; }
-.notification-icon.bg-success { background-color: #28a745; }
-.notification-icon.bg-warning { background-color: #ffc107; color: #333; }
-.notification-icon.bg-danger { background-color: #dc3545; }
-.notification-icon.bg-payment_received { background-color: #28a745; }
-.notification-icon.bg-new_invoice { background-color: #17a2b8; }
-.notification-icon.bg-inventory_alert { background-color: #ffc107; color: #333; }
-.notification-icon.bg-return_request { background-color: #dc3545; }
+.notification-icon.bg-info { background-color: var(--info-color); }
+.notification-icon.bg-success { background-color: var(--success-color); }
+.notification-icon.bg-warning { background-color: var(--warning-color); color: #333; }
+.notification-icon.bg-danger { background-color: var(--danger-color); }
+.notification-icon.bg-payment_received { background-color: var(--success-color); }
+.notification-icon.bg-new_invoice { background-color: var(--info-color); }
+.notification-icon.bg-inventory_alert { background-color: var(--warning-color); color: #333; }
+.notification-icon.bg-return_request { background-color: var(--danger-color); }
 
 .notification-content {
     flex: 1;
@@ -875,40 +842,6 @@
 .notification-time {
     font-size: 0.75rem;
     color: var(--gray-500);
-}
-
-/* Search Box */
-.search-box {
-    width: 250px;
-}
-
-.search-form .input-group {
-    background-color: var(--light);
-    border-radius: 30px;
-    overflow: hidden;
-    border: 1px solid #eaeaea;
-}
-
-.search-form .input-group-text {
-    background-color: transparent;
-    border: none;
-    color: var(--gray-500);
-    padding-right: 0.75rem;
-    padding-left: 0;
-}
-
-.search-form .form-control {
-    background-color: transparent;
-    border: none;
-    padding-right: 0;
-    padding-left: 0.5rem;
-    box-shadow: none;
-    height: 38px;
-    font-size: 0.9rem;
-}
-
-.search-form .form-control:focus {
-    box-shadow: none;
 }
 
 /* Quick Actions */
@@ -1017,26 +950,13 @@
     .header {
         right: 0;
     }
-
-    .search-box {
-        width: 180px;
-    }
     
     .quick-action-btn span {
         display: none;
     }
 }
 
-@media (max-width: 767px) {
-    .search-box {
-        width: 150px;
-    }
-}
-
 @media (max-width: 576px) {
-    .search-box {
-        display: none;
-    }
     
     .header-container {
         padding: 0 0.5rem;

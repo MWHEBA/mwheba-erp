@@ -1,0 +1,325 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ employee.get_full_name_ar }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .section-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 1.5rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users me-1"></i>الموظفين</a></li>
+                  <li class="breadcrumb-item active">{{ employee.get_full_name_ar }}</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-user fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">{{ employee.get_full_name_ar }}</h1>
+                  <p class="text-muted mb-0">{{ employee.job_title.title_ar }} - {{ employee.department.name_ar }}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-warning me-2"><i class="fas fa-edit me-2"></i>تعديل</a>
+              <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a>
+          </div>
+      </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-4 mb-4">
+        <div class="section-container">
+                <div class="card-body text-center">
+                    {% if employee.photo %}
+                        <img src="{{ employee.photo.url }}" class="rounded-circle mb-3" width="150" height="150" alt="صورة">
+                    {% else %}
+                        <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                            <i class="fas fa-user fa-4x text-white"></i>
+                        </div>
+                    {% endif %}
+                    <h4>{{ employee.get_full_name_ar }}</h4>
+                    <p class="text-muted">{{ employee.job_title.title_ar }}</p>
+                    {% if employee.status == 'active' %}
+                    <span class="badge bg-success">
+                        {{ employee.get_status_display }}
+                    </span>
+                    {% else %}
+                    <span class="badge bg-danger">
+                        {{ employee.get_status_display }}
+                    </span>
+                    {% endif %}
+                </div>
+        </div>
+
+        <div class="section-container">
+                <div class="card-header">
+                    <h6 class="mb-0">معلومات سريعة</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>رقم الموظف:</strong> {{ employee.employee_number }}</p>
+                    <p><strong>القسم:</strong> {{ employee.department.name_ar }}</p>
+                    <p><strong>تاريخ التعيين:</strong> {{ employee.hire_date }}</p>
+                    <p><strong>سنوات الخدمة:</strong> {{ employee.years_of_service }} سنة</p>
+                </div>
+        </div>
+        
+        <!-- حالة الربط بالمستخدم -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-user-lock me-2"></i>حساب المستخدم</h6>
+            </div>
+            <div class="card-body">
+                {% if employee.user %}
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>مرتبط بحساب مستخدم</strong>
+                    </div>
+                    <p class="mb-2"><strong>اسم المستخدم:</strong> {{ employee.user.username }}</p>
+                    <p class="mb-2"><strong>البريد:</strong> {{ employee.user.email }}</p>
+                    <p class="mb-2">
+                        <strong>الحالة:</strong> 
+                        {% if employee.user.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                        {% else %}
+                            <span class="badge bg-danger">معطل</span>
+                        {% endif %}
+                    </p>
+                    <hr>
+                    <a href="{% url 'hr:employee_unlink_user' employee.pk %}" class="btn btn-sm btn-warning w-100" onclick="return confirm('هل أنت متأكد من فك الربط؟')">
+                        <i class="fas fa-unlink me-2"></i>فك الربط
+                    </a>
+                {% else %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>غير مرتبط بحساب مستخدم</strong>
+                    </div>
+                    <p class="text-muted small mb-3">يمكنك إنشاء حساب مستخدم للموظف للسماح له بالدخول للنظام</p>
+                    <button type="button" class="btn btn-primary w-100 mb-2" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="fas fa-user-plus me-2"></i>إنشاء حساب مستخدم
+                    </button>
+                    <button type="button" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#linkUserModal">
+                        <i class="fas fa-link me-2"></i>ربط بمستخدم موجود
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        </div>
+
+        <!-- التفاصيل -->
+        <div class="col-md-8">
+            <!-- المعلومات الشخصية -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">المعلومات الشخصية</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <strong>الرقم القومي:</strong> {{ employee.national_id }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>تاريخ الميلاد:</strong> {{ employee.birth_date }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>الجنس:</strong> {{ employee.get_gender_display }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>الحالة الاجتماعية:</strong> {{ employee.get_marital_status_display }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>العمر:</strong> {{ employee.age }} سنة
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات الاتصال -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0">معلومات الاتصال</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <strong>البريد الوظيفي:</strong> {{ employee.work_email }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>الهاتف المحمول:</strong> {{ employee.mobile_phone }}
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <strong>العنوان:</strong> {{ employee.address }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- المعلومات الوظيفية -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">المعلومات الوظيفية</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <strong>القسم:</strong> {{ employee.department.name_ar }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>المسمى الوظيفي:</strong> {{ employee.job_title.title_ar }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>تاريخ التعيين:</strong> {{ employee.hire_date }}
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <strong>نوع التوظيف:</strong> {{ employee.get_employment_type_display }}
+                        </div>
+                        {% if employee.direct_manager %}
+                        <div class="col-md-6 mb-2">
+                            <strong>المدير المباشر:</strong> {{ employee.direct_manager.get_full_name_ar }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إنشاء حساب مستخدم -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:employee_create_user' employee.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>إنشاء حساب مستخدم</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        سيتم إنشاء حساب مستخدم للموظف: <strong>{{ employee.get_full_name_ar }}</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">اسم المستخدم *</label>
+                        <input type="text" name="username" class="form-control" value="{{ employee.employee_number }}" required>
+                        <small class="text-muted">الافتراضي: رقم الموظف</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور *</label>
+                        <input type="text" name="password" class="form-control" id="generatedPassword" required>
+                        <small class="text-muted">
+                            <a href="#" onclick="generatePassword(); return false;">
+                                <i class="fas fa-random me-1"></i>توليد كلمة مرور عشوائية
+                            </a>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">البريد الإلكتروني</label>
+                        <input type="email" name="email" class="form-control" value="{{ employee.work_email }}" readonly>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" checked>
+                        <label class="form-check-label" for="sendEmail">
+                            إرسال بيانات الدخول بالبريد الإلكتروني
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>إنشاء الحساب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- مودال ربط بمستخدم موجود -->
+<div class="modal fade" id="linkUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:employee_link_user' employee.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-link me-2"></i>ربط بمستخدم موجود</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        سيتم ربط الموظف <strong>{{ employee.get_full_name_ar }}</strong> بمستخدم موجود
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">اختر المستخدم *</label>
+                        <select name="user_id" class="form-select" required>
+                            <option value="">اختر مستخدم...</option>
+                            {% for user in unlinked_users %}
+                            <option value="{{ user.id }}">{{ user.username }} - {{ user.email }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">فقط المستخدمين غير المرتبطين بموظفين</small>
+                    </div>
+                    
+                    {% if not unlinked_users %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        لا توجد مستخدمين متاحين للربط. جميع المستخدمين مرتبطون بموظفين.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-link me-2"></i>ربط
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generatePassword() {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    document.getElementById('generatedPassword').value = password;
+}
+
+// توليد كلمة مرور عند فتح المودال
+document.getElementById('createUserModal').addEventListener('shown.bs.modal', function () {
+    if (!document.getElementById('generatedPassword').value) {
+        generatePassword();
+    }
+});
+</script>
+{% endblock %}

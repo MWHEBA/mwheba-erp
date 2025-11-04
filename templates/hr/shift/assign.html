@@ -1,0 +1,125 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تعيين موظفين للوردية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:shift_list' %}"><i class="fas fa-clock me-1"></i>الورديات</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-users me-1"></i>تعيين موظفين</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-users fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">تعيين موظفين للوردية: {{ shift.name }}</h1>
+                  <p class="text-muted mb-0">اختيار الموظفين المخصصين لهذه الوردية</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:shift_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- معلومات الوردية -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-clock me-2"></i>معلومات الوردية</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>الوقت:</strong> {{ shift.start_time|time:"H:i" }} - {{ shift.end_time|time:"H:i" }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>ساعات العمل:</strong> {{ shift.work_hours }} ساعة
+                        </div>
+                        <div class="col-md-3">
+                            <strong>النوع:</strong> {{ shift.get_shift_type_display }}
+                        </div>
+                    </div>
+  </div>
+
+  <!-- قائمة الموظفين -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-users me-2"></i>اختيار الموظفين</h5>
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            اختر الموظفين الذين تريد تعيينهم لهذه الوردية
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="50">
+                                            <input type="checkbox" id="selectAll">
+                                        </th>
+                                        <th>رقم الموظف</th>
+                                        <th>الاسم</th>
+                                        <th>القسم</th>
+                                        <th>الوظيفة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for employee in employees %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" name="employees" value="{{ employee.pk }}" class="employee-checkbox">
+                                        </td>
+                                        <td>{{ employee.employee_number }}</td>
+                                        <td>{{ employee.get_full_name_ar }}</td>
+                                        <td>{{ employee.department.name_ar }}</td>
+                                        <td>{{ employee.job_title.title_ar }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                حفظ التعيينات
+                            </button>
+                            <a href="{% url 'hr:shift_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#selectAll').click(function() {
+        $('.employee-checkbox').prop('checked', this.checked);
+    });
+});
+</script>
+{% endblock %}

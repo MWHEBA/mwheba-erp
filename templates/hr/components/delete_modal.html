@@ -1,0 +1,96 @@
+{% load static %}
+{% load i18n %}
+
+<!-- مودال حذف موحد لنظام HR -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    {% trans "تأكيد الحذف" %}
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <form method="post" action="{{ delete_url }}">
+                {% csrf_token %}
+                
+                <div class="modal-body">
+                    <!-- رسالة التأكيد الرئيسية -->
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ confirmation_message|default:"هل أنت متأكد من حذف هذا العنصر؟" }}
+                    </div>
+
+                    <!-- معلومات العنصر المراد حذفه -->
+                    {% if item_info %}
+                    <div class="mb-3">
+                        {% if display_as_table %}
+                            <!-- عرض كجدول -->
+                            <table class="table table-bordered table-sm">
+                                {% for field in item_info %}
+                                <tr>
+                                    <th width="40%">{{ field.label }}</th>
+                                    <td>{{ field.value }}</td>
+                                </tr>
+                                {% endfor %}
+                            </table>
+                        {% elif display_as_card %}
+                            <!-- عرض ككارت -->
+                            <div class="card">
+                                <div class="card-body">
+                                    <h6 class="card-title">{{ item_title }}</h6>
+                                    {% for field in item_info %}
+                                    <p class="mb-1">
+                                        <strong>{{ field.label }}:</strong> {{ field.value }}
+                                    </p>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% else %}
+                            <!-- عرض كقائمة بسيطة -->
+                            <div class="alert alert-light">
+                                <h6><strong>{{ item_title }}</strong></h6>
+                                {% for field in item_info %}
+                                <p class="mb-1">
+                                    <strong>{{ field.label }}:</strong> {{ field.value }}
+                                </p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+
+                    <!-- تحذيرات إضافية (شرطية) -->
+                    {% if related_items_count > 0 %}
+                    <div class="alert alert-{{ warning_type|default:'info' }}">
+                        <i class="fas fa-{{ warning_icon|default:'info-circle' }} me-2"></i>
+                        <strong>{{ warning_title|default:"ملاحظة هامة:" }}</strong>
+                        <p class="mb-0 mt-2">{{ warning_message }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- تحذير نهائي -->
+                    {% if show_final_warning %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        <strong>تحذير:</strong> {{ final_warning_message|default:"لن يمكنك التراجع عن هذا الإجراء" }}
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>
+                        {% trans "إلغاء" %}
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash me-2"></i>
+                        {% trans "تأكيد الحذف" %}
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

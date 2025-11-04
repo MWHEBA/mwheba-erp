@@ -38,8 +38,8 @@
 }
 
 .stats-card-icon {
-  width: 58px;
-  height: 58px;
+  width: clamp(35px, 10vw, 45px);
+  height: clamp(35px, 10vw, 45px);
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -47,9 +47,10 @@
   position: absolute;
   right: 1.5rem;
   top: 1.5rem;
-  font-size: 1.5rem;
+  font-size: clamp(1rem, 2.5vw, 1.25rem);
   box-shadow: 0 4px 10px rgba(0,0,0,0.07);
   z-index: 2;
+  transition: all 0.3s ease;
 }
 
 .stats-card-title {
@@ -83,11 +84,11 @@
 }
 
 .stats-card-trend.up {
-  color: #28a745;
+  color: var(--success-color);
 }
 
 .stats-card-trend.down {
-  color: #dc3545;
+  color: var(--danger-color);
 }
 
 .stats-card-trend i {
@@ -100,45 +101,45 @@
 }
 
 .stats-card-success .stats-card-header {
-  background-color: #2ecc71;
+  background-color: var(--success-color);
 }
 
 .stats-card-danger .stats-card-header {
-  background-color: #e74c3c;
+  background-color: var(--danger-color);
 }
 
 .stats-card-info .stats-card-header {
-  background-color: #3498db;
+  background-color: var(--info-color);
 }
 
 .stats-card-warning .stats-card-header {
-  background-color: #f39c12;
+  background-color: var(--warning-color);
 }
 
 /* ألوان أيقونات الكروت */
 .stats-card-primary .stats-card-icon {
-  background-color: rgba(67, 97, 238, 0.1);
+  background-color: var(--primary-soft);
   color: var(--primary-color);
 }
 
 .stats-card-success .stats-card-icon {
-  background-color: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
+  background-color: var(--success-soft);
+  color: var(--success-color);
 }
 
 .stats-card-danger .stats-card-icon {
-  background-color: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
+  background-color: var(--danger-soft);
+  color: var(--danger-color);
 }
 
 .stats-card-info .stats-card-icon {
-  background-color: rgba(52, 152, 219, 0.1);
-  color: #3498db;
+  background-color: var(--info-soft);
+  color: var(--info-color);
 }
 
 .stats-card-warning .stats-card-icon {
-  background-color: rgba(243, 156, 18, 0.1);
-  color: #f39c12;
+  background-color: var(--warning-soft);
+  color: var(--warning-color);
 }
 
 /* بديل جميل للكروت بدون رأس */
@@ -197,28 +198,28 @@
 }
 
 .stats-card-alt.primary .stats-card-alt-icon {
-  background-color: rgba(67, 97, 238, 0.1);
-  color: #4361ee;
+  background-color: var(--primary-soft);
+  color: var(--primary-color);
 }
 
 .stats-card-alt.success .stats-card-alt-icon {
-  background-color: rgba(46, 204, 113, 0.1);
-  color: #2ecc71;
+  background-color: var(--success-soft);
+  color: var(--success-color);
 }
 
 .stats-card-alt.danger .stats-card-alt-icon {
-  background-color: rgba(231, 76, 60, 0.1);
-  color: #e74c3c;
+  background-color: var(--danger-soft);
+  color: var(--danger-color);
 }
 
 .stats-card-alt.info .stats-card-alt-icon {
-  background-color: rgba(52, 152, 219, 0.1);
-  color: #3498db;
+  background-color: var(--info-soft);
+  color: var(--info-color);
 }
 
 .stats-card-alt.warning .stats-card-alt-icon {
-  background-color: rgba(243, 156, 18, 0.1);
-  color: #f39c12;
+  background-color: var(--warning-soft);
+  color: var(--warning-color);
 }
 
 /* كارت مع خلفية ملونة */
@@ -276,23 +277,23 @@
 }
 
 .stats-card-gradient.primary {
-  background: linear-gradient(135deg, #4361ee, #3a56e7);
+  background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
 }
 
 .stats-card-gradient.success {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  background: linear-gradient(135deg, var(--success-color), var(--success-dark));
 }
 
 .stats-card-gradient.danger {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  background: linear-gradient(135deg, var(--danger-color), var(--danger-dark));
 }
 
 .stats-card-gradient.info {
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: linear-gradient(135deg, var(--info-color), var(--info-dark));
 }
 
 .stats-card-gradient.warning {
-  background: linear-gradient(135deg, #f39c12, #d35400);
+  background: linear-gradient(135deg, var(--warning-color), var(--warning-dark));
 }
 
 .stats-card-gradient-icon {
@@ -528,40 +529,40 @@ html[dir="rtl"] .stats-card-gradient-icon {
 
 /* ألوان حدود الكروت بناءً على نوع الحساب */
 .account-card.asset::before {
-  background-color: #1a73e8;
+  background-color: var(--account-asset);
 }
 
 .account-card.liability::before {
-  background-color: #ff5252;
+  background-color: var(--account-liability);
 }
 
 .account-card.equity::before {
-  background-color: #41b883;
+  background-color: var(--account-equity);
 }
 
 .account-card.income::before {
-  background-color: #00bcd4;
+  background-color: var(--account-income);
 }
 
 .account-card.expense::before {
-  background-color: #ff9800;
+  background-color: var(--account-expense);
 }
 
 /* ألوان حدود الكروت بناءً على نوع الحساب */
 .account-card.cash::before {
-  background-color: #28a745;
+  background-color: var(--account-cash);
 }
 
 .account-card.bank::before {
-  background-color: #007bff;
+  background-color: var(--account-bank);
 }
 
 .account-card.wallet::before {
-  background-color: #6f42c1;
+  background-color: var(--account-wallet);
 }
 
 .account-card.other::before {
-  background-color: #6c757d;
+  background-color: var(--account-other);
 }
 
 .account-card-header {
@@ -612,17 +613,17 @@ html[dir="rtl"] .stats-card-gradient-icon {
 
 .account-card.cash .card-type-icon {
   background-color: rgba(40, 167, 69, 0.1);
-  color: #28a745;
+  color: var(--account-cash);
 }
 
 .account-card.bank .card-type-icon {
   background-color: rgba(0, 123, 255, 0.1);
-  color: #007bff;
+  color: var(--account-bank);
 }
 
 .account-card.wallet .card-type-icon {
-  background-color: rgba(111, 66, 193, 0.1);
-  color: #6f42c1;
+  background-color: var(--badge-purple-soft);
+  color: var(--account-wallet);
 }
 
 .account-balance {
@@ -636,11 +637,11 @@ html[dir="rtl"] .stats-card-gradient-icon {
 }
 
 .account-balance.text-success {
-  color: #28a745;
+  color: var(--success-color);
 }
 
 .account-balance.text-danger {
-  color: #dc3545;
+  color: var(--danger-color);
 }
 
 .account-details {
@@ -689,33 +690,33 @@ html[dir="rtl"] .stats-card-gradient-icon {
 }
 
 .soft-badge-primary {
-  background-color: rgba(13, 110, 253, 0.1);
-  color: #0d6efd;
+  background-color: var(--primary-soft);
+  color: var(--primary-color);
 }
 
 .soft-badge-success {
-  background-color: rgba(25, 135, 84, 0.1);
-  color: #198754;
+  background-color: var(--success-soft);
+  color: var(--success-color);
 }
 
 .soft-badge-danger {
-  background-color: rgba(220, 53, 69, 0.1);
-  color: #dc3545;
+  background-color: var(--danger-soft);
+  color: var(--danger-color);
 }
 
 .soft-badge-info {
-  background-color: rgba(13, 202, 240, 0.1);
-  color: #0dcaf0;
+  background-color: var(--info-soft);
+  color: var(--info-color);
 }
 
 .soft-badge-warning {
-  background-color: rgba(255, 193, 7, 0.1);
-  color: #ffc107;
+  background-color: var(--warning-soft);
+  color: var(--warning-color);
 }
 
 .soft-badge-purple {
-  background-color: rgba(111, 66, 193, 0.1);
-  color: #6f42c1;
+  background-color: var(--badge-purple-soft);
+  color: var(--badge-purple);
 }
 
 .soft-badge-secondary {

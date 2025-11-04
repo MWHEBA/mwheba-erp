@@ -12,8 +12,10 @@
 /* إصلاح موضع زر المسح في Select2 */
 .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear, 
 .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    float: left;
+    top: 12px;
     right: unset !important;
-    left: 1.5rem;
+    left: 12px;
 }
 
 /* تحسينات إضافية للـ RTL */
@@ -148,23 +150,23 @@
 }
 
 .alert-success {
-    background-color: rgba(28, 200, 138, 0.15);
-    color: #0f6848;
+    background-color: var(--success-soft);
+    color: var(--success-dark);
 }
 
 .alert-danger {
-    background-color: rgba(231, 74, 59, 0.15);
-    color: #a52a1e;
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
 }
 
 .alert-warning {
-    background-color: rgba(246, 194, 62, 0.15);
-    color: #a47e1b;
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
 }
 
 .alert-info {
-    background-color: rgba(54, 185, 204, 0.15);
-    color: #1f6773;
+    background-color: var(--info-soft);
+    color: var(--info-dark);
 }
 
 /**
@@ -398,51 +400,51 @@
 }
 
 .stat-icon.bg-blue, .stat-card.border-blue:hover {
-    border-color: #0d6efd;
+    border-color: var(--primary-color);
 }
 
 .stat-icon.bg-green, .stat-card.border-green:hover {
-    border-color: #198754;
+    border-color: var(--success-color);
 }
 
 .stat-icon.bg-red, .stat-card.border-red:hover {
-    border-color: #dc3545;
+    border-color: var(--danger-color);
 }
 
 .stat-icon.bg-cyan, .stat-card.border-cyan:hover {
-    border-color: #0dcaf0;
+    border-color: var(--info-color);
 }
 
 .bg-blue {
-    background-color: #0d6efd;
+    background-color: var(--primary-color);
 }
 
 .bg-green {
-    background-color: #198754;
+    background-color: var(--success-color);
 }
 
 .bg-red {
-    background-color: #dc3545;
+    background-color: var(--danger-color);
 }
 
 .bg-cyan {
-    background-color: #0dcaf0;
+    background-color: var(--info-color);
 }
 
 .text-blue {
-    color: #0d6efd;
+    color: var(--primary-color);
 }
 
 .text-green {
-    color: #198754;
+    color: var(--success-color);
 }
 
 .text-red {
-    color: #dc3545;
+    color: var(--danger-color);
 }
 
 .text-cyan {
-    color: #0dcaf0;
+    color: var(--info-color);
 }
 
 /* اتجاهات مختلفة للأيقونة تبعًا للغة */
@@ -1076,7 +1078,17 @@ html[dir="rtl"] .stat-currency {
 }
 
 .modal-header {
+    background: var(--primary-color);
     border-bottom-color: var(--border-color);
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 1;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 0.8;
 }
 
 .modal-footer {
@@ -1450,18 +1462,18 @@ html[dir="rtl"] .stat-currency {
 }
 
 .status-badge.active {
-    background-color: #d1e7dd;
-    color: #0f5132;
+    background-color: var(--success-soft);
+    color: var(--success-dark);
 }
 
 .status-badge.inactive {
-    background-color: #f8d7da;
-    color: #842029;
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
 }
 
 .status-badge.pending {
-    background-color: #fff3cd;
-    color: #664d03;
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
 }
 
 /* Table styles */
@@ -1503,19 +1515,19 @@ html[dir="rtl"] .stat-currency {
 .confirm-delete-card {
     max-width: 560px;
     margin: 2rem auto;
-    border-color: #dc3545;
+    border-color: var(--danger-color);
 }
 
 .confirm-delete-card .card-header {
-    background-color: #dc3545;
+    background-color: var(--danger-color);
     color: white;
     font-weight: 600;
 }
 
 .confirm-delete-card .alert-warning {
-    background-color: #fff3cd;
-    border-color: #ffecb5;
-    color: #664d03;
+    background-color: var(--warning-soft);
+    border-color: var(--warning-light);
+    color: var(--warning-dark);
 }
 
 /* Action buttons */
@@ -1539,18 +1551,18 @@ html[dir="rtl"] .stat-currency {
 }
 
 .stock-level-low {
-    background-color: #f8d7da;
-    color: #842029;
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
 }
 
 .stock-level-medium {
-    background-color: #fff3cd;
-    color: #664d03;
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
 }
 
 .stock-level-high {
-    background-color: #d1e7dd;
-    color: #0f5132;
+    background-color: var(--success-soft);
+    color: var(--success-dark);
 }
 
 .stock-level-none {
@@ -1828,15 +1840,15 @@ html[dir="rtl"] .stat-currency {
 
 /* ألوان إضافية لزر الإجراءات السريعة */
 .text-purple {
-    color: #6f42c1;
+    color: var(--badge-purple);
 }
 
 .text-teal {
-    color: #20c997;
+    color: var(--info-color);
 }
 
 .text-orange {
-    color: #fd7e14;
+    color: var(--warning-color);
 }
 
 .bg-soft-purple {

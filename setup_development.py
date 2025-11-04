@@ -495,6 +495,55 @@ def main():
         else:
             print_warning("فشل تحميل العملاء")
 
+        print_info("تحميل الأقسام...")
+        if run_command(
+            "python manage.py loaddata hr/fixtures/departments.json", check=False
+        ):
+            print_success("تم تحميل الأقسام")
+        else:
+            print_warning("فشل تحميل الأقسام")
+
+        print_info("تحميل المسميات الوظيفية...")
+        if run_command(
+            "python manage.py loaddata hr/fixtures/job_titles.json", check=False
+        ):
+            print_success("تم تحميل المسميات الوظيفية")
+        else:
+            print_warning("فشل تحميل المسميات الوظيفية")
+
+        print_info("تحميل الورديات...")
+        if run_command(
+            "python manage.py loaddata hr/fixtures/shifts.json", check=False
+        ):
+            print_success("تم تحميل الورديات")
+        else:
+            print_warning("فشل تحميل الورديات")
+
+        print_info("تحميل ماكينات البصمة...")
+        if run_command(
+            "python manage.py loaddata hr/fixtures/biometric_devices.json", check=False
+        ):
+            print_success("تم تحميل ماكينات البصمة")
+        else:
+            print_warning("فشل تحميل ماكينات البصمة")
+
+        print_info("تحميل الموظفين التجريبيين...")
+        if run_command(
+            "python manage.py loaddata hr/fixtures/employees_demo.json", check=False
+        ):
+            print_success("تم تحميل الموظفين التجريبيين (3 موظفين)")
+            
+            # إنشاء أرصدة الإجازات للموظفين
+            print_info("إنشاء أرصدة الإجازات للموظفين...")
+            if run_command(
+                "python manage.py create_leave_balances --year 2025", check=False
+            ):
+                print_success("تم إنشاء أرصدة الإجازات للموظفين")
+            else:
+                print_warning("فشل إنشاء أرصدة الإجازات")
+        else:
+            print_warning("فشل تحميل الموظفين التجريبيين")
+
         print_info("تحميل أنواع الموردين (النسخة الموحدة الجديدة)...")
         if run_command(
             "python manage.py loaddata supplier/fixtures/supplier_types.json",
@@ -526,17 +575,22 @@ def main():
             from product.models import Product, Warehouse
             from client.models import Customer
             from supplier.models import Supplier
+            from hr.models import Department, Employee
 
             products_count = Product.objects.count()
             warehouses_count = Warehouse.objects.count()
             customers_count = Customer.objects.count()
             suppliers_count = Supplier.objects.count()
+            departments_count = Department.objects.count()
+            employees_count = Employee.objects.count()
 
             print_success(f"تم تحميل البيانات التجريبية بنجاح:")
             print_success(f"   - {products_count} منتج")
             print_success(f"   - {warehouses_count} مخزن")
             print_success(f"   - {customers_count} عميل")
             print_success(f"   - {suppliers_count} مورد")
+            print_success(f"   - {departments_count} قسم")
+            print_success(f"   - {employees_count} موظف")
 
         except Exception as e:
             print_warning(f"خطأ في التحقق من البيانات: {e}")
@@ -700,6 +754,7 @@ def main():
         "   - 3 عملاء: راقيات الابداع، شركة النهضة، مكتبة المعرفة", Colors.GRAY
     )
     print_colored("   - 3 موردين: مخزن مكة، مطبعة الأهرام، ورشة التجليد", Colors.GRAY)
+    print_colored("   - 3 موظفين: محمد يوسف، هبة حافظ، فاطمة عمار", Colors.GRAY)
 
     print_colored("\n📋 نظام التسعير الموحد (محمل من fixtures):", Colors.YELLOW + Colors.BOLD)
     print_colored("   - نظام طباعة التسعير (printing_pricing) - 8 ملفات fixtures", Colors.GRAY)

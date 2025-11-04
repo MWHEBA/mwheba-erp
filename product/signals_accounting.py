@@ -26,45 +26,30 @@ class StockAccountingService:
 
     @staticmethod
     def get_inventory_account():
-        """الحصول على حساب المخزون"""
+        """الحصول على حساب المخزون - 11051"""
         try:
-            return ChartOfAccounts.objects.get(code="1301", is_active=True)
+            return ChartOfAccounts.objects.get(code="11051", is_active=True)
         except ChartOfAccounts.DoesNotExist:
-            logger.error("حساب المخزون (1301) غير موجود")
+            logger.error("حساب مخزون البضاعة (11051) غير موجود")
             return None
 
     @staticmethod
     def get_cogs_account():
-        """الحصول على حساب تكلفة البضاعة المباعة"""
+        """الحصول على حساب تكلفة البضاعة المباعة - 51010"""
         try:
-            return ChartOfAccounts.objects.get(code="5001", is_active=True)
+            return ChartOfAccounts.objects.get(code="51010", is_active=True)
         except ChartOfAccounts.DoesNotExist:
-            logger.error("حساب تكلفة البضاعة المباعة (5001) غير موجود")
+            logger.error("حساب تكلفة البضاعة المباعة (51010) غير موجود")
             return None
 
     @staticmethod
     def get_purchase_account():
-        """الحصول على حساب المشتريات"""
+        """الحصول على حساب المشتريات - 5101 (إذا كان موجود)"""
         try:
             return ChartOfAccounts.objects.get(code="5101", is_active=True)
         except ChartOfAccounts.DoesNotExist:
-            # إنشاء الحساب إذا لم يكن موجود
-            try:
-                from financial.models.chart_of_accounts import AccountType
-
-                expense_type = AccountType.objects.get(code="5")
-                account = ChartOfAccounts.objects.create(
-                    code="5101",
-                    name="المشتريات",
-                    account_type=expense_type,
-                    is_active=True,
-                    is_system_account=True,
-                )
-                logger.info(f"تم إنشاء حساب المشتريات: {account}")
-                return account
-            except Exception as e:
-                logger.error(f"فشل في إنشاء حساب المشتريات: {str(e)}")
-                return None
+            logger.warning("حساب المشتريات (5101) غير موجود")
+            return None
 
     @staticmethod
     def create_inventory_journal_entry(stock_movement):

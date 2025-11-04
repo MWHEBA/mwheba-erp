@@ -29,39 +29,39 @@
 
 .supplier-types-checkboxes label.checked,
 .supplier-types-checkboxes label:has(input:checked) {
-    background-color: #d1ecf1;
-    border-color: #bee5eb;
+    background-color: var(--info-soft);
+    border-color: var(--info-light);
 }
 
 /* تنسيق خاص بأنواع المورد المختلفة */
 .supplier-types-checkboxes label[data-type="paper"],
 .supplier-types-checkboxes label[for$="1"] {
-    border-right: 3px solid #28a745;
+    border-right: 3px solid var(--success-color);
 }
 
 .supplier-types-checkboxes label[data-type="offset_press"],
 .supplier-types-checkboxes label[for$="2"] {
-    border-right: 3px solid #17a2b8;
+    border-right: 3px solid var(--info-color);
 }
 
 .supplier-types-checkboxes label[data-type="digital_press"],
 .supplier-types-checkboxes label[for$="3"] {
-    border-right: 3px solid #ffc107;
+    border-right: 3px solid var(--warning-color);
 }
 
 .supplier-types-checkboxes label[data-type="finishing"],
 .supplier-types-checkboxes label[for$="4"] {
-    border-right: 3px solid #dc3545;
+    border-right: 3px solid var(--danger-color);
 }
 
 .supplier-types-checkboxes label[data-type="plates"],
 .supplier-types-checkboxes label[for$="5"] {
-    border-right: 3px solid #6c757d;
+    border-right: 3px solid var(--secondary-color);
 }
 
 .supplier-types-checkboxes label[data-type="other"],
 .supplier-types-checkboxes label[for$="6"] {
-    border-right: 3px solid #343a40;
+    border-right: 3px solid var(--dark);
 }
 
 /* تنسيقات إضافية للمورد */
@@ -79,42 +79,42 @@
     margin-right: 5px;
     margin-bottom: 5px;
     color: #fff;
-    background-color: #6c757d;
+    background-color: var(--secondary-color);
 }
 
 /* ألوان لأنواع المورد المختلفة - الأنواع القديمة */
 .supplier-type-paper,
 .supplier-type-type_1 {
-    background-color: #0d6efd;
+    background-color: var(--primary-color);
     color: white;
 }
 
 .supplier-type-offset_press,
 .supplier-type-type_2 {
-    background-color: #198754;
+    background-color: var(--success-color);
     color: white;
 }
 
 .supplier-type-digital_press,
 .supplier-type-type_3 {
-    background-color: #dc3545;
-    color: black;
+    background-color: var(--danger-color);
+    color: white;
 }
 
 .supplier-type-finishing,
 .supplier-type-type_4 {
-    background-color: #fd7e14;
+    background-color: var(--warning-color);
     color: white;
 }
 
 .supplier-type-plates,
 .supplier-type-type_5 {
-    background-color: #6f42c1;
+    background-color: var(--badge-purple);
     color: white;
 }
 
 .supplier-type-other,
 .supplier-type-type_6 {
-    background-color: #6c757d;
+    background-color: var(--secondary-color);
     color: white;
-} 
+}

@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}حذف ماكينة البصمة{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="mb-4">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:biometric_device_list' %}"><i class="fas fa-fingerprint me-1"></i>ماكينات البصمة</a></li>
+                    <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف ماكينة</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% include 'hr/components/delete_modal.html' with delete_url=request.path confirmation_message="هل أنت متأكد من حذف هذه الماكينة؟" item_info=item_fields display_as_table=True related_items_count=logs_count warning_type='info' warning_icon='info-circle' warning_message=warning_message %}
+</div>
+
+<!-- تشغيل المودال تلقائياً -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+    
+    // الرجوع للقائمة عند إغلاق المودال
+    document.getElementById('deleteModal').addEventListener('hidden.bs.modal', function () {
+        window.location.href = "{% url 'hr:biometric_device_list' %}";
+    });
+});
+</script>
+{% endblock %}

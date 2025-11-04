@@ -1,0 +1,305 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}قائمة الإجازات{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>الرئيسية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'hr:dashboard' %}">
+                          <i class="fas fa-users-cog me-1"></i>الموارد البشرية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-calendar-alt me-1"></i>قائمة الإجازات
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-calendar-alt fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">قائمة الإجازات</h1>
+                  <p class="text-muted mb-0">إدارة ومتابعة طلبات الإجازات للموظفين</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:leave_request' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>طلب إجازة جديد
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- الإحصائيات -->
+  {% if show_stats %}
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات</h5>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stats-card-title">إجمالي الطلبات</div>
+            <div class="stats-card-value">{{ total_leaves|default:"0" }}</div>
+            <div class="stats-card-unit">طلب</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-card-title">قيد الانتظار</div>
+            <div class="stats-card-value">{{ pending_leaves|default:"0" }}</div>
+            <div class="stats-card-unit">طلب</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-check-circle"></i>
+            </div>
+            <div class="stats-card-title">معتمدة</div>
+            <div class="stats-card-value">{{ approved_leaves|default:"0" }}</div>
+            <div class="stats-card-unit">طلب</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-times-circle"></i>
+            </div>
+            <div class="stats-card-title">مرفوضة</div>
+            <div class="stats-card-value">{{ rejected_leaves|default:"0" }}</div>
+            <div class="stats-card-unit">طلب</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="employee" class="form-label">الموظف</label>
+            <select name="employee" id="employee" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"i" %}selected{% endif %}>
+                    {{ emp.get_full_name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">جميع الحالات</option>
+                <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمدة</option>
+                <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>مرفوضة</option>
+                <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>ملغاة</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="leave_type" class="form-label">نوع الإجازة</label>
+            <select name="leave_type" id="leave_type" class="form-select">
+                <option value="">جميع الأنواع</option>
+                {% for type in leave_types %}
+                <option value="{{ type.id }}" {% if request.GET.leave_type == type.id|stringformat:"i" %}selected{% endif %}>
+                    {{ type.name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="from_date" class="form-label">من تاريخ</label>
+            <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request.GET.from_date }}">
+        </div>
+        <div class="col-md-2">
+            <label for="to_date" class="form-label">إلى تاريخ</label>
+            <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request.GET.to_date }}">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة الإجازات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الإجازات</h5>
+        <div class="actions-container">
+          <a href="{% url 'hr:leave_request' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>طلب إجازة
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if leaves %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="leaves-table">
+                <thead>
+                    <tr>
+                        <th>الموظف</th>
+                        <th>نوع الإجازة</th>
+                        <th>من</th>
+                        <th>إلى</th>
+                        <th>عدد الأيام</th>
+                        <th>تاريخ الطلب</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in leaves %}
+                    <tr style="cursor: pointer;">
+                        <td>
+                            <strong>{{ leave.employee.get_full_name_ar }}</strong>
+                            <br>
+                            <small class="text-muted">{{ leave.employee.employee_number }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ leave.leave_type.name_ar }}</span>
+                        </td>
+                        <td>{{ leave.start_date|date:"d/m/Y" }}</td>
+                        <td>{{ leave.end_date|date:"d/m/Y" }}</td>
+                        <td>
+                            <strong>{{ leave.days_count }}</strong> يوم
+                        </td>
+                        <td>{{ leave.requested_at|date:"d/m/Y H:i" }}</td>
+                        <td class="text-center">
+                            {% if leave.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                            {% elif leave.status == 'approved' %}
+                                <span class="badge bg-success">معتمدة</span>
+                            {% elif leave.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوضة</span>
+                            {% elif leave.status == 'cancelled' %}
+                                <span class="badge bg-secondary">ملغاة</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:leave_detail' leave.pk %}" class="btn btn-info action-view" title="عرض">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if leave.status == 'pending' %}
+                                <a href="{% url 'hr:leave_approve' leave.pk %}" class="btn btn-success" title="اعتماد">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                <button type="button" class="btn btn-danger" title="رفض" data-leave-id="{{ leave.pk }}" onclick="rejectLeave(this.getAttribute('data-leave-id'))">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد طلبات إجازات" icon="calendar-alt" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#leaves-table').length) {
+        initGlobalTable('leaves-table', {
+            ordering: true,
+            order: [[5, 'desc']],
+            responsive: true,
+            columnDefs: [
+                { targets: [6, 7], orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+    
+    // جعل الصف قابل للنقر
+    $('#leaves-table tbody').on('click', 'tr', function(e) {
+        if ($(e.target).closest('.col-actions').length > 0) {
+            return;
+        }
+        var viewButton = $(this).find('.action-view');
+        if (viewButton.length > 0) {
+            window.location.href = viewButton.attr('href');
+        }
+    });
+});
+
+function rejectLeave(leaveId) {
+    if (confirm('هل أنت متأكد من رفض هذا الطلب؟')) {
+        window.location.href = '/hr/leaves/' + leaveId + '/reject/';
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,140 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}اعتماد إجازة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:leave_list' %}"><i class="fas fa-calendar-alt me-1"></i>الإجازات</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-check-circle me-1"></i>اعتماد إجازة</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-check-circle fa-2x text-success"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">اعتماد طلب إجازة</h1>
+                  <p class="text-muted mb-0">مراجعة واعتماد طلب الإجازة</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:leave_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تفاصيل الإجازة -->
+  <div class="section-container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>الموظف:</strong><br>
+                            {{ leave.employee.get_full_name_ar }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>القسم:</strong><br>
+                            {{ leave.employee.department.name_ar }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>نوع الإجازة:</strong><br>
+                            {{ leave.leave_type.name_ar }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>عدد الأيام:</strong><br>
+                            {{ leave.days_count }} يوم
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>من:</strong><br>
+                            {{ leave.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>إلى:</strong><br>
+                            {{ leave.end_date }}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>السبب:</strong><br>
+                            <p class="mt-2">{{ leave.reason }}</p>
+                        </div>
+                    </div>
+
+                    {% if leave.attachment %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>المرفق:</strong><br>
+                            <a href="{{ leave.attachment.url }}" target="_blank" class="btn btn-sm btn-info mt-2">
+                                <i class="fas fa-download me-2"></i>
+                                تحميل المرفق
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-4">
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">ملاحظات الاعتماد</label>
+                            <textarea name="review_notes" class="form-control" rows="3" placeholder="أضف ملاحظات إذا لزم الأمر..."></textarea>
+                        </div>
+
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>تأكيد:</strong> هل أنت متأكد من اعتماد هذه الإجازة؟
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>
+                                اعتماد الإجازة
+                            </button>
+                            <a href="{% url 'hr:leave_detail' leave.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+            <div class="alert alert-info mt-3">
+                <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>معلومات</h6>
+                <ul class="small mb-0">
+                    <li>سيتم خصم الأيام من رصيد الموظف تلقائياً</li>
+                    <li>سيتم إرسال إشعار للموظف بالاعتماد</li>
+                    <li>يمكنك إضافة ملاحظات للموظف</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

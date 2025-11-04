@@ -40,8 +40,19 @@ SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = env.bool("DEBUG", default=False)
 
-ALLOWED_HOSTS = ["localhost", "127.0.0.1", "*"]
+# قراءة ALLOWED_HOSTS من .env
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["localhost", "127.0.0.1"])
 
+# CSRF Settings for Production
+# بناء CSRF_TRUSTED_ORIGINS تلقائياً من ALLOWED_HOSTS
+CSRF_TRUSTED_ORIGINS = []
+for host in ALLOWED_HOSTS:
+    if host not in ["localhost", "127.0.0.1", "*"]:
+        CSRF_TRUSTED_ORIGINS.append(f"https://{host}")
+        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
+    else:
+        CSRF_TRUSTED_ORIGINS.append(f"http://{host}:8000")
+        CSRF_TRUSTED_ORIGINS.append(f"http://{host}")
 
 # Application definition
 
@@ -57,7 +68,7 @@ INSTALLED_APPS = [
     "django_bootstrap5",
     "crispy_forms",
     "crispy_bootstrap5",
-    "ckeditor",
+    # "ckeditor",  # تم الحذف - غير مستخدم وبه ثغرات أمنية
     "django_filters",
     "django_tables2",
     "widget_tweaks",
@@ -82,6 +93,7 @@ INSTALLED_APPS = [
     "sale",
     "purchase",
     "financial",
+    "hr.apps.HrConfig",  # نظام إدارة الموارد البشرية
     "utils",
     "api",
 ]
@@ -203,8 +215,19 @@ SHORT_DATETIME_FORMAT = "d/m/Y H:i"  # تنسيق التاريخ والوقت ا
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = "static/"
-STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+STATIC_URL = '/static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Bridge Agent Configuration
+# قراءة من .env بصيغة: AGENT_CODE:SECRET_KEY,AGENT_CODE2:SECRET_KEY2
+bridge_agents_str = env("BRIDGE_AGENTS", default="")
+BRIDGE_AGENTS = {}
+if bridge_agents_str:
+    for agent in bridge_agents_str.split(","):
+        if ":" in agent:
+            code, secret = agent.strip().split(":", 1)
+            BRIDGE_AGENTS[code.strip()] = secret.strip()
+
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
@@ -446,4 +469,57 @@ if SENTRY_DSN and not DEBUG:
         before_send=lambda event, hint: event if not DEBUG else None,
     )
     
-    print("✅ Sentry Error Tracking initialized successfully")
+    print("[OK] Sentry Error Tracking initialized successfully")
+
+
+# Logging Configuration
+# حل جذري لمشكلة UnicodeEncodeError في Windows
+import sys
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '[{levelname}] {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '[{levelname}] {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+            'stream': sys.stdout,
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': BASE_DIR / 'logs' / 'django.log',
+            'formatter': 'verbose',
+            'encoding': 'utf-8',  # استخدام UTF-8 للملفات
+        },
+    },
+    'root': {
+        'handlers': ['file'],  # استخدام file فقط لتجنب مشاكل console
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'product': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'financial': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}

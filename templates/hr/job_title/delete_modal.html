@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}حذف مسمى وظيفي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Breadcrumb + Header -->
+    <div class="mb-4">
+        <div class="mb-2">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-0">
+                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                    <li class="breadcrumb-item"><a href="{% url 'hr:job_title_list' %}"><i class="fas fa-briefcase me-1"></i>المسميات الوظيفية</a></li>
+                    <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف مسمى</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+
+    {% include 'hr/components/delete_modal.html' with delete_url=request.path confirmation_message="هل أنت متأكد من رغبتك في حذف المسمى الوظيفي التالي؟" item_info=item_fields display_as_table=True related_items_count=employees_count warning_type='danger' warning_icon='exclamation-circle' warning_message=warning_message %}
+</div>
+
+<!-- تشغيل المودال تلقائياً -->
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+    
+    // الرجوع للقائمة عند إغلاق المودال
+    document.getElementById('deleteModal').addEventListener('hidden.bs.modal', function () {
+        window.location.href = "{% url 'hr:job_title_list' %}";
+    });
+});
+</script>
+{% endblock %}

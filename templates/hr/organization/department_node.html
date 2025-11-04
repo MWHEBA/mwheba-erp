@@ -1,0 +1,38 @@
+{% load static %}
+
+<div class="org-level org-level-{{ level }}">
+    <div class="org-department">
+        <div class="org-department-icon">
+            <i class="fas fa-building"></i>
+        </div>
+        <div class="org-department-header">{{ department.name_ar }}</div>
+        
+        {% if department.manager %}
+        <div class="org-department-manager">
+            <i class="fas fa-user-tie me-1"></i>
+            {{ department.manager.get_full_name_ar }}
+        </div>
+        {% endif %}
+
+        <div class="org-department-stats">
+            <div class="org-stat">
+                <div class="org-stat-value">{{ department.employees_count }}</div>
+                <div class="org-stat-label">موظف</div>
+            </div>
+            <div class="org-stat">
+                <div class="org-stat-value">{{ department.job_titles.count }}</div>
+                <div class="org-stat-label">وظيفة</div>
+            </div>
+        </div>
+    </div>
+
+    {% if department.sub_departments.all %}
+    <div class="sub-departments">
+        {% for sub_dept in department.sub_departments.all %}
+            {% if sub_dept.is_active %}
+                {% include 'hr/organization/department_node.html' with department=sub_dept level=level|add:1 %}
+            {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>

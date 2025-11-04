@@ -1,0 +1,152 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تقرير الإجازات{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:reports_home' %}"><i class="fas fa-chart-bar me-1"></i>التقارير</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-calendar-alt me-1"></i>تقرير الإجازات</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-calendar-alt fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">تقرير الإجازات - {{ year }}</h1>
+                  <p class="text-muted mb-0">تقرير شامل للإجازات</p>
+              </div>
+          </div>
+          <div>
+                <div>
+                    <a href="?year={{ year }}&export=excel" class="btn btn-success">
+                        <i class="fas fa-file-excel me-2"></i>
+                        تصدير Excel
+                    </a>
+                    <a href="{% url 'hr:reports_home' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        رجوع
+                    </a>
+                </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-filter me-2"></i>الفلاتر</h5>
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">السنة</label>
+                            <input type="number" name="year" class="form-control" value="{{ year }}" min="2020" max="2030">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">القسم</label>
+                            <select name="department" class="form-select">
+                                <option value="">جميع الأقسام</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">نوع الإجازة</label>
+                            <select name="leave_type" class="form-select">
+                                <option value="">جميع الأنواع</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>
+                                بحث
+                            </button>
+                        </div>
+                    </form>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>الإحصائيات</h5>
+      <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6>إجمالي الإجازات</h6>
+                <h3>{{ stats.total_leaves }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-success">
+                <h6>معتمدة</h6>
+                <h3>{{ stats.approved }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-warning">
+                <h6>قيد الانتظار</h6>
+                <h3>{{ stats.pending }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-danger">
+                <h6>مرفوضة</h6>
+                <h3>{{ stats.rejected }}</h3>
+            </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-table me-2"></i>جدول الإجازات</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>الموظف</th>
+                                    <th>نوع الإجازة</th>
+                                    <th>من</th>
+                                    <th>إلى</th>
+                                    <th>عدد الأيام</th>
+                                    <th>الحالة</th>
+                                    <th>المعتمد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leaves %}
+                                <tr>
+                                    <td>{{ leave.employee.get_full_name_ar }}</td>
+                                    <td>{{ leave.leave_type.name_ar }}</td>
+                                    <td>{{ leave.start_date }}</td>
+                                    <td>{{ leave.end_date }}</td>
+                                    <td>{{ leave.days_count }}</td>
+                                    <td>
+                                        {% if leave.status == 'pending' %}
+                                            <span class="badge bg-warning">قيد الانتظار</span>
+                                        {% elif leave.status == 'approved' %}
+                                            <span class="badge bg-success">معتمدة</span>
+                                        {% elif leave.status == 'rejected' %}
+                                            <span class="badge bg-danger">مرفوضة</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ leave.approved_by.get_full_name|default:"-" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">لا توجد إجازات</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+{% endblock %}

@@ -249,7 +249,7 @@ class AdvancedReportsService:
     @staticmethod
     def reorder_point_analysis(warehouse=None, analysis_days=30, lead_time_days=7, safety_stock_days=3):
         """
-        تحليل نقاط إعادة الطلب - محدّث ✅
+        تحليل نقاط إعادة الطلب - محدّث [OK]
         تحديد المنتجات التي تحتاج إعادة طلب بناءً على الاستهلاك الفعلي
         
         المعادلة: نقطة إعادة الطلب = (متوسط الاستهلاك اليومي × مدة التوريد) + مخزون الأمان
@@ -401,7 +401,7 @@ class AdvancedReportsService:
 
     @staticmethod
     def abc_analysis(warehouse=None, period_months=12):
-        """تحليل ABC للمنتجات حسب قيمة المبيعات - محدّث ✅"""
+        """تحليل ABC للمنتجات حسب قيمة المبيعات - محدّث [OK]"""
         try:
             from django.utils import timezone
             from datetime import timedelta
@@ -529,7 +529,7 @@ class AdvancedReportsService:
 
     @staticmethod
     def inventory_turnover_analysis(warehouse=None, period_months=12):
-        """تحليل معدل دوران المخزون - محدّث ✅"""
+        """تحليل معدل دوران المخزون - محدّث [OK]"""
         try:
             from django.utils import timezone
             from datetime import timedelta

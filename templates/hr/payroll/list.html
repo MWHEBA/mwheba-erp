@@ -1,0 +1,155 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}كشوف الرواتب{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-money-bill-wave me-1"></i>كشوف الرواتب</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-money-bill-wave fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">كشوف الرواتب</h1>
+                  <p class="text-muted mb-0">إدارة ومعالجة رواتب الموظفين</p>
+              </div>
+          </div>
+          <div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#processPayrollModal">
+                    <i class="fas fa-calculator me-2"></i>
+                    معالجة رواتب شهر
+                </button>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <input type="month" name="month" class="form-control" value="{{ request.GET.month }}">
+                        </div>
+                        <div class="col-md-3">
+                            <select name="status" class="form-select">
+                                <option value="">جميع الحالات</option>
+                                <option value="draft">مسودة</option>
+                                <option value="calculated">محسوب</option>
+                                <option value="approved">معتمد</option>
+                                <option value="paid">مدفوع</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" name="search" class="form-control" placeholder="بحث...">
+                        </div>
+                        <div class="col-md-3">
+                            <button type="submit" class="btn btn-secondary w-100">
+                                <i class="fas fa-search me-2"></i>
+                                بحث
+                            </button>
+                        </div>
+                    </form>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-list me-2"></i>قائمة الكشوف</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>الموظف</th>
+                                    <th>الشهر</th>
+                                    <th>الراتب الأساسي</th>
+                                    <th>البدلات</th>
+                                    <th>الخصومات</th>
+                                    <th>الصافي</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payroll in payrolls %}
+                                <tr>
+                                    <td>{{ payroll.employee.get_full_name_ar }}</td>
+                                    <td>{{ payroll.month|date:"Y-m" }}</td>
+                                    <td>{{ payroll.basic_salary }}</td>
+                                    <td>{{ payroll.total_additions }}</td>
+                                    <td>{{ payroll.total_deductions }}</td>
+                                    <td><strong>{{ payroll.net_salary }}</strong></td>
+                                    <td>
+                                        {% if payroll.status == 'draft' %}
+                                            <span class="badge bg-secondary">مسودة</span>
+                                        {% elif payroll.status == 'calculated' %}
+                                            <span class="badge bg-info">محسوب</span>
+                                        {% elif payroll.status == 'approved' %}
+                                            <span class="badge bg-success">معتمد</span>
+                                        {% elif payroll.status == 'paid' %}
+                                            <span class="badge bg-primary">مدفوع</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-sm btn-info" title="عرض">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if payroll.status == 'calculated' %}
+                                        <button class="btn btn-sm btn-success" title="اعتماد">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">لا توجد كشوف رواتب</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+
+<!-- Modal معالجة الرواتب -->
+<div class="modal fade" id="processPayrollModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">معالجة رواتب شهر</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label class="form-label">الشهر</label>
+                        <input type="month" name="month" class="form-control" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-calculator me-2"></i>
+                        معالجة
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/hr/payroll.js' %}"></script>
+{% endblock %}

@@ -131,15 +131,15 @@
 }
 
 .transaction-icon.income {
-    background-color: #28a745;
+    background-color: var(--success-color);
 }
 
 .transaction-icon.expense {
-    background-color: #dc3545;
+    background-color: var(--danger-color);
 }
 
 .transaction-icon.transfer {
-    background-color: #007bff;
+    background-color: var(--info-color);
 }
 
 /* تنسيقات مبالغ المعاملات */
@@ -175,11 +175,11 @@
 
 /* تلوين القيم في الجداول */
 .transaction-amount.positive {
-    color: #28a745;
+    color: var(--success-color);
 }
 
 .transaction-amount.negative {
-    color: #dc3545;
+    color: var(--danger-color);
 }
 
 .transaction-amount.neutral {
@@ -256,8 +256,8 @@ th.col-date {
 /* عرض تلميحات عند التحويم على أزرار الإجراءات */
 .action-button.btn-primary.action-view:hover,
 .action-view:hover {
-    background-color: #0d6efd;
-    border-color: #0d6efd;
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
     color: #ffffff;
 }
 
@@ -269,13 +269,12 @@ th.col-date {
 }
 
 .action-button.btn-success.action-received:hover,
-.action-button.btn-success.action-received:hover,
-.action-received:hover,
+.action-success:hover,
 .action-paid:hover,
 .action-approve:hover,
 .action-activate:hover {
-    background-color: #198754;
-    border-color: #198754;
+    background-color: var(--success-color);
+    border-color: var(--success-color);
     color: #ffffff;
 }
 
@@ -283,20 +282,20 @@ th.col-date {
 .action-delete:hover,
 .action-remove:hover,
 .action-reject:hover {
-    background-color: #dc3545;
-    border-color: #dc3545;
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
     color: #ffffff;
 }
 
 .action-button.btn-warning:hover {
-    background-color: #ffc107;
-    border-color: #ffc107;
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
     color: #212529;
 }
 
 .action-button.btn-info:hover {
-    background-color: #0dcaf0;
-    border-color: #0dcaf0;
+    background-color: var(--info-color);
+    border-color: var(--info-color);
     color: #ffffff;
 }
 
@@ -345,30 +344,30 @@ th.col-date {
 .status-badge-active,
 .status-badge-approved,
 .status-badge-paid {
-    background-color: rgba(40, 167, 69, 0.1);
-    color: #28a745;
+    background-color: var(--success-soft);
+    color: var(--success-color);
 }
 
 .status-badge-inactive,
 .status-badge-rejected,
 .status-badge-cancelled {
-    background-color: rgba(220, 53, 69, 0.1);
-    color: #dc3545;
+    background-color: var(--danger-soft);
+    color: var(--danger-color);
 }
 
 .status-badge-pending {
-    background-color: rgba(255, 193, 7, 0.1);
-    color: #ffc107;
+    background-color: var(--warning-soft);
+    color: var(--warning-color);
 }
 
 .status-badge-draft {
-    background-color: rgba(108, 117, 125, 0.1);
-    color: #6c757d;
+    background-color: var(--secondary-soft);
+    color: var(--secondary-color);
 }
 
 .status-received {
-    background-color: #c2f5d5;
-    color: #0e6245;
+    background-color: var(--success-soft);
+    color: var(--success-dark);
 }
 
 /* أيقونات الترتيب */
@@ -455,12 +454,12 @@ th.col-date {
 
 /* تنسيق الأعمدة المالية المخصصة */
 .transaction-amount.text-success {
-    color: #28a745 !important;
+    color: var(--success-color) !important;
     font-weight: 600;
 }
 
 .transaction-amount.text-danger {
-    color: #dc3545 !important;
+    color: var(--danger-color) !important;
     font-weight: 600;
 }
 
@@ -487,15 +486,15 @@ th.col-date {
 }
 
 .transaction-icon.income + .transaction-type-text {
-    color: #198754;
+    color: var(--success-color);
 }
 
 .transaction-icon.expense + .transaction-type-text {
-    color: #dc3545;
+    color: var(--danger-color);
 }
 
 .transaction-icon.transfer + .transaction-type-text {
-    color: #0d6efd;
+    color: var(--info-color);
 }
 
 /* تجاهل أيقونات الترتيب الافتراضية لـ DataTables */
@@ -643,7 +642,7 @@ th.col-reference {
 
 .badge.invoice-number i {
     font-size: 0.85rem;
-    color: #0d6efd;
+    color: var(--primary-color);
 }
 
 /* تنسيق شارات طريقة الدفع بألوان أهدى */

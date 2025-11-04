@@ -15,7 +15,7 @@
   
   .form-section h3 {
     margin-bottom: 1.5rem;
-    color: #007bff;
+    color: var(--primary-color);
     border-bottom: 1px solid #dee2e6;
     padding-bottom: 0.5rem;
   }
@@ -50,15 +50,15 @@
   
   /* تنسيقات المحتوى الداخلي */
   #internal-fields {
-    border: 2px dashed #007bff;
+    border: 2px dashed var(--primary-color);
     border-radius: 8px;
     padding: 1.5rem;
     margin-top: 1rem;
-    background-color: #f8f9ff;
+    background-color: var(--primary-soft-2);
   }
   
   #internal-content-section {
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--primary-color);
     padding-left: 1rem;
     margin-top: 1rem;
   }
@@ -71,7 +71,7 @@
   
   .form-check-label[for="id_has_internal_content"] {
     font-weight: 600;
-    color: #007bff;
+    color: var(--primary-color);
     cursor: pointer;
   }
   
@@ -105,8 +105,8 @@
   }
   
   .select2-container--bootstrap-5.select2-container--focus .select2-selection {
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 0.25rem var(--primary-focus);
   }
   
   .select2-dropdown {
@@ -115,7 +115,7 @@
   }
   
   .select2-container--bootstrap-5 .select2-results__option--highlighted {
-    background-color: #0d6efd;
+    background-color: var(--primary-color);
     color: #fff;
   }
   
@@ -184,9 +184,9 @@
   }
   
   .step.active {
-    background-color: #007bff;
+    background-color: var(--primary-color);
     color: white;
-    border-color: #007bff;
+    border-color: var(--primary-color);
   }
   
   .step:hover:not(.active) {
@@ -238,29 +238,29 @@
   }
   
   .btn-prev, .btn-prev-step {
-    background-color: #6c757d;
+    background-color: var(--secondary-color);
     color: white;
   }
   
   .btn-prev:hover, .btn-prev-step:hover {
-    background-color: #5a6268;
+    background-color: var(--secondary-dark);
     color: white;
   }
   
   .btn-next, .btn-next-step {
-    background-color: #007bff;
+    background-color: var(--primary-color);
     color: white;
   }
   
   .btn-next:hover, .btn-next-step:hover {
-    background-color: #0069d9;
+    background-color: var(--primary-dark);
     color: white;
   }
   
   /* قسم التسعير */
   .pricing-summary {
     background-color: #f8f9fa;
-    border: 1px solid #007bff;
+    border: 1px solid var(--primary-color);
     border-radius: 0.25rem;
     padding: 1.5rem;
   }
@@ -280,13 +280,13 @@
   .total-cost {
     font-weight: bold;
     font-size: 1.2rem;
-    color: #007bff;
+    color: var(--primary-color);
   }
   
   .final-price {
     font-weight: bold;
     font-size: 1.5rem;
-    color: #28a745;
+    color: var(--success-color);
   }
   
   /* خدمات ما بعد الطباعة */

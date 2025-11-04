@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تقرير الموظفين{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:reports_home' %}"><i class="fas fa-chart-bar me-1"></i>التقارير</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-users me-1"></i>تقرير الموظفين</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-users fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">تقرير الموظفين</h1>
+                  <p class="text-muted mb-0">تقرير شامل لبيانات الموظفين</p>
+              </div>
+          </div>
+          <div>
+                <div>
+                    <a href="?status={{ status }}&export=excel" class="btn btn-success">
+                        <i class="fas fa-file-excel me-2"></i>
+                        تصدير Excel
+                    </a>
+                    <a href="{% url 'hr:reports_home' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        رجوع
+                    </a>
+                </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-filter me-2"></i>الفلاتر</h5>
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">الحالة</label>
+                            <select name="status" class="form-select">
+                                <option value="active" {% if status == 'active' %}selected{% endif %}>نشط</option>
+                                <option value="on_leave" {% if status == 'on_leave' %}selected{% endif %}>في إجازة</option>
+                                <option value="terminated" {% if status == 'terminated' %}selected{% endif %}>منتهي الخدمة</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">القسم</label>
+                            <select name="department" class="form-select">
+                                <option value="">جميع الأقسام</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>
+                                بحث
+                            </button>
+                        </div>
+                    </form>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>الإحصائيات</h5>
+      <div class="row">
+        <div class="col-md-4">
+            <div class="stat-card">
+                <h6>إجمالي الموظفين</h6>
+                <h3>{{ stats.total_employees }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-info">
+                <h6>ذكور</h6>
+                <h3>{{ stats.by_gender.male }}</h3>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="stat-card stat-warning">
+                <h6>إناث</h6>
+                <h3>{{ stats.by_gender.female }}</h3>
+            </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-table me-2"></i>جدول الموظفين</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>رقم الموظف</th>
+                                    <th>الاسم</th>
+                                    <th>القسم</th>
+                                    <th>الوظيفة</th>
+                                    <th>تاريخ التعيين</th>
+                                    <th>نوع التوظيف</th>
+                                    <th>الحالة</th>
+                                    <th>البريد</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for employee in employees %}
+                                <tr>
+                                    <td>{{ employee.employee_number }}</td>
+                                    <td>{{ employee.get_full_name_ar }}</td>
+                                    <td>{{ employee.department.name_ar }}</td>
+                                    <td>{{ employee.job_title.title_ar }}</td>
+                                    <td>{{ employee.hire_date }}</td>
+                                    <td>{{ employee.get_employment_type_display }}</td>
+                                    <td>
+                                        {% if employee.status == 'active' %}
+                                            <span class="badge bg-success">نشط</span>
+                                        {% elif employee.status == 'on_leave' %}
+                                            <span class="badge bg-warning">في إجازة</span>
+                                        {% elif employee.status == 'terminated' %}
+                                            <span class="badge bg-danger">منتهي</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ employee.work_email }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">لا يوجد موظفين</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+{% endblock %}

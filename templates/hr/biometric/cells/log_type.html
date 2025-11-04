@@ -1,0 +1,19 @@
+{% if object.log_type == 'check_in' %}
+    <span class="badge bg-success">
+        <i class="fas fa-sign-in-alt me-1"></i>حضور
+    </span>
+{% elif object.log_type == 'check_out' %}
+    <span class="badge bg-danger">
+        <i class="fas fa-sign-out-alt me-1"></i>انصراف
+    </span>
+{% elif object.log_type == 'break_start' %}
+    <span class="badge bg-warning text-dark">
+        <i class="fas fa-pause me-1"></i>بداية استراحة
+    </span>
+{% elif object.log_type == 'break_end' %}
+    <span class="badge bg-info">
+        <i class="fas fa-play me-1"></i>نهاية استراحة
+    </span>
+{% else %}
+    <span class="badge bg-secondary">{{ object.get_log_type_display }}</span>
+{% endif %}

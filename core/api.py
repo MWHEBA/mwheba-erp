@@ -249,7 +249,7 @@ def get_notifications_count(request):
     """
     # التحقق من تسجيل الدخول
     if not request.user.is_authenticated:
-        return JsonResponse({"success": False, "message": _("يجب تسجيل الدخول")})
+        return JsonResponse({"success": False, "message": "يجب تسجيل الدخول", "count": 0})
 
     try:
         # حساب عدد الإشعارات غير المقروءة
@@ -259,7 +259,10 @@ def get_notifications_count(request):
 
         return JsonResponse({"success": True, "count": unread_count})
     except Exception as e:
-        return JsonResponse({"success": False, "message": str(e)})
+        # Log the error
+        logger.error(f"Error getting notifications count for user {request.user.id}: {str(e)}")
+        # Return 0 count instead of error to prevent breaking the page
+        return JsonResponse({"success": True, "count": 0})
 
 
 def test_email_settings(request):

@@ -1,0 +1,133 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تفاصيل العقد{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .section-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 1.5rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:contract_list' %}"><i class="fas fa-file-contract me-1"></i>العقود</a></li>
+                  <li class="breadcrumb-item active">{{ contract.contract_number }}</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-file-contract fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">تفاصيل العقد: {{ contract.contract_number }}</h1>
+                  <p class="text-muted mb-0">{{ contract.employee.get_full_name_ar }}</p>
+              </div>
+          </div>
+          <div><a href="{% url 'hr:contract_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a></div>
+      </div>
+  </div>
+
+  <div class="row">
+    <div class="col-lg-8">
+        <div class="section-container">
+                <div class="card-header">
+                    <h5 class="mb-0">معلومات العقد</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="30%">رقم العقد</th>
+                            <td>{{ contract.contract_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>الموظف</th>
+                            <td>{{ contract.employee.get_full_name_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>نوع العقد</th>
+                            <td>{{ contract.get_contract_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>تاريخ البداية</th>
+                            <td>{{ contract.start_date|date:"Y-m-d" }}</td>
+                        </tr>
+                        <tr>
+                            <th>تاريخ النهاية</th>
+                            <td>
+                                {% if contract.end_date %}
+                                    {{ contract.end_date|date:"Y-m-d" }}
+                                {% else %}
+                                    <span class="text-muted">غير محدد</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>الراتب الأساسي</th>
+                            <td>{{ contract.basic_salary|floatformat:2 }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <th>إجمالي الراتب</th>
+                            <td><strong>{{ contract.total_salary|floatformat:2 }} جنيه</strong></td>
+                        </tr>
+                        <tr>
+                            <th>الحالة</th>
+                            <td>
+                                {% if contract.status == 'active' %}
+                                    <span class="badge bg-success">ساري</span>
+                                {% elif contract.status == 'expired' %}
+                                    <span class="badge bg-danger">منتهي</span>
+                                {% elif contract.status == 'renewed' %}
+                                    <span class="badge bg-info">تم التجديد</span>
+                                {% elif contract.status == 'terminated' %}
+                                    <span class="badge bg-dark">منهي</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">مسودة</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% if contract.days_until_expiry %}
+                        <tr>
+                            <th>الأيام المتبقية</th>
+                            <td>
+                                <span class="badge bg-warning">{{ contract.days_until_expiry }} يوم</span>
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </table>
+
+                    <div class="mt-4">
+                        <a href="{% url 'hr:contract_edit' contract.pk %}" class="btn btn-warning">
+                            <i class="fas fa-edit me-2"></i>
+                            تعديل
+                        </a>
+                        {% if contract.status == 'active' and contract.end_date %}
+                        <a href="{% url 'hr:contract_renew' contract.pk %}" class="btn btn-success">
+                            <i class="fas fa-redo me-2"></i>
+                            تجديد
+                        </a>
+                        <a href="{% url 'hr:contract_terminate' contract.pk %}" class="btn btn-danger">
+                            <i class="fas fa-ban me-2"></i>
+                            إنهاء
+                        </a>
+                        {% endif %}
+                        <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-right me-2"></i>
+                            العودة
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

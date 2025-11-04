@@ -255,6 +255,102 @@
                     </ul>
                 </li>
 
+                <!-- الموارد البشرية -->
+                <li class="sidebar-item">
+                    <a href="#hrMenu" class="sidebar-link collapsed {% if active_menu == 'hr' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-users-cog sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "الموارد البشرية" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'hr' %}show{% endif %}" id="hrMenu">
+                        <li>
+                            <a href="{% url 'hr:dashboard' %}" class="submenu-link">
+                                <i class="fas fa-tachometer-alt me-2"></i>{% trans "لوحة التحكم" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li class="submenu-title">الموظفين</li>
+                        <li>
+                            <a href="{% url 'hr:employee_list' %}" class="submenu-link">
+                                <i class="fas fa-users me-2"></i>{% trans "قائمة الموظفين" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:employee_form' %}" class="submenu-link">
+                                <i class="fas fa-user-plus me-2"></i>{% trans "إضافة موظف" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li class="submenu-title">الحضور والإجازات</li>
+                        <li>
+                            <a href="{% url 'hr:attendance_list' %}" class="submenu-link">
+                                <i class="fas fa-clock me-2"></i>{% trans "سجل الحضور" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:leave_list' %}" class="submenu-link">
+                                <i class="fas fa-calendar-alt me-2"></i>{% trans "الإجازات" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:leave_balance_list' %}" class="submenu-link">
+                                <i class="fas fa-chart-pie me-2"></i>{% trans "أرصدة الإجازات" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li class="submenu-title">الرواتب</li>
+                        <li>
+                            <a href="{% url 'hr:payroll_run_list' %}" class="submenu-link">
+                                <i class="fas fa-calculator me-2"></i>{% trans "مسيرات الرواتب" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:payroll_list' %}" class="submenu-link">
+                                <i class="fas fa-file-invoice me-2"></i>{% trans "كشوف الرواتب" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:advance_list' %}" class="submenu-link">
+                                <i class="fas fa-hand-holding-usd me-2"></i>{% trans "السلف" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li class="submenu-title">العقود</li>
+                        <li>
+                            <a href="{% url 'hr:contract_list' %}" class="submenu-link">
+                                <i class="fas fa-file-contract me-2"></i>{% trans "قائمة العقود" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:contract_form' %}" class="submenu-link">
+                                <i class="fas fa-plus-circle me-2"></i>{% trans "إضافة عقد" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:contract_expiring' %}" class="submenu-link">
+                                <i class="fas fa-exclamation-triangle me-2"></i>{% trans "عقود قرب الانتهاء" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <li>
+                            <a href="{% url 'hr:hr_settings' %}" class="submenu-link">
+                                <i class="fas fa-cog me-2"></i>{% trans "إعدادات الموارد البشرية" %}
+                            </a>
+                        </li>
+                        
+                    </ul>
+                </li>
+
                 <!-- الإدارة المالية والمحاسبية -->
                 {% has_module_access 'enhanced_financial' as can_access_enhanced_financial %}
                 {% if can_access_enhanced_financial %}
@@ -428,7 +524,7 @@
                         
                         <div class="nav-divider"></div>
                         
-                        <!-- تقارير المبيعات والمشتريات التفصيلية -->
+                        <!-- تقارير المبيعات والمشتريات -->
                         <li class="submenu-title">تقارير المبيعات والمشتريات</li>
                         <li>
                             <a href="{% url 'financial:sales_report' %}" class="submenu-link">
@@ -440,29 +536,36 @@
                                 <i class="fas fa-shopping-bag me-2"></i>{% trans "تقرير المشتريات" %}
                             </a>
                         </li>
-                        {% comment %}
-                        TODO: إضافة تقارير تفصيلية
+                        
+                        <div class="nav-divider"></div>
+                        
+                        <!-- تقارير الموارد البشرية -->
+                        <li class="submenu-title">تقارير الموارد البشرية</li>
                         <li>
-                            <a href="{% url 'sale:customer_sales_report' %}" class="submenu-link">
-                                <i class="fas fa-user-tag me-2"></i>{% trans "المبيعات حسب العميل" %}
+                            <a href="{% url 'hr:reports_home' %}" class="submenu-link">
+                                <i class="fas fa-chart-bar me-2"></i>{% trans "جميع التقارير" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'sale:product_sales_report' %}" class="submenu-link">
-                                <i class="fas fa-box me-2"></i>{% trans "المبيعات حسب المنتج" %}
+                            <a href="{% url 'hr:attendance_report' %}" class="submenu-link">
+                                <i class="fas fa-clock me-2"></i>{% trans "تقرير الحضور" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'purchase:supplier_purchases_report' %}" class="submenu-link">
-                                <i class="fas fa-truck me-2"></i>{% trans "المشتريات حسب المورد" %}
+                            <a href="{% url 'hr:leave_report' %}" class="submenu-link">
+                                <i class="fas fa-calendar-alt me-2"></i>{% trans "تقرير الإجازات" %}
                             </a>
                         </li>
                         <li>
-                            <a href="{% url 'purchase:product_purchases_report' %}" class="submenu-link">
-                                <i class="fas fa-box-open me-2"></i>{% trans "المشتريات حسب المنتج" %}
+                            <a href="{% url 'hr:payroll_report' %}" class="submenu-link">
+                                <i class="fas fa-money-bill-wave me-2"></i>{% trans "تقرير الرواتب" %}
                             </a>
                         </li>
-                        {% endcomment %}
+                        <li>
+                            <a href="{% url 'hr:employee_report' %}" class="submenu-link">
+                                <i class="fas fa-users me-2"></i>{% trans "تقرير الموظفين" %}
+                            </a>
+                        </li>
                         
                         <div class="nav-divider"></div>
                         

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 سكريبت بسيط لتشغيل اختبارات Django
 """
@@ -33,16 +34,16 @@ def run_simple_tests():
     failures = test_runner.run_tests(["product.tests.test_simple"])
 
     if failures:
-        print(f"\n❌ فشل {failures} اختبار")
+        print(f"\n[ERROR] فشل {failures} اختبار")
         return False
     else:
-        print("\n✅ جميع الاختبارات نجحت!")
+        print("\n[OK] جميع الاختبارات نجحت!")
         return True
 
 
 def create_test_data():
     """إنشاء بيانات اختبار بسيطة"""
-    print("📊 إنشاء بيانات اختبار...")
+    print("[STATS] إنشاء بيانات اختبار...")
 
     try:
         from django.contrib.auth import get_user_model
@@ -62,7 +63,7 @@ def create_test_data():
         if created:
             user.set_password("testpass123")
             user.save()
-            print("✅ تم إنشاء مستخدم اختبار")
+            print("[OK] تم إنشاء مستخدم اختبار")
 
         # إنشاء تصنيفات
         categories_data = [
@@ -74,7 +75,7 @@ def create_test_data():
         for cat_name in categories_data:
             category, created = Category.objects.get_or_create(name=cat_name)
             if created:
-                print(f"✅ تم إنشاء تصنيف: {category.name}")
+                print(f"[OK] تم إنشاء تصنيف: {category.name}")
 
         # إنشاء ماركات
         brands_data = [
@@ -86,7 +87,7 @@ def create_test_data():
         for brand_name in brands_data:
             brand, created = Brand.objects.get_or_create(name=brand_name)
             if created:
-                print(f"✅ تم إنشاء ماركة: {brand.name}")
+                print(f"[OK] تم إنشاء ماركة: {brand.name}")
 
         # إنشاء وحدات قياس
         units_data = [
@@ -100,7 +101,7 @@ def create_test_data():
                 name=unit_data["name"], defaults={"symbol": unit_data["symbol"]}
             )
             if created:
-                print(f"✅ تم إنشاء وحدة: {unit.name}")
+                print(f"[OK] تم إنشاء وحدة: {unit.name}")
 
         # إنشاء مخازن
         warehouses_data = [
@@ -114,13 +115,13 @@ def create_test_data():
                 defaults={"location": warehouse_data["location"]},
             )
             if created:
-                print(f"✅ تم إنشاء مخزن: {warehouse.name}")
+                print(f"[OK] تم إنشاء مخزن: {warehouse.name}")
 
-        print("\n🎉 تم إنشاء جميع بيانات الاختبار بنجاح!")
+        print("\n[DONE] تم إنشاء جميع بيانات الاختبار بنجاح!")
         return True
 
     except Exception as e:
-        print(f"❌ خطأ في إنشاء بيانات الاختبار: {e}")
+        print(f"[ERROR] خطأ في إنشاء بيانات الاختبار: {e}")
         return False
 
 
@@ -137,7 +138,7 @@ def main():
     elif command == "create-data":
         success = create_test_data()
     else:
-        print(f"❌ أمر غير معروف: {command}")
+        print(f"[ERROR] أمر غير معروف: {command}")
         success = False
 
     sys.exit(0 if success else 1)

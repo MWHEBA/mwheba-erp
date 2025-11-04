@@ -110,8 +110,11 @@ def notifications(request):
         else:
             user_notifications = list(unread_notifications)
 
-    except Exception:
+    except Exception as e:
         # في حالة حدوث أي استثناء، عد بقائمة فارغة
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error loading notifications in context processor: {str(e)}")
         pass
 
     # إعادة قائمة الإشعارات (كـ objects مباشرة)

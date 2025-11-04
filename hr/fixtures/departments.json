@@ -1,0 +1,77 @@
+[
+  {
+    "model": "hr.department",
+    "pk": 5,
+    "fields": {
+      "code": "DEPT001",
+      "name_ar": "الإدارة",
+      "name_en": "Management",
+      "description": "",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 6,
+    "fields": {
+      "code": "DEPT002",
+      "name_ar": "الدعاية والإعلان",
+      "name_en": "Advertising",
+      "description": "",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 7,
+    "fields": {
+      "code": "DEPT003",
+      "name_ar": "التسويق الإلكتروني",
+      "name_en": "Digital Marketing",
+      "description": "",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 8,
+    "fields": {
+      "code": "DEPT004",
+      "name_ar": "تصميم المواقع",
+      "name_en": "Web Design",
+      "description": "",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 9,
+    "fields": {
+      "code": "DEPT005",
+      "name_ar": "الإنتاج الإعلامي",
+      "name_en": "Media Production",
+      "description": "",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

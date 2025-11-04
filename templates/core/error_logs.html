@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}سجل الأخطاء - MWHEBA ERP{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        سجل الأخطاء والـ Logs
+                    </h5>
+                    <div>
+                        {% if log_exists %}
+                            <button type="button" class="btn btn-sm btn-warning" onclick="clearLogs()">
+                                <i class="fas fa-trash me-1"></i>
+                                مسح السجل
+                            </button>
+                            <button type="button" class="btn btn-sm btn-info" onclick="location.reload()">
+                                <i class="fas fa-sync me-1"></i>
+                                تحديث
+                            </button>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if log_exists %}
+                        <div class="alert alert-info">
+                            <strong>مسار الملف:</strong> <code>{{ log_file_path }}</code><br>
+                            <strong>حجم الملف:</strong> {{ log_size|filesizeformat }}<br>
+                            <strong>عدد الأسطر الكلي:</strong> {{ total_lines|default:"غير معروف" }}<br>
+                            <strong>الأسطر المعروضة:</strong> آخر {{ log_lines|length }} سطر
+                        </div>
+
+                        {% if error %}
+                            <div class="alert alert-danger">
+                                <strong>خطأ في قراءة الملف:</strong> {{ error }}
+                            </div>
+                        {% else %}
+                            <div class="log-container" style="background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 8px; max-height: 600px; overflow-y: auto; font-family: 'Courier New', monospace; font-size: 13px; direction: ltr; text-align: left;">
+                                {% for line in log_lines %}
+                                    <div class="log-line {% if 'ERROR' in line or 'CRITICAL' in line %}text-danger{% elif 'WARNING' in line %}text-warning{% elif 'INFO' in line %}text-info{% endif %}" style="margin-bottom: 2px; white-space: pre-wrap; word-wrap: break-word;">{{ line }}</div>
+                                {% empty %}
+                                    <div class="text-muted">الملف فارغ</div>
+                                {% endfor %}
+                            </div>
+
+                            <div class="mt-3">
+                                <button class="btn btn-sm btn-secondary" onclick="scrollToTop()">
+                                    <i class="fas fa-arrow-up me-1"></i>
+                                    أول السجل
+                                </button>
+                                <button class="btn btn-sm btn-secondary" onclick="scrollToBottom()">
+                                    <i class="fas fa-arrow-down me-1"></i>
+                                    آخر السجل
+                                </button>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ملف الأخطاء غير موجود بعد. سيتم إنشاؤه تلقائياً عند حدوث أول خطأ.
+                            <br><br>
+                            <strong>المسار المتوقع:</strong> <code>{{ log_file_path }}</code>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نصائح لتشخيص الأخطاء -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        نصائح لتشخيص الأخطاء في Production
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-primary">أنواع الأخطاء الشائعة:</h6>
+                            <ul class="small">
+                                <li><strong>[ERROR]</strong> - أخطاء في الكود أو قاعدة البيانات</li>
+                                <li><strong>[WARNING]</strong> - تحذيرات قد تسبب مشاكل</li>
+                                <li><strong>[INFO]</strong> - معلومات عامة عن العمليات</li>
+                                <li><strong>DoesNotExist</strong> - كائن غير موجود في قاعدة البيانات</li>
+                                <li><strong>IntegrityError</strong> - خطأ في قيود قاعدة البيانات</li>
+                                <li><strong>AttributeError</strong> - محاولة الوصول لخاصية غير موجودة</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-success">خطوات التشخيص:</h6>
+                            <ol class="small">
+                                <li>ابحث عن آخر سطر يحتوي على <code>[ERROR]</code></li>
+                                <li>اقرأ الـ Traceback لمعرفة مكان الخطأ</li>
+                                <li>تحقق من اسم الملف ورقم السطر</li>
+                                <li>راجع الكود في المكان المذكور</li>
+                                <li>تحقق من البيانات المُدخلة</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Form لمسح السجل -->
+<form id="clearLogsForm" method="post" action="{% url 'core:clear_error_logs' %}" style="display: none;">
+    {% csrf_token %}
+</form>
+
+<script>
+function clearLogs() {
+    if (confirm('هل أنت متأكد من مسح سجل الأخطاء؟\nلن تتمكن من استرجاعه بعد الحذف.')) {
+        document.getElementById('clearLogsForm').submit();
+    }
+}
+
+function scrollToTop() {
+    document.querySelector('.log-container').scrollTop = 0;
+}
+
+function scrollToBottom() {
+    const container = document.querySelector('.log-container');
+    container.scrollTop = container.scrollHeight;
+}
+
+// Scroll to bottom on load
+document.addEventListener('DOMContentLoaded', function() {
+    const container = document.querySelector('.log-container');
+    if (container) {
+        container.scrollTop = container.scrollHeight;
+    }
+});
+</script>
+{% endblock %}

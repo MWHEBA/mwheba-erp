@@ -720,8 +720,12 @@ def customer_detail(request, pk):
         },
     ]
 
-    # حساب الرصيد المتاح (credit_limit - balance)
-    available_credit = customer.credit_limit - customer.balance if customer.credit_limit else 0
+    # حساب الرصيد المتاح (credit_limit - المديونية الفعلية)
+    # المديونية = إجمالي المبيعات - إجمالي المدفوعات
+    total_sales = customer.sales.aggregate(total=Sum('total'))['total'] or 0
+    total_payments = customer.payments.aggregate(total=Sum('amount'))['total'] or 0
+    actual_debt = total_sales - total_payments
+    available_credit = customer.credit_limit - actual_debt if customer.credit_limit else 0
     
     context = {
         "customer": customer,

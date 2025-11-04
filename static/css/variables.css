@@ -11,7 +11,7 @@
     --primary-dark: #013e61;
     --primary-light: #0179b8;
     --primary-rgb: 1, 87, 138;
-    --primary-soft: rgba(59, 130, 246, 0.1); /* أزرق شفاف للخلفيات */
+    --primary-soft: rgba(1, 87, 138, 0.1);
     --primary-soft-2: rgba(1, 87, 138, 0.05);
     --primary-hover: #016ca6;
     --primary-active: #015078;
@@ -23,23 +23,31 @@
     --secondary-rgb: 102, 119, 136;
     --secondary-soft: rgba(102, 119, 136, 0.1);
 
-    --success-color: #22c55e;    /* أخضر للنجاح */
+    --success-color: #22c55e;
     --success-dark: #059669;
+    --success-light: #34d399;
+    --success-hover: #16a34a;
     --success-rgb: 16, 185, 129;
     --success-soft: rgba(16, 185, 129, 0.1);
 
-    --info-color: #0ea5e9;        /* أزرق فاتح للمعلومات */
+    --info-color: #0ea5e9;
     --info-dark: #0284c7;
+    --info-light: #38bdf8;
+    --info-hover: #0369a1;
     --info-rgb: 14, 165, 233;
     --info-soft: rgba(14, 165, 233, 0.1);
 
-    --warning-color: #f59e0b;     /* برتقالي للتحذير */
+    --warning-color: #f59e0b;
     --warning-dark: #d97706;
+    --warning-light: #fbbf24;
+    --warning-hover: #ea580c;
     --warning-rgb: 245, 158, 11;
     --warning-soft: rgba(245, 158, 11, 0.1);
 
-    --danger-color: #ef4444;      /* أحمر للخطأ/الحذف */
+    --danger-color: #ef4444;
     --danger-dark: #dc2626;
+    --danger-light: #f87171;
+    --danger-hover: #dc2626;
     --danger-rgb: 239, 68, 68;
     --danger-soft: rgba(239, 68, 68, 0.1);
 
@@ -167,6 +175,21 @@
     --bg-soft-danger: #ffebeb;
     --bg-soft-light: #f8f9fa;
     --bg-soft-dark: #eaeaea;
+    
+    /* ألوان أنواع الحسابات */
+    --account-asset: #1a73e8;
+    --account-liability: #ff5252;
+    --account-equity: #41b883;
+    --account-income: #00bcd4;
+    --account-expense: #ff9800;
+    --account-cash: #28a745;
+    --account-bank: #007bff;
+    --account-wallet: #6f42c1;
+    --account-other: #6c757d;
+    
+    /* ألوان الشارات */
+    --badge-purple: #6f42c1;
+    --badge-purple-soft: rgba(111, 66, 193, 0.1);
 }
 
 /* متغيرات إضافية للأجهزة المحمولة، تضاف من خلال media queries في ملفات CSS المعنية */

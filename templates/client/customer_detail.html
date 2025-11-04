@@ -460,33 +460,6 @@
         </div>
       </div>
 
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-wallet"></i>
-            </div>
-            <div class="stats-card-title">{% trans "الرصيد المتاح" %}</div>
-            <div class="stats-card-value">{{ available_credit|smart_float }}</div>
-            <div class="stats-card-unit">{{ currency_symbol }}</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="col-md-4 col-lg-3">
-        <div class="stats-card stats-card-secondary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-credit-card"></i>
-            </div>
-            <div class="stats-card-title">{% trans "حد الائتمان" %}</div>
-            <div class="stats-card-value">{{ customer.credit_limit|smart_float|default:"0" }}</div>
-            <div class="stats-card-unit">{{ currency_symbol }}</div>
-          </div>
-        </div>
-      </div>
     </div>
                 </div>
 
@@ -744,35 +717,79 @@
         </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
       </div>
-      <div class="modal-body">
-        <div class="list-group">
-          <a href="{% url 'client:customer_edit' customer.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="icon-wrapper me-3" style="background-color: rgba(255, 193, 7, 0.1); color: #ffc107;">
-              <i class="fas fa-edit"></i>
+      <div class="modal-body p-0">
+        <!-- قسم المعلومات المالية -->
+        <div class="p-3" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%); border-bottom: 2px solid #dee2e6;">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-chart-line me-2"></i>المعلومات المالية
+          </h6>
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="p-3 rounded" style="background: white; border: 1px solid #e9ecef; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-wallet" style="color: #ffc107; font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #6c757d; font-weight: 600;">الرصيد المتاح</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: #ffc107;">{{ available_credit|smart_float }}</div>
+                <div style="font-size: 0.7rem; color: #adb5bd;">{{ currency_symbol }}</div>
+              </div>
             </div>
-            <div>
-              <div class="fw-bold" style="font-weight: 700;">{% trans "تعديل بيانات العميل" %}</div>
-              <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+            <div class="col-6">
+              <div class="p-3 rounded" style="background: white; border: 1px solid #e9ecef; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background: rgba(108, 117, 125, 0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-credit-card" style="color: #6c757d; font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #6c757d; font-weight: 600;">حد الائتمان</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: #6c757d;">{{ customer.credit_limit|smart_float|default:"0" }}</div>
+                <div style="font-size: 0.7rem; color: #adb5bd;">{{ currency_symbol }}</div>
+              </div>
             </div>
-          </a>
-          <a href="{% url 'client:customer_change_account' customer.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="icon-wrapper me-3" style="background-color: rgba(13, 110, 253, 0.1); color: #0d6efd;">
-              <i class="fas fa-exchange-alt"></i>
-            </div>
-            <div>
-              <div class="fw-bold" style="font-weight: 700;">تغيير الحساب المحاسبي</div>
-              <small class="text-muted">ربط العميل بحساب آخر في دليل الحسابات</small>
-            </div>
-          </a>
-          <a href="{% url 'client:customer_delete' customer.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
-            <div class="icon-wrapper me-3" style="background-color: rgba(220, 53, 69, 0.1); color: #dc3545;">
-              <i class="fas fa-trash"></i>
-            </div>
-            <div>
-              <div class="fw-bold" style="font-weight: 700;">{% trans "حذف العميل" %}</div>
-              <small class="text-muted">{% trans "حذف العميل نهائياً من النظام" %}</small>
-            </div>
-          </a>
+          </div>
+        </div>
+        
+        <!-- قسم الإجراءات -->
+        <div class="p-3">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-cog me-2"></i>الإجراءات
+          </h6>
+          <div class="list-group list-group-flush">
+            <a href="{% url 'client:customer_edit' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded mb-2 d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(255, 193, 7, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-edit" style="color: #ffc107;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">{% trans "تعديل بيانات العميل" %}</div>
+                <small class="text-muted" style="font-size: 0.8rem;">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+            
+            <a href="{% url 'client:customer_change_account' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded mb-2 d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(13, 110, 253, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-exchange-alt" style="color: #0d6efd;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">تغيير الحساب المحاسبي</div>
+                <small class="text-muted" style="font-size: 0.8rem;">ربط العميل بحساب آخر في دليل الحسابات</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+            
+            <a href="{% url 'client:customer_delete' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(220, 53, 69, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-trash" style="color: #dc3545;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">{% trans "حذف العميل" %}</div>
+                <small class="text-muted" style="font-size: 0.8rem;">{% trans "حذف العميل نهائياً من النظام" %}</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+          </div>
         </div>
       </div>
     </div>

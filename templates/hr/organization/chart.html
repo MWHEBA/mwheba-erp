@@ -1,0 +1,230 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}الهيكل التنظيمي{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+.org-chart-wrapper {
+    background: white;
+    border-radius: 8px;
+    overflow-x: auto;
+}
+
+.org-chart {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 100%;
+}
+
+.org-level {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 0;
+    position: relative;
+}
+
+.org-department {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 15px;
+    text-align: center;
+    min-width: 220px;
+    max-width: 260px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.org-department:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: var(--primary-color);
+}
+
+.org-department-header {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 10px;
+    font-size: 1.05rem;
+    line-height: 1.4;
+}
+
+.org-department-manager {
+    color: #555;
+    font-size: 0.85rem;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.org-department-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-color);
+}
+
+.org-stat {
+    text-align: center;
+    flex: 1;
+}
+
+.org-stat-value {
+    font-weight: 600;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+    margin-bottom: 2px;
+}
+
+.org-stat-label {
+    font-size: 0.7rem;
+    color: #888;
+}
+
+.sub-departments {
+    display: flex;
+    justify-content: center;
+    gap: 40px;
+    margin-top: 50px;
+    position: relative;
+    flex-wrap: wrap;
+}
+
+.sub-departments::before {
+    content: '';
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 25px;
+    background: #cbd5e0;
+}
+
+.sub-departments::after {
+    content: '';
+    position: absolute;
+    top: -25px;
+    height: 2px;
+    background: #cbd5e0;
+    left: 11%;
+    right: 11%;
+}
+
+.org-level {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.org-level::before {
+    content: '';
+    position: absolute;
+    top: -25px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 25px;
+    background: #cbd5e0;
+}
+
+.org-level-0::before {
+    display: none;
+}
+
+.org-connector {
+    display: none;
+}
+
+.org-department-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 12px;
+    color: white;
+    font-size: 1.2rem;
+}
+
+.org-level-0 .org-department {
+    border-color: var(--primary-color);
+    border-width: 2px;
+}
+
+.stat-card {
+    background: var(--card-bg);
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.stat-card h6 {
+    color: var(--text-muted);
+    margin-bottom: 10px;
+}
+
+.stat-card h3 {
+    color: var(--primary-color);
+    margin: 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:hr_settings' %}"><i class="fas fa-cog me-1"></i>الإعدادات</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-sitemap me-1"></i>الهيكل التنظيمي</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-sitemap fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">الهيكل التنظيمي</h1>
+                  <p class="text-muted mb-0">عرض الهيكل التنظيمي للشركة</p>
+              </div>
+          </div>
+      </div>
+  </div>
+
+
+  <div class="section-container">
+      <div class="org-chart-wrapper">
+          <div class="org-chart">
+              {% if root_departments %}
+                  {% for department in root_departments %}
+                      {% include 'hr/organization/department_node.html' with department=department level=0 %}
+                  {% endfor %}
+              {% else %}
+                  <div class="alert alert-info text-center">
+                      <i class="fas fa-info-circle me-2"></i>
+                      لا توجد أقسام في الهيكل التنظيمي
+                  </div>
+              {% endif %}
+          </div>
+      </div>
+  </div>
+
+</div>
+{% endblock %}
