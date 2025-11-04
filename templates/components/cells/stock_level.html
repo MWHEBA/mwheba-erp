@@ -1,9 +1,10 @@
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 {% comment %}عرض المخزون بطريقة بسيطة{% endcomment %}
 <span class="badge bg-info fw-bold">
-  {% if object.stocks.all %}
-    {{ object.stocks.all|length }}
+  {% if object.current_stock %}
+    {{ object.current_stock|remove_trailing_zeros }}
   {% else %}
     0
   {% endif %}

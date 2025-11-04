@@ -1,0 +1,100 @@
+[
+  {
+    "model": "core.systemsetting",
+    "pk": 102,
+    "fields": {
+      "key": "leave_accrual_probation_months",
+      "value": "3",
+      "data_type": "integer",
+      "description": "عدد الأشهر للفترة التجريبية (لا يستحق إجازات)",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 103,
+    "fields": {
+      "key": "leave_accrual_partial_months",
+      "value": "6",
+      "data_type": "integer",
+      "description": "عدد الأشهر للاستحقاق الجزئي (25%)",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 104,
+    "fields": {
+      "key": "leave_accrual_partial_percentage",
+      "value": "25",
+      "data_type": "integer",
+      "description": "نسبة الاستحقاق الجزئي (%)",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 105,
+    "fields": {
+      "key": "leave_accrual_full_months",
+      "value": "6",
+      "data_type": "integer",
+      "description": "عدد الأشهر للاستحقاق الكامل (100%)",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 106,
+    "fields": {
+      "key": "leave_auto_create_balances",
+      "value": "true",
+      "data_type": "boolean",
+      "description": "إنشاء أرصدة الإجازات تلقائياً عند إضافة موظف",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 107,
+    "fields": {
+      "key": "leave_rollover_enabled",
+      "value": "false",
+      "data_type": "boolean",
+      "description": "السماح بترحيل الإجازات غير المستخدمة للسنة التالية",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  },
+  {
+    "model": "core.systemsetting",
+    "pk": 108,
+    "fields": {
+      "key": "leave_rollover_max_days",
+      "value": "7",
+      "data_type": "integer",
+      "description": "الحد الأقصى لأيام الإجازات المرحلة",
+      "group": "hr",
+      "is_active": true,
+      "created_at": "2025-11-03T21:00:00Z",
+      "updated_at": "2025-11-03T21:00:00Z"
+    }
+  }
+]

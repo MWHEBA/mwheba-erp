@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}حذف وردية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:shift_list' %}"><i class="fas fa-clock me-1"></i>الورديات</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف وردية</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1 text-danger">حذف وردية</h1>
+                  <p class="text-muted mb-0">تأكيد حذف الوردية من النظام</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:shift_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تأكيد الحذف -->
+  <div class="section-container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        هل أنت متأكد من حذف هذه الوردية؟
+                    </div>
+
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="40%">اسم الوردية</th>
+                            <td>{{ shift.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>النوع</th>
+                            <td>{{ shift.get_shift_type_display }}</td>
+                        </tr>
+                        <tr>
+                            <th>الوقت</th>
+                            <td>{{ shift.start_time|time:"H:i" }} - {{ shift.end_time|time:"H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <th>عدد الموظفين المرتبطين</th>
+                            <td><strong>{{ employees_count }}</strong></td>
+                        </tr>
+                    </table>
+
+                    {% if employees_count > 0 %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        تحذير: يوجد {{ employees_count }} موظف مرتبط بهذه الوردية.
+                        سيتم إلغاء تفعيل الوردية فقط وليس حذفها نهائياً.
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-2"></i>
+                            تأكيد الحذف
+                        </button>
+                        <a href="{% url 'hr:shift_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            إلغاء
+                        </a>
+                    </form>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

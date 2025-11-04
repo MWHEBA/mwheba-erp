@@ -1,0 +1,25 @@
+{% load tz %}
+{% if object.status == 'active' %}
+    <span class="badge bg-success"><i class="fas fa-check-circle me-1"></i>نشط</span>
+{% elif object.status == 'error' %}
+    <span class="badge bg-danger"><i class="fas fa-exclamation-circle me-1"></i>خطأ</span>
+{% elif object.status == 'maintenance' %}
+    <span class="badge bg-warning text-dark"><i class="fas fa-tools me-1"></i>صيانة</span>
+{% else %}
+    <span class="badge bg-secondary">غير نشط</span>
+{% endif %}
+<br>
+{% now "U" as current_timestamp %}
+{% if object.last_sync %}
+    {% with object.last_sync|date:"U"|add:"0" as last_sync_timestamp %}
+        {% with current_timestamp|add:"0"|add:"-3600" as one_hour_ago %}
+            {% if last_sync_timestamp > one_hour_ago %}
+                <small class="text-success"><i class="fas fa-robot" style="font-size: 1rem;"></i> Bridge Agent نشط</small>
+            {% else %}
+                <small class="text-muted"><i class="fas fa-robot" style="font-size: 1rem;"></i> Bridge Agent متوقف</small>
+            {% endif %}
+        {% endwith %}
+    {% endwith %}
+{% else %}
+    <small class="text-warning"><i class="fas fa-robot" style="font-size: 1rem;"></i> Bridge Agent غير مفعل</small>
+{% endif %}

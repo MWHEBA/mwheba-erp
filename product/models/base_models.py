@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from django.core.validators import MinValueValidator
@@ -606,7 +607,7 @@ class StockMovement(models.Model):
                     code="5010"
                 )  # تكلفة البضاعة المباعة
             except ChartOfAccounts.DoesNotExist:
-                print(f"⚠️  حسابات المخزون غير موجودة - لم يتم إنشاء قيد")
+                print(f"[WARNING]  حسابات المخزون غير موجودة - لم يتم إنشاء قيد")
                 return
 
             # إنشاء القيد
@@ -654,7 +655,10 @@ class StockMovement(models.Model):
             StockMovement.objects.filter(pk=self.pk).update(journal_entry=journal_entry)
 
         except Exception as e:
-            print(f"❌ خطأ في إنشاء القيد المحاسبي: {e}")
+            # استخدام logger بدلاً من print لتجنب مشاكل encoding
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"خطأ في إنشاء القيد المحاسبي: {e}")
 
     def save(self, *args, **kwargs):
         """

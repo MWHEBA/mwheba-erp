@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 سكريبت تشغيل اختبارات نظام المخزن المحسن
 """
@@ -41,10 +42,10 @@ def run_all_tests():
 
     print("=" * 60)
     if failures:
-        print(f"❌ فشل {failures} اختبار")
+        print(f"[ERROR] فشل {failures} اختبار")
         return False
     else:
-        print("✅ نجحت جميع الاختبارات!")
+        print("[OK] نجحت جميع الاختبارات!")
         return True
 
 
@@ -60,10 +61,10 @@ def run_specific_test(test_name):
 
     print("=" * 60)
     if failures:
-        print(f"❌ فشل الاختبار {test_name}")
+        print(f"[ERROR] فشل الاختبار {test_name}")
         return False
     else:
-        print(f"✅ نجح الاختبار {test_name}!")
+        print(f"[OK] نجح الاختبار {test_name}!")
         return True
 
 
@@ -97,7 +98,7 @@ def run_test_category(category):
     }
 
     if category not in categories:
-        print(f"❌ فئة الاختبار '{category}' غير موجودة")
+        print(f"[ERROR] فئة الاختبار '{category}' غير موجودة")
         print("التصنيفات المتاحة:", list(categories.keys()))
         return False
 
@@ -115,10 +116,10 @@ def run_test_category(category):
 
     print("=" * 60)
     if failures:
-        print(f"❌ فشل {failures} اختبار في فئة {category}")
+        print(f"[ERROR] فشل {failures} اختبار في فئة {category}")
         return False
     else:
-        print(f"✅ نجحت جميع اختبارات فئة {category}!")
+        print(f"[OK] نجحت جميع اختبارات فئة {category}!")
         return True
 
 
@@ -127,7 +128,7 @@ def show_test_coverage():
     try:
         import coverage
 
-        print("📊 تشغيل تحليل تغطية الاختبارات...")
+        print("[STATS] تشغيل تحليل تغطية الاختبارات...")
         print("=" * 60)
 
         # إنشاء كائن التغطية
@@ -152,7 +153,7 @@ def show_test_coverage():
         return success
 
     except ImportError:
-        print("⚠️  مكتبة coverage غير مثبتة")
+        print("[WARNING]  مكتبة coverage غير مثبتة")
         print("لتثبيتها: pip install coverage")
         return run_all_tests()
 
@@ -161,40 +162,40 @@ def create_test_data():
     """إنشاء بيانات اختبار"""
     from product.tests.test_utils import TestDataFactory, TestScenarios
 
-    print("🏗️  إنشاء بيانات اختبار...")
+    print("[BUILD]  إنشاء بيانات اختبار...")
     print("=" * 60)
 
     try:
         # إنشاء سيناريو مخزون أساسي
         inventory_data = TestScenarios.setup_basic_inventory_scenario()
-        print(f"✅ تم إنشاء سيناريو المخزون الأساسي")
+        print(f"[OK] تم إنشاء سيناريو المخزون الأساسي")
         print(f"   - المستخدم: {inventory_data['user'].username}")
         print(f"   - المخزن: {inventory_data['warehouse'].name}")
         print(f"   - المنتجات: {len(inventory_data['products'])}")
 
         # إنشاء سيناريو تسعير الموردين
         pricing_data = TestScenarios.setup_supplier_pricing_scenario()
-        print(f"✅ تم إنشاء سيناريو تسعير الموردين")
+        print(f"[OK] تم إنشاء سيناريو تسعير الموردين")
         print(f"   - المنتج: {pricing_data['product'].name}")
         print(f"   - الموردين: {len(pricing_data['suppliers'])}")
 
         # إنشاء سيناريو انتهاء الصلاحية
         expiry_data = TestScenarios.setup_expiry_tracking_scenario()
-        print(f"✅ تم إنشاء سيناريو انتهاء الصلاحية")
+        print(f"[OK] تم إنشاء سيناريو انتهاء الصلاحية")
         print(f"   - المنتج: {expiry_data['product'].name}")
         print(f"   - الدفعات: {len(expiry_data['batches'])}")
 
         # إنشاء سيناريو الحجوزات
         reservation_data = TestScenarios.setup_reservation_scenario()
-        print(f"✅ تم إنشاء سيناريو الحجوزات")
+        print(f"[OK] تم إنشاء سيناريو الحجوزات")
         print(f"   - المنتج: {reservation_data['product'].name}")
         print(f"   - الحجوزات: {len(reservation_data['reservations'])}")
 
-        print("\n🎉 تم إنشاء جميع بيانات الاختبار بنجاح!")
+        print("\n[DONE] تم إنشاء جميع بيانات الاختبار بنجاح!")
         return True
 
     except Exception as e:
-        print(f"❌ خطأ في إنشاء بيانات الاختبار: {e}")
+        print(f"[ERROR] خطأ في إنشاء بيانات الاختبار: {e}")
         return False
 
 
@@ -225,20 +226,20 @@ def clean_test_data():
             count = model.objects.filter(name__icontains="اختبار").count()
             if count > 0:
                 model.objects.filter(name__icontains="اختبار").delete()
-                print(f"✅ تم حذف {count} من {name}")
+                print(f"[OK] تم حذف {count} من {name}")
 
         # حذف المستخدمين الاختباريين
         test_users = User.objects.filter(username__startswith="test")
         user_count = test_users.count()
         if user_count > 0:
             test_users.delete()
-            print(f"✅ تم حذف {user_count} مستخدم اختباري")
+            print(f"[OK] تم حذف {user_count} مستخدم اختباري")
 
-        print("\n🎉 تم تنظيف جميع بيانات الاختبار!")
+        print("\n[DONE] تم تنظيف جميع بيانات الاختبار!")
         return True
 
     except Exception as e:
-        print(f"❌ خطأ في تنظيف بيانات الاختبار: {e}")
+        print(f"[ERROR] خطأ في تنظيف بيانات الاختبار: {e}")
         return False
 
 
@@ -280,7 +281,7 @@ def print_help():
 def main():
     """دالة رئيسية لتشغيل الاختبارات"""
     if len(sys.argv) < 2:
-        print("❌ يرجى تحديد نوع الاختبار")
+        print("[ERROR] يرجى تحديد نوع الاختبار")
         print(
             "الاستخدام: python run_tests.py [all|category|test|coverage|create-data|clean-data|help]"
         )
@@ -308,7 +309,7 @@ def main():
     elif command == "clean-data":
         success = clean_test_data()
     else:
-        print(f"❌ أمر غير معروف: {command}")
+        print(f"[ERROR] أمر غير معروف: {command}")
         success = False
 
     sys.exit(0 if success else 1)

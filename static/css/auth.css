@@ -385,39 +385,39 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 }
 
 .alert-danger {
-    background-color: rgba(231, 74, 59, 0.1);
-    color: #e74a3b;
+    background-color: var(--danger-soft);
+    color: var(--danger-color);
 }
 
 .alert-danger::before {
-    background-color: #e74a3b;
+    background-color: var(--danger-color);
 }
 
 .alert-success {
-    background-color: rgba(28, 200, 138, 0.1);
-    color: #1cc88a;
+    background-color: var(--success-soft);
+    color: var(--success-color);
 }
 
 .alert-success::before {
-    background-color: #1cc88a;
+    background-color: var(--success-color);
 }
 
 .alert-warning {
-    background-color: rgba(246, 194, 62, 0.1);
-    color: #f6c23e;
+    background-color: var(--warning-soft);
+    color: var(--warning-color);
 }
 
 .alert-warning::before {
-    background-color: #f6c23e;
+    background-color: var(--warning-color);
 }
 
 .alert-info {
-    background-color: rgba(54, 185, 204, 0.1);
-    color: #36b9cc;
+    background-color: var(--info-soft);
+    color: var(--info-color);
 }
 
 .alert-info::before {
-    background-color: #36b9cc;
+    background-color: var(--info-color);
 }
 
 /* تنسيقات خاصة بصفحة تسجيل الدخول */

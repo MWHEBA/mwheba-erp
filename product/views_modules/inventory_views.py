@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 Views إدارة المخزون والتنبيهات
 """
@@ -455,7 +456,7 @@ def mark_notifications_read(request):
 @login_required
 def abc_analysis_report(request):
     """
-    تقرير تحليل ABC للمنتجات - محدّث ✅
+    تقرير تحليل ABC للمنتجات - محدّث [OK]
     """
     if not AdvancedReportsService:
         messages.error(request, "خدمة التقارير المتقدمة غير متاحة")
@@ -511,7 +512,7 @@ def abc_analysis_report(request):
 @login_required
 def inventory_turnover_report(request):
     """
-    تقرير معدل دوران المخزون - محدّث ✅
+    تقرير معدل دوران المخزون - محدّث [OK]
     """
     if not AdvancedReportsService:
         messages.error(request, "خدمة التقارير المتقدمة غير متاحة")
@@ -570,7 +571,7 @@ def inventory_turnover_report(request):
 @login_required
 def reorder_point_report(request):
     """
-    تقرير نقاط إعادة الطلب - محدّث ✅
+    تقرير نقاط إعادة الطلب - محدّث [OK]
     """
     if not AdvancedReportsService:
         messages.error(request, "خدمة التقارير المتقدمة غير متاحة")

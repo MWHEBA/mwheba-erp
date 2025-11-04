@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}قائمة الموظفين{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>الرئيسية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'hr:dashboard' %}">
+                          <i class="fas fa-users-cog me-1"></i>الموارد البشرية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-users me-1"></i>قائمة الموظفين
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-users fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">قائمة الموظفين</h1>
+                  <p class="text-muted mb-0">إدارة وعرض جميع الموظفين في النظام</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:employee_form' %}" class="btn btn-primary">
+                  <i class="fas fa-plus me-2"></i>إضافة موظف
+              </a>
+          </div>
+      </div>
+  </div>
+
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="search" class="form-label">بحث</label>
+            <input type="text" name="search" id="search" class="form-control" placeholder="اسم الموظف أو الرقم..." value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-3">
+            <label for="department" class="form-label">القسم</label>
+            <select name="department" id="department" class="form-select">
+                <option value="">جميع الأقسام</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"i" %}selected{% endif %}>
+                    {{ dept.name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">جميع الحالات</option>
+                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشط</option>
+                <option value="on_leave" {% if request.GET.status == 'on_leave' %}selected{% endif %}>في إجازة</option>
+                <option value="suspended" {% if request.GET.status == 'suspended' %}selected{% endif %}>موقوف</option>
+                <option value="terminated" {% if request.GET.status == 'terminated' %}selected{% endif %}>منتهي الخدمة</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="job_title" class="form-label">المسمى الوظيفي</label>
+            <select name="job_title" id="job_title" class="form-select">
+                <option value="">الكل</option>
+                {% for job in job_titles %}
+                <option value="{{ job.id }}" {% if request.GET.job_title == job.id|stringformat:"i" %}selected{% endif %}>
+                    {{ job.title_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search me-2"></i>بحث
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة الموظفين -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الموظفين</h5>
+        <div class="actions-container">
+          <a href="{% url 'hr:employee_form' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>إضافة موظف
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% include "components/data_table.html" with table_id="employees-table" headers=table_headers data=employees action_buttons=table_actions clickable_rows=True row_click_url="/hr/employees/0/" primary_key="pk" empty_message="لا توجد موظفين متاحين" %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#employees-table').length) {
+        initGlobalTable('employees-table', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+            columnDefs: [
+                { targets: -1, orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

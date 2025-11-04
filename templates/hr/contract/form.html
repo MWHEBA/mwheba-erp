@@ -1,0 +1,557 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% if contract %}تعديل عقد{% else %}إضافة عقد{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/hr/salary-components.css' %}">
+<link rel="stylesheet" href="https://code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:contract_list' %}"><i class="fas fa-file-contract me-1"></i>العقود</a></li>
+                  <li class="breadcrumb-item active">{% if contract %}تعديل عقد{% else %}إضافة عقد{% endif %}</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-file-contract fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">{% if contract %}تعديل عقد: {{ contract.contract_number }}{% else %}إضافة عقد جديد{% endif %}</h1>
+                  <p class="text-muted mb-0">{% if contract %}تعديل بيانات العقد{% else %}إضافة عقد موظف جديد{% endif %}</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+    <form method="post">
+        {% csrf_token %}
+        
+        <h5 class="mb-3">معلومات العقد الأساسية</h5>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">رقم العقد <span class="text-danger">*</span></label>
+                    {{ form.contract_number }}
+                    {% if not contract %}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            سيتم توليد الرقم تلقائياً: {{ next_contract_number }}
+                        </small>
+                    {% endif %}
+                    {% if form.contract_number.errors %}
+                        <div class="text-danger">{{ form.contract_number.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="mb-3">
+                    <label class="form-label">الموظف <span class="text-danger">*</span></label>
+                    {{ form.employee }}
+                    {% if form.employee.errors %}
+                        <div class="text-danger">{{ form.employee.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {% if contract %}
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <label class="form-label">الحالة</label>
+                    {{ form.status }}
+                    {% if form.status.errors %}
+                        <div class="text-danger">{{ form.status.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        {# حقل الحالة مخفي في الإنشاء #}
+        {{ form.status }}
+        {% endif %}
+
+        <h5 class="mb-3 mt-4">التواريخ والمدة</h5>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">تاريخ البداية <span class="text-danger">*</span></label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                        <div class="text-danger">{{ form.start_date.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">مدة العقد</label>
+                    {{ form.contract_duration }}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        سيتم حساب تاريخ النهاية تلقائياً
+                    </small>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">تاريخ النهاية</label>
+                    {{ form.end_date }}
+                    <small class="text-muted">اتركه فارغاً للعقود الدائمة</small>
+                    {% if form.end_date.errors %}
+                        <div class="text-danger">{{ form.end_date.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">فترة التجربة (بالأشهر)</label>
+                    {{ form.probation_period_months }}
+                    {% if form.probation_period_months.errors %}
+                        <div class="text-danger">{{ form.probation_period_months.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.auto_renew }}
+                        <label class="form-check-label" for="id_auto_renew">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            تجديد العقد تلقائياً عند انتهاء المدة
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1">
+                        <i class="fas fa-info-circle me-1"></i>
+                        عند التفعيل، سيتم تجديد العقد تلقائياً بنفس الشروط
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- مكونات الراتب -->
+        <h5 class="mb-3 mt-4">تفاصيل الراتب</h5>
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>مكونات الراتب</h6>
+            </div>
+            
+            <!-- المستحقات -->
+            <div class="card-body">
+                <h6 class="text-success mb-3"><i class="fas fa-plus-circle me-2"></i>مستحق</h6>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered salary-components-table">
+                        <thead>
+                            <tr>
+                                <th width="50" class="text-center"><i class="fas fa-grip-vertical"></i></th>
+                                <th>بند الراتب</th>
+                                <th>الصيغة الحسابية</th>
+                                <th width="150">المبلغ</th>
+                                <th width="80" class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="earnings-body">
+                            <!-- الراتب الأساسي (مقفول) -->
+                            <tr class="basic-row">
+                                <td class="text-center text-muted">
+                                    <i class="fas fa-lock"></i>
+                                </td>
+                                <td>
+                                    <strong>الراتب الأساسي</strong>
+                                </td>
+                                <td class="bg-light"></td>
+                                <td>
+                                    {{ form.basic_salary }}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">رئيسي</span>
+                                </td>
+                            </tr>
+                            {% for earning in earnings %}
+                            <tr data-id="{{ forloop.counter }}" data-type="earning">
+                                <td class="text-center drag-handle" style="cursor: move;">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="earning_name_{{ forloop.counter }}" 
+                                           value="{{ earning.name }}" required>
+                                    <input type="hidden" name="earning_type_{{ forloop.counter }}" value="earning">
+                                    <input type="hidden" name="earning_order_{{ forloop.counter }}" 
+                                           value="{{ earning.order }}" class="order-input">
+                                </td>
+                                <td>
+                                    <div class="formula-input-wrapper">
+                                        <button type="button" class="formula-variables-btn" title="إضافة متغير">
+                                            <i class="fas fa-tag"></i>
+                                        </button>
+                                        <input type="text" class="form-control form-control-sm component-formula" 
+                                               name="earning_formula_{{ forloop.counter }}" 
+                                               value="{{ earning.formula }}"
+                                               placeholder="مثال: basic * 0.25"
+                                               data-counter="{{ forloop.counter }}" data-type="earning">
+                                        {% include 'hr/contract/_variables_dropdown.html' %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm component-amount smart-float" 
+                                           name="earning_amount_{{ forloop.counter }}" 
+                                           value="{{ earning.amount }}" required>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger remove-component-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="btn-group add-component-btn">
+                    <button type="button" class="btn btn-sm btn-success" id="add-earning">
+                        <i class="fas fa-plus me-1"></i>إضافة مستحق
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" 
+                            data-bs-toggle="modal" data-bs-target="#earningTemplatesModal">
+                        <i class="fas fa-list me-1"></i>اختيار من القوالب
+                    </button>
+                </div>
+            </div>
+            
+            <hr class="my-0">
+            
+            <!-- الاستقطاعات -->
+            <div class="card-body">
+                <h6 class="text-danger mb-3"><i class="fas fa-minus-circle me-2"></i>مستقطع</h6>
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered salary-components-table">
+                        <thead>
+                            <tr>
+                                <th width="50" class="text-center"><i class="fas fa-grip-vertical"></i></th>
+                                <th>بند الراتب</th>
+                                <th>الصيغة الحسابية</th>
+                                <th width="150">المبلغ</th>
+                                <th width="80" class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deductions-body">
+                            {% for deduction in deductions %}
+                            <tr data-id="{{ forloop.counter }}" data-type="deduction">
+                                <td class="text-center drag-handle" style="cursor: move;">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="deduction_name_{{ forloop.counter }}" 
+                                           value="{{ deduction.name }}" required>
+                                    <input type="hidden" name="deduction_type_{{ forloop.counter }}" value="deduction">
+                                    <input type="hidden" name="deduction_order_{{ forloop.counter }}" 
+                                           value="{{ deduction.order }}" class="order-input">
+                                </td>
+                                <td>
+                                    <div class="formula-input-wrapper">
+                                        <button type="button" class="formula-variables-btn" title="إضافة متغير">
+                                            <i class="fas fa-tag"></i>
+                                        </button>
+                                        <input type="text" class="form-control form-control-sm component-formula" 
+                                               name="deduction_formula_{{ forloop.counter }}" 
+                                               value="{{ deduction.formula }}"
+                                               placeholder="مثال: basic * 0.25"
+                                               data-counter="{{ forloop.counter }}" data-type="deduction">
+                                        {% include 'hr/contract/_variables_dropdown.html' %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm component-amount smart-float" 
+                                           name="deduction_amount_{{ forloop.counter }}" 
+                                           value="{{ deduction.amount }}" required>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger remove-component-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="btn-group add-component-btn">
+                    <button type="button" class="btn btn-sm btn-danger" id="add-deduction">
+                        <i class="fas fa-plus me-1"></i>إضافة استقطاع
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                            data-bs-toggle="modal" data-bs-target="#deductionTemplatesModal">
+                        <i class="fas fa-list me-1"></i>اختيار من القوالب
+                    </button>
+                </div>
+            </div>
+            
+            <!-- الإجماليات -->
+            <div class="card-footer">
+                <div class="salary-totals">
+                    <div class="total-row">
+                        <span class="total-label">إجمالي المستحقات:</span>
+                        <span class="total-value text-success"><span id="total-earnings">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">إجمالي الاستقطاعات:</span>
+                        <span class="total-value text-danger"><span id="total-deductions">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">صافي الراتب:</span>
+                        <span class="total-value text-primary"><span id="net-salary">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <label class="form-label">ملاحظات</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <div class="text-danger">{{ form.notes.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <div class="mt-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-2"></i>
+                {% if contract %}حفظ التعديلات{% else %}حفظ{% endif %}
+            </button>
+            <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
+                <i class="fas fa-times me-2"></i>
+                إلغاء
+            </a>
+        </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal قوالب المستحقات -->
+<div class="modal fade" id="earningTemplatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title text-success">
+                    <i class="fas fa-plus-circle me-2"></i>المستحقات
+                </h5>
+                <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group" id="earning-templates-list">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal قوالب الاستقطاعات -->
+<div class="modal fade" id="deductionTemplatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-minus-circle me-2"></i>الاستقطاعات
+                </h5>
+                <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group" id="deduction-templates-list">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://code.jquery.com/ui/1.13.2/jquery-ui.min.js"></script>
+<script src="{% static 'js/number_formatter.js' %}"></script>
+<script src="{% static 'js/hr/salary-components.js' %}"></script>
+<script>
+// تفعيل تنسيق الأرقام على الحقول (باستخدام event delegation)
+function initNumberFormatting() {
+    // استخدام event delegation على document للحقول الديناميكية
+    $(document).off('blur focus', '.smart-float').on('blur', '.smart-float', function() {
+        let value = $(this).val().replace(/,/g, '');
+        if (value && !isNaN(value)) {
+            let num = parseFloat(value);
+            // إذا كان الرقم صحيح، بدون علامة عشرية
+            if (num === Math.floor(num)) {
+                $(this).val(num.toLocaleString('en-US'));
+            } else {
+                // إذا كان فيه كسور، نعرض رقمين عشريين
+                $(this).val(num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            }
+        }
+    }).on('focus', '.smart-float', function() {
+        let value = $(this).val().replace(/,/g, '');
+        $(this).val(value);
+    });
+}
+
+// دالة لتنسيق جميع الحقول
+function formatAllSmartFloats() {
+    $('.smart-float').each(function() {
+        let value = $(this).val().replace(/,/g, '');
+        if (value && !isNaN(value)) {
+            let num = parseFloat(value);
+            if (num === Math.floor(num)) {
+                $(this).val(num.toLocaleString('en-US'));
+            } else {
+                $(this).val(num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            }
+        }
+    });
+}
+
+$(document).ready(function() {
+    // تفعيل تنسيق الأرقام
+    initNumberFormatting();
+    
+    // تنسيق الحقول الموجودة من قبل بعد تحميل كامل
+    setTimeout(formatAllSmartFloats, 100);
+    
+    // تفعيل Select2 لحقل الموظف
+    $('#id_employee').select2({
+        theme: 'bootstrap-5',
+        language: 'ar',
+        dir: 'rtl',
+        placeholder: 'اختر الموظف',
+        allowClear: true,
+        width: '100%',
+        templateResult: formatEmployee,
+        templateSelection: formatEmployeeSelection
+    });
+
+    // تنسيق عرض الموظف في القائمة
+    function formatEmployee(employee) {
+        if (!employee.id) {
+            return employee.text;
+        }
+        
+        var $employee = $(
+            '<div class="d-flex align-items-center">' +
+                '<i class="fas fa-user-tie me-2 text-primary"></i>' +
+                '<span>' + employee.text + '</span>' +
+            '</div>'
+        );
+        return $employee;
+    }
+
+    // تنسيق عرض الموظف المختار
+    function formatEmployeeSelection(employee) {
+        return employee.text;
+    }
+
+    // حساب تاريخ النهاية تلقائياً عند اختيار مدة العقد
+    $('#id_contract_duration').on('change', function() {
+        const duration = $(this).val();
+        const startDate = $('#id_start_date').val();
+        const endDateField = $('#id_end_date');
+        
+        // إذا لم يتم اختيار مدة، فتح الحقل للإدخال اليدوي
+        if (!duration || duration === '') {
+            endDateField.prop('readonly', false)
+                .css('background-color', '')
+                .val('');
+            return;
+        }
+        
+        if (!startDate) {
+            alert('يرجى اختيار تاريخ البداية أولاً');
+            $(this).val('');
+            return;
+        }
+        
+        if (duration !== 'custom') {
+            // مدة محددة - حساب تلقائي وقفل الحقل
+            const start = new Date(startDate);
+            const months = parseInt(duration);
+            
+            // إضافة الأشهر
+            const endDate = new Date(start);
+            endDate.setMonth(endDate.getMonth() + months);
+            
+            // تعيين آخر يوم في الشهر
+            endDate.setDate(0);
+            
+            // تنسيق التاريخ بصيغة YYYY-MM-DD
+            const formattedDate = endDate.toISOString().split('T')[0];
+            
+            // تعيين القيمة وقفل الحقل
+            endDateField.val(formattedDate)
+                .prop('readonly', true)
+                .css('background-color', '#e9ecef');
+            
+            // إضافة تأثير بصري
+            endDateField.addClass('bg-warning bg-opacity-25');
+            setTimeout(() => {
+                endDateField.removeClass('bg-warning bg-opacity-25');
+            }, 1500);
+        } else {
+            // مدة مخصصة - فتح الحقل للإدخال اليدوي
+            endDateField.val('')
+                .prop('readonly', false)
+                .css('background-color', '')
+                .focus();
+        }
+    });
+
+    // إعادة حساب التاريخ عند تغيير تاريخ البداية
+    $('#id_start_date').on('change', function() {
+        const duration = $('#id_contract_duration').val();
+        if (duration && duration !== 'custom' && duration !== '') {
+            $('#id_contract_duration').trigger('change');
+        }
+    });
+});
+</script>
+{% endblock %}

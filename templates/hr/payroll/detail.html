@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}كشف راتب{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:payroll_list' %}"><i class="fas fa-money-bill-wave me-1"></i>كشوف الرواتب</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-info-circle me-1"></i>تفاصيل</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-money-bill-wave fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">كشف راتب - {{ payroll.month|date:"Y-m" }}</h1>
+                  <p class="text-muted mb-0">تفاصيل كشف الراتب</p>
+              </div>
+          </div>
+          <div>
+                <div>
+                    {% if payroll.status == 'calculated' %}
+                    <button class="btn btn-success">
+                        <i class="fas fa-check me-2"></i>
+                        اعتماد
+                    </button>
+                    {% endif %}
+                    <button class="btn btn-info" onclick="window.print()">
+                        <i class="fas fa-print me-2"></i>
+                        طباعة
+                    </button>
+                    <a href="{% url 'hr:payroll_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        رجوع
+                    </a>
+                </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="row">
+      <div class="col-md-8">
+          <div class="section-container mb-3">
+              <h5 class="section-title"><i class="fas fa-user me-2"></i>معلومات الموظف</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>الاسم:</strong> {{ payroll.employee.get_full_name_ar }}</p>
+                            <p><strong>رقم الموظف:</strong> {{ payroll.employee.employee_number }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>القسم:</strong> {{ payroll.employee.department.name_ar }}</p>
+                            <p><strong>الوظيفة:</strong> {{ payroll.employee.job_title.title_ar }}</p>
+                        </div>
+                    </div>
+          </div>
+
+          <div class="section-container mb-3">
+              <h5 class="section-title"><i class="fas fa-money-check-alt me-2"></i>تفاصيل الراتب</h5>
+                    <table class="table">
+                        <tr>
+                            <td><strong>الراتب الأساسي</strong></td>
+                            <td class="text-end">{{ payroll.basic_salary }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>البدلات</strong></td>
+                            <td class="text-end">{{ payroll.allowances }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>المكافآت</strong></td>
+                            <td class="text-end">{{ payroll.bonus }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>العمل الإضافي ({{ payroll.overtime_hours }} ساعة)</strong></td>
+                            <td class="text-end">{{ payroll.overtime_amount }} جنيه</td>
+                        </tr>
+                        <tr class="table-success">
+                            <td><strong>إجمالي الإضافات</strong></td>
+                            <td class="text-end"><strong>{{ payroll.total_additions }} جنيه</strong></td>
+                        </tr>
+                    </table>
+          </div>
+
+          <div class="section-container mb-3">
+              <h5 class="section-title"><i class="fas fa-minus-circle me-2"></i>الخصومات</h5>
+                    <table class="table">
+                        <tr>
+                            <td><strong>خصم الغياب ({{ payroll.absence_days }} يوم)</strong></td>
+                            <td class="text-end">{{ payroll.absence_deduction }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>خصم التأخير</strong></td>
+                            <td class="text-end">{{ payroll.late_deduction }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>التأمينات الاجتماعية</strong></td>
+                            <td class="text-end">{{ payroll.social_insurance }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>الضرائب</strong></td>
+                            <td class="text-end">{{ payroll.tax }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>خصم السلف</strong></td>
+                            <td class="text-end">{{ payroll.advance_deduction }} جنيه</td>
+                        </tr>
+                        <tr>
+                            <td><strong>خصومات أخرى</strong></td>
+                            <td class="text-end">{{ payroll.other_deductions }} جنيه</td>
+                        </tr>
+                        <tr class="table-danger">
+                            <td><strong>إجمالي الخصومات</strong></td>
+                            <td class="text-end"><strong>{{ payroll.total_deductions }} جنيه</strong></td>
+                        </tr>
+                    </table>
+          </div>
+
+          <div class="section-container">
+                <div class="card-body bg-primary text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="mb-0">صافي الراتب</h4>
+                        <h2 class="mb-0">{{ payroll.net_salary }} جنيه</h2>
+                    </div>
+          </div>
+      </div>
+
+      <div class="col-md-4">
+          <div class="section-container">
+              <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات إضافية</h5>
+                    <p><strong>الشهر:</strong><br>{{ payroll.month|date:"Y-m" }}</p>
+                    <p><strong>الحالة:</strong><br>
+                        {% if payroll.status == 'draft' %}
+                            <span class="badge bg-secondary">مسودة</span>
+                        {% elif payroll.status == 'calculated' %}
+                            <span class="badge bg-info">محسوب</span>
+                        {% elif payroll.status == 'approved' %}
+                            <span class="badge bg-success">معتمد</span>
+                        {% elif payroll.status == 'paid' %}
+                            <span class="badge bg-primary">مدفوع</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>طريقة الدفع:</strong><br>{{ payroll.get_payment_method_display }}</p>
+                    {% if payroll.payment_date %}
+                    <p><strong>تاريخ الدفع:</strong><br>{{ payroll.payment_date }}</p>
+                    {% endif %}
+                    {% if payroll.processed_by %}
+                    <p><strong>معالج بواسطة:</strong><br>{{ payroll.processed_by.get_full_name }}</p>
+                    {% endif %}
+          </div>
+
+          {% if payroll.notes %}
+          <div class="section-container mt-3">
+              <h5 class="section-title"><i class="fas fa-sticky-note me-2"></i>ملاحظات</h5>
+                    <p>{{ payroll.notes }}</p>
+          </div>
+          {% endif %}
+      </div>
+  </div>
+</div>
+{% endblock %}

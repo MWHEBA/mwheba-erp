@@ -34,13 +34,7 @@ class CustomerSupplierBalancesService:
             - due_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
-        # محاولة استخدام القيود المحاسبية مباشرة
-        try:
-            return self._generate_customer_from_journal_entries()
-        except Exception:
-            pass
-        
-        # إذا فشل، استخدم نماذج المبيعات
+        # استخدام نماذج المبيعات مباشرة (الطريقة الصحيحة)
         try:
             from client.models import Customer
             from sale.models import Sale, SalePayment
@@ -138,13 +132,7 @@ class CustomerSupplierBalancesService:
             - due_periods: التوزيع حسب فترات الاستحقاق
             - summary: ملخص الإجماليات
         """
-        # محاولة استخدام القيود المحاسبية مباشرة
-        try:
-            return self._generate_supplier_from_journal_entries()
-        except Exception:
-            pass
-        
-        # إذا فشل، استخدم نماذج المشتريات
+        # استخدام نماذج المشتريات مباشرة (الطريقة الصحيحة)
         try:
             from supplier.models import Supplier
             from purchase.models import Purchase, PurchasePayment
@@ -239,10 +227,10 @@ class CustomerSupplierBalancesService:
         except ImportError:
             return self._empty_balance_data(customer.name, customer.id)
         
-        # جلب الفواتير غير المدفوعة بالكامل
+        # جلب الفواتير المؤكدة فقط حتى تاريخ التقرير
         sales = Sale.objects.filter(
             customer=customer,
-            status__in=['pending', 'partial'],  # الفواتير المعلقة أو المدفوعة جزئياً
+            status='confirmed',  # فقط الفواتير المؤكدة
             date__lte=self.as_of_date
         )
         
@@ -253,13 +241,14 @@ class CustomerSupplierBalancesService:
         over_90 = Decimal('0')
         
         for sale in sales:
-            # حساب الرصيد المتبقي
-            remaining_balance = sale.total - sale.paid_amount
+            # حساب الرصيد المتبقي (الإجمالي - المدفوع)
+            remaining_balance = sale.amount_due
             
+            # تخطي الفواتير المدفوعة بالكامل
             if remaining_balance <= 0:
                 continue
             
-            # حساب عدد الأيام
+            # حساب عدد الأيام منذ تاريخ الفاتورة
             days_old = (self.as_of_date - sale.date).days
             
             # تصنيف حسب العمر
@@ -295,10 +284,10 @@ class CustomerSupplierBalancesService:
         except ImportError:
             return self._empty_balance_data(supplier.name, supplier.id)
         
-        # جلب الفواتير غير المدفوعة بالكامل
+        # جلب الفواتير المؤكدة فقط حتى تاريخ التقرير
         purchases = Purchase.objects.filter(
             supplier=supplier,
-            status__in=['pending', 'partial'],  # الفواتير المعلقة أو المدفوعة جزئياً
+            status='confirmed',  # فقط الفواتير المؤكدة
             date__lte=self.as_of_date
         )
         
@@ -309,13 +298,14 @@ class CustomerSupplierBalancesService:
         over_90 = Decimal('0')
         
         for purchase in purchases:
-            # حساب الرصيد المتبقي
-            remaining_balance = purchase.total - purchase.paid_amount
+            # حساب الرصيد المتبقي (الإجمالي - المدفوع)
+            remaining_balance = purchase.amount_due
             
+            # تخطي الفواتير المدفوعة بالكامل
             if remaining_balance <= 0:
                 continue
             
-            # حساب عدد الأيام
+            # حساب عدد الأيام منذ تاريخ الفاتورة
             days_old = (self.as_of_date - purchase.date).days
             
             # تصنيف حسب العمر
@@ -541,13 +531,15 @@ class CustomerSupplierBalancesService:
     def _calculate_account_balance_from_entries(self, account, balance_type='debit') -> Dict[str, Any]:
         """
         حساب رصيد حساب معين حسب فترات الاستحقاق من القيود المحاسبية
+        يحسب صافي الرصيد (المدين - الدائن) لكل فترة
         """
         from financial.models.journal_entry import JournalEntryLine
         
-        # جلب جميع القيود المرحلة للحساب
+        # جلب جميع القيود المرحلة للحساب حتى تاريخ التقرير
         lines = JournalEntryLine.objects.filter(
             account=account,
-            journal_entry__status='posted'
+            journal_entry__status='posted',
+            journal_entry__date__lte=self.as_of_date
         ).select_related('journal_entry')
         
         current = Decimal('0')
@@ -560,20 +552,26 @@ class CustomerSupplierBalancesService:
             # حساب عمر القيد
             age_days = (self.as_of_date - line.journal_entry.date).days
             
-            # المبلغ حسب نوع الرصيد
-            amount = line.debit if balance_type == 'debit' else line.credit
+            # حساب صافي المبلغ (المدين - الدائن)
+            # للعملاء: المدين موجب (لهم علينا)، الدائن سالب (دفعوا)
+            # للموردين: الدائن موجب (علينا لهم)، المدين سالب (دفعنا)
+            if balance_type == 'debit':
+                net_amount = line.debit - line.credit
+            else:
+                net_amount = line.credit - line.debit
             
-            if amount > 0:
+            # تصنيف حسب العمر (فقط الأرصدة الموجبة)
+            if net_amount > 0:
                 if age_days <= 30:
-                    current += amount
+                    current += net_amount
                 elif age_days <= 60:
-                    days_1_30 += amount
+                    days_1_30 += net_amount
                 elif age_days <= 90:
-                    days_31_60 += amount
+                    days_31_60 += net_amount
                 elif age_days <= 120:
-                    days_61_90 += amount
+                    days_61_90 += net_amount
                 else:
-                    over_90 += amount
+                    over_90 += net_amount
         
         total_balance = current + days_1_30 + days_31_60 + days_61_90 + over_90
         

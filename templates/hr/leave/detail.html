@@ -1,0 +1,179 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تفاصيل الإجازة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .section-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 1.5rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:leave_list' %}"><i class="fas fa-calendar-alt me-1"></i>الإجازات</a></li>
+                  <li class="breadcrumb-item active">تفاصيل الإجازة</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-calendar-alt fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">تفاصيل الإجازة</h1>
+                  <p class="text-muted mb-0">{{ leave.employee.get_full_name_ar }} - {{ leave.leave_type.name_ar }}</p>
+              </div>
+          </div>
+          <div>
+              {% if leave.status == 'pending' %}
+              <a href="{% url 'hr:leave_approve' leave.pk %}" class="btn btn-success me-2"><i class="fas fa-check me-2"></i>اعتماد</a>
+              <button class="btn btn-danger me-2" data-bs-toggle="modal" data-bs-target="#rejectModal"><i class="fas fa-times me-2"></i>رفض</button>
+              {% endif %}
+              <a href="{% url 'hr:leave_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a>
+          </div>
+      </div>
+  </div>
+
+  <div class="row">
+    <div class="col-md-8">
+        <div class="section-container">
+                <div class="card-header">
+                    <h5 class="mb-0">معلومات الإجازة</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>الموظف:</strong> {{ leave.employee.get_full_name_ar }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>نوع الإجازة:</strong> {{ leave.leave_type.name_ar }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>من:</strong> {{ leave.start_date }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>إلى:</strong> {{ leave.end_date }}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>عدد الأيام:</strong> {{ leave.days_count }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>الحالة:</strong>
+                            {% if leave.status == 'pending' %}
+                                <span class="badge bg-warning">قيد الانتظار</span>
+                            {% elif leave.status == 'approved' %}
+                                <span class="badge bg-success">معتمدة</span>
+                            {% elif leave.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوضة</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>السبب:</strong>
+                            <p class="mt-2">{{ leave.reason }}</p>
+                        </div>
+                    </div>
+                    {% if leave.attachment %}
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <strong>المرفق:</strong>
+                            <a href="{{ leave.attachment.url }}" target="_blank" class="btn btn-sm btn-info mt-2">
+                                <i class="fas fa-download me-2"></i>
+                                تحميل المرفق
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+        </div>
+
+        {% if leave.status != 'pending' %}
+        <div class="section-container">
+                <div class="card-header">
+                    <h5 class="mb-0">معلومات الاعتماد</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <strong>المعتمد بواسطة:</strong> {{ leave.approved_by.get_full_name }}
+                        </div>
+                        <div class="col-md-6">
+                            <strong>تاريخ الاعتماد:</strong> {{ leave.approved_at }}
+                        </div>
+                    </div>
+                    {% if leave.review_notes %}
+                    <div class="row">
+                        <div class="col-md-12">
+                            <strong>ملاحظات:</strong>
+                            <p class="mt-2">{{ leave.review_notes }}</p>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-4">
+        <div class="section-container">
+                <div class="card-header">
+                    <h6 class="mb-0">معلومات إضافية</h6>
+                </div>
+                <div class="card-body">
+                    <p><strong>تاريخ الطلب:</strong><br>{{ leave.requested_at }}</p>
+                    <p><strong>القسم:</strong><br>{{ leave.employee.department.name_ar }}</p>
+                    <p><strong>الوظيفة:</strong><br>{{ leave.employee.job_title.title_ar }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal رفض الإجازة -->
+<div class="modal fade" id="rejectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">رفض الإجازة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'hr:leave_reject' leave.pk %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>تحذير:</strong> هل أنت متأكد من رفض هذه الإجازة؟
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">سبب الرفض *</label>
+                        <textarea name="review_notes" class="form-control" rows="4" placeholder="يرجى توضيح سبب رفض الإجازة..." required></textarea>
+                        <small class="text-muted">سيتم إرسال هذا السبب للموظف</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-ban me-2"></i>رفض الإجازة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

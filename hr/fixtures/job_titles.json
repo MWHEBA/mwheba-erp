@@ -1,0 +1,82 @@
+[
+{
+    "model": "hr.jobtitle",
+    "pk": 1,
+    "fields": {
+        "code": "JOB-0001",
+        "title_ar": "مدير تنفيذي",
+        "title_en": "Executive Manager",
+        "description": "",
+        "department": 5,
+        "responsibilities": "",
+        "requirements": "",
+        "is_active": true,
+        "created_at": "2025-11-03T15:00:00.000Z",
+        "updated_at": "2025-11-03T15:00:00.000Z"
+    }
+},
+{
+    "model": "hr.jobtitle",
+    "pk": 2,
+    "fields": {
+        "code": "JOB-0002",
+        "title_ar": "منسق عام",
+        "title_en": "General Coordinator",
+        "description": "",
+        "department": 5,
+        "responsibilities": "",
+        "requirements": "",
+        "is_active": true,
+        "created_at": "2025-11-03T15:16:40.044Z",
+        "updated_at": "2025-11-03T15:16:40.044Z"
+    }
+},
+{
+    "model": "hr.jobtitle",
+    "pk": 3,
+    "fields": {
+        "code": "JOB-0003",
+        "title_ar": "مسؤول طباعة",
+        "title_en": "Printing Officer",
+        "description": "",
+        "department": 6,
+        "responsibilities": "",
+        "requirements": "",
+        "is_active": true,
+        "created_at": "2025-11-03T15:30:42.569Z",
+        "updated_at": "2025-11-03T15:30:42.569Z"
+    }
+},
+{
+    "model": "hr.jobtitle",
+    "pk": 4,
+    "fields": {
+        "code": "JOB-0004",
+        "title_ar": "مصمم جرافيك",
+        "title_en": "Graphic Designer",
+        "description": "",
+        "department": 6,
+        "responsibilities": "",
+        "requirements": "",
+        "is_active": true,
+        "created_at": "2025-11-03T15:30:56.428Z",
+        "updated_at": "2025-11-03T15:30:56.428Z"
+    }
+},
+{
+    "model": "hr.jobtitle",
+    "pk": 5,
+    "fields": {
+        "code": "JOB-0005",
+        "title_ar": "مصمم مواقع",
+        "title_en": "Web Designer",
+        "description": "",
+        "department": 8,
+        "responsibilities": "",
+        "requirements": "",
+        "is_active": true,
+        "created_at": "2025-11-03T15:31:07.198Z",
+        "updated_at": "2025-11-03T15:31:07.198Z"
+    }
+}
+]

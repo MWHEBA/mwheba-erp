@@ -35,6 +35,12 @@
 ### 📓 التقارير
 - [system-review.md](system-review.md) - المراجعة الشاملة
 
+### 👥 الموارد البشرية ✅ 100%
+- [HR-MODULE.md](HR-MODULE.md) - نظرة عامة على الوحدة
+- [HR-API-GUIDE.md](HR-API-GUIDE.md) - دليل APIs
+- [HR-USER-GUIDE.md](HR-USER-GUIDE.md) - دليل المستخدم
+- [HR-100-COMPLETION.md](HR-100-COMPLETION.md) - تقرير الإكمال النهائي
+
 ---
 
 **للمساعدة:** info@mwheba.com

@@ -142,11 +142,11 @@
     
     .welcome-img {
         position: absolute;
-        left: 25px;
-        bottom: 0;
-        height: 85%;
+        left: 0;
+        bottom: -50%;
+        height: 200%;
         z-index: 1;
-        opacity: 0.1;
+        opacity: 0.03;
     }
     
     /* Charts */
@@ -255,7 +255,7 @@
 <div class="container-fluid">
     <!-- بانر الترحيب -->
     <div class="welcome-banner">
-        <img src="{% static 'img/logo.png' %}" alt="نظام موهبة" class="welcome-img">
+        <img src="{% static light_logo %}" alt="{{ site_name }}" class="welcome-img">
         <div class="welcome-content">
             <h1 class="welcome-title">مرحباً بك، {{ request.user.first_name|default:request.user.username }}</h1>
             <p class="welcome-subtitle">أهلاً بك في لوحة التحكم الخاصة بنظام موهبة للمبيعات والمخازن</p>
@@ -282,7 +282,7 @@
                             <div class="stats-card-icon">
                                 <i class="fas fa-shopping-cart"></i>
                             </div>
-                            <div class="stats-card-title">المبيعات اليوم</div>
+                            <div class="stats-card-title">المبيعات هذا الشهر</div>
                             <div class="stats-card-value">{{ sales_today.total|default:0|currency }}</div>
                             <div class="stats-card-unit">إجمالي الفواتير: {{ sales_today.count|default:0 }}</div>
                         </div>
@@ -297,14 +297,15 @@
                             <div class="stats-card-icon">
                                 <i class="fas fa-truck"></i>
                             </div>
-                            <div class="stats-card-title">المشتريات اليوم</div>
+                            <div class="stats-card-title">المشتريات هذا الشهر</div>
                             <div class="stats-card-value">{{ purchases_today.total|default:0|currency }}</div>
-                            <div class="stats-card-unit">إجمالي الطلبات: {{ purchases_today.count|default:0 }}</div>
+                            <div class="stats-card-unit">إجمالي الفواتير: {{ purchases_today.count|default:0 }}</div>
                         </div>
                     </div>
                 </div>
                 
                 <!-- إحصائيات العملاء -->
+{{ ... }}
                 <div class="col-md-6 col-lg-3 mb-4">
                     <div class="stats-card stats-card-success">
                         <div class="stats-card-header"></div>
@@ -346,7 +347,7 @@
                         <i class="fas fa-receipt me-2 text-primary"></i>
                         أحدث المبيعات
                     </h5>
-                    <a href="#" class="btn btn-sm btn-primary">كل المبيعات</a>
+                    <a href="{% url 'sale:sale_list' %}" class="btn btn-sm btn-primary">كل المبيعات</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table recent-table mb-0">
@@ -362,7 +363,7 @@
                             {% if recent_sales %}
                                 {% for sale in recent_sales %}
                                 <tr>
-                                    <td><a href="#" class="fw-medium">{{ sale.invoice_number }}</a></td>
+                                    <td><a href="{% url 'sale:sale_detail' sale.id %}" class="fw-medium">{{ sale.number }}</a></td>
                                     <td>{{ sale.customer.name }}</td>
                                     <td>{{ sale.date|date:"d-m-Y" }}</td>
                                     <td class="fw-bold">{{ sale.total|currency }}</td>
@@ -392,7 +393,7 @@
                         <i class="fas fa-truck-loading me-2 text-warning"></i>
                         أحدث المشتريات
                     </h5>
-                    <a href="#" class="btn btn-sm btn-warning">كل المشتريات</a>
+                    <a href="{% url 'purchase:purchase_list' %}" class="btn btn-sm btn-warning">كل المشتريات</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table recent-table mb-0">
@@ -408,7 +409,7 @@
                             {% if recent_purchases %}
                                 {% for purchase in recent_purchases %}
                                 <tr>
-                                    <td><a href="#" class="fw-medium">{{ purchase.invoice_number }}</a></td>
+                                    <td><a href="{% url 'purchase:purchase_detail' purchase.id %}" class="fw-medium">{{ purchase.number }}</a></td>
                                     <td>{{ purchase.supplier.name }}</td>
                                     <td>{{ purchase.date|date:"d-m-Y" }}</td>
                                     <td class="fw-bold">{{ purchase.total|currency }}</td>
@@ -440,7 +441,7 @@
                         <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
                         منتجات منخفضة المخزون
                     </h5>
-                    <a href="#" class="btn btn-sm btn-warning">كل المنتجات</a>
+                    <a href="{% url 'product:product_list' %}" class="btn btn-sm btn-warning">كل المنتجات</a>
                 </div>
                 <div>
                     {% if low_stock_products %}
@@ -453,7 +454,7 @@
                                     <div class="inventory-alert-title">{{ product.name }}</div>
                                     <div class="inventory-alert-text">الكمية المتبقية: {{ product.stocks.first.quantity }}</div>
                                 </div>
-                                <a href="#" class="btn btn-sm btn-outline-primary">طلب شراء</a>
+                                <a href="{% url 'purchase:purchase_create' %}?product={{ product.id }}" class="btn btn-sm btn-outline-primary">طلب شراء</a>
                             </div>
                         {% endfor %}
                     {% else %}
@@ -472,9 +473,9 @@
                 <div class="card-header">
                     <h5 class="card-title">
                         <i class="fas fa-chart-pie me-2 text-info"></i>
-                        الملخص المالي
+                        <span id="financialSummaryTitle">ملخص الأداء - الشهر الحالي</span>
                     </h5>
-                    <a href="#" class="btn btn-sm btn-info">التقارير المالية</a>
+                    <a href="{% url 'financial:financial_analytics' %}" class="btn btn-sm btn-info">التقارير المالية</a>
                 </div>
                 <div class="row g-3 mt-1">
                     <div class="col-md-6">
@@ -483,8 +484,8 @@
                                 <div class="text-muted">إجمالي المبيعات</div>
                                 <i class="fas fa-arrow-up text-success"></i>
                             </div>
-                            <div class="h4 mb-0">{{ sales_today.total|default:0|currency }}</div>
-                            <div class="text-muted small">آخر 30 يوم</div>
+                            <div class="h4 mb-0" id="salesTotal">{{ sales_today.total|default:0|currency }}</div>
+                            <div class="text-muted small" id="salesPeriod">الشهر الحالي</div>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -493,8 +494,8 @@
                                 <div class="text-muted">إجمالي المشتريات</div>
                                 <i class="fas fa-arrow-down text-danger"></i>
                             </div>
-                            <div class="h4 mb-0">{{ purchases_today.total|default:0|currency }}</div>
-                            <div class="text-muted small">آخر 30 يوم</div>
+                            <div class="h4 mb-0" id="purchasesTotal">{{ purchases_today.total|default:0|currency }}</div>
+                            <div class="text-muted small" id="purchasesPeriod">الشهر الحالي</div>
                         </div>
                     </div>
                     <div class="col-md-6">
@@ -503,7 +504,7 @@
                                 <div class="text-muted">ديون العملاء</div>
                                 <i class="fas fa-users text-primary"></i>
                             </div>
-                            <div class="h4 mb-0">{{ 0|currency }}</div>
+                            <div class="h4 mb-0">{{ customer_debts|currency }}</div>
                             <div class="text-muted small">حتى الآن</div>
                         </div>
                     </div>
@@ -513,7 +514,7 @@
                                 <div class="text-muted">ديون الموردين</div>
                                 <i class="fas fa-handshake text-warning"></i>
                             </div>
-                            <div class="h4 mb-0">{{ 0|currency }}</div>
+                            <div class="h4 mb-0">{{ supplier_debts|currency }}</div>
                             <div class="text-muted small">حتى الآن</div>
                         </div>
                     </div>
@@ -532,10 +533,10 @@
                         تحليل المبيعات والمشتريات
                     </h5>
                     <div class="btn-group">
-                        <button class="btn btn-sm btn-outline-primary chart-period-btn active" data-period="day">اليوم</button>
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="day">اليوم</button>
                         <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="week">أسبوع</button>
                         <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="month">شهر</button>
-                        <button class="btn btn-sm btn-outline-primary chart-period-btn" data-period="year">سنة</button>
+                        <button class="btn btn-sm btn-outline-primary chart-period-btn active" data-period="year">سنة</button>
                     </div>
                 </div>
                 
@@ -562,62 +563,57 @@
                     </div>
                     <div class="col-md-4">
                         <div class="financial-card mb-3">
-                            <h6 class="mb-3 fw-bold">ملخص الأداء</h6>
+                            <h6 class="mb-3 fw-bold" id="performanceSummaryTitle">ملخص الأداء - الشهر الحالي</h6>
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small text-muted">إجمالي المبيعات</span>
-                                    <span class="fw-bold">{{ sales_month.total|default:0|currency }}</span>
+                                    <span class="fw-bold" id="performanceSalesTotal">{{ sales_month.total|default:0|currency }}</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar bg-primary" role="progressbar" style="width: 75%"></div>
+                                    <div class="progress-bar bg-primary" id="performanceSalesProgress" role="progressbar" style="width: {% widthratio sales_month.total|default:0 sales_month.total|default:1|add:purchases_month.total|default:1 100 %}%"></div>
                                 </div>
+                                <small class="text-muted" id="performanceSalesCount">{{ sales_month.count|default:0 }} فاتورة</small>
                             </div>
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
                                     <span class="small text-muted">إجمالي المشتريات</span>
-                                    <span class="fw-bold">{{ purchases_month.total|default:0|currency }}</span>
+                                    <span class="fw-bold" id="performancePurchasesTotal">{{ purchases_month.total|default:0|currency }}</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar bg-warning" role="progressbar" style="width: 45%"></div>
+                                    <div class="progress-bar bg-warning" id="performancePurchasesProgress" role="progressbar" style="width: {% widthratio purchases_month.total|default:0 sales_month.total|default:1|add:purchases_month.total|default:1 100 %}%"></div>
                                 </div>
+                                <small class="text-muted" id="performancePurchasesCount">{{ purchases_month.count|default:0 }} فاتورة</small>
                             </div>
                             <div class="mb-3">
                                 <div class="d-flex justify-content-between mb-1">
-                                    <span class="small text-muted">صافي الربح</span>
-                                    <span class="fw-bold text-success">{{ profit_month|default:0|currency }}</span>
+                                    <span class="small text-muted">صافي الربح (تقريبي)</span>
+                                    <span class="fw-bold" id="performanceProfit">{{ profit_month|default:0|currency }}</span>
                                 </div>
                                 <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar bg-success" role="progressbar" style="width: 65%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="d-flex justify-content-between mb-1">
-                                    <span class="small text-muted">نسبة النمو</span>
-                                    <span class="fw-bold text-primary">35%</span>
-                                </div>
-                                <div class="progress" style="height: 6px;">
-                                    <div class="progress-bar bg-info" role="progressbar" style="width: 35%"></div>
+                                    <div class="progress-bar" id="performanceProfitProgress" role="progressbar" style="width: 100%"></div>
                                 </div>
                             </div>
                         </div>
                         
                         <div class="financial-card">
-                            <h6 class="mb-3 fw-bold">توقعات الشهر القادم</h6>
+                            <h6 class="mb-3 fw-bold">الديون والأرصدة</h6>
                             <div class="mb-3">
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-arrow-up text-success me-2"></i>
-                                    <span class="small fw-bold">المبيعات المتوقعة</span>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-users text-primary me-2"></i>
+                                        <span class="small fw-bold">ديون العملاء</span>
+                                    </div>
+                                    <h6 class="mb-0 text-primary">{{ customer_debts|currency }}</h6>
                                 </div>
-                                <h5 class="mb-0">{{ sales_forecast|default:15000|currency }}</h5>
-                                <small class="text-muted">زيادة بنسبة 15% عن الشهر الحالي</small>
                             </div>
                             <div>
-                                <div class="d-flex align-items-center mb-2">
-                                    <i class="fas fa-arrow-down text-warning me-2"></i>
-                                    <span class="small fw-bold">المشتريات المتوقعة</span>
+                                <div class="d-flex align-items-center justify-content-between mb-2">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-handshake text-warning me-2"></i>
+                                        <span class="small fw-bold">ديون الموردين</span>
+                                    </div>
+                                    <h6 class="mb-0 text-warning">{{ supplier_debts|currency }}</h6>
                                 </div>
-                                <h5 class="mb-0">{{ purchase_forecast|default:8500|currency }}</h5>
-                                <small class="text-muted">نقص بنسبة 5% عن الشهر الحالي</small>
                             </div>
                         </div>
                     </div>
@@ -632,10 +628,26 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // بيانات المبيعات والمشتريات (يمكن استبدالها ببيانات حقيقية من الخادم)
-        const salesData = [12000, 15000, 18000, 16000, 22000, 25000, 23000, 28000, 30000, 32000, 35000, 40000];
-        const purchasesData = [10000, 12000, 14000, 11000, 16000, 18000, 17000, 20000, 22000, 21000, 24000, 26000];
-        const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+        // بيانات المبيعات والمشتريات من الخادم
+        const salesData = {{ chart_sales_data|safe }};
+        const purchasesData = {{ chart_purchases_data|safe }};
+        const months = {{ chart_months|safe }};
+        
+        // بيانات اليوم والأسبوع والشهر
+        const salesByHour = {{ chart_sales_by_hour|safe }};
+        const purchasesByHour = {{ chart_purchases_by_hour|safe }};
+        const salesByDay = {{ chart_sales_by_day|safe }};
+        const purchasesByDay = {{ chart_purchases_by_day|safe }};
+        const daysAr = {{ chart_days|safe }};
+        const salesByWeek = {{ chart_sales_by_week|safe }};
+        const purchasesByWeek = {{ chart_purchases_by_week|safe }};
+        const weekLabels = {{ chart_week_labels|safe }};
+        
+        // أفضل المنتجات والعملاء
+        const topProductsLabels = {{ top_products_labels|safe }};
+        const topProductsData = {{ top_products_data|safe }};
+        const topCustomersLabels = {{ top_customers_labels|safe }};
+        const topCustomersData = {{ top_customers_data|safe }};
         
         // إعداد الرسم البياني
         const ctx = document.getElementById('mainChart').getContext('2d');
@@ -647,28 +659,30 @@
                     {
                         label: 'المبيعات',
                         data: salesData,
-                        backgroundColor: 'var(--bg-soft-primary)',
-                        borderColor: 'var(--primary-color)',
-                        borderWidth: 2,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',  // أزرق فاتح
+                        borderColor: '#3b82f6',  // أزرق
+                        borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: 'var(--primary-color)',
+                        pointRadius: 5,
+                        pointBackgroundColor: '#3b82f6',
                         pointBorderColor: '#fff',
-                        pointBorderWidth: 2
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
                     },
                     {
                         label: 'المشتريات',
                         data: purchasesData,
-                        backgroundColor: 'var(--bg-soft-warning)',
-                        borderColor: 'var(--warning-color)',
-                        borderWidth: 2,
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',  // أخضر فاتح
+                        borderColor: '#10b981',  // أخضر
+                        borderWidth: 3,
                         fill: true,
                         tension: 0.4,
-                        pointRadius: 4,
-                        pointBackgroundColor: 'var(--warning-color)',
+                        pointRadius: 5,
+                        pointBackgroundColor: '#10b981',
                         pointBorderColor: '#fff',
-                        pointBorderWidth: 2
+                        pointBorderWidth: 2,
+                        pointHoverRadius: 7
                     }
                 ]
             },
@@ -711,7 +725,8 @@
                 scales: {
                     x: {
                         grid: {
-                            display: false
+                            display: false,
+                            offset: true
                         },
                         ticks: {
                             font: {
@@ -734,9 +749,20 @@
                                 }
                                 return value;
                             }
-                        }
+                        },
+                        beginAtZero: true
                     }
-                }
+                },
+                layout: {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 10
+                    }
+                },
+                barPercentage: 0.7,
+                categoryPercentage: 0.8
             }
         });
         
@@ -747,9 +773,11 @@
                 periodButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 
-                // تحديث البيانات حسب الفترة المختارة (هنا يمكن استدعاء أي دالة لجلب البيانات من الخادم)
+                // تحديث بيانات الرسم البياني
                 const period = this.dataset.period;
+                console.log('🔘 تم الضغط على زر الفترة:', period);
                 updateChartData(period);
+                updateFinancialSummary(period);
             });
         });
         
@@ -773,18 +801,18 @@
             switch(period) {
                 case 'day':
                     labels = ['8 ص', '10 ص', '12 م', '2 م', '4 م', '6 م', '8 م'];
-                    data1 = [2000, 3500, 5000, 4200, 6000, 7500, 9000];
-                    data2 = [1500, 2800, 4000, 3500, 5200, 6000, 7500];
+                    data1 = salesByHour;
+                    data2 = purchasesByHour;
                     break;
                 case 'week':
-                    labels = ['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
-                    data1 = [5000, 7000, 6500, 8000, 9500, 11000, 7500];
-                    data2 = [4000, 5500, 5000, 6000, 7000, 8500, 6000];
+                    labels = daysAr;
+                    data1 = salesByDay;
+                    data2 = purchasesByDay;
                     break;
                 case 'month':
-                    labels = ['أسبوع 1', 'أسبوع 2', 'أسبوع 3', 'أسبوع 4'];
-                    data1 = [22000, 25000, 30000, 35000];
-                    data2 = [18000, 20000, 24000, 28000];
+                    labels = weekLabels;
+                    data1 = salesByWeek;
+                    data2 = purchasesByWeek;
                     break;
                 case 'year':
                 default:
@@ -806,16 +834,16 @@
             
             switch(chartType) {
                 case 'products':
-                    labels = ['منتج 1', 'منتج 2', 'منتج 3', 'منتج 4', 'منتج 5'];
+                    labels = topProductsLabels.length > 0 ? topProductsLabels : ['لا توجد بيانات'];
                     datasets = [{
                         label: 'المبيعات',
-                        data: [35000, 30000, 25000, 20000, 15000],
+                        data: topProductsData.length > 0 ? topProductsData : [0],
                         backgroundColor: [
-                            'rgba(var(--primary-rgb), 0.7)',
-                            'rgba(var(--success-rgb), 0.7)',
-                            'rgba(var(--warning-rgb), 0.7)',
-                            'rgba(var(--info-rgb), 0.7)',
-                            'rgba(var(--secondary-rgb), 0.7)'
+                            '#3b82f6',  // أزرق
+                            '#10b981',  // أخضر
+                            '#f59e0b',  // برتقالي
+                            '#8b5cf6',  // بنفسجي
+                            '#ef4444'   // أحمر
                         ],
                         borderColor: '#fff',
                         borderWidth: 2
@@ -823,12 +851,18 @@
                     mainChart.config.type = 'bar';
                     break;
                 case 'customers':
-                    labels = ['عميل 1', 'عميل 2', 'عميل 3', 'عميل 4', 'عميل 5'];
+                    labels = topCustomersLabels.length > 0 ? topCustomersLabels : ['لا توجد بيانات'];
                     datasets = [{
                         label: 'المشتريات',
-                        data: [42000, 38000, 32000, 28000, 22000],
-                        backgroundColor: 'rgba(var(--success-rgb), 0.7)',
-                        borderColor: 'rgba(var(--success-rgb), 1)',
+                        data: topCustomersData.length > 0 ? topCustomersData : [0],
+                        backgroundColor: [
+                            '#3b82f6',  // أزرق
+                            '#10b981',  // أخضر
+                            '#f59e0b',  // برتقالي
+                            '#8b5cf6',  // بنفسجي
+                            '#ef4444'   // أحمر
+                        ],
+                        borderColor: '#fff',
                         borderWidth: 2
                     }];
                     mainChart.config.type = 'bar';
@@ -840,28 +874,30 @@
                         {
                             label: 'المبيعات',
                             data: salesData,
-                            backgroundColor: 'rgba(var(--primary-rgb), 0.1)',
-                            borderColor: 'rgba(var(--primary-rgb), 0.7)',
-                            borderWidth: 2,
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            borderColor: '#3b82f6',
+                            borderWidth: 3,
                             fill: true,
                             tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: 'rgba(var(--primary-rgb), 0.7)',
+                            pointRadius: 5,
+                            pointBackgroundColor: '#3b82f6',
                             pointBorderColor: '#fff',
-                            pointBorderWidth: 2
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 7
                         },
                         {
                             label: 'المشتريات',
                             data: purchasesData,
-                            backgroundColor: 'rgba(var(--warning-rgb), 0.1)',
-                            borderColor: 'rgba(var(--warning-rgb), 0.7)',
-                            borderWidth: 2,
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            borderColor: '#10b981',
+                            borderWidth: 3,
                             fill: true,
                             tension: 0.4,
-                            pointRadius: 4,
-                            pointBackgroundColor: 'rgba(var(--warning-rgb), 0.7)',
+                            pointRadius: 5,
+                            pointBackgroundColor: '#10b981',
                             pointBorderColor: '#fff',
-                            pointBorderWidth: 2
+                            pointBorderWidth: 2,
+                            pointHoverRadius: 7
                         }
                     ];
                     mainChart.config.type = 'line';
@@ -870,6 +906,32 @@
             
             mainChart.data.labels = labels;
             mainChart.data.datasets = datasets;
+            
+            // تحديث إعدادات التشارت حسب النوع
+            if (chartType === 'products' || chartType === 'customers') {
+                // إعدادات خاصة بالـ Bar Chart
+                mainChart.options.scales.x.offset = true;
+                mainChart.options.layout = {
+                    padding: {
+                        left: 10,
+                        right: 10,
+                        top: 10,
+                        bottom: 10
+                    }
+                };
+            } else {
+                // إعدادات خاصة بالـ Line Chart
+                mainChart.options.scales.x.offset = false;
+                mainChart.options.layout = {
+                    padding: {
+                        left: 0,
+                        right: 0,
+                        top: 0,
+                        bottom: 0
+                    }
+                };
+            }
+            
             mainChart.update();
             
             // تحديث قسم الأسطورة (Legend)
@@ -881,40 +943,60 @@
             const legendContainer = document.querySelector('.chart-legend');
             let legendHTML = '';
             
+            const colors = [
+                '#3b82f6',  // أزرق
+                '#10b981',  // أخضر
+                '#f59e0b',  // برتقالي
+                '#8b5cf6',  // بنفسجي
+                '#ef4444'   // أحمر
+            ];
+            
             switch(chartType) {
                 case 'products':
-                    legendHTML = `
-                        <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--primary-rgb), 0.7);"></div>
-                            <div class="chart-legend-label">منتج 1</div>
-                        </div>
-                        <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--success-rgb), 0.7);"></div>
-                            <div class="chart-legend-label">منتج 2</div>
-                        </div>
-                        <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--warning-rgb), 0.7);"></div>
-                            <div class="chart-legend-label">منتج 3</div>
-                        </div>
-                    `;
+                    if (topProductsLabels.length > 0) {
+                        topProductsLabels.forEach((label, index) => {
+                            legendHTML += `
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-color" style="background-color: ${colors[index % colors.length]};"></div>
+                                    <div class="chart-legend-label">${label}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        legendHTML = `
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-label">لا توجد بيانات</div>
+                            </div>
+                        `;
+                    }
                     break;
                 case 'customers':
-                    legendHTML = `
-                        <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--success-rgb), 0.7);"></div>
-                            <div class="chart-legend-label">مشتريات العملاء</div>
-                        </div>
-                    `;
+                    if (topCustomersLabels.length > 0) {
+                        topCustomersLabels.forEach((label, index) => {
+                            legendHTML += `
+                                <div class="chart-legend-item">
+                                    <div class="chart-legend-color" style="background-color: ${colors[index % colors.length]};"></div>
+                                    <div class="chart-legend-label">${label}</div>
+                                </div>
+                            `;
+                        });
+                    } else {
+                        legendHTML = `
+                            <div class="chart-legend-item">
+                                <div class="chart-legend-label">لا توجد بيانات</div>
+                            </div>
+                        `;
+                    }
                     break;
                 case 'sales-purchases':
                 default:
                     legendHTML = `
                         <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--primary-rgb), 0.7);"></div>
+                            <div class="chart-legend-color" style="background-color: #3b82f6;"></div>
                             <div class="chart-legend-label">المبيعات</div>
                         </div>
                         <div class="chart-legend-item">
-                            <div class="chart-legend-color" style="background-color: rgba(var(--warning-rgb), 0.7);"></div>
+                            <div class="chart-legend-color" style="background-color: #10b981;"></div>
                             <div class="chart-legend-label">المشتريات</div>
                         </div>
                     `;
@@ -923,6 +1005,120 @@
             
             legendContainer.innerHTML = legendHTML;
         }
+        
+        // دالة لتحديث الملخص المالي حسب الفترة
+        function updateFinancialSummary(period) {
+            console.log('🔄 تحديث الملخص المالي للفترة:', period);
+            let title, periodText, salesTotal, purchasesTotal;
+            
+            switch(period) {
+                case 'day':
+                    title = 'ملخص الأداء - اليوم';
+                    periodText = 'اليوم';
+                    // حساب إجمالي اليوم
+                    salesTotal = salesByHour.reduce((a, b) => a + b, 0);
+                    purchasesTotal = purchasesByHour.reduce((a, b) => a + b, 0);
+                    break;
+                case 'week':
+                    title = 'ملخص الأداء - الأسبوع الحالي';
+                    periodText = 'الأسبوع الحالي';
+                    // حساب إجمالي الأسبوع
+                    salesTotal = salesByDay.reduce((a, b) => a + b, 0);
+                    purchasesTotal = purchasesByDay.reduce((a, b) => a + b, 0);
+                    break;
+                case 'month':
+                    title = 'ملخص الأداء - الشهر الحالي';
+                    periodText = 'الشهر الحالي';
+                    // حساب إجمالي الشهر
+                    salesTotal = salesByWeek.reduce((a, b) => a + b, 0);
+                    purchasesTotal = purchasesByWeek.reduce((a, b) => a + b, 0);
+                    break;
+                case 'year':
+                default:
+                    title = 'ملخص الأداء - السنة الحالية';
+                    periodText = 'السنة الحالية';
+                    // حساب إجمالي السنة
+                    salesTotal = salesData.reduce((a, b) => a + b, 0);
+                    purchasesTotal = purchasesData.reduce((a, b) => a + b, 0);
+                    break;
+            }
+            
+            // تحديث العنوان
+            document.getElementById('financialSummaryTitle').textContent = title;
+            
+            // تحديث المبيعات
+            document.getElementById('salesTotal').textContent = formatCurrency(salesTotal);
+            document.getElementById('salesPeriod').textContent = periodText;
+            
+            // تحديث المشتريات
+            document.getElementById('purchasesTotal').textContent = formatCurrency(purchasesTotal);
+            document.getElementById('purchasesPeriod').textContent = periodText;
+            
+            // تحديث كارت ملخص الأداء (الأيمن)
+            document.getElementById('performanceSummaryTitle').textContent = title;
+            document.getElementById('performanceSalesTotal').textContent = formatCurrency(salesTotal);
+            document.getElementById('performancePurchasesTotal').textContent = formatCurrency(purchasesTotal);
+            
+            // حساب صافي الربح
+            const profit = salesTotal - purchasesTotal;
+            const profitElement = document.getElementById('performanceProfit');
+            const profitProgressElement = document.getElementById('performanceProfitProgress');
+            
+            profitElement.textContent = formatCurrency(profit);
+            
+            // تحديث لون الربح
+            if (profit >= 0) {
+                profitElement.className = 'fw-bold text-success';
+                profitProgressElement.className = 'progress-bar bg-success';
+            } else {
+                profitElement.className = 'fw-bold text-danger';
+                profitProgressElement.className = 'progress-bar bg-danger';
+            }
+            
+            // تحديث نسب الـ Progress Bars
+            const total = salesTotal + purchasesTotal;
+            console.log('📊 تحديث Progress Bars:', {
+                period: period,
+                salesTotal: salesTotal,
+                purchasesTotal: purchasesTotal,
+                total: total
+            });
+            
+            if (total > 0) {
+                const salesPercentage = (salesTotal / total) * 100;
+                const purchasesPercentage = (purchasesTotal / total) * 100;
+                console.log('📈 النسب المئوية:', {
+                    salesPercentage: salesPercentage.toFixed(2) + '%',
+                    purchasesPercentage: purchasesPercentage.toFixed(2) + '%'
+                });
+                document.getElementById('performanceSalesProgress').style.width = salesPercentage + '%';
+                document.getElementById('performancePurchasesProgress').style.width = purchasesPercentage + '%';
+                // progress bar الربح دايماً 100% (لأنه بيعرض الربح الصافي)
+                document.getElementById('performanceProfitProgress').style.width = '100%';
+            } else {
+                // تصفير Progress Bars عندما المجموع = 0
+                console.log('🔄 تصفير Progress Bars (لا توجد بيانات)');
+                document.getElementById('performanceSalesProgress').style.width = '0%';
+                document.getElementById('performancePurchasesProgress').style.width = '0%';
+                document.getElementById('performanceProfitProgress').style.width = '0%';
+            }
+            
+            // إخفاء عدد الفواتير (لأننا مش عندنا البيانات دي)
+            document.getElementById('performanceSalesCount').style.display = 'none';
+            document.getElementById('performancePurchasesCount').style.display = 'none';
+        }
+        
+        // دالة لتنسيق العملة
+        function formatCurrency(value) {
+            return new Intl.NumberFormat('ar-EG', {
+                style: 'decimal',
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }).format(value) + ' {{ currency_symbol }}';
+        }
+        
+        // تحديث progress bars عند تحميل الصفحة بالفترة الافتراضية (السنة)
+        updateFinancialSummary('year');
     });
 </script>
 {% endblock %} 

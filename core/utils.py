@@ -84,9 +84,8 @@ def format_number(
     )
 
     # تنسيق الجزء الصحيح بفواصل الآلاف
-    integer_part = thousand_separator.join(
-        [integer_part[max(0, i - 3) : i] for i in range(len(integer_part), 0, -3)][::-1]
-    )
+    # استخدام format مع grouping
+    integer_part = f"{int(integer_part):,}".replace(',', thousand_separator)
 
     # إذا تم تحديد عدد المنازل العشرية، قم بضبط طول الجزء العشري
     if decimal_places is not None:

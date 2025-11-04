@@ -62,7 +62,7 @@
     height: 16px;
     border-radius: 50%;
     background-color: #fff;
-    border: 2px solid #0d6efd;
+    border: 2px solid var(--primary-color);
 }
 
 .movement-timeline .timeline-item:last-child {
@@ -76,7 +76,7 @@
 }
 
 .alert-warning {
-    border-right: 5px solid #ffc107;
+    border-right: 5px solid var(--warning-color);
 }
 
 /* مؤشرات حالة المخزون */
@@ -89,15 +89,15 @@
 }
 
 .stock-indicator.in-stock {
-    background-color: #28a745;
+    background-color: var(--success-color);
 }
 
 .stock-indicator.low-stock {
-    background-color: #ffc107;
+    background-color: var(--warning-color);
 }
 
 .stock-indicator.out-of-stock {
-    background-color: #dc3545;
+    background-color: var(--danger-color);
 }
 
 /* تخصيص بطاقات العرض */
@@ -113,7 +113,7 @@
 
 /* أنماط الفلتر */
 .filter-section {
-    border-right: 3px solid #0d6efd;
+    border-right: 3px solid var(--primary-color);
     padding-right: 15px;
 }
 

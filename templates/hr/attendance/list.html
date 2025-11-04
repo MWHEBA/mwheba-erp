@@ -1,0 +1,300 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}سجل الحضور{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  .section-container {
+    background-color: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+    padding: 1.5rem;
+    margin-bottom: 1.8rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+  }
+  
+  .section-title {
+    color: #344767;
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 1.2rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid #eee;
+  }
+  
+  .stat-card {
+    transition: all 0.3s ease;
+    height: 100%;
+  }
+  
+  .stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'core:dashboard' %}">
+                          <i class="fas fa-home me-1"></i>الرئيسية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item">
+                      <a href="{% url 'hr:dashboard' %}">
+                          <i class="fas fa-users-cog me-1"></i>الموارد البشرية
+                      </a>
+                  </li>
+                  <li class="breadcrumb-item active" aria-current="page">
+                      <i class="fas fa-clock me-1"></i>سجل الحضور
+                  </li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-clock fa-2x text-primary"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">سجل الحضور</h1>
+                  <p class="text-muted mb-0">متابعة حضور وانصراف الموظفين - {{ today|date:"d/m/Y" }}</p>
+              </div>
+          </div>
+          <div>
+              <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#checkInModal">
+                  <i class="fas fa-sign-in-alt me-2"></i>تسجيل حضور
+              </button>
+              <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#checkOutModal">
+                  <i class="fas fa-sign-out-alt me-2"></i>تسجيل انصراف
+              </button>
+          </div>
+      </div>
+  </div>
+
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات اليوم</h5>
+    <div class="row">
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-user-check"></i>
+            </div>
+            <div class="stats-card-title">الحضور اليوم</div>
+            <div class="stats-card-value">{{ present_count|default:"0" }}</div>
+            <div class="stats-card-unit">موظف</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-card-title">متأخرين</div>
+            <div class="stats-card-value">{{ late_count|default:"0" }}</div>
+            <div class="stats-card-unit">موظف</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-user-times"></i>
+            </div>
+            <div class="stats-card-title">غائبين</div>
+            <div class="stats-card-value">{{ absent_count|default:"0" }}</div>
+            <div class="stats-card-unit">موظف</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-3 mb-3">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-alt"></i>
+            </div>
+            <div class="stats-card-title">في إجازة</div>
+            <div class="stats-card-value">{{ on_leave_count|default:"0" }}</div>
+            <div class="stats-card-unit">موظف</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="date" class="form-label">التاريخ</label>
+            <input type="date" name="date" id="date" class="form-control" value="{{ request.GET.date|default:today|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+            <label for="department" class="form-label">القسم</label>
+            <select name="department" id="department" class="form-select">
+                <option value="">جميع الأقسام</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"i" %}selected{% endif %}>
+                    {{ dept.name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">الكل</option>
+                <option value="present" {% if request.GET.status == 'present' %}selected{% endif %}>حاضر</option>
+                <option value="late" {% if request.GET.status == 'late' %}selected{% endif %}>متأخر</option>
+                <option value="absent" {% if request.GET.status == 'absent' %}selected{% endif %}>غائب</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="shift" class="form-label">الوردية</label>
+            <select name="shift" id="shift" class="form-select">
+                <option value="">الكل</option>
+                {% for shift in shifts %}
+                <option value="{{ shift.id }}" {% if request.GET.shift == shift.id|stringformat:"i" %}selected{% endif %}>
+                    {{ shift.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search me-2"></i>بحث
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- جدول الحضور -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>سجل الحضور</h5>
+        <div class="actions-container">
+          <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#checkInModal">
+            <i class="fas fa-sign-in-alt me-1"></i>تسجيل حضور
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if attendances %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="attendance-table">
+                <thead>
+                    <tr>
+                        <th>الموظف</th>
+                        <th>القسم</th>
+                        <th>الوردية</th>
+                        <th>وقت الحضور</th>
+                        <th>وقت الانصراف</th>
+                        <th>ساعات العمل</th>
+                        <th>التأخير</th>
+                        <th class="text-center">الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attendance in attendances %}
+                    <tr>
+                        <td>
+                            <strong>{{ attendance.employee.get_full_name_ar }}</strong>
+                            <br>
+                            <small class="text-muted">{{ attendance.employee.employee_number }}</small>
+                        </td>
+                        <td>{{ attendance.employee.department.name_ar|default:"-" }}</td>
+                        <td>{{ attendance.shift.name|default:"-" }}</td>
+                        <td>
+                            {% if attendance.check_in %}
+                                <span class="badge bg-success">{{ attendance.check_in|date:"H:i" }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance.check_out %}
+                                <span class="badge bg-info">{{ attendance.check_out|date:"H:i" }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance.work_hours %}
+                                {{ attendance.work_hours }} ساعة
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if attendance.late_minutes > 0 %}
+                                <span class="badge bg-warning text-dark">{{ attendance.late_minutes }} دقيقة</span>
+                            {% else %}
+                                <span class="text-success">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if attendance.status == 'present' %}
+                                <span class="badge bg-success">حاضر</span>
+                            {% elif attendance.status == 'late' %}
+                                <span class="badge bg-warning text-dark">متأخر</span>
+                            {% elif attendance.status == 'absent' %}
+                                <span class="badge bg-danger">غائب</span>
+                            {% elif attendance.status == 'on_leave' %}
+                                <span class="badge bg-info">في إجازة</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد سجلات حضور لهذا اليوم" icon="clock" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#attendance-table').length) {
+        initGlobalTable('attendance-table', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+            columnDefs: [
+                { targets: 7, orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

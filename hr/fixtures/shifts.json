@@ -1,0 +1,30 @@
+[
+{
+    "model": "hr.shift",
+    "pk": 1,
+    "fields": {
+        "name": "الوردية الصباحية",
+        "shift_type": "morning",
+        "start_time": "10:00:00",
+        "end_time": "18:00:00",
+        "grace_period_in": 15,
+        "grace_period_out": 15,
+        "work_hours": "8.00",
+        "is_active": true
+    }
+},
+{
+    "model": "hr.shift",
+    "pk": 2,
+    "fields": {
+        "name": "وردية ديزاينر",
+        "shift_type": "morning",
+        "start_time": "10:00:00",
+        "end_time": "16:00:00",
+        "grace_period_in": 15,
+        "grace_period_out": 15,
+        "work_hours": "6.00",
+        "is_active": true
+    }
+}
+]

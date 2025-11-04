@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تفاصيل مسيرة رواتب {{ month }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:payroll_run_list' %}"><i class="fas fa-calculator me-1"></i>مسيرات الرواتب</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-info-circle me-1"></i>تفاصيل</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-calculator fa-2x text-primary"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">مسيرة رواتب {{ month|date:"F Y" }}</h1>
+                  <p class="text-muted mb-0">تفاصيل وكشوف الرواتب</p>
+              </div>
+          </div>
+          <div><a href="{% url 'hr:payroll_run_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a></div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات</h5>
+      <div class="row">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <h6>عدد الموظفين</h6>
+                <h3>{{ stats.total_employees }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-success">
+                <h6>إجمالي الرواتب</h6>
+                <h3>{{ stats.total_gross|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-danger">
+                <h6>إجمالي الخصومات</h6>
+                <h3>{{ stats.total_deductions|floatformat:2 }}</h3>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card stat-info">
+                <h6>صافي الرواتب</h6>
+                <h3>{{ stats.total_net|floatformat:2 }}</h3>
+            </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>كشوف الرواتب</h5>
+                    <div>
+                        <button class="btn btn-sm btn-success" onclick="exportToExcel()">
+                            <i class="fas fa-file-excel me-1"></i>
+                            تصدير Excel
+                        </button>
+                        <button class="btn btn-sm btn-primary" onclick="printPayslips()">
+                            <i class="fas fa-print me-1"></i>
+                            طباعة الكل
+                        </button>
+                    </div>
+      </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover" id="payrollsTable">
+                            <thead>
+                                <tr>
+                                    <th>الموظف</th>
+                                    <th>القسم</th>
+                                    <th>الراتب الأساسي</th>
+                                    <th>الإضافات</th>
+                                    <th>الخصومات</th>
+                                    <th>الصافي</th>
+                                    <th>الحالة</th>
+                                    <th>الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payroll in payrolls %}
+                                <tr>
+                                    <td>{{ payroll.employee.get_full_name_ar }}</td>
+                                    <td>{{ payroll.employee.department.name_ar }}</td>
+                                    <td>{{ payroll.basic_salary|floatformat:2 }}</td>
+                                    <td>{{ payroll.total_additions|floatformat:2 }}</td>
+                                    <td>{{ payroll.total_deductions|floatformat:2 }}</td>
+                                    <td><strong>{{ payroll.net_salary|floatformat:2 }}</strong></td>
+                                    <td>
+                                        {% if payroll.status == 'paid' %}
+                                            <span class="badge bg-success">مدفوع</span>
+                                        {% elif payroll.status == 'approved' %}
+                                            <span class="badge bg-info">معتمد</span>
+                                        {% elif payroll.status == 'calculated' %}
+                                            <span class="badge bg-warning">محسوب</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">مسودة</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-sm btn-info" title="عرض">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <button class="btn btn-sm btn-primary" onclick="printPayslip({{ payroll.pk }})" title="طباعة">
+                                            <i class="fas fa-print"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    $('#payrollsTable').DataTable({
+        language: {
+            url: '//cdn.datatables.net/plug-ins/1.13.1/i18n/ar.json'
+        },
+        pageLength: 50
+    });
+});
+
+function exportToExcel() {
+    alert('سيتم تصدير البيانات إلى Excel');
+}
+
+function printPayslips() {
+    window.print();
+}
+
+function printPayslip(id) {
+    window.open('/hr/payroll/' + id + '/print/', '_blank');
+}
+</script>
+{% endblock %}

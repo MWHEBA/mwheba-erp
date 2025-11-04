@@ -26,6 +26,7 @@ class SystemSetting(models.Model):
         ("inventory", _("مخزون")),
         ("sales", _("مبيعات")),
         ("purchases", _("مشتريات")),
+        ("hr", _("موارد بشرية")),
         ("system", _("نظام")),
     )
 
@@ -85,6 +86,13 @@ class SystemSetting(models.Model):
         الحصول على اسم الموقع من الإعدادات
         """
         return cls.get_setting('site_name', 'موهبة ERP')
+    
+    @classmethod
+    def get_light_logo(cls):
+        """
+        الحصول على مسار اللوجو الفاتح من الإعدادات
+        """
+        return cls.get_setting('light_logo', 'img/logo-mini.png')
 
 
 class DashboardStat(models.Model):

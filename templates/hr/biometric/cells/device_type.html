@@ -1,0 +1,9 @@
+{% if object.device_type == 'fingerprint' %}
+    <span class="badge bg-primary">بصمة الإصبع</span>
+{% elif object.device_type == 'face' %}
+    <span class="badge bg-info">التعرف على الوجه</span>
+{% elif object.device_type == 'card' %}
+    <span class="badge bg-secondary">كارت</span>
+{% else %}
+    <span class="badge bg-dark">مختلط</span>
+{% endif %}

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 اختبار أساسي للتأكد من إعداد النظام
 """
@@ -24,12 +25,12 @@ def test_django_setup():
     try:
         from django.conf import settings
 
-        print(f"✅ Django version: {django.get_version()}")
-        print(f"✅ Settings module: {settings.SETTINGS_MODULE}")
-        print(f"✅ Database: {settings.DATABASES['default']['ENGINE']}")
+        print(f"[OK] Django version: {django.get_version()}")
+        print(f"[OK] Settings module: {settings.SETTINGS_MODULE}")
+        print(f"[OK] Database: {settings.DATABASES['default']['ENGINE']}")
         return True
     except Exception as e:
-        print(f"❌ خطأ في إعداد Django: {e}")
+        print(f"[ERROR] خطأ في إعداد Django: {e}")
         return False
 
 
@@ -40,14 +41,14 @@ def test_product_models_import():
     try:
         from product.models import Category, Brand, Unit, Warehouse, Product
 
-        print("✅ تم استيراد Category")
-        print("✅ تم استيراد Brand")
-        print("✅ تم استيراد Unit")
-        print("✅ تم استيراد Warehouse")
-        print("✅ تم استيراد Product")
+        print("[OK] تم استيراد Category")
+        print("[OK] تم استيراد Brand")
+        print("[OK] تم استيراد Unit")
+        print("[OK] تم استيراد Warehouse")
+        print("[OK] تم استيراد Product")
         return True
     except Exception as e:
-        print(f"❌ خطأ في استيراد النماذج: {e}")
+        print(f"[ERROR] خطأ في استيراد النماذج: {e}")
         return False
 
 
@@ -64,14 +65,14 @@ def test_enhanced_models_import():
             LocationZone,
         )
 
-        print("✅ تم استيراد ProductStock")
-        print("✅ تم استيراد InventoryMovement")
-        print("✅ تم استيراد StockReservation")
-        print("✅ تم استيراد ProductBatch")
-        print("✅ تم استيراد LocationZone")
+        print("[OK] تم استيراد ProductStock")
+        print("[OK] تم استيراد InventoryMovement")
+        print("[OK] تم استيراد StockReservation")
+        print("[OK] تم استيراد ProductBatch")
+        print("[OK] تم استيراد LocationZone")
         return True
     except Exception as e:
-        print(f"❌ خطأ في استيراد النماذج المحسنة: {e}")
+        print(f"[ERROR] خطأ في استيراد النماذج المحسنة: {e}")
         return False
 
 
@@ -82,11 +83,11 @@ def test_pricing_models_import():
     try:
         from product.models import SupplierProductPrice, PriceHistory
 
-        print("✅ تم استيراد SupplierProductPrice")
-        print("✅ تم استيراد PriceHistory")
+        print("[OK] تم استيراد SupplierProductPrice")
+        print("[OK] تم استيراد PriceHistory")
         return True
     except Exception as e:
-        print(f"❌ خطأ في استيراد نماذج التسعير: {e}")
+        print(f"[ERROR] خطأ في استيراد نماذج التسعير: {e}")
         return False
 
 
@@ -98,10 +99,10 @@ def test_user_model():
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
-        print(f"✅ نموذج المستخدم: {User}")
+        print(f"[OK] نموذج المستخدم: {User}")
         return True
     except Exception as e:
-        print(f"❌ خطأ في نموذج المستخدم: {e}")
+        print(f"[ERROR] خطأ في نموذج المستخدم: {e}")
         return False
 
 
@@ -128,19 +129,19 @@ def run_all_tests():
             else:
                 failed += 1
         except Exception as e:
-            print(f"❌ خطأ في {test.__name__}: {e}")
+            print(f"[ERROR] خطأ في {test.__name__}: {e}")
             failed += 1
 
     print("\n" + "=" * 50)
-    print(f"📊 النتائج النهائية:")
-    print(f"✅ نجح: {passed}")
-    print(f"❌ فشل: {failed}")
+    print(f"[STATS] النتائج النهائية:")
+    print(f"[OK] نجح: {passed}")
+    print(f"[ERROR] فشل: {failed}")
 
     if failed == 0:
-        print("🎉 جميع الاختبارات نجحت!")
+        print("[DONE] جميع الاختبارات نجحت!")
         return True
     else:
-        print("⚠️ بعض الاختبارات فشلت")
+        print("[WARNING] بعض الاختبارات فشلت")
         return False
 
 

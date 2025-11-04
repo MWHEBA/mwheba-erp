@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
@@ -224,7 +225,37 @@ def product_list(request):
         # تطبيق التصفية
         filter_form = ProductSearchForm(request.GET)
         
-        # معالجة تصدير PDF
+        # تطبيق الفلاتر على المنتجات
+        if filter_form.is_valid():
+            # فلتر اسم المنتج
+            if filter_form.cleaned_data.get('name'):
+                products = products.filter(name__icontains=filter_form.cleaned_data['name'])
+            
+            # فلتر التصنيف
+            if filter_form.cleaned_data.get('category'):
+                products = products.filter(category=filter_form.cleaned_data['category'])
+            
+            # فلتر النوع/البراند
+            if filter_form.cleaned_data.get('brand'):
+                products = products.filter(brand=filter_form.cleaned_data['brand'])
+            
+            # فلتر السعر الأدنى
+            if filter_form.cleaned_data.get('min_price'):
+                products = products.filter(selling_price__gte=filter_form.cleaned_data['min_price'])
+            
+            # فلتر السعر الأقصى
+            if filter_form.cleaned_data.get('max_price'):
+                products = products.filter(selling_price__lte=filter_form.cleaned_data['max_price'])
+            
+            # فلتر نشط
+            if filter_form.cleaned_data.get('is_active'):
+                products = products.filter(is_active=True)
+            
+            # فلتر متوفر في المخزون
+            if filter_form.cleaned_data.get('in_stock'):
+                products = products.filter(stocks__quantity__gt=0).distinct()
+        
+        # معالجة تصدير PDF (بعد تطبيق الفلاتر)
         if request.GET.get('export') == 'pdf':
             # استخدام WeasyPrint للحل الجذري للعربي
             return export_products_pdf_weasy(request, products)
@@ -1816,39 +1847,50 @@ def stock_detail(request, pk):
     """
     عرض تفاصيل المخزون
     """
-    stock = get_object_or_404(Stock, pk=pk)
+    try:
+        stock = get_object_or_404(Stock, pk=pk)
 
-    # حركات المخزون مرتبة من الأقدم للأحدث لحساب الرصيد
-    movements = StockMovement.objects.filter(
-        product=stock.product, warehouse=stock.warehouse
-    ).order_by("timestamp")
-    
-    # حساب الرصيد قبل وبعد كل حركة
-    current_balance = Decimal('0')
-    for movement in movements:
-        movement.quantity_before = current_balance
+        # حركات المخزون مرتبة من الأقدم للأحدث لحساب الرصيد
+        # تحديد عدد الحركات لتجنب مشاكل الأداء
+        movements = StockMovement.objects.filter(
+            product=stock.product, warehouse=stock.warehouse
+        ).select_related('created_by').order_by("timestamp")[:500]  # آخر 500 حركة
         
-        # تحديث الرصيد حسب نوع الحركة
-        if movement.movement_type in ['in', 'transfer_in']:
-            current_balance += movement.quantity
-        elif movement.movement_type in ['out', 'transfer_out']:
-            current_balance -= movement.quantity
-        elif movement.movement_type == 'adjustment':
-            # التعديل يضبط الرصيد مباشرة
-            current_balance = movement.quantity
+        # حساب الرصيد قبل وبعد كل حركة
+        current_balance = Decimal('0')
+        movements_list = []
         
-        movement.quantity_after = current_balance
-    
-    # عكس الترتيب لعرض الأحدث أولاً
-    movements = list(reversed(movements))
+        for movement in movements:
+            movement.quantity_before = current_balance
+            
+            # تحديث الرصيد حسب نوع الحركة
+            if movement.movement_type in ['in', 'transfer_in', 'return_in']:
+                current_balance += Decimal(str(movement.quantity))
+            elif movement.movement_type in ['out', 'transfer_out', 'return_out']:
+                current_balance -= Decimal(str(movement.quantity))
+            elif movement.movement_type == 'adjustment':
+                # التعديل يضبط الرصيد مباشرة
+                current_balance = Decimal(str(movement.quantity))
+            
+            movement.quantity_after = current_balance
+            movements_list.append(movement)
+        
+        # عكس الترتيب لعرض الأحدث أولاً
+        movements_list.reverse()
 
-    context = {
-        "stock": stock,
-        "movements": movements,
-        "title": f"تفاصيل المخزون: {stock.product.name}",
-    }
+        context = {
+            "stock": stock,
+            "movements": movements_list,
+            "title": f"تفاصيل المخزون: {stock.product.name}",
+        }
 
-    return render(request, "product/stock_detail.html", context)
+        return render(request, "product/stock_detail.html", context)
+        
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in stock_detail view for stock {pk}: {str(e)}")
+        messages.error(request, f"حدث خطأ في عرض تفاصيل المخزون")
+        return redirect('product:stock_list')
 
 
 @login_required
@@ -1856,40 +1898,65 @@ def stock_adjust(request, pk):
     """
     تسوية المخزون
     """
-    stock = get_object_or_404(Stock, pk=pk)
+    try:
+        stock = get_object_or_404(Stock, pk=pk)
 
-    if request.method == "POST":
-        new_quantity = Decimal(request.POST.get("quantity", 0))
-        notes = request.POST.get("notes", "")
+        if request.method == "POST":
+            try:
+                new_quantity = Decimal(request.POST.get("quantity", 0))
+                notes = request.POST.get("notes", "")
+                
+                # التحقق من صحة الكمية
+                if new_quantity < 0:
+                    messages.error(request, "الكمية يجب أن تكون صفر أو أكثر")
+                    return redirect("product:stock_adjust", pk=pk)
+                
+                # حفظ الكمية القديمة
+                old_quantity = stock.quantity
+
+                # إنشاء حركة تسوية
+                movement = StockMovement.objects.create(
+                    product=stock.product,
+                    warehouse=stock.warehouse,
+                    movement_type="adjustment",
+                    quantity=new_quantity,
+                    quantity_before=old_quantity,
+                    quantity_after=new_quantity,
+                    notes=notes,
+                    created_by=request.user,
+                )
+
+                # تحديث المخزون
+                stock.quantity = new_quantity
+                stock.save()
+
+                messages.success(request, "تم تسوية المخزون بنجاح")
+                return redirect("product:stock_detail", pk=stock.pk)
+                
+            except ValueError as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Invalid quantity in stock_adjust for stock {pk}: {str(e)}")
+                messages.error(request, "الكمية المدخلة غير صحيحة")
+                return redirect("product:stock_adjust", pk=pk)
+                
+            except Exception as e:
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error creating stock adjustment for stock {pk}: {str(e)}")
+                messages.error(request, "حدث خطأ أثناء تسوية المخزون. يرجى المحاولة مرة أخرى")
+                return redirect("product:stock_adjust", pk=pk)
+
+        context = {
+            "stock": stock,
+            "title": f"تسوية المخزون: {stock.product.name}",
+        }
+
+        return render(request, "product/stock_adjust.html", context)
         
-        # حفظ الكمية القديمة
-        old_quantity = stock.quantity
-
-        # إنشاء حركة تسوية
-        StockMovement.objects.create(
-            product=stock.product,
-            warehouse=stock.warehouse,
-            movement_type="adjustment",
-            quantity=new_quantity,
-            quantity_before=old_quantity,
-            quantity_after=new_quantity,
-            notes=notes,
-            created_by=request.user,
-        )
-
-        # تحديث المخزون
-        stock.quantity = new_quantity
-        stock.save()
-
-        messages.success(request, f"تم تسوية المخزون بنجاح")
-        return redirect("product:stock_detail", pk=stock.pk)
-
-    context = {
-        "stock": stock,
-        "title": f"تسوية المخزون: {stock.product.name}",
-    }
-
-    return render(request, "product/stock_adjust.html", context)
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Error in stock_adjust view for stock {pk}: {str(e)}")
+        messages.error(request, "حدث خطأ في الوصول لصفحة التسوية")
+        return redirect("product:stock_list")
 
 
 @login_required
@@ -2744,7 +2811,14 @@ def export_products_pdf_weasy(request, products):
             <style>
                 @page {{
                     size: A4;
-                    margin: 0.5cm;
+                    margin: 0.5cm 0.5cm 1.5cm 0.5cm;
+                    @bottom-center {{
+                        content: "تم الإنشاء بواسطة نظام MWHEBA ERP - جميع الحقوق محفوظة © {now_local.year}";
+                        font-size: 8px;
+                        color: #6c757d;
+                        border-top: 1px solid #dee2e6;
+                        padding-top: 1px;
+                    }}
                 }}
                 
                 @font-face {{
@@ -2767,6 +2841,8 @@ def export_products_pdf_weasy(request, products):
                     margin: 0;
                     padding: 0;
                     color: #333;
+                    position: relative;
+                    min-height: 100vh;
                 }}
                 
                 .header {{
@@ -2847,15 +2923,6 @@ def export_products_pdf_weasy(request, products):
                     color: #dc3545;
                     font-weight: bold;
                 }}
-                
-                .footer {{
-                    margin-top: 20px;
-                    text-align: center;
-                    font-size: 9px;
-                    color: #6c757d;
-                    border-top: 1px solid #dee2e6;
-                    padding-top: 10px;
-                }}
             </style>
         </head>
         <body>
@@ -2867,7 +2934,53 @@ def export_products_pdf_weasy(request, products):
                 <div><strong>تاريخ الطباعة:</strong> {now_local.strftime("%d/%m/%Y - %H:%M")}</div>
                 <div><strong>إجمالي المنتجات:</strong> {products.count()} منتج</div>
             </div>
-            
+        """
+        
+        # إضافة قسم الفلاتر المطبقة (إن وجدت)
+        filters_applied = []
+        
+        # التحقق من الفلاتر في request.GET
+        if request.GET.get('name'):
+            filters_applied.append(f"الاسم: {request.GET.get('name')}")
+        
+        if request.GET.get('category'):
+            try:
+                from product.models import Category
+                category = Category.objects.get(id=request.GET.get('category'))
+                filters_applied.append(f"التصنيف: {category.name}")
+            except:
+                pass
+        
+        if request.GET.get('brand'):
+            try:
+                from product.models import Brand
+                brand = Brand.objects.get(id=request.GET.get('brand'))
+                filters_applied.append(f"النوع: {brand.name}")
+            except:
+                pass
+        
+        if request.GET.get('min_price'):
+            filters_applied.append(f"السعر الأدنى: {request.GET.get('min_price')} ج.م")
+        
+        if request.GET.get('max_price'):
+            filters_applied.append(f"السعر الأقصى: {request.GET.get('max_price')} ج.م")
+        
+        if request.GET.get('is_active'):
+            filters_applied.append("الحالة: نشط فقط")
+        
+        if request.GET.get('in_stock'):
+            filters_applied.append("المخزون: متوفر فقط")
+        
+        # إضافة قسم الفلاتر إذا كان هناك فلاتر مطبقة
+        if filters_applied:
+            filters_text = " • ".join(filters_applied)
+            html_content += f"""
+            <div style="background-color: #f8f9fa; border-right: 3px solid #344767; padding: 8px 12px; margin-bottom: 12px; font-size: 10px;">
+                <strong style="color: #344767;">الفلاتر:</strong> <span style="color: #6c757d;">{filters_text}</span>
+            </div>
+            """
+        
+        html_content += """
             <table>
                 <thead>
                     <tr>
@@ -2909,7 +3022,7 @@ def export_products_pdf_weasy(request, products):
                         <td>{idx}</td>
                         <td>{image_html}</td>
                         <td>{product.sku}</td>
-                        <td style="text-align: right; padding-right: 10px;">{product.name}</td>
+                        <td style="text-align: center;">{product.name}</td>
                         <td>{product.category.name if product.category else '-'}</td>
                         <td>{product.brand.name if product.brand else '-'}</td>
                         <td>{product.selling_price:.2f} ج.م</td>
@@ -2918,13 +3031,9 @@ def export_products_pdf_weasy(request, products):
                     </tr>
             """
         
-        html_content += f"""
+        html_content += """
                 </tbody>
             </table>
-            
-            <div class="footer">
-                تم الإنشاء بواسطة نظام MWHEBA ERP - جميع الحقوق محفوظة © {now_local.year}
-            </div>
         </body>
         </html>
         """
@@ -2932,9 +3041,9 @@ def export_products_pdf_weasy(request, products):
         # تحويل HTML إلى PDF
         pdf = HTML(string=html_content).write_pdf()
         
-        # إرجاع الاستجابة
+        # إرجاع الاستجابة - فتح في المتصفح بدلاً من التحميل
         response = HttpResponse(pdf, content_type='application/pdf')
-        response['Content-Disposition'] = 'attachment; filename="products_list.pdf"'
+        response['Content-Disposition'] = 'inline; filename="products_list.pdf"'
         return response
         
     except Exception as e:

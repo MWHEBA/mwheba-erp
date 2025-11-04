@@ -1,0 +1,156 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}ترحيل أرصدة الإجازات{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:leave_balance_list' %}"><i class="fas fa-chart-pie me-1"></i>أرصدة الإجازات</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-sync me-1"></i>ترحيل</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3"><i class="fas fa-sync fa-2x text-success"></i></div>
+              <div>
+                  <h1 class="h3 mb-1">ترحيل أرصدة الإجازات</h1>
+                  <p class="text-muted mb-0">ترحيل الأرصدة للسنة الجديدة</p>
+              </div>
+          </div>
+          <div><a href="{% url 'hr:leave_balance_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a></div>
+      </div>
+  </div>
+
+  <div class="row">
+      <div class="col-lg-6">
+          <div class="section-container">
+                    {% if not rollover_enabled %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-times-circle me-2"></i>
+                        <strong>ترحيل الإجازات معطل!</strong>
+                        <p class="mb-0 mt-2">يجب تفعيل ترحيل الإجازات من <a href="{% url 'hr:hr_settings' %}" class="alert-link">إعدادات الموارد البشرية</a> أولاً.</p>
+                    </div>
+                    
+                    <div class="text-center py-5">
+                        <i class="fas fa-lock fa-4x text-muted mb-3"></i>
+                        <h5 class="text-muted">الترحيل غير متاح</h5>
+                        <a href="{% url 'hr:hr_settings' %}" class="btn btn-primary mt-3">
+                            <i class="fas fa-cog me-2"></i>الذهاب للإعدادات
+                        </a>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>إعدادات الترحيل الحالية:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>الحد الأقصى للأيام المرحلة: <strong>{{ max_rollover_days }} يوم</strong></li>
+                            <li>سيتم إنشاء أرصدة جديدة لجميع الموظفين النشطين</li>
+                        </ul>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">من السنة</label>
+                            <select class="form-select" name="from_year" required>
+                                {% for year in years %}
+                                <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">إلى السنة</label>
+                            <select class="form-select" name="to_year" required>
+                                {% for year in years %}
+                                <option value="{{ year }}" {% if year == current_year|add:1 %}selected{% endif %}>{{ year }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="rollover_unused" id="rollover_unused" checked>
+                                <label class="form-check-label" for="rollover_unused">
+                                    ترحيل الأيام غير المستخدمة
+                                </label>
+                            </div>
+                            <small class="text-muted">سيتم ترحيل حد أقصى {{ max_rollover_days }} يوم من الأيام المتبقية لكل نوع إجازة</small>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-sync me-2"></i>
+                                ترحيل الأرصدة
+                            </button>
+                            <a href="{% url 'hr:leave_balance_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+                    {% endif %}
+          </div>
+      </div>
+
+      <div class="col-lg-6">
+          <div class="section-container">
+              <h5 class="section-title"><i class="fas fa-question-circle me-2"></i>كيف يعمل الترحيل؟</h5>
+                    
+                    {% if rollover_enabled %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>الترحيل مفعل</strong> - الحد الأقصى: {{ max_rollover_days }} يوم
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>الترحيل معطل حالياً</strong> - يجب التفعيل من الإعدادات
+                    </div>
+                    {% endif %}
+                    
+                    <h6 class="text-primary mt-3">بدون ترحيل الأيام غير المستخدمة:</h6>
+                    <ul>
+                        <li>كل موظف يحصل على الرصيد الأساسي فقط</li>
+                        <li>مثال: {{ annual_days }} يوم إجازة سنوية</li>
+                    </ul>
+
+                    <h6 class="text-success mt-3">مع ترحيل الأيام غير المستخدمة:</h6>
+                    <ul>
+                        <li>الرصيد الأساسي + الأيام المتبقية (بحد أقصى {{ max_rollover_days }} يوم)</li>
+                        <li>مثال: موظف لديه 10 أيام متبقية:</li>
+                        <ul>
+                            <li>إذا كان الحد الأقصى {{ max_rollover_days }} يوم: يُرحل {{ max_rollover_days }} يوم فقط</li>
+                            <li>الرصيد الجديد: {{ annual_days }} + {{ max_rollover_days }} = {{ annual_days|add:max_rollover_days }} يوم</li>
+                        </ul>
+                    </ul>
+
+                    <div class="alert alert-info mt-3">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>ملاحظة:</strong> يتم إنشاء الأرصدة لجميع أنواع الإجازات النشطة، ويطبق الحد الأقصى على كل نوع إجازة بشكل منفصل.
+                    </div>
+                    
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-cog me-2"></i>
+                        <strong>تغيير الإعدادات:</strong> يمكنك تعديل الحد الأقصى للأيام المرحلة من <a href="{% url 'hr:hr_settings' %}" class="alert-link">إعدادات الموارد البشرية</a>
+                    </div>
+          </div>
+      </div>
+  </div>
+</div>
+{% endblock %}

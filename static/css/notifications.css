@@ -53,14 +53,14 @@
 }
 
 /* ألوان الأيقونات */
-.notification-icon.bg-info { background-color: #17a2b8; }
-.notification-icon.bg-success { background-color: #28a745; }
-.notification-icon.bg-warning { background-color: #ffc107; color: #333; }
-.notification-icon.bg-danger { background-color: #dc3545; }
-.notification-icon.bg-payment_received { background-color: #28a745; }
-.notification-icon.bg-new_invoice { background-color: #17a2b8; }
-.notification-icon.bg-inventory_alert { background-color: #ffc107; color: #333; }
-.notification-icon.bg-return_request { background-color: #dc3545; }
+.notification-icon.bg-info { background-color: var(--info-color); }
+.notification-icon.bg-success { background-color: var(--success-color); }
+.notification-icon.bg-warning { background-color: var(--warning-color); color: #333; }
+.notification-icon.bg-danger { background-color: var(--danger-color); }
+.notification-icon.bg-payment_received { background-color: var(--success-color); }
+.notification-icon.bg-new_invoice { background-color: var(--info-color); }
+.notification-icon.bg-inventory_alert { background-color: var(--warning-color); color: #333; }
+.notification-icon.bg-return_request { background-color: var(--danger-color); }
 
 /* عنوان الإشعار */
 .notification-title {

@@ -1,0 +1,18 @@
+{
+    "device_ip": "192.168.1.201",
+    "device_port": 4370,
+    "server_url": "http://127.0.0.1:8000",
+    "agent_code": "ZKTeco",
+    "agent_secret": "zkteco-secret-key-2025",
+    "sync_interval": 5,
+    "auto_discover_ip": true,
+    "comments": {
+        "device_ip": "IP address of ZKTeco device in local network",
+        "device_port": "Port number (default: 4370)",
+        "server_url": "Your production server URL (without trailing slash)",
+        "agent_code": "Unique code for this agent (will be registered in server)",
+        "agent_secret": "Secret key for authentication (keep it safe!)",
+        "sync_interval": "Sync interval in minutes (default: 5)",
+        "auto_discover_ip": "Auto-discover device IP if connection fails"
+    }
+}

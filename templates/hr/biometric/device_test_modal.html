@@ -1,0 +1,114 @@
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-plug me-2"></i>
+        اختبار الاتصال: {{ device.device_name }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<form id="testForm" method="post" action="{% url 'hr:biometric_device_test' device.pk %}">
+    {% csrf_token %}
+    
+    <div class="modal-body">
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            سيتم اختبار الاتصال بالماكينة عبر IP و Port
+        </div>
+
+        <table class="table table-bordered mb-3">
+            <tr>
+                <th width="40%">IP Address</th>
+                <td><code>{{ device.ip_address }}</code></td>
+            </tr>
+            <tr>
+                <th>Port</th>
+                <td><code>{{ device.port }}</code></td>
+            </tr>
+        </table>
+
+        <div id="testResult" class="d-none"></div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>
+            إلغاء
+        </button>
+        <button type="submit" class="btn btn-success" id="testBtn">
+            <i class="fas fa-plug me-2"></i>
+            اختبار الاتصال
+        </button>
+    </div>
+</form>
+
+<script>
+document.getElementById('testForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const form = this;
+    const formData = new FormData(form);
+    const testBtn = document.getElementById('testBtn');
+    const testResult = document.getElementById('testResult');
+    const originalBtnText = testBtn.innerHTML;
+    
+    // تعطيل الزر وإظهار مؤشر التحميل
+    testBtn.disabled = true;
+    testBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاختبار...';
+    testResult.classList.add('d-none');
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        testResult.classList.remove('d-none');
+        
+        if (data.success) {
+            testResult.className = 'alert alert-success';
+            testResult.innerHTML = `
+                <i class="fas fa-check-circle me-2"></i>
+                <strong>${data.message}</strong>
+                ${data.details ? `
+                    <div class="mt-2">
+                        <small>
+                            <strong>IP:</strong> ${data.details.ip}<br>
+                            <strong>Port:</strong> ${data.details.port}<br>
+                            <strong>وقت الاستجابة:</strong> ${data.details.response_time}
+                        </small>
+                    </div>
+                ` : ''}
+            `;
+            
+            // إغلاق المودال بعد 2 ثانية وإعادة تحميل الصفحة
+            setTimeout(() => {
+                bootstrap.Modal.getInstance(document.querySelector('.modal')).hide();
+                location.reload();
+            }, 2000);
+        } else {
+            testResult.className = 'alert alert-danger';
+            testResult.innerHTML = `
+                <i class="fas fa-times-circle me-2"></i>
+                <strong>${data.message}</strong>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        testResult.classList.remove('d-none');
+        testResult.className = 'alert alert-danger';
+        testResult.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            حدث خطأ أثناء الاختبار
+        `;
+    })
+    .finally(() => {
+        testBtn.disabled = false;
+        testBtn.innerHTML = originalBtnText;
+    });
+});
+</script>

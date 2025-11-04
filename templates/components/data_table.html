@@ -35,6 +35,7 @@
 {% endcomment %}
 
 {% if data %}
+{% if show_controls|default:True %}
 {% if show_search|default:True or show_length_menu|default:True %}
 <div class="table-controls mb-3">
     <div class="d-flex justify-content-between align-items-center flex-wrap">
@@ -43,7 +44,7 @@
             <span class="length-label me-2">{% trans "عرض" %}</span>
             <select class="form-select form-select-sm table-length" data-table="{{ table_id|default:'data-table' }}" aria-label="{% trans 'عدد العناصر' %}">
                 {% for option in length_options|default:"10,25,50,100"|split:"," %}
-                <option value="{{ option }}" {% if option == '25' %}selected{% endif %}>{{ option }}</option>
+                <option value="{{ option }}" {% if option == default_length|default:'25' %}selected{% endif %}>{{ option }}</option>
                 {% endfor %}
             </select>
             <span class="length-label ms-2">{% trans "عنصر" %}</span>
@@ -62,6 +63,7 @@
         {% endif %}
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 <div {% if responsive|default:True %}class="table-responsive"{% endif %}>

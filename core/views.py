@@ -1,5 +1,6 @@
 from django.shortcuts import render, redirect
 from django.db.models import Sum, Count, Avg, F, Q
+from django.db.models.functions import TruncMonth
 from django.contrib.auth.decorators import login_required
 from django.utils import timezone
 from datetime import timedelta
@@ -10,6 +11,7 @@ from django.conf import settings
 import subprocess
 import os
 import sys
+import json
 
 from sale.models import Sale
 from purchase.models import Purchase
@@ -27,14 +29,17 @@ def dashboard(request):
     View for the main dashboard
     """
     # تجميع بيانات الإحصائيات
+    now = timezone.now()
+    current_year = now.year
+    current_month = now.month
 
-    # إحصائيات المبيعات اليوم
-    sales_today = Sale.objects.filter(date=timezone.now().date())
+    # إحصائيات المبيعات الشهر الحالي
+    sales_today = Sale.objects.filter(date__month=current_month, date__year=current_year)
     sales_today_count = sales_today.count()
     sales_today_total = sales_today.aggregate(total=Sum("total"))["total"] or 0
 
-    # إحصائيات المشتريات اليوم
-    purchases_today = Purchase.objects.filter(date=timezone.now().date())
+    # إحصائيات المشتريات الشهر الحالي
+    purchases_today = Purchase.objects.filter(date__month=current_month, date__year=current_year)
     purchases_today_count = purchases_today.count()
     purchases_today_total = purchases_today.aggregate(total=Sum("total"))["total"] or 0
 
@@ -43,22 +48,153 @@ def dashboard(request):
     products_count = Product.objects.filter(is_active=True).count()
 
     # أحدث المبيعات والمشتريات
-    recent_sales = Sale.objects.order_by("-date", "-id")[:5]
-    recent_purchases = Purchase.objects.order_by("-date", "-id")[:5]
+    recent_sales = Sale.objects.select_related('customer').order_by("-date", "-id")[:5]
+    recent_purchases = Purchase.objects.select_related('supplier').order_by("-date", "-id")[:5]
 
-    # المنتجات منخفضة المخزون
-    stock_condition = Q(stocks__quantity__lt=F("min_stock")) | Q(stocks__quantity=0)
+    # المنتجات منخفضة المخزون (فقط المنتجات التي الكمية أقل من الحد الأدنى)
+    stock_condition = Q(stocks__quantity__lt=F("min_stock"))
     low_stock_products = (
         Product.objects.filter(is_active=True).filter(stock_condition).distinct()[:5]
     )
 
-    # المبيعات حسب طريقة الدفع
-    sales_by_payment_method = (
-        Sale.objects.values("payment_method")
-        .annotate(count=Count("id"), total=Sum("total"))
-        .order_by("-total")
+    # إحصائيات الشهر الحالي
+    sales_month = Sale.objects.filter(
+        date__month=current_month,
+        date__year=current_year
+    ).aggregate(
+        total=Sum('total'),
+        count=Count('id')
     )
+    
+    purchases_month = Purchase.objects.filter(
+        date__month=current_month,
+        date__year=current_year
+    ).aggregate(
+        total=Sum('total'),
+        count=Count('id')
+    )
+    
+    # صافي الربح (تقريبي)
+    profit_month = (sales_month['total'] or 0) - (purchases_month['total'] or 0)
 
+    # ديون العملاء والموردين
+    # ديون العملاء = الرصيد الموجب فقط (العملاء اللي عليهم فلوس)
+    customer_debts = Customer.objects.filter(balance__gt=0).aggregate(
+        total=Sum('balance')
+    )['total'] or 0
+    
+    # ديون الموردين = الرصيد الموجب فقط (الموردين اللي إحنا مديونين ليهم)
+    supplier_debts = Supplier.objects.filter(balance__gt=0).aggregate(
+        total=Sum('balance')
+    )['total'] or 0
+
+    # بيانات المبيعات والمشتريات الشهرية للرسم البياني
+    sales_by_month = Sale.objects.filter(
+        date__year=current_year
+    ).annotate(
+        month=TruncMonth('date')
+    ).values('month').annotate(
+        total=Sum('total')
+    ).order_by('month')
+    
+    purchases_by_month = Purchase.objects.filter(
+        date__year=current_year
+    ).annotate(
+        month=TruncMonth('date')
+    ).values('month').annotate(
+        total=Sum('total')
+    ).order_by('month')
+    
+    # تحويل البيانات لـ JSON للرسم البياني
+    months_ar = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر']
+    
+    sales_data = [0] * 12
+    for item in sales_by_month:
+        month_index = item['month'].month - 1
+        sales_data[month_index] = float(item['total'] or 0)
+    
+    purchases_data = [0] * 12
+    for item in purchases_by_month:
+        month_index = item['month'].month - 1
+        purchases_data[month_index] = float(item['total'] or 0)
+    
+    # بيانات اليوم (آخر 7 ساعات)
+    from datetime import datetime, timedelta
+    today_start = now.replace(hour=8, minute=0, second=0, microsecond=0)
+    sales_by_hour = []
+    purchases_by_hour = []
+    for i in range(7):
+        hour_start = today_start + timedelta(hours=i*2)
+        hour_end = hour_start + timedelta(hours=2)
+        sales_hour = Sale.objects.filter(date=now.date(), created_at__gte=hour_start, created_at__lt=hour_end).aggregate(total=Sum('total'))['total'] or 0
+        purchases_hour = Purchase.objects.filter(date=now.date(), created_at__gte=hour_start, created_at__lt=hour_end).aggregate(total=Sum('total'))['total'] or 0
+        sales_by_hour.append(float(sales_hour))
+        purchases_by_hour.append(float(purchases_hour))
+    
+    # بيانات الأسبوع (آخر 7 أيام)
+    week_start = now.date() - timedelta(days=6)
+    sales_by_day = []
+    purchases_by_day = []
+    days_ar = []
+    for i in range(7):
+        day = week_start + timedelta(days=i)
+        sales_day = Sale.objects.filter(date=day).aggregate(total=Sum('total'))['total'] or 0
+        purchases_day = Purchase.objects.filter(date=day).aggregate(total=Sum('total'))['total'] or 0
+        sales_by_day.append(float(sales_day))
+        purchases_by_day.append(float(purchases_day))
+        days_ar.append(['السبت', 'الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'][day.weekday()])
+    
+    # بيانات الشهر (كل يوم من أيام الشهر الحالي)
+    from calendar import monthrange
+    days_in_month = monthrange(current_year, current_month)[1]
+    
+    sales_by_week = []
+    purchases_by_week = []
+    week_labels = []
+    
+    # تقسيم الشهر إلى 4 أجزاء متساوية تقريباً
+    days_per_part = days_in_month // 4
+    
+    for i in range(4):
+        start_day = i * days_per_part + 1
+        if i == 3:  # الجزء الأخير يأخذ باقي الأيام
+            end_day = days_in_month
+        else:
+            end_day = (i + 1) * days_per_part
+        
+        week_start_date = now.date().replace(day=start_day)
+        week_end_date = now.date().replace(day=end_day)
+        
+        sales_week = Sale.objects.filter(date__gte=week_start_date, date__lte=week_end_date).aggregate(total=Sum('total'))['total'] or 0
+        purchases_week = Purchase.objects.filter(date__gte=week_start_date, date__lte=week_end_date).aggregate(total=Sum('total'))['total'] or 0
+        
+        sales_by_week.append(float(sales_week))
+        purchases_by_week.append(float(purchases_week))
+        week_labels.append(f"{start_day}-{end_day} {months_ar[current_month-1]}")
+    
+    # أفضل 5 منتجات مبيعاً
+    from sale.models import SaleItem
+    top_products = SaleItem.objects.select_related('product').values('product__name').annotate(
+        total_sales=Sum(F('quantity') * F('unit_price'))
+    ).order_by('-total_sales')[:5]
+    
+    top_products_labels = [item['product__name'] or 'منتج غير معروف' for item in top_products]
+    top_products_data = [float(item['total_sales'] or 0) for item in top_products]
+    
+    # أفضل 5 عملاء
+    top_customers = Sale.objects.select_related('customer').values('customer__name').annotate(
+        total_sales=Sum('total')
+    ).order_by('-total_sales')[:5]
+    
+    top_customers_labels = [item['customer__name'] or 'عميل غير معروف' for item in top_customers]
+    top_customers_data = [float(item['total_sales'] or 0) for item in top_customers]
+
+    # إعدادات النظام
+    from core.models import SystemSetting
+    light_logo = SystemSetting.get_light_logo()
+    site_name = SystemSetting.get_site_name()
+    
     context = {
         "sales_today": {"count": sales_today_count, "total": sales_today_total},
         "purchases_today": {
@@ -70,8 +206,42 @@ def dashboard(request):
         "recent_sales": recent_sales,
         "recent_purchases": recent_purchases,
         "low_stock_products": low_stock_products,
-        "sales_by_payment_method": sales_by_payment_method,
-        # إضافة متغيرات عنوان الصفحة
+        
+        # إعدادات النظام
+        "light_logo": light_logo,
+        "site_name": site_name,
+        
+        # إحصائيات الشهر
+        "sales_month": sales_month,
+        "purchases_month": purchases_month,
+        "profit_month": profit_month,
+        
+        # الديون
+        "customer_debts": customer_debts,
+        "supplier_debts": supplier_debts,
+        
+        # بيانات الرسم البياني
+        "chart_months": json.dumps(months_ar),
+        "chart_sales_data": json.dumps(sales_data),
+        "chart_purchases_data": json.dumps(purchases_data),
+        
+        # بيانات اليوم والأسبوع والشهر
+        "chart_sales_by_hour": json.dumps(sales_by_hour),
+        "chart_purchases_by_hour": json.dumps(purchases_by_hour),
+        "chart_sales_by_day": json.dumps(sales_by_day),
+        "chart_purchases_by_day": json.dumps(purchases_by_day),
+        "chart_days": json.dumps(days_ar),
+        "chart_sales_by_week": json.dumps(sales_by_week),
+        "chart_purchases_by_week": json.dumps(purchases_by_week),
+        "chart_week_labels": json.dumps(week_labels),
+        
+        # أفضل المنتجات والعملاء
+        "top_products_labels": json.dumps(top_products_labels),
+        "top_products_data": json.dumps(top_products_data),
+        "top_customers_labels": json.dumps(top_customers_labels),
+        "top_customers_data": json.dumps(top_customers_data),
+        
+        # عنوان الصفحة
         "page_title": "لوحة التحكم",
         "page_icon": "fas fa-tachometer-alt",
         "breadcrumb_items": [

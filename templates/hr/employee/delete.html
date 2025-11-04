@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}حذف موظف{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users-cog me-1"></i>الموظفين</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف موظف</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1 text-danger">تأكيد حذف الموظف</h1>
+                  <p class="text-muted mb-0">حذف موظف من النظام نهائياً</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تأكيد الحذف -->
+  <div class="section-container">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+                    <div class="alert alert-danger">
+                        <h5><i class="fas fa-exclamation-circle me-2"></i>تحذير!</h5>
+                        <p>هل أنت متأكد من حذف الموظف التالي؟</p>
+                    </div>
+
+                    <div class="employee-info mb-4">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <strong>الاسم:</strong> {{ employee.get_full_name_ar }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <strong>رقم الموظف:</strong> {{ employee.employee_number }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <strong>القسم:</strong> {{ employee.department.name_ar }}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <strong>الوظيفة:</strong> {{ employee.job_title.title_ar }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>ملاحظة:</strong> سيتم حذف جميع البيانات المرتبطة بهذا الموظف (الحضور، الإجازات، الرواتب).
+                        هذا الإجراء لا يمكن التراجع عنه!
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>
+                                نعم، احذف الموظف
+                            </button>
+                            <a href="{% url 'hr:employee_detail' employee.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

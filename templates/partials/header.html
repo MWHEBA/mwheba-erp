@@ -146,19 +146,6 @@
                     </div>
                 </div>
             </div>
-            <!-- حقل البحث -->
-            <div class="search-box">
-                <form class="search-form" action="#" method="GET">
-                    <div class="input-group">
-                        <input type="text" class="form-control" name="q" placeholder="بحث..." aria-label="بحث">
-                        <span class="input-group-text">
-                            <button type="submit" class="btn-search border-0 bg-transparent p-0">
-                                <i class="fas fa-search"></i>
-                            </button>
-                        </span>
-                    </div>
-                </form>
-            </div>
             <!-- التنبيهات -->
             <div class="notifications dropdown">
                 <button class="btn-icon notification-btn" type="button" id="notificationsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
@@ -354,6 +341,16 @@
                         </a>
                         
                         {% if user.is_superuser %}
+                        <a href="{% url 'core:view_error_logs' %}" class="user-dropdown-item">
+                            <div class="dropdown-item-icon bg-soft-warning">
+                                <i class="fas fa-file-alt text-warning"></i>
+                            </div>
+                            <div class="dropdown-item-text">
+                                <span>سجل الأخطاء</span>
+                                <small>عرض الأخطاء والـ Logs</small>
+                            </div>
+                        </a>
+                        
                         <a href="#" class="user-dropdown-item" id="systemResetBtn">
                             <div class="dropdown-item-icon bg-soft-danger">
                                 <i class="fas fa-undo-alt text-danger"></i>

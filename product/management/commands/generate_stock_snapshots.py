@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 أمر Django لإنشاء لقطات المخزون اليومية
 """
@@ -62,19 +63,19 @@ class Command(BaseCommand):
                 if snapshots_count > 0:
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"✅ تم إنشاء {snapshots_count} لقطة ليوم {current_date}"
+                            f"[OK] تم إنشاء {snapshots_count} لقطة ليوم {current_date}"
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"⚠️ لا توجد لقطات جديدة ليوم {current_date}"
+                            f"[WARNING] لا توجد لقطات جديدة ليوم {current_date}"
                         )
                     )
 
             except Exception as e:
                 self.stdout.write(
-                    self.style.ERROR(f"❌ خطأ في إنشاء لقطات يوم {current_date}: {e}")
+                    self.style.ERROR(f"خطأ في إنشاء لقطات يوم {current_date}: {e}")
                 )
                 logger.error(f"خطأ في إنشاء لقطات المخزون ليوم {current_date}: {e}")
                 continue
@@ -82,8 +83,8 @@ class Command(BaseCommand):
         # ملخص النتائج
         self.stdout.write(
             self.style.SUCCESS(
-                f"\n🎉 تم الانتهاء من إنشاء لقطات المخزون"
-                f"\n📊 إجمالي اللقطات المُنشأة: {total_snapshots}"
+                f"\n[DONE] تم الانتهاء من إنشاء لقطات المخزون"
+                f"\n[STATS] إجمالي اللقطات المُنشأة: {total_snapshots}"
                 f"\n📅 عدد الأيام المعالجة: {days}"
                 f'\n⏰ وقت الانتهاء: {timezone.now().strftime("%Y-%m-%d %H:%M:%S")}'
             )

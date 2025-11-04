@@ -1,0 +1,103 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}حذف مسمى وظيفي{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Breadcrumb + Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:job_title_list' %}"><i class="fas fa-briefcase me-1"></i>المسميات الوظيفية</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-trash me-1"></i>حذف مسمى</li>
+              </ol>
+          </nav>
+      </div>
+      
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-exclamation-triangle fa-2x text-danger"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1 text-danger">حذف مسمى وظيفي</h1>
+                  <p class="text-muted mb-0">تأكيد حذف المسمى الوظيفي</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:job_title_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <!-- تفاصيل المسمى -->
+  <div class="section-container">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        هل أنت متأكد من رغبتك في حذف المسمى الوظيفي التالي؟
+                    </div>
+
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="30%">الكود</th>
+                            <td>{{ job_title.code }}</td>
+                        </tr>
+                        <tr>
+                            <th>المسمى (عربي)</th>
+                            <td>{{ job_title.title_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>المسمى (إنجليزي)</th>
+                            <td>{{ job_title.title_en|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <th>القسم</th>
+                            <td>{{ job_title.department.name_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>عدد الموظفين</th>
+                            <td>{{ job_title.employees.count|default:0 }}</td>
+                        </tr>
+                    </table>
+
+                    {% if job_title.employees.count > 0 %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        تحذير: يوجد {{ job_title.employees.count }} موظف مرتبط بهذا المسمى الوظيفي.
+                        سيتم إلغاء تفعيل المسمى فقط وليس حذفه نهائياً.
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-2"></i>
+                                تأكيد الحذف
+                            </button>
+                            <a href="{% url 'hr:job_title_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
