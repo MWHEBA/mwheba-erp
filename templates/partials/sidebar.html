@@ -366,6 +366,12 @@
                         
                         <div class="nav-divider"></div>
                         
+                        <li class="submenu-title">الإعدادات</li>
+                        <li>
+                            <a href="{% url 'hr:salary_increase_settings' %}" class="submenu-link">
+                                <i class="fas fa-chart-line me-2"></i>{% trans "إعدادات زيادات المرتبات" %}
+                            </a>
+                        </li>
                         <li>
                             <a href="{% url 'hr:hr_settings' %}" class="submenu-link">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات الموارد البشرية" %}
