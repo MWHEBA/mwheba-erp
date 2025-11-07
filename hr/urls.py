@@ -3,7 +3,6 @@ URLs لوحدة الموارد البشرية
 """
 from django.urls import path, include
 from . import views
-# تم حذف نظام الخطط - النظام الآن تلقائي
 
 app_name = 'hr'
 
