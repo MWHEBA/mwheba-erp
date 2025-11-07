@@ -2901,6 +2901,11 @@ def contract_renew(request, pk):
             'auto_renew': old_contract.auto_renew,
             'renewal_notice_days': old_contract.renewal_notice_days,
             'status': 'active',  # العقد الجديد يكون ساري مباشرة
+            # نقل إعدادات الزيادة السنوية
+            'has_annual_increase': old_contract.has_annual_increase,
+            'annual_increase_percentage': old_contract.annual_increase_percentage,
+            'increase_frequency': old_contract.increase_frequency,
+            'increase_start_reference': old_contract.increase_start_reference,
         }
         form = ContractForm(initial=initial_data)
         

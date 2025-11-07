@@ -1,0 +1,247 @@
+"""
+Views لوحدة الموارد البشرية
+"""
+# الدوال المنقولة للملفات الجديدة
+from .dashboard import dashboard
+from .employee_views import (
+    employee_list,
+    employee_detail,
+    employee_form,
+    employee_delete,
+)
+from .employee_import import (
+    export_employees,
+    employee_import,
+    import_employees_from_csv,
+    import_employees_from_excel,
+)
+from .department_views import (
+    department_list,
+    department_delete,
+    department_form,
+)
+from .job_title_views import (
+    job_title_list,
+    job_title_delete,
+    job_title_form,
+)
+from .attendance_views import (
+    attendance_list,
+    attendance_check_in,
+    attendance_check_out,
+)
+from .shift_views import (
+    shift_list,
+    shift_delete,
+    shift_assign_employees,
+    shift_form,
+)
+from .biometric_views import (
+    biometric_device_list,
+    biometric_device_detail,
+    biometric_device_logs_ajax,
+    biometric_device_form,
+    biometric_device_delete,
+    biometric_device_test,
+    biometric_agent_setup,
+    biometric_device_download_agent,
+    biometric_log_list,
+)
+from .biometric_api import (
+    BridgeSyncThrottle,
+    biometric_bridge_sync,
+)
+from .leave_views import (
+    leave_list,
+    leave_request,
+    leave_detail,
+    leave_approve,
+    leave_reject,
+)
+from .leave_balance_views import (
+    leave_balance_list,
+    leave_balance_employee,
+    leave_balance_update,
+    leave_balance_rollover,
+    leave_balance_accrual_status,
+)
+from .contract_views import (
+    contract_list,
+    contract_detail,
+    contract_activate,
+    contract_suspend,
+    contract_reactivate,
+    contract_document_upload,
+    contract_document_delete,
+    contract_amendment_create,
+)
+from .payroll_advance_views import (
+    payroll_list,
+    payroll_run_list,
+    payroll_run_process,
+    payroll_run_detail,
+    payroll_detail,
+    advance_list,
+    advance_request,
+    advance_detail,
+    advance_approve,
+    advance_reject,
+    salary_settings,
+)
+from .other_views import (
+    organization_chart,
+    hr_settings,
+    employee_create_user,
+    employee_link_user,
+    employee_unlink_user,
+    check_employee_email,
+    check_employee_mobile,
+    check_employee_national_id,
+    salary_component_templates_list,
+    salary_component_template_form,
+    salary_component_template_delete,
+    employee_detail_api,
+    contract_check_overlap,
+)
+from .report_views import (
+    reports_home,
+    attendance_report,
+    leave_report,
+    payroll_report,
+    employee_report,
+)
+from .biometric_advanced_views import (
+    biometric_dashboard,
+    biometric_mapping_list,
+    biometric_mapping_create,
+    biometric_mapping_update,
+    biometric_mapping_delete,
+    biometric_mapping_bulk_import,
+    api_link_single_log,
+    api_process_single_log,
+    api_mapping_suggestions,
+    api_bulk_link_logs,
+    api_bulk_process_logs,
+    api_biometric_stats,
+)
+
+# إضافة دوال العقود الإضافية
+from .contract_views import (
+    get_salary_component_templates,
+    contract_renew,
+    contract_terminate,
+    contract_create_increase_schedule,
+    contract_increase_action,
+    contract_increase_apply,
+    contract_increase_cancel,
+    contract_expiring,
+)
+from .contract_form_views import (
+    contract_form,
+)
+
+__all__ = [
+    'dashboard',
+    'employee_list',
+    'employee_detail',
+    'employee_form',
+    'employee_delete',
+    'export_employees',
+    'employee_import',
+    'department_list',
+    'department_delete',
+    'department_form',
+    'job_title_list',
+    'job_title_delete',
+    'job_title_form',
+    'attendance_list',
+    'attendance_check_in',
+    'attendance_check_out',
+    'shift_list',
+    'shift_delete',
+    'shift_assign_employees',
+    'shift_form',
+    'biometric_device_list',
+    'biometric_device_detail',
+    'biometric_device_logs_ajax',
+    'biometric_device_form',
+    'biometric_device_delete',
+    'biometric_device_test',
+    'biometric_agent_setup',
+    'biometric_device_download_agent',
+    'biometric_log_list',
+    'BridgeSyncThrottle',
+    'biometric_bridge_sync',
+    'leave_list',
+    'leave_request',
+    'leave_detail',
+    'leave_approve',
+    'leave_reject',
+    'leave_balance_list',
+    'leave_balance_employee',
+    'leave_balance_update',
+    'leave_balance_rollover',
+    'leave_balance_accrual_status',
+    'contract_list',
+    'contract_detail',
+    'contract_activate',
+    'contract_suspend',
+    'contract_reactivate',
+    'contract_document_upload',
+    'contract_document_delete',
+    'contract_amendment_create',
+    'payroll_list',
+    'payroll_run_list',
+    'payroll_run_process',
+    'payroll_run_detail',
+    'payroll_detail',
+    'advance_list',
+    'advance_request',
+    'advance_detail',
+    'advance_approve',
+    'advance_reject',
+    'salary_settings',
+    # دوال أخرى
+    'organization_chart',
+    'hr_settings',
+    'employee_create_user',
+    'employee_link_user',
+    'employee_unlink_user',
+    'check_employee_email',
+    'check_employee_mobile',
+    'check_employee_national_id',
+    'salary_component_templates_list',
+    'salary_component_template_form',
+    'salary_component_template_delete',
+    'employee_detail_api',
+    'contract_check_overlap',
+    # دوال العقود الإضافية
+    'get_salary_component_templates',
+    'contract_renew',
+    'contract_terminate',
+    'contract_create_increase_schedule',
+    'contract_increase_action',
+    'contract_increase_apply',
+    'contract_increase_cancel',
+    'contract_expiring',
+    'contract_form',
+    # دوال التقارير
+    'reports_home',
+    'attendance_report',
+    'leave_report',
+    'payroll_report',
+    'employee_report',
+    # دوال البصمة المتقدمة
+    'biometric_dashboard',
+    'biometric_mapping_list',
+    'biometric_mapping_create',
+    'biometric_mapping_update',
+    'biometric_mapping_delete',
+    'biometric_mapping_bulk_import',
+    'api_link_single_log',
+    'api_process_single_log',
+    'api_mapping_suggestions',
+    'api_bulk_link_logs',
+    'api_bulk_process_logs',
+    'api_biometric_stats',
+]
