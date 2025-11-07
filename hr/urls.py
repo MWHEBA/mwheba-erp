@@ -133,6 +133,9 @@ urlpatterns = [
     path('contracts/expiring/', views.contract_expiring, name='contract_expiring'),
     # الزيادات المجدولة
     path('contracts/<int:pk>/increases/create/', views.contract_create_increase_schedule, name='contract_create_increase_schedule'),
+    # المسار الموحد الجديد
+    path('contracts/increases/<int:increase_id>/<str:action>/', views.contract_increase_action, name='contract_increase_action'),
+    # المسارات القديمة للتوافق (deprecated)
     path('contracts/increases/<int:increase_id>/apply/', views.contract_increase_apply, name='contract_increase_apply'),
     path('contracts/increases/<int:increase_id>/cancel/', views.contract_increase_cancel, name='contract_increase_cancel'),
     # مرفقات العقود
