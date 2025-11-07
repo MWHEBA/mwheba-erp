@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}قوالب زيادات المرتبات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- رأس الصفحة -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2><i class="fas fa-file-alt"></i> قوالب زيادات المرتبات</h2>
+            <p class="text-muted">إدارة قوالب وسياسات الزيادات</p>
+        </div>
+        <div class="col-md-6 text-left">
+            <a href="{% url 'hr:increase_template_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> إنشاء قالب جديد
+            </a>
+            <a href="{% url 'hr:salary_increase_settings' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right"></i> العودة
+            </a>
+        </div>
+    </div>
+    
+    <!-- فلاتر -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">نوع الزيادة</label>
+                    <select name="type" class="form-select">
+                        <option value="">الكل</option>
+                        <option value="percentage">نسبة مئوية</option>
+                        <option value="fixed">مبلغ ثابت</option>
+                        <option value="performance">حسب الأداء</option>
+                        <option value="inflation">حسب التضخم</option>
+                        <option value="seniority">حسب الأقدمية</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">الحالة</label>
+                    <select name="active" class="form-select">
+                        <option value="">الكل</option>
+                        <option value="true">نشط</option>
+                        <option value="false">غير نشط</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">&nbsp;</label>
+                    <button type="submit" class="btn btn-primary d-block w-100">
+                        <i class="fas fa-filter"></i> تطبيق الفلتر
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- جدول القوالب -->
+    <div class="card">
+        <div class="card-body">
+            {% if templates %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>الكود</th>
+                            <th>النوع</th>
+                            <th>القيمة الافتراضية</th>
+                            <th>التكرار</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in templates %}
+                        <tr>
+                            <td>
+                                <strong>{{ template.name }}</strong>
+                                {% if template.is_default %}
+                                <span class="badge bg-primary">افتراضي</span>
+                                {% endif %}
+                            </td>
+                            <td><code>{{ template.code }}</code></td>
+                            <td>{{ template.get_increase_type_display }}</td>
+                            <td>
+                                {% if template.increase_type == 'percentage' %}
+                                    {{ template.default_percentage }}%
+                                {% elif template.default_amount %}
+                                    {{ template.default_amount }} جنيه
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>{{ template.get_frequency_display }}</td>
+                            <td>
+                                {% if template.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                <span class="badge bg-secondary">غير نشط</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'hr:increase_template_edit' template.pk %}" 
+                                   class="btn btn-sm btn-info" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'hr:increase_template_delete' template.pk %}" 
+                                   class="btn btn-sm btn-danger" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <nav>
+                <ul class="pagination justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">الأولى</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">السابقة</a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">التالية</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">الأخيرة</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-file-alt fa-3x text-muted mb-3"></i>
+                <p class="text-muted">لا توجد قوالب حالياً</p>
+                <a href="{% url 'hr:increase_template_create' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> إنشاء قالب جديد
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

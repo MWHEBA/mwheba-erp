@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}تأكيد التطبيق الجماعي{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-double"></i> تأكيد التطبيق الجماعي
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <h5>الخطة: {{ plan.name }}</h5>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <strong>تحذير مهم:</strong> سيتم تطبيق جميع الزيادات المعتمدة على العقود. هذا الإجراء لا يمكن التراجع عنه!
+                    </div>
+                    
+                    <table class="table table-bordered">
+                        <tr>
+                            <th width="40%">عدد الزيادات المعتمدة:</th>
+                            <td>{{ plan.planned_increases.approved.count }}</td>
+                        </tr>
+                        <tr>
+                            <th>التكلفة الإجمالية:</th>
+                            <td>
+                                {{ plan.planned_increases.approved.aggregate.calculated_amount__sum|floatformat:0 }} جنيه
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>تاريخ السريان:</th>
+                            <td>{{ plan.effective_date|date:"Y-m-d" }}</td>
+                        </tr>
+                    </table>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>ما سيحدث:</strong>
+                        <ul class="mb-0">
+                            <li>تحديث الراتب الأساسي في جميع العقود</li>
+                            <li>إنشاء ContractIncrease لكل موظف</li>
+                            <li>إنشاء ContractAmendment لكل عقد</li>
+                            <li>تحديث حالة الخطة إلى "مكتملة"</li>
+                        </ul>
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check-double"></i> تأكيد التطبيق
+                            </button>
+                            <a href="{% url 'hr:annual_plan_detail' plan.pk %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
