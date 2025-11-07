@@ -51,9 +51,10 @@ class LoanForm(forms.ModelForm):
                 'min': '0.00',
                 'max': '100.00'
             }),
-            'start_date': forms.DateInput(attrs={
+            'start_date': forms.TextInput(attrs={
                 'class': 'form-control',
-                'type': 'date'
+                'data-date-picker': True,
+                'placeholder': 'اختر تاريخ البداية...'
             }),
             'duration_months': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -150,9 +151,10 @@ class LoanPaymentForm(forms.ModelForm):
                 'class': 'form-select',
                 'data-placeholder': 'اختر القرض'
             }),
-            'actual_payment_date': forms.DateInput(attrs={
+            'actual_payment_date': forms.TextInput(attrs={
                 'class': 'form-control',
-                'type': 'date'
+                'data-date-picker': True,
+                'placeholder': 'اختر تاريخ الدفع الفعلي...'
             }),
             'principal_amount': forms.NumberInput(attrs={
                 'class': 'form-control',
@@ -228,9 +230,10 @@ class QuickLoanPaymentForm(forms.Form):
     
     payment_date = forms.DateField(
         label=_('تاريخ الدفع'),
-        widget=forms.DateInput(attrs={
+        widget=forms.TextInput(attrs={
             'class': 'form-control',
-            'type': 'date',
+            'data-date-picker': True,
+            'placeholder': 'اختر تاريخ الدفع...',
             'required': True
         })
     )

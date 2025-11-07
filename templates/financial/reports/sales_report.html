@@ -290,17 +290,16 @@
     <form method="GET" action="" class="row g-3">
       <div class="col-md-4">
         <label for="date_from" class="form-label">من تاريخ:</label>
-        <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from|default:'' }}">
       </div>
-      <div class="col-md-4">
-        <label for="date_to" class="form-label">إلى تاريخ:</label>
-        <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+      <div class="col-md-2">
+        <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+        <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to|default:'' }}">
       </div>
       <div class="col-md-4 d-flex align-items-end">
         <button type="submit" class="btn btn-primary me-2">
           <i class="fas fa-filter me-1"></i>فلترة
         </button>
-        <a href="{% url 'financial:sales_report' %}" class="btn btn-outline-secondary">
           <i class="fas fa-undo me-1"></i>إعادة تعيين
         </a>
       </div>

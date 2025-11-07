@@ -1,0 +1,21 @@
+{% load i18n %}
+<div class="text-center">
+    {% if not object.employee %}
+    <button type="button" class="btn btn-sm btn-outline-primary" 
+            onclick="linkLog({{ object.id }})" 
+            title="ربط بموظف">
+        <i class="fas fa-link"></i>
+    </button>
+    {% else %}
+    <span class="badge bg-success">
+        <i class="fas fa-check"></i>
+    </span>
+    {% endif %}
+</div>
+
+<script>
+function linkLog(logId) {
+    // فتح صفحة إضافة ربط جديد
+    window.location.href = `/hr/biometric/mapping/create/?log_id=${logId}`;
+}
+</script>

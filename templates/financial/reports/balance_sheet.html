@@ -314,17 +314,10 @@
   <!-- تصفية وبحث -->
   <div class="section-container no-print">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
-    <div class="filter-section mb-4">
-      <form method="GET" action="" class="row g-3">
-        <div class="col-md-3">
-          <label for="date" class="form-label">{% trans "تاريخ الميزانية" %}</label>
-          <input type="date" class="form-control" id="date" name="date" 
-                 value="{{ balance_date|date:'Y-m-d' }}">
-        </div>
-        <div class="col-md-3 d-flex align-items-end gap-2">
-          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض' %}">
-            <i class="fas fa-search"></i>
-          </button>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-2">
+        <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
           <a href="{% url 'financial:balance_sheet' %}" class="btn btn-outline-secondary flex-fill" title="{% trans 'اليوم' %}">
             <i class="fas fa-calendar-day"></i>
           </a>

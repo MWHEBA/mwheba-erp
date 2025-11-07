@@ -44,12 +44,60 @@
   </div>
 
   <div class="section-container">
-    <form method="post">
+    <form method="post" id="contractForm">
         {% csrf_token %}
+        
+        <!-- رسالة التجديد -->
+        {% if is_renewal %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading">
+                <i class="fas fa-redo me-2"></i>تجديد العقد: {{ old_contract.contract_number }}
+            </h5>
+            <p class="mb-2">
+                <strong>الموظف:</strong> {{ old_contract.employee.get_full_name_ar }}<br>
+                <strong>العقد القديم:</strong> من {{ old_contract.start_date|date:"d/m/Y" }} 
+                {% if old_contract.end_date %}إلى {{ old_contract.end_date|date:"d/m/Y" }}{% else %}(مفتوح){% endif %}
+            </p>
+            <hr>
+            <p class="mb-0">
+                <i class="fas fa-info-circle me-1"></i>
+                يمكنك تعديل جميع بنود العقد الجديد حسب الحاجة (الراتب، الوظيفة، التواريخ، الشروط، إلخ)
+            </p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        <!-- عرض الأخطاء العامة -->
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>تنبيه</h5>
+            {% for error in form.non_field_errors %}
+                <p class="mb-0">{{ error }}</p>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        <!-- عرض أخطاء الحقول -->
+        {% if form.errors %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>يوجد أخطاء في النموذج</h5>
+            <ul class="mb-0">
+                {% for field, errors in form.errors.items %}
+                    {% if field != '__all__' %}
+                        {% for error in errors %}
+                            <li><strong>{{ field }}:</strong> {{ error|safe }}</li>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
         
         <h5 class="mb-3">معلومات العقد الأساسية</h5>
         <div class="row">
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">رقم العقد <span class="text-danger">*</span></label>
                     {{ form.contract_number }}
@@ -64,7 +112,7 @@
                     {% endif %}
                 </div>
             </div>
-            <div class="col-md-6">
+            <div class="col-md-4">
                 <div class="mb-3">
                     <label class="form-label">الموظف <span class="text-danger">*</span></label>
                     {{ form.employee }}
@@ -73,30 +121,68 @@
                     {% endif %}
                 </div>
             </div>
-        </div>
-
-        {% if contract %}
-        <div class="row">
-            <div class="col-md-12">
+            <div class="col-md-4">
                 <div class="mb-3">
-                    <label class="form-label">الحالة</label>
-                    {{ form.status }}
-                    {% if form.status.errors %}
-                        <div class="text-danger">{{ form.status.errors }}</div>
+                    <label class="form-label">نوع العقد <span class="text-danger">*</span></label>
+                    {{ form.contract_type }}
+                    {% if form.contract_type.errors %}
+                        <div class="text-danger">{{ form.contract_type.errors }}</div>
                     {% endif %}
                 </div>
             </div>
         </div>
-        {% else %}
-        {# حقل الحالة مخفي في الإنشاء #}
+
+        {# حقل الحالة مخفي دائماً - يتم التحكم فيه من خلال الأزرار #}
         {{ form.status }}
-        {% endif %}
+
+        <h5 class="mb-3 mt-4">بيانات الوظيفة</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">المسمى الوظيفي <span class="text-danger">*</span></label>
+                    {{ form.job_title }}
+                    {% if form.job_title.help_text %}
+                        <small class="form-text text-muted">{{ form.job_title.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.job_title.errors %}
+                        <div class="text-danger">{{ form.job_title.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">القسم <span class="text-danger">*</span></label>
+                    {{ form.department }}
+                    {% if form.department.help_text %}
+                        <small class="form-text text-muted">{{ form.department.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.department.errors %}
+                        <div class="text-danger">{{ form.department.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">رقم البصمة</label>
+                    {{ form.biometric_user_id }}
+                    {% if form.biometric_user_id.help_text %}
+                        <small class="form-text text-muted">{{ form.biometric_user_id.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.biometric_user_id.errors %}
+                        <div class="text-danger">{{ form.biometric_user_id.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
 
         <h5 class="mb-3 mt-4">التواريخ والمدة</h5>
         <div class="row">
             <div class="col-md-3">
                 <div class="mb-3">
-                    <label class="form-label">تاريخ البداية <span class="text-danger">*</span></label>
+                    <label class="form-label">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        تاريخ البداية <span class="text-danger">*</span>
+                    </label>
                     {{ form.start_date }}
                     {% if form.start_date.errors %}
                         <div class="text-danger">{{ form.start_date.errors }}</div>
@@ -115,7 +201,10 @@
             </div>
             <div class="col-md-3">
                 <div class="mb-3">
-                    <label class="form-label">تاريخ النهاية</label>
+                    <label class="form-label">
+                        <i class="fas fa-calendar-check me-1"></i>
+                        تاريخ النهاية
+                    </label>
                     {{ form.end_date }}
                     <small class="text-muted">اتركه فارغاً للعقود الدائمة</small>
                     {% if form.end_date.errors %}
@@ -149,6 +238,92 @@
                         <i class="fas fa-info-circle me-1"></i>
                         عند التفعيل، سيتم تجديد العقد تلقائياً بنفس الشروط
                     </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- الزيادة السنوية -->
+        <h5 class="mb-3 mt-4">الزيادة السنوية</h5>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.has_annual_increase }}
+                                <label class="form-check-label" for="id_has_annual_increase">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    يوجد زيادة سنوية للراتب الأساسي
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-info-circle me-1"></i>
+                                عند التفعيل، سيتم تطبيق زيادة سنوية على الراتب الأساسي
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="annual-increase-fields" style="display: none;">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">نوع الزيادة <span class="text-danger">*</span></label>
+                                {{ form.annual_increase_type }}
+                                {% if form.annual_increase_type.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="percentage-field">
+                            <div class="mb-3">
+                                <label class="form-label">نسبة الزيادة (%)</label>
+                                {{ form.annual_increase_percentage }}
+                                <small class="text-muted d-block">مثال: 10 تعني 10%</small>
+                                {% if form.annual_increase_percentage.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_percentage.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4" id="amount-field" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">قيمة الزيادة</label>
+                                {{ form.annual_increase_amount }}
+                                <small class="text-muted d-block">المبلغ الثابت للزيادة</small>
+                                {% if form.annual_increase_amount.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_amount.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">شهر تطبيق الزيادة <span class="text-danger">*</span></label>
+                                {{ form.annual_increase_month }}
+                                {% if form.annual_increase_month.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_month.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- معاينة الزيادة -->
+                    <div class="alert alert-info" id="increase-preview" style="display: none;">
+                        <h6 class="alert-heading"><i class="fas fa-calculator me-2"></i>معاينة الزيادة السنوية</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">الراتب الأساسي الحالي</small>
+                                <strong id="current-salary">0.00</strong> جنيه
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">قيمة الزيادة السنوية</small>
+                                <strong class="text-success" id="increase-value">0.00</strong> جنيه
+                            </div>
+                            <div class="col-md-4">
+                                <small class="text-muted d-block">الراتب بعد الزيادة</small>
+                                <strong class="text-primary" id="salary-after-increase">0.00</strong> جنيه
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -193,16 +368,17 @@
                                 </td>
                             </tr>
                             {% for earning in earnings %}
-                            <tr data-id="{{ forloop.counter }}" data-type="earning">
+                            <tr data-id="{{ earning.id }}" data-type="earning">
                                 <td class="text-center drag-handle" style="cursor: move;">
                                     <i class="fas fa-grip-vertical text-muted"></i>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control form-control-sm" 
-                                           name="earning_name_{{ forloop.counter }}" 
+                                           name="earning_name_{{ earning.id }}" 
                                            value="{{ earning.name }}" required>
-                                    <input type="hidden" name="earning_type_{{ forloop.counter }}" value="earning">
-                                    <input type="hidden" name="earning_order_{{ forloop.counter }}" 
+                                    <input type="hidden" name="earning_id_{{ earning.id }}" value="{{ earning.id }}">
+                                    <input type="hidden" name="earning_type_{{ earning.id }}" value="earning">
+                                    <input type="hidden" name="earning_order_{{ earning.id }}" 
                                            value="{{ earning.order }}" class="order-input">
                                 </td>
                                 <td>
@@ -211,16 +387,16 @@
                                             <i class="fas fa-tag"></i>
                                         </button>
                                         <input type="text" class="form-control form-control-sm component-formula" 
-                                               name="earning_formula_{{ forloop.counter }}" 
+                                               name="earning_formula_{{ earning.id }}" 
                                                value="{{ earning.formula }}"
                                                placeholder="مثال: basic * 0.25"
-                                               data-counter="{{ forloop.counter }}" data-type="earning">
+                                               data-counter="{{ earning.id }}" data-type="earning">
                                         {% include 'hr/contract/_variables_dropdown.html' %}
                                     </div>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control form-control-sm component-amount smart-float" 
-                                           name="earning_amount_{{ forloop.counter }}" 
+                                           name="earning_amount_{{ earning.id }}" 
                                            value="{{ earning.amount }}" required>
                                 </td>
                                 <td class="text-center">
@@ -264,16 +440,17 @@
                         </thead>
                         <tbody id="deductions-body">
                             {% for deduction in deductions %}
-                            <tr data-id="{{ forloop.counter }}" data-type="deduction">
+                            <tr data-id="{{ deduction.id }}" data-type="deduction">
                                 <td class="text-center drag-handle" style="cursor: move;">
                                     <i class="fas fa-grip-vertical text-muted"></i>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control form-control-sm" 
-                                           name="deduction_name_{{ forloop.counter }}" 
+                                           name="deduction_name_{{ deduction.id }}" 
                                            value="{{ deduction.name }}" required>
-                                    <input type="hidden" name="deduction_type_{{ forloop.counter }}" value="deduction">
-                                    <input type="hidden" name="deduction_order_{{ forloop.counter }}" 
+                                    <input type="hidden" name="deduction_id_{{ deduction.id }}" value="{{ deduction.id }}">
+                                    <input type="hidden" name="deduction_type_{{ deduction.id }}" value="deduction">
+                                    <input type="hidden" name="deduction_order_{{ deduction.id }}" 
                                            value="{{ deduction.order }}" class="order-input">
                                 </td>
                                 <td>
@@ -282,16 +459,16 @@
                                             <i class="fas fa-tag"></i>
                                         </button>
                                         <input type="text" class="form-control form-control-sm component-formula" 
-                                               name="deduction_formula_{{ forloop.counter }}" 
+                                               name="deduction_formula_{{ deduction.id }}" 
                                                value="{{ deduction.formula }}"
                                                placeholder="مثال: basic * 0.25"
-                                               data-counter="{{ forloop.counter }}" data-type="deduction">
+                                               data-counter="{{ deduction.id }}" data-type="deduction">
                                         {% include 'hr/contract/_variables_dropdown.html' %}
                                     </div>
                                 </td>
                                 <td>
                                     <input type="text" class="form-control form-control-sm component-amount smart-float" 
-                                           name="deduction_amount_{{ forloop.counter }}" 
+                                           name="deduction_amount_{{ deduction.id }}" 
                                            value="{{ deduction.amount }}" required>
                                 </td>
                                 <td class="text-center">
@@ -459,6 +636,63 @@ $(document).ready(function() {
     // تنسيق الحقول الموجودة من قبل بعد تحميل كامل
     setTimeout(formatAllSmartFloats, 100);
     
+    // منطق ربط حقل المبلغ بالصيغة الحسابية
+    $(document).on('input', '.component-amount', function() {
+        const $amountField = $(this);
+        const row = $amountField.closest('tr');
+        const $formulaField = row.find('.component-formula');
+        
+        const amountValue = $amountField.val().replace(/,/g, '').trim();
+        
+        if (amountValue && amountValue !== '') {
+            // إذا كتب المستخدم في المبلغ، قفل الصيغة وأخف placeholder
+            $formulaField.prop('readonly', true)
+                .css('background-color', '#e9ecef')
+                .attr('placeholder', '');
+        } else {
+            // إذا مسح المبلغ، افتح الصيغة وأرجع placeholder
+            $formulaField.prop('readonly', false)
+                .css('background-color', '')
+                .attr('placeholder', 'مثال: basic * 0.25');
+        }
+    });
+    
+    // تطبيق المنطق على الحقول الموجودة عند التحميل
+    setTimeout(function() {
+        $('.component-amount').each(function() {
+            const $amountField = $(this);
+            const row = $amountField.closest('tr');
+            const $formulaField = row.find('.component-formula');
+            
+            const amountValue = $amountField.val().replace(/,/g, '').trim();
+            
+            if (amountValue && amountValue !== '') {
+                $formulaField.prop('readonly', true)
+                    .css('background-color', '#e9ecef')
+                    .attr('placeholder', '');
+            }
+        });
+    }, 200);
+    
+    // تهيئة date pickers باستخدام النظام الموحد
+    const startDatePicker = MWHEBADatePicker.init("#id_start_date", {
+        onChange: function(selectedDates, dateStr, instance) {
+            // إعادة حساب تاريخ النهاية عند تغيير تاريخ البداية
+            const duration = $('#id_contract_duration').val();
+            if (duration && duration !== 'custom' && duration !== '') {
+                $('#id_contract_duration').trigger('change');
+            }
+        }
+    });
+    
+    // حساب آخر يوم في الشهر الحالي
+    const today = new Date();
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    const endDatePicker = MWHEBADatePicker.init("#id_end_date", {
+        minDate: lastDayOfMonth  // على الأقل آخر يوم في الشهر الحالي
+    });
+    
     // تفعيل Select2 لحقل الموظف
     $('#id_employee').select2({
         theme: 'bootstrap-5',
@@ -491,17 +725,67 @@ $(document).ready(function() {
         return employee.text;
     }
 
+    // ملء بيانات الوظيفة تلقائياً عند اختيار الموظف
+    $('#id_employee').on('change', function() {
+        const employeeId = $(this).val();
+        
+        if (!employeeId) {
+            return;
+        }
+        
+        // جلب بيانات الموظف
+        $.ajax({
+            url: '/hr/api/employees/' + employeeId + '/',
+            method: 'GET',
+            success: function(data) {
+                // ملء الوظيفة
+                if (data.job_title && !$('#id_job_title').prop('disabled')) {
+                    $('#id_job_title').val(data.job_title).trigger('change');
+                }
+                
+                // ملء القسم
+                if (data.department && !$('#id_department').prop('disabled')) {
+                    $('#id_department').val(data.department).trigger('change');
+                }
+                
+                // ملء رقم البصمة (يستبدل القيمة الموجودة أو يحذفها)
+                if (!$('#id_biometric_user_id').prop('disabled')) {
+                    if (data.biometric_user_id) {
+                        // الموظف لديه بصمة - ملء الحقل
+                        $('#id_biometric_user_id').val(data.biometric_user_id);
+                        
+                        // تأثير بصري لتوضيح التعبئة التلقائية
+                        $('#id_biometric_user_id').addClass('bg-warning bg-opacity-25');
+                        setTimeout(() => {
+                            $('#id_biometric_user_id').removeClass('bg-warning bg-opacity-25');
+                        }, 1500);
+                    } else {
+                        // الموظف ليس لديه بصمة - حذف القيمة
+                        $('#id_biometric_user_id').val('');
+                        
+                        // تأثير بصري لتوضيح الحذف
+                        $('#id_biometric_user_id').addClass('bg-danger bg-opacity-10');
+                        setTimeout(() => {
+                            $('#id_biometric_user_id').removeClass('bg-danger bg-opacity-10');
+                        }, 1500);
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('خطأ في جلب بيانات الموظف:', error);
+            }
+        });
+    });
+
     // حساب تاريخ النهاية تلقائياً عند اختيار مدة العقد
     $('#id_contract_duration').on('change', function() {
         const duration = $(this).val();
         const startDate = $('#id_start_date').val();
-        const endDateField = $('#id_end_date');
         
         // إذا لم يتم اختيار مدة، فتح الحقل للإدخال اليدوي
         if (!duration || duration === '') {
-            endDateField.prop('readonly', false)
-                .css('background-color', '')
-                .val('');
+            endDatePicker.set('disabled', false);
+            endDatePicker.clear();
             return;
         }
         
@@ -523,33 +807,161 @@ $(document).ready(function() {
             // تعيين آخر يوم في الشهر
             endDate.setDate(0);
             
-            // تنسيق التاريخ بصيغة YYYY-MM-DD
-            const formattedDate = endDate.toISOString().split('T')[0];
-            
-            // تعيين القيمة وقفل الحقل
-            endDateField.val(formattedDate)
-                .prop('readonly', true)
-                .css('background-color', '#e9ecef');
+            // تعيين القيمة في Flatpickr وقفل الحقل
+            endDatePicker.setDate(endDate, true);
+            endDatePicker.set('disabled', true);
             
             // إضافة تأثير بصري
-            endDateField.addClass('bg-warning bg-opacity-25');
+            $('#id_end_date').next('.flatpickr-input').addClass('bg-warning bg-opacity-25');
             setTimeout(() => {
-                endDateField.removeClass('bg-warning bg-opacity-25');
+                $('#id_end_date').next('.flatpickr-input').removeClass('bg-warning bg-opacity-25');
             }, 1500);
         } else {
             // مدة مخصصة - فتح الحقل للإدخال اليدوي
-            endDateField.val('')
-                .prop('readonly', false)
-                .css('background-color', '')
-                .focus();
+            endDatePicker.clear();
+            endDatePicker.set('disabled', false);
+            endDatePicker.open();
         }
     });
 
-    // إعادة حساب التاريخ عند تغيير تاريخ البداية
-    $('#id_start_date').on('change', function() {
-        const duration = $('#id_contract_duration').val();
-        if (duration && duration !== 'custom' && duration !== '') {
-            $('#id_contract_duration').trigger('change');
+    // التحقق من التداخل قبل الإرسال
+    $('#contractForm').on('submit', function(e) {
+        const employeeId = $('#id_employee').val();
+        const startDate = $('#id_start_date').val();
+        const endDate = $('#id_end_date').val();
+        const contractId = '{{ contract.pk|default:"" }}';
+        
+        if (!employeeId || !startDate) {
+            return true; // دع Django يتعامل مع الأخطاء الأساسية
+        }
+        
+        // منع الإرسال المتكرر
+        if ($(this).data('submitting')) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // التحقق من التداخل عبر AJAX
+        e.preventDefault();
+        $(this).data('submitting', true);
+        
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التحقق...');
+        
+        $.ajax({
+            url: '{% url "hr:contract_check_overlap" %}',
+            method: 'POST',
+            data: {
+                'employee_id': employeeId,
+                'start_date': startDate,
+                'end_date': endDate,
+                'contract_id': contractId,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.has_overlap) {
+                    // عرض رسالة التداخل
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'تداخل في العقود',
+                        html: response.message,
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#dc3545'
+                    });
+                    submitBtn.prop('disabled', false).html(originalText);
+                    $('#contractForm').data('submitting', false);
+                } else {
+                    // لا يوجد تداخل - إرسال النموذج
+                    $('#contractForm').off('submit').submit();
+                }
+            },
+            error: function() {
+                // في حالة الخطأ، دع النموذج يُرسل (Django سيتحقق)
+                $('#contractForm').off('submit').submit();
+            }
+        });
+    });
+
+    // معالجة الزيادة السنوية
+    const hasAnnualIncrease = $('#id_has_annual_increase');
+    const annualIncreaseFields = $('#annual-increase-fields');
+    const increaseType = $('#id_annual_increase_type');
+    const percentageField = $('#percentage-field');
+    const amountField = $('#amount-field');
+    const increasePreview = $('#increase-preview');
+    
+    // إظهار/إخفاء حقول الزيادة السنوية
+    hasAnnualIncrease.on('change', function() {
+        if ($(this).is(':checked')) {
+            annualIncreaseFields.slideDown();
+            calculateAnnualIncrease();
+        } else {
+            annualIncreaseFields.slideUp();
+            increasePreview.hide();
+        }
+    });
+    
+    // التحقق من الحالة الأولية
+    if (hasAnnualIncrease.is(':checked')) {
+        annualIncreaseFields.show();
+        calculateAnnualIncrease();
+    }
+    
+    // تبديل بين النسبة والمبلغ الثابت
+    increaseType.on('change', function() {
+        const type = $(this).val();
+        if (type === 'percentage') {
+            percentageField.show();
+            amountField.hide();
+            $('#id_annual_increase_amount').val('');
+        } else if (type === 'fixed') {
+            percentageField.hide();
+            amountField.show();
+            $('#id_annual_increase_percentage').val('');
+        }
+        calculateAnnualIncrease();
+    });
+    
+    // التحقق من النوع الأولي
+    const initialType = increaseType.val();
+    if (initialType === 'fixed') {
+        percentageField.hide();
+        amountField.show();
+    }
+    
+    // حساب الزيادة السنوية تلقائياً
+    function calculateAnnualIncrease() {
+        const basicSalary = parseFloat($('#id_basic_salary').val()) || 0;
+        const type = increaseType.val();
+        const percentage = parseFloat($('#id_annual_increase_percentage').val()) || 0;
+        const amount = parseFloat($('#id_annual_increase_amount').val()) || 0;
+        
+        let increaseValue = 0;
+        
+        if (type === 'percentage' && percentage > 0) {
+            increaseValue = (basicSalary * percentage) / 100;
+        } else if (type === 'fixed' && amount > 0) {
+            increaseValue = amount;
+        }
+        
+        const salaryAfterIncrease = basicSalary + increaseValue;
+        
+        // عرض المعاينة
+        if (basicSalary > 0 && increaseValue > 0) {
+            $('#current-salary').text(basicSalary.toFixed(2));
+            $('#increase-value').text(increaseValue.toFixed(2));
+            $('#salary-after-increase').text(salaryAfterIncrease.toFixed(2));
+            increasePreview.slideDown();
+        } else {
+            increasePreview.slideUp();
+        }
+    }
+    
+    // إعادة الحساب عند تغيير الراتب الأساسي أو قيم الزيادة
+    $('#id_basic_salary, #id_annual_increase_percentage, #id_annual_increase_amount').on('input', function() {
+        if (hasAnnualIncrease.is(':checked')) {
+            calculateAnnualIncrease();
         }
     });
 });

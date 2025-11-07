@@ -184,7 +184,33 @@ def notify_new_customer(sender, instance, created, **kwargs):
                 notification_type="success",
                 related_model="Customer",
                 related_id=instance.id,
-                link_url=f"/clients/{instance.id}/"
+                link_url=f"/client/{instance.id}/detail/"
+            )
+
+
+# ==================== إشعارات الموردين ====================
+
+@receiver(post_save, sender='supplier.Supplier')
+def notify_new_supplier(sender, instance, created, **kwargs):
+    """
+    إنشاء إشعار عند إضافة مورد جديد
+    """
+    if created:
+        # جلب المستخدمين المخولين
+        authorized_users = User.objects.filter(
+            Q(user_type__in=['admin', 'accountant']) | Q(is_superuser=True),
+            is_active=True
+        ).distinct()
+        
+        for user in authorized_users:
+            NotificationService.create_notification(
+                user=user,
+                title=f"مورد جديد: {instance.name}",
+                message=f"تم إضافة مورد جديد: {instance.name} - {instance.phone or 'لا يوجد هاتف'}",
+                notification_type="success",
+                related_model="Supplier",
+                related_id=instance.id,
+                link_url=f"/supplier/{instance.id}/detail/"
             )
 
 
@@ -235,7 +261,7 @@ def notify_new_user(sender, instance, created, **kwargs):
                 title=f"مستخدم جديد: {instance.get_full_name() or instance.username}",
                 message=f"تم إضافة مستخدم جديد: {instance.get_full_name() or instance.username} - النوع: {instance.get_user_type_display()}",
                 notification_type="info",
-                link_url=f"/core/users/{instance.id}/"
+                link_url="/users/users/"
             )
         
         # إشعار ترحيبي للمستخدم الجديد

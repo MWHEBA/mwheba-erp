@@ -209,6 +209,23 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
+    // تهيئة date pickers مع إعدادات مخصصة
+    const today = new Date();
+    
+    const startDatePicker = MWHEBADatePicker.init('input[name="start_date"]', {
+        minDate: today,  // لا يمكن اختيار تاريخ قديم
+        onChange: function(selectedDates, dateStr) {
+            calculateDays();
+        }
+    });
+    
+    const endDatePicker = MWHEBADatePicker.init('input[name="end_date"]', {
+        minDate: today,  // لا يمكن اختيار تاريخ قديم
+        onChange: function(selectedDates, dateStr) {
+            calculateDays();
+        }
+    });
+    
     // حساب عدد الأيام تلقائياً
     function calculateDays() {
         const startDate = $('input[name="start_date"]').val();
@@ -231,8 +248,7 @@ $(document).ready(function() {
         }
     }
     
-    // عند تغيير التواريخ
-    $('input[name="start_date"], input[name="end_date"]').on('change', calculateDays);
+    // تم نقل calculateDays إلى onChange في date pickers
     
     // عند اختيار نوع الإجازة
     $('select[name="leave_type"]').on('change', function() {

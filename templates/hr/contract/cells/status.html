@@ -1,0 +1,27 @@
+{% if value == 'active' %}
+    <span class="badge bg-success" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-check-circle me-1"></i>ساري
+    </span>
+{% elif value == 'draft' %}
+    <span class="badge bg-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-file-alt me-1"></i>مسودة
+    </span>
+{% elif value == 'suspended' %}
+    <span class="badge bg-warning text-dark" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-pause-circle me-1"></i>موقوف
+    </span>
+{% elif value == 'expired' %}
+    <span class="badge bg-danger" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-times-circle me-1"></i>منتهي
+    </span>
+{% elif value == 'terminated' %}
+    <span class="badge bg-dark" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-ban me-1"></i>منهي
+    </span>
+{% elif value == 'renewed' %}
+    <span class="badge bg-info" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">
+        <i class="fas fa-redo me-1"></i>مُجدد
+    </span>
+{% else %}
+    <span class="badge bg-secondary" style="font-size: 0.75rem; padding: 0.25rem 0.5rem;">{{ value }}</span>
+{% endif %}

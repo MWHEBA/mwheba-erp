@@ -3,17 +3,14 @@
 {% load i18n %}
 {% load humanize %}
 
-{% block title %}
-    {{ title }}
-{% endblock %}
-
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
     .filter-section {
         padding: 15px;
         border-radius: 5px;
         margin-bottom: 20px;
-        background-color: #f8f9fc;
     }
     
     .log-entry {
@@ -141,11 +138,11 @@
                             <div class="form-group">
                                 <label for="date_range">{% translate "النطاق الزمني" %}</label>
                                 <div class="input-group">
-                                    <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
                                     <div class="input-group-prepend input-group-append">
                                         <span class="input-group-text">-</span>
                                     </div>
-                                    <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
                                 </div>
                             </div>
                         </div>

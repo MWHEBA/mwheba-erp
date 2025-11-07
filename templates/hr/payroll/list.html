@@ -43,7 +43,7 @@
       <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
                     <form method="get" class="row g-3">
                         <div class="col-md-3">
-                            <input type="month" name="month" class="form-control" value="{{ request.GET.month }}">
+                            <input type="text" name="month" class="form-control" data-month-picker value="{{ request.GET.month }}" placeholder="فلتر حسب الشهر...">
                         </div>
                         <div class="col-md-3">
                             <select name="status" class="form-select">
@@ -137,7 +137,7 @@
                     {% csrf_token %}
                     <div class="mb-3">
                         <label class="form-label">الشهر</label>
-                        <input type="month" name="month" class="form-control" required>
+                        <input type="text" name="month" class="form-control" data-month-picker placeholder="اختر الشهر..." required>
                     </div>
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-calculator me-2"></i>

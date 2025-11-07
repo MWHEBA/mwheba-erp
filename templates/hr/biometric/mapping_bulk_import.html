@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}استيراد جماعي - ربط البصمة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .form-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 2rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
+  .section-title {color: #344767;font-size: 1.1rem;font-weight: 600;margin-bottom: 1rem;padding-bottom: 0.5rem;border-bottom: 2px solid #667eea;}
+  .info-box {background-color: #e7f3ff;border-left: 4px solid #2196F3;padding: 1rem;border-radius: 4px;margin-bottom: 1.5rem;}
+  .info-box i {color: #2196F3;font-size: 1.2rem;}
+  .example-box {background-color: #f8f9fa;border: 1px solid #dee2e6;border-radius: 8px;padding: 1rem;font-family: 'Courier New', monospace;font-size: 0.9rem;}
+  .step-card {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);color: white;border-radius: 10px;padding: 1.5rem;margin-bottom: 1rem;}
+  .step-number {width: 40px;height: 40px;background: rgba(255,255,255,0.2);border-radius: 50%;display: flex;align-items: center;justify-content: center;font-size: 1.3rem;font-weight: bold;}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:biometric_mapping_list' %}"><i class="fas fa-link me-1"></i>ربط معرفات البصمة</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-file-csv me-1"></i>استيراد جماعي</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-file-csv fa-2x text-success"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">استيراد جماعي من CSV</h1>
+                  <p class="text-muted mb-0">استيراد عدة عمليات ربط دفعة واحدة من ملف CSV</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <div class="row">
+      <!-- خطوات الاستيراد -->
+      <div class="col-lg-4">
+          <div class="step-card">
+              <div class="d-flex align-items-center mb-3">
+                  <div class="step-number me-3">1</div>
+                  <h5 class="mb-0">تحضير ملف CSV</h5>
+              </div>
+              <p class="mb-0 opacity-90">قم بإنشاء ملف CSV يحتوي على البيانات المطلوبة</p>
+          </div>
+
+          <div class="step-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+              <div class="d-flex align-items-center mb-3">
+                  <div class="step-number me-3">2</div>
+                  <h5 class="mb-0">رفع الملف</h5>
+              </div>
+              <p class="mb-0 opacity-90">اختر ملف CSV من جهازك وقم برفعه</p>
+          </div>
+
+          <div class="step-card" style="background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);">
+              <div class="d-flex align-items-center mb-3">
+                  <div class="step-number me-3">3</div>
+                  <h5 class="mb-0">المعالجة</h5>
+              </div>
+              <p class="mb-0 opacity-90">سيتم معالجة الملف وإنشاء عمليات الربط تلقائياً</p>
+          </div>
+      </div>
+
+      <!-- نموذج الرفع -->
+      <div class="col-lg-8">
+          <!-- معلومات مهمة -->
+          <div class="info-box">
+              <div class="d-flex align-items-start">
+                  <i class="fas fa-info-circle me-3 mt-1"></i>
+                  <div>
+                      <strong>متطلبات ملف CSV:</strong>
+                      <ul class="mb-0 mt-2">
+                          <li>يجب أن يكون الملف بصيغة <code>.csv</code></li>
+                          <li>يجب أن يحتوي على الأعمدة التالية: <code>employee_number</code>, <code>biometric_user_id</code></li>
+                          <li>عمود <code>device_code</code> اختياري (للربط بماكينة محددة)</li>
+                          <li>يجب أن يكون الملف بترميز UTF-8</li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+
+          <!-- مثال على الملف -->
+          <div class="form-container">
+              <div class="section-title">
+                  <i class="fas fa-file-code me-2"></i>مثال على ملف CSV
+              </div>
+              
+              <div class="example-box">
+employee_number,biometric_user_id,device_code<br>
+EMP001,123,DEVICE-001<br>
+EMP002,456,DEVICE-001<br>
+EMP003,789,<br>
+EMP004,101,DEVICE-002
+              </div>
+
+              <div class="alert alert-info mt-3 mb-0">
+                  <i class="fas fa-lightbulb me-2"></i>
+                  <strong>نصيحة:</strong> يمكنك ترك عمود <code>device_code</code> فارغاً للربط العام على جميع الماكينات.
+              </div>
+          </div>
+
+          <!-- نموذج الرفع -->
+          <div class="form-container">
+              <form method="post" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  
+                  <div class="section-title">
+                      <i class="fas fa-upload me-2"></i>رفع ملف CSV
+                  </div>
+
+                  <div class="mb-3">
+                      {% bootstrap_field form.csv_file show_label=True %}
+                  </div>
+
+                  <div class="mb-4">
+                      <div class="form-check">
+                          {{ form.skip_errors }}
+                          <label class="form-check-label" for="{{ form.skip_errors.id_for_label }}">
+                              <strong>تخطي الأخطاء</strong>
+                              <br>
+                              <small class="text-muted">
+                                  الاستمرار في الاستيراد حتى لو حدثت أخطاء في بعض السجلات
+                              </small>
+                          </label>
+                      </div>
+                  </div>
+
+                  <!-- Buttons -->
+                  <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                      <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-secondary">
+                          <i class="fas fa-times me-2"></i>إلغاء
+                      </a>
+                      <button type="submit" class="btn btn-success">
+                          <i class="fas fa-file-import me-2"></i>استيراد الآن
+                      </button>
+                  </div>
+              </form>
+          </div>
+
+          <!-- ملاحظات إضافية -->
+          <div class="alert alert-warning">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>تحذير:</strong>
+              <ul class="mb-0 mt-2">
+                  <li>تأكد من صحة أرقام الموظفين قبل الاستيراد</li>
+                  <li>معرفات البصمة المكررة سيتم تحديثها بالبيانات الجديدة</li>
+                  <li>سيتم عرض تقرير مفصل بعد انتهاء الاستيراد</li>
+              </ul>
+          </div>
+      </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,6 @@
+{% load custom_filters %}
+{% if object.late_minutes > 0 %}
+    <span class="badge bg-warning text-dark">{{ object.late_minutes|format_minutes }}</span>
+{% else %}
+    <span class="text-success"><i class="fas fa-check"></i></span>
+{% endif %}

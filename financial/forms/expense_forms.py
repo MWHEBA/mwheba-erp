@@ -37,7 +37,11 @@ class ExpenseForm(forms.Form):
     expense_date = forms.DateField(
         label="تاريخ المصروف",
         initial=timezone.now().date(),
-        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "اختر تاريخ المصروف..."
+        }),
     )
     # الحسابات المحاسبية
     expense_account = forms.ModelChoiceField(
@@ -185,13 +189,21 @@ class ExpenseFilterForm(forms.Form):
     date_from = forms.DateField(
         label="من تاريخ",
         required=False,
-        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "من تاريخ..."
+        }),
     )
 
     date_to = forms.DateField(
         label="إلى تاريخ",
         required=False,
-        widget=forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "إلى تاريخ..."
+        }),
     )
 
     expense_account = forms.ModelChoiceField(

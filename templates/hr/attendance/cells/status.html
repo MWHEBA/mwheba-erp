@@ -1,0 +1,11 @@
+{% if object.status == 'present' %}
+    <span class="badge bg-success">حاضر</span>
+{% elif object.status == 'late' %}
+    <span class="badge bg-warning text-dark">متأخر</span>
+{% elif object.status == 'early_leave' %}
+    <span class="badge bg-danger">انصراف مبكر</span>
+{% elif object.status == 'absent' %}
+    <span class="badge bg-secondary">غائب</span>
+{% elif object.status == 'on_leave' %}
+    <span class="badge bg-info">في إجازة</span>
+{% endif %}

@@ -265,13 +265,30 @@ class BiometricSyncLog(models.Model):
         verbose_name = 'سجل مزامنة'
         verbose_name_plural = 'سجلات المزامنة'
         ordering = ['-started_at']
+        indexes = [
+            models.Index(fields=['device', '-started_at']),
+            models.Index(fields=['started_at']),
+        ]
     
     def __str__(self):
         return f"{self.device.device_name} - {self.started_at}"
     
+    @classmethod
+    def cleanup_old_logs(cls, days=30):
+        """
+        حذف سجلات المزامنة القديمة
+        الافتراضي: يحذف السجلات الأقدم من 30 يوم
+        """
+        from django.utils import timezone
+        from datetime import timedelta
+        
+        cutoff_date = timezone.now() - timedelta(days=days)
+        deleted_count = cls.objects.filter(started_at__lt=cutoff_date).delete()[0]
+        return deleted_count
+    
     @property
     def duration(self):
-        """مدة المزامنة"""
+        """مدة المزامنة (بحد أقصى منزلتين عشريتين)"""
         if self.completed_at and self.started_at:
             from django.utils import timezone
             # التأكد من أن كلا التاريخين timezone-aware
@@ -285,5 +302,7 @@ class BiometricSyncLog(models.Model):
                 completed = timezone.make_aware(completed)
             
             delta = completed - started
-            return delta.total_seconds()
+            seconds = delta.total_seconds()
+            # تقريب لمنزلتين عشريتين
+            return round(seconds, 2)
         return None

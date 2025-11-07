@@ -72,6 +72,11 @@
     <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.bootstrap5.min.css">
     <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.2/css/buttons.bootstrap5.min.css">
     
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css">
+    <link rel="stylesheet" href="{% static 'css/flatpickr-custom.css' %}">
+    
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/main.css' %}?v={{ request.session.session_key|slice:':8' }}">
     <link rel="stylesheet" href="{% static 'css/footer.css' %}">
@@ -165,6 +170,12 @@
     
     <!-- Select2 JavaScript -->
     <script src="{% static 'django_select2/django_select2.js' %}"></script>
+    
+    <!-- Flatpickr JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js"></script>
+    <script src="{% static 'js/flatpickr-init.js' %}"></script>
     
     <!-- مكتبات بديلة للمكتبات المحجوبة -->
     <script src="{% static 'js/vendor/fallback-libraries.js' %}"></script>

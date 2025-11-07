@@ -383,6 +383,120 @@ def currency_symbol():
 
 
 @register.filter
+def format_minutes(minutes):
+    """
+    تنسيق الدقائق - إذا كانت أكثر من 90 دقيقة، تحول لساعات ودقائق
+    استخدام: {{ late_minutes|format_minutes }}
+    """
+    if not minutes or minutes == 0:
+        return ""
+    
+    try:
+        minutes = int(minutes)
+        
+        # إذا أقل من أو يساوي 90 دقيقة، اعرض بالدقائق فقط
+        if minutes <= 90:
+            return f"{minutes} د"
+        
+        # إذا أكثر من 90 دقيقة، حول لساعات ودقائق
+        hours = minutes // 60
+        remaining_minutes = minutes % 60
+        
+        if remaining_minutes == 0:
+            return f"{hours}س"
+        else:
+            return f"{hours}س {remaining_minutes}د"
+    except (ValueError, TypeError):
+        return str(minutes)
+
+
+@register.filter
+def format_work_hours(hours):
+    """
+    تنسيق ساعات العمل من decimal لساعات ودقائق بشكل احترافي
+    استخدام: {{ work_hours|format_work_hours }}
+    مثال: 8.5 → 8 ساعات و 30 دقيقة
+    """
+    if not hours or hours == 0:
+        return "-"
+    
+    try:
+        hours_float = float(hours)
+        
+        # تحويل لدقائق
+        total_minutes = int(hours_float * 60)
+        
+        # إذا أقل من 90 دقيقة، اعرض بالدقائق فقط
+        if total_minutes < 90:
+            if total_minutes == 1:
+                return "دقيقة"
+            elif total_minutes == 2:
+                return "دقيقتان"
+            elif total_minutes <= 10:
+                return f"{total_minutes} دقائق"
+            else:
+                return f"{total_minutes} دقيقة"
+        
+        # إذا 90 دقيقة أو أكثر، حول لساعات ودقائق
+        hours_int = total_minutes // 60
+        remaining_minutes = total_minutes % 60
+        
+        # تنسيق الساعات
+        if hours_int == 1:
+            hours_text = "ساعة"
+        elif hours_int == 2:
+            hours_text = "ساعتان"
+        elif hours_int <= 10:
+            hours_text = f"{hours_int} ساعات"
+        else:
+            hours_text = f"{hours_int} ساعة"
+        
+        # إذا لا توجد دقائق متبقية
+        if remaining_minutes == 0:
+            return hours_text
+        
+        # تنسيق الدقائق
+        if remaining_minutes == 1:
+            minutes_text = "دقيقة"
+        elif remaining_minutes == 2:
+            minutes_text = "دقيقتان"
+        elif remaining_minutes <= 10:
+            minutes_text = f"{remaining_minutes} دقائق"
+        else:
+            minutes_text = f"{remaining_minutes} دقيقة"
+        
+        return f"{hours_text} و {minutes_text}"
+    except (ValueError, TypeError):
+        return str(hours)
+
+
+@register.filter
+def arabic_day(value):
+    """
+    تحويل اسم اليوم للعربي
+    استخدام: {{ date|arabic_day }}
+    """
+    if not value:
+        return ""
+    
+    days_map = {
+        'Saturday': 'السبت',
+        'Sunday': 'الأحد',
+        'Monday': 'الاثنين',
+        'Tuesday': 'الثلاثاء',
+        'Wednesday': 'الأربعاء',
+        'Thursday': 'الخميس',
+        'Friday': 'الجمعة'
+    }
+    
+    try:
+        day_name = value.strftime('%A')
+        return days_map.get(day_name, day_name)
+    except (AttributeError, ValueError):
+        return ""
+
+
+@register.filter
 def arabic_timesince(value):
     """
     تحويل الوقت إلى صيغة عربية (منذ كم)

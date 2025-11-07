@@ -2,6 +2,7 @@
 {% load i18n static %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
   .form-container {
     background-color: #fff;
@@ -92,11 +93,13 @@
             <div class="col-md-6 mb-3">
               <label for="start_date" class="form-label required-field">تاريخ البداية</label>
               <input 
-                type="date" 
+                type="text" 
                 class="form-control" 
                 id="start_date" 
                 name="start_date" 
-                value="{% if period %}{{ period.start_date|date:'d-m-Y' }}{% endif %}"
+                data-date-picker
+                placeholder="تاريخ البداية" 
+                value="{% if period %}{{ period.start_date|date:'Y-m-d' }}{% endif %}"
                 required
               >
               <div class="form-help-text">تاريخ بداية الفترة المحاسبية</div>
@@ -105,11 +108,13 @@
             <div class="col-md-6 mb-3">
               <label for="end_date" class="form-label required-field">تاريخ النهاية</label>
               <input 
-                type="date" 
+                type="text" 
                 class="form-control" 
                 id="end_date" 
                 name="end_date" 
-                value="{% if period %}{{ period.end_date|date:'d-m-Y' }}{% endif %}"
+                data-date-picker
+                placeholder="تاريخ النهاية" 
+                value="{% if period %}{{ period.end_date|date:'Y-m-d' }}{% endif %}"
                 required
               >
               <div class="form-help-text">تاريخ نهاية الفترة المحاسبية</div>

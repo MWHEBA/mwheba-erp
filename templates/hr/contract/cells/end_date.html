@@ -1,0 +1,5 @@
+{% if value %}
+    <span class="text-muted">{{ value|date:"d/m/Y" }}</span>
+{% else %}
+    <span class="badge bg-secondary">غير محدد</span>
+{% endif %}

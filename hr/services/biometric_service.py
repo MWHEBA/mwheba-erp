@@ -116,6 +116,46 @@ class ZKTecoService:
             }
     
     @staticmethod
+    def detect_punch_type(record):
+        """
+        تحديد نوع البصمة (دخول/خروج) من بيانات الجهاز
+        
+        معظم أجهزة ZKTeco تستخدم:
+        - punch = 0 → check_in (دخول)
+        - punch = 1 → check_out (خروج)
+        - punch = 2 → break_start (بداية استراحة)
+        - punch = 3 → break_end (نهاية استراحة)
+        
+        أو status:
+        - status = 0 → check_in
+        - status = 1 → check_out
+        """
+        # محاولة قراءة punch أولاً
+        punch = getattr(record, 'punch', None)
+        if punch is not None:
+            punch_map = {
+                0: 'check_in',
+                1: 'check_out',
+                2: 'break_start',
+                3: 'break_end'
+            }
+            return punch_map.get(punch, 'check_in')
+        
+        # محاولة قراءة status
+        status = getattr(record, 'status', None)
+        if status is not None:
+            status_map = {
+                0: 'check_in',
+                1: 'check_out',
+                2: 'break_start',
+                3: 'break_end'
+            }
+            return status_map.get(status, 'check_in')
+        
+        # افتراضي: دخول
+        return 'check_in'
+    
+    @staticmethod
     def sync_device_to_database(device, connection):
         """
         مزامنة بيانات الماكينة مع قاعدة البيانات
@@ -149,18 +189,23 @@ class ZKTecoService:
             
             for record in records:
                 try:
+                    # تحديد نوع البصمة من بيانات الجهاز
+                    log_type = ZKTecoService.detect_punch_type(record)
+                    
                     # استخدام get_or_create لمنع race condition
                     log, created = BiometricLog.objects.get_or_create(
                         device=device,
                         user_id=str(record.user_id),
                         timestamp=record.timestamp,
                         defaults={
-                            'log_type': 'check_in',
+                            'log_type': log_type,  # ✅ استخدام النوع المحدد من الجهاز
                             'is_processed': False,
                             'raw_data': {
                                 'user_id': record.user_id,
                                 'timestamp': str(record.timestamp),
-                                'status': record.status if hasattr(record, 'status') else None
+                                'status': getattr(record, 'status', None),
+                                'punch': getattr(record, 'punch', None),
+                                'detected_type': log_type
                             }
                         }
                     )

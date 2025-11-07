@@ -9,6 +9,7 @@ from .models import (
     Salary, Payroll, Advance,
     SalaryComponent, SalaryComponentTemplate
 )
+from .models.contract import Contract, ContractAmendment, ContractDocument, ContractIncrease
 
 
 @admin.register(Department)
@@ -153,3 +154,103 @@ class SalaryComponentAdmin(admin.ModelAdmin):
     list_filter = ['component_type', 'is_basic']
     search_fields = ['name', 'contract__contract_number']
     ordering = ['contract', 'component_type', 'order']
+
+
+class ContractDocumentInline(admin.TabularInline):
+    model = ContractDocument
+    extra = 0
+    fields = ['document_type', 'title', 'file', 'uploaded_by', 'uploaded_at']
+    readonly_fields = ['uploaded_by', 'uploaded_at']
+
+
+class ContractAmendmentInline(admin.TabularInline):
+    model = ContractAmendment
+    extra = 0
+    fields = ['amendment_number', 'amendment_type', 'effective_date', 'description']
+    readonly_fields = ['amendment_number', 'created_at', 'created_by']
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ['contract_number', 'employee', 'contract_type', 'status', 'start_date', 'end_date', 'basic_salary']
+    list_filter = ['status', 'contract_type', 'start_date']
+    search_fields = ['contract_number', 'employee__first_name_ar', 'employee__last_name_ar']
+    ordering = ['-start_date']
+    inlines = [ContractDocumentInline, ContractAmendmentInline]
+    readonly_fields = ['created_at', 'created_by']
+    
+    fieldsets = (
+        ('معلومات العقد الأساسية', {
+            'fields': ('contract_number', 'employee', 'contract_type', 'status')
+        }),
+        ('التواريخ', {
+            'fields': ('start_date', 'end_date', 'probation_period_months', 'probation_end_date')
+        }),
+        ('الراتب', {
+            'fields': ('basic_salary',)
+        }),
+        ('البنود والشروط', {
+            'fields': ('terms_and_conditions', 'notes', 'auto_renew')
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'created_by'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ContractDocument)
+class ContractDocumentAdmin(admin.ModelAdmin):
+    list_display = ['contract', 'document_type', 'title', 'file_size_mb', 'uploaded_at', 'uploaded_by']
+    list_filter = ['document_type', 'uploaded_at']
+    search_fields = ['title', 'contract__contract_number']
+    ordering = ['-uploaded_at']
+    readonly_fields = ['uploaded_at', 'uploaded_by', 'file_size_mb']
+
+
+@admin.register(ContractAmendment)
+class ContractAmendmentAdmin(admin.ModelAdmin):
+    list_display = ['amendment_number', 'contract', 'amendment_type', 'effective_date', 'created_by']
+    list_filter = ['amendment_type', 'effective_date']
+    search_fields = ['amendment_number', 'contract__contract_number', 'description']
+    ordering = ['-effective_date']
+    readonly_fields = ['created_at', 'created_by']
+
+
+@admin.register(ContractIncrease)
+class ContractIncreaseAdmin(admin.ModelAdmin):
+    list_display = ['contract', 'increase_number', 'increase_type', 'get_increase_value', 'scheduled_date', 'status', 'applied_date']
+    list_filter = ['status', 'increase_type', 'scheduled_date']
+    search_fields = ['contract__contract_number', 'contract__employee__first_name_ar', 'contract__employee__last_name_ar']
+    ordering = ['contract', 'increase_number']
+    readonly_fields = ['created_at', 'created_by', 'updated_at', 'applied_date', 'applied_amount']
+    
+    fieldsets = (
+        ('معلومات الزيادة', {
+            'fields': ('contract', 'increase_number', 'increase_type')
+        }),
+        ('قيمة الزيادة', {
+            'fields': ('increase_percentage', 'increase_amount')
+        }),
+        ('الجدولة', {
+            'fields': ('months_from_start', 'scheduled_date')
+        }),
+        ('الحالة', {
+            'fields': ('status', 'applied_date', 'applied_amount', 'amendment')
+        }),
+        ('ملاحظات', {
+            'fields': ('notes',)
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'created_by', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_increase_value(self, obj):
+        """عرض قيمة الزيادة"""
+        if obj.increase_type == 'percentage':
+            return f"{obj.increase_percentage}%"
+        else:
+            return f"{obj.increase_amount} جنيه"
+    get_increase_value.short_description = 'قيمة الزيادة'

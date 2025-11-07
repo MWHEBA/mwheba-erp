@@ -61,7 +61,7 @@
                         {% csrf_token %}
                         <div class="mb-3">
                             <label class="form-label">تاريخ الإنهاء</label>
-                            <input type="date" class="form-control" name="termination_date">
+                            <input type="text" class="form-control" name="termination_date" data-date-picker placeholder="اختر تاريخ الإنهاء">
                             <small class="text-muted">اتركه فارغاً لاستخدام تاريخ اليوم</small>
                         </div>
 

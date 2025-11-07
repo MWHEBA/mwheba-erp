@@ -94,8 +94,8 @@
                                     {% elif header.format == 'datetime' %}
                                         <span class="transaction-date">{{ field_value|date:"d-m-Y H:i" }}</span>
                                     {% elif header.format == 'datetime_12h' %}
-                                        <div>{{ field_value|date:"d-m-Y" }}</div>
-                                        <small class="text-muted">{{ field_value|date:"h:i A" }}</small>
+                                        <div>{{ field_value|date:"Y-m-d" }}</div>
+                                        <small class="text-muted">{{ field_value|date:"g:i A" }}</small>
                                     {% elif header.format == 'currency' %}
                                         <span class="transaction-amount {% if header.variant %}{{ header.variant }}{% endif %}" style="text-align: center; width: 100%; display: block;">
                                             {% if field_value == None or field_value == '' %}

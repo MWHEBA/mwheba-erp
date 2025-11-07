@@ -36,6 +36,50 @@
     transform: translateY(-5px);
     box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
   }
+  
+  .card-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.05);
+    padding: 1rem 1.5rem;
+  }
+  
+  .export-buttons .btn {
+    margin-left: 0.5rem;
+    transition: all 0.3s ease;
+  }
+  
+  .export-buttons .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+  
+  .export-buttons .btn i {
+    font-size: 0.9rem;
+  }
+  
+  #importModal .modal-content {
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+  }
+  
+  #importModal .modal-header {
+    border-bottom: none;
+    border-radius: 12px 12px 0 0;
+  }
+  
+  #importModal .alert {
+    border-radius: 8px;
+    border: none;
+  }
+  
+  #importModal .card {
+    border: none;
+    border-radius: 8px;
+  }
+  
+  #importModal .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(54, 96, 146, 0.15);
+  }
 </style>
 {% endblock %}
 
@@ -74,6 +118,9 @@
               </div>
           </div>
           <div>
+              <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#importModal">
+                  <i class="fas fa-file-import me-2"></i>استيراد
+              </button>
               <a href="{% url 'hr:employee_form' %}" class="btn btn-primary">
                   <i class="fas fa-plus me-2"></i>إضافة موظف
               </a>
@@ -144,6 +191,100 @@
       <div class="card-body">
         {% include "components/data_table.html" with table_id="employees-table" headers=table_headers data=employees action_buttons=table_actions clickable_rows=True row_click_url="/hr/employees/0/" primary_key="pk" empty_message="لا توجد موظفين متاحين" %}
       </div>
+      <div class="card-footer bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            عدد الموظفين: <strong>{{ employees|length }}</strong>
+          </div>
+          <div class="export-buttons">
+            <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-file-csv me-1"></i>تصدير CSV
+            </a>
+            <a href="?{{ request.GET.urlencode }}&export=xlsx" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-file-excel me-1"></i>تصدير Excel
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الاستيراد -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="importModalLabel">
+          <i class="fas fa-file-import me-2"></i>استيراد الموظفين
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'hr:employee_import' %}" enctype="multipart/form-data" id="importForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div class="alert alert-success">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>ممتاز!</strong> يمكنك الآن استيراد موظفين جدد أو تحديث الموظفين الموجودين من ملف CSV أو Excel.
+          </div>
+          
+          <div class="mb-3">
+            <label for="import_file" class="form-label">
+              <i class="fas fa-file me-1"></i>اختر الملف
+            </label>
+            <input type="file" class="form-control" id="import_file" name="import_file" 
+                   accept=".csv,.xlsx,.xls" required>
+            <div class="form-text">
+              الملفات المدعومة: CSV, Excel (.xlsx, .xls)
+            </div>
+          </div>
+          
+          <div class="card bg-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">
+                <i class="fas fa-list-check me-2"></i>الحقول المطلوبة:
+              </h6>
+              <ul class="mb-0 small">
+                <li><strong>رقم الموظف</strong> - مطلوب (فريد لكل موظف)</li>
+                <li><strong>الاسم الأول</strong> - مطلوب</li>
+                <li><strong>اسم العائلة</strong> - مطلوب</li>
+                <li><strong>الرقم القومي</strong> - مطلوب (14 رقم)</li>
+                <li><strong>تاريخ الميلاد</strong> - مطلوب (YYYY-MM-DD)</li>
+                <li><strong>الجنس</strong> - مطلوب (ذكر أو أنثى)</li>
+                <li><strong>الحالة الاجتماعية</strong> - مطلوب (أعزب، متزوج، مطلق، أرمل)</li>
+                <li><strong>القسم</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
+                <li><strong>المسمى الوظيفي</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
+                <li><strong>البريد الإلكتروني</strong> - مطلوب</li>
+                <li><strong>رقم الهاتف</strong> - مطلوب</li>
+                <li><strong>العنوان</strong> - مطلوب</li>
+                <li><strong>المدينة</strong> - مطلوب</li>
+                <li><strong>تاريخ التعيين</strong> - اختياري (YYYY-MM-DD)</li>
+                <li><strong>الحالة</strong> - اختياري (نشط، في إجازة، موقوف، منتهي الخدمة)</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="alert alert-info mt-3 mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ملاحظات مهمة:</strong>
+            <ul class="mb-0 mt-2 small">
+              <li>إذا كان رقم الموظف موجود مسبقاً، سيتم تحديث بياناته</li>
+              <li>إذا كان جديداً وجميع الحقول المطلوبة متوفرة، سيتم إنشاؤه تلقائياً</li>
+              <li>الرقم القومي يجب أن يكون فريد - لن يتم إنشاء موظف برقم قومي مكرر</li>
+              <li>سيتم تخطي أي صف به بيانات ناقصة أو غير صحيحة</li>
+            </ul>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>إلغاء
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-upload me-1"></i>استيراد
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -164,6 +305,55 @@ $(document).ready(function() {
             ]
         });
     }
+    
+    // معالجة نموذج الاستيراد
+    $('#importForm').on('submit', function(e) {
+        const fileInput = $('#import_file')[0];
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            e.preventDefault();
+            alert('الرجاء اختيار ملف للاستيراد');
+            return false;
+        }
+        
+        // التحقق من نوع الملف
+        const validExtensions = ['csv', 'xlsx', 'xls'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+            e.preventDefault();
+            alert('نوع الملف غير مدعوم. الرجاء استخدام CSV أو Excel');
+            return false;
+        }
+        
+        // عرض مؤشر التحميل
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الاستيراد...');
+        
+        // السماح بإرسال النموذج
+        return true;
+    });
+    
+    // إعادة تعيين النموذج عند إغلاق المودال
+    $('#importModal').on('hidden.bs.modal', function() {
+        $('#importForm')[0].reset();
+        const submitBtn = $('#importForm').find('button[type="submit"]');
+        submitBtn.prop('disabled', false);
+        submitBtn.html('<i class="fas fa-upload me-1"></i>استيراد');
+    });
+    
+    // عرض اسم الملف المختار
+    $('#import_file').on('change', function() {
+        const fileName = $(this).val().split('\\').pop();
+        if (fileName) {
+            $(this).next('.form-text').html(
+                '<i class="fas fa-check-circle text-success me-1"></i>تم اختيار: <strong>' + fileName + '</strong>'
+            );
+        }
+    });
 });
 </script>
 {% endblock %}

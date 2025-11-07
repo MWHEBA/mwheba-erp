@@ -170,11 +170,11 @@
         </div>
         <div class="col-md-2">
             <label for="from_date" class="form-label">من تاريخ</label>
-            <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request.GET.from_date }}">
+            <input type="text" name="from_date" id="from_date" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ request.GET.from_date }}">
         </div>
         <div class="col-md-2">
             <label for="to_date" class="form-label">إلى تاريخ</label>
-            <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request.GET.to_date }}">
+            <input type="text" name="to_date" id="to_date" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.to_date }}">
         </div>
         <div class="col-md-1 d-flex align-items-end">
             <button type="submit" class="btn btn-primary w-100">

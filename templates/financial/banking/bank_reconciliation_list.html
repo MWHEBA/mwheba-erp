@@ -7,6 +7,7 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
     .reconciliation-row {
         transition: all 0.2s ease;
@@ -74,11 +75,11 @@
             </div>
             <div class="col-md-3">
                 <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
-                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+                <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
-                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+                <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">

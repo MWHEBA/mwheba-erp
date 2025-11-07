@@ -428,18 +428,20 @@ class OrderSearchForm(forms.Form):
     date_from = forms.DateField(
         label=_("من تاريخ"),
         required=False,
-        widget=forms.DateInput(attrs={
-            "type": "date", 
-            "class": "form-control"
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "من تاريخ..."
         }),
     )
 
     date_to = forms.DateField(
         label=_("إلى تاريخ"),
         required=False,
-        widget=forms.DateInput(attrs={
-            "type": "date", 
-            "class": "form-control"
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "إلى تاريخ..."
         }),
     )
 

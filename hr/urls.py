@@ -15,6 +15,7 @@ urlpatterns = [
     
     # الموظفين
     path('employees/', views.employee_list, name='employee_list'),
+    path('employees/import/', views.employee_import, name='employee_import'),
     path('employees/<int:pk>/', views.employee_detail, name='employee_detail'),
     path('employees/<int:pk>/delete/', views.employee_delete, name='employee_delete'),
     path('employees/check-email/', views.check_employee_email, name='check_employee_email'),
@@ -62,6 +63,7 @@ urlpatterns = [
     path('shifts/<int:pk>/form/', views.shift_form, name='shift_form_edit'),
     
     # ماكينات البصمة
+    path('biometric/', views.biometric_device_list, name='biometric_dashboard'),
     path('biometric-devices/', views.biometric_device_list, name='biometric_device_list'),
     path('biometric-devices/<int:pk>/', views.biometric_device_detail, name='biometric_device_detail'),
     path('biometric-devices/<int:pk>/logs/', views.biometric_device_logs_ajax, name='biometric_device_logs_ajax'),
@@ -73,6 +75,16 @@ urlpatterns = [
     path('biometric-devices/<int:pk>/download-agent/', views.biometric_device_download_agent, name='biometric_device_download_agent'),
     path('biometric-devices/<int:pk>/agent-setup/', views.biometric_agent_setup, name='biometric_agent_setup'),
     path('biometric-logs/', views.biometric_log_list, name='biometric_log_list'),
+    
+    # Biometric Dashboard
+    path('biometric/dashboard/', views.biometric_dashboard, name='biometric_dashboard'),
+    
+    # BiometricUserMapping Management
+    path('biometric/mapping/', views.biometric_mapping_list, name='biometric_mapping_list'),
+    path('biometric/mapping/create/', views.biometric_mapping_create, name='biometric_mapping_create'),
+    path('biometric/mapping/<int:pk>/edit/', views.biometric_mapping_update, name='biometric_mapping_update'),
+    path('biometric/mapping/<int:pk>/delete/', views.biometric_mapping_delete, name='biometric_mapping_delete'),
+    path('biometric/mapping/bulk-import/', views.biometric_mapping_bulk_import, name='biometric_mapping_bulk_import'),
     
     # Bridge Agent API
     path('api/biometric/bridge-sync/', views.biometric_bridge_sync, name='biometric_bridge_sync'),
@@ -113,12 +125,30 @@ urlpatterns = [
     # العقود
     path('contracts/', views.contract_list, name='contract_list'),
     path('contracts/<int:pk>/', views.contract_detail, name='contract_detail'),
+    path('contracts/<int:pk>/activate/', views.contract_activate, name='contract_activate'),
+    path('contracts/<int:pk>/suspend/', views.contract_suspend, name='contract_suspend'),
+    path('contracts/<int:pk>/reactivate/', views.contract_reactivate, name='contract_reactivate'),
     path('contracts/<int:pk>/renew/', views.contract_renew, name='contract_renew'),
     path('contracts/<int:pk>/terminate/', views.contract_terminate, name='contract_terminate'),
     path('contracts/expiring/', views.contract_expiring, name='contract_expiring'),
+    # الزيادات المجدولة
+    path('contracts/<int:pk>/increases/create/', views.contract_create_increase_schedule, name='contract_create_increase_schedule'),
+    path('contracts/increases/<int:increase_id>/apply/', views.contract_increase_apply, name='contract_increase_apply'),
+    path('contracts/increases/<int:increase_id>/cancel/', views.contract_increase_cancel, name='contract_increase_cancel'),
+    # مرفقات العقود
+    path('contracts/<int:pk>/documents/upload/', views.contract_document_upload, name='contract_document_upload'),
+    path('contracts/<int:pk>/documents/<int:doc_id>/delete/', views.contract_document_delete, name='contract_document_delete'),
+    # تعديلات العقود
+    path('contracts/<int:pk>/amendments/create/', views.contract_amendment_create, name='contract_amendment_create'),
     # نموذج موحد
     path('contracts/form/', views.contract_form, name='contract_form'),
     path('contracts/<int:pk>/form/', views.contract_form, name='contract_form_edit'),
+    
+    # API التحقق من تداخل العقود
+    path('contracts/check-overlap/', views.contract_check_overlap, name='contract_check_overlap'),
+    
+    # API الموظفين
+    path('api/employees/<int:pk>/', views.employee_detail_api, name='employee_detail_api'),
     
     # API قوالب مكونات الراتب
     path('api/salary-templates/', views.get_salary_component_templates, name='salary_templates_api'),
@@ -138,3 +168,6 @@ urlpatterns = [
         path('employee/', views.employee_report, name='employee_report'),
     ])),
 ]
+
+# URLs لزيادات المرتبات (سيتم تفعيلها بعد إنشاء القوالب)
+# سيتم إضافتها في المرحلة التالية

@@ -14,7 +14,11 @@ class PayrollForm(forms.ModelForm):
                   'payment_method', 'notes']
         widgets = {
             'employee': forms.Select(attrs={'class': 'form-select'}),
-            'month': forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}),
+            'month': forms.TextInput(attrs={
+                'class': 'form-control',
+                'data-month-picker': True,
+                'placeholder': 'اختر الشهر...'
+            }),
             'salary': forms.Select(attrs={'class': 'form-select'}),
             'bonus': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'other_deductions': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
@@ -29,8 +33,9 @@ class PayrollProcessForm(forms.Form):
     month = forms.CharField(
         label='الشهر',
         widget=forms.TextInput(attrs={
-            'type': 'month',
             'class': 'form-control',
+            'data-month-picker': True,
+            'placeholder': 'اختر الشهر...',
             'required': True
         })
     )

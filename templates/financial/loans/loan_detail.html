@@ -621,7 +621,7 @@
           
           <div class="mb-3">
             <label class="form-label">تاريخ السداد</label>
-            <input type="date" name="payment_date" class="form-control" value="{{ today|date:'Y-m-d' }}" required>
+            <input type="text" name="payment_date" class="form-control" data-date-picker placeholder="تاريخ السداد" value="{{ today|date:'Y-m-d' }}" required>
           </div>
           
           <div class="mb-3">

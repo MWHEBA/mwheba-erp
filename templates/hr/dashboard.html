@@ -199,10 +199,110 @@
             </a>
         </div>
         <div class="col-md-3 mb-3">
-            <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-outline-info btn-block w-100 quick-action-btn">
+            <a href="{% url 'hr:biometric_dashboard' %}" class="btn btn-outline-info btn-block w-100 quick-action-btn">
                 <i class="fas fa-fingerprint me-2"></i>
+                لوحة تحكم البصمة
+            </a>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-outline-secondary btn-block w-100 quick-action-btn">
+                <i class="fas fa-server me-2"></i>
                 ماكينات البصمة
             </a>
+        </div>
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-outline-primary btn-block w-100 quick-action-btn">
+                <i class="fas fa-link me-2"></i>
+                ربط البصمة
+            </a>
+        </div>
+    </div>
+  </div>
+  
+  <!-- قسم نظام البصمة -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-fingerprint me-2"></i>نظام البصمة</h5>
+    <div class="row">
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">سجلات اليوم</h6>
+                            <h3 class="mb-0 text-primary">-</h3>
+                            <small class="text-muted">سجلات البصمة</small>
+                        </div>
+                        <div class="stat-icon bg-primary">
+                            <i class="fas fa-fingerprint"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">سجلات مربوطة</h6>
+                            <h3 class="mb-0 text-success">-</h3>
+                            <small class="text-muted">نسبة الربط</small>
+                        </div>
+                        <div class="stat-icon bg-success">
+                            <i class="fas fa-link"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">أجهزة متصلة</h6>
+                            <h3 class="mb-0 text-info">-</h3>
+                            <small class="text-muted">من إجمالي الأجهزة</small>
+                        </div>
+                        <div class="stat-icon bg-info">
+                            <i class="fas fa-server"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-3 col-md-6 mb-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">سجلات غير معالجة</h6>
+                            <h3 class="mb-0 text-warning">-</h3>
+                            <small class="text-muted">تحتاج معالجة</small>
+                        </div>
+                        <div class="stat-icon bg-warning">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="alert alert-info d-flex align-items-center">
+                <i class="fas fa-info-circle fa-2x me-3"></i>
+                <div>
+                    <strong>نظام البصمة جاهز!</strong>
+                    <p class="mb-0">يمكنك الآن مراقبة سجلات البصمة، ربط الموظفين، ومتابعة الحضور من خلال 
+                        <a href="{% url 'hr:biometric_dashboard' %}" class="alert-link">لوحة تحكم البصمة</a>
+                    </p>
+                </div>
+            </div>
         </div>
     </div>
   </div>

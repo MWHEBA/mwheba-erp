@@ -254,7 +254,7 @@
         <form method="GET" action="" class="row g-3">
             <div class="col-md-4">
                 <label for="date" class="form-label">تاريخ التحليل:</label>
-                <input type="date" name="date" id="date" class="form-control" value="{{ analysis_date|date:'Y-m-d' }}">
+                <input type="text" name="date" id="date" class="form-control" data-date-picker placeholder="تاريخ التحليل" value="{{ analysis_date|date:'Y-m-d' }}">
             </div>
             <div class="col-md-4">
                 <label for="days_period" class="form-label">فترة التحليل (بالأيام):</label>

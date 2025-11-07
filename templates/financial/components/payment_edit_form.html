@@ -30,10 +30,12 @@
                 <i class="fas fa-calendar me-1"></i>
                 تاريخ الدفع <span class="text-danger">*</span>
             </label>
-            <input type="date" 
+            <input type="text" 
                    class="form-control" 
                    id="payment_date" 
-                   name="payment_date" 
+                   name="payment_date"
+                   data-date-picker
+                   placeholder="اختر التاريخ" 
                    value="{{ payment.payment_date|date:'Y-m-d' }}" 
                    required>
         </div>
@@ -57,7 +59,6 @@
         <!-- الحساب المالي -->
         <div class="col-md-6 mb-3">
             <label for="financial_account" class="form-label">
-                <i class="fas fa-university me-1"></i>
                 الحساب المالي <span class="text-danger">*</span>
             </label>
             <select class="form-select" 
@@ -69,7 +70,6 @@
                 {% for account in cash_accounts %}
                     <option value="{{ account.id }}" 
                             {% if payment.financial_account.id == account.id %}selected{% endif %}>
-                        {{ account.code }} - {{ account.name }}
                     </option>
                 {% endfor %}
             </select>
