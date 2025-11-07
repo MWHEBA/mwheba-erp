@@ -163,17 +163,6 @@ class Employee(models.Model):
         verbose_name='الصورة الشخصية'
     )
     
-    # فئة الزيادة
-    increase_category = models.ForeignKey(
-        'EmployeeIncreaseCategory',
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='employees',
-        verbose_name='فئة الزيادة',
-        help_text='فئة الموظف لتحديد سياسة الزيادة'
-    )
-    
     # التواريخ
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='تاريخ الإنشاء')
     updated_at = models.DateTimeField(auto_now=True, verbose_name='تاريخ التحديث')

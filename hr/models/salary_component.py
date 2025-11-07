@@ -14,12 +14,25 @@ class SalaryComponent(models.Model):
         ('deduction', 'مستقطع'),
     ]
     
-    contract = models.ForeignKey(
-        'Contract',
+    # الموظف (أساسي - البنود تتبع الموظف)
+    employee = models.ForeignKey(
+        'Employee',
         on_delete=models.CASCADE,
         related_name='salary_components',
-        verbose_name='العقد'
+        verbose_name='الموظف'
     )
+    
+    # العقد (اختياري - للربط فقط)
+    contract = models.ForeignKey(
+        'Contract',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='contract_components',
+        verbose_name='العقد',
+        help_text='العقد الذي تم إضافة البند فيه (اختياري)'
+    )
+    
     component_type = models.CharField(
         max_length=20,
         choices=COMPONENT_TYPE_CHOICES,
@@ -49,13 +62,30 @@ class SalaryComponent(models.Model):
         default=False,
         verbose_name='بند أساسي'
     )
+    is_taxable = models.BooleanField(
+        default=True,
+        verbose_name='خاضع للضريبة'
+    )
+    is_fixed = models.BooleanField(
+        default=True,
+        verbose_name='ثابت شهرياً'
+    )
+    notes = models.TextField(
+        blank=True,
+        verbose_name='ملاحظات'
+    )
+    created_at = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name='تاريخ الإضافة'
+    )
     
     class Meta:
         verbose_name = 'مكون راتب'
         verbose_name_plural = 'مكونات الرواتب'
         ordering = ['component_type', 'order', 'id']
         indexes = [
-            models.Index(fields=['contract', 'component_type']),
+            models.Index(fields=['employee', 'component_type']),
+            models.Index(fields=['contract']),
         ]
     
     def __str__(self):
