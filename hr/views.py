@@ -2951,36 +2951,42 @@ def contract_create_increase_schedule(request, pk):
 
 @login_required
 @require_http_methods(["POST"])
-def contract_increase_apply(request, increase_id):
-    """تطبيق زيادة مجدولة"""
+def contract_increase_action(request, increase_id, action):
+    """دالة موحدة لإجراءات الزيادات (تطبيق/إلغاء)"""
     from .models import ContractIncrease
     from django.http import JsonResponse
     
     increase = get_object_or_404(ContractIncrease, pk=increase_id)
     
-    success, message = increase.apply_increase(applied_by=request.user)
+    if action == 'apply':
+        success, message = increase.apply_increase(applied_by=request.user)
+    elif action == 'cancel':
+        success, message = increase.cancel_increase()
+    else:
+        return JsonResponse({
+            'success': False,
+            'message': 'إجراء غير صحيح'
+        }, status=400)
     
     return JsonResponse({
         'success': success,
         'message': message
     })
+
+
+# الدوال القديمة للتوافق مع الروابط الموجودة (سيتم إزالتها لاحقاً)
+@login_required
+@require_http_methods(["POST"])
+def contract_increase_apply(request, increase_id):
+    """تطبيق زيادة مجدولة - استخدم contract_increase_action بدلاً منها"""
+    return contract_increase_action(request, increase_id, 'apply')
 
 
 @login_required
 @require_http_methods(["POST"])
 def contract_increase_cancel(request, increase_id):
-    """إلغاء زيادة مجدولة"""
-    from .models import ContractIncrease
-    from django.http import JsonResponse
-    
-    increase = get_object_or_404(ContractIncrease, pk=increase_id)
-    
-    success, message = increase.cancel_increase()
-    
-    return JsonResponse({
-        'success': success,
-        'message': message
-    })
+    """إلغاء زيادة مجدولة - استخدم contract_increase_action بدلاً منها"""
+    return contract_increase_action(request, increase_id, 'cancel')
 
 
 @login_required

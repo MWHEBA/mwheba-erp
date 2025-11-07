@@ -10,6 +10,10 @@ from .models import (
     SalaryComponent, SalaryComponentTemplate
 )
 from .models.contract import Contract, ContractAmendment, ContractDocument, ContractIncrease
+from .models.salary_increase import (
+    SalaryIncreaseTemplate, AnnualIncreasePlan,
+    PlannedIncrease, EmployeeIncreaseCategory
+)
 
 
 @admin.register(Department)
@@ -254,3 +258,140 @@ class ContractIncreaseAdmin(admin.ModelAdmin):
         else:
             return f"{obj.increase_amount} جنيه"
     get_increase_value.short_description = 'قيمة الزيادة'
+
+
+# ============================================
+# نظام زيادات المرتبات من الإعدادات
+# ============================================
+
+@admin.register(SalaryIncreaseTemplate)
+class SalaryIncreaseTemplateAdmin(admin.ModelAdmin):
+    """إدارة قوالب زيادات المرتبات"""
+    list_display = ['name', 'code', 'increase_type', 'get_default_value', 'frequency', 'is_active', 'is_default']
+    list_filter = ['increase_type', 'frequency', 'is_active', 'is_default']
+    search_fields = ['name', 'code', 'description']
+    ordering = ['-is_default', 'name']
+    readonly_fields = ['created_at', 'updated_at', 'created_by']
+    
+    fieldsets = (
+        ('معلومات أساسية', {
+            'fields': ('name', 'code', 'description')
+        }),
+        ('نوع الزيادة', {
+            'fields': ('increase_type', 'default_percentage', 'default_amount', 'frequency')
+        }),
+        ('الشروط والقيود', {
+            'fields': (
+                'min_service_months', 'min_performance_rating',
+                'max_increase_percentage', 'max_increase_amount'
+            )
+        }),
+        ('الحالة', {
+            'fields': ('is_active', 'is_default')
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at', 'created_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_default_value(self, obj):
+        """عرض القيمة الافتراضية"""
+        if obj.increase_type == 'percentage' and obj.default_percentage:
+            return f"{obj.default_percentage}%"
+        elif obj.default_amount:
+            return f"{obj.default_amount} جنيه"
+        return "-"
+    get_default_value.short_description = 'القيمة الافتراضية'
+
+
+@admin.register(AnnualIncreasePlan)
+class AnnualIncreasePlanAdmin(admin.ModelAdmin):
+    """إدارة خطط الزيادات السنوية"""
+    list_display = ['name', 'year', 'template', 'status', 'effective_date', 'total_budget', 'allocated_amount']
+    list_filter = ['year', 'status', 'template']
+    search_fields = ['name', 'notes']
+    ordering = ['-year', '-created_at']
+    readonly_fields = ['created_at', 'updated_at', 'created_by', 'approved_by', 'approval_date', 'allocated_amount']
+    date_hierarchy = 'effective_date'
+    
+    fieldsets = (
+        ('معلومات الخطة', {
+            'fields': ('name', 'year', 'template')
+        }),
+        ('التواريخ', {
+            'fields': ('effective_date', 'approval_date')
+        }),
+        ('الميزانية', {
+            'fields': ('total_budget', 'allocated_amount')
+        }),
+        ('الحالة', {
+            'fields': ('status', 'notes')
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at', 'created_by', 'approved_by'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(PlannedIncrease)
+class PlannedIncreaseAdmin(admin.ModelAdmin):
+    """إدارة الزيادات المخططة"""
+    list_display = ['employee', 'plan', 'current_salary', 'calculated_amount', 'new_salary', 'status', 'applied_date']
+    list_filter = ['status', 'plan', 'applied_date']
+    search_fields = [
+        'employee__first_name_ar', 'employee__last_name_ar',
+        'employee__employee_number', 'plan__name'
+    ]
+    ordering = ['plan', 'employee']
+    readonly_fields = ['created_at', 'updated_at', 'approved_by', 'applied_date', 'contract_increase']
+    date_hierarchy = 'applied_date'
+    
+    fieldsets = (
+        ('الربط', {
+            'fields': ('plan', 'employee', 'contract')
+        }),
+        ('القيم', {
+            'fields': (
+                'current_salary', 'increase_percentage', 'increase_amount',
+                'calculated_amount', 'new_salary'
+            )
+        }),
+        ('معلومات إضافية', {
+            'fields': ('performance_rating', 'justification')
+        }),
+        ('الحالة', {
+            'fields': ('status', 'applied_date', 'contract_increase')
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at', 'approved_by'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(EmployeeIncreaseCategory)
+class EmployeeIncreaseCategoryAdmin(admin.ModelAdmin):
+    """إدارة فئات الموظفين للزيادات"""
+    list_display = ['name', 'code', 'default_template', 'is_active']
+    list_filter = ['is_active', 'default_template']
+    search_fields = ['name', 'code', 'description']
+    ordering = ['name']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('معلومات الفئة', {
+            'fields': ('name', 'code', 'description')
+        }),
+        ('القالب الافتراضي', {
+            'fields': ('default_template',)
+        }),
+        ('الحالة', {
+            'fields': ('is_active',)
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
