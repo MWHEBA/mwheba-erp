@@ -12,11 +12,11 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from decimal import Decimal
 
-from ..models import (
+from .models.salary_increase import (
     SalaryIncreaseTemplate, AnnualIncreasePlan,
-    PlannedIncrease, EmployeeIncreaseCategory,
-    Employee, Contract
+    PlannedIncrease, EmployeeIncreaseCategory
 )
+from .models import Employee, Contract
 
 
 # ============================================

@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}تفاصيل الخطة: {{ plan.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2><i class="fas fa-calendar-alt"></i> {{ plan.name }}</h2>
+            <p class="text-muted">السنة: {{ plan.year }}</p>
+        </div>
+        <div class="col-md-6 text-left">
+            <a href="{% url 'hr:generate_planned_increases' plan.pk %}" class="btn btn-success">
+                <i class="fas fa-cogs"></i> توليد زيادات
+            </a>
+            <a href="{% url 'hr:bulk_apply_increases' plan.pk %}" class="btn btn-primary">
+                <i class="fas fa-check-double"></i> تطبيق جماعي
+            </a>
+            <a href="{% url 'hr:annual_plan_list' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-right"></i> العودة
+            </a>
+        </div>
+    </div>
+    
+    <!-- معلومات الخطة -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
+                    <h5>{{ stats.pending }}</h5>
+                    <p class="text-muted mb-0">معلق</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                    <h5>{{ stats.approved }}</h5>
+                    <p class="text-muted mb-0">معتمد</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-times-circle fa-2x text-danger mb-2"></i>
+                    <h5>{{ stats.rejected }}</h5>
+                    <p class="text-muted mb-0">مرفوض</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-double fa-2x text-primary mb-2"></i>
+                    <h5>{{ stats.applied }}</h5>
+                    <p class="text-muted mb-0">مطبق</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- معلومات إضافية -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <strong>القالب:</strong> {{ plan.template.name }}
+                </div>
+                <div class="col-md-3">
+                    <strong>تاريخ السريان:</strong> {{ plan.effective_date|date:"Y-m-d" }}
+                </div>
+                <div class="col-md-3">
+                    <strong>الميزانية:</strong> 
+                    {% if plan.total_budget %}
+                    {{ plan.total_budget|floatformat:0 }} جنيه
+                    {% else %}
+                    غير محدد
+                    {% endif %}
+                </div>
+                <div class="col-md-3">
+                    <strong>التكلفة الفعلية:</strong> {{ total_cost|floatformat:0 }} جنيه
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- جدول الزيادات المخططة -->
+    <div class="card">
+        <div class="card-header">
+            <h5><i class="fas fa-list"></i> الزيادات المخططة</h5>
+        </div>
+        <div class="card-body">
+            {% if planned_increases %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>الموظف</th>
+                            <th>الراتب الحالي</th>
+                            <th>الزيادة</th>
+                            <th>الراتب الجديد</th>
+                            <th>الحالة</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for increase in planned_increases %}
+                        <tr>
+                            <td>{{ increase.employee.get_full_name_ar }}</td>
+                            <td>{{ increase.current_salary|floatformat:0 }}</td>
+                            <td>
+                                {% if increase.increase_percentage %}
+                                {{ increase.increase_percentage }}% = 
+                                {% endif %}
+                                {{ increase.calculated_amount|floatformat:0 }} جنيه
+                            </td>
+                            <td>{{ increase.new_salary|floatformat:0 }}</td>
+                            <td>
+                                {% if increase.status == 'pending' %}
+                                <span class="badge bg-warning">معلق</span>
+                                {% elif increase.status == 'approved' %}
+                                <span class="badge bg-success">معتمد</span>
+                                {% elif increase.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوض</span>
+                                {% else %}
+                                <span class="badge bg-primary">مطبق</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if increase.status == 'pending' %}
+                                <button class="btn btn-sm btn-success approve-btn" 
+                                        data-id="{{ increase.pk }}">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger reject-btn" 
+                                        data-id="{{ increase.pk }}">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% elif increase.status == 'approved' %}
+                                <button class="btn btn-sm btn-primary apply-btn" 
+                                        data-id="{{ increase.pk }}">
+                                    <i class="fas fa-check-double"></i> تطبيق
+                                </button>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5">
+                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                <p class="text-muted">لا توجد زيادات مخططة</p>
+                <a href="{% url 'hr:generate_planned_increases' plan.pk %}" class="btn btn-success">
+                    <i class="fas fa-cogs"></i> توليد زيادات
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // اعتماد زيادة
+    document.querySelectorAll('.approve-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            if (confirm('هل تريد اعتماد هذه الزيادة؟')) {
+                fetch(`/hr/salary-increase-settings/increases/${id}/approve/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            }
+        });
+    });
+    
+    // رفض زيادة
+    document.querySelectorAll('.reject-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            if (confirm('هل تريد رفض هذه الزيادة؟')) {
+                fetch(`/hr/salary-increase-settings/increases/${id}/reject/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            }
+        });
+    });
+    
+    // تطبيق زيادة
+    document.querySelectorAll('.apply-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            if (confirm('هل تريد تطبيق هذه الزيادة على العقد؟')) {
+                fetch(`/hr/salary-increase-settings/increases/${id}/apply/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}',
+                        'Content-Type': 'application/json'
+                    }
+                }).then(r => r.json()).then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert(data.message);
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}
