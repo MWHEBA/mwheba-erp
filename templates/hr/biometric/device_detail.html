@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}تفاصيل ماكينة البصمة{% endblock %}
 
@@ -106,15 +107,26 @@
           </div>
       </div>
 
-      <!-- حالة الاتصال والإحصائيات -->
       <div class="col-md-6">
           <div class="section-container">
               <h5 class="section-title">
                   <i class="fas fa-signal me-2"></i>حالة الاتصال
-                  {% if device.last_sync %}
-                      <span class="badge bg-success float-end">
-                          <i class="fas fa-robot me-1"></i>Bridge Agent نشط
-                      </span>
+                  {% load tz %}
+                  {% if device.last_connection %}
+                      {% now "U" as current_timestamp %}
+                      {% with device.last_connection|date:"U"|add:"0" as last_connection_timestamp %}
+                          {% with current_timestamp|add:"0"|add:"-3600" as one_hour_ago %}
+                              {% if last_connection_timestamp > one_hour_ago %}
+                                  <span class="badge bg-success float-end">
+                                      <i class="fas fa-robot me-1"></i>Bridge Agent نشط
+                                  </span>
+                              {% elif last_connection_timestamp > 0 %}
+                                  <span class="badge bg-secondary float-end">
+                                      <i class="fas fa-robot me-1"></i>Bridge Agent متوقف
+                                  </span>
+                              {% endif %}
+                          {% endwith %}
+                      {% endwith %}
                   {% else %}
                       <span class="badge bg-warning text-dark float-end">
                           <i class="fas fa-robot me-1"></i>Bridge Agent غير مفعل
@@ -152,11 +164,11 @@
                   </div>
                   <div class="col-6">
                       <small class="text-muted">آخر اتصال</small>
-                      <p class="mb-0"><strong>{{ device.last_connection|date:"Y-m-d H:i"|default:"-" }}</strong></p>
+                      <p class="mb-0"><strong>{{ device.last_connection|date:"Y-m-d g:i A"|default:"-" }}</strong></p>
                   </div>
                   <div class="col-6">
                       <small class="text-muted">آخر مزامنة</small>
-                      <p class="mb-0"><strong>{{ device.last_sync|date:"Y-m-d H:i"|default:"-" }}</strong></p>
+                      <p class="mb-0"><strong>{{ device.last_sync|date:"Y-m-d g:i A"|default:"-" }}</strong></p>
                   </div>
               </div>
           </div>
@@ -186,7 +198,7 @@
               </div>
               <div class="timeline-content">
                   <div class="d-flex justify-content-between align-items-center mb-2">
-                      <strong>{{ sync.started_at|date:"Y-m-d H:i:s" }}</strong>
+                      <strong>{{ sync.started_at|date:"Y-m-d g:i:s A" }}</strong>
                       <span class="badge bg-{% if sync.status == 'success' %}success{% elif sync.status == 'error' %}danger{% else %}warning text-dark{% endif %}">
                           {{ sync.get_status_display }}
                       </span>
@@ -197,7 +209,7 @@
                       {% if sync.records_failed %}
                           <i class="fas fa-exclamation-triangle ms-2 me-1 text-danger"></i>{{ sync.records_failed }} فاشل
                       {% endif %}
-                      <i class="fas fa-clock ms-2 me-1"></i>{{ sync.duration|floatformat:2 }}s
+                      <i class="fas fa-clock ms-2 me-1"></i>{{ sync.duration|remove_trailing_zeros }}s
                   </small>
                   {% if sync.error_message %}
                   <div class="alert alert-danger alert-sm mt-2 mb-0">

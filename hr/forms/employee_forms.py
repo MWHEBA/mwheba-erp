@@ -17,7 +17,7 @@ class EmployeeForm(forms.ModelForm):
             'religion', 'military_status', 'personal_email', 'work_email',
             'mobile_phone', 'home_phone', 'address', 'city', 'postal_code',
             'emergency_contact_name', 'emergency_contact_relation', 'emergency_contact_phone',
-            'department', 'job_title', 'direct_manager', 'hire_date',
+            'department', 'job_title', 'direct_manager', 'shift', 'biometric_user_id', 'hire_date',
             'employment_type', 'photo'
         ]
         widgets = {
@@ -50,6 +50,8 @@ class EmployeeForm(forms.ModelForm):
             'department': forms.Select(attrs={'class': 'form-select'}),
             'job_title': forms.Select(attrs={'class': 'form-select'}),
             'direct_manager': forms.Select(attrs={'class': 'form-select'}),
+            'shift': forms.Select(attrs={'class': 'form-select'}),
+            'biometric_user_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم الموظف في جهاز البصمة'}),
             'employment_type': forms.Select(attrs={'class': 'form-select'}),
             'photo': forms.FileInput(attrs={'class': 'form-control'}),
         }

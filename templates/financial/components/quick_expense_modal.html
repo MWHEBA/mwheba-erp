@@ -43,7 +43,6 @@
               <div class="input-group">
                 <input type="number" class="form-control" id="quick_amount" name="amount" 
                        placeholder="0" step="any" min="0.01" required>
-                <span class="input-group-text">{{ currency_symbol }}</span>
               </div>
             </div>
             
@@ -53,7 +52,7 @@
                 <i class="fas fa-calendar me-1"></i>
                 {% trans "تاريخ المصروف" %} <span class="text-danger">*</span>
               </label>
-              <input type="date" class="form-control" id="quick_expense_date" name="expense_date" required>
+              <input type="text" class="form-control" id="quick_expense_date" name="expense_date" data-date-picker placeholder="اختر التاريخ" required>
             </div>
             
             <!-- حساب المصروف -->

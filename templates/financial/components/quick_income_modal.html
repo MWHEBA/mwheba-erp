@@ -43,17 +43,16 @@
               <div class="input-group">
                 <input type="number" class="form-control" id="quick_income_amount" name="amount" 
                        placeholder="0" step="any" min="0.01" required>
-                <span class="input-group-text">{{ currency_symbol }}</span>
               </div>
             </div>
             
             <!-- تاريخ الإيراد -->
             <div class="col-md-6 mb-3">
-              <label for="quick_income_date" class="form-label">
+              <label class="form-label">
                 <i class="fas fa-calendar me-1"></i>
                 {% trans "تاريخ الإيراد" %} <span class="text-danger">*</span>
               </label>
-              <input type="date" class="form-control" id="quick_income_date" name="income_date" required>
+              <input type="text" class="form-control" id="quick_income_date" name="income_date" data-date-picker placeholder="اختر التاريخ" required>
             </div>
             
             <!-- حساب الإيراد -->

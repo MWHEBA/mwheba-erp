@@ -186,8 +186,10 @@
         <div class="row mb-3">
             <div class="col-md-4">
                 <label class="form-label">تاريخ الميلاد *</label>
-                <input type="date" name="birth_date" class="form-control" 
-                       value="{% if employee %}{{ employee.birth_date|date:'Y-m-d' }}{% endif %}" required>
+                {{ form.birth_date }}
+                {% if form.birth_date.errors %}
+                    <div class="text-danger">{{ form.birth_date.errors }}</div>
+                {% endif %}
             </div>
             <div class="col-md-4">
                 <label class="form-label">الجنس *</label>
@@ -293,12 +295,25 @@
             </div>
             <div class="col-md-4">
                 <label class="form-label">تاريخ التعيين *</label>
-                <input type="date" name="hire_date" id="id_hire_date" class="form-control" 
-                       value="{% if employee %}{{ employee.hire_date|date:'Y-m-d' }}{% endif %}" required>
+                {{ form.hire_date }}
+                {% if form.hire_date.errors %}
+                    <div class="text-danger">{{ form.hire_date.errors }}</div>
+                {% endif %}
             </div>
         </div>
 
         <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">الوردية</label>
+                <select name="shift" id="id_shift" class="form-select">
+                    <option value="">بدون وردية (افتراضي 9-5)</option>
+                    {% for shift in shifts %}
+                    <option value="{{ shift.id }}" {% if employee and employee.shift and employee.shift.id == shift.id %}selected{% endif %}>
+                        {{ shift.name }} ({{ shift.start_time|date:"g:i A" }} - {{ shift.end_time|date:"g:i A" }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
             <div class="col-md-4">
                 <label class="form-label">نوع التوظيف</label>
                 <select name="employment_type" class="form-select">
@@ -377,11 +392,7 @@ $(document).ready(function() {
         dropdownParent: $('.section-container')
     });
     
-    // تعيين تاريخ التعيين الافتراضي لليوم (فقط للإضافة)
-    {% if not employee %}
-    const today = new Date().toISOString().split('T')[0];
-    $('#id_hire_date').val(today);
-    {% endif %}
+    // تاريخ التعيين الافتراضي يتم تعيينه في Form
     
     // فلترة المسميات الوظيفية حسب القسم المختار
     $('#id_department').on('change', function() {

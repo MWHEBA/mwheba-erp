@@ -7,7 +7,11 @@ from .attendance import Shift, Attendance
 from .leave import LeaveType, LeaveBalance, Leave
 from .salary import Salary
 from .payroll import Payroll, Advance
-from .contract import Contract, ContractAmendment
+from .contract import Contract, ContractAmendment, ContractDocument, ContractIncrease
+from .salary_increase import (
+    SalaryIncreaseTemplate, AnnualIncreasePlan,
+    PlannedIncrease, EmployeeIncreaseCategory
+)
 from .salary_component import SalaryComponent
 from .salary_component_template import SalaryComponentTemplate
 from .biometric import BiometricDevice, BiometricLog, BiometricSyncLog
@@ -27,10 +31,16 @@ __all__ = [
     'Advance',
     'Contract',
     'ContractAmendment',
+    'ContractDocument',
+    'ContractIncrease',
     'SalaryComponent',
     'SalaryComponentTemplate',
     'BiometricDevice',
     'BiometricLog',
     'BiometricSyncLog',
     'BiometricUserMapping',
+    'SalaryIncreaseTemplate',
+    'AnnualIncreasePlan',
+    'PlannedIncrease',
+    'EmployeeIncreaseCategory',
 ]

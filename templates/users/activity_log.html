@@ -2,10 +2,10 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}{{ page_title }}{% endblock %}
-
-{% block content %}
-<div class="container-fluid">
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
     <!-- عنوان الصفحة (مضمن مباشرة) -->
     <div class="mb-4">
         <!-- Breadcrumbs -->
@@ -79,9 +79,9 @@
                             <div class="col-md-4">
                                 <div class="input-group">
                                     <span class="input-group-text">من</span>
-                                    <input type="date" name="date_from" class="form-control" value="{{ date_from }}">
+                                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
                                     <span class="input-group-text">إلى</span>
-                                    <input type="date" name="date_to" class="form-control" value="{{ date_to }}">
+                                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
                                 </div>
                             </div>
                             <div class="col-md-2">

@@ -1,0 +1,40 @@
+<button type="button" class="btn btn-sm btn-outline-info" 
+        data-bs-toggle="modal" 
+        data-bs-target="#movementsModal{{ object.employee.id }}_{{ object.date|date:'Ymd' }}"
+        title="عرض جميع الحركات">
+    <i class="fas fa-list"></i>
+</button>
+
+<!-- Modal للحركات -->
+<div class="modal fade" id="movementsModal{{ object.employee.id }}_{{ object.date|date:'Ymd' }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-fingerprint me-2"></i>
+                    حركات البصمة - {{ object.employee.get_full_name_ar }}
+                    <br>
+                    <small class="text-muted">{{ object.date|date:"d/m/Y" }}</small>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="list-group">
+                    {% for movement in object.movements %}
+                    <li class="list-group-item">
+                        <i class="fas fa-fingerprint text-primary me-2"></i>
+                        {{ movement|date:"g:i:s A" }}
+                        {% if forloop.first %}
+                            <span class="badge bg-success float-end">حضور</span>
+                        {% elif forloop.last %}
+                            <span class="badge bg-info float-end">انصراف</span>
+                        {% else %}
+                            <span class="badge bg-secondary float-end">حركة</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

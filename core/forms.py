@@ -21,12 +21,20 @@ class SearchForm(forms.Form):
     date_from = forms.DateField(
         required=False,
         label=_("من تاريخ"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "من تاريخ..."
+        }),
     )
     date_to = forms.DateField(
         required=False,
         label=_("إلى تاريخ"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "إلى تاريخ..."
+        }),
     )
     sort_by = forms.ChoiceField(
         required=False,
@@ -64,12 +72,20 @@ class DateRangeForm(forms.Form):
     start_date = forms.DateField(
         required=False,
         label=_("تاريخ البداية"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "تاريخ البداية..."
+        }),
     )
     end_date = forms.DateField(
         required=False,
         label=_("تاريخ النهاية"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "تاريخ النهاية..."
+        }),
     )
     preset = forms.ChoiceField(
         required=False,
@@ -218,12 +234,20 @@ class ExportForm(forms.Form):
     date_from = forms.DateField(
         required=False,
         label=_("من تاريخ"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "من تاريخ..."
+        }),
     )
     date_to = forms.DateField(
         required=False,
         label=_("إلى تاريخ"),
-        widget=forms.DateInput(attrs={"type": "date"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "إلى تاريخ..."
+        }),
     )
 
     def clean(self):

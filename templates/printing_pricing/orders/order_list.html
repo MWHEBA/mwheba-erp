@@ -1,19 +1,18 @@
 {% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
-{% load app_tags %}
-
+{% load custom_filters %}
 {% block title %}{% trans "طلبات التسعير" %}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <link rel="stylesheet" href="{% static 'css/printing_pricing/components.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
   <!-- عنوان الصفحة -->
-  <div class="mb-4">
       <!-- Breadcrumbs -->
       <div class="mb-2">
           <nav aria-label="breadcrumb">
@@ -89,7 +88,7 @@
         </div>
         <div class="col-md-2">
           <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
-          <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+          <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
         </div>
         <div class="col-md-3 d-flex align-items-end">
           <button type="submit" class="btn btn-primary w-100">

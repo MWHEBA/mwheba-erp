@@ -1,0 +1,14 @@
+{% load i18n %}
+{% if object.employee %}
+<div class="d-flex align-items-center justify-content-center">
+    <i class="fas fa-user text-success me-2"></i>
+    <span>{{ object.employee.get_full_name_ar }}</span>
+</div>
+{% else %}
+<div class="text-center">
+    <span class="text-muted">
+        <i class="fas fa-unlink me-1"></i>
+        غير مربوط
+    </span>
+</div>
+{% endif %}

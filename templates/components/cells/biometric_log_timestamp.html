@@ -1,0 +1,5 @@
+{% load i18n %}
+<div class="d-flex flex-column">
+    <strong class="text-dark">{{ object.timestamp|date:"d/m/Y" }}</strong>
+    <small class="text-muted">{{ object.timestamp|date:"H:i:s" }}</small>
+</div>

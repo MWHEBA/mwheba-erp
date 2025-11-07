@@ -46,7 +46,11 @@ class SaleForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الفاتورة..."
+            }),
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
 
@@ -187,9 +191,11 @@ class SalePaymentForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "payment_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "payment_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الدفع..."
+            }),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
                 attrs={"class": "form-control", "step": "any", "min": "0"}
@@ -336,9 +342,11 @@ class SalePaymentEditForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "payment_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "payment_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الدفع..."
+            }),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
                 attrs={"class": "form-control", "step": "any", "min": "0"}
@@ -454,7 +462,11 @@ class SaleReturnForm(forms.ModelForm):
         model = SaleReturn
         fields = ["date", "warehouse", "notes"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ المرتجع..."
+            }),
             "notes": forms.Textarea(attrs={"rows": 3}),
         }
 

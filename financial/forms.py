@@ -157,7 +157,11 @@ class TransactionForm(forms.ModelForm):
             "account": forms.Select(attrs={"class": "form-control"}),
             "transaction_type": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
-            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر التاريخ..."
+            }),
             "description": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "reference": forms.TextInput(attrs={"class": "form-control"}),
             "reference_number": forms.TextInput(attrs={"class": "form-control"}),
@@ -267,10 +271,16 @@ class ExpenseForm(forms.ModelForm):
             "account": forms.Select(attrs={"class": "form-control"}),
             "payment_account": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
-            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "payment_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ المصروف..."
+            }),
+            "payment_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الدفع..."
+            }),
             "category": forms.Select(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "reference": forms.TextInput(attrs={"class": "form-control"}),
@@ -376,10 +386,16 @@ class IncomeForm(forms.ModelForm):
             "title": forms.TextInput(attrs={"class": "form-control"}),
             "receiving_account": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
-            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
-            "received_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الإيراد..."
+            }),
+            "received_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الاستلام..."
+            }),
             "category": forms.Select(attrs={"class": "form-control"}),
             "description": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "reference": forms.TextInput(attrs={"class": "form-control"}),
@@ -448,9 +464,11 @@ class CashMovementForm(forms.ModelForm):
             "movement_type": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(attrs={"class": "form-control", "min": "0.01"}),
             "description": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
-            "movement_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "movement_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الحركة..."
+            }),
             "beneficiary": forms.TextInput(attrs={"class": "form-control"}),
             "receipt_number": forms.TextInput(attrs={"class": "form-control"}),
             "notes": forms.Textarea(attrs={"rows": 2, "class": "form-control"}),
@@ -493,11 +511,19 @@ class CashMovementFilterForm(forms.Form):
     )
     date_from = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "من تاريخ..."
+        }),
     )
     date_to = forms.DateField(
         required=False,
-        widget=forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+        widget=forms.TextInput(attrs={
+            "class": "form-control",
+            "data-date-picker": True,
+            "placeholder": "إلى تاريخ..."
+        }),
     )
     amount_from = forms.DecimalField(
         required=False,
@@ -528,9 +554,11 @@ class BankReconciliationForm(forms.ModelForm):
         fields = ["account", "reconciliation_date", "bank_balance", "notes"]
         widgets = {
             "account": forms.Select(attrs={"class": "form-control"}),
-            "reconciliation_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "reconciliation_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ التسوية..."
+            }),
             "bank_balance": forms.NumberInput(attrs={"class": "form-control"}),
             "notes": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }

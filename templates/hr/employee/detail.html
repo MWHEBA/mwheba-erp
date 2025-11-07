@@ -41,40 +41,56 @@
   </div>
 
   <div class="row">
+    <!-- العمود الأيسر -->
     <div class="col-md-4 mb-4">
+        <!-- الصورة والمعلومات الأساسية -->
         <div class="section-container">
-                <div class="card-body text-center">
-                    {% if employee.photo %}
-                        <img src="{{ employee.photo.url }}" class="rounded-circle mb-3" width="150" height="150" alt="صورة">
-                    {% else %}
-                        <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
-                            <i class="fas fa-user fa-4x text-white"></i>
-                        </div>
-                    {% endif %}
-                    <h4>{{ employee.get_full_name_ar }}</h4>
-                    <p class="text-muted">{{ employee.job_title.title_ar }}</p>
-                    {% if employee.status == 'active' %}
-                    <span class="badge bg-success">
-                        {{ employee.get_status_display }}
-                    </span>
-                    {% else %}
-                    <span class="badge bg-danger">
-                        {{ employee.get_status_display }}
-                    </span>
-                    {% endif %}
-                </div>
+            <div class="card-body text-center">
+                {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}" class="rounded-circle mb-3" width="150" height="150" alt="صورة">
+                {% else %}
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                        <i class="fas fa-user fa-4x text-white"></i>
+                    </div>
+                {% endif %}
+                <h4>{{ employee.get_full_name_ar }}</h4>
+                <p class="text-muted mb-2">{{ employee.job_title.title_ar }}</p>
+                <p class="text-muted mb-3"><small>{{ employee.department.name_ar }}</small></p>
+                {% if employee.status == 'active' %}
+                <span class="badge bg-success">
+                    {{ employee.get_status_display }}
+                </span>
+                {% else %}
+                <span class="badge bg-danger">
+                    {{ employee.get_status_display }}
+                </span>
+                {% endif %}
+            </div>
         </div>
 
+        <!-- معلومات سريعة -->
         <div class="section-container">
-                <div class="card-header">
-                    <h6 class="mb-0">معلومات سريعة</h6>
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-id-card me-2"></i>معلومات سريعة</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">رقم الموظف</small>
+                    <strong>{{ employee.employee_number }}</strong>
                 </div>
-                <div class="card-body">
-                    <p><strong>رقم الموظف:</strong> {{ employee.employee_number }}</p>
-                    <p><strong>القسم:</strong> {{ employee.department.name_ar }}</p>
-                    <p><strong>تاريخ التعيين:</strong> {{ employee.hire_date }}</p>
-                    <p><strong>سنوات الخدمة:</strong> {{ employee.years_of_service }} سنة</p>
+                <div class="mb-3">
+                    <small class="text-muted d-block">تاريخ التعيين</small>
+                    <strong>{{ employee.hire_date|date:"d/m/Y" }}</strong>
                 </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">سنوات الخدمة</small>
+                    <strong>{{ employee.years_of_service }} سنة</strong>
+                </div>
+                <div>
+                    <small class="text-muted d-block">العمر</small>
+                    <strong>{{ employee.age }} سنة</strong>
+                </div>
+            </div>
         </div>
         
         <!-- حالة الربط بالمستخدم -->
@@ -117,81 +133,304 @@
                 {% endif %}
             </div>
         </div>
+        
+        <!-- حالة الربط بالوردية -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>الوردية</h6>
+            </div>
+            <div class="card-body">
+                {% if employee.shift %}
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>مرتبط بوردية</strong>
+                    </div>
+                    <p class="mb-2"><strong>اسم الوردية:</strong> {{ employee.shift.name }}</p>
+                    <p class="mb-2"><strong>وقت البداية:</strong> <span class="badge bg-success">{{ employee.shift.start_time|date:"g:i A" }}</span></p>
+                    <p class="mb-2"><strong>وقت النهاية:</strong> <span class="badge bg-info">{{ employee.shift.end_time|date:"g:i A" }}</span></p>
+                    <p class="mb-2"><strong>ساعات العمل:</strong> {{ employee.shift.work_hours }} ساعة</p>
+                    <hr>
+                    <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-sm btn-warning w-100">
+                        <i class="fas fa-edit me-2"></i>تعديل الوردية
+                    </a>
+                {% else %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>غير مرتبط بوردية</strong>
+                    </div>
+                    <p class="text-muted small mb-3">سيتم استخدام الأوقات الافتراضية (9 صباحاً - 5 مساءً)</p>
+                    <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-primary w-100">
+                        <i class="fas fa-clock me-2"></i>تعيين وردية
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+        
         </div>
 
-        <!-- التفاصيل -->
+        <!-- العمود الأيمن - التفاصيل -->
         <div class="col-md-8">
-            <!-- المعلومات الشخصية -->
-            <div class="card mb-3">
+            <!-- المعلومات الوظيفية -->
+            <div class="section-container mb-3">
                 <div class="card-header">
-                    <h6 class="mb-0">المعلومات الشخصية</h6>
+                    <h6 class="mb-0"><i class="fas fa-briefcase me-2"></i>المعلومات الوظيفية</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-2">
-                            <strong>الرقم القومي:</strong> {{ employee.national_id }}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">القسم</small>
+                            <strong>{{ employee.department.name_ar }}</strong>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>تاريخ الميلاد:</strong> {{ employee.birth_date }}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">المسمى الوظيفي</small>
+                            <strong>{{ employee.job_title.title_ar }}</strong>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>الجنس:</strong> {{ employee.get_gender_display }}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">نوع التوظيف</small>
+                            <strong>{{ employee.get_employment_type_display }}</strong>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>الحالة الاجتماعية:</strong> {{ employee.get_marital_status_display }}
+                        {% if employee.direct_manager %}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">المدير المباشر</small>
+                            <strong>{{ employee.direct_manager.get_full_name_ar }}</strong>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>العمر:</strong> {{ employee.age }} سنة
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- المعلومات الشخصية -->
+            <div class="section-container mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>المعلومات الشخصية</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الرقم القومي</small>
+                            <strong>{{ employee.national_id }}</strong>
                         </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">تاريخ الميلاد</small>
+                            <strong>{{ employee.birth_date|date:"d/m/Y" }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الجنس</small>
+                            <strong>{{ employee.get_gender_display }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الحالة الاجتماعية</small>
+                            <strong>{{ employee.get_marital_status_display }}</strong>
+                        </div>
+                        {% if employee.religion %}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الديانة</small>
+                            <strong>{{ employee.religion }}</strong>
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
 
             <!-- معلومات الاتصال -->
-            <div class="card mb-3">
+            <div class="section-container mb-3">
                 <div class="card-header">
-                    <h6 class="mb-0">معلومات الاتصال</h6>
+                    <h6 class="mb-0"><i class="fas fa-phone me-2"></i>معلومات الاتصال</h6>
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6 mb-2">
-                            <strong>البريد الوظيفي:</strong> {{ employee.work_email }}
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">البريد الوظيفي</small>
+                            <strong><a href="mailto:{{ employee.work_email }}">{{ employee.work_email }}</a></strong>
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>الهاتف المحمول:</strong> {{ employee.mobile_phone }}
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">الهاتف المحمول</small>
+                            <strong><a href="tel:{{ employee.mobile_phone }}">{{ employee.mobile_phone }}</a></strong>
                         </div>
-                        <div class="col-md-12 mb-2">
-                            <strong>العنوان:</strong> {{ employee.address }}
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">المدينة</small>
+                            <strong>{{ employee.city }}</strong>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">العنوان</small>
+                            <strong>{{ employee.address }}</strong>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- المعلومات الوظيفية -->
-            <div class="card">
-                <div class="card-header">
-                    <h6 class="mb-0">المعلومات الوظيفية</h6>
+            <!-- العقود -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-file-contract me-2"></i>العقود</h6>
+                    <a href="{% url 'hr:contract_form' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>إضافة عقد
+                    </a>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6 mb-2">
-                            <strong>القسم:</strong> {{ employee.department.name_ar }}
+                    {% if contracts %}
+                        {% if active_contract %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>العقد النشط:</strong> {{ active_contract.contract_number }}
                         </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>المسمى الوظيفي:</strong> {{ employee.job_title.title_ar }}
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>تاريخ التعيين:</strong> {{ employee.hire_date }}
-                        </div>
-                        <div class="col-md-6 mb-2">
-                            <strong>نوع التوظيف:</strong> {{ employee.get_employment_type_display }}
-                        </div>
-                        {% if employee.direct_manager %}
-                        <div class="col-md-6 mb-2">
-                            <strong>المدير المباشر:</strong> {{ employee.direct_manager.get_full_name_ar }}
+                        {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا يوجد عقد نشط حالياً</strong>
                         </div>
                         {% endif %}
-                    </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>رقم العقد</th>
+                                        <th>النوع</th>
+                                        <th>تاريخ البدء</th>
+                                        <th>تاريخ الانتهاء</th>
+                                        <th>الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contract in contracts %}
+                                    <tr class="{% if contract.status == 'active' %}table-success{% endif %}">
+                                        <td>
+                                            <a href="{% url 'hr:contract_detail' contract.pk %}">
+                                                {{ contract.contract_number }}
+                                            </a>
+                                        </td>
+                                        <td>{{ contract.get_contract_type_display }}</td>
+                                        <td>{{ contract.start_date|date:"d/m/Y" }}</td>
+                                        <td>
+                                            {% if contract.end_date %}
+                                                {{ contract.end_date|date:"d/m/Y" }}
+                                            {% else %}
+                                                <span class="text-muted">غير محدد</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if contract.status == 'active' %}
+                                                <span class="badge bg-success">نشط</span>
+                                            {% elif contract.status == 'expired' %}
+                                                <span class="badge bg-danger">منتهي</span>
+                                            {% elif contract.status == 'terminated' %}
+                                                <span class="badge bg-secondary">ملغي</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">{{ contract.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد عقود مسجلة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم تسجيل أي عقود لهذا الموظف بعد.</p>
+                        <a href="{% url 'hr:contract_form' %}?employee={{ employee.id }}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>إضافة عقد جديد
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- نظام البصمة -->
+            <div class="section-container">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-fingerprint me-2"></i>نظام البصمة</h6>
+                </div>
+                <div class="card-body">
+                    {% if biometric_mappings %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>مرتبط بنظام البصمة</strong>
+                        </div>
+                        
+                        {% for mapping in biometric_mappings %}
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mb-1">رقم الموظف في البصمة</small>
+                                    <h4 class="mb-0 text-primary">{{ mapping.biometric_user_id }}</h4>
+                                </div>
+                                {% if mapping.device %}
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mb-1">الجهاز</small>
+                                    <strong>{{ mapping.device.device_name }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <a href="{% url 'hr:biometric_mapping_list' %}?search={{ employee.employee_number }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-cog me-2"></i>إدارة الربط
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لم يتم ربط الموظف بنظام البصمة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">يجب ربط رقم الموظف في جهاز البصمة لتتبع الحضور والانصراف.</p>
+                        <a href="{% url 'hr:biometric_mapping_list' %}?search={{ employee.employee_number }}" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-link me-2"></i>ربط الموظف بالبصمة
+                        </a>
+                    {% endif %}
+                    
+                    {% if biometric_logs_count > 0 %}
+                        <hr>
+                        <h6 class="mb-3"><i class="fas fa-chart-line me-2"></i>إحصائيات البصمة</h6>
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <h4 class="text-primary mb-0">{{ biometric_logs_count }}</h4>
+                                    <small class="text-muted">إجمالي السجلات</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <h4 class="text-success mb-0">{{ biometric_logs_last_30_days }}</h4>
+                                    <small class="text-muted">آخر 30 يوم</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if recent_biometric_logs %}
+                        <hr>
+                        <p class="mb-2"><strong>آخر 5 بصمات:</strong></p>
+                        <ul class="list-group list-group-flush">
+                            {% for log in recent_biometric_logs %}
+                            <li class="list-group-item px-0 py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-fingerprint text-primary me-2"></i>
+                                        <small>{{ log.timestamp|date:"d/m/Y g:i A" }}</small>
+                                    </div>
+                                    <span class="badge bg-secondary">{{ log.device.device_name }}</span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                        
+                        <hr>
+                        <a href="{% url 'hr:biometric_log_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-info w-100">
+                            <i class="fas fa-list me-2"></i>عرض جميع السجلات
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد سجلات بصمة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم تسجيل أي بصمات لهذا الموظف بعد. تأكد من ربط الموظف بجهاز البصمة.</p>
+                        <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-fingerprint me-2"></i>إدارة أجهزة البصمة
+                        </a>
+                    {% endif %}
                 </div>
             </div>
         </div>

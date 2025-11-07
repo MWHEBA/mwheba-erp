@@ -303,7 +303,7 @@
     <form method="GET" action="" class="row g-3">
       <div class="col-md-6">
         <label for="date" class="form-label">تاريخ التقرير:</label>
-        <input type="date" name="date" id="date" class="form-control" value="{{ report_date|date:'Y-m-d' }}">
+        <input type="text" name="date" id="date" class="form-control" data-date-picker placeholder="تاريخ التقرير" value="{{ report_date|date:'Y-m-d' }}">
       </div>
       <div class="col-md-6 d-flex align-items-end">
         <button type="submit" class="btn btn-primary me-2">

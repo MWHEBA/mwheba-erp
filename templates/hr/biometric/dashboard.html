@@ -1,0 +1,610 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}لوحة تحكم البصمة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hr/biometric.css' %}">
+<style>
+    .stat-card {
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: transform 0.2s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+    
+    .stat-card .stat-icon {
+        font-size: 2.5rem;
+        opacity: 0.8;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+    
+    .stat-card .stat-label {
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+    }
+    
+    .progress-ring {
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 20px;
+    }
+    
+    .device-status {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-left: 5px;
+    }
+    
+    .device-status.online {
+        background-color: var(--success);
+        box-shadow: 0 0 5px var(--success);
+    }
+    
+    .device-status.offline {
+        background-color: var(--danger);
+    }
+    
+    .log-item {
+        padding: 10px;
+        border-bottom: 1px solid var(--border-color);
+        transition: background-color 0.2s;
+    }
+    
+    .log-item:hover {
+        background-color: var(--bg-secondary);
+    }
+    
+    .log-item:last-child {
+        border-bottom: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-fingerprint text-primary me-2"></i>
+                لوحة تحكم البصمة
+            </h2>
+            <p class="text-muted mb-0">مراقبة شاملة لسجلات البصمة والحضور</p>
+        </div>
+        <div>
+            <a href="{% url 'hr:biometric_log_list' %}" class="btn btn-outline-primary">
+                <i class="fas fa-list me-2"></i>
+                جميع السجلات
+            </a>
+            <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-link me-2"></i>
+                إدارة الربط
+            </a>
+            <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-outline-info">
+                <i class="fas fa-server me-2"></i>
+                الأجهزة
+            </a>
+        </div>
+    </div>
+
+    <!-- إحصائيات رئيسية -->
+    <div class="row mb-4">
+        <!-- إجمالي السجلات -->
+        <div class="col-md-3">
+            <div class="stat-card bg-primary text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">إجمالي السجلات</div>
+                        <div class="stat-value">{{ total_logs|default:0 }}</div>
+                        <small>
+                            <i class="fas fa-calendar-day me-1"></i>
+                            اليوم: {{ today_total }}
+                        </small>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-database"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- السجلات المربوطة -->
+        <div class="col-md-3">
+            <div class="stat-card bg-success text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">سجلات مربوطة</div>
+                        <div class="stat-value">{{ linked_logs|default:0 }}</div>
+                        <small>
+                            <i class="fas fa-percentage me-1"></i>
+                            {{ link_percentage }}%
+                        </small>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-link"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- السجلات المعالجة -->
+        <div class="col-md-3">
+            <div class="stat-card bg-info text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">سجلات معالجة</div>
+                        <div class="stat-value">{{ processed_logs|default:0 }}</div>
+                        <small>
+                            <i class="fas fa-percentage me-1"></i>
+                            {{ process_percentage }}%
+                        </small>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- الحضور اليوم -->
+        <div class="col-md-3">
+            <div class="stat-card bg-warning text-white">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="stat-label">حضور اليوم</div>
+                        <div class="stat-value">{{ today_present|default:0 }}</div>
+                        <small>
+                            <i class="fas fa-users me-1"></i>
+                            من {{ today_attendance_total }}
+                        </small>
+                    </div>
+                    <div class="stat-icon">
+                        <i class="fas fa-user-check"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- إحصائيات تفصيلية -->
+    <div class="row mb-4">
+        <!-- نسب الإنجاز -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie text-primary me-2"></i>
+                        نسب الإنجاز
+                    </h5>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="progress-ring">
+                                <canvas id="linkProgressChart"></canvas>
+                            </div>
+                            <h6 class="mt-2">نسبة الربط</h6>
+                            <p class="text-muted mb-0">{{ link_percentage }}%</p>
+                        </div>
+                        <div class="col-6">
+                            <div class="progress-ring">
+                                <canvas id="processProgressChart"></canvas>
+                            </div>
+                            <h6 class="mt-2">نسبة المعالجة</h6>
+                            <p class="text-muted mb-0">{{ process_percentage }}%</p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row text-start">
+                        <div class="col-6">
+                            <small class="text-muted">غير مربوطة:</small>
+                            <strong class="text-danger d-block">{{ unlinked_logs }}</strong>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">غير معالجة:</small>
+                            <strong class="text-warning d-block">{{ unprocessed_logs }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- حالة الأجهزة -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-server text-info me-2"></i>
+                        حالة الأجهزة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>
+                                <span class="device-status online"></span>
+                                متصلة
+                            </span>
+                            <strong class="text-success">{{ online_devices }}</strong>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ online_percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>
+                                <span class="device-status offline"></span>
+                                غير متصلة
+                            </span>
+                            <strong class="text-danger">{{ offline_devices }}</strong>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" 
+                                 style="width: {{ offline_percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h4 class="mb-0">{{ total_devices }}</h4>
+                            <small class="text-muted">إجمالي الأجهزة</small>
+                        </div>
+                        <div class="col-6">
+                            <h4 class="mb-0">{{ active_mappings }}</h4>
+                            <small class="text-muted">ربط نشط</small>
+                        </div>
+                    </div>
+                    
+                    {% if offline_device_list %}
+                    <div class="alert alert-warning mt-3 mb-0">
+                        <small>
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            {{ offline_devices }} جهاز غير متصل
+                        </small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- إحصائيات الأسبوع -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-week text-success me-2"></i>
+                        إحصائيات الأسبوع
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">إجمالي السجلات</small>
+                            <strong>{{ week_total }}</strong>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-primary" style="width: 100%"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">مربوطة</small>
+                            <strong class="text-success">{{ week_linked }}</strong>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {{ week_linked_percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">معالجة</small>
+                            <strong class="text-info">{{ week_processed }}</strong>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-info" 
+                                 style="width: {{ week_processed_percentage }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <h5 class="mb-0 text-warning">{{ today_late }}</h5>
+                            <small class="text-muted">متأخر</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="mb-0 text-danger">{{ today_absent }}</h5>
+                            <small class="text-muted">غائب</small>
+                        </div>
+                        <div class="col-4">
+                            <h5 class="mb-0 text-success">{{ today_present }}</h5>
+                            <small class="text-muted">حاضر</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- الرسم البياني -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line text-primary me-2"></i>
+                        سجلات الأسبوع الماضي
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="weeklyChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- القوائم -->
+    <div class="row">
+        <!-- سجلات غير مربوطة -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-unlink text-danger me-2"></i>
+                        سجلات غير مربوطة
+                    </h5>
+                    <span class="badge bg-danger">{{ unlinked_logs }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_unlinked %}
+                        {% for log in recent_unlinked %}
+                        <div class="log-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong class="text-danger">{{ log.user_id }}</strong>
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-server me-1"></i>
+                                        {{ log.device.device_name }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted d-block">
+                                        {{ log.timestamp|date:"d/m/Y" }}
+                                    </small>
+                                    <small class="text-muted">
+                                        {{ log.timestamp|date:"H:i" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="p-3 text-center border-top">
+                            <a href="{% url 'hr:biometric_log_list' %}?linked=false" class="btn btn-sm btn-outline-primary">
+                                عرض الكل ({{ unlinked_logs }})
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                            <p class="mb-0">جميع السجلات مربوطة!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- سجلات غير معالجة -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock text-warning me-2"></i>
+                        سجلات غير معالجة
+                    </h5>
+                    <span class="badge bg-warning">{{ unprocessed_logs }}</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_unprocessed %}
+                        {% for log in recent_unprocessed %}
+                        <div class="log-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ log.employee.full_name_display }}</strong>
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-fingerprint me-1"></i>
+                                        {{ log.punch_type_display }}
+                                    </small>
+                                </div>
+                                <div class="text-end">
+                                    <small class="text-muted d-block">
+                                        {{ log.timestamp|date:"d/m/Y" }}
+                                    </small>
+                                    <small class="text-muted">
+                                        {{ log.timestamp|date:"H:i" }}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="p-3 text-center border-top">
+                            <a href="{% url 'hr:biometric_log_list' %}?processed=false" class="btn btn-sm btn-outline-primary">
+                                عرض الكل ({{ unprocessed_logs }})
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="p-4 text-center text-muted">
+                            <i class="fas fa-check-circle fa-3x mb-3 text-success"></i>
+                            <p class="mb-0">جميع السجلات معالجة!</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // نسبة الربط
+    const linkCtx = document.getElementById('linkProgressChart');
+    if (linkCtx) {
+        new Chart(linkCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['مربوطة', 'غير مربوطة'],
+                datasets: [{
+                    data: [{{ linked_logs }}, {{ unlinked_logs }}],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+    
+    // نسبة المعالجة
+    const processCtx = document.getElementById('processProgressChart');
+    if (processCtx) {
+        new Chart(processCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['معالجة', 'غير معالجة'],
+                datasets: [{
+                    data: [{{ processed_logs }}, {{ unprocessed_logs }}],
+                    backgroundColor: ['#17a2b8', '#ffc107'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+    
+    // الرسم البياني الأسبوعي
+    const weeklyCtx = document.getElementById('weeklyChart');
+    if (weeklyCtx) {
+        const dailyData = {{ daily_stats|safe }};
+        
+        new Chart(weeklyCtx, {
+            type: 'line',
+            data: {
+                labels: dailyData.map(d => d.date_display),
+                datasets: [
+                    {
+                        label: 'إجمالي السجلات',
+                        data: dailyData.map(d => d.total),
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'مربوطة',
+                        data: dailyData.map(d => d.linked),
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    },
+                    {
+                        label: 'معالجة',
+                        data: dailyData.map(d => d.processed),
+                        borderColor: '#17a2b8',
+                        backgroundColor: 'rgba(23, 162, 184, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                        rtl: true
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        rtl: true
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // تحديث تلقائي كل 30 ثانية
+    setInterval(function() {
+        location.reload();
+    }, 30000);
+});
+</script>
+{% endblock %}

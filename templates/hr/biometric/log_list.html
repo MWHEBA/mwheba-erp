@@ -38,52 +38,79 @@
       </div>
   </div>
 
+  <!-- الفلاتر -->
   <div class="section-container">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-database me-2"></i>سجلات البصمات</h5>
-      </div>
+    <div class="card mb-3">
       <div class="card-body">
-        {% if logs %}
-        <div class="table-responsive">
-            <table class="table table-hover" id="logsTable">
-                <thead>
-                    <tr><th>الوقت</th><th>الماكينة</th><th>معرف المستخدم</th><th>الموظف</th><th>النوع</th><th class="text-center">الحالة</th></tr>
-                </thead>
-                <tbody>
-                    {% for log in logs %}
-                    <tr>
-                        <td><strong>{{ log.timestamp|date:"d/m/Y H:i:s" }}</strong></td>
-                        <td>{{ log.device.device_name }}</td>
-                        <td><code>{{ log.user_id }}</code></td>
-                        <td>{{ log.employee.get_full_name_ar|default:"-" }}</td>
-                        <td>{{ log.get_log_type_display }}</td>
-                        <td class="text-center">
-                            {% if log.is_processed %}<span class="badge bg-success">تمت المعالجة</span>
-                            {% else %}<span class="badge bg-warning text-dark">قيد الانتظار</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد سجلات بصمات" icon="list" %}
-        {% endif %}
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label"><i class="fas fa-fingerprint me-1"></i>الماكينة</label>
+            <select name="device" class="form-select">
+              <option value="">جميع الماكينات</option>
+              {% for device in devices %}
+              <option value="{{ device.id }}" {% if request.GET.device == device.id|stringformat:"s" %}selected{% endif %}>
+                {{ device.device_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label"><i class="fas fa-link me-1"></i>حالة الربط</label>
+            <select name="linked" class="form-select">
+              <option value="">الكل</option>
+              <option value="true" {% if request.GET.linked == 'true' %}selected{% endif %}>مربوط</option>
+              <option value="false" {% if request.GET.linked == 'false' %}selected{% endif %}>غير مربوط</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-filter me-2"></i>فلترة
+            </button>
+          </div>
+          <div class="col-md-3 d-flex align-items-end">
+            <a href="{% url 'hr:biometric_log_list' %}" class="btn btn-secondary w-100">
+              <i class="fas fa-redo me-2"></i>إعادة تعيين
+            </a>
+          </div>
+        </form>
       </div>
     </div>
+  </div>
+
+  <!-- الجدول الموحد -->
+  <div class="section-container">
+    {% include 'components/data_table.html' with table_id="biometric-logs-table" headers=headers data=logs primary_key="id" empty_message="لا توجد سجلات بصمات" show_export=True export_filename="biometric_logs" %}
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
 $(document).ready(function() {
-    if ($('#logsTable').length) {
-        initGlobalTable('logsTable', {ordering: true, order: [[0, 'desc']], responsive: true, columnDefs: [{ targets: 5, orderable: false, className: 'text-center' }]});
-    }
+    // تهيئة جدول سجلات البصمة
+    initGlobalTable('biometric-logs-table', {
+        ordering: true,
+        order: [[0, 'desc']], // ترتيب حسب التاريخ والوقت تنازلي
+        columnDefs: [
+            { targets: [0, 2, 3, 4, 5, 6], className: 'text-center' }
+        ],
+        autoWidth: true,
+        responsive: true
+    });
+});
+
+// تصدير الجدول إلى CSV
+$('.btn-export-table').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToCSV(tableId, filename);
+});
+
+// تصدير الجدول إلى Excel
+$('.btn-export-excel').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToExcel(tableId, filename);
 });
 </script>
 {% endblock %}

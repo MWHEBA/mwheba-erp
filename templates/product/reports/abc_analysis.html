@@ -7,8 +7,8 @@
 {% block title %}تحليل ABC للمخزون{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/reports.css' %}">
-{{ ... }}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
 .abc-category {
     padding: 8px 16px;
@@ -86,11 +86,11 @@
             <form method="get" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">من تاريخ</label>
-                    <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}">
+                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from|date:'Y-m-d' }}">
                 </div>
-                <div class="col-md-3">
-                    <label class="form-label">إلى تاريخ</label>
-                    <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}">
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to|date:'Y-m-d' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">التصنيف</label>

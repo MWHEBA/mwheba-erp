@@ -2,46 +2,32 @@
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
-{% load custom_filters %}
 
 {% block title %}مدفوعات المشتريات{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+    .container-fluid {
+        padding: 0;
+    }
+    .container-fluid > .row {
+        margin: 0;
+    }
+    .container-fluid > .row > .col {
+        padding: 0;
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <div class="row mb-4">
-        <div class="col">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="page-title">{% trans "مدفوعات المشتريات" %}</h1>
-            </div>
-        </div>
-    </div>
-
-    <!-- فلاتر البحث -->
-    <div class="row mb-4">
-        <div class="col">
-            <div class="card shadow-sm">
-                <div class="card-header bg-light">
-                    <h5 class="card-title mb-0">{% trans "فلترة المدفوعات" %}</h5>
+    <div class="container-fluid">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="d-flex justify-content-between align-items-center">
+                    <h1 class="page-title">{% trans "مدفوعات المشتريات" %}</h1>
                 </div>
-                <div class="card-body">
-                    <form method="get" class="row g-3">
-                        <div class="col-md-3">
-                            <label for="start_date" class="form-label">{% trans "من تاريخ" %}</label>
-                            <input type="date" name="start_date" id="start_date" class="form-control" value="{{ request.GET.start_date }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="end_date" class="form-label">{% trans "إلى تاريخ" %}</label>
-                            <input type="date" name="end_date" id="end_date" class="form-control" value="{{ request.GET.end_date }}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="payment_method" class="form-label">{% trans "طريقة الدفع" %}</label>
-                            <select name="payment_method" id="payment_method" class="form-select">
-                                <option value="">{% trans "الكل" %}</option>
-                                <option value="cash" {% if request.GET.payment_method == 'cash' %}selected{% endif %}>{% trans "نقدي" %}</option>
                                 <option value="bank_transfer" {% if request.GET.payment_method == 'bank_transfer' %}selected{% endif %}>{% trans "تحويل بنكي" %}</option>
                                 <option value="check" {% if request.GET.payment_method == 'check' %}selected{% endif %}>{% trans "شيك" %}</option>
                             </select>

@@ -7,6 +7,7 @@ import sys
 import time
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 import requests
 from datetime import datetime
 from zk import ZK
@@ -15,17 +16,30 @@ import schedule
 # إعدادات
 CONFIG_FILE = 'config.json'
 LOG_FILE = 'bridge_agent.log'
+LAST_SYNC_FILE = 'last_sync.json'
 
-# إعداد الـ Logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding='utf-8'),
-        logging.StreamHandler()
-    ]
+# إعداد الـ Logger مع Log Rotation
+# الحد الأقصى: 5 MB لكل ملف، يحتفظ بـ 3 نسخ احتياطية
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+
+# File Handler مع Rotation
+file_handler = RotatingFileHandler(
+    LOG_FILE,
+    maxBytes=5*1024*1024,  # 5 MB
+    backupCount=3,          # 3 backup files
+    encoding='utf-8'
 )
+file_handler.setFormatter(log_formatter)
+
+# Console Handler
+console_handler = logging.StreamHandler()
+console_handler.setFormatter(log_formatter)
+
+# إعداد Logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
 
 
 class BiometricBridgeAgent:
@@ -40,7 +54,7 @@ class BiometricBridgeAgent:
         self.agent_code = self.config.get('agent_code')
         self.agent_secret = self.config.get('agent_secret')
         self.sync_interval = self.config.get('sync_interval', 5)  # دقائق
-        self.last_sync_time = None
+        self.last_sync_time = self.load_last_sync_time()
         
         logger.info(f"Bridge Agent initialized - Code: {self.agent_code}")
     
@@ -54,6 +68,32 @@ class BiometricBridgeAgent:
         
         with open(config_path, 'r', encoding='utf-8') as f:
             return json.load(f)
+    
+    def load_last_sync_time(self):
+        """تحميل آخر وقت مزامنة من الملف"""
+        try:
+            if os.path.exists(LAST_SYNC_FILE):
+                with open(LAST_SYNC_FILE, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    last_sync_str = data.get('last_sync_time')
+                    if last_sync_str:
+                        last_sync = datetime.fromisoformat(last_sync_str)
+                        logger.info(f"Resuming from last sync: {last_sync}")
+                        return last_sync
+        except Exception as e:
+            logger.warning(f"Could not load last sync time: {e}")
+        return None
+    
+    def save_last_sync_time(self, sync_time):
+        """حفظ آخر وقت مزامنة في ملف"""
+        try:
+            with open(LAST_SYNC_FILE, 'w', encoding='utf-8') as f:
+                json.dump({
+                    'last_sync_time': sync_time.isoformat(),
+                    'agent_code': self.agent_code
+                }, f, indent=4)
+        except Exception as e:
+            logger.warning(f"Could not save last sync time: {e}")
     
     def create_default_config(self, config_path):
         """إنشاء ملف إعدادات افتراضي"""
@@ -165,13 +205,9 @@ class BiometricBridgeAgent:
             return []
     
     def send_to_server(self, records):
-        """إرسال السجلات للسيرفر"""
-        if not records:
-            logger.info("No new records to send")
-            return True
-        
+        """إرسال السجلات للسيرفر (أو heartbeat لو مافيش سجلات)"""
         try:
-            api_url = f"{self.server_url}/api/biometric/bridge-sync/"
+            api_url = f"{self.server_url}/hr/api/biometric/bridge-sync/"
             
             payload = {
                 'agent_code': self.agent_code,
@@ -217,16 +253,17 @@ class BiometricBridgeAgent:
             # جلب السجلات من الماكينة
             records = self.get_attendance_records(self.last_sync_time)
             
-            # إرسال للسيرفر
-            if records:
-                success = self.send_to_server(records)
-                if success:
+            # إرسال للسيرفر (حتى لو مافيش سجلات - للـ heartbeat)
+            success = self.send_to_server(records)
+            if success:
+                if records:
                     self.last_sync_time = datetime.now()
+                    self.save_last_sync_time(self.last_sync_time)
                     logger.info(f"✓ Sync completed successfully")
                 else:
-                    logger.warning("✗ Sync failed - will retry next cycle")
+                    logger.info("✓ Heartbeat sent - No new records")
             else:
-                logger.info("No new records to sync")
+                logger.warning("✗ Sync failed - will retry next cycle")
             
         except Exception as e:
             logger.error(f"Sync error: {e}")

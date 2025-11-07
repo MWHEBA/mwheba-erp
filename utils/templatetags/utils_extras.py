@@ -7,6 +7,49 @@ register = template.Library()
 
 
 @register.filter
+def translate_formula(value):
+    """
+    ترجمة المتغيرات في المعادلات من الإنجليزية للعربية
+    وتحويل الأرقام العشرية إلى نسب مئوية
+    """
+    if not value:
+        return value
+    
+    import re
+    
+    result = str(value)
+    
+    # ترجمة المتغيرات
+    translations = {
+        'basic': 'الأساسي',
+        'gross': 'الإجمالي',
+        'net': 'الصافي',
+    }
+    
+    for eng, ar in translations.items():
+        result = result.replace(eng, ar)
+    
+    # تحويل الأرقام العشرية إلى نسب مئوية
+    # البحث عن أرقام عشرية (مثل 0.25, 0.5, 0.05)
+    def convert_to_percentage(match):
+        number = float(match.group(0))
+        # إذا كان الرقم بين 0 و 1، حوله لنسبة مئوية
+        if 0 < number < 1:
+            percentage = number * 100
+            # إزالة الأصفار الزائدة
+            if percentage == int(percentage):
+                return f"{int(percentage)}%"
+            else:
+                return f"{percentage:g}%"
+        return match.group(0)
+    
+    # البحث عن الأرقام العشرية في الصيغة
+    result = re.sub(r'\b0\.\d+\b', convert_to_percentage, result)
+    
+    return result
+
+
+@register.filter
 def sub(value, arg):
     """
     طرح arg من value

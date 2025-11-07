@@ -71,67 +71,6 @@
       </div>
   </div>
 
-  <!-- الإحصائيات -->
-  {% if show_stats %}
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات</h5>
-    <div class="row">
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-primary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-file-contract"></i>
-            </div>
-            <div class="stats-card-title">إجمالي العقود</div>
-            <div class="stats-card-value">{{ total_contracts|default:"0" }}</div>
-            <div class="stats-card-unit">عقد</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-success">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-check-circle"></i>
-            </div>
-            <div class="stats-card-title">عقود سارية</div>
-            <div class="stats-card-value">{{ active_contracts|default:"0" }}</div>
-            <div class="stats-card-unit">عقد</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-exclamation-triangle"></i>
-            </div>
-            <div class="stats-card-title">قرب الانتهاء</div>
-            <div class="stats-card-value">{{ expiring_contracts|default:"0" }}</div>
-            <div class="stats-card-unit">عقد</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-times-circle"></i>
-            </div>
-            <div class="stats-card-title">منتهية</div>
-            <div class="stats-card-value">{{ expired_contracts|default:"0" }}</div>
-            <div class="stats-card-unit">عقد</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-  {% endif %}
-
   <!-- تصفية وبحث -->
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
@@ -168,11 +107,11 @@
         </div>
         <div class="col-md-2">
             <label for="from_date" class="form-label">من تاريخ</label>
-            <input type="date" name="from_date" id="from_date" class="form-control" value="{{ request.GET.from_date }}">
+            <input type="text" name="from_date" id="from_date" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ request.GET.from_date }}">
         </div>
         <div class="col-md-2">
             <label for="to_date" class="form-label">إلى تاريخ</label>
-            <input type="date" name="to_date" id="to_date" class="form-control" value="{{ request.GET.to_date }}">
+            <input type="text" name="to_date" id="to_date" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.to_date }}">
         </div>
         <div class="col-md-1 d-flex align-items-end">
             <button type="submit" class="btn btn-primary w-100">
@@ -184,120 +123,8 @@
 
   <!-- قائمة العقود -->
   <div class="section-container">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة العقود</h5>
-        <div class="actions-container">
-          <a href="{% url 'hr:contract_form' %}" class="btn btn-sm btn-primary">
-            <i class="fas fa-plus me-1"></i>إضافة عقد
-          </a>
-          <a href="{% url 'hr:contract_expiring' %}" class="btn btn-sm btn-warning">
-            <i class="fas fa-exclamation-triangle me-1"></i>قرب الانتهاء
-          </a>
-        </div>
-      </div>
-      <div class="card-body">
-        {% if contracts %}
-        <div class="table-responsive">
-            <table class="table table-hover" id="contractsTable">
-                            <thead>
-                                <tr>
-                                    <th>رقم العقد</th>
-                                    <th>الموظف</th>
-                                    <th>نوع العقد</th>
-                                    <th>تاريخ البداية</th>
-                                    <th>تاريخ النهاية</th>
-                                    <th>الراتب</th>
-                                    <th class="text-center">الحالة</th>
-                                    <th class="text-center">الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for contract in contracts %}
-                                <tr style="cursor: pointer;">
-                                    <td><strong>{{ contract.contract_number }}</strong></td>
-                                    <td>
-                                        <strong>{{ contract.employee.get_full_name_ar }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ contract.employee.employee_number }}</small>
-                                    </td>
-                                    <td>{{ contract.get_contract_type_display }}</td>
-                                    <td>{{ contract.start_date|date:"d/m/Y" }}</td>
-                                    <td>
-                                        {% if contract.end_date %}
-                                            {{ contract.end_date|date:"d/m/Y" }}
-                                        {% else %}
-                                            <span class="badge bg-secondary">غير محدد</span>
-                                        {% endif %}
-                                    </td>
-                                    <td><strong>{{ contract.total_salary|floatformat:2 }}</strong> جنيه</td>
-                                    <td class="text-center">
-                                        {% if contract.status == 'active' %}
-                                            <span class="badge bg-success">ساري</span>
-                                        {% elif contract.status == 'expired' %}
-                                            <span class="badge bg-danger">منتهي</span>
-                                        {% elif contract.status == 'renewed' %}
-                                            <span class="badge bg-info">تم التجديد</span>
-                                        {% elif contract.status == 'terminated' %}
-                                            <span class="badge bg-dark">منهي</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">مسودة</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center col-actions">
-                                        <div class="btn-group btn-group-sm">
-                                            <a href="{% url 'hr:contract_detail' contract.pk %}" class="btn btn-info action-view" title="عرض">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            <a href="{% url 'hr:contract_form_edit' contract.pk %}" class="btn btn-warning" title="تعديل">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                            {% if contract.status == 'active' %}
-                                            <a href="{% url 'hr:contract_renew' contract.pk %}" class="btn btn-success" title="تجديد">
-                                                <i class="fas fa-redo"></i>
-                                            </a>
-                                            {% endif %}
-                                        </div>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                      {% include 'partials/empty_state.html' with message="لا توجد عقود" icon="file-contract" %}
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-{% endblock %}
+    {% include 'components/data_table.html' %}
+  </div>
 
-{% block extra_js %}
-<script src="{% static 'js/global-table.js' %}"></script>
-<script>
-$(document).ready(function() {
-    if ($('#contractsTable').length) {
-        initGlobalTable('contractsTable', {
-            ordering: true,
-            order: [[3, 'desc']],
-            responsive: true,
-            columnDefs: [
-                { targets: [6, 7], orderable: false, className: 'text-center' }
-            ]
-        });
-    }
-    
-    $('#contractsTable tbody').on('click', 'tr', function(e) {
-        if ($(e.target).closest('.col-actions').length > 0) {
-            return;
-        }
-        var viewButton = $(this).find('.action-view');
-        if (viewButton.length > 0) {
-            window.location.href = viewButton.attr('href');
-        }
-    });
-});
-</script>
+</div>
 {% endblock %}

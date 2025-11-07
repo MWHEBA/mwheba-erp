@@ -1,3 +1,8 @@
+/* تنسيق الخطوط للعناصر البرمجية */
+code, kbd, pre, samp {
+    font-family: 'Tajawal', sans-serif !important;
+}
+
 /* تنسيقات لمربعات الاختيار المتعددة */
 .supplier-types-checkboxes {
     display: flex;

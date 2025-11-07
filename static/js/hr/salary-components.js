@@ -4,14 +4,26 @@
 
 class SalaryComponentManager {
     constructor() {
-        this.earningsCounter = 0;
-        this.deductionsCounter = 0;
+        // حساب آخر counter من الصفوف الموجودة
+        this.earningsCounter = this.getMaxCounter('#earnings-body');
+        this.deductionsCounter = this.getMaxCounter('#deductions-body');
         this.variables = {
             'basic': 'الراتب الأساسي',
             'total_earnings': 'إجمالي المستحقات',
             'total_deductions': 'إجمالي الاستقطاعات'
         };
         this.init();
+    }
+    
+    getMaxCounter(tbody) {
+        let maxCounter = 0;
+        $(tbody).find('tr').each(function() {
+            const dataId = parseInt($(this).attr('data-id')) || 0;
+            if (dataId > maxCounter) {
+                maxCounter = dataId;
+            }
+        });
+        return maxCounter;
     }
     
     init() {
@@ -123,6 +135,7 @@ class SalaryComponentManager {
                            name="${prefix}_name_${counter}" 
                            placeholder="اسم البند" 
                            required>
+                    <input type="hidden" name="${prefix}_id_${counter}" value="">
                     <input type="hidden" name="${prefix}_type_${counter}" value="${type}">
                     <input type="hidden" name="${prefix}_order_${counter}" value="${counter}" class="order-input">
                 </td>

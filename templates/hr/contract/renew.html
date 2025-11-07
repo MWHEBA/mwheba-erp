@@ -61,7 +61,7 @@
                         {% csrf_token %}
                         <div class="mb-3">
                             <label class="form-label">تاريخ انتهاء العقد الجديد</label>
-                            <input type="date" class="form-control" name="new_end_date" required>
+                            <input type="text" class="form-control" name="new_end_date" data-date-picker placeholder="اختر تاريخ انتهاء العقد" required>
                         </div>
 
                         <button type="submit" class="btn btn-success">

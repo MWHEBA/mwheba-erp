@@ -122,6 +122,21 @@ class Employee(models.Model):
         related_name='subordinates',
         verbose_name='المدير المباشر'
     )
+    shift = models.ForeignKey(
+        'Shift',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employees',
+        verbose_name='الوردية'
+    )
+    biometric_user_id = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        verbose_name='رقم الموظف في جهاز البصمة',
+        help_text='رقم تعريف الموظف في نظام البصمة'
+    )
     hire_date = models.DateField(verbose_name='تاريخ التعيين')
     employment_type = models.CharField(
         max_length=20,
@@ -146,6 +161,17 @@ class Employee(models.Model):
         blank=True,
         null=True,
         verbose_name='الصورة الشخصية'
+    )
+    
+    # فئة الزيادة
+    increase_category = models.ForeignKey(
+        'EmployeeIncreaseCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='employees',
+        verbose_name='فئة الزيادة',
+        help_text='فئة الموظف لتحديد سياسة الزيادة'
     )
     
     # التواريخ

@@ -70,86 +70,23 @@
               </div>
               <div>
                   <h1 class="h3 mb-1">سجل الحضور</h1>
-                  <p class="text-muted mb-0">متابعة حضور وانصراف الموظفين - {{ today|date:"d/m/Y" }}</p>
+                  <p class="text-muted mb-0">متابعة حضور وانصراف الموظفين من نظام البصمة ({{ date_from_display|date:"d/m/Y" }} - {{ date_to_display|date:"d/m/Y" }})</p>
               </div>
           </div>
-          <div>
-              <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#checkInModal">
-                  <i class="fas fa-sign-in-alt me-2"></i>تسجيل حضور
-              </button>
-              <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#checkOutModal">
-                  <i class="fas fa-sign-out-alt me-2"></i>تسجيل انصراف
-              </button>
-          </div>
       </div>
-  </div>
-
-  <!-- الإحصائيات -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات اليوم</h5>
-    <div class="row">
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-primary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-user-check"></i>
-            </div>
-            <div class="stats-card-title">الحضور اليوم</div>
-            <div class="stats-card-value">{{ present_count|default:"0" }}</div>
-            <div class="stats-card-unit">موظف</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-warning">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-clock"></i>
-            </div>
-            <div class="stats-card-title">متأخرين</div>
-            <div class="stats-card-value">{{ late_count|default:"0" }}</div>
-            <div class="stats-card-unit">موظف</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-user-times"></i>
-            </div>
-            <div class="stats-card-title">غائبين</div>
-            <div class="stats-card-value">{{ absent_count|default:"0" }}</div>
-            <div class="stats-card-unit">موظف</div>
-          </div>
-        </div>
-      </div>
-      <div class="col-md-3 mb-3">
-        <div class="stats-card stats-card-info">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-calendar-alt"></i>
-            </div>
-            <div class="stats-card-title">في إجازة</div>
-            <div class="stats-card-value">{{ on_leave_count|default:"0" }}</div>
-            <div class="stats-card-unit">موظف</div>
-          </div>
-        </div>
-      </div>
-    </div>
   </div>
 
   <!-- تصفية وبحث -->
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
     <form method="get" class="row g-3">
-        <div class="col-md-3">
-            <label for="date" class="form-label">التاريخ</label>
-            <input type="date" name="date" id="date" class="form-control" value="{{ request.GET.date|default:today|date:'Y-m-d' }}">
+        <div class="col-md-2">
+            <label for="date_from" class="form-label">من تاريخ</label>
+            <input type="text" name="date_from" id="date_from" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ date_from }}">
+        </div>
+        <div class="col-md-2">
+            <label for="date_to" class="form-label">إلى تاريخ</label>
+            <input type="text" name="date_to" id="date_to" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ date_to }}">
         </div>
         <div class="col-md-3">
             <label for="department" class="form-label">القسم</label>
@@ -162,22 +99,13 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="col-md-2">
-            <label for="status" class="form-label">الحالة</label>
-            <select name="status" id="status" class="form-select">
-                <option value="">الكل</option>
-                <option value="present" {% if request.GET.status == 'present' %}selected{% endif %}>حاضر</option>
-                <option value="late" {% if request.GET.status == 'late' %}selected{% endif %}>متأخر</option>
-                <option value="absent" {% if request.GET.status == 'absent' %}selected{% endif %}>غائب</option>
-            </select>
-        </div>
-        <div class="col-md-2">
-            <label for="shift" class="form-label">الوردية</label>
-            <select name="shift" id="shift" class="form-select">
-                <option value="">الكل</option>
-                {% for shift in shifts %}
-                <option value="{{ shift.id }}" {% if request.GET.shift == shift.id|stringformat:"i" %}selected{% endif %}>
-                    {{ shift.name }}
+        <div class="col-md-3">
+            <label for="employee" class="form-label">الموظف</label>
+            <select name="employee" id="employee" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"i" %}selected{% endif %}>
+                    {{ emp.get_full_name_ar }}
                 </option>
                 {% endfor %}
             </select>
@@ -190,111 +118,26 @@
     </form>
   </div>
 
-  <!-- جدول الحضور -->
+  <!-- جدول الحضور المحلل -->
   <div class="section-container">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>سجل الحضور</h5>
-        <div class="actions-container">
-          <button type="button" class="btn btn-sm btn-success" data-bs-toggle="modal" data-bs-target="#checkInModal">
-            <i class="fas fa-sign-in-alt me-1"></i>تسجيل حضور
-          </button>
-        </div>
-      </div>
-      <div class="card-body">
-        {% if attendances %}
-        <div class="table-responsive">
-            <table class="table table-hover" id="attendance-table">
-                <thead>
-                    <tr>
-                        <th>الموظف</th>
-                        <th>القسم</th>
-                        <th>الوردية</th>
-                        <th>وقت الحضور</th>
-                        <th>وقت الانصراف</th>
-                        <th>ساعات العمل</th>
-                        <th>التأخير</th>
-                        <th class="text-center">الحالة</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for attendance in attendances %}
-                    <tr>
-                        <td>
-                            <strong>{{ attendance.employee.get_full_name_ar }}</strong>
-                            <br>
-                            <small class="text-muted">{{ attendance.employee.employee_number }}</small>
-                        </td>
-                        <td>{{ attendance.employee.department.name_ar|default:"-" }}</td>
-                        <td>{{ attendance.shift.name|default:"-" }}</td>
-                        <td>
-                            {% if attendance.check_in %}
-                                <span class="badge bg-success">{{ attendance.check_in|date:"H:i" }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if attendance.check_out %}
-                                <span class="badge bg-info">{{ attendance.check_out|date:"H:i" }}</span>
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if attendance.work_hours %}
-                                {{ attendance.work_hours }} ساعة
-                            {% else %}
-                                <span class="text-muted">-</span>
-                            {% endif %}
-                        </td>
-                        <td>
-                            {% if attendance.late_minutes > 0 %}
-                                <span class="badge bg-warning text-dark">{{ attendance.late_minutes }} دقيقة</span>
-                            {% else %}
-                                <span class="text-success">-</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center">
-                            {% if attendance.status == 'present' %}
-                                <span class="badge bg-success">حاضر</span>
-                            {% elif attendance.status == 'late' %}
-                                <span class="badge bg-warning text-dark">متأخر</span>
-                            {% elif attendance.status == 'absent' %}
-                                <span class="badge bg-danger">غائب</span>
-                            {% elif attendance.status == 'on_leave' %}
-                                <span class="badge bg-info">في إجازة</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد سجلات حضور لهذا اليوم" icon="clock" %}
-        {% endif %}
-      </div>
-    </div>
+    {% include 'components/data_table.html' with table_id="attendance-table" headers=headers data=attendance_data primary_key="id" empty_message="لا توجد سجلات حضور" show_export=True export_filename="attendance" %}
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
 $(document).ready(function() {
-    // تهيئة الجدول
-    if ($('#attendance-table').length) {
-        initGlobalTable('attendance-table', {
-            ordering: true,
-            order: [[0, 'asc']],
-            responsive: true,
-            columnDefs: [
-                { targets: 7, orderable: false, className: 'text-center' }
-            ]
-        });
-    }
+    // تهيئة جدول الحضور
+    initGlobalTable('attendance-table', {
+        ordering: true,
+        order: [[0, 'desc']], // ترتيب حسب التاريخ تنازلي
+        columnDefs: [
+            { targets: [3, 4, 5, 6, 7, 8, 9, 10], className: 'text-center' }
+        ],
+        autoWidth: true,
+        responsive: true
+    });
 });
 </script>
 {% endblock %}

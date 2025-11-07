@@ -260,7 +260,7 @@
         <form method="get" class="row g-3">
             <div class="col-md-6">
                 <label class="form-label">كما في تاريخ</label>
-                <input type="date" name="as_of_date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
+                <input type="text" class="form-control" id="as_of_date" name="as_of_date" data-date-picker placeholder="حتى تاريخ" value="{{ request.GET.as_of_date|default:'' }}">
             </div>
             <div class="col-md-6 d-flex align-items-end">
                 <button type="submit" class="btn btn-primary w-100">

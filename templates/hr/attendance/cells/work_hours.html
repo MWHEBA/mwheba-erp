@@ -1,0 +1,6 @@
+{% load custom_filters %}
+{% if object.work_hours %}
+    <strong>{{ object.work_hours|format_work_hours }}</strong>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

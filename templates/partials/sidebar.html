@@ -342,6 +342,30 @@
                         
                         <div class="nav-divider"></div>
                         
+                        <li class="submenu-title">نظام البصمة</li>
+                        <li>
+                            <a href="{% url 'hr:biometric_dashboard' %}" class="submenu-link">
+                                <i class="fas fa-fingerprint me-2"></i>{% trans "لوحة تحكم البصمة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:biometric_device_list' %}" class="submenu-link">
+                                <i class="fas fa-server me-2"></i>{% trans "ماكينات البصمة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:biometric_log_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "سجلات البصمة" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'hr:biometric_mapping_list' %}" class="submenu-link">
+                                <i class="fas fa-link me-2"></i>{% trans "ربط البصمة" %}
+                            </a>
+                        </li>
+                        
+                        <div class="nav-divider"></div>
+                        
                         <li>
                             <a href="{% url 'hr:hr_settings' %}" class="submenu-link">
                                 <i class="fas fa-cog me-2"></i>{% trans "إعدادات الموارد البشرية" %}

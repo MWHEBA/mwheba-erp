@@ -105,11 +105,11 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "core.middleware.current_user.CurrentUserMiddleware",  # تخزين المستخدم الحالي للـ Signals
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
     "auditlog.middleware.AuditlogMiddleware",
-    "core.middleware.NoCacheMiddleware",  # منع الـ cache للصفحات الديناميكية
 ]
 
 # تعطيل Debug Toolbar مؤقتا
@@ -518,6 +518,11 @@ LOGGING = {
         },
         'financial': {
             'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+        'hr': {
+            'handlers': ['console', 'file'],
             'level': 'INFO',
             'propagate': False,
         },

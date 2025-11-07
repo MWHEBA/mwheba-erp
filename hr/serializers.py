@@ -41,20 +41,30 @@ class EmployeeSerializer(serializers.ModelSerializer):
     full_name_ar = serializers.CharField(source='get_full_name_ar', read_only=True)
     age = serializers.IntegerField(read_only=True)
     years_of_service = serializers.IntegerField(read_only=True)
+    biometric_user_id = serializers.SerializerMethodField()
+    
+    def get_biometric_user_id(self, obj):
+        """جلب رقم البصمة من BiometricUserMapping"""
+        try:
+            from .models import BiometricUserMapping
+            mapping = BiometricUserMapping.objects.filter(employee=obj, is_active=True).first()
+            return mapping.biometric_user_id if mapping else None
+        except:
+            return None
     
     class Meta:
         model = Employee
         fields = [
             'id', 'user', 'employee_number', 'first_name_ar', 'last_name_ar',
             'first_name_en', 'last_name_en', 'full_name_ar', 'national_id',
-            'birth_date', 'age', 'gender', 'nationality', 'marital_status',
+            'birth_date', 'age', 'gender', 'marital_status',
             'religion', 'military_status', 'personal_email', 'work_email',
             'mobile_phone', 'home_phone', 'address', 'city', 'postal_code',
             'emergency_contact_name', 'emergency_contact_relation',
             'emergency_contact_phone', 'department', 'department_name',
             'job_title', 'job_title_name', 'direct_manager', 'hire_date',
             'years_of_service', 'employment_type', 'status', 'termination_date',
-            'termination_reason', 'photo', 'created_by', 'created_at', 'updated_at'
+            'termination_reason', 'biometric_user_id', 'photo', 'created_by', 'created_at', 'updated_at'
         ]
         read_only_fields = ['created_at', 'updated_at', 'age', 'years_of_service', 'full_name_ar']
 

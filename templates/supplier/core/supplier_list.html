@@ -5,13 +5,11 @@
 {% load app_tags %}
 {% load custom_filters %}
 {% load utils_extras %}
-
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
-<!-- استخدام CDN لملفات DataTables كما في base.html -->
 <style>
   /* تصميم عام */
   .section-container {

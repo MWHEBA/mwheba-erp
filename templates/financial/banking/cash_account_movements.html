@@ -278,11 +278,11 @@
     <form method="get" class="row g-3">
       <div class="col-md-3">
         <label for="date_from" class="form-label">من تاريخ</label>
-        <input type="date" class="form-control" id="date_from" name="date_from" value="{% if date_from and date_from != 'None' %}{{ date_from }}{% endif %}">
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{% if date_from and date_from != 'None' %}{{ date_from }}{% endif %}">
       </div>
       <div class="col-md-3">
         <label for="date_to" class="form-label">إلى تاريخ</label>
-        <input type="date" class="form-control" id="date_to" name="date_to" value="{% if date_to and date_to != 'None' %}{{ date_to }}{% endif %}">
+        <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{% if date_to and date_to != 'None' %}{{ date_to }}{% endif %}">
       </div>
       <div class="col-md-4">
         <label for="search" class="form-label">بحث</label>
@@ -469,8 +469,7 @@
 {% block extra_js %}
 <script>
   $(document).ready(function() {
-    // تنسيق حقول التاريخ
-    $('input[type="date"]').addClass('form-control');
+    // تم استبدال حقول التاريخ بالنظام الموحد
     
     // تحديد التاريخ الافتراضي للبحث
     if (!$('#date_from').val() || $('#date_from').val() === 'None') {
@@ -479,12 +478,7 @@
       $('#date_from').val(lastMonth.toISOString().split('T')[0]);
     }
     
-    // التأكد من أن حقول التاريخ لا تحتوي على قيم غير صالحة
-    $('input[type="date"]').each(function() {
-      if ($(this).val() === 'None' || $(this).val() === 'null') {
-        $(this).val('');
-      }
-    });
+    // تم استبدال حقول التاريخ بالنظام الموحد
     
     // إضافة event listener للصفوف القابلة للنقر
     $(document).on('click', '.clickable-row', function(e) {

@@ -1,10 +1,11 @@
 {% extends 'base.html' %}
-{% load static %}
 {% load i18n %}
+{% load static %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
     .form-section {
         background: white;
@@ -189,8 +190,8 @@
                                         <label for="opening_balance_date" class="form-label">
                                             تاريخ الرصيد الافتتاحي
                                         </label>
-                                        <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date" 
-                                               value="{{ account.opening_balance_date|date:'d-m-Y'|default:'' }}">
+                                        <input type="text" class="form-control" id="opening_balance_date" name="opening_balance_date" data-date-picker
+                                               placeholder="تاريخ الرصيد" value="{{ account.opening_balance_date|date:'Y-m-d'|default:'' }}">
                                         <div class="help-text">تاريخ الرصيد الافتتاحي</div>
                                     </div>
                                 </div>

@@ -13,7 +13,11 @@ class AttendanceForm(forms.ModelForm):
         fields = ['employee', 'date', 'shift', 'check_in', 'check_out', 'notes']
         widgets = {
             'employee': forms.Select(attrs={'class': 'form-select'}),
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
+            'date': forms.TextInput(attrs={
+                'class': 'form-control',
+                'data-date-picker': True,
+                'placeholder': 'اختر تاريخ الحضور...'
+            }),
             'shift': forms.Select(attrs={'class': 'form-select'}),
             'check_in': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),
             'check_out': forms.DateTimeInput(attrs={'type': 'datetime-local', 'class': 'form-control'}),

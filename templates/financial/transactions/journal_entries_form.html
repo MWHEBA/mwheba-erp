@@ -6,6 +6,9 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 
+{% block extra_css %}
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <!-- Header -->
@@ -63,11 +66,13 @@
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label for="date" class="form-label required">التاريخ</label>
-                                        <input type="date" 
+                                        <input type="text" 
                                                class="form-control" 
                                                id="date" 
                                                name="date" 
-                                               value="{% if journal_entry %}{{ journal_entry.date|date:'d-m-Y' }}{% else %}{% now 'd-m-Y' %}{% endif %}"
+                                               data-date-picker
+                                               placeholder="اختر تاريخ القيد"
+                                               value="{% if journal_entry %}{{ journal_entry.date|date:'Y-m-d' }}{% else %}{% now 'Y-m-d' %}{% endif %}"
                                                required>
                                         <div class="form-text">تاريخ القيد المحاسبي</div>
                                     </div>

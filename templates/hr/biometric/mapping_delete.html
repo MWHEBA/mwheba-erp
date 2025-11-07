@@ -1,0 +1,60 @@
+{% load static %}
+{% load i18n %}
+
+<!-- مودال تأكيد الحذف -->
+<div class="modal-content">
+    <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            تأكيد حذف الربط
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+    </div>
+    
+    <form method="post" action="{% url 'hr:biometric_mapping_delete' mapping.pk %}">
+        {% csrf_token %}
+        
+        <div class="modal-body">
+            <div class="alert alert-warning d-flex align-items-center mb-4" role="alert">
+                <i class="fas fa-exclamation-circle fa-2x me-3"></i>
+                <div>
+                    <strong>تحذير!</strong> هذا الإجراء لا يمكن التراجع عنه.
+                </div>
+            </div>
+
+            <p class="mb-3">هل أنت متأكد من حذف الربط التالي؟</p>
+
+            <!-- تفاصيل الربط -->
+            <div class="card border-danger">
+                <div class="card-body">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for field in item_fields %}
+                            <tr>
+                                <td width="40%" class="fw-bold text-muted">
+                                    <i class="fas fa-circle fa-xs me-2"></i>{{ field.label }}
+                                </td>
+                                <td>{{ field.value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt-3 mb-0" role="alert">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>ملاحظة:</strong> حذف الربط لن يؤثر على سجلات البصمة الموجودة، لكن السجلات الجديدة لن تُربط تلقائياً.
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                <i class="fas fa-times me-2"></i>إلغاء
+            </button>
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash me-2"></i>تأكيد الحذف
+            </button>
+        </div>
+    </form>
+</div>

@@ -1,0 +1,14 @@
+{% load i18n %}
+<div class="text-center">
+    {% if object.employee %}
+        <span class="badge bg-success">
+            <i class="fas fa-check-circle me-1"></i>
+            مربوط
+        </span>
+    {% else %}
+        <span class="badge bg-warning text-dark">
+            <i class="fas fa-unlink me-1"></i>
+            غير مربوط
+        </span>
+    {% endif %}
+</div>

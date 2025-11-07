@@ -54,7 +54,11 @@ class PurchaseForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الفاتورة..."
+            }),
             "notes": forms.Textarea(attrs={"rows": 2}),
         }
 
@@ -146,7 +150,11 @@ class PurchaseUpdateForm(forms.ModelForm):
         model = Purchase
         fields = ["date", "payment_method", "discount", "notes", "number"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الفاتورة..."
+            }),
             "notes": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "discount": forms.NumberInput(
@@ -244,9 +252,11 @@ class PurchasePaymentForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "payment_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "payment_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الدفع..."
+            }),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
                 attrs={"class": "form-control", "step": "any", "min": "0"}
@@ -393,9 +403,11 @@ class PurchasePaymentEditForm(forms.ModelForm):
             "notes",
         ]
         widgets = {
-            "payment_date": forms.DateInput(
-                attrs={"type": "date", "class": "form-control"}
-            ),
+            "payment_date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ الدفع..."
+            }),
             "payment_method": forms.Select(attrs={"class": "form-control"}),
             "amount": forms.NumberInput(
                 attrs={"class": "form-control", "step": "any", "min": "0"}
@@ -511,7 +523,11 @@ class PurchaseReturnForm(forms.ModelForm):
         model = PurchaseReturn
         fields = ["date", "warehouse", "notes"]
         widgets = {
-            "date": forms.DateInput(attrs={"type": "date", "class": "form-control"}),
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ المرتجع..."
+            }),
             "notes": forms.Textarea(attrs={"rows": 3, "class": "form-control"}),
         }
 
