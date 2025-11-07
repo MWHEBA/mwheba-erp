@@ -2667,7 +2667,7 @@ def contract_form(request, pk=None):
                         try:
                             obj = SalaryComponent.objects.get(
                                 id=item['id'],
-                                contract=contract_obj,
+                                employee=contract_obj.employee,
                                 component_type='earning'
                             )
                             obj.name = item['name']
@@ -2687,6 +2687,7 @@ def contract_form(request, pk=None):
                 created_earning_ids = []
                 for data in new_earnings_data:
                     new_obj = SalaryComponent.objects.create(
+                        employee=contract_obj.employee,
                         contract=contract_obj,
                         component_type='earning',
                         name=data['name'],
@@ -2700,7 +2701,8 @@ def contract_form(request, pk=None):
                 # حذف المستحقات المحذوفة (اللي مش موجودة في الـ POST)
                 all_earning_ids = existing_earning_ids + created_earning_ids
                 logger.info(f"IDs المحفوظة: {all_earning_ids}")
-                deleted_earnings = contract_obj.salary_components.filter(
+                # البنود تتبع الموظف الآن
+                deleted_earnings = contract_obj.employee.salary_components.filter(
                     component_type='earning',
                     is_basic=False
                 ).exclude(id__in=all_earning_ids)
@@ -2722,7 +2724,7 @@ def contract_form(request, pk=None):
                         try:
                             obj = SalaryComponent.objects.get(
                                 id=item['id'],
-                                contract=contract_obj,
+                                employee=contract_obj.employee,
                                 component_type='deduction'
                             )
                             obj.name = item['name']
@@ -2739,6 +2741,7 @@ def contract_form(request, pk=None):
                 created_deduction_ids = []
                 for data in new_deductions_data:
                     new_obj = SalaryComponent.objects.create(
+                        employee=contract_obj.employee,
                         contract=contract_obj,
                         component_type='deduction',
                         name=data['name'],
@@ -2750,7 +2753,8 @@ def contract_form(request, pk=None):
                 
                 # حذف الاستقطاعات المحذوفة (اللي مش موجودة في الـ POST)
                 all_deduction_ids = existing_deduction_ids + created_deduction_ids
-                contract_obj.salary_components.filter(
+                # البنود تتبع الموظف الآن
+                contract_obj.employee.salary_components.filter(
                     component_type='deduction'
                 ).exclude(id__in=all_deduction_ids).delete()
             else:
@@ -2758,6 +2762,7 @@ def contract_form(request, pk=None):
                 for data in new_earnings:
                     data.pop('id', None)  # إزالة ID لو موجود
                     SalaryComponent.objects.create(
+                        employee=contract_obj.employee,
                         contract=contract_obj,
                         component_type='earning',
                         **data
@@ -2766,6 +2771,7 @@ def contract_form(request, pk=None):
                 for data in new_deductions:
                     data.pop('id', None)  # إزالة ID لو موجود
                     SalaryComponent.objects.create(
+                        employee=contract_obj.employee,
                         contract=contract_obj,
                         component_type='deduction',
                         **data
@@ -2788,8 +2794,9 @@ def contract_form(request, pk=None):
     earnings = []
     deductions = []
     if contract:
-        earnings = contract.salary_components.filter(component_type='earning', is_basic=False)
-        deductions = contract.salary_components.filter(component_type='deduction')
+        # البنود تتبع الموظف الآن
+        earnings = contract.employee.salary_components.filter(component_type='earning', is_basic=False)
+        deductions = contract.employee.salary_components.filter(component_type='deduction')
     
     # جلب إعدادات النظام
     from core.utils import get_default_currency

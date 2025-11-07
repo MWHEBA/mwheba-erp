@@ -32,6 +32,8 @@ class ContractForm(forms.ModelForm):
         fields = ['contract_number', 'employee', 'contract_type', 'job_title', 'department',
                   'biometric_user_id', 'start_date', 'end_date', 
                   'probation_period_months', 'basic_salary',
+                  'has_annual_increase', 'annual_increase_percentage', 
+                  'increase_frequency', 'increase_start_reference',
                   'auto_renew', 'terms_and_conditions', 'status', 'notes']
         widgets = {
             'contract_number': forms.TextInput(attrs={
@@ -72,6 +74,10 @@ class ContractForm(forms.ModelForm):
             }),
             'probation_period_months': forms.NumberInput(attrs={'class': 'form-control', 'value': '3'}),
             'basic_salary': forms.NumberInput(attrs={'class': 'form-control', 'id': 'id_basic_salary', 'step': '0.01'}),
+            'has_annual_increase': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_has_annual_increase'}),
+            'annual_increase_percentage': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0', 'max': '100'}),
+            'increase_frequency': forms.Select(attrs={'class': 'form-select'}),
+            'increase_start_reference': forms.Select(attrs={'class': 'form-select'}),
             'auto_renew': forms.CheckboxInput(attrs={'class': 'form-check-input', 'id': 'id_auto_renew'}),
             'terms_and_conditions': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
@@ -87,6 +93,10 @@ class ContractForm(forms.ModelForm):
             'end_date': 'تاريخ النهاية',
             'probation_period_months': 'فترة التجربة (بالأشهر)',
             'basic_salary': 'الراتب الأساسي',
+            'has_annual_increase': 'يستحق زيادة سنوية',
+            'annual_increase_percentage': 'نسبة الزيادة السنوية الإجمالية (%)',
+            'increase_frequency': 'عدد مرات التطبيق في السنة',
+            'increase_start_reference': 'بداية احتساب الزيادة',
             'auto_renew': 'تجديد تلقائي',
             'terms_and_conditions': 'البنود والشروط',
             'status': 'الحالة',

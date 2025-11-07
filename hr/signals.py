@@ -767,19 +767,20 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
             else:
                 amendment_type = 'other'
             
-            # إنشاء التعديل
-            ContractAmendment.objects.create(
-                contract=instance.contract,
-                amendment_number=amendment_number,
-                amendment_type=amendment_type,
-                effective_date=date.today(),
-                description=f"إضافة {component_type_display}: {instance.name}",
-                field_name=f"salary_component_{instance.component_type}",
-                old_value="غير موجود",
-                new_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
-                is_automatic=True,
-                created_by=user
-            )
+            # إنشاء التعديل (فقط إذا كان هناك مستخدم)
+            if user:
+                ContractAmendment.objects.create(
+                    contract=instance.contract,
+                    amendment_number=amendment_number,
+                    amendment_type=amendment_type,
+                    effective_date=date.today(),
+                    description=f"إضافة {component_type_display}: {instance.name}",
+                    field_name=f"salary_component_{instance.component_type}",
+                    old_value="غير موجود",
+                    new_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
+                    is_automatic=True,
+                    created_by=user
+                )
             
             logger.info(f"تم تسجيل إضافة {component_type_display}: {instance.name} للعقد {instance.contract.contract_number}")
         
@@ -818,19 +819,20 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
             else:
                 amendment_type = 'other'
             
-            # إنشاء التعديل
-            ContractAmendment.objects.create(
-                contract=instance.contract,
-                amendment_number=amendment_number,
-                amendment_type=amendment_type,
-                effective_date=date.today(),
-                description=f"تعديل {component_type_display}: {instance.name}",
-                field_name=f"salary_component_{instance.component_type}",
-                old_value=f"{old_name} - {float(old_amount):,.2f} ج.م",
-                new_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
-                is_automatic=True,
-                created_by=user
-            )
+            # إنشاء التعديل (فقط إذا كان هناك مستخدم)
+            if user:
+                ContractAmendment.objects.create(
+                    contract=instance.contract,
+                    amendment_number=amendment_number,
+                    amendment_type=amendment_type,
+                    effective_date=date.today(),
+                    description=f"تعديل {component_type_display}: {instance.name}",
+                    field_name=f"salary_component_{instance.component_type}",
+                    old_value=f"{old_name} - {float(old_amount):,.2f} ج.م",
+                    new_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
+                    is_automatic=True,
+                    created_by=user
+                )
             
             logger.info(f"تم تسجيل تعديل {component_type_display}: {instance.name} للعقد {instance.contract.contract_number}")
     

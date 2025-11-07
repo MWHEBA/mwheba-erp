@@ -98,6 +98,50 @@ class Contract(models.Model):
         verbose_name='الراتب الأساسي'
     )
     
+    # الزيادة السنوية التلقائية
+    INCREASE_FREQUENCY_CHOICES = [
+        ('annual', 'سنوي'),
+        ('semi_annual', 'نصف سنوي'),
+        ('quarterly', 'ربع سنوي'),
+        ('monthly', 'شهري'),
+    ]
+    
+    INCREASE_START_CHOICES = [
+        ('contract_date', 'تاريخ العقد'),
+        ('january', 'يناير'),
+        ('july', 'يوليو'),
+    ]
+    
+    has_annual_increase = models.BooleanField(
+        default=False,
+        verbose_name='يستحق زيادة سنوية'
+    )
+    annual_increase_percentage = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='نسبة الزيادة السنوية (%)',
+        help_text='مثال: 10 تعني 10% سنوياً'
+    )
+    increase_frequency = models.CharField(
+        max_length=20,
+        choices=INCREASE_FREQUENCY_CHOICES,
+        default='annual',
+        verbose_name='تكرار الزيادة'
+    )
+    increase_start_reference = models.CharField(
+        max_length=20,
+        choices=INCREASE_START_CHOICES,
+        default='contract_date',
+        verbose_name='بداية احتساب الزيادة'
+    )
+    next_increase_date = models.DateField(
+        null=True,
+        blank=True,
+        verbose_name='تاريخ الزيادة القادمة'
+    )
+    
     # البنود والشروط
     terms_and_conditions = models.TextField(
         blank=True,
@@ -238,6 +282,73 @@ class Contract(models.Model):
                                          f'أو استخدام خاصية التجديد.'
                         })
     
+    def calculate_next_increase_date(self):
+        """حساب تاريخ الزيادة القادمة"""
+        if not self.has_annual_increase or not self.annual_increase_percentage:
+            return None
+        
+        if not self.start_date:
+            return None
+        
+        # تحديد نقطة البداية
+        if self.increase_start_reference == 'contract_date':
+            base_date = self.start_date
+        elif self.increase_start_reference == 'january':
+            current_year = date.today().year
+            base_date = date(current_year, 1, 1)
+            # إذا كان يناير فات، استخدم السنة الجاية
+            if base_date < self.start_date:
+                base_date = date(current_year + 1, 1, 1)
+        else:  # july
+            current_year = date.today().year
+            base_date = date(current_year, 7, 1)
+            # إذا كان يوليو فات، استخدم السنة الجاية
+            if base_date < self.start_date:
+                base_date = date(current_year + 1, 7, 1)
+        
+        # حساب الفترة بالأشهر
+        months_map = {
+            'annual': 12,
+            'semi_annual': 6,
+            'quarterly': 3,
+            'monthly': 1,
+        }
+        months = months_map.get(self.increase_frequency, 12)
+        
+        # استخدام dateutil إذا متاح (أدق)
+        try:
+            from dateutil.relativedelta import relativedelta
+            
+            # حساب التاريخ القادم
+            next_date = base_date
+            today = date.today()
+            
+            # إذا base_date في المستقبل، استخدمه مباشرة
+            if next_date > today:
+                return next_date
+            
+            # وإلا، احسب التاريخ القادم
+            while next_date <= today:
+                next_date = next_date + relativedelta(months=months)
+            
+            return next_date
+            
+        except ImportError:
+            # Fallback: استخدام timedelta (أقل دقة)
+            next_date = base_date
+            today = date.today()
+            
+            # إذا base_date في المستقبل، استخدمه مباشرة
+            if next_date > today:
+                return next_date
+            
+            # وإلا، احسب التاريخ القادم
+            days = months * 30  # تقريبي
+            while next_date <= today:
+                next_date = next_date + timedelta(days=days)
+            
+            return next_date
+    
     def save(self, *args, **kwargs):
         # التحقق من صحة البيانات
         self.clean()
@@ -247,6 +358,26 @@ class Contract(models.Model):
             self.probation_end_date = self.start_date + timedelta(
                 days=self.probation_period_months * 30
             )
+        
+        # حساب تاريخ الزيادة القادمة (فقط إذا لم يتم تعديله يدوياً)
+        if self.has_annual_increase:
+            # التحقق من التعديل اليدوي
+            if self.pk:  # عقد موجود
+                try:
+                    old_instance = Contract.objects.get(pk=self.pk)
+                    # إذا تم تعديل التاريخ يدوياً، لا تحسبه تلقائياً
+                    if old_instance.next_increase_date != self.next_increase_date:
+                        # التاريخ تم تعديله يدوياً، احتفظ به
+                        pass
+                    else:
+                        # التاريخ لم يتغير، احسبه تلقائياً
+                        self.next_increase_date = self.calculate_next_increase_date()
+                except Contract.DoesNotExist:
+                    # عقد جديد، احسب التاريخ
+                    self.next_increase_date = self.calculate_next_increase_date()
+            else:
+                # عقد جديد، احسب التاريخ
+                self.next_increase_date = self.calculate_next_increase_date()
         
         super().save(*args, **kwargs)
     
@@ -287,17 +418,19 @@ class Contract(models.Model):
     
     @property
     def total_earnings(self):
-        """إجمالي المستحقات"""
+        """إجمالي المستحقات (من بنود الموظف)"""
         from decimal import Decimal
-        earnings = self.salary_components.filter(component_type='earning')
+        # البنود تتبع الموظف الآن (مش العقد)
+        earnings = self.employee.salary_components.filter(component_type='earning')
         total = sum(component.amount for component in earnings)
         return Decimal(str(self.basic_salary)) + Decimal(str(total))
     
     @property
     def total_deductions(self):
-        """إجمالي الاستقطاعات"""
+        """إجمالي الاستقطاعات (من بنود الموظف)"""
         from decimal import Decimal
-        deductions = self.salary_components.filter(component_type='deduction')
+        # البنود تتبع الموظف الآن (مش العقد)
+        deductions = self.employee.salary_components.filter(component_type='deduction')
         return sum(Decimal(str(component.amount)) for component in deductions)
     
     @property
@@ -581,6 +714,8 @@ class ContractIncrease(models.Model):
     created_by = models.ForeignKey(
         User,
         on_delete=models.PROTECT,
+        null=True,
+        blank=True,
         related_name='created_increases',
         verbose_name='أنشئ بواسطة'
     )

@@ -504,7 +504,7 @@
             {% endif %}
 
             <!-- المستحقات -->
-            {% with earnings=contract.salary_components.filter|dictsort:"order" %}
+            {% with earnings=contract.employee.salary_components.all|dictsort:"order" %}
             {% if earnings %}
             <div class="mb-4">
                 <h6 class="text-success mb-2"><i class="fas fa-plus-circle me-2"></i>المستحقات</h6>
@@ -543,7 +543,7 @@
             {% endwith %}
 
             <!-- الاستقطاعات -->
-            {% with deductions=contract.salary_components.filter|dictsort:"order" %}
+            {% with deductions=contract.employee.salary_components.all|dictsort:"order" %}
             {% if deductions %}
             <div class="mb-4">
                 <h6 class="text-danger mb-2"><i class="fas fa-minus-circle me-2"></i>الاستقطاعات</h6>
@@ -584,138 +584,103 @@
             </div>
         </div>
 
-        <!-- الزيادات المجدولة -->
+        <!-- الزيادات السنوية -->
         <div class="tab-pane fade" id="increases-tab">
             <div class="section-container">
                 <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>جدول الزيادات المجدولة</h5>
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createIncreaseScheduleModal">
-                        <i class="fas fa-plus me-1"></i>إنشاء جدول زيادات
-                    </button>
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>الزيادات السنوية التلقائية</h5>
                 </div>
                 
-                {% if scheduled_increases %}
-                    <!-- إحصائيات سريعة -->
-                    <div class="row mb-4">
-                        <div class="col-md-4">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-clock fa-2x text-warning mb-2"></i>
-                                    <h3 class="mb-0">{{ pending_increases.count }}</h3>
-                                    <small class="text-muted">قيد الانتظار</small>
-                                </div>
+                {% if contract.has_annual_increase %}
+                    <!-- معلومات الزيادة السنوية -->
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading"><i class="fas fa-check-circle me-2"></i>الزيادة السنوية مفعلة</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">النسبة السنوية</small>
+                                <strong class="h5">{{ contract.annual_increase_percentage }}%</strong>
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
-                                    <h3 class="mb-0">{{ applied_increases.count }}</h3>
-                                    <small class="text-muted">مطبقة</small>
-                                </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">التكرار</small>
+                                <strong>{{ contract.get_increase_frequency_display }}</strong>
                             </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="card border-0 shadow-sm">
-                                <div class="card-body text-center">
-                                    <i class="fas fa-list fa-2x text-primary mb-2"></i>
-                                    <h3 class="mb-0">{{ scheduled_increases.count }}</h3>
-                                    <small class="text-muted">إجمالي الزيادات</small>
-                                </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">بداية الاحتساب</small>
+                                <strong>{{ contract.get_increase_start_reference_display }}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">الزيادة القادمة</small>
+                                <strong class="text-primary">
+                                    {% if contract.next_increase_date %}
+                                        {{ contract.next_increase_date|date:"d/m/Y" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </strong>
                             </div>
                         </div>
                     </div>
 
-                    <!-- جدول الزيادات -->
+                    <!-- تاريخ الزيادات المطبقة -->
+                    <h6 class="mb-3"><i class="fas fa-history me-2"></i>تاريخ الزيادات المطبقة</h6>
+                    {% with annual_increases=contract.employee.salary_components.filter|dictsort:"created_at" %}
+                    {% if annual_increases %}
                     <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
-                                    <th class="text-center">#</th>
-                                    <th>النوع</th>
-                                    <th class="text-center">القيمة</th>
-                                    <th class="text-center">التاريخ المجدول</th>
-                                    <th class="text-center">الحالة</th>
-                                    <th class="text-center">المبلغ المطبق</th>
-                                    <th class="text-center">تاريخ التطبيق</th>
-                                    <th class="text-center">إجراءات</th>
+                                    <th>البند</th>
+                                    <th class="text-center">المبلغ</th>
+                                    <th class="text-center">تاريخ الإضافة</th>
+                                    <th>ملاحظات</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for increase in scheduled_increases %}
-                                <tr class="{% if increase.status == 'applied' %}table-success{% elif increase.is_due %}table-warning{% endif %}">
-                                    <td class="text-center"><strong>{{ increase.increase_number }}</strong></td>
+                                {% for component in annual_increases %}
+                                {% if "زيادة سنوية" in component.name %}
+                                <tr>
                                     <td>
-                                        {% if increase.increase_type == 'percentage' %}
-                                            <i class="fas fa-percentage text-primary me-1"></i>نسبة مئوية
-                                        {% else %}
-                                            <i class="fas fa-coins text-warning me-1"></i>مبلغ ثابت
-                                        {% endif %}
+                                        <i class="fas fa-chart-line text-success me-2"></i>
+                                        <strong>{{ component.name }}</strong>
                                     </td>
                                     <td class="text-center">
-                                        {% if increase.increase_type == 'percentage' %}
-                                            <strong class="text-primary">{{ increase.increase_percentage }}%</strong>
-                                        {% else %}
-                                            <strong class="text-warning">{{ increase.increase_amount }} جنيه</strong>
-                                        {% endif %}
+                                        <strong class="text-success">{{ component.amount|floatformat:2 }} جنيه</strong>
                                     </td>
                                     <td class="text-center">
-                                        {{ increase.scheduled_date|date:"d/m/Y" }}
-                                        {% if increase.is_due and increase.status == 'pending' %}
-                                            <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> مستحقة</small>
-                                        {% elif increase.status == 'pending' %}
-                                            <br><small class="text-muted">بعد {{ increase.days_until_due }} يوم</small>
-                                        {% endif %}
+                                        {{ component.created_at|date:"d/m/Y" }}
                                     </td>
-                                    <td class="text-center">
-                                        {% if increase.status == 'pending' %}
-                                            <span class="badge bg-warning">قيد الانتظار</span>
-                                        {% elif increase.status == 'applied' %}
-                                            <span class="badge bg-success">مطبقة</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">{{ increase.get_status_display }}</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if increase.applied_amount %}
-                                            <strong class="text-success">{{ increase.applied_amount }} جنيه</strong>
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if increase.applied_date %}
-                                            {{ increase.applied_date|date:"d/m/Y" }}
-                                        {% else %}
-                                            <span class="text-muted">-</span>
-                                        {% endif %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if increase.status == 'pending' %}
-                                            {% if increase.is_due %}
-                                                <button type="button" class="btn btn-sm btn-success" onclick="applyIncrease({{ increase.id }})">
-                                                    <i class="fas fa-check me-1"></i>تطبيق
-                                                </button>
-                                            {% endif %}
-                                            <button type="button" class="btn btn-sm btn-danger" onclick="cancelIncrease({{ increase.id }})">
-                                                <i class="fas fa-times me-1"></i>إلغاء
-                                            </button>
-                                        {% elif increase.status == 'applied' %}
-                                            {% if increase.amendment %}
-                                                <a href="{% url 'hr:contract_detail' contract.pk %}#amendments-tab" class="btn btn-sm btn-info">
-                                                    <i class="fas fa-history me-1"></i>التعديل
-                                                </a>
-                                            {% endif %}
-                                        {% endif %}
+                                    <td>
+                                        <small class="text-muted">{{ component.notes|default:"-" }}</small>
                                     </td>
                                 </tr>
+                                {% endif %}
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                {% else %}
+                    {% else %}
                     <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>لا توجد زيادات مجدولة لهذا العقد. يمكنك إنشاء جدول زيادات جديد.
+                        <i class="fas fa-info-circle me-2"></i>
+                        لم يتم تطبيق أي زيادات بعد. سيتم التطبيق التلقائي في: <strong>{{ contract.next_increase_date|date:"d/m/Y" }}</strong>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                    <!-- كيف يعمل النظام -->
+                    <div class="alert alert-light border mt-4">
+                        <h6 class="alert-heading"><i class="fas fa-lightbulb me-2"></i>كيف يعمل النظام</h6>
+                        <ul class="mb-0 small">
+                            <li>النظام يطبق الزيادات <strong>تلقائياً</strong> حسب الجدول المحدد</li>
+                            <li>الزيادات تُضاف كـ <strong>بنود منفصلة</strong> في قسم المستحقات</li>
+                            <li>الراتب الأساسي يبقى <strong>ثابت</strong> لا يتغير</li>
+                            <li>كل زيادة تُحسب من <strong>الإجمالي</strong> (الأساسي + البنود)</li>
+                            <li>البنود تتبع الموظف وتنتقل مع العقود الجديدة</li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>الزيادة السنوية غير مفعلة</h6>
+                        <p class="mb-0">لتفعيل الزيادة السنوية التلقائية، قم بتعديل العقد وتفعيل خيار "يستحق زيادة سنوية".</p>
                     </div>
                 {% endif %}
             </div>
@@ -1013,63 +978,4 @@ function cancelIncrease(increaseId) {
 }
 </script>
 
-<!-- Modal: إنشاء جدول زيادات -->
-<div class="modal fade" id="createIncreaseScheduleModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{% url 'hr:contract_create_increase_schedule' contract.pk %}">
-                {% csrf_token %}
-                <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title"><i class="fas fa-chart-line me-2"></i>إنشاء جدول زيادات مجدولة</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-info">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>الراتب الحالي:</strong> {{ contract.basic_salary }} جنيه
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">النسبة السنوية الإجمالية (%) <span class="text-danger">*</span></label>
-                        <input type="number" name="annual_percentage" class="form-control" step="0.01" min="0" max="100" required placeholder="مثال: 15">
-                        <small class="text-muted">مثال: 15 تعني زيادة 15% سنوياً</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">عدد الدفعات <span class="text-danger">*</span></label>
-                        <select name="installments" class="form-select" required>
-                            <option value="">اختر عدد الدفعات</option>
-                            <option value="1">دفعة واحدة (سنوياً)</option>
-                            <option value="2" selected>دفعتين (كل 6 أشهر)</option>
-                            <option value="3">3 دفعات (كل 4 أشهر)</option>
-                            <option value="4">4 دفعات (كل 3 أشهر)</option>
-                            <option value="6">6 دفعات (كل شهرين)</option>
-                            <option value="12">12 دفعة (شهرياً)</option>
-                        </select>
-                        <small class="text-muted">سيتم تقسيم النسبة على عدد الدفعات</small>
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">الفترة بين كل دفعة (بالأشهر) <span class="text-danger">*</span></label>
-                        <input type="number" name="interval_months" class="form-control" min="1" max="12" value="6" required>
-                        <small class="text-muted">مثال: 6 تعني كل 6 أشهر</small>
-                    </div>
-
-                    <div class="alert alert-success">
-                        <i class="fas fa-calculator me-2"></i>
-                        <strong>مثال:</strong> زيادة 15% على دفعتين كل 6 أشهر = 7.5% في كل دفعة
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-1"></i>إلغاء
-                    </button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="fas fa-save me-1"></i>إنشاء الجدول
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}

@@ -3,17 +3,7 @@ URLs لوحدة الموارد البشرية
 """
 from django.urls import path, include
 from . import views
-from .salary_increase_views import (
-    salary_increase_settings_home,
-    IncreaseTemplateListView, IncreaseTemplateCreateView,
-    IncreaseTemplateUpdateView, IncreaseTemplateDeleteView,
-    AnnualPlanListView, AnnualPlanCreateView,
-    AnnualPlanUpdateView, AnnualPlanDetailView,
-    generate_planned_increases, bulk_apply_increases,
-    approve_planned_increase, reject_planned_increase, apply_planned_increase,
-    EmployeeCategoryListView, EmployeeCategoryCreateView,
-    EmployeeCategoryUpdateView, EmployeeCategoryDeleteView
-)
+# تم حذف نظام الخطط - النظام الآن تلقائي
 
 app_name = 'hr'
 
@@ -180,36 +170,5 @@ urlpatterns = [
         path('leave/', views.leave_report, name='leave_report'),
         path('payroll-report/', views.payroll_report, name='payroll_report'),
         path('employee/', views.employee_report, name='employee_report'),
-    ])),
-    
-    # إعدادات زيادات المرتبات
-    path('salary-increase-settings/', include([
-        # الصفحة الرئيسية
-        path('', salary_increase_settings_home, name='salary_increase_settings'),
-        
-        # قوالب الزيادات
-        path('templates/', IncreaseTemplateListView.as_view(), name='increase_template_list'),
-        path('templates/create/', IncreaseTemplateCreateView.as_view(), name='increase_template_create'),
-        path('templates/<int:pk>/edit/', IncreaseTemplateUpdateView.as_view(), name='increase_template_edit'),
-        path('templates/<int:pk>/delete/', IncreaseTemplateDeleteView.as_view(), name='increase_template_delete'),
-        
-        # الخطط السنوية
-        path('plans/', AnnualPlanListView.as_view(), name='annual_plan_list'),
-        path('plans/create/', AnnualPlanCreateView.as_view(), name='annual_plan_create'),
-        path('plans/<int:pk>/', AnnualPlanDetailView.as_view(), name='annual_plan_detail'),
-        path('plans/<int:pk>/edit/', AnnualPlanUpdateView.as_view(), name='annual_plan_edit'),
-        path('plans/<int:pk>/generate/', generate_planned_increases, name='generate_planned_increases'),
-        path('plans/<int:pk>/apply/', bulk_apply_increases, name='bulk_apply_increases'),
-        
-        # الزيادات المخططة
-        path('increases/<int:increase_id>/approve/', approve_planned_increase, name='approve_planned_increase'),
-        path('increases/<int:increase_id>/reject/', reject_planned_increase, name='reject_planned_increase'),
-        path('increases/<int:increase_id>/apply/', apply_planned_increase, name='apply_planned_increase'),
-        
-        # فئات الموظفين
-        path('categories/', EmployeeCategoryListView.as_view(), name='employee_category_list'),
-        path('categories/create/', EmployeeCategoryCreateView.as_view(), name='employee_category_create'),
-        path('categories/<int:pk>/edit/', EmployeeCategoryUpdateView.as_view(), name='employee_category_edit'),
-        path('categories/<int:pk>/delete/', EmployeeCategoryDeleteView.as_view(), name='employee_category_delete'),
     ])),
 ]
