@@ -159,14 +159,41 @@ class Notification(models.Model):
     """
 
     TYPE_CHOICES = (
+        # أنواع عامة
         ("info", _("معلومات")),
         ("success", _("نجاح")),
         ("warning", _("تحذير")),
         ("danger", _("خطر")),
+        
+        # المخزون والمنتجات
         ("inventory_alert", _("تنبيه مخزون")),
+        ("product_expiry", _("انتهاء صلاحية منتج")),
+        ("stock_transfer", _("نقل مخزون")),
+        
+        # المبيعات
+        ("new_sale", _("مبيعات جديدة")),
+        ("sale_payment", _("دفعة مبيعات")),
+        ("sale_return", _("إرجاع مبيعات")),
+        
+        # المشتريات
+        ("new_purchase", _("مشتريات جديدة")),
+        ("purchase_payment", _("دفعة مشتريات")),
+        ("purchase_return", _("إرجاع مشتريات")),
+        
+        # المالية
         ("payment_received", _("دفعة مستلمة")),
+        ("payment_made", _("دفعة مسددة")),
         ("new_invoice", _("فاتورة جديدة")),
+        
+        # الموارد البشرية
+        ("hr_leave_request", _("طلب إجازة")),
+        ("hr_attendance", _("حضور وانصراف")),
+        ("hr_payroll", _("رواتب")),
+        ("hr_contract", _("عقد موظف")),
+        
+        # أخرى
         ("return_request", _("طلب إرجاع")),
+        ("system_alert", _("تنبيه نظام")),
     )
 
     user = models.ForeignKey(
