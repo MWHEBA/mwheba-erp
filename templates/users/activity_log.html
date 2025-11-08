@@ -5,146 +5,109 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
-<style>
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">عرض آخر النشاطات التي تمت في النظام</p>
-                </div>
-            </div>
-        </div>
-    </div>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
     
     <!-- بطاقة القائمة -->
-    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
-        <div class="card shadow-sm">
-            <div class="card-header bg-light">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h5 class="card-title mb-0">{% trans "النشاطات" %}</h5>
-                    <span class="badge bg-primary">{{ activities.count }} {% trans "نشاط" %}</span>
-                </div>
+    <div class="section-container">
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <div class="d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">{% trans "النشاطات" %}</h5>
+                <span class="badge bg-primary">{{ activities.count }} {% trans "نشاط" %}</span>
             </div>
-            <div class="card-body p-0">
-                <!-- أدوات البحث والفلترة -->
-                <div class="p-3 border-bottom">
-                    <form method="get" action="{% url 'users:activity_log' %}" id="filterForm">
-                        <div class="row g-3">
-                            <div class="col-md-3">
-                                <select name="user" class="form-select" onchange="this.form.submit()">
-                                    <option value="">جميع المستخدمين</option>
-                                    {% for user in users %}
-                                    <option value="{{ user.id }}" {% if selected_user == user.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ user.get_full_name|default:user.username }}
-                                    </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-                            <div class="col-md-3">
-                                <input type="text" name="action" class="form-control" placeholder="بحث في النشاط" value="{{ selected_action }}">
-                            </div>
-                            <div class="col-md-4">
-                                <div class="input-group">
-                                    <span class="input-group-text">من</span>
-                                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
-                                    <span class="input-group-text">إلى</span>
-                                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
-                                </div>
-                            </div>
-                            <div class="col-md-2">
-                                <button type="submit" class="btn btn-primary w-100">
-                                    <i class="fas fa-filter me-1"></i> فلترة
-                                </button>
+        </div>
+        <div class="card-body p-0">
+            <!-- أدوات البحث والفلترة -->
+            <div class="p-3 border-bottom">
+                <form method="get" action="{% url 'users:activity_log' %}" id="filterForm">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <select name="user" class="form-select" onchange="this.form.submit()">
+                                <option value="">جميع المستخدمين</option>
+                                {% for user in users %}
+                                <option value="{{ user.id }}" {% if selected_user == user.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ user.get_full_name|default:user.username }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="text" name="action" class="form-control" placeholder="بحث في النشاط" value="{{ selected_action }}">
+                        </div>
+                        <div class="col-md-4">
+                            <div class="input-group">
+                                <span class="input-group-text">من</span>
+                                <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+                                <span class="input-group-text">إلى</span>
+                                <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
                             </div>
                         </div>
-                        {% if selected_user or selected_action or date_from or date_to %}
-                        <div class="row mt-2">
-                            <div class="col-12">
-                                <a href="{% url 'users:activity_log' %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-times me-1"></i> إلغاء الفلترة
-                                </a>
-                            </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-filter me-1"></i> فلترة
+                            </button>
                         </div>
-                        {% endif %}
-                    </form>
-                </div>
-                
-                <!-- جدول البيانات -->
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover mb-0">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>التاريخ والوقت</th>
-                                <th>المستخدم</th>
-                                <th>نوع النشاط</th>
-                                <th>الموديل/القسم</th>
-                                <th>الوصف</th>
-                                <th>IP</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for activity in activities %}
-                            <tr>
-                                <td>{{ forloop.counter }}</td>
-                                <td>{{ activity.timestamp|date:"d/m/Y H:i:s" }}</td>
-                                <td>
-                                    {{ activity.user.get_full_name|default:activity.user.username }}
-                                </td>
-                                <td>
-                                    <span class="badge bg-primary">{{ activity.action }}</span>
-                                </td>
-                                <td>{{ activity.model_name|default:"—" }}</td>
-                                <td>{{ activity.action }}</td>
-                                <td>{{ activity.ip_address }}</td>
-                            </tr>
-                            {% empty %}
-                            <tr>
-                                <td colspan="7" class="text-center py-4">
-                                    لا يوجد نشاطات مسجلة حتى الآن
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-                
-                <!-- ترقيم الصفحات إذا احتوت على عدد كبير من النشاطات -->
-                {% if activities.has_other_pages %}
-                <div class="pagination-container p-3 border-top">
+                    </div>
+                    {% if selected_user or selected_action or date_from or date_to %}
+                    <div class="row mt-2">
+                        <div class="col-12">
+                            <a href="{% url 'users:activity_log' %}" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> إلغاء الفلترة
+                            </a>
+                        </div>
+                    </div>
+                    {% endif %}
+                </form>
+            </div>
+            
+            <!-- جدول البيانات -->
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>التاريخ والوقت</th>
+                            <th>المستخدم</th>
+                            <th>نوع النشاط</th>
+                            <th>الموديل/القسم</th>
+                            <th>الوصف</th>
+                            <th>IP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for activity in activities %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ activity.timestamp|date:"d/m/Y H:i:s" }}</td>
+                            <td>
+                                {{ activity.user.get_full_name|default:activity.user.username }}
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ activity.action }}</span>
+                            </td>
+                            <td>{{ activity.model_name|default:"—" }}</td>
+                            <td>{{ activity.action }}</td>
+                            <td>{{ activity.ip_address }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center py-4">
+                                لا يوجد نشاطات مسجلة حتى الآن
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- ترقيم الصفحات إذا احتوت على عدد كبير من النشاطات -->
+            {% if activities.has_other_pages %}
+            <div class="pagination-container p-3 border-top">
                     <nav aria-label="Page navigation">
                         <ul class="pagination justify-content-center mb-0">
                             {% if activities.has_previous %}
@@ -186,7 +149,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
     $(document).ready(function() {
         // تفعيل tooltips

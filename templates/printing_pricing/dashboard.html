@@ -15,42 +15,8 @@
 {% endblock %}
 {% block content %}
 <div class="container-fluid">
-  <!-- عنوان الصفحة -->
-  <div class="mb-4">
-      <!-- Breadcrumbs -->
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'core:dashboard' %}">
-                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item active" aria-current="page">
-                      <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas fa-tachometer-alt fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">{% trans "لوحة التحكم - نظام التسعير" %}</h1>
-                  <p class="text-muted mb-0">{% trans "نظرة عامة على نشاط نظام التسعير المحسن" %}</p>
-              </div>
-          </div>
-          <div>
-              <a href="{% url 'printing_pricing:order_create' %}" class="btn btn-primary">
-                  <i class="fas fa-plus me-2"></i>{% trans "طلب جديد" %}
-              </a>
-          </div>
-      </div>
-  </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
   <!-- الإحصائيات -->
   <div class="section-container">

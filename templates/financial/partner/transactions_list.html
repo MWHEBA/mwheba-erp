@@ -7,93 +7,8 @@
 
 {% block title %}{{ page_title }}{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
-  /* تصميم عام */
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  /* تصميم كروت الإحصائيات */
-  .stat-card {
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .bg-primary-header {
-    background-color: rgba(13, 110, 253, 0.05);
-    color: #0d6efd;
-    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
-  }
-  
-  .bg-success-header {
-    background-color: rgba(25, 135, 84, 0.05);
-    color: #198754;
-    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
-  }
-  
-  .bg-danger-header {
-    background-color: rgba(220, 53, 69, 0.05);
-    color: #dc3545;
-    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
-  }
-  
-  .bg-info-header {
-    background-color: rgba(13, 202, 240, 0.05);
-    color: #0dcaf0;
-    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
-  }
-  
-  .icon-box {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-    background-color: rgba(255, 255, 255, 0.6);
-  }
-  
-  .card-header .icon-box {
-    font-size: 1.1rem;
-  }
-  
-  .bg-primary-header .icon-box {
-    color: #0d6efd;
-  }
-  
-  .bg-success-header .icon-box {
-    color: #198754;
-  }
-  
-  .bg-danger-header .icon-box {
-    color: #dc3545;
-  }
-  
-  .bg-info-header .icon-box {
-    color: #0dcaf0;
-  }
+  /* تصميم خاص بالصفحة */
   
   .transaction-row.contribution {
     border-left: 4px solid #28a745;
@@ -112,221 +27,65 @@
   .status-pending { background: #fff3cd; color: #856404; }
   .status-cancelled { background: #f8d7da; color: #721c24; }
   
-  /* تصميم حالة الفارغ */
-  .empty-state {
-    padding: 4rem 1rem;
-    text-align: center;
-  }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    color: #dee2e6;
-    margin-bottom: 1.5rem;
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
-  }
-  
-  /* كروت الإحصائيات */
-  .stats-card {
-    background: #fff;
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    overflow: hidden;
-    height: 100%;
-  }
-  
-  .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-  }
-  
-  .stats-card-header {
-    height: 4px;
-    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
-  }
-  
-  .stats-card-primary .stats-card-header {
-    background: linear-gradient(90deg, #0d6efd 0%, #0a58ca 100%);
-  }
-  
-  .stats-card-success .stats-card-header {
-    background: linear-gradient(90deg, #198754 0%, #146c43 100%);
-  }
-  
-  .stats-card-danger .stats-card-header {
-    background: linear-gradient(90deg, #dc3545 0%, #b02a37 100%);
-  }
-  
-  .stats-card-info .stats-card-header {
-    background: linear-gradient(90deg, #0dcaf0 0%, #0aa2c0 100%);
-  }
-  
-  .stats-card-body {
-    padding: 1.5rem;
-    text-align: center;
-  }
-  
-  .stats-card-icon {
-    font-size: 2.5rem;
-    margin-bottom: 1rem;
-    color: #6c757d;
-  }
-  
-  .stats-card-primary .stats-card-icon {
-    color: #0d6efd;
-  }
-  
-  .stats-card-success .stats-card-icon {
-    color: #198754;
-  }
-  
-  .stats-card-danger .stats-card-icon {
-    color: #dc3545;
-  }
-  
-  .stats-card-info .stats-card-icon {
-    color: #0dcaf0;
-  }
-  
-  .stats-card-title {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-bottom: 0.5rem;
-    font-weight: 500;
-  }
-  
-  .stats-card-value {
-    font-size: 2rem;
-    font-weight: 700;
-    color: #344767;
-    margin-bottom: 0.25rem;
-    line-height: 1.2;
-  }
-  
-  .stats-card-unit {
-    font-size: 0.8rem;
-    color: #6c757d;
-    font-weight: 400;
-  }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- عنوان الصفحة (مضمن مباشرة) -->
-  <div class="mb-4">
-      <!-- Breadcrumbs -->
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'core:dashboard' %}">
-                          <i class="fas fa-home me-1"></i>
-                          الرئيسية
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="#">
-                          <i class="fas fa-money-bill-wave me-1"></i>
-                          الإدارة المالية
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'financial:partner_dashboard' %}">
-                          <i class="fas fa-handshake me-1"></i>
-                          معاملات الشريك
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item active" aria-current="page">
-                      <i class="fas fa-list me-1"></i>
-                      قائمة المعاملات
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              {% if page_icon %}
-                  <div class="me-3">
-                      <i class="{{ page_icon }} fa-2x text-primary"></i>
-                  </div>
-              {% endif %}
-              <div>
-                  <h1 class="h3 mb-1">{{ page_title }}</h1>
-                  <p class="text-muted mb-0">قائمة شاملة بجميع معاملات الشريك في النظام</p>
-              </div>
-          </div>
-          <div>
-              <a href="{% url 'financial:partner_dashboard' %}" class="btn btn-primary">
-                  <i class="fas fa-arrow-left me-2"></i>العودة للوحة التحكم
-              </a>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
   <!-- الإحصائيات -->
-  <div class="section-container">
-    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
-    <div class="row">
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-success">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-arrow-up"></i>
-            </div>
-            <div class="stats-card-title">إجمالي المساهمات</div>
-            <div class="stats-card-value">{{ total_contributions|smart_float:2 }}</div>
-            <small class="text-muted">ج.م</small>
+  <div class="row mb-4">
+    <div class="col-md-6 col-lg-3 mb-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-arrow-up"></i>
           </div>
+          <div class="stats-card-title">إجمالي المساهمات</div>
+          <div class="stats-card-value">{{ total_contributions|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-danger">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-arrow-down"></i>
-            </div>
-            <div class="stats-card-title">إجمالي السحوبات</div>
-            <div class="stats-card-value">{{ total_withdrawals|smart_float:2 }}</div>
-            <small class="text-muted">ج.م</small>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-4">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-arrow-down"></i>
           </div>
+          <div class="stats-card-title">إجمالي السحوبات</div>
+          <div class="stats-card-value">{{ total_withdrawals|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-primary">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-wallet"></i>
-            </div>
-            <div class="stats-card-title">صافي الرصيد</div>
-            <div class="stats-card-value">{{ net_balance|smart_float:2 }}</div>
-            <small class="text-muted">ج.م</small>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-4">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-wallet"></i>
           </div>
+          <div class="stats-card-title">صافي الرصيد</div>
+          <div class="stats-card-value">{{ net_balance|smart_float:2 }}</div>
+          <div class="stats-card-unit">{% currency_symbol %}</div>
         </div>
       </div>
-      <div class="col-md-6 col-lg-3 mb-4">
-        <div class="stats-card stats-card-info">
-          <div class="stats-card-header"></div>
-          <div class="stats-card-body">
-            <div class="stats-card-icon">
-              <i class="fas fa-list"></i>
-            </div>
-            <div class="stats-card-title">إجمالي المعاملات</div>
-            <div class="stats-card-value">{{ transactions.paginator.count }}</div>
-            <div class="stats-card-unit">معاملة</div>
+    </div>
+    <div class="col-md-6 col-lg-3 mb-4">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-list"></i>
           </div>
+          <div class="stats-card-title">إجمالي المعاملات</div>
+          <div class="stats-card-value">{{ transactions.paginator.count }}</div>
+          <div class="stats-card-unit">معاملة</div>
         </div>
       </div>
     </div>

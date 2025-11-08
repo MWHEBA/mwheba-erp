@@ -145,10 +145,22 @@ def supplier_list(request):
         "total_debt": total_debt,
         "total_purchases": total_purchases,
         "supplier_types": supplier_types,
-        "page_title": "قائمة الموردين",
-        "page_icon": "fas fa-truck",
         "current_order_by": order_by,
         "current_order_dir": order_dir,
+        # بيانات الهيدر
+        "page_title": "قائمة الموردين",
+        "page_subtitle": "إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية",
+        "page_icon": "fas fa-truck",
+        # أزرار الهيدر
+        "header_buttons": [
+            {
+                "url": reverse("supplier:supplier_add"),
+                "icon": "fa-plus",
+                "text": "إضافة مورد",
+                "class": "btn-primary",
+            }
+        ],
+        # البريدكرمب
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -192,7 +204,16 @@ def supplier_add(request):
     context = {
         "form": form,
         "page_title": "إضافة مورد جديد",
+        "page_subtitle": "إضافة مورد جديد وتحديد أنواع الخدمات المقدمة",
         "page_icon": "fas fa-user-plus",
+        "header_buttons": [
+            {
+                "url": reverse("supplier:supplier_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -231,7 +252,16 @@ def supplier_edit(request, pk):
         "form": form,
         "supplier": supplier,
         "page_title": f"تعديل بيانات المورد: {supplier.name}",
+        "page_subtitle": "تعديل بيانات المورد وأنواع الخدمات المقدمة",
         "page_icon": "fas fa-user-edit",
+        "header_buttons": [
+            {
+                "url": reverse("supplier:supplier_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1212,8 +1242,59 @@ def supplier_detail(request, pk):
         "payments_click_url": "purchase:payment_detail",
         "journal_clickable": True,
         "journal_click_url": "financial:journal_entry_detail",
-        "page_title": f"بيانات المورد: {supplier.name}",
+        # بيانات الهيدر
+        "page_title": f"{supplier.name}",
+        "page_subtitle": "معلومات وبيانات المورد الكاملة",
         "page_icon": "fas fa-truck",
+        # Badges في الهيدر
+        "header_badges": [
+            {
+                "text": f"{supplier.code}",
+                "class": "bg-primary",
+                "icon": "fas fa-hashtag",
+            },
+            {
+                "text": f"الاستحقاق: {supplier.actual_balance}",
+                "class": "bg-danger" if supplier.actual_balance > 0 else "bg-success",
+                "icon": "fas fa-arrow-up" if supplier.actual_balance > 0 else "fas fa-arrow-down",
+            },
+            {
+                "text": "دليل الحسابات" if financial_account else "إنشاء حساب محاسبي",
+                "class": "bg-success" if financial_account else "bg-info",
+                "icon": "fas fa-link" if financial_account else "fas fa-plus-circle",
+                "url": reverse("financial:account_detail", kwargs={"pk": financial_account.pk}) if financial_account else "#",
+                "onclick": None if financial_account else f"openCreateAccountModal({supplier.pk})",
+            },
+        ],
+        # أنواع الخدمات (للعرض على اليسار)
+        "supplier_types_badges": [
+            {
+                "text": supplier_type.settings.name if supplier_type.settings else supplier_type.name,
+                "icon": supplier_type.settings.icon if supplier_type.settings else None,
+                "color": supplier_type.settings.color if supplier_type.settings and supplier_type.settings.color else "#6c757d",
+            }
+            for supplier_type in supplier.supplier_types.all()
+            if supplier_type.settings and supplier_type.settings.is_active
+        ],
+        # أزرار الهيدر
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_create_for_supplier", kwargs={"supplier_id": supplier.id}),
+                "icon": "fa-shopping-cart",
+                "text": "فاتورة شراء",
+                "class": "btn-success",
+            },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+            },
+        ],
+        # البريدكرمب
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1297,7 +1378,16 @@ def supplier_change_account(request, pk):
         "form": form,
         "supplier": supplier,
         "page_title": f"تغيير الحساب المحاسبي للمورد: {supplier.name}",
+        "page_subtitle": "ربط المورد بحساب محاسبي أو تغيير الحساب الحالي",
         "page_icon": "fas fa-exchange-alt",
+        "header_buttons": [
+            {
+                "url": reverse("supplier:supplier_detail", kwargs={"pk": supplier.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للمورد",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",

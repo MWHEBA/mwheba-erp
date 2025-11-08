@@ -10,36 +10,9 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-  /* تصميم عام مطابق لصفحة المبيعات */
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-
-  /* كروت الإحصائيات */
-  .stats-card {
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
+  /* ستايلات خاصة بتقرير نقطة إعادة الطلب فقط */
 
   /* تصميم badges نقاط الطلب */
   .stock-status {
@@ -98,50 +71,9 @@
     border-radius: 5px;
   }
 
-  /* تصميم الرسوم البيانية */
-  .chart-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .chart-header {
-    display: flex;
-    justify-content: between;
-    align-items: center;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .chart-title {
-    color: #344767;
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin: 0;
-  }
+  /* chart-container موجود في shared-components.css */
 
-  /* حالة الفارغ */
-  .empty-state {
-    padding: 4rem 1rem;
-    text-align: center;
-  }
-  
-  .empty-state-icon {
-    font-size: 4rem;
-    color: #dee2e6;
-    margin-bottom: 1.5rem;
-    animation: float 3s ease-in-out infinite;
-  }
-  
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
-  }
+  /* empty-state و @keyframes float موجودين في shared-components.css */
 
   @media print {
     .no-print {
@@ -157,53 +89,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'core:dashboard' %}">
-                            <i class="fas fa-home me-1"></i>الرئيسية
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'product:product_list' %}">
-                            <i class="fas fa-boxes me-1"></i>المنتجات
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <i class="fas fa-chart-bar me-1"></i>التقارير
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        <i class="fas fa-shopping-cart me-1"></i>تقرير نقطة إعادة الطلب
-                    </li>
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-shopping-cart fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">تقرير نقطة إعادة الطلب</h1>
-                    <p class="text-muted mb-0">مراقبة مستويات المخزون وتحديد المنتجات التي تحتاج إعادة طلب</p>
-                </div>
-            </div>
-            <div class="no-print">
-                <button class="btn btn-outline-primary me-2" onclick="window.print()">
-                    <i class="fas fa-print me-1"></i>طباعة
-                </button>
-                <button class="btn btn-success" onclick="exportReorderReport()">
-                    <i class="fas fa-file-excel me-1"></i>تصدير Excel
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- Critical Alerts -->
     {% if critical_items %}

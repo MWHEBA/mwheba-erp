@@ -8,32 +8,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="{{ page_icon }} me-2"></i>{{ page_title }}
-                    </h1>
-                    <p class="text-muted mb-0">تفاصيل القيد المحاسبي</p>
-                </div>
-                <div>
-                    {% if journal_entry.status == 'draft' %}
-                    <a href="{% url 'financial:journal_entries_edit' journal_entry.pk %}" class="btn btn-warning me-2">
-                        <i class="fas fa-edit me-2"></i>تعديل القيد
-                    </a>
-                    <a href="{% url 'financial:journal_entries_post' journal_entry.pk %}" class="btn btn-success me-2">
-                        <i class="fas fa-check me-2"></i>ترحيل القيد
-                    </a>
-                    {% endif %}
-                    <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>العودة للقيود اليومية
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- Content -->
     <div class="row">
@@ -506,59 +482,16 @@ document.addEventListener('DOMContentLoaded', function() {
 // تم إزالة دوال البحث عن المصدر - الآن رابط مباشر
 </script>
 
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-
-.table th, .table td {
-    vertical-align: middle;
-}
-
-.table tfoot th {
-    border-top: 2px solid #dee2e6;
-    font-weight: bold;
-}
-
-.alert {
-    border-left: 4px solid;
-}
-
-.alert-success {
-    border-left-color: #28a745;
-}
-
-.alert-danger {
-    border-left-color: #dc3545;
-}
-
-.alert-info {
-    border-left-color: #17a2b8;
-}
-
-.card-header h6 {
-    color: #495057;
-    font-weight: 600;
-}
-
-.text-success {
-    color: #28a745 !important;
-}
-
-.text-danger {
-    color: #dc3545 !important;
-}
-
-.text-primary {
-    color: #007bff !important;
-}
-
 .clickable-reference {
     transition: all 0.2s ease;
 }
 
 .clickable-reference:hover {
-    background-color: #6c757d !important;
+    background-color: var(--secondary-color) !important;
     transform: scale(1.05);
 }
-
 </style>
 
 {% endblock %}

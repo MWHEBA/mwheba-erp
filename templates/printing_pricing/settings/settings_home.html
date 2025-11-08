@@ -2,11 +2,9 @@
 {% load i18n %}
 {% load static %}
 
-{% block title %}{% translate "إعدادات التسعير" %}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
     /* تحسينات خاصة بصفحة إعدادات التسعير */
     .settings-card {
@@ -86,54 +84,9 @@
         transform: translateX(-2px);
     }
     
-    
-    .page-header {
-        background: var(--white);
-        border: 1px solid var(--border-color);
-        border-radius: var(--border-radius);
-        padding: var(--spacing-4);
-        margin-bottom: var(--spacing-5);
-        box-shadow: var(--box-shadow-sm);
-    }
-    
-    .page-header .page-icon {
-        width: 50px;
-        height: 50px;
-        background: var(--primary-color);
-        border-radius: var(--border-radius);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        color: var(--white);
-        font-size: 1.5rem;
-        margin-left: var(--spacing-3);
-    }
-    
-    .page-header h1 {
-        color: var(--text-dark);
-        font-weight: var(--font-weight-bold);
-        margin-bottom: var(--spacing-1);
-    }
-    
-    .page-header p {
-        color: var(--text-medium);
-        margin-bottom: 0;
-        font-size: var(--font-size-base);
-    }
-    
     @media (max-width: 768px) {
         .settings-card:hover {
             transform: none;
-        }
-        
-        .page-header {
-            padding: var(--spacing-4);
-        }
-        
-        .page-header .page-icon {
-            width: 50px;
-            height: 50px;
-            font-size: 1.5rem;
         }
     }
 </style>
@@ -141,48 +94,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title|default:"إعدادات التسعير" }}</h1>
-                    <p class="text-muted mb-0">إدارة وتخصيص إعدادات نظام التسعير</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     {% if messages %}
         {% for message in messages %}

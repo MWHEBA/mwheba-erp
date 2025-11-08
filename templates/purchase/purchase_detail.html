@@ -186,7 +186,7 @@
         right: 0;
         height: 100%;
         width: 6px;
-        background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
+        background: var(--primary-color);
     }
     
     .summary-row {
@@ -305,16 +305,7 @@
         line-height: 1.6;
     }
     
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--primary-color);
-        margin-bottom: var(--spacing-4);
-        padding-bottom: var(--spacing-2);
-        border-bottom: 1px solid var(--gray-200);
-        display: flex;
-        align-items: center;
-    }
+    /* section-title موجود في components.css */
     
     .section-title i {
         margin-left: var(--spacing-2);
@@ -390,61 +381,8 @@
 {% block content %}
 {% csrf_token %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">عرض تفاصيل فاتورة المشتريات وإدارتها</p>
-                </div>
-            </div>
-            <div class="action-buttons d-flex flex-wrap gap-2">
-                <a href="{% url 'purchase:purchase_print' purchase.pk %}" class="btn btn-info me-2">
-                    <i class="fas fa-print me-1"></i> {% trans "طباعة" %}
-                </a>
-                {% if purchase.payment_status != 'paid' %}
-                <a href="{% url 'purchase:purchase_add_payment' purchase.pk %}" class="btn btn-success me-2">
-                    <i class="fas fa-money-bill me-1"></i> {% trans "إضافة دفعة" %}
-                </a>
-                {% endif %}
-                <a href="#" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#actionsModal">
-                    <i class="fas fa-ellipsis-v"></i>
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
     
     <div class="row">
         <div class="col-12">

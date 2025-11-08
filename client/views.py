@@ -80,8 +80,27 @@ def customer_list(request):
         "active_customers": active_customers,
         "inactive_customers": inactive_customers,
         "total_debt": total_debt,
+        # بيانات الهيدر
         "page_title": "قائمة العملاء",
+        "page_subtitle": "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",
         "page_icon": "fas fa-users",
+        # أزرار الهيدر
+        "header_buttons": [
+            {
+                "url": reverse("client:customer_add"),
+                "icon": "fa-plus",
+                "text": "إضافة عميل",
+                "class": "btn-primary",
+            },
+            {
+                "url": "#",
+                "icon": "fa-sync",
+                "text": "مزامنة مع دفترة",
+                "class": "btn-success",
+                "id": "sync-btn",
+            },
+        ],
+        # البريدكرمب
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -114,7 +133,16 @@ def customer_add(request):
     context = {
         "form": form,
         "page_title": "إضافة عميل جديد",
+        "page_subtitle": "إضافة عميل جديد إلى قاعدة بيانات النظام",
         "page_icon": "fas fa-user-plus",
+        "header_buttons": [
+            {
+                "url": reverse("client:customer_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -153,7 +181,16 @@ def customer_edit(request, pk):
         "form": form,
         "customer": customer,
         "page_title": f"تعديل بيانات العميل: {customer.name}",
+        "page_subtitle": "تعديل بيانات العميل وإدارة حساباته",
         "page_icon": "fas fa-user-edit",
+        "header_buttons": [
+            {
+                "url": reverse("client:customer_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -760,8 +797,49 @@ def customer_detail(request, pk):
         "payments_click_url": "sale:payment_detail",
         "journal_clickable": True,
         "journal_click_url": "financial:journal_entry_detail",
-        "page_title": f"بيانات العميل: {customer.name}",
+        # بيانات الهيدر
+        "page_title": f"{customer.name}",
+        "page_subtitle": "معلومات وبيانات العميل الكاملة",
         "page_icon": "fas fa-user",
+        # Badges في الهيدر
+        "header_badges": [
+            {
+                "text": f"{customer.code}",
+                "class": "bg-primary",
+                "icon": "fas fa-hashtag",
+            },
+            {
+                "text": f"المديونية: {customer.actual_balance}",
+                "class": "bg-success" if customer.actual_balance <= 0 else "bg-danger",
+                "icon": "fas fa-arrow-down" if customer.actual_balance <= 0 else "fas fa-arrow-up",
+            },
+            {
+                "text": "دليل الحسابات" if customer.financial_account else "إنشاء حساب محاسبي",
+                "class": "bg-success" if customer.financial_account else "bg-info",
+                "icon": "fas fa-link" if customer.financial_account else "fas fa-plus-circle",
+                "url": reverse("financial:account_detail", kwargs={"pk": customer.financial_account.pk}) if customer.financial_account else "#",
+                "onclick": None if customer.financial_account else f"openCreateAccountModal({customer.pk})",
+            },
+        ],
+        # أزرار الهيدر
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_create_for_customer", kwargs={"customer_id": customer.id}),
+                "icon": "fa-file-invoice-dollar",
+                "text": "فاتورة بيع",
+                "class": "btn-success",
+            },
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "id": "actions-menu-btn",
+                "toggle": "modal",
+                "target": "#actionsModal",
+            },
+        ],
+        # البريدكرمب
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -813,7 +891,16 @@ def customer_change_account(request, pk):
         "form": form,
         "customer": customer,
         "page_title": f"تغيير الحساب المحاسبي للعميل: {customer.name}",
+        "page_subtitle": "ربط العميل بحساب محاسبي أو تغيير الحساب الحالي",
         "page_icon": "fas fa-exchange-alt",
+        "header_buttons": [
+            {
+                "url": reverse("client:customer_detail", kwargs={"pk": customer.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للعميل",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",

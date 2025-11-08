@@ -30,6 +30,24 @@ def shift_list(request):
     context = {
         'shifts': shifts,
         'stats': stats,
+        
+        # بيانات الهيدر
+        'page_title': 'الورديات',
+        'page_subtitle': 'إدارة ورديات العمل ومواعيدها',
+        'page_icon': 'fas fa-business-time',
+        'header_buttons': [
+            {
+                'url': reverse('hr:shift_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة وردية',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الورديات', 'active': True},
+        ],
     }
     return render(request, 'hr/shift/list.html', context)
 
@@ -107,4 +125,27 @@ def shift_form(request, pk=None):
     else:
         form = ShiftForm(instance=shift)
     
-    return render(request, 'hr/shift/form.html', {'form': form, 'shift': shift})
+    context = {
+        'form': form,
+        'shift': shift,
+        
+        # بيانات الهيدر
+        'page_title': 'تعديل وردية' if pk else 'إضافة وردية جديدة',
+        'page_subtitle': shift.name if pk and shift else 'إدخال بيانات الوردية',
+        'page_icon': 'fas fa-business-time',
+        'header_buttons': [
+            {
+                'url': reverse('hr:shift_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الورديات', 'url': reverse('hr:shift_list'), 'icon': 'fas fa-business-time'},
+            {'title': 'تعديل وردية' if pk else 'إضافة وردية', 'active': True},
+        ],
+    }
+    return render(request, 'hr/shift/form.html', context)

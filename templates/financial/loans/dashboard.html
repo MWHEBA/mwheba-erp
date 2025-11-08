@@ -9,80 +9,9 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-  /* تصميم عام */
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: var(--text-primary);
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  /* كروت الإحصائيات */
-  .stat-card {
-    transition: all 0.3s ease;
-    height: 100%;
-    border-radius: 10px;
-    overflow: hidden;
-  }
-  
-  .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .stat-card .card-header {
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  .stat-card .card-body {
-    padding: 1.5rem 1.25rem;
-  }
-  
-  .stat-value {
-    font-size: 2rem;
-    font-weight: 700;
-    margin: 0.5rem 0;
-  }
-  
-  .stat-label {
-    font-size: 0.9rem;
-    opacity: 0.9;
-  }
-  
-  .bg-primary-header {
-    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
-    color: white;
-  }
-  
-  .bg-success-header {
-    background: linear-gradient(135deg, var(--success-color) 0%, #157347 100%);
-    color: white;
-  }
-  
-  .bg-warning-header {
-    background: linear-gradient(135deg, var(--warning-color) 0%, #d39e00 100%);
-    color: white;
-  }
-  
-  .bg-danger-header {
-    background: linear-gradient(135deg, var(--danger-color) 0%, #b02a37 100%);
-    color: white;
-  }
+  /* ستايلات خاصة بصفحة لوحة القروض فقط */
   
   /* جدول القروض */
   .loan-item {
@@ -148,53 +77,10 @@
   }
 </style>
 {% endblock %}
-
 {% block content %}
 <div class="container-fluid">
-  <!-- Breadcrumb -->
-  <div class="mb-4">
-    {% if breadcrumb_items %}
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        {% for item in breadcrumb_items %}
-          {% if forloop.last or item.active %}
-            <li class="breadcrumb-item active" aria-current="page">
-              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-              {{ item.title }}
-            </li>
-          {% else %}
-            <li class="breadcrumb-item">
-              <a href="{{ item.url }}">
-                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                {{ item.title }}
-              </a>
-            </li>
-          {% endif %}
-        {% endfor %}
-      </ol>
-    </nav>
-    {% endif %}
-    
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-      <div class="d-flex align-items-center">
-        {% if page_icon %}
-        <div class="me-3">
-          <i class="{{ page_icon }} fa-2x text-primary"></i>
-        </div>
-        {% endif %}
-        <div>
-          <h1 class="h3 mb-1">{{ page_title }}</h1>
-          <p class="text-muted mb-0">إدارة ومتابعة جميع القروض في النظام</p>
-        </div>
-      </div>
-      <div>
-        <a href="{% url 'financial:loan_create' %}" class="btn btn-primary">
-          <i class="fas fa-plus me-2"></i>إضافة قرض جديد
-        </a>
-      </div>
-    </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
   
   <!-- الإحصائيات -->
   <div class="section-container">

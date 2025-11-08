@@ -20,14 +20,13 @@ from .account_views import (
     account_types_create,
     account_types_edit,
     account_types_delete,
-    account_list,
     get_account_transactions,
     get_account_analytics,
-    account_detail,
-    account_create,
+    # account_detail,  # تم حذفه - مكرر مع chart_of_accounts_detail
+    # account_create,  # تم حذفه - استخدم chart_of_accounts_create
     account_edit,
-    account_transactions,
-    account_delete,
+    # account_transactions,  # تم حذفه - غير مستخدم (مستبدل بتبويب في chart_of_accounts_detail)
+    # account_delete,  # تم حذفه - مكرر مع chart_of_accounts_delete
     bank_reconciliation_list,
     bank_reconciliation_create,
     cash_account_movements,
@@ -68,9 +67,9 @@ from .transaction_views import (
     journal_entries_post,
     transaction_list,
     transaction_detail,
-    transaction_create,
-    transaction_edit,
-    transaction_delete,
+    # transaction_create,  # تم حذفه - تحت التطوير
+    # transaction_edit,  # تم حذفه - تحت التطوير
+    # transaction_delete,  # تم حذفه - تحت التطوير
     journal_entry_delete,
 )
 

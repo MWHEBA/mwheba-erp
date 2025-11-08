@@ -9,7 +9,6 @@
 {% block title %}{{ warehouse.name }} - {% trans "تفاصيل المخزن" %}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/stock.css' %}">
 <style>
     .clickable-row:hover {
@@ -41,54 +40,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">{% trans "إدارة ومتابعة حركة المخزون" %}</p>
-                </div>
-            </div>
-            <div>
-                <a href="{% url 'product:warehouse_edit' warehouse.pk %}" class="btn btn-primary me-2">
-                    <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
-                </a>
-                <a href="{% url 'product:warehouse_delete' warehouse.pk %}" class="btn btn-danger">
-                    <i class="fas fa-trash me-1"></i>{% trans "حذف" %}
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <div class="row mb-4 inventory-stats">
         <div class="col-md-3">

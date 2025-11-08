@@ -3,98 +3,48 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">إدارة التصنيفات للمنتجات وتنظيمها</p>
-                </div>
-            </div>
-            <div>
-                <a href="{% url 'product:category_create' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>{% trans "إضافة تصنيف" %}
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
     
-    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
-        <div class="row mb-4">
-            <div class="col-md-12">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-light">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <h5 class="card-title mb-0">{% trans "قائمة التصنيفات" %}</h5>
-                            <span class="badge bg-primary">{{ categories.count }}</span>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <!-- استخدام الجدول الموحد -->
-                        {% if categories %}
-                          {% with table_id="categories-table" %}
-                            {% with headers=category_headers %}
-                              {% with data=categories %}
-                                {% with action_buttons=category_actions %}
-                                  {% with empty_message="لا توجد فئات متاحة" %}
-                                    {% with clickable_rows=True row_click_url="/products/categories/0/" %}
-                                      {% with show_export=True export_filename="categories" %}
-                                        {% include "components/data_table.html" %}
-                                      {% endwith %}
-                                    {% endwith %}
-                                  {% endwith %}
-                                {% endwith %}
-                              {% endwith %}
-                            {% endwith %}
-                          {% endwith %}
-                        {% else %}
-                          {% include 'partials/empty_state.html' with message="لا توجد فئات متاحة" icon="tags" %}
-                        {% endif %}
-                    </div>
-                </div>
-            </div>
+    <!-- قسم الجدول -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-list me-2"></i>قائمة التصنيفات
+                <span class="badge bg-primary ms-2">{{ categories.count }} تصنيف</span>
+            </h5>
         </div>
+        
+        <!-- استخدام الجدول الموحد -->
+        {% if categories %}
+          {% with table_id="categories-table" %}
+            {% with headers=category_headers %}
+              {% with data=categories %}
+                {% with action_buttons=category_actions %}
+                  {% with empty_message="لا توجد فئات متاحة" %}
+                    {% with clickable_rows=True row_click_url="/products/categories/0/" %}
+                      {% with show_export=True export_filename="categories" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد فئات متاحة" icon="tags" %}
+        {% endif %}
     </div>
 </div>
 {% endblock %}

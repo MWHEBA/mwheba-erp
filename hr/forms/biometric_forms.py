@@ -47,18 +47,20 @@ class BiometricUserMappingForm(forms.ModelForm):
     
     class Meta:
         model = BiometricUserMapping
-        fields = ['employee', 'biometric_user_id', 'device', 'is_active']
+        fields = ['employee', 'biometric_user_id', 'device', 'is_active', 'notes']
         widgets = {
             'employee': forms.Select(attrs={'class': 'form-select'}),
             'biometric_user_id': forms.TextInput(attrs={'class': 'form-control'}),
             'device': forms.Select(attrs={'class': 'form-select'}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
         }
         labels = {
             'employee': 'الموظف',
             'biometric_user_id': 'معرف البصمة',
             'device': 'الماكينة (اختياري)',
             'is_active': 'نشط',
+            'notes': 'ملاحظات',
         }
 
 

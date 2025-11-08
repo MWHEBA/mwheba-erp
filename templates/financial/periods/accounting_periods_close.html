@@ -2,15 +2,9 @@
 {% load i18n static %}
 
 {% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 2rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
+  /* ستايلات خاصة بصفحة إغلاق الفترة المحاسبية فقط */
   
   .warning-icon {
     font-size: 4rem;
@@ -49,6 +43,10 @@
 {% endblock %}
 
 {% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
 <div class="row">
   <div class="col-md-8 mx-auto">
     <div class="section-container">

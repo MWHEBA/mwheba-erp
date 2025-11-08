@@ -20,7 +20,51 @@ __all__ = [
 def leave_list(request):
     """قائمة الإجازات"""
     leaves = Leave.objects.select_related('employee', 'leave_type').all()
-    return render(request, 'hr/leave/list.html', {'leaves': leaves})
+    
+    # الإحصائيات
+    total_leaves = leaves.count()
+    pending_leaves = leaves.filter(status='pending').count()
+    approved_leaves = leaves.filter(status='approved').count()
+    rejected_leaves = leaves.filter(status='rejected').count()
+    
+    # جلب الموظفين وأنواع الإجازات للفلاتر
+    employees = Employee.objects.filter(status='active')
+    leave_types = LeaveType.objects.filter(is_active=True)
+    
+    context = {
+        'leaves': leaves,
+        'employees': employees,
+        'leave_types': leave_types,
+        'total_leaves': total_leaves,
+        'pending_leaves': pending_leaves,
+        'approved_leaves': approved_leaves,
+        'rejected_leaves': rejected_leaves,
+        'show_stats': True,
+        
+        # بيانات الهيدر
+        'page_title': 'قائمة الإجازات',
+        'page_subtitle': 'إدارة ومتابعة طلبات الإجازات للموظفين',
+        'page_icon': 'fas fa-calendar-alt',
+        
+        # أزرار الهيدر
+        'header_buttons': [
+            {
+                'url': reverse('hr:leave_request'),
+                'icon': 'fa-plus',
+                'text': 'طلب إجازة جديد',
+                'class': 'btn-primary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'قائمة الإجازات', 'active': True},
+        ],
+    }
+    
+    return render(request, 'hr/leave/list.html', context)
 
 
 @login_required
@@ -74,6 +118,23 @@ def leave_request(request):
         'employee': employee,
         'balances': balances,
         'current_year': current_year,
+        'page_title': 'طلب إجازة جديد',
+        'page_subtitle': 'تقديم طلب إجازة جديد',
+        'page_icon': 'fas fa-calendar-plus',
+        'header_buttons': [
+            {
+                'url': '/hr/leaves/',
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users-cog'},
+            {'title': 'الإجازات', 'url': '/hr/leaves/', 'icon': 'fas fa-calendar-alt'},
+            {'title': 'طلب إجازة', 'active': True},
+        ],
     }
     return render(request, 'hr/leave/request.html', context)
 
@@ -82,7 +143,45 @@ def leave_request(request):
 def leave_detail(request, pk):
     """تفاصيل الإجازة"""
     leave = get_object_or_404(Leave, pk=pk)
-    return render(request, 'hr/leave/detail.html', {'leave': leave})
+    
+    # تحديد الأزرار حسب حالة الإجازة
+    header_buttons = []
+    if leave.status == 'pending':
+        header_buttons.extend([
+            {
+                'url': f'/hr/leaves/{leave.pk}/approve/',
+                'icon': 'fa-check',
+                'text': 'اعتماد',
+                'class': 'btn-success',
+            },
+            {
+                'url': f'/hr/leaves/{leave.pk}/reject/',
+                'icon': 'fa-times',
+                'text': 'رفض',
+                'class': 'btn-danger',
+            },
+        ])
+    header_buttons.append({
+        'url': '/hr/leaves/',
+        'icon': 'fa-arrow-right',
+        'text': 'رجوع',
+        'class': 'btn-secondary',
+    })
+    
+    context = {
+        'leave': leave,
+        'page_title': 'تفاصيل الإجازة',
+        'page_subtitle': f'{leave.employee.get_full_name_ar()} - {leave.leave_type.name_ar}',
+        'page_icon': 'fas fa-calendar-alt',
+        'header_buttons': header_buttons,
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users-cog'},
+            {'title': 'الإجازات', 'url': '/hr/leaves/', 'icon': 'fas fa-calendar-alt'},
+            {'title': 'تفاصيل الإجازة', 'active': True},
+        ],
+    }
+    return render(request, 'hr/leave/detail.html', context)
 
 
 @login_required
@@ -97,7 +196,28 @@ def leave_approve(request, pk):
             return redirect('hr:leave_detail', pk=pk)
         except Exception as e:
             messages.error(request, f'خطأ: {str(e)}')
-    return render(request, 'hr/leave/approve.html', {'leave': leave})
+    
+    context = {
+        'leave': leave,
+        'page_title': 'اعتماد طلب إجازة',
+        'page_subtitle': 'مراجعة واعتماد طلب الإجازة',
+        'page_icon': 'fas fa-check-circle',
+        'header_buttons': [
+            {
+                'url': '/hr/leaves/',
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users'},
+            {'title': 'الإجازات', 'url': '/hr/leaves/', 'icon': 'fas fa-calendar-alt'},
+            {'title': 'اعتماد إجازة', 'active': True},
+        ],
+    }
+    return render(request, 'hr/leave/approve.html', context)
 
 
 @login_required
@@ -112,4 +232,25 @@ def leave_reject(request, pk):
             return redirect('hr:leave_detail', pk=pk)
         except Exception as e:
             messages.error(request, f'خطأ: {str(e)}')
-    return render(request, 'hr/leave/reject.html', {'leave': leave})
+    
+    context = {
+        'leave': leave,
+        'page_title': 'رفض طلب إجازة',
+        'page_subtitle': 'مراجعة ورفض طلب الإجازة',
+        'page_icon': 'fas fa-times-circle',
+        'header_buttons': [
+            {
+                'url': '/hr/leaves/',
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users'},
+            {'title': 'الإجازات', 'url': '/hr/leaves/', 'icon': 'fas fa-calendar-alt'},
+            {'title': 'رفض إجازة', 'active': True},
+        ],
+    }
+    return render(request, 'hr/leave/reject.html', context)

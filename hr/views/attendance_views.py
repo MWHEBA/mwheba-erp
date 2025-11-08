@@ -208,6 +208,16 @@ def attendance_list(request):
         'on_leave_count': on_leave_count,
         'departments': departments,
         'employees': employees,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'سجل الحضور',
+        'page_subtitle': f'متابعة حضور وانصراف الموظفين من نظام البصمة ({date_from_obj.strftime("%d/%m/%Y")} - {date_to_obj.strftime("%d/%m/%Y")})',
+        'page_icon': 'fas fa-clock',
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'سجل الحضور', 'active': True},
+        ],
     }
     return render(request, 'hr/attendance/list.html', context)
 

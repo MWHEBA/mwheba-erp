@@ -8,12 +8,11 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
-  .form-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 2rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
-  .section-title {color: #344767;font-size: 1.1rem;font-weight: 600;margin-bottom: 1rem;padding-bottom: 0.5rem;border-bottom: 2px solid #667eea;}
+  /* form-container و section-title موجودين في components.css */
   .info-box {background-color: #e7f3ff;border-left: 4px solid #2196F3;padding: 1rem;border-radius: 4px;margin-bottom: 1.5rem;}
   .info-box i {color: #2196F3;font-size: 1.2rem;}
   .example-box {background-color: #f8f9fa;border: 1px solid #dee2e6;border-radius: 8px;padding: 1rem;font-family: 'Courier New', monospace;font-size: 0.9rem;}
-  .step-card {background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);color: white;border-radius: 10px;padding: 1.5rem;margin-bottom: 1rem;}
+  .step-card {background: #667eea;color: white;border-radius: 10px;padding: 1.5rem;margin-bottom: 1rem;}
   .step-number {width: 40px;height: 40px;background: rgba(255,255,255,0.2);border-radius: 50%;display: flex;align-items: center;justify-content: center;font-size: 1.3rem;font-weight: bold;}
 </style>
 {% endblock %}
@@ -61,7 +60,7 @@
               <p class="mb-0 opacity-90">قم بإنشاء ملف CSV يحتوي على البيانات المطلوبة</p>
           </div>
 
-          <div class="step-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+          <div class="step-card" style="background: #11998e;">
               <div class="d-flex align-items-center mb-3">
                   <div class="step-number me-3">2</div>
                   <h5 class="mb-0">رفع الملف</h5>
@@ -69,7 +68,7 @@
               <p class="mb-0 opacity-90">اختر ملف CSV من جهازك وقم برفعه</p>
           </div>
 
-          <div class="step-card" style="background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%);">
+          <div class="step-card" style="background: #ee0979;">
               <div class="d-flex align-items-center mb-3">
                   <div class="step-number me-3">3</div>
                   <h5 class="mb-0">المعالجة</h5>

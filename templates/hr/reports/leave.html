@@ -3,48 +3,16 @@
 {% load i18n %}
 {% load custom_filters %}
 
-{% block title %}تقرير الإجازات{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:reports_home' %}"><i class="fas fa-chart-bar me-1"></i>التقارير</a></li>
-                  <li class="breadcrumb-item active"><i class="fas fa-calendar-alt me-1"></i>تقرير الإجازات</li>
-              </ol>
-          </nav>
-      </div>
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3"><i class="fas fa-calendar-alt fa-2x text-primary"></i></div>
-              <div>
-                  <h1 class="h3 mb-1">تقرير الإجازات - {{ year }}</h1>
-                  <p class="text-muted mb-0">تقرير شامل للإجازات</p>
-              </div>
-          </div>
-          <div>
-                <div>
-                    <a href="?year={{ year }}&export=excel" class="btn btn-success">
-                        <i class="fas fa-file-excel me-2"></i>
-                        تصدير Excel
-                    </a>
-                    <a href="{% url 'hr:reports_home' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-right me-2"></i>
-                        رجوع
-                    </a>
-                </div>
-          </div>
-      </div>
-  </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-filter me-2"></i>الفلاتر</h5>
@@ -78,28 +46,56 @@
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>الإحصائيات</h5>
       <div class="row">
-        <div class="col-md-3">
-            <div class="stat-card">
-                <h6>إجمالي الإجازات</h6>
-                <h3>{{ stats.total_leaves }}</h3>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الإجازات</div>
+                    <div class="stats-card-value">{{ stats.total_leaves|default:0 }}</div>
+                    <div class="stats-card-unit">إجازة</div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card stat-success">
-                <h6>معتمدة</h6>
-                <h3>{{ stats.approved }}</h3>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-title">معتمدة</div>
+                    <div class="stats-card-value">{{ stats.approved|default:0 }}</div>
+                    <div class="stats-card-unit">إجازة</div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card stat-warning">
-                <h6>قيد الانتظار</h6>
-                <h3>{{ stats.pending }}</h3>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-hourglass-half"></i>
+                    </div>
+                    <div class="stats-card-title">قيد الانتظار</div>
+                    <div class="stats-card-value">{{ stats.pending|default:0 }}</div>
+                    <div class="stats-card-unit">إجازة</div>
+                </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="stat-card stat-danger">
-                <h6>مرفوضة</h6>
-                <h3>{{ stats.rejected }}</h3>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stats-card-title">مرفوضة</div>
+                    <div class="stats-card-value">{{ stats.rejected|default:0 }}</div>
+                    <div class="stats-card-unit">إجازة</div>
+                </div>
             </div>
           </div>
       </div>

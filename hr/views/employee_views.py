@@ -129,6 +129,36 @@ def employee_list(request):
         'show_stats': True,
         'table_headers': table_headers,
         'table_actions': table_actions,
+        
+        # بيانات الهيدر
+        'page_title': 'قائمة الموظفين',
+        'page_subtitle': 'إدارة وعرض جميع الموظفين في النظام',
+        'page_icon': 'fas fa-users',
+        
+        # أزرار الهيدر (زي الهيدر الأصلي)
+        'header_buttons': [
+            {
+                'url': '#',
+                'icon': 'fa-file-import',
+                'text': 'استيراد',
+                'class': 'btn-outline-success',
+                'toggle': 'modal',
+                'target': '#importModal',
+            },
+            {
+                'url': reverse('hr:employee_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة موظف',
+                'class': 'btn-primary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'قائمة الموظفين', 'active': True},
+        ],
     }
     return render(request, 'hr/employee/list.html', context)
 
@@ -178,6 +208,35 @@ def employee_detail(request, pk):
         'biometric_mappings': biometric_mappings,
         'contracts': contracts,
         'active_contract': active_contract,
+        
+        # بيانات الهيدر
+        'page_title': employee.get_full_name_ar(),
+        'page_subtitle': f'{employee.job_title.title_ar} - {employee.department.name_ar}',
+        'page_icon': 'fas fa-user',
+        
+        # أزرار الهيدر
+        'header_buttons': [
+            {
+                'url': reverse('hr:employee_form_edit', kwargs={'pk': employee.pk}),
+                'icon': 'fa-edit',
+                'text': 'تعديل',
+                'class': 'btn-warning',
+            },
+            {
+                'url': reverse('hr:employee_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الموظفين', 'url': reverse('hr:employee_list'), 'icon': 'fas fa-users'},
+            {'title': employee.get_full_name_ar(), 'active': True},
+        ],
     }
     return render(request, 'hr/employee/detail.html', context)
 
@@ -253,5 +312,28 @@ def employee_form(request, pk=None):
         'job_titles': job_titles,
         'shifts': shifts,
         'next_employee_number': next_employee_number,
+        
+        # بيانات الهيدر
+        'page_title': 'تعديل موظف' if pk else 'إضافة موظف جديد',
+        'page_subtitle': employee.get_full_name_ar() if pk else 'إدخال بيانات الموظف الأساسية',
+        'page_icon': 'fas fa-user-edit' if pk else 'fas fa-user-plus',
+        
+        # أزرار الهيدر
+        'header_buttons': [
+            {
+                'url': reverse('hr:employee_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الموظفين', 'url': reverse('hr:employee_list'), 'icon': 'fas fa-users'},
+            {'title': 'تعديل موظف' if pk else 'إضافة موظف', 'active': True},
+        ],
     }
     return render(request, 'hr/employee/form.html', context)

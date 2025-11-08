@@ -9,8 +9,6 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
   /* Stats Cards */
   .stat-card-modern {
@@ -74,14 +72,7 @@
     border-bottom: 2px solid #f0f0f0;
   }
   
-  .section-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #344767;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
+  /* section-title موجود في components.css */
   
   .info-grid {
     display: grid;
@@ -197,54 +188,8 @@
 
 {% block content %}
 <div class="container-fluid">
-  <!-- Breadcrumb -->
-  <div class="mb-4">
-    {% if breadcrumb_items %}
-    <nav aria-label="breadcrumb">
-      <ol class="breadcrumb">
-        {% for item in breadcrumb_items %}
-          {% if forloop.last or item.active %}
-            <li class="breadcrumb-item active" aria-current="page">
-              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-              {{ item.title }}
-            </li>
-          {% else %}
-            <li class="breadcrumb-item">
-              <a href="{{ item.url }}">
-                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                {{ item.title }}
-              </a>
-            </li>
-          {% endif %}
-        {% endfor %}
-      </ol>
-    </nav>
-    {% endif %}
-    
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-      <div class="d-flex align-items-center">
-        {% if page_icon %}
-        <div class="me-3">
-          <i class="{{ page_icon }} fa-2x text-primary"></i>
-        </div>
-        {% endif %}
-        <div>
-          <h1 class="h3 mb-1">{{ loan.loan_number }}</h1>
-          <p class="text-muted mb-0">{{ loan.lender_name }} - {{ loan.get_lender_type_display }}</p>
-        </div>
-      </div>
-      <div>
-        {% if loan.status == 'active' %}
-          <span class="badge bg-success">نشط</span>
-        {% elif loan.status == 'completed' %}
-          <span class="badge bg-primary">مكتمل</span>
-        {% else %}
-          <span class="badge bg-secondary">ملغي</span>
-        {% endif %}
-      </div>
-    </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
   <!-- Stats Cards -->
   <div class="row mb-4">
     <div class="col-xl-3 col-md-6 mb-3">

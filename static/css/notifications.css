@@ -1,8 +1,9 @@
 /* ===========================
- * Notifications Page Styles
+ * Notifications System Styles
  * ===========================
- * ملف CSS مخصص لصفحة الإشعارات
- * يتم تحميله بعد كل ملفات CSS الأخرى
+ * ملف CSS موحد لنظام الإشعارات الكامل
+ * يشمل: صفحة الإشعارات + القائمة المنسدلة في الهيدر + الأيقونات
+ * ===========================
  */
 
 /* بطاقة الإشعار الأساسية */
@@ -34,18 +35,38 @@
     border-bottom: 1px solid #dee2e6;
 }
 
-/* أيقونة الإشعار */
-.notification-icon {
-    width: 44px;
-    height: 44px;
-    min-width: 44px;
+/* ===========================
+ * أيقونات الإشعارات
+ * ===========================
+ */
+
+/* زر الإشعارات في الهيدر */
+.notifications .btn-icon {
+    position: relative;
+    width: 36px;
+    height: 36px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: white;
+    background-color: var(--light);
+    color: var(--gray-600);
+    border: none;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.notification-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    background: #01578a;
+    margin-left: 10px;
     flex-shrink: 0;
-    font-size: 1.1rem;
 }
 
 .notification-icon i {
@@ -62,8 +83,19 @@
 .notification-icon.bg-inventory_alert { background-color: var(--warning-color); color: #333; }
 .notification-icon.bg-return_request { background-color: var(--danger-color); }
 
-/* عنوان الإشعار */
-.notification-title {
+/* أيقونات على خلفية فاتحة (للإشعارات المقروءة) */
+.notification-icon.bg-light {
+    background-color: var(--gray-200) !important;
+    color: var(--gray-700) !important;
+}
+
+/* ===========================
+ * صفحة الإشعارات
+ * ===========================
+ */
+
+/* عنوان الإشعار في الصفحة */
+.notification-card .notification-title {
     font-weight: 600;
     font-size: 1rem;
     margin: 0;
@@ -71,15 +103,15 @@
     color: #212529;
 }
 
-/* وقت الإشعار */
-.notification-time {
+/* وقت الإشعار في الصفحة */
+.notification-card .notification-time {
     font-size: 0.8rem;
     color: #6c757d;
     white-space: nowrap;
     margin-right: auto;
 }
 
-.notification-time i {
+.notification-card .notification-time i {
     display: inline-block;
 }
 
@@ -166,7 +198,7 @@
 }
 
 /* ===========================
- * Notification Dropdown Styles (من components.css)
+ * القائمة المنسدلة في الهيدر
  * ===========================
  */
 
@@ -321,6 +353,16 @@
     min-width: 0;
 }
 
+/* عنوان الإشعار */
+.notification-title {
+    font-weight: 600;
+    font-size: 13px;
+    margin-bottom: 4px;
+    color: var(--text-color);
+    line-height: 1.3;
+}
+
+/* نص الإشعار */
 .notification-text {
     font-size: 12px;
     color: var(--gray-600);
@@ -331,6 +373,19 @@
     line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+}
+
+/* وقت الإشعار */
+.notification-time {
+    font-size: 11px;
+    color: var(--gray-500);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.notification-time i {
+    font-size: 10px;
 }
 
 /* الحالة الفارغة في الـ Dropdown */
@@ -347,36 +402,31 @@
     padding: 4px 8px;
 }
 
-/* ألوان الخلفية لأنواع الإشعارات */
-.bg-inventory_alert {
-    background-color: var(--warning-color);
-}
+/* ===========================
+ * ألوان أنواع الإشعارات المخصصة
+ * ===========================
+ */
 
-.bg-payment_received {
-    background-color: var(--success-color);
-}
+/* ألوان الخلفية */
+.bg-inventory_alert { background-color: var(--warning-color); }
+.bg-payment_received { background-color: var(--success-color); }
+.bg-new_invoice { background-color: var(--info-color); }
+.bg-return_request { background-color: var(--danger-color); }
+.bg-contract_created { background-color: var(--info-color); }
+.bg-contract_activated { background-color: var(--success-color); }
+.bg-contract_terminated { background-color: var(--danger-color); }
+.bg-probation_ending { background-color: var(--warning-color); }
+.bg-contract_expiring_soon { background-color: var(--warning-color); }
+.bg-contract_expiring_urgent { background-color: var(--danger-color); }
 
-.bg-new_invoice {
-    background-color: var(--info-color);
-}
-
-.bg-return_request {
-    background-color: var(--danger-color);
-}
-
-/* ألوان النص لأنواع الإشعارات */
-.text-inventory_alert {
-    color: var(--warning-color);
-}
-
-.text-payment_received {
-    color: var(--success-color);
-}
-
-.text-new_invoice {
-    color: var(--info-color);
-}
-
-.text-return_request {
-    color: var(--danger-color);
-}
+/* ألوان النص */
+.text-inventory_alert { color: var(--warning-color); }
+.text-payment_received { color: var(--success-color); }
+.text-new_invoice { color: var(--info-color); }
+.text-return_request { color: var(--danger-color); }
+.text-contract_created { color: var(--info-color); }
+.text-contract_activated { color: var(--success-color); }
+.text-contract_terminated { color: var(--danger-color); }
+.text-probation_ending { color: var(--warning-color); }
+.text-contract_expiring_soon { color: var(--warning-color); }
+.text-contract_expiring_urgent { color: var(--danger-color); }

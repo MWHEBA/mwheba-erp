@@ -66,6 +66,29 @@ def contract_list(request):
         'row_click_url': '/hr/contracts/0/',
         **{f'{k}_contracts': v for k, v in stats.items()},
         'show_stats': True,
+        'employees': Employee.objects.filter(status='active'),
+        
+        # بيانات الهيدر
+        'page_title': 'العقود',
+        'page_subtitle': 'إدارة عقود الموظفين والتجديدات',
+        'page_icon': 'fas fa-file-contract',
+        
+        # أزرار الهيدر
+        'header_buttons': [
+            {
+                'url': reverse('hr:contract_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة عقد',
+                'class': 'btn-primary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'العقود', 'active': True},
+        ],
     }
     
     return render(request, 'hr/contract/list.html', context)
@@ -98,6 +121,81 @@ def contract_detail(request, pk):
         {'key': 'actions', 'label': 'إجراءات', 'template': 'hr/contract/cells/document_actions.html', 'class': 'text-center', 'width': '100', 'searchable': False},
     ]
     
+    # تحديد حالة العقد كـ badge
+    status_badge = {
+        'draft': {'text': 'مسودة', 'class': 'bg-secondary', 'icon': 'fa-file'},
+        'active': {'text': 'نشط', 'class': 'bg-success', 'icon': 'fa-check-circle'},
+        'suspended': {'text': 'موقوف', 'class': 'bg-warning', 'icon': 'fa-pause-circle'},
+        'terminated': {'text': 'منتهي', 'class': 'bg-danger', 'icon': 'fa-times-circle'},
+        'renewed': {'text': 'مجدد', 'class': 'bg-info', 'icon': 'fa-redo'},
+    }.get(contract.status, {'text': contract.get_status_display(), 'class': 'bg-secondary', 'icon': 'fa-circle'})
+    
+    # تحديد الأزرار حسب حالة العقد
+    header_buttons = [
+        {
+            'text': status_badge['text'],
+            'icon': status_badge['icon'],
+            'class': status_badge['class'],
+            'is_badge': True,
+        },
+        {
+            'url': f'/hr/contracts/{contract.pk}/edit/',
+            'icon': 'fa-edit',
+            'text': 'تعديل',
+            'class': 'btn-warning',
+        },
+    ]
+    
+    if contract.status == 'draft':
+        header_buttons.append({
+            'url': f'/hr/contracts/{contract.pk}/activate/',
+            'icon': 'fa-check',
+            'text': 'تفعيل',
+            'class': 'btn-success',
+        })
+    elif contract.status == 'active':
+        header_buttons.append({
+            'url': f'/hr/contracts/{contract.pk}/suspend/',
+            'icon': 'fa-pause',
+            'text': 'إيقاف مؤقت',
+            'class': 'btn-secondary',
+        })
+        if contract.end_date:
+            header_buttons.append({
+                'url': f'/hr/contracts/{contract.pk}/renew/',
+                'icon': 'fa-redo',
+                'text': 'تجديد',
+                'class': 'btn-info',
+            })
+        header_buttons.append({
+            'url': f'/hr/contracts/{contract.pk}/terminate/',
+            'icon': 'fa-ban',
+            'text': 'إنهاء',
+            'class': 'btn-danger',
+        })
+    elif contract.status == 'suspended':
+        header_buttons.extend([
+            {
+                'url': f'/hr/contracts/{contract.pk}/reactivate/',
+                'icon': 'fa-play',
+                'text': 'إعادة تفعيل',
+                'class': 'btn-success',
+            },
+            {
+                'url': f'/hr/contracts/{contract.pk}/renew/',
+                'icon': 'fa-redo',
+                'text': 'تجديد',
+                'class': 'btn-info',
+            },
+        ])
+    elif contract.status in ['expired', 'terminated']:
+        header_buttons.append({
+            'url': f'/hr/contracts/{contract.pk}/renew/',
+            'icon': 'fa-redo',
+            'text': 'تجديد',
+            'class': 'btn-info',
+        })
+    
     context = {
         'contract': contract,
         'system_settings': {'currency_symbol': currency_symbol},
@@ -106,6 +204,16 @@ def contract_detail(request, pk):
         'scheduled_increases': scheduled_increases,
         'pending_increases': pending_increases,
         'applied_increases': applied_increases,
+        'page_title': f'عقد رقم {contract.contract_number}',
+        'page_subtitle': f'{contract.employee.get_full_name_ar()} - {contract.employee.employee_number} • من تاريخ {contract.start_date.strftime("%d/%m/%Y")}' + (f' → {contract.end_date.strftime("%d/%m/%Y")}' if contract.end_date else ''),
+        'page_icon': 'fas fa-file-contract',
+        'header_buttons': header_buttons,
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users-cog'},
+            {'title': 'العقود', 'url': '/hr/contracts/', 'icon': 'fas fa-file-contract'},
+            {'title': contract.contract_number, 'active': True},
+        ],
     }
     
     return render(request, 'hr/contract/detail.html', context)
@@ -341,6 +449,14 @@ def contract_renew(request, pk):
         'old_contract': old_contract,
         'is_renewal': True,
         'page_title': f'تجديد العقد: {old_contract.contract_number}',
+        'page_subtitle': f'تجديد عقد الموظف {old_contract.employee.get_full_name_ar()}',
+        'page_icon': 'fas fa-redo',
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'العقود', 'url': reverse('hr:contract_list'), 'icon': 'fas fa-file-contract'},
+            {'title': 'تجديد عقد', 'active': True},
+        ],
     }
     return render(request, 'hr/contract/form.html', context)
 
@@ -354,7 +470,30 @@ def contract_terminate(request, pk):
         contract.terminate(termination_date)
         messages.success(request, 'تم إنهاء العقد بنجاح')
         return redirect('hr:contract_detail', pk=pk)
-    return render(request, 'hr/contract/terminate.html', {'contract': contract})
+    
+    context = {
+        'contract': contract,
+        
+        # بيانات الهيدر الموحد
+        'page_title': f'إنهاء العقد: {contract.contract_number}',
+        'page_subtitle': 'إنهاء عقد الموظف',
+        'page_icon': 'fas fa-ban',
+        'header_buttons': [
+            {
+                'url': reverse('hr:contract_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'العقود', 'url': reverse('hr:contract_list'), 'icon': 'fas fa-file-contract'},
+            {'title': 'إنهاء عقد', 'active': True},
+        ],
+    }
+    return render(request, 'hr/contract/terminate.html', context)
 
 
 @login_required
@@ -431,4 +570,26 @@ def contract_expiring(request):
         end_date__gte=date.today()
     ).select_related('employee').order_by('end_date')
     
-    return render(request, 'hr/contract/expiring.html', {'contracts': contracts})
+    context = {
+        'contracts': contracts,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'عقود قرب الانتهاء',
+        'page_subtitle': 'العقود التي ستنتهي خلال 60 يوم',
+        'page_icon': 'fas fa-exclamation-triangle',
+        'header_buttons': [
+            {
+                'url': reverse('hr:contract_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'العقود', 'url': reverse('hr:contract_list'), 'icon': 'fas fa-file-contract'},
+            {'title': 'قرب الانتهاء', 'active': True},
+        ],
+    }
+    return render(request, 'hr/contract/expiring.html', context)

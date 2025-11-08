@@ -326,7 +326,16 @@ def product_list(request):
             "product_headers": product_headers,
             "primary_key": "id",  # المفتاح الأساسي للجدول
             "page_title": "قائمة المنتجات",
+            "page_subtitle": "إدارة منتجات النظام وتصنيفاتها وأسعارها",
             "page_icon": "fas fa-boxes",
+            "header_buttons": [
+                {
+                    "url": reverse("product:product_create"),
+                    "icon": "fa-plus",
+                    "text": "إضافة منتج جديد",
+                    "class": "btn-success",
+                },
+            ],
             "breadcrumb_items": [
                 {
                     "title": "الرئيسية",
@@ -397,7 +406,16 @@ def product_create(request):
     context = {
         "form": form,
         "page_title": "إضافة منتج جديد",
+        "page_subtitle": "إضافة منتج جديد إلى قاعدة البيانات",
         "page_icon": "fas fa-plus-circle",
+        "header_buttons": [
+            {
+                "url": reverse("product:product_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -451,7 +469,16 @@ def product_edit(request, pk):
         "product": product,
         "title": f"تعديل المنتج: {product.name}",
         "page_title": f"تعديل المنتج: {product.name}",
+        "page_subtitle": "تعديل بيانات المنتج الحالي",
         "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("product:product_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -514,6 +541,34 @@ def product_detail(request, pk):
         "supplier_prices": supplier_prices,
         "sales_stats": sales_stats,
         "title": product.name,
+        
+        # بيانات الهيدر
+        "page_title": product.name,
+        "page_subtitle": f'{product.sku} • {product.category.name}',
+        "page_icon": "fas fa-box",
+        
+        # أزرار الهيدر
+        "header_buttons": [
+            {
+                "url": reverse("product:product_edit", kwargs={"pk": product.pk}),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-primary",
+            },
+            {
+                "url": reverse("product:product_delete", kwargs={"pk": product.pk}),
+                "icon": "fa-trash",
+                "text": "حذف",
+                "class": "btn-outline-danger",
+            },
+        ],
+        
+        # البريدكرمب
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
+            {"title": product.name, "active": True},
+        ],
     }
 
     return render(request, "product/product_detail.html", context)
@@ -716,7 +771,16 @@ def category_list(request):
         "search_query": search_query,
         "status": status,
         "page_title": "تصنيفات المنتجات",
+        "page_subtitle": "إدارة التصنيفات للمنتجات وتنظيمها",
         "page_icon": "fas fa-tags",
+        "header_buttons": [
+            {
+                "url": reverse("product:category_create"),
+                "icon": "fa-plus",
+                "text": "إضافة تصنيف",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -752,7 +816,10 @@ def category_create(request):
     context = {
         "form": form,
         "page_title": "إضافة فئة جديدة",
+        "page_subtitle": "إضافة تصنيف جديد للمنتجات",
         "page_icon": "fas fa-folder-plus",
+        "object_type": "فئة",
+        "list_url": reverse("product:category_list"),
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -795,11 +862,29 @@ def category_edit(request, pk):
     context = {
         "form": form,
         "category": category,
-        "title": f"تعديل التصنيف: {category.name}",
+        "page_title": f"تعديل التصنيف: {category.name}",
+        "page_subtitle": "تحديث بيانات التصنيف",
+        "page_icon": "fas fa-edit",
         "object_type": "فئة",
-        "object_list_name": "التصنيفات",
         "list_url": reverse("product:category_list"),
-        "page_icon": "fas fa-tags",
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {
+                "title": "المنتجات",
+                "url": reverse("product:product_list"),
+                "icon": "fas fa-boxes",
+            },
+            {
+                "title": "التصنيفات",
+                "url": reverse("product:category_list"),
+                "icon": "fas fa-tags",
+            },
+            {"title": f"تعديل: {category.name}", "active": True},
+        ],
     }
 
     return render(request, "product/category_form.html", context)
@@ -844,7 +929,36 @@ def category_detail(request, pk):
         "products": products,
         "subcategories": subcategories,
         "title": category.name,
+        "page_title": category.name,
+        "page_subtitle": "معلومات وإحصائيات التصنيف",
+        "page_icon": "fas fa-folder",
+        "header_buttons": [
+            {
+                "url": f"/products/categories/{category.pk}/edit/",
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-primary",
+            },
+            {
+                "url": f"/products/categories/{category.pk}/delete/",
+                "icon": "fa-trash",
+                "text": "حذف",
+                "class": "btn-danger",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "التصنيفات", "url": "/products/categories/", "icon": "fas fa-folder"},
+        ],
     }
+    
+    # إضافة التصنيف الأب إذا وجد
+    if category.parent:
+        context["breadcrumb_items"].append(
+            {"title": category.parent.name, "url": f"/products/categories/{category.parent.pk}/"}
+        )
+    
+    # إضافة التصنيف الحالي
+    context["breadcrumb_items"].append({"title": category.name, "active": True})
 
     return render(request, "product/category_detail.html", context)
 
@@ -929,7 +1043,16 @@ def brand_list(request):
         "brand_actions": brand_actions,
         "primary_key": "id",
         "page_title": "العلامات التجارية",
+        "page_subtitle": "إدارة الأنواع للمنتجات وتنظيمها",
         "page_icon": "fas fa-copyright",
+        "header_buttons": [
+            {
+                "url": reverse("product:brand_create"),
+                "icon": "fa-plus",
+                "text": "إضافة علامة تجارية",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -965,7 +1088,16 @@ def brand_create(request):
     context = {
         "form": form,
         "page_title": "إضافة علامة تجارية جديدة",
+        "page_subtitle": "أدخل البيانات المطلوبة ثم اضغط حفظ",
         "page_icon": "fas fa-copyright",
+        "header_buttons": [
+            {
+                "url": reverse("product:brand_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1105,8 +1237,23 @@ def brand_detail(request, pk):
         "product_actions": product_actions,
         "primary_key": "id",
         "title": brand.name,
-        "page_title": f"النوع: {brand.name}",
+        "page_title": brand.name,
+        "page_subtitle": "معلومات وإحصائيات النوع",
         "page_icon": "fas fa-copyright",
+        "header_buttons": [
+            {
+                "url": reverse("product:brand_edit", args=[brand.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-warning",
+            },
+            {
+                "url": reverse("product:brand_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1205,7 +1352,16 @@ def unit_list(request):
         "primary_key": "id",
         "title": "وحدات القياس",
         "page_title": "وحدات القياس",
+        "page_subtitle": "إدارة وحدات القياس للمنتجات",
         "page_icon": "fas fa-balance-scale",
+        "header_buttons": [
+            {
+                "url": reverse("product:unit_create"),
+                "icon": "fa-plus",
+                "text": "إضافة وحدة قياس",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1241,7 +1397,16 @@ def unit_create(request):
     context = {
         "form": form,
         "page_title": "إضافة وحدة قياس جديدة",
-        "page_icon": "fas fa-ruler",
+        "page_subtitle": "أدخل البيانات المطلوبة ثم اضغط حفظ",
+        "page_icon": "fas fa-balance-scale",
+        "header_buttons": [
+            {
+                "url": reverse("product:unit_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1256,7 +1421,7 @@ def unit_create(request):
             {
                 "title": "وحدات القياس",
                 "url": reverse("product:unit_list"),
-                "icon": "fas fa-ruler",
+                "icon": "fas fa-balance-scale",
             },
             {"title": "إضافة وحدة", "active": True},
         ],
@@ -1285,6 +1450,23 @@ def unit_edit(request, pk):
         "form": form,
         "unit": unit,
         "title": f"تعديل وحدة القياس: {unit.name}",
+        "page_title": f"تعديل وحدة القياس: {unit.name}",
+        "page_subtitle": "أدخل التعديلات المطلوبة ثم اضغط حفظ",
+        "page_icon": "fas fa-balance-scale",
+        "header_buttons": [
+            {
+                "url": reverse("product:unit_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+            {"title": "وحدات القياس", "url": reverse("product:unit_list"), "icon": "fas fa-balance-scale"},
+            {"title": f"تعديل: {unit.name}", "active": True},
+        ],
     }
 
     return render(request, "product/unit_form.html", context)
@@ -1325,6 +1507,29 @@ def unit_detail(request, pk):
         "unit": unit,
         "products": products,
         "title": unit.name,
+        "page_title": f"تفاصيل وحدة القياس: {unit.name}",
+        "page_subtitle": f"الرمز: {unit.symbol}",
+        "page_icon": "fas fa-balance-scale",
+        "header_buttons": [
+            {
+                "url": reverse("product:unit_edit", args=[unit.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-warning",
+            },
+            {
+                "url": reverse("product:unit_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
+            {"title": "وحدات القياس", "url": reverse("product:unit_list"), "icon": "fas fa-balance-scale"},
+            {"title": unit.name, "active": True},
+        ],
     }
 
     return render(request, "product/unit_detail.html", context)
@@ -1433,7 +1638,16 @@ def warehouse_list(request):
         "total_warehouses": total_warehouses,
         "active_warehouses": active_warehouses,
         "page_title": "المخازن",
+        "page_subtitle": "إدارة المخازن ومواقع التخزين",
         "page_icon": "fas fa-warehouse",
+        "header_buttons": [
+            {
+                "url": reverse("product:warehouse_create"),
+                "icon": "fa-plus",
+                "text": "إضافة مخزن",
+                "class": "btn-success",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1465,7 +1679,10 @@ def warehouse_create(request):
     context = {
         "form": form,
         "page_title": "إضافة مخزن جديد",
+        "page_subtitle": "إضافة مخزن جديد لتخزين المنتجات",
         "page_icon": "fas fa-warehouse",
+        "object_type": "مخزن",
+        "list_url": reverse("product:warehouse_list"),
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1505,7 +1722,10 @@ def warehouse_edit(request, pk):
         "form": form,
         "warehouse": warehouse,
         "page_title": f"تعديل المخزن: {warehouse.name}",
+        "page_subtitle": "تحديث بيانات المخزن",
         "page_icon": "fas fa-edit",
+        "object_type": "مخزن",
+        "list_url": reverse("product:warehouse_list"),
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1702,8 +1922,23 @@ def warehouse_detail(request, pk):
         "in_stock_products": in_stock_products,
         "low_stock_products": low_stock_products,
         "out_of_stock_products": out_of_stock_products,
-        "page_title": f"تفاصيل المخزن: {warehouse.name}",
+        "page_title": warehouse.name,
+        "page_subtitle": "إدارة ومتابعة حركة المخزون",
         "page_icon": "fas fa-warehouse",
+        "header_buttons": [
+            {
+                "url": reverse("product:warehouse_edit", args=[warehouse.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-primary",
+            },
+            {
+                "url": reverse("product:warehouse_delete", args=[warehouse.pk]),
+                "icon": "fa-trash",
+                "text": "حذف",
+                "class": "btn-danger",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1827,6 +2062,7 @@ def stock_list(request):
         "product_id": product_id,
         "stock_status": stock_status,
         "page_title": "جرد المخزون",
+        "page_subtitle": "مراقبة المخزون وإدارة الكميات المتاحة من المنتجات",
         "page_icon": "fas fa-clipboard-list",
         "breadcrumb_items": [
             {
@@ -2101,7 +2337,18 @@ def stock_movement_list(request):
         "transfer_movements": transfer_movements,
         "adjustment_movements": adjustment_movements,
         "page_title": "حركات المخزون",
+        "page_subtitle": "متابعة حركات المخزون الواردة والصادرة والتعديلات",
         "page_icon": "fas fa-exchange-alt",
+        "header_buttons": [
+            {
+                "url": "#",
+                "icon": "fa-plus-circle",
+                "text": "إضافة حركة جديدة",
+                "class": "btn-primary",
+                "toggle": "modal",
+                "target": "#addMovementModal",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -2186,7 +2433,43 @@ def stock_movement_detail(request, pk):
         "previous_stock": previous_stock,
         "current_stock": current_stock,
         "related_movements": related_movements,
-        "title": _("تفاصيل حركة المخزون"),
+        "page_title": f"تفاصيل حركة المخزون #{movement.reference_number or movement.id}",
+        "page_subtitle": f"{movement.product.name} | {movement.timestamp.strftime('%d-%m-%Y %H:%M')}",
+        "page_icon": "fas fa-exchange-alt",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-outline-secondary",
+            },
+        ] if not movement.document_type or movement.document_type == 'adjustment' else [
+            {
+                "url": reverse("product:stock_movement_delete", kwargs={"pk": movement.pk}),
+                "icon": "fa-trash",
+                "text": "حذف",
+                "class": "btn-danger",
+            },
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-outline-secondary",
+            },
+        ],
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {
+                "title": "حركات المخزون",
+                "url": reverse("product:stock_movement_list"),
+                "icon": "fas fa-exchange-alt",
+            },
+            {"title": f"تفاصيل الحركة #{movement.reference_number or movement.id}", "active": True},
+        ],
     }
 
     return render(request, "product/stock_movement_detail.html", context)

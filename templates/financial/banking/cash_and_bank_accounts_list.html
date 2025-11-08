@@ -7,56 +7,23 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-    /* تصميم بسيط ومتسق مع هوية النظام */
-    .page-header {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        padding: 25px;
-        margin-bottom: 25px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
     
-    .page-header h1 {
-        color: #495057;
-        font-size: 1.75rem;
-        font-weight: 600;
-        margin-bottom: 8px;
-    }
-    
-    .page-header p {
-        color: #6c757d;
-        font-size: 0.95rem;
-        margin-bottom: 0;
-    }
-    
-    /* كروت الحسابات البسيطة */
+    /* كروت الحسابات */
     .cash-account-card {
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        transition: all 0.2s ease;
-        margin-bottom: 20px;
-        background: #fff;
+        transition: all 0.3s ease;
+        cursor: pointer;
     }
     
     .cash-account-card:hover {
         box-shadow: 0 6px 12px rgba(0,0,0,0.2);
         transform: translateY(-3px);
-        cursor: pointer;
-        border-color: #007bff;
-    }
-    
-    .cash-account-card {
-        cursor: pointer;
-        transition: all 0.3s ease;
-        border: 2px solid transparent;
+        border-color: var(--primary-color);
     }
     
     .cash-account-card:active {
         transform: translateY(-1px);
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     
     /* رؤوس الكروت */
@@ -90,44 +57,26 @@
         font-weight: 500;
     }
     
-    .cash-badge {
-        background: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-    }
-    
-    .bank-badge {
-        background: #cce7ff;
-        color: #004085;
-        border: 1px solid #b3d7ff;
-    }
-    
-    .wallet-badge {
-        background: #fff3cd;
-        color: #856404;
-        border: 1px solid #ffeaa7;
-    }
-    
     /* عرض الأرصدة */
     .balance-display {
         text-align: center;
         padding: 15px;
-        background: #f8f9fa;
+        background: var(--light-bg);
         border-radius: 6px;
         margin: 15px 0;
-        border: 1px solid #e9ecef;
+        border: 1px solid var(--border-color);
     }
     
     .balance-amount {
         font-size: 1.5rem;
         font-weight: 700;
-        color: #28a745;
+        color: var(--success-color);
         margin-bottom: 5px;
     }
     
     .balance-currency {
         font-size: 0.85rem;
-        color: #6c757d;
+        color: var(--text-muted);
     }
     
 
@@ -143,14 +92,14 @@
     .info-item {
         text-align: center;
         padding: 10px;
-        background: #f8f9fa;
+        background: var(--light-bg);
         border-radius: 6px;
-        border: 1px solid #e9ecef;
+        border: 1px solid var(--border-color);
     }
     
     .info-label {
         font-size: 0.75rem;
-        color: #6c757d;
+        color: var(--text-muted);
         margin-bottom: 4px;
         font-weight: 500;
     }
@@ -158,97 +107,15 @@
     .info-value {
         font-size: 0.9rem;
         font-weight: 600;
-        color: #495057;
+        color: var(--text-dark);
     }
     
-    /* أزرار الإجراءات */
-    .account-actions {
-        opacity: 0;
-        transition: opacity 0.2s ease;
-        margin-top: 15px;
-    }
-    
-    .cash-account-card:hover .account-actions {
-        opacity: 1;
-    }
-    
-    /* إحصائيات بسيطة */
-    .stats-card {
-        background: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    
-    .stats-header {
-        background: #f8f9fa;
-        color: #495057;
-        padding: 15px 20px;
-        border-bottom: 1px solid #dee2e6;
-        margin: -1px -1px 0 -1px;
-        border-radius: 7px 7px 0 0;
-    }
-    
-    .stats-header h5 {
-        margin: 0;
-        font-size: 1rem;
-        font-weight: 600;
-    }
-    
-    .stat-item {
-        padding: 20px;
-        text-align: center;
-        transition: background-color 0.2s ease;
-    }
-    
-    .stat-item:hover {
-        background: #f8f9fa;
-    }
-    
-    .stat-item:not(:last-child) {
-        border-left: 1px solid #dee2e6;
-    }
-    
-    .stat-number {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: #495057;
-        margin-bottom: 5px;
-    }
-    
-    .stat-label {
+    .account-code {
         font-size: 0.85rem;
-        color: #6c757d;
-        font-weight: 500;
-    }
-    
-    /* حالة فارغة بسيطة */
-    .empty-state {
-        text-align: center;
-        padding: 60px 20px;
-        background: #f8f9fa;
-        border-radius: 8px;
-        border: 1px solid #dee2e6;
-    }
-    
-    .empty-icon {
-        font-size: 3rem;
-        color: #6c757d;
-        margin-bottom: 20px;
-    }
-    
-    .empty-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: #495057;
-        margin-bottom: 10px;
-    }
-    
-    .empty-description {
-        font-size: 0.95rem;
-        color: #6c757d;
-        margin-bottom: 25px;
-        line-height: 1.5;
+        color: var(--text-muted);
+        background: var(--light-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
     }
     
     /* تحسينات الاستجابة */
@@ -281,53 +148,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">الحسابات النقدية والبنكية التي يمكن الصرف منها والإيداع فيها</p>
-                </div>
-            </div>
-            <div>
-                <a href="{% url 'financial:account_create' %}" class="btn btn-success">
-                    <i class="fas fa-plus me-2"></i>إضافة خزنة جديدة
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- Accounts Grid المحسن -->
     {% if accounts %}

@@ -176,7 +176,16 @@ def purchase_list(request):
         "purchase_headers": purchase_headers,
         "purchase_actions": purchase_actions,
         "page_title": "فواتير المشتريات",
+        "page_subtitle": "قائمة بجميع فواتير المشتريات في النظام",
         "page_icon": "fas fa-shopping-cart",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_create"),
+                "icon": "fa-plus",
+                "text": "إضافة فاتورة",
+                "class": "btn-primary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -354,7 +363,16 @@ def purchase_create(request, supplier_id=None):
         "selected_supplier": selected_supplier,  # إضافة المورد المحدد للسياق
         "default_warehouse": warehouses.first() if warehouses.exists() else None,  # المخزن الافتراضي
         "page_title": "إضافة فاتورة مشتريات" + (f" - {selected_supplier.name}" if selected_supplier else ""),
+        "page_subtitle": "إضافة فاتورة مشتريات جديدة إلى النظام",
         "page_icon": "fas fa-plus-circle",
+        "header_buttons": [
+            {
+                "url": reverse("supplier:supplier_detail", kwargs={"pk": selected_supplier.pk}) if selected_supplier else reverse("purchase:purchase_list"),
+                "icon": "fa-arrow-right",
+                "text": "العودة لتفاصيل المورد" if selected_supplier else "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -380,33 +398,7 @@ def purchase_create(request, supplier_id=None):
 
 
 
-@login_required
-def purchase_payment_list(request):
-    """
-    عرض قائمة مدفوعات فواتير المشتريات
-    """
-    payments = PurchasePayment.objects.all()
-
-    # فلترة حسب طريقة الدفع
-    if "payment_method" in request.GET and request.GET["payment_method"]:
-        payments = payments.filter(payment_method=request.GET["payment_method"])
-
-    # فلترة حسب التاريخ
-    if "start_date" in request.GET and request.GET["start_date"]:
-        payments = payments.filter(payment_date__gte=request.GET["start_date"])
-
-    if "end_date" in request.GET and request.GET["end_date"]:
-        payments = payments.filter(payment_date__lte=request.GET["end_date"])
-
-    # فرز النتائج
-    payments = payments.order_by("-payment_date", "-id")
-
-    context = {
-        "payments": payments,
-        "title": "مدفوعات المشتريات",
-    }
-
-    return render(request, "purchase/payment_list.html", context)
+# تم حذف purchase_payment_list - غير مستخدم (لا يوجد URL مربوط)
 
 
 
@@ -428,8 +420,31 @@ def purchase_detail(request, pk):
         "payments": payments,  # تمرير المدفوعات المرتبة للقالب
         "title": "تفاصيل فاتورة المشتريات",
         "page_title": f"فاتورة مشتريات - {purchase.number}",
+        "page_subtitle": "عرض تفاصيل فاتورة المشتريات وإدارتها",
         "page_icon": "fas fa-file-invoice",
         "show_post_alert": show_post_alert,  # إضافة معلومات SweetAlert
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_print", kwargs={"pk": purchase.pk}),
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-info",
+            },
+        ] + ([{
+            "url": reverse("purchase:purchase_add_payment", kwargs={"pk": purchase.pk}),
+            "icon": "fa-money-bill",
+            "text": "إضافة دفعة",
+            "class": "btn-success",
+        }] if purchase.payment_status != 'paid' else []) + [
+            {
+                "url": "#",
+                "icon": "fa-ellipsis-v",
+                "text": "",
+                "class": "btn-outline-secondary",
+                "toggle": "modal",
+                "target": "#actionsModal",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "لوحة التحكم",
@@ -836,7 +851,27 @@ def purchase_delete(request, pk):
 
     context = {
         "purchase": purchase,
-        "title": f"حذف فاتورة المشتريات - {purchase.number}",
+        "page_title": f"حذف فاتورة {purchase.number}",
+        "page_subtitle": f"{purchase.supplier.name} | {purchase.date.strftime('%d-%m-%Y')}",
+        "page_icon": "fas fa-trash",
+        "breadcrumb_items": [
+            {
+                "title": "لوحة التحكم",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-tachometer-alt",
+            },
+            {
+                "title": "المشتريات",
+                "url": reverse("purchase:purchase_list"),
+                "icon": "fas fa-shopping-basket",
+            },
+            {
+                "title": f"فاتورة {purchase.number}",
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": purchase.pk}),
+                "icon": "fas fa-file-invoice",
+            },
+            {"title": "حذف", "active": True},
+        ],
     }
 
     return render(request, "purchase/purchase_confirm_delete.html", context)
@@ -885,8 +920,17 @@ def payment_detail(request, pk):
         "purchase": purchase,
         "invoice": purchase,  # للتوافق مع القوالب المشتركة
         "financial_info": financial_info,
-        "page_title": f"تفاصيل دفعة المشتريات - {payment.id}",
+        "page_title": f"دفعة رقم #{payment.id}",
+        "page_subtitle": f"فاتورة {purchase.number} | {purchase.supplier.name}",
         "page_icon": "fas fa-money-bill-wave",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": purchase.pk}),
+                "icon": "fa-arrow-left",
+                "text": "العودة للفاتورة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "لوحة التحكم",
@@ -1169,20 +1213,36 @@ def purchase_return(request, pk):
     # حساب الكميات المتبقية للعرض
     available_quantities = {}
     for item in items:
-        available_quantities[
-            item.id
-        ] = item.quantity - previously_returned_quantities.get(item.id, 0)
-
+        available_quantities[item.id] = item.quantity - previously_returned_quantities.get(item.id, 0)
+    
     context = {
-        "title": "مرتجع مشتريات",
         "purchase": purchase,
         "items": items,
-        "available_quantities": available_quantities,
+        "page_title": f"مرتجع مشتريات",
+        "page_subtitle": f"فاتورة {purchase.number} | {purchase.supplier.name}",
+        "page_icon": "fas fa-undo-alt",
+        "breadcrumb_items": [
+            {
+                "title": "لوحة التحكم",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-tachometer-alt",
+            },
+            {
+                "title": "المشتريات",
+                "url": reverse("purchase:purchase_list"),
+                "icon": "fas fa-shopping-basket",
+            },
+            {
+                "title": f"فاتورة {purchase.number}",
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": purchase.pk}),
+                "icon": "fas fa-file-invoice",
+            },
+            {"title": "مرتجع مشتريات", "active": True},
+        ],
         "previously_returned_quantities": previously_returned_quantities,
         "has_returns": any(previously_returned_quantities.values()),
     }
     return render(request, "purchase/purchase_return.html", context)
-
 
 @login_required
 def purchase_return_list(request):
@@ -1259,7 +1319,16 @@ def purchase_return_list(request):
         "return_actions": return_actions,
         "primary_key": "id",
         "page_title": "مرتجعات المشتريات",
+        "page_subtitle": "إدارة ومتابعة جميع مرتجعات المشتريات",
         "page_icon": "fas fa-undo-alt",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_list"),
+                "icon": "fa-shopping-cart",
+                "text": "المشتريات",
+                "class": "btn-outline-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1287,7 +1356,50 @@ def purchase_return_detail(request, pk):
 
     context = {
         "purchase_return": purchase_return,
-        "title": f"تفاصيل مرتجع المشتريات - {purchase_return.number}",
+        "page_title": f"مرتجع رقم {purchase_return.number}",
+        "page_subtitle": f"فاتورة {purchase_return.purchase.number} | {purchase_return.purchase.supplier.name}",
+        "page_icon": "fas fa-undo-alt",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_return_list"),
+                "icon": "fa-list",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ] + ([
+            {
+                "url": reverse("purchase:purchase_return_confirm", kwargs={"pk": purchase_return.pk}),
+                "icon": "fa-check",
+                "text": "تأكيد المرتجع",
+                "class": "btn-success",
+                "onclick": "return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟')",
+            },
+            {
+                "url": reverse("purchase:purchase_return_cancel", kwargs={"pk": purchase_return.pk}),
+                "icon": "fa-times",
+                "text": "إلغاء المرتجع",
+                "class": "btn-danger",
+                "onclick": "return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')",
+            },
+        ] if purchase_return.status == 'draft' else []),
+        "breadcrumb_items": [
+            {
+                "title": "لوحة التحكم",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-tachometer-alt",
+            },
+            {
+                "title": "المشتريات",
+                "url": reverse("purchase:purchase_list"),
+                "icon": "fas fa-shopping-basket",
+            },
+            {
+                "title": "مرتجعات المشتريات",
+                "url": reverse("purchase:purchase_return_list"),
+                "icon": "fas fa-undo-alt",
+            },
+            {"title": purchase_return.number, "active": True},
+        ],
     }
 
     return render(request, "purchase/purchase_return_detail.html", context)
@@ -1532,7 +1644,43 @@ def edit_payment(request, payment_id):
         "payment": payment,
         "purchase": payment.purchase,
         "permissions": permissions,
-        "page_title": f"تعديل الدفعة - {payment.purchase.number}",
+        "page_title": f"تعديل الدفعة #{payment.id}",
+        "page_subtitle": f"فاتورة {payment.purchase.number} | {payment.purchase.supplier.name}",
+        "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": payment.purchase.pk}),
+                "icon": "fa-arrow-left",
+                "text": "العودة للفاتورة",
+                "class": "btn-outline-secondary",
+            },
+        ],
+        "breadcrumb_items": [
+            {
+                "title": "لوحة التحكم",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-tachometer-alt",
+            },
+            {
+                "title": "المشتريات",
+                "url": reverse("purchase:purchase_list"),
+                "icon": "fas fa-shopping-basket",
+            },
+            {
+                "title": payment.purchase.supplier.name,
+                "url": reverse("supplier:supplier_detail", args=[payment.purchase.supplier.pk]),
+                "icon": "fas fa-truck",
+            },
+            {
+                "title": f"فاتورة {payment.purchase.number}",
+                "url": reverse("purchase:purchase_detail", kwargs={"pk": payment.purchase.pk}),
+                "icon": "fas fa-file-invoice",
+            },
+            {
+                "title": f"تعديل دفعة #{payment.id}",
+                "active": True,
+            },
+        ],
     }
 
     return render(request, "purchase/payment_edit.html", context)

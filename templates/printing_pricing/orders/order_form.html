@@ -19,65 +19,8 @@
 
 {% block content %}
 <div class="container-fluid">
-  <!-- عنوان الصفحة -->
-  <div class="mb-4">
-      <!-- Breadcrumbs -->
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'core:dashboard' %}">
-                          <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'printing_pricing:dashboard' %}">
-                          <i class="fas fa-print me-1"></i>{% trans "نظام التسعير" %}
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'printing_pricing:order_list' %}">
-                          <i class="fas fa-list me-1"></i>{% trans "الطلبات" %}
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item active" aria-current="page">
-                      <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} me-1"></i>
-                      {% if object %}{% trans "تحرير الطلب" %}{% else %}{% trans "طلب جديد" %}{% endif %}
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas fa-{% if object %}edit{% else %}plus{% endif %} fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">
-                    {% if object %}
-                        {% trans "تحرير الطلب" %} - {{ object.order_number }}
-                    {% else %}
-                        {% trans "إنشاء طلب جديد" %}
-                    {% endif %}
-                  </h1>
-                  <p class="text-muted mb-0">
-                    {% if object %}
-                        {% trans "تحرير بيانات الطلب وإعادة حساب التكلفة" %}
-                    {% else %}
-                        {% trans "إنشاء طلب تسعير جديد مع حساب التكلفة التلقائي" %}
-                    {% endif %}
-                  </p>
-              </div>
-          </div>
-          <div>
-              <a href="{% url 'printing_pricing:order_list' %}" class="btn btn-secondary">
-                  <i class="fas fa-arrow-right me-2"></i>{% trans "العودة للقائمة" %}
-              </a>
-          </div>
-      </div>
-  </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
   <!-- مؤشر الخطوات -->
   <div class="section-container mb-4">

@@ -172,7 +172,16 @@ def sale_list(request):
         "sale_headers": sale_headers,
         "sale_actions": sale_actions,
         "page_title": "فواتير المبيعات",
+        "page_subtitle": "قائمة بجميع فواتير المبيعات في النظام",
         "page_icon": "fas fa-shopping-cart",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_create"),
+                "icon": "fa-plus",
+                "text": "إضافة فاتورة",
+                "class": "btn-primary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -532,7 +541,16 @@ def sale_create(request, customer_id=None):
         "selected_customer": selected_customer,  # إضافة العميل المحدد للسياق
         "default_warehouse": warehouses.first() if warehouses.exists() else None,  # المخزن الافتراضي
         "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
-        "page_icon": "fas fa-plus-circle",
+        "page_subtitle": "إضافة فاتورة مبيعات جديدة إلى النظام",
+        "page_icon": "fas fa-file-invoice-dollar",
+        "header_buttons": [
+            {
+                "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}) if selected_customer else reverse("sale:sale_list"),
+                "icon": "fa-arrow-right",
+                "text": f"العودة لتفاصيل {selected_customer.name}" if selected_customer else "العودة للقائمة",
+                "class": "btn-secondary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -574,12 +592,32 @@ def sale_detail(request, pk):
     # فحص إذا كان يجب عرض SweetAlert للترحيل
     show_post_alert = request.session.pop("show_post_alert", None)
 
+    # تحضير أزرار الهيدر
+    header_buttons = [
+        {
+            "url": reverse("sale:sale_print", kwargs={"pk": sale.pk}),
+            "icon": "fa-print",
+            "text": "طباعة",
+            "class": "btn-info",
+        },
+    ]
+    
+    if sale.payment_status != 'paid':
+        header_buttons.append({
+            "url": reverse("sale:sale_add_payment", kwargs={"pk": sale.pk}),
+            "icon": "fa-money-bill",
+            "text": "إضافة دفعة",
+            "class": "btn-success",
+        })
+    
     context = {
         "sale": sale,
         "title": "تفاصيل فاتورة المبيعات",
         "page_title": f"فاتورة مبيعات - {sale.number}",
+        "page_subtitle": "عرض تفاصيل فاتورة المبيعات وإدارتها",
         "page_icon": "fas fa-file-invoice-dollar",
-        "show_post_alert": show_post_alert,  # إضافة معلومات SweetAlert
+        "show_post_alert": show_post_alert,
+        "header_buttons": header_buttons,
         "breadcrumb_items": [
             {
                 "title": "لوحة التحكم",
@@ -1075,8 +1113,17 @@ def add_payment(request, pk):
         "form": form,
         "is_purchase": False,  # تحديد أن هذا نموذج دفع للمبيعات
         "page_title": f"إضافة دفعة لفاتورة المبيعات {sale.number}",
+        "page_subtitle": f"إضافة دفعة جديدة للفاتورة رقم {sale.number}",
         "title": f"إضافة دفعة لفاتورة المبيعات {sale.number}",
         "page_icon": "fas fa-money-bill-wave",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_detail", kwargs={"pk": sale.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للفاتورة",
+                "class": "btn-secondary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1270,7 +1317,16 @@ def sale_return_list(request):
         "return_actions": return_actions,
         "primary_key": "id",
         "page_title": "مرتجعات المبيعات",
+        "page_subtitle": "إدارة ومتابعة جميع مرتجعات المبيعات",
         "page_icon": "fas fa-undo-alt",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_list"),
+                "icon": "fa-shopping-cart",
+                "text": "المبيعات",
+                "class": "btn-outline-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1298,7 +1354,50 @@ def sale_return_detail(request, pk):
 
     context = {
         "sale_return": sale_return,
-        "title": f"تفاصيل مرتجع المبيعات - {sale_return.number}",
+        "page_title": f"مرتجع رقم {sale_return.number}",
+        "page_subtitle": f"فاتورة {sale_return.sale.number} | {sale_return.sale.customer.name}",
+        "page_icon": "fas fa-undo-alt",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_return_list"),
+                "icon": "fa-list",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ] + ([
+            {
+                "url": reverse("sale:sale_return_confirm", kwargs={"pk": sale_return.pk}),
+                "icon": "fa-check",
+                "text": "تأكيد المرتجع",
+                "class": "btn-success",
+                "onclick": "return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟')",
+            },
+            {
+                "url": reverse("sale:sale_return_cancel", kwargs={"pk": sale_return.pk}),
+                "icon": "fa-times",
+                "text": "إلغاء المرتجع",
+                "class": "btn-danger",
+                "onclick": "return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')",
+            },
+        ] if sale_return.status == 'draft' else []),
+        "breadcrumb_items": [
+            {
+                "title": "لوحة التحكم",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-tachometer-alt",
+            },
+            {
+                "title": "المبيعات",
+                "url": reverse("sale:sale_list"),
+                "icon": "fas fa-shopping-cart",
+            },
+            {
+                "title": "مرتجعات المبيعات",
+                "url": reverse("sale:sale_return_list"),
+                "icon": "fas fa-undo-alt",
+            },
+            {"title": sale_return.number, "active": True},
+        ],
     }
 
     return render(request, "sale/sale_return_detail.html", context)
@@ -1543,6 +1642,22 @@ def edit_payment(request, payment_id):
         "sale": payment.sale,
         "permissions": permissions,
         "page_title": f"تعديل الدفعة - {payment.sale.number}",
+        "page_subtitle": f"تعديل بيانات الدفعة للفاتورة رقم {payment.sale.number}",
+        "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_detail", kwargs={"pk": payment.sale.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للفاتورة",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
+            {"title": payment.sale.number, "url": reverse("sale:sale_detail", kwargs={"pk": payment.sale.pk})},
+            {"title": "تعديل الدفعة", "active": True},
+        ],
     }
 
     return render(request, "sale/payment_edit.html", context)

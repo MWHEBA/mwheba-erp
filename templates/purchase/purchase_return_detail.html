@@ -31,77 +31,18 @@
         width: 40%;
         background-color: #f8f9fa;
     }
-    .card-title {
-        font-weight: 600;
-    }
-</style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'core:dashboard' %}">
-                            <i class="fas fa-home me-1"></i>{% trans "الرئيسية" %}
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'purchase:purchase_list' %}">
-                            <i class="fas fa-truck me-1"></i>{% trans "المشتريات" %}
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'purchase:purchase_return_list' %}">
-                            <i class="fas fa-undo-alt me-1"></i>{% trans "مرتجعات المشتريات" %}
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        {{ purchase_return.number }}
-                    </li>
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-undo-alt fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">{{ title }}</h1>
-                    <p class="text-muted mb-0">{% trans "تفاصيل مرتجع المشتريات رقم" %} {{ purchase_return.number }}</p>
-                </div>
-            </div>
-            <div>
-                <a href="{% url 'purchase:purchase_return_list' %}" class="btn btn-outline-secondary">
-                    <i class="fas fa-arrow-right me-1"></i> {% trans "العودة للقائمة" %}
-                </a>
-                {% if purchase_return.status == 'draft' %}
-                <div class="btn-group ms-2">
-                    <a href="{% url 'purchase:purchase_return_confirm' purchase_return.pk %}" class="btn btn-success" onclick="return confirm('هل أنت متأكد من تأكيد هذا المرتجع؟')">
-                        <i class="fas fa-check me-1"></i> {% trans "تأكيد المرتجع" %}
-                    </a>
-                    <a href="{% url 'purchase:purchase_return_cancel' purchase_return.pk %}" class="btn btn-danger" onclick="return confirm('هل أنت متأكد من إلغاء هذا المرتجع؟')">
-                        <i class="fas fa-times me-1"></i> {% trans "إلغاء المرتجع" %}
-                    </a>
-                </div>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     {% if messages %}
     <div class="row mb-3">
         <div class="col-12">
             {% for message in messages %}
             <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
-                {{ message }}
                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
             </div>
             {% endfor %}

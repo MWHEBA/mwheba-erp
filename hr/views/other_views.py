@@ -36,6 +36,17 @@ def organization_chart(request):
         'total_departments': Department.objects.filter(is_active=True).count(),
         'total_employees': Employee.objects.filter(status='active').count(),
         'total_job_titles': JobTitle.objects.filter(is_active=True).count(),
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'الهيكل التنظيمي',
+        'page_subtitle': 'عرض الهيكل التنظيمي للشركة',
+        'page_icon': 'fas fa-sitemap',
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'الهيكل التنظيمي', 'active': True},
+        ],
     }
     return render(request, 'hr/organization/chart.html', context)
 
@@ -114,6 +125,24 @@ def hr_settings(request):
         'employees_with_balance': LeaveBalance.objects.values('employee').distinct().count(),
         'salary_templates_earnings': salary_templates_earnings,
         'salary_templates_deductions': salary_templates_deductions,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'إعدادات الموارد البشرية',
+        'page_subtitle': 'إدارة وتكوين إعدادات نظام الموارد البشرية',
+        'page_icon': 'fas fa-cog',
+        'header_buttons': [
+            {
+                'url': reverse('hr:dashboard'),
+                'icon': 'fa-arrow-right',
+                'text': 'العودة للوحة التحكم',
+                'class': 'btn-outline-secondary',
+            }
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الإعدادات', 'active': True},
+        ],
     }
     return render(request, 'hr/settings.html', context)
 
@@ -271,12 +300,31 @@ def check_employee_national_id(request):
 @login_required
 def salary_component_templates_list(request):
     """قائمة قوالب مكونات الراتب"""
+    from django.urls import reverse
+    
     templates = SalaryComponentTemplate.objects.all().order_by('component_type', 'order', 'name')
     
     context = {
         'templates': templates,
         'earnings': templates.filter(component_type='earning'),
         'deductions': templates.filter(component_type='deduction'),
+        'page_title': 'قوالب مكونات الراتب',
+        'page_subtitle': 'إدارة بنود المستحقات والاستقطاعات',
+        'page_icon': 'fas fa-clipboard-list',
+        'header_buttons': [
+            {
+                'url': reverse('hr:salary_component_template_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة قالب جديد',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'قوالب مكونات الراتب', 'active': True},
+        ],
     }
     return render(request, 'hr/salary_component_templates/list.html', context)
 
@@ -284,6 +332,7 @@ def salary_component_templates_list(request):
 @login_required
 def salary_component_template_form(request, pk=None):
     """نموذج إضافة/تعديل قالب مكون الراتب"""
+    from django.urls import reverse
     from ..forms.salary_component_template_forms import SalaryComponentTemplateForm
     
     template = None
@@ -299,10 +348,29 @@ def salary_component_template_form(request, pk=None):
     else:
         form = SalaryComponentTemplateForm(instance=template)
     
+    is_edit = pk is not None
     context = {
         'form': form,
         'template': template,
-        'is_edit': pk is not None
+        'is_edit': is_edit,
+        'page_title': f'{"تعديل" if is_edit else "إضافة"} قالب مكون الراتب',
+        'page_subtitle': f'{"تعديل بيانات القالب" if is_edit else "إضافة قالب جديد للمستحقات أو الاستقطاعات"}',
+        'page_icon': f'fas fa-{"edit" if is_edit else "plus"}',
+        'header_buttons': [
+            {
+                'url': reverse('hr:salary_component_templates_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'قوالب مكونات الراتب', 'url': reverse('hr:salary_component_templates_list'), 'icon': 'fas fa-clipboard-list'},
+            {'title': 'تعديل' if is_edit else 'إضافة', 'active': True},
+        ],
     }
     return render(request, 'hr/salary_component_templates/form.html', context)
 

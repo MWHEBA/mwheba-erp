@@ -8,95 +8,8 @@
 
 {% block title %}{{ page_title|default:"التحليلات المالية" }}{% endblock %}
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
-  /* تصميم عام مطابق لصفحة المبيعات */
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  /* تصميم كروت الإحصائيات */
-  .stats-card {
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .bg-primary-header {
-    background-color: rgba(13, 110, 253, 0.05);
-    color: #0d6efd;
-    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
-  }
-  
-  .bg-success-header {
-    background-color: rgba(25, 135, 84, 0.05);
-    color: #198754;
-    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
-  }
-  
-  .bg-danger-header {
-    background-color: rgba(220, 53, 69, 0.05);
-    color: #dc3545;
-    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
-  }
-  
-  .bg-info-header {
-    background-color: rgba(13, 202, 240, 0.05);
-    color: #0dcaf0;
-    border-bottom: 1px solid rgba(13, 202, 240, 0.1);
-  }
-  
-  .icon-box {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-right: 12px;
-    background-color: rgba(255, 255, 255, 0.6);
-  }
-  
-  .card-header .icon-box {
-    font-size: 1.1rem;
-  }
-  
-  .bg-primary-header .icon-box {
-    color: #0d6efd;
-  }
-  
-  .bg-success-header .icon-box {
-    color: #198754;
-  }
-  
-  .bg-danger-header .icon-box {
-    color: #dc3545;
-  }
-  
-  .bg-info-header .icon-box {
-    color: #0dcaf0;
-  }
-  
-  /* تصميم حالة الفارغ */
+  /* تصميم خاص بالصفحة */
   .empty-state {
     padding: 4rem 1rem;
     text-align: center;
@@ -109,21 +22,9 @@
     animation: float 3s ease-in-out infinite;
   }
   
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
-  }
+  /* @keyframes float موجود في shared-components.css */
   
-  /* تصميم الرسوم البيانية */
-  .chart-container {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
+  /* chart-container موجود في shared-components.css */
   
   .chart-header {
     display: flex;
@@ -217,51 +118,8 @@
 
 {% block content %}
 <div class="container-fluid">
-  <!-- عنوان الصفحة (مضمن مباشرة) -->
-  <div class="mb-4">
-      <!-- Breadcrumbs -->
-      {% if breadcrumb_items %}
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  {% for item in breadcrumb_items %}
-                      {% if forloop.last or item.active %}
-                          <li class="breadcrumb-item active" aria-current="page">
-                              {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                              {{ item.title }}
-                          </li>
-                      {% else %}
-                          <li class="breadcrumb-item">
-                              <a href="{{ item.url }}">
-                                  {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                  {{ item.title }}
-                              </a>
-                          </li>
-                      {% endif %}
-                  {% endfor %}
-              </ol>
-          </nav>
-      </div>
-      {% endif %}
-      
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas fa-chart-line fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">{% trans "التحليلات المالية" %}</h1>
-                  <p class="text-muted mb-0">{% trans "تحليل البيانات المالية وعرض المؤشرات الرئيسية" %}</p>
-              </div>
-          </div>
-          <div>
-              <button type="button" class="btn btn-success" onclick="exportAnalytics()">
-                  <i class="fas fa-file-pdf me-2"></i>{% trans "تصدير التقرير" %}
-              </button>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
   
   <!-- الإحصائيات الأساسية -->
   <div class="section-container">

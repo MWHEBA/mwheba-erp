@@ -7,27 +7,9 @@
 {% block title %}تفاصيل العقد{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/cards.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-/* تصميم عام */
-.section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-}
-
-.section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-}
+/* ستايلات خاصة بصفحة تفاصيل العقد فقط */
 
 /* Tabs مُحسّنة */
 .custom-tabs {
@@ -106,15 +88,6 @@
     white-space: nowrap;
 }
 
-/* Section Container */
-.section-container {
-    background: white;
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-}
 
 /* Table محسّن */
 .salary-table {
@@ -137,87 +110,18 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'hr:contract_list' %}"><i class="fas fa-file-contract me-1"></i>العقود</a></li>
-                    <li class="breadcrumb-item active">{{ contract.contract_number }}</li>
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-file-contract fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">
-                        عقد رقم {{ contract.contract_number }}
-                        {% include 'hr/contract/cells/status.html' with value=contract.status %}
-                    </h1>
-                    <p class="text-muted mb-0">
-                        <strong>{{ contract.employee.get_full_name_ar }} - {{ contract.employee.employee_number }}</strong> • من تاريخ {{ contract.start_date|date:"d/m/Y" }}{% if contract.end_date %} → {{ contract.end_date|date:"d/m/Y" }}{% endif %}
-                    </p>
-                    {% if contract.status == 'renewed' and contract.renewed_to %}
-                    <div class="alert alert-info mt-2 mb-0 py-2">
-                        <i class="fas fa-info-circle me-1"></i>
-                        <strong>تم تجديد هذا العقد</strong> - تم استبداله بالعقد رقم 
-                        <a href="{% url 'hr:contract_detail' contract.renewed_to.pk %}" class="alert-link">
-                            <strong>{{ contract.renewed_to.contract_number }}</strong>
-                        </a>
-                    </div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="d-flex gap-2">
-                <a href="{% url 'hr:contract_form_edit' contract.pk %}" class="btn btn-warning">
-                    <i class="fas fa-edit me-2"></i>تعديل
-                </a>
-                
-                {% if contract.status == 'draft' %}
-                <a href="{% url 'hr:contract_activate' contract.pk %}" class="btn btn-success">
-                    <i class="fas fa-check me-2"></i>تفعيل
-                </a>
-                
-                {% elif contract.status == 'active' %}
-                <a href="{% url 'hr:contract_suspend' contract.pk %}" class="btn btn-secondary">
-                    <i class="fas fa-pause me-2"></i>إيقاف مؤقت
-                </a>
-                {% if contract.end_date %}
-                <a href="{% url 'hr:contract_renew' contract.pk %}" class="btn btn-info">
-                    <i class="fas fa-redo me-2"></i>تجديد
-                </a>
-                {% endif %}
-                <a href="{% url 'hr:contract_terminate' contract.pk %}" class="btn btn-danger">
-                    <i class="fas fa-ban me-2"></i>إنهاء
-                </a>
-                
-                {% elif contract.status == 'suspended' %}
-                <a href="{% url 'hr:contract_reactivate' contract.pk %}" class="btn btn-success">
-                    <i class="fas fa-play me-2"></i>إعادة تفعيل
-                </a>
-                <a href="{% url 'hr:contract_renew' contract.pk %}" class="btn btn-info">
-                    <i class="fas fa-redo me-2"></i>تجديد
-                </a>
-                
-                {% elif contract.status == 'expired' or contract.status == 'terminated' %}
-                <a href="{% url 'hr:contract_renew' contract.pk %}" class="btn btn-info">
-                    <i class="fas fa-redo me-2"></i>تجديد
-                </a>
-                
-                {% elif contract.status == 'renewed' %}
-                <!-- لا يوجد أزرار - العقد تم تجديده -->
-                {% endif %}
-            </div>
-        </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    {% if contract.status == 'renewed' and contract.renewed_to %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-1"></i>
+        <strong>تم تجديد هذا العقد</strong> - تم استبداله بالعقد رقم 
+        <a href="{% url 'hr:contract_detail' contract.renewed_to.pk %}" class="alert-link">
+            <strong>{{ contract.renewed_to.contract_number }}</strong>
+        </a>
     </div>
+    {% endif %}
 
     <!-- الإحصائيات -->
     <div class="section-container">

@@ -71,6 +71,31 @@ def biometric_device_list(request):
         'stats': stats,
         'headers': headers,
         'action_buttons': action_buttons,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'ماكينات البصمة',
+        'page_subtitle': 'إدارة ومزامنة ماكينات الحضور والانصراف',
+        'page_icon': 'fas fa-fingerprint',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_log_list'),
+                'icon': 'fa-list',
+                'text': 'سجلات البصمات',
+                'class': 'btn-info',
+            },
+            {
+                'url': reverse('hr:biometric_device_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة ماكينة',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'ماكينات البصمة', 'active': True},
+        ],
     }
     return render(request, 'hr/biometric/device_list.html', context)
 
@@ -144,6 +169,7 @@ def biometric_device_logs_ajax(request, pk):
 @login_required
 def biometric_device_form(request, pk=None):
     """نموذج موحد لإضافة/تعديل ماكينة بصمة"""
+    from django.urls import reverse
     from ..forms.biometric_forms import BiometricDeviceForm
     
     device = get_object_or_404(BiometricDevice, pk=pk) if pk else None
@@ -167,7 +193,30 @@ def biometric_device_form(request, pk=None):
     else:
         form = BiometricDeviceForm(instance=device)
     
-    return render(request, 'hr/biometric/device_form.html', {'form': form, 'device': device})
+    is_edit = pk is not None
+    context = {
+        'form': form,
+        'device': device,
+        'page_title': f'{"تعديل ماكينة" if is_edit else "إضافة ماكينة بصمة"}',
+        'page_subtitle': f'{"تعديل بيانات الماكينة" if is_edit else "إضافة جهاز بصمة جديد للنظام"}',
+        'page_icon': 'fas fa-fingerprint',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_device_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'ماكينات البصمة', 'url': reverse('hr:biometric_device_list'), 'icon': 'fas fa-fingerprint'},
+            {'title': 'تعديل ماكينة' if is_edit else 'إضافة ماكينة', 'active': True},
+        ],
+    }
+    
+    return render(request, 'hr/biometric/device_form.html', context)
 
 
 @login_required
@@ -318,5 +367,23 @@ def biometric_log_list(request):
         'logs': logs,
         'devices': devices,
         'headers': headers,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'سجلات البصمات',
+        'page_subtitle': 'سجلات الحضور والانصراف من ماكينات البصمة',
+        'page_icon': 'fas fa-list',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_device_list'),
+                'icon': 'fa-fingerprint',
+                'text': 'الماكينات',
+                'class': 'btn-info',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'سجلات البصمات', 'active': True},
+        ],
     }
     return render(request, 'hr/biometric/log_list.html', context)

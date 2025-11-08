@@ -18,6 +18,8 @@ def is_superuser(user):
 @user_passes_test(is_superuser)
 def view_error_logs(request):
     """عرض آخر 200 سطر من ملف الأخطاء"""
+    from django.urls import reverse
+    
     log_file = settings.BASE_DIR / 'logs' / 'django.log'
     
     context = {
@@ -25,6 +27,18 @@ def view_error_logs(request):
         'log_lines': [],
         'log_file_path': str(log_file),
         'log_size': 0,
+        
+        # بيانات الهيدر
+        'page_title': 'سجل الأخطاء',
+        'page_subtitle': 'عرض وإدارة سجلات الأخطاء والـ Logs في النظام',
+        'page_icon': 'fas fa-file-alt',
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الإعدادات', 'url': reverse('core:system_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'سجل الأخطاء', 'active': True},
+        ],
     }
     
     if log_file.exists():

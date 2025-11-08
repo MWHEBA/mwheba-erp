@@ -11,14 +11,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="{{ page_icon }} me-2"></i>{{ page_title }}
-            </h1>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- بطاقة معلومات المورد -->
     <div class="row mb-4">
@@ -142,34 +136,8 @@
     </div>
 </div>
 
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-.bg-gradient-success {
-    background: linear-gradient(135deg, var(--bs-success) 0%, #1cc88a 100%);
-}
-
-.card {
-    border-radius: 10px;
-    transition: transform 0.2s ease-in-out;
-}
-
-.card:hover {
-    transform: translateY(-2px);
-}
-
-.form-control:focus {
-    border-color: var(--bs-success);
-    box-shadow: 0 0 0 0.2rem rgba(28, 200, 138, 0.25);
-}
-
-.btn {
-    border-radius: 6px;
-    font-weight: 500;
-}
-
-.alert {
-    border-radius: 8px;
-}
-
 /* تخصيص Select2 للعربية */
 .select2-container--bootstrap-5 .select2-selection {
     direction: rtl;

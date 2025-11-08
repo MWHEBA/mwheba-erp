@@ -9,94 +9,8 @@
 {% block title %}سجل التدقيق المالي{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
-  /* تصميم عام */
-  .section-container {
-    background-color: var(--bg-card);
-    border-radius: var(--border-radius);
-    box-shadow: var(--card-shadow);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid var(--border-color);
-  }
-  
-  .section-title {
-    color: var(--text-dark);
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-color);
-  }
-  
-  /* كروت الإحصائيات */
-  .stats-card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .stats-card-header {
-    height: 4px;
-    border-radius: 12px 12px 0 0;
-  }
-  
-  .stats-card-body {
-    padding: 1.5rem;
-    text-align: center;
-  }
-  
-  .stats-card-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.5rem;
-  }
-  
-  .stats-card-title {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-bottom: 0.5rem;
-  }
-  
-  .stats-card-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-    font-family: 'Tajawal', sans-serif;
-  }
-  
-  .stats-card-unit {
-    font-size: 0.85rem;
-    color: #6c757d;
-  }
-  
-  /* ألوان الكروت */
-  .stats-card-primary .stats-card-header { background: #0d6efd; }
-  .stats-card-primary .stats-card-icon { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
-  .stats-card-primary .stats-card-value { color: #0d6efd; }
-  
-  .stats-card-success .stats-card-header { background: #198754; }
-  .stats-card-success .stats-card-icon { background: rgba(25, 135, 84, 0.1); color: #198754; }
-  .stats-card-success .stats-card-value { color: #198754; }
-  
-  .stats-card-warning .stats-card-header { background: #ffc107; }
-  .stats-card-warning .stats-card-icon { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
-  .stats-card-warning .stats-card-value { color: #ffc107; }
+  /* تصميم خاص بالصفحة */
   
   .stats-card-danger .stats-card-header { background: #dc3545; }
   .stats-card-danger .stats-card-icon { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
@@ -261,62 +175,72 @@
     animation: float 3s ease-in-out infinite;
   }
   
-  @keyframes float {
-    0% { transform: translateY(0px); }
-    50% { transform: translateY(-15px); }
-    100% { transform: translateY(0px); }
-  }
+  /* @keyframes float موجود في shared-components.css */
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- عنوان الصفحة (مضمن مباشرة) -->
-  <div class="mb-4">
-      <!-- Breadcrumbs -->
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'core:dashboard' %}">
-                          <i class="fas fa-home me-1"></i>الرئيسية
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'financial:chart_of_accounts_list' %}">
-                          <i class="fas fa-chart-line me-1"></i>النظام المالي
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item active" aria-current="page">
-                      <i class="fas fa-shield-alt me-1"></i>سجل التدقيق المالي
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <!-- Header -->
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas fa-shield-alt fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">سجل التدقيق المالي</h1>
-                  <p class="text-muted mb-0">تتبع جميع العمليات والتغييرات في النظام المالي</p>
-              </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- Stats Cards -->
+  <div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-clipboard-list"></i>
           </div>
-          <div class="d-flex gap-2">
-              <button class="btn btn-outline-success" onclick="window.print()">
-                  <i class="fas fa-print me-1"></i>طباعة
-              </button>
-              <button class="btn btn-outline-primary" onclick="exportTableToExcel('auditTable', 'audit_trail.xlsx')">
-                  <i class="fas fa-file-excel me-1"></i>تصدير Excel
-              </button>
-              <button class="btn btn-outline-danger" onclick="confirmCleanup()">
-                  <i class="fas fa-trash me-1"></i>تنظيف السجل
-              </button>
-          </div>
+          <div class="stats-card-title">إجمالي السجلات</div>
+          <div class="stats-card-value">{{ summary.total_count|default:0 }}</div>
+          <div class="stats-card-unit">سجل</div>
+        </div>
       </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-calendar-day"></i>
+          </div>
+          <div class="stats-card-title">سجلات اليوم</div>
+          <div class="stats-card-value">{{ summary.today_count|default:0 }}</div>
+          <div class="stats-card-unit">سجل</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-users"></i>
+          </div>
+          <div class="stats-card-title">مستخدمون نشطون</div>
+          <div class="stats-card-value">{{ summary.active_users|default:0 }}</div>
+          <div class="stats-card-unit">مستخدم</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+      <div class="stats-card stats-card-danger">
+        <div class="stats-card-header"></div>
+        <div class="stats-card-body">
+          <div class="stats-card-icon">
+            <i class="fas fa-trash-alt"></i>
+          </div>
+          <div class="stats-card-title">عمليات الحذف</div>
+          <div class="stats-card-value">{{ summary.delete_count|default:0 }}</div>
+          <div class="stats-card-unit">عملية</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- تصفية وبحث -->

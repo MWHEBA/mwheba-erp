@@ -90,11 +90,15 @@ def biometric_dashboard(request):
     for i in range(7):
         day = today - timedelta(days=6-i)
         day_logs = BiometricLog.objects.filter(timestamp__date=day)
+        total_count = day_logs.count()
+        linked_count = day_logs.filter(employee__isnull=False).count()
+        processed_count = day_logs.filter(is_processed=True).count()
         daily_stats.append({
             'date': day.strftime('%Y-%m-%d'),
             'date_display': day.strftime('%d/%m'),
-            'total': day_logs.count(),
-            'linked': day_logs.filter(employee__isnull=False).count(),
+            'total': total_count,
+            'linked': linked_count,
+            'processed': processed_count,
         })
     
     # نسب الإنجاز
@@ -103,12 +107,28 @@ def biometric_dashboard(request):
     offline_percentage = (offline_devices / active_devices * 100) if active_devices > 0 else 0
     week_linked_percentage = (week_linked / week_total * 100) if week_total > 0 else 0
     
+    # حساب processed_logs و unprocessed_logs
+    processed_logs = BiometricLog.objects.filter(is_processed=True).count()
+    unprocessed_logs = total_logs - processed_logs
+    process_percentage = (processed_logs / total_logs * 100) if total_logs > 0 else 0
+    week_processed = week_logs.filter(is_processed=True).count()
+    week_processed_percentage = (week_processed / week_total * 100) if week_total > 0 else 0
+    
+    # آخر السجلات غير المعالجة
+    recent_unprocessed = BiometricLog.objects.filter(
+        is_processed=False,
+        employee__isnull=False
+    ).select_related('employee', 'device').order_by('-timestamp')[:10]
+    
     context = {
         # إحصائيات عامة
         'total_logs': total_logs,
         'linked_logs': linked_logs,
         'unlinked_logs': unlinked_logs,
         'link_percentage': round(link_percentage, 1),
+        'processed_logs': processed_logs,
+        'unprocessed_logs': unprocessed_logs,
+        'process_percentage': round(process_percentage, 1),
         
         # إحصائيات اليوم
         'today_total': today_total,
@@ -118,6 +138,8 @@ def biometric_dashboard(request):
         'week_total': week_total,
         'week_linked': week_linked,
         'week_linked_percentage': round(week_linked_percentage, 1),
+        'week_processed': week_processed,
+        'week_processed_percentage': round(week_processed_percentage, 1),
         
         # إحصائيات الربط
         'total_mappings': total_mappings,
@@ -141,8 +163,39 @@ def biometric_dashboard(request):
         # قوائم
         'recent_unlinked': recent_unlinked,
         'recent_linked': recent_linked,
+        'recent_unprocessed': recent_unprocessed,
         'offline_device_list': offline_device_list,
         'daily_stats': daily_stats,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'لوحة تحكم البصمة',
+        'page_subtitle': 'مراقبة شاملة لسجلات البصمة والحضور',
+        'page_icon': 'fas fa-fingerprint',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_log_list'),
+                'icon': 'fa-list',
+                'text': 'جميع السجلات',
+                'class': 'btn-outline-primary',
+            },
+            {
+                'url': reverse('hr:biometric_mapping_list'),
+                'icon': 'fa-link',
+                'text': 'إدارة الربط',
+                'class': 'btn-outline-secondary',
+            },
+            {
+                'url': reverse('hr:biometric_device_list'),
+                'icon': 'fa-server',
+                'text': 'الأجهزة',
+                'class': 'btn-outline-info',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'لوحة تحكم البصمة', 'active': True},
+        ],
     }
     
     return render(request, 'hr/biometric/dashboard.html', context)
@@ -153,6 +206,8 @@ def biometric_dashboard(request):
 @login_required
 def biometric_mapping_list(request):
     """قائمة ربط معرفات البصمة"""
+    from django.urls import reverse
+    
     mappings = BiometricUserMapping.objects.select_related(
         'employee', 'device'
     ).all()
@@ -218,6 +273,29 @@ def biometric_mapping_list(request):
         'headers': headers,
         'action_buttons': action_buttons,
         'devices': devices,
+        'page_title': 'ربط معرفات البصمة بالموظفين',
+        'page_subtitle': 'إدارة الربط بين معرفات البصمة وأرقام الموظفين',
+        'page_icon': 'fas fa-link',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_mapping_bulk_import'),
+                'icon': 'fa-file-csv',
+                'text': 'استيراد جماعي',
+                'class': 'btn-success',
+            },
+            {
+                'url': reverse('hr:biometric_mapping_create'),
+                'icon': 'fa-plus',
+                'text': 'إضافة ربط',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'ماكينات البصمة', 'url': reverse('hr:biometric_device_list'), 'icon': 'fas fa-fingerprint'},
+            {'title': 'ربط معرفات البصمة', 'active': True},
+        ],
     }
     return render(request, 'hr/biometric/mapping_list.html', context)
 
@@ -225,6 +303,8 @@ def biometric_mapping_list(request):
 @login_required
 def biometric_mapping_create(request):
     """إنشاء ربط جديد"""
+    from django.urls import reverse
+    
     if request.method == 'POST':
         form = BiometricUserMappingForm(request.POST)
         if form.is_valid():
@@ -239,6 +319,23 @@ def biometric_mapping_create(request):
     context = {
         'form': form,
         'is_edit': False,
+        'page_title': 'إضافة ربط البصمة',
+        'page_subtitle': 'ربط معرف البصمة بموظف في النظام',
+        'page_icon': 'fas fa-plus',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_mapping_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'ربط معرفات البصمة', 'url': reverse('hr:biometric_mapping_list'), 'icon': 'fas fa-link'},
+            {'title': 'إضافة', 'active': True},
+        ],
     }
     return render(request, 'hr/biometric/mapping_form.html', context)
 
@@ -246,6 +343,8 @@ def biometric_mapping_create(request):
 @login_required
 def biometric_mapping_update(request, pk):
     """تعديل ربط موجود"""
+    from django.urls import reverse
+    
     mapping = get_object_or_404(BiometricUserMapping, pk=pk)
     
     if request.method == 'POST':
@@ -263,6 +362,23 @@ def biometric_mapping_update(request, pk):
         'form': form,
         'mapping': mapping,
         'is_edit': True,
+        'page_title': 'تعديل ربط البصمة',
+        'page_subtitle': 'ربط معرف البصمة بموظف في النظام',
+        'page_icon': 'fas fa-edit',
+        'header_buttons': [
+            {
+                'url': reverse('hr:biometric_mapping_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'ربط معرفات البصمة', 'url': reverse('hr:biometric_mapping_list'), 'icon': 'fas fa-link'},
+            {'title': 'تعديل', 'active': True},
+        ],
     }
     return render(request, 'hr/biometric/mapping_form.html', context)
 
