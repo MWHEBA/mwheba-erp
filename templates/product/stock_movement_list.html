@@ -8,61 +8,15 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+<link rel="stylesheet" href="{% static 'css/stock.css' %}">  <!-- للـ stock indicators -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">متابعة حركات المخزون الواردة والصادرة والتعديلات</p>
-                </div>
-            </div>
-            <div>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addMovementModal">
-                    <i class="fas fa-plus-circle me-1"></i>{% trans "إضافة حركة جديدة" %}
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
-    <div style="background-color: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); padding: 1.5rem; margin-bottom: 1.5rem;">
+    <div class="section-container">
         <div class="row mb-4">
             <div class="col-md-3">
                 <div class="card shadow-sm">

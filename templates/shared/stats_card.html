@@ -1,0 +1,61 @@
+{% comment %}
+========================================
+STATS CARD المركزي - MWHEBA ERP
+========================================
+
+الاستخدام:
+{% include "shared/stats_card.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
+
+معاملات:
+- title: عنوان الكارت (مطلوب)
+- value: القيمة الرئيسية (مطلوب)
+- unit: الوحدة (اختياري)
+- icon: أيقونة Font Awesome (اختياري)
+- color: اللون (primary/success/danger/info/warning) (افتراضي: primary)
+- trend: الاتجاه (up/down) (اختياري)
+- trend_text: نص الاتجاه (اختياري)
+- url: رابط عند الضغط على الكارت (اختياري)
+
+أمثلة:
+
+1. كارت بسيط:
+{% include "shared/stats_card.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
+
+2. كارت مع اتجاه:
+{% include "shared/stats_card.html" with title="المبيعات" value=50000 unit="جنيه" icon="fa-chart-line" color="success" trend="up" trend_text="+12% عن الشهر الماضي" %}
+
+3. كارت قابل للضغط:
+{% include "shared/stats_card.html" with title="الطلبات" value=25 unit="طلب" icon="fa-shopping-cart" color="info" url="/orders/" %}
+
+========================================
+{% endcomment %}
+
+<div class="col-xl-3 col-md-6 mb-4">
+    {% if url %}
+    <a href="{{ url }}" class="text-decoration-none">
+    {% endif %}
+        <div class="stats-card stats-card-{{ color|default:'primary' }}">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+                {% if icon %}
+                <div class="stats-card-icon">
+                    <i class="fas {{ icon }}"></i>
+                </div>
+                {% endif %}
+                <div class="stats-card-title">{{ title }}</div>
+                <div class="stats-card-value">{{ value|default:0 }}</div>
+                {% if unit %}
+                <div class="stats-card-unit">{{ unit }}</div>
+                {% endif %}
+                {% if trend %}
+                <div class="stats-card-trend {{ trend }}">
+                    <i class="fas fa-arrow-{{ trend|yesno:'up,down' }}"></i>
+                    {{ trend_text }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    {% if url %}
+    </a>
+    {% endif %}
+</div>

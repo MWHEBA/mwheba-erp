@@ -5,30 +5,11 @@
 {% load utils_extras %}
 {% load app_tags %}
 
-{% block title %}قائمة التدفقات النقدية{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
   .cash-flow-section {
     margin-bottom: 2rem;
   }
@@ -54,155 +35,18 @@
   }
   
   .positive-amount {
-    color: #198754;
+    color: var(--success-color);
   }
   .negative-amount {
-    color: #dc3545;
+    color: var(--danger-color);
   }
-  
-  .summary-card {
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: var(--border-radius);
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-  }
-  
-  .summary-item {
-    display: flex;
-    justify-content: space-between;
-    padding: 0.5rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
-  }
-  
-  .summary-item:last-child {
-    border-bottom: none;
-    font-size: 1.2rem;
-    font-weight: 700;
-    padding-top: 1rem;
-  }
-  
-  /* كروت الإحصائيات */
-  .stats-card {
-    background: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stats-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .stats-card-header {
-    height: 4px;
-    border-radius: 12px 12px 0 0;
-  }
-  
-  .stats-card-body {
-    padding: 1.5rem;
-    text-align: center;
-  }
-  
-  .stats-card-icon {
-    width: 50px;
-    height: 50px;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin: 0 auto 1rem;
-    font-size: 1.5rem;
-  }
-  
-  .stats-card-title {
-    font-size: 0.9rem;
-    color: #6c757d;
-    margin-bottom: 0.5rem;
-  }
-  
-  .stats-card-value {
-    font-size: 1.8rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-  }
-  
-  .stats-card-unit {
-    font-size: 0.85rem;
-    color: #6c757d;
-  }
-  
-  /* ألوان الكروت */
-  .stats-card-primary .stats-card-header { background: #0d6efd; }
-  .stats-card-primary .stats-card-icon { background: rgba(13, 110, 253, 0.1); color: #0d6efd; }
-  .stats-card-primary .stats-card-value { color: #0d6efd; }
-  
-  .stats-card-success .stats-card-header { background: #198754; }
-  .stats-card-success .stats-card-icon { background: rgba(25, 135, 84, 0.1); color: #198754; }
-  .stats-card-success .stats-card-value { color: #198754; }
-  
-  .stats-card-danger .stats-card-header { background: #dc3545; }
-  .stats-card-danger .stats-card-icon { background: rgba(220, 53, 69, 0.1); color: #dc3545; }
-  .stats-card-danger .stats-card-value { color: #dc3545; }
-  
-  .stats-card-info .stats-card-header { background: #0dcaf0; }
-  .stats-card-info .stats-card-icon { background: rgba(13, 202, 240, 0.1); color: #0dcaf0; }
-  .stats-card-info .stats-card-value { color: #0dcaf0; }
-  
-  .stats-card-warning .stats-card-header { background: #ffc107; }
-  .stats-card-warning .stats-card-icon { background: rgba(255, 193, 7, 0.1); color: #ffc107; }
-  .stats-card-warning .stats-card-value { color: #ffc107; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Breadcrumb -->
-    <div class="mb-4 no-print">
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'core:dashboard' %}">
-                            <i class="fas fa-home me-1"></i>الرئيسية
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="#">التقارير المالية</a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        <i class="fas fa-money-bill-wave me-1"></i>قائمة التدفقات النقدية
-                    </li>
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-money-bill-wave fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">قائمة التدفقات النقدية</h1>
-                    <p class="text-muted mb-0">
-                        من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}
-                    </p>
-                </div>
-            </div>
-            <div>
-                <button class="btn btn-success" onclick="window.print()">
-                    <i class="fas fa-print me-2"></i>طباعة
-                </button>
-                <a href="?date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&export=excel" class="btn btn-primary">
-                    <i class="fas fa-file-excel me-2"></i>تصدير Excel
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- فلتر التاريخ -->
     <div class="section-container mb-4">
@@ -236,7 +80,7 @@
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div class="stats-card-title">الرصيد الافتتاحي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.opening_cash|smart_float }}</div>
+                        <div class="stats-card-value">{{ cash_flow_data.opening_cash|smart_float:2 }}</div>
                         <div class="stats-card-unit">{% currency_symbol %}</div>
                     </div>
                 </div>
@@ -249,7 +93,7 @@
                             <i class="fas {% if cash_flow_data.net_cash_flow >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
                         </div>
                         <div class="stats-card-title">صافي التدفق النقدي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.net_cash_flow|smart_float }}</div>
+                        <div class="stats-card-value">{{ cash_flow_data.net_cash_flow|smart_float:2 }}</div>
                         <div class="stats-card-unit">{% currency_symbol %}</div>
                     </div>
                 </div>
@@ -262,7 +106,7 @@
                             <i class="fas fa-money-bill-wave"></i>
                         </div>
                         <div class="stats-card-title">الرصيد الختامي</div>
-                        <div class="stats-card-value">{{ cash_flow_data.closing_cash|smart_float }}</div>
+                        <div class="stats-card-value">{{ cash_flow_data.closing_cash|smart_float:2 }}</div>
                         <div class="stats-card-unit">{% currency_symbol %}</div>
                     </div>
                 </div>
@@ -320,20 +164,20 @@
                 <div class="cash-flow-item">
                     <span>النقدية من الإيرادات</span>
                     <span class="positive-amount">
-                        {{ cash_flow_data.operating_activities.cash_from_revenue|smart_float }}
+                        {{ cash_flow_data.operating_activities.cash_from_revenue|smart_float:2 }}
                     </span>
                 </div>
                 <div class="cash-flow-item">
                     <span>النقدية للمصروفات</span>
                     <span class="negative-amount">
-                        ({{ cash_flow_data.operating_activities.cash_for_expenses|smart_float }})
+                        ({{ cash_flow_data.operating_activities.cash_for_expenses|smart_float:2 }})
                     </span>
                 </div>
                 <div class="cash-flow-total">
                     <div class="d-flex justify-content-between">
                         <span>صافي التدفق التشغيلي:</span>
                         <span class="{% if cash_flow_data.operating_activities.net_cash_from_operating >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.operating_activities.net_cash_from_operating|smart_float }} جنيه
+                            {{ cash_flow_data.operating_activities.net_cash_from_operating|smart_float:2 }} {% currency_symbol %}
                         </span>
                     </div>
                 </div>
@@ -350,20 +194,20 @@
                 <div class="cash-flow-item">
                     <span>النقدية لشراء الأصول</span>
                     <span class="negative-amount">
-                        ({{ cash_flow_data.investing_activities.cash_for_investments|smart_float }})
+                        ({{ cash_flow_data.investing_activities.cash_for_investments|smart_float:2 }})
                     </span>
                 </div>
                 <div class="cash-flow-item">
                     <span>النقدية من بيع الأصول</span>
                     <span class="positive-amount">
-                        {{ cash_flow_data.investing_activities.cash_from_asset_sales|smart_float }}
+                        {{ cash_flow_data.investing_activities.cash_from_asset_sales|smart_float:2 }}
                     </span>
                 </div>
                 <div class="cash-flow-total">
                     <div class="d-flex justify-content-between">
                         <span>صافي التدفق الاستثماري:</span>
                         <span class="{% if cash_flow_data.investing_activities.net_cash_from_investing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.investing_activities.net_cash_from_investing|smart_float }} جنيه
+                            {{ cash_flow_data.investing_activities.net_cash_from_investing|smart_float:2 }} {% currency_symbol %}
                         </span>
                     </div>
                 </div>
@@ -380,20 +224,20 @@
                 <div class="cash-flow-item">
                     <span>النقدية من التمويل</span>
                     <span class="positive-amount">
-                        {{ cash_flow_data.financing_activities.cash_from_financing|smart_float }}
+                        {{ cash_flow_data.financing_activities.cash_from_financing|smart_float:2 }}
                     </span>
                 </div>
                 <div class="cash-flow-item">
                     <span>النقدية لسداد التمويل</span>
                     <span class="negative-amount">
-                        ({{ cash_flow_data.financing_activities.cash_for_financing|smart_float }})
+                        ({{ cash_flow_data.financing_activities.cash_for_financing|smart_float:2 }})
                     </span>
                 </div>
                 <div class="cash-flow-total">
                     <div class="d-flex justify-content-between">
                         <span>صافي التدفق التمويلي:</span>
                         <span class="{% if cash_flow_data.financing_activities.net_cash_from_financing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
-                            {{ cash_flow_data.financing_activities.net_cash_from_financing|smart_float }} جنيه
+                            {{ cash_flow_data.financing_activities.net_cash_from_financing|smart_float:2 }} {% currency_symbol %}
                         </span>
                     </div>
                 </div>

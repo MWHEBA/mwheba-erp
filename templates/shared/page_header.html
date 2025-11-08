@@ -1,0 +1,165 @@
+{% comment %}
+========================================
+PAGE HEADER المركزي - MWHEBA ERP
+========================================
+
+الاستخدام:
+{% include "shared/page_header.html" with title="عنوان الصفحة" subtitle="وصف فرعي" icon="fa-users" %}
+
+معاملات:
+- title: عنوان الصفحة (مطلوب)
+- subtitle: نص فرعي للشرح (اختياري)
+- icon: أيقونة Font Awesome (اختياري)
+- header_buttons: قائمة أزرار الهيدر (اختياري)
+  أنواع الأزرار:
+  1. زر تنقل: {'url': '/add/', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-primary'}
+  2. زر وظيفي: {'onclick': 'myFunction()', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-success'}
+  3. زر نموذج: {'form_id': 'my-form', 'icon': 'fa-save', 'text': 'حفظ', 'class': 'btn-primary'}
+
+أمثلة:
+
+1. هيدر بسيط:
+{% include "shared/page_header.html" with title="قائمة العملاء" %}
+
+2. هيدر مع أيقونة ووصف:
+{% include "shared/page_header.html" with title="قائمة العملاء" subtitle="إدارة بيانات العملاء" icon="fa-users" %}
+
+3. هيدر مع زر إجراء:
+{% include "shared/page_header.html" with title="قائمة العملاء" icon="fa-users" header_buttons=buttons %}
+
+========================================
+{% endcomment %}
+
+{% load custom_filters %}
+
+<div class="page-header-container">
+    <!-- Breadcrumb -->
+    {% include "shared/breadcrumb.html" %}
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="page-header-content">
+            <div class="page-header-title">
+                {% if icon or page_icon %}
+                    <div class="header-icon">
+                        <i class="{{ icon|default:page_icon }}"></i>
+                    </div>
+                {% endif %}
+                <div class="header-text">
+                    <h1 class="header-title">{{ title|default:page_title }}</h1>
+                    {% if subtitle or page_subtitle %}
+                        <p class="header-subtitle">{{ subtitle|default:page_subtitle }}</p>
+                    {% endif %}
+                    
+                    <!-- Header Badges (optional) -->
+                    {% if header_badges %}
+                        <div class="header-badges mt-2">
+                            {% for badge in header_badges %}
+                                {% if badge.url and badge.url != "#" %}
+                                    <a href="{{ badge.url }}" class="badge {{ badge.class|default:'bg-secondary' }} me-2 text-decoration-none" {% if badge.style %}style="{{ badge.style }}"{% endif %}>
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </a>
+                                {% elif badge.onclick %}
+                                    <span class="badge {{ badge.class|default:'bg-secondary' }} me-2" style="cursor: pointer;{% if badge.style %} {{ badge.style }}{% endif %}" onclick="{{ badge.onclick }}">
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge {{ badge.class|default:'bg-secondary' }} me-2" {% if badge.style %}style="{{ badge.style }}"{% endif %}>
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if header_buttons or supplier_types_badges %}
+                <div class="page-header-actions">
+                    <!-- أنواع الخدمات (للموردين) -->
+                    {% if supplier_types_badges %}
+                        <div class="d-flex flex-wrap align-items-center me-3">
+                            {% for type_badge in supplier_types_badges %}
+                                <span class="badge me-1 mb-1" style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 12px; background-color: {{ type_badge.color }}; color: white;">
+                                    {% if type_badge.icon %}<i class="{{ type_badge.icon }} me-1"></i>{% endif %}
+                                    {{ type_badge.text }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if header_buttons %}
+                    {% with buttons=header_buttons %}
+                        {% if buttons|first == "[" %}
+                            {% with json_buttons=buttons|custom_load_json %}
+                                {% for button in json_buttons %}
+                                    {% if button.form_id %}
+                                        <button type="submit" form="{{ button.form_id }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                            {{ button.text }}
+                                        </button>
+                                    {% elif button.onclick %}
+                                        <button type="button" 
+                                                class="btn {{ button.class|default:'btn-primary' }}"
+                                                onclick="{{ button.onclick }}"
+                                                {% if button.id %}id="{{ button.id }}"{% endif %}>
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                            {{ button.text }}
+                                        </button>
+                                    {% else %}
+                                        <a href="{{ button.url }}" 
+                                           class="btn {{ button.class|default:'btn-primary' }}"
+                                           {% if button.id %}id="{{ button.id }}"{% endif %}
+                                           {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
+                                           {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}>
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                            {{ button.text }}
+                                        </a>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endwith %}
+                        {% else %}
+                            {% for button in buttons %}
+                                {% if button.is_badge %}
+                                    <span class="badge {{ button.class|default:'bg-primary' }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </span>
+                                {% elif button.form_id %}
+                                    <button type="submit" form="{{ button.form_id }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </button>
+                                {% elif button.onclick %}
+                                    <button type="button" 
+                                            class="btn {{ button.class|default:'btn-primary' }}"
+                                            onclick="{{ button.onclick }}"
+                                            {% if button.id %}id="{{ button.id }}"{% endif %}>
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </button>
+                                {% else %}
+                                    <a href="{{ button.url }}" 
+                                       class="btn {{ button.class|default:'btn-primary' }}"
+                                       {% if button.id %}id="{{ button.id }}"{% endif %}
+                                       {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
+                                       {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}>
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                        {{ button.text }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Extra Header Content Slot -->
+    {% block extra_header_content %}{% endblock %}
+</div>

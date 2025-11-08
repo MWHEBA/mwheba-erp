@@ -7,19 +7,11 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="row">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h4 class="card-title mb-0">{{ page_title }}</h4>
-                    <div>
-                        <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-right"></i> العودة للفاتورة
-                        </a>
-                    </div>
-                </div>
-
-                <div class="card-body">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-4">
                     <!-- معلومات الفاتورة -->
                     <div class="row mb-4">
                         <div class="col-md-6">

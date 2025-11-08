@@ -282,17 +282,32 @@ def ledger_report(request):
             
             context = {
                 "page_title": f"دفتر الأستاذ - {account.name}",
+                "page_subtitle": f"تقرير تفصيلي لحركة الحساب: {account.code}",
                 "page_icon": "fas fa-book-open",
+                "header_buttons": [
+                    {
+                        "onclick": "window.print()",
+                        "icon": "fa-print",
+                        "text": "طباعة",
+                        "class": "btn-outline-secondary",
+                    },
+                    {
+                        "url": f"?account={account_id}&date_from={date_from or ''}&date_to={date_to or ''}&export=excel",
+                        "icon": "fa-file-excel",
+                        "text": "تصدير Excel",
+                        "class": "btn-success",
+                    },
+                ],
                 "breadcrumb_items": [
-                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book-open"},
+                    {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True},
                 ],
                 "account": account,
                 "summary": summary,
                 "page_obj": page_obj,
-                "transactions": transactions,  # للتصدير
+                "transactions": transactions,
                 "accounts": accounts,
                 "date_from": date_from,
                 "date_to": date_to,
@@ -322,15 +337,24 @@ def ledger_report(request):
             
             context = {
                 "page_title": "دفتر الأستاذ العام",
+                "page_subtitle": "ملخص شامل لجميع حركات الحسابات",
                 "page_icon": "fas fa-book",
+                "header_buttons": [
+                    {
+                        "onclick": "window.print()",
+                        "icon": "fa-print",
+                        "text": "طباعة",
+                        "class": "btn-outline-secondary",
+                    },
+                ],
                 "breadcrumb_items": [
-                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+                    {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True},
                 ],
                 "page_obj": page_obj,
-                "account_summaries": account_summaries,  # للتصدير
+                "account_summaries": account_summaries,
                 "accounts": accounts,
                 "date_from": date_from,
                 "date_to": date_to,
@@ -340,12 +364,13 @@ def ledger_report(request):
             messages.error(request, f"خطأ في تحميل ملخص الحسابات: {e}")
             context = {
                 "page_title": "دفتر الأستاذ العام",
+                "page_subtitle": "ملخص شامل لجميع حركات الحسابات",
                 "page_icon": "fas fa-book",
                 "breadcrumb_items": [
-                    {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                    {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                    {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                    {"title": "دفتر الأستاذ", "active": True, "icon": "fas fa-book"},
+                    {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                    {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                    {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                    {"title": "دفتر الأستاذ", "active": True},
                 ],
                 "accounts": accounts,
                 "date_from": date_from,
@@ -412,12 +437,21 @@ def balance_sheet(request):
         
         context = {
             "page_title": "الميزانية العمومية",
+            "page_subtitle": f"تقرير الميزانية العمومية كما في {balance_date.strftime('%d-%m-%Y')}",
             "page_icon": "fas fa-balance-scale",
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
                 {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "الميزانية العمومية", "active": True, "icon": "fas fa-balance-scale"},
+                {"title": "الميزانية العمومية", "active": True},
+            ],
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-outline-success",
+                }
             ],
             "balance_sheet_data": balance_sheet_data,
             "financial_ratios": financial_ratios,
@@ -507,12 +541,21 @@ def income_statement(request):
         
         context = {
             "page_title": "قائمة الدخل",
-            "page_icon": "fas fa-file-invoice-dollar",
+            "page_subtitle": f"تقرير الأرباح والخسائر للفترة من {income_statement_data.get('date_from')} إلى {income_statement_data.get('date_to')}",
+            "page_icon": "fas fa-chart-line",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-success",
+                },
+            ],
             "breadcrumb_items": [
                 {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
                 {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
                 {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "قائمة الدخل", "active": True, "icon": "fas fa-file-invoice-dollar"},
+                {"title": "قائمة الدخل", "active": True},
             ],
             "income_statement_data": income_statement_data,
             "date_from": income_statement_data.get('date_from'),
@@ -597,12 +640,27 @@ def cash_flow_statement(request):
 
         context = {
             "page_title": "قائمة التدفقات النقدية",
+            "page_subtitle": f"من {date_from.strftime('%Y-%m-%d')} إلى {date_to.strftime('%Y-%m-%d')}",
             "page_icon": "fas fa-money-bill-wave",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-success",
+                },
+                {
+                    "url": f"?date_from={date_from.strftime('%Y-%m-%d')}&date_to={date_to.strftime('%Y-%m-%d')}&export=excel",
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-primary",
+                },
+            ],
             "breadcrumb_items": [
                 {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
                 {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
                 {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "قائمة التدفقات النقدية", "active": True, "icon": "fas fa-money-bill-wave"},
+                {"title": "قائمة التدفقات النقدية", "active": True},
             ],
             "cash_flow_data": report_data,
             "date_from": date_from,
@@ -684,12 +742,27 @@ def customer_supplier_balances_report(request, account_type):
         
         context = {
             "page_title": page_title,
+            "page_subtitle": f"عرض الأرصدة المستحقة والمدفوعة حتى {as_of_date}",
             "page_icon": page_icon,
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-outline-secondary",
+                },
+                {
+                    "url": f"?as_of_date={as_of_date}&export=excel",
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-success",
+                },
+            ],
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": page_title, "active": True, "icon": page_icon},
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                {"title": page_title, "active": True},
             ],
             "report_data": report_data,
             "as_of_date": as_of_date,
@@ -746,12 +819,21 @@ def financial_analytics(request):
     # إعداد سياق البيانات
     context = {
         "page_title": "التحليلات المالية",
+        "page_subtitle": "مؤشرات ورسوم بيانية للأداء المالي",
         "page_icon": "fas fa-chart-pie",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "التحليلات المالية", "active": True, "icon": "fas fa-chart-pie"},
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "التحليلات المالية", "active": True},
         ],
         # المؤشرات الأساسية
         "monthly_income": analytics["basic_metrics"]["monthly_income"],
@@ -923,14 +1005,40 @@ def trial_balance_report(request):
             group_by_type=group_by_type
         )
         
+        # بناء URL للتصدير
+        export_params = []
+        if date_from:
+            export_params.append(f"date_from={date_from.strftime('%Y-%m-%d')}")
+        if date_to:
+            export_params.append(f"date_to={date_to.strftime('%Y-%m-%d')}")
+        if group_by_type:
+            export_params.append("group_by_type=1")
+        export_params.append("export=excel")
+        export_url = "?" + "&".join(export_params)
+        
         context = {
             "page_title": "ميزان المراجعة",
+            "page_subtitle": f"تقرير ميزان المراجعة حتى {date_to.strftime('%Y-%m-%d') if date_to else 'اليوم'}",
             "page_icon": "fas fa-balance-scale",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-success",
+                },
+                {
+                    "url": export_url,
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-primary",
+                },
+            ],
             "breadcrumb_items": [
                 {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
                 {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
                 {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "ميزان المراجعة", "active": True, "icon": "fas fa-balance-scale"},
+                {"title": "ميزان المراجعة", "active": True},
             ],
             "trial_balance_data": trial_balance_data,
             "date_from": date_from,
@@ -1014,12 +1122,21 @@ def sales_report(request):
     
     context = {
         "page_title": "تقرير المبيعات",
+        "page_subtitle": "تحليل شامل للإيرادات والمبيعات",
         "page_icon": "fas fa-chart-line",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "تقرير المبيعات", "active": True, "icon": "fas fa-chart-line"},
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "تقرير المبيعات", "active": True},
         ],
         "sales_data": report["sales_data"],
         "total_sales": report["total_sales"],
@@ -1084,12 +1201,21 @@ def purchases_report(request):
     
     context = {
         "page_title": "تقرير المشتريات",
+        "page_subtitle": "تحليل شامل للمصروفات والمشتريات",
         "page_icon": "fas fa-shopping-cart",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-            {"title": "تقرير المشتريات", "active": True, "icon": "fas fa-shopping-cart"},
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "تقرير المشتريات", "active": True},
         ],
         "purchases_data": report["purchases_data"],
         "total_purchases": report["total_purchases"],
@@ -1149,12 +1275,27 @@ def inventory_report(request):
 
         context = {
             "page_title": "تقرير المخزون",
+            "page_subtitle": "تحليل شامل لقيمة وحركة المخزون",
             "page_icon": "fas fa-boxes",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-outline-secondary",
+                },
+                {
+                    "url": f"?date={report['report_date']}&export=excel",
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-success",
+                },
+            ],
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "تقرير المخزون", "active": True, "icon": "fas fa-boxes"},
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                {"title": "تقرير المخزون", "active": True},
             ],
             "inventory_data": report["inventory_data"],
             "total_inventory_value": report["total_inventory_value"],
@@ -1244,12 +1385,27 @@ def abc_analysis_report(request):
 
         context = {
             "page_title": "تحليل ABC للمخزون",
+            "page_subtitle": "تصنيف المخزون حسب الأهمية (A, B, C)",
             "page_icon": "fas fa-chart-pie",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-outline-secondary",
+                },
+                {
+                    "url": f"?date={analysis['analysis_date']}&days_period={analysis['days_period']}&export=excel",
+                    "icon": "fa-file-excel",
+                    "text": "تصدير Excel",
+                    "class": "btn-success",
+                },
+            ],
             "breadcrumb_items": [
-                {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-                {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-                {"title": "التقارير", "url": "#", "icon": "fas fa-chart-bar"},
-                {"title": "تحليل ABC", "active": True, "icon": "fas fa-chart-pie"},
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                {"title": "تحليل ABC", "active": True},
             ],
             "inventory_data": analysis["inventory_data"],
             "total_value": analysis["total_value"],
@@ -1302,7 +1458,22 @@ def general_backup(request):
 
     context = {
         "page_title": "النسخ الاحتياطي العام",
+        "page_subtitle": "إنشاء نسخة احتياطية كاملة لجميع بيانات النظام",
         "page_icon": "fas fa-database",
+        "header_buttons": [
+            {
+                "onclick": "document.getElementById('backupForm').submit()",
+                "icon": "fa-download",
+                "text": "إنشاء نسخة احتياطية",
+                "class": "btn-primary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "النسخ الاحتياطي", "icon": "fas fa-database"},
+            {"title": "النسخ العام", "active": True},
+        ],
     }
     return render(request, "financial/reports/general_backup.html", context)
 
@@ -1328,7 +1499,22 @@ def financial_backup_advanced(request):
 
     context = {
         "page_title": "نسخ احتياطي مالي متقدم",
+        "page_subtitle": "نسخة احتياطية متقدمة للبيانات المالية فقط",
         "page_icon": "fas fa-coins",
+        "header_buttons": [
+            {
+                "onclick": "document.getElementById('financialBackupForm').submit()",
+                "icon": "fa-download",
+                "text": "إنشاء نسخة مالية",
+                "class": "btn-success",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "النسخ الاحتياطي", "icon": "fas fa-database"},
+            {"title": "نسخ مالي متقدم", "active": True},
+        ],
     }
     return render(request, "financial/reports/financial_backup_advanced.html", context)
 
@@ -1347,7 +1533,22 @@ def restore_data(request):
 
     context = {
         "page_title": "استعادة البيانات",
+        "page_subtitle": "استعادة البيانات من نسخة احتياطية سابقة",
         "page_icon": "fas fa-history",
+        "header_buttons": [
+            {
+                "onclick": "document.getElementById('restoreForm').submit()",
+                "icon": "fa-upload",
+                "text": "استعادة البيانات",
+                "class": "btn-warning",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "النسخ الاحتياطي", "icon": "fas fa-database"},
+            {"title": "استعادة البيانات", "active": True},
+        ],
     }
     return render(request, "financial/reports/restore_data.html", context)
 
@@ -1616,7 +1817,22 @@ def data_integrity_check(request):
 
     context = {
         "page_title": "التحقق من سلامة البيانات",
+        "page_subtitle": "فحص شامل للتأكد من توافق وسلامة البيانات",
         "page_icon": "fas fa-shield-alt",
+        "header_buttons": [
+            {
+                "onclick": "document.getElementById('integrityCheckForm').submit()",
+                "icon": "fa-sync",
+                "text": "بدء الفحص",
+                "class": "btn-primary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+            {"title": "الصيانة", "icon": "fas fa-tools"},
+            {"title": "فحص سلامة البيانات", "active": True},
+        ],
         "results": results,
     }
     return render(request, "financial/reports/data_integrity_check.html", context)
@@ -1804,7 +2020,28 @@ def audit_trail_list(request):
                 "date_to": date_to,
             },
             "page_title": "سجل التدقيق",
+            "page_subtitle": "تتبع جميع العمليات والتغييرات في النظام",
             "page_icon": "fas fa-clipboard-list",
+            "header_buttons": [
+                {
+                    "onclick": "window.print()",
+                    "icon": "fa-print",
+                    "text": "طباعة",
+                    "class": "btn-outline-secondary",
+                },
+                {
+                    "onclick": "confirmCleanup()",
+                    "icon": "fa-trash",
+                    "text": "تنظيف السجل",
+                    "class": "btn-outline-danger",
+                },
+            ],
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": reverse('core:dashboard'), "icon": "fas fa-home"},
+                {"title": "الإدارة المالية", "icon": "fas fa-money-bill-wave"},
+                {"title": "التقارير", "icon": "fas fa-chart-bar"},
+                {"title": "سجل التدقيق", "active": True},
+            ],
             "action_filter": action_filter,
             "entity_type_filter": entity_type_filter,
         }

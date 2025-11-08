@@ -279,5 +279,22 @@ def contract_form(request, pk=None):
         'earnings': earnings,
         'deductions': deductions,
         'system_settings': system_settings,
+        'page_title': f'تعديل عقد: {contract.contract_number}' if contract else 'إضافة عقد جديد',
+        'page_subtitle': 'تعديل بيانات العقد' if contract else 'إضافة عقد موظف جديد',
+        'page_icon': 'fas fa-file-contract',
+        'header_buttons': [
+            {
+                'url': '/hr/contracts/',
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users'},
+            {'title': 'العقود', 'url': '/hr/contracts/', 'icon': 'fas fa-file-contract'},
+            {'title': 'تعديل عقد' if contract else 'إضافة عقد', 'active': True},
+        ],
     }
     return render(request, 'hr/contract/form.html', context)

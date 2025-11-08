@@ -82,9 +82,11 @@
     <link rel="stylesheet" href="{% static 'css/footer.css' %}">
     <link rel="stylesheet" href="{% static 'css/components.css' %}">
     <link rel="stylesheet" href="{% static 'css/tables.css' %}">
-    <link rel="stylesheet" href="{% static 'css/cards.css' %}">
     <link rel="stylesheet" href="{% static 'css/layout.css' %}">
     <link rel="stylesheet" href="{% static 'css/forms.css' %}">
+    
+    <!-- Shared Components CSS (المكونات المشتركة المركزية) -->
+    <link rel="stylesheet" href="{% static 'css/shared-components.css' %}?v={{ request.session.session_key|slice:':8' }}">
     
     <!-- Select2 CSS -->
     <link href="{% static 'django_select2/django_select2.css' %}" rel="stylesheet" />

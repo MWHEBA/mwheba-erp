@@ -217,7 +217,20 @@ def expense_list(request):
         "accounts": accounts,
         "total_expenses": total_expenses,
         "page_title": "المصروفات",
-        "page_icon": "fas fa-money-bill-wave text-danger",
+        "page_subtitle": "إدارة وتتبع المصروفات في النظام",
+        "page_icon": "fas fa-money-bill-wave",
+        
+        # زر إضافة مصروف في الهيدر (بيستخدم onclick لفتح المودال)
+        "header_buttons": [
+            {
+                "url": "#",
+                "icon": "fa-plus",
+                "text": "إضافة مصروف",
+                "class": "btn-primary",
+                "id": "addExpenseBtn",
+            },
+        ],
+        
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -407,6 +420,17 @@ def income_list(request):
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
+    # حساب الإحصائيات
+    total_income = total_incomes
+    received_incomes = sum(
+        sum(line.credit for line in entry.lines.filter(
+            account__account_type__category="revenue", credit__gt=0
+        ))
+        for entry in income_entries.filter(status="posted")
+    )
+    pending_incomes = total_income - received_incomes
+    monthly_average = total_income / 12 if total_income > 0 else 0
+
     context = {
         "incomes": page_obj,  # للتوافق مع template
         "journal_entries": page_obj,
@@ -414,9 +438,22 @@ def income_list(request):
         "income_actions": action_buttons,
         "primary_key": "id",
         "accounts": accounts,
-        "total_incomes": total_incomes,
+        "categories": [],  # سيتم إضافتها لاحقاً
+        "total_income": total_income,
+        "received_incomes": received_incomes,
+        "pending_incomes": pending_incomes,
+        "monthly_average": monthly_average,
         "page_title": "الإيرادات",
-        "page_icon": "fas fa-cash-register text-success",
+        "page_subtitle": "إدارة وتتبع الإيرادات في النظام",
+        "page_icon": "fas fa-cash-register",
+        "header_buttons": [
+            {
+                "onclick": "openQuickIncomeModal()",
+                "icon": "fa-plus",
+                "text": "إضافة إيراد",
+                "class": "btn-success",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -434,308 +471,56 @@ def income_list(request):
 @login_required
 def income_detail(request, pk):
     """
-    عرض تفاصيل إيراد معين
+    ❌ تم إلغاء هذه الصفحة - الموديل Income غير موجود
+    النظام الجديد يستخدم JournalEntry للقيود المحاسبية
     """
-    income = get_object_or_404(Income, pk=pk)
-
-    context = {
-        "income": income,
-        "title": f"إيراد: {income.title}",
-    }
-
-    return render(request, "financial/income_detail.html", context)
+    messages.info(request, "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية.")
+    return redirect("financial:income_list")
 
 
 @login_required
 def income_mark_received(request, pk):
     """
-    تحديد إيراد كمستلم
+    ❌ تم إلغاء هذه الصفحة - الموديل Income غير موجود
+    النظام الجديد يستخدم JournalEntry للقيود المحاسبية
     """
-    income = get_object_or_404(Income, pk=pk)
-
-    if income.status == "received":
-        messages.info(request, "هذا الإيراد مستلم بالفعل.")
-        return redirect("financial:income_detail", pk=pk)
-
-    if request.method == "POST":
-        account_id = request.POST.get("account")
-
-        if not account_id:
-            messages.error(
-                request, "لم يتم تحديد الحساب! يرجى اختيار حساب لاستلام الإيراد."
-            )
-            accounts = AccountHelperService.get_all_active_accounts()
-            context = {
-                "income": income,
-                "accounts": accounts,
-                "title": "استلام إيراد",
-            }
-            return render(request, "financial/income_mark_received.html", context)
-
-        account = get_object_or_404(Account, id=account_id)
-
-        # تحديث حالة الإيراد
-        income.status = "received"
-        income.received_date = timezone.now().date()
-        income.save()
-
-        # إنشاء معاملة إيراد
-        transaction = Transaction.objects.create(
-            account=account,
-            transaction_type="income",
-            amount=income.amount,
-            date=timezone.now().date(),
-            description=f"استلام إيراد: {income.title}",
-            reference_number=income.reference_number,
-        )
-
-        # تحديث رصيد الحساب
-        account.balance += income.amount
-        account.save()
-
-        messages.success(request, "تم تحديد الإيراد كمستلم بنجاح.")
-        return redirect("financial:income_detail", pk=pk)
-
-    accounts = AccountHelperService.get_all_active_accounts()
-
-    context = {
-        "income": income,
-        "accounts": accounts,
-        "title": "استلام إيراد",
-    }
-
-    return render(request, "financial/income_mark_received.html", context)
+    messages.info(request, "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية.")
+    return redirect("financial:income_list")
 
 
 @login_required
 def income_cancel(request, pk):
     """
-    إلغاء إيراد
+    ❌ تم إلغاء هذه الصفحة - الموديل Income غير موجود
+    النظام الجديد يستخدم JournalEntry للقيود المحاسبية
     """
-    income = get_object_or_404(Income, pk=pk)
+    messages.info(request, "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية.")
+    return redirect("financial:income_list")
 
-    if income.status == "cancelled":
-        messages.info(request, "هذا الإيراد ملغي بالفعل.")
-        return redirect("financial:income_detail", pk=pk)
 
-    if request.method == "POST":
-        income.status = "cancelled"
-        income.save()
-
-        messages.success(request, "تم إلغاء الإيراد بنجاح.")
-        return redirect("financial:income_detail", pk=pk)
-
-    context = {
-        "object": income,
-        "title": "إلغاء إيراد",
-    }
-
-    return render(request, "financial/confirm_delete.html", context)
-
+# تم حذف جميع views الخاصة بـ categories (category_list, category_create, category_edit, category_delete)
+# استخدم account_types بدلاً منها
 
 @login_required
 def category_list(request):
-    """
-    عرض قائمة أنواع الحسابات (بديل التصنيفات) - تحت التطوير
-    """
-    messages.info(
-        request,
-        "هذه الميزة تحت التطوير. يرجى استخدام صفحة أنواع الحسابات من القائمة الجانبية.",
-    )
+    """تم إلغاء هذه الصفحة - redirect لـ account_types_list"""
+    messages.info(request, "هذه الميزة تحت التطوير. يرجى استخدام صفحة أنواع الحسابات.")
     return redirect("financial:account_types_list")
-    context = {
-        "categories": page_obj,
-        "expense_count": expense_count,
-        "income_count": income_count,
-        "search_query": search_query,
-        "category_type": category_type,
-        "page_title": "تصنيفات المصروفات والإيرادات",
-        "page_icon": "fas fa-tags",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "تصنيفات المصروفات والإيرادات", "active": True},
-        ],
-    }
-
-    return render(request, "financial/category_list.html", context)
-
 
 @login_required
 def category_create(request):
-    """
-    إنشاء فئة جديدة
-    """
-    if request.method == "POST":
-        form = CategoryForm(request.POST)
-        if form.is_valid():
-            category = form.save(commit=False)
-            category.created_by = request.user
-            category.save()
-
-            messages.success(request, "تم إنشاء التصنيف بنجاح.")
-            return redirect("financial:category_list")
-    else:
-        form = CategoryForm()
-
-        # تعيين النوع بناءً على المعلمة في URL
-        category_type = request.GET.get("type", "")
-        if category_type in ("expense", "income"):
-            form.fields["type"].initial = category_type
-
-    context = {
-        "form": form,
-        "page_title": "إضافة فئة جديدة",
-        "page_icon": "fas fa-plus-circle",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {
-                "title": "تصنيفات المصروفات والإيرادات",
-                "url": reverse("financial:category_list"),
-                "icon": "fas fa-tags",
-            },
-            {"title": "إضافة فئة جديدة", "active": True},
-        ],
-    }
-
-    return render(request, "financial/category_form.html", context)
-
+    """تم إلغاء - redirect"""
+    return redirect("financial:account_types_list")
 
 @login_required
 def category_edit(request, pk):
-    """
-    تعديل فئة موجودة
-    """
-    category = get_object_or_404(Category, pk=pk)
-
-    # حساب عدد المعاملات المرتبطة بهذا التصنيف
-    transaction_count = 0
-    # استخدام النماذج الجديدة بدلاً من القديمة
-    try:
-        from .models.transactions import ExpenseTransaction, IncomeTransaction
-
-        if category.type == "expense":
-            transaction_count = ExpenseTransaction.objects.filter(
-                category=category
-            ).count()
-        elif category.type == "income":
-            transaction_count = IncomeTransaction.objects.filter(
-                category=category
-            ).count()
-    except ImportError:
-        # في حالة عدم توفر النماذج الجديدة
-        transaction_count = 0
-
-    if request.method == "POST":
-        form = CategoryForm(request.POST, instance=category)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "تم تعديل التصنيف بنجاح.")
-            return redirect("financial:category_list")
-    else:
-        form = CategoryForm(instance=category)
-
-    context = {
-        "form": form,
-        "category": category,
-        "transaction_count": transaction_count,
-        "page_title": f"تعديل فئة: {category.name}",
-        "page_icon": "fas fa-edit",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {
-                "title": "تصنيفات المصروفات والإيرادات",
-                "url": reverse("financial:category_list"),
-                "icon": "fas fa-tags",
-            },
-            {"title": f"تعديل فئة: {category.name}", "active": True},
-        ],
-    }
-
-    return render(request, "financial/category_form.html", context)
-
+    """تم إلغاء - redirect"""
+    return redirect("financial:account_types_list")
 
 @login_required
 def category_delete(request, pk):
-    """
-    حذف فئة
-    """
-    category = get_object_or_404(Category, pk=pk)
-
-    # التحقق من استخدام التصنيف في المعاملات
-    has_transactions = False
-    transaction_count = 0
-
-    # استخدام النماذج الجديدة بدلاً من القديمة
-    try:
-        from .models.transactions import ExpenseTransaction, IncomeTransaction
-
-        if category.type == "expense":
-            transaction_count = ExpenseTransaction.objects.filter(
-                category=category
-            ).count()
-            has_transactions = transaction_count > 0
-        elif category.type == "income":
-            transaction_count = IncomeTransaction.objects.filter(
-                category=category
-            ).count()
-            has_transactions = transaction_count > 0
-    except ImportError:
-        # في حالة عدم توفر النماذج الجديدة
-        transaction_count = 0
-        has_transactions = False
-
-    if request.method == "POST":
-        # إذا تم تأكيد الحذف
-        confirm_deletion = (
-            request.POST.get("confirm_deletion") == "on" if has_transactions else True
-        )
-
-        if confirm_deletion:
-            category_name = category.name
-            category.delete()
-            messages.success(request, f'تم حذف التصنيف "{category_name}" بنجاح.')
-            return redirect("financial:category_list")
-        else:
-            messages.error(request, "يجب تأكيد الحذف للتصنيفات المستخدمة في معاملات.")
-
-    context = {
-        "category": category,
-        "has_transactions": has_transactions,
-        "transaction_count": transaction_count,
-        "page_title": f"حذف فئة: {category.name}",
-        "page_icon": "fas fa-trash",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {
-                "title": "تصنيفات المصروفات والإيرادات",
-                "url": reverse("financial:category_list"),
-                "icon": "fas fa-tags",
-            },
-            {"title": f"حذف فئة: {category.name}", "active": True},
-        ],
-    }
-
-    return render(request, "financial/category_delete.html", context)
+    """تم إلغاء - redirect"""
+    return redirect("financial:account_types_list")
 
 
 @login_required
@@ -827,11 +612,20 @@ def expense_detail_enhanced(request, pk):
             "payment_lines": payment_lines,
             "expense_amount": expense_amount,
             "page_title": f"تفاصيل المصروف - {journal_entry.reference}",
+            "page_subtitle": "عرض تفاصيل المصروف والقيد المحاسبي المرتبط",
             "page_icon": "fas fa-receipt",
             "breadcrumb_items": [
-                {"title": "النظام المالي", "url": reverse("financial:expense_list")},
-                {"title": "المصروفات", "url": reverse("financial:expense_list")},
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المصروفات", "url": reverse("financial:expense_list"), "icon": "fas fa-money-bill-wave"},
                 {"title": f"المصروف {journal_entry.reference}", "active": True},
+            ],
+            "header_buttons": [
+                {
+                    "url": reverse("financial:expense_list"),
+                    "icon": "fa-arrow-left",
+                    "text": "العودة للقائمة",
+                    "class": "btn-secondary",
+                }
             ],
         }
 

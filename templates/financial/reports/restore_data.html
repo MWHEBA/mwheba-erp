@@ -6,38 +6,28 @@
 
 {% block content %}
 <div class="container-fluid">
-    <div class="mb-4">
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="{{ page_icon }} fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">استعادة البيانات من النسخ الاحتياطية</p>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
     
-    <div class="section-container">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="card-title mb-0">
-                    <i class="fas fa-history me-2"></i>
-                    استعادة البيانات
-                </h5>
+    <!-- Form مخفي -->
+    <form method="post" id="restoreForm" style="display:none;">
+        {% csrf_token %}
+    </form>
+    
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-history fa-5x text-warning mb-4"></i>
+            <h3 class="mb-3">استعادة البيانات</h3>
+            <p class="text-muted mb-4">
+                استعادة البيانات من نسخة احتياطية سابقة
+            </p>
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                تحذير: هذه العملية ستستبدل البيانات الحالية
             </div>
-            <div class="card-body">
-                <p class="text-muted">هذه الميزة تحت التطوير حالياً.</p>
-                
-                <form method="post">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-warning">
-                        <i class="fas fa-history me-1"></i>
-                        استعادة البيانات
-                    </button>
-                </form>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                هذه الميزة تحت التطوير حالياً
             </div>
         </div>
     </div>

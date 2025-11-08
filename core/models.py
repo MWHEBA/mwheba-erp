@@ -244,6 +244,13 @@ class Notification(models.Model):
                 pass
         
         return None
+    
+    def get_icon(self):
+        """
+        الحصول على أيقونة الإشعار من المصدر الموحد
+        """
+        from .notification_icons import get_notification_icon
+        return get_notification_icon(self.type)
 
 
 class NotificationPreference(models.Model):

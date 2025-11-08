@@ -27,7 +27,31 @@ __all__ = [
 def payroll_list(request):
     """قائمة كشوف الرواتب"""
     payrolls = Payroll.objects.select_related('employee', 'salary').all()
-    return render(request, 'hr/payroll/list.html', {'payrolls': payrolls})
+    
+    context = {
+        'payrolls': payrolls,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'كشوف الرواتب',
+        'page_subtitle': 'إدارة ومعالجة رواتب الموظفين',
+        'page_icon': 'fas fa-money-bill-wave',
+        'header_buttons': [
+            {
+                'url': '#',
+                'icon': 'fa-calculator',
+                'text': 'معالجة رواتب شهر',
+                'class': 'btn-primary',
+                'toggle': 'modal',
+                'target': '#processPayrollModal',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'كشوف الرواتب', 'active': True},
+        ],
+    }
+    return render(request, 'hr/payroll/list.html', context)
 
 
 @login_required
@@ -40,7 +64,26 @@ def payroll_run_list(request):
         paid_count=Count('id', filter=Q(status='paid'))
     ).order_by('-month')
     
-    return render(request, 'hr/payroll/run_list.html', {'payroll_runs': payroll_runs})
+    context = {
+        'payroll_runs': payroll_runs,
+        'page_title': 'مسيرات الرواتب',
+        'page_subtitle': 'متابعة مسيرات الرواتب الشهرية',
+        'page_icon': 'fas fa-money-check-alt',
+        'header_buttons': [
+            {
+                'url': reverse('hr:payroll_run_process'),
+                'icon': 'fa-calculator',
+                'text': 'معالجة رواتب شهر',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'مسيرات الرواتب', 'active': True},
+        ],
+    }
+    return render(request, 'hr/payroll/run_list.html', context)
 
 
 @login_required
@@ -67,7 +110,27 @@ def payroll_run_process(request):
     else:
         form = PayrollProcessForm()
     
-    return render(request, 'hr/payroll/run_process.html', {'form': form})
+    context = {
+        'form': form,
+        'page_title': 'معالجة رواتب شهر',
+        'page_subtitle': 'إنشاء مسيرة رواتب جديدة',
+        'page_icon': 'fas fa-calculator',
+        'header_buttons': [
+            {
+                'url': reverse('hr:payroll_run_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'مسيرات الرواتب', 'url': reverse('hr:payroll_run_list'), 'icon': 'fas fa-money-check-alt'},
+            {'title': 'معالجة رواتب', 'active': True},
+        ],
+    }
+    return render(request, 'hr/payroll/run_process.html', context)
 
 
 @login_required
@@ -87,6 +150,23 @@ def payroll_run_detail(request, month):
         'month': month,
         'payrolls': payrolls,
         'stats': stats,
+        'page_title': f'مسيرة رواتب {month}',
+        'page_subtitle': f'تفاصيل رواتب شهر {month}',
+        'page_icon': 'fas fa-file-invoice-dollar',
+        'header_buttons': [
+            {
+                'url': reverse('hr:payroll_run_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'مسيرات الرواتب', 'url': reverse('hr:payroll_run_list'), 'icon': 'fas fa-money-check-alt'},
+            {'title': f'مسيرة {month}', 'active': True},
+        ],
     }
     return render(request, 'hr/payroll/run_detail.html', context)
 
@@ -95,7 +175,49 @@ def payroll_run_detail(request, month):
 def payroll_detail(request, pk):
     """تفاصيل كشف الراتب"""
     payroll = get_object_or_404(Payroll, pk=pk)
-    return render(request, 'hr/payroll/detail.html', {'payroll': payroll})
+    
+    # إعداد الأزرار
+    header_buttons = []
+    
+    if payroll.status == 'calculated':
+        header_buttons.append({
+            'url': '#',
+            'icon': 'fa-check',
+            'text': 'اعتماد',
+            'class': 'btn-success',
+        })
+    
+    header_buttons.extend([
+        {
+            'onclick': 'window.print()',
+            'icon': 'fa-print',
+            'text': 'طباعة',
+            'class': 'btn-info',
+        },
+        {
+            'url': reverse('hr:payroll_list'),
+            'icon': 'fa-arrow-right',
+            'text': 'رجوع',
+            'class': 'btn-secondary',
+        },
+    ])
+    
+    context = {
+        'payroll': payroll,
+        
+        # بيانات الهيدر الموحد
+        'page_title': f'كشف راتب - {payroll.month.strftime("%Y-%m")}',
+        'page_subtitle': 'تفاصيل كشف الراتب',
+        'page_icon': 'fas fa-money-bill-wave',
+        'header_buttons': header_buttons,
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'كشوف الرواتب', 'url': reverse('hr:payroll_list'), 'icon': 'fas fa-money-bill-wave'},
+            {'title': 'تفاصيل', 'active': True},
+        ],
+    }
+    return render(request, 'hr/payroll/detail.html', context)
 
 
 # ==================== السلف ====================
@@ -104,24 +226,131 @@ def payroll_detail(request, pk):
 def advance_list(request):
     """قائمة السلف"""
     advances = Advance.objects.select_related('employee').all()
-    return render(request, 'hr/advance/list.html', {'advances': advances})
+    
+    # إحصائيات
+    total_advances = advances.count()
+    pending_advances = advances.filter(status='pending').count()
+    approved_advances = advances.filter(status='approved').count()
+    deducted_advances = advances.filter(status='deducted').count()
+    
+    context = {
+        'advances': advances,
+        'total_advances': total_advances,
+        'pending_advances': pending_advances,
+        'approved_advances': approved_advances,
+        'deducted_advances': deducted_advances,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'السلف',
+        'page_subtitle': 'إدارة سلف الموظفين والخصومات',
+        'page_icon': 'fas fa-hand-holding-usd',
+        'header_buttons': [
+            {
+                'url': reverse('hr:advance_request'),
+                'icon': 'fa-plus',
+                'text': 'طلب سلفة',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'السلف', 'active': True},
+        ],
+    }
+    return render(request, 'hr/advance/list.html', context)
 
 
 @login_required
 def advance_request(request):
     """طلب سلفة جديدة"""
     if request.method == 'POST':
-        # سيتم إضافة النموذج لاحقاً
-        messages.success(request, 'تم تقديم طلب السلفة بنجاح')
-        return redirect('hr:advance_list')
-    return render(request, 'hr/advance/request.html')
+        try:
+            # الحصول على البيانات من الفورم
+            employee_id = request.POST.get('employee')
+            amount = request.POST.get('amount')
+            reason = request.POST.get('reason')
+            
+            # التحقق من البيانات
+            if not employee_id or not amount or not reason:
+                messages.error(request, 'جميع الحقول مطلوبة')
+                return redirect('hr:advance_request')
+            
+            # إنشاء السلفة
+            employee = Employee.objects.get(pk=employee_id)
+            advance = Advance.objects.create(
+                employee=employee,
+                amount=amount,
+                reason=reason,
+                status='pending'
+            )
+            
+            messages.success(request, f'تم تقديم طلب السلفة بنجاح - المبلغ: {amount} جنيه')
+            return redirect('hr:advance_list')
+            
+        except Employee.DoesNotExist:
+            messages.error(request, 'الموظف غير موجود')
+            return redirect('hr:advance_request')
+        except Exception as e:
+            messages.error(request, f'حدث خطأ: {str(e)}')
+            return redirect('hr:advance_request')
+    
+    # الحصول على قائمة الموظفين النشطين
+    employees = Employee.objects.filter(status='active').order_by('first_name_ar')
+    
+    context = {
+        'employees': employees,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'طلب سلفة جديدة',
+        'page_subtitle': 'تقديم طلب سلفة للموظف',
+        'page_icon': 'fas fa-hand-holding-usd',
+        'header_buttons': [
+            {
+                'url': reverse('hr:advance_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'السلف', 'url': reverse('hr:advance_list'), 'icon': 'fas fa-hand-holding-usd'},
+            {'title': 'طلب سلفة', 'active': True},
+        ],
+    }
+    return render(request, 'hr/advance/request.html', context)
 
 
 @login_required
 def advance_detail(request, pk):
     """تفاصيل السلفة"""
     advance = get_object_or_404(Advance, pk=pk)
-    return render(request, 'hr/advance/detail.html', {'advance': advance})
+    
+    context = {
+        'advance': advance,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'تفاصيل السلفة',
+        'page_subtitle': f'{advance.employee.get_full_name_ar()} - {advance.amount} جنيه',
+        'page_icon': 'fas fa-hand-holding-usd',
+        'header_buttons': [
+            {
+                'url': reverse('hr:advance_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'السلف', 'url': reverse('hr:advance_list'), 'icon': 'fas fa-hand-holding-usd'},
+            {'title': 'تفاصيل السلفة', 'active': True},
+        ],
+    }
+    return render(request, 'hr/advance/detail.html', context)
 
 
 @login_required

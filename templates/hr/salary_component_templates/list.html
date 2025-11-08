@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}قوالب مكونات الراتب{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/hr/salary-components.css' %}">
@@ -9,52 +9,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة مع Breadcrumb -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'core:dashboard' %}">
-                            <i class="fas fa-home me-1"></i>الرئيسية
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'hr:dashboard' %}">
-                            <i class="fas fa-users-cog me-1"></i>الموارد البشرية
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item">
-                        <a href="{% url 'hr:hr_settings' %}">
-                            <i class="fas fa-cog me-1"></i>الإعدادات
-                        </a>
-                    </li>
-                    <li class="breadcrumb-item active" aria-current="page">
-                        <i class="fas fa-clipboard-list me-1"></i>قوالب مكونات الراتب
-                    </li>
-                </ol>
-            </nav>
-        </div>
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                <div class="me-3">
-                    <i class="fas fa-clipboard-list fa-2x text-primary"></i>
-                </div>
-                <div>
-                    <h1 class="h3 mb-1">قوالب مكونات الراتب</h1>
-                    <p class="text-muted mb-0">إدارة بنود المستحقات والاستقطاعات</p>
-                </div>
-            </div>
-            <div>
-                <a href="{% url 'hr:salary_component_template_form' %}" class="btn btn-primary">
-                    <i class="fas fa-plus me-2"></i>إضافة قالب جديد
-                </a>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     {% if messages %}
         {% for message in messages %}

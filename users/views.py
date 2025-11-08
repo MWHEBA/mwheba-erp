@@ -52,7 +52,16 @@ def profile(request):
         "form": form,
         "title": "الملف الشخصي",
         "page_title": "الملف الشخصي",
+        "page_subtitle": "إدارة معلوماتك الشخصية وإعدادات حسابك",
         "page_icon": "fas fa-user-circle",
+        "header_buttons": [
+            {
+                "text": f"عضو منذ {user.date_joined.year}",
+                "icon": "fa-calendar-alt",
+                "class": "bg-primary",
+                "is_badge": True,
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -130,7 +139,16 @@ def user_list(request):
         "primary_key": "id",
         "title": "المستخدمين",
         "page_title": "قائمة المستخدمين",
+        "page_subtitle": "إدارة مستخدمي النظام",
         "page_icon": "fas fa-users",
+        "header_buttons": [
+            {
+                "url": reverse("users:user_create"),
+                "icon": "fa-plus",
+                "text": "إضافة مستخدم",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -193,6 +211,7 @@ def user_create(request):
         "form": form,
         "roles": roles,
         "page_title": "إضافة مستخدم جديد",
+        "page_subtitle": "إضافة مستخدم جديد للنظام",
         "page_icon": "fas fa-user-plus",
         "breadcrumb_items": [
             {
@@ -355,6 +374,7 @@ def activity_log(request):
         "date_from": date_from,
         "date_to": date_to,
         "page_title": "سجل النشاطات",
+        "page_subtitle": "عرض آخر النشاطات التي تمت في النظام",
         "page_icon": "fas fa-history",
         "breadcrumb_items": [
             {
@@ -362,7 +382,7 @@ def activity_log(request):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "المستخدمين", "url": "#", "icon": "fas fa-users"},
+            {"title": "المستخدمين", "url": reverse("users:user_list"), "icon": "fas fa-users"},
             {"title": "سجل النشاطات", "active": True},
         ],
     }
@@ -523,7 +543,16 @@ def role_list(request):
         "roles": roles,
         "search": search,
         "page_title": "إدارة الأدوار",
+        "page_subtitle": "إدارة أدوار المستخدمين وصلاحياتهم",
         "page_icon": "fas fa-user-tag",
+        "header_buttons": [
+            {
+                "url": reverse("users:role_create"),
+                "icon": "fa-plus",
+                "text": "إضافة دور جديد",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -567,7 +596,16 @@ def role_create(request):
         "form": form,
         "grouped_permissions": grouped_permissions,
         "page_title": "إنشاء دور جديد",
+        "page_subtitle": "إضافة دور جديد مع صلاحيات مخصصة",
         "page_icon": "fas fa-plus",
+        "header_buttons": [
+            {
+                "url": reverse("users:role_list"),
+                "icon": "fa-list",
+                "text": "العودة للقائمة",
+                "class": "btn-outline-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",

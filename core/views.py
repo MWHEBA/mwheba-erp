@@ -320,6 +320,7 @@ def company_settings(request):
     context = {
         "title": "إعدادات الشركة",
         "page_title": "إعدادات الشركة",
+        "page_subtitle": "تخصيص معلومات وإعدادات الشركة",
         "page_icon": "fas fa-building",
         "breadcrumb_items": [
             {
@@ -485,6 +486,7 @@ def system_settings(request):
     context = {
         "title": "إعدادات النظام",
         "page_title": "إعدادات النظام",
+        "page_subtitle": "تخصيص إعدادات النظام العامة",
         "page_icon": "fas fa-sliders-h",
         "breadcrumb_items": [
             {
@@ -561,29 +563,35 @@ def notifications_list(request):
         type_key = choice[0]
         type_counts[type_key] = all_notifications.filter(type=type_key).count()
 
-    # تحديد أزرار الإجراءات بناءً على وجود إشعارات غير مقروءة
-    action_buttons = None
+    # تحديد أزرار الهيدر
+    header_buttons = [
+        {
+            "url": reverse("core:notification_settings"),
+            "icon": "fa-cog",
+            "text": "الإعدادات",
+            "class": "btn-outline-secondary",
+        }
+    ]
+    
     if unread_count > 0:
-        action_buttons = [
-            {
-                "text": "تعليم الكل كمقروء",
-                "icon": "fa-check-double",
-                "class": "btn-outline-primary",
-                "url": "#",
-                "form_id": "mark_all_read_form",
-            }
-        ]
+        header_buttons.append({
+            "form_id": "mark_all_read_form",
+            "icon": "fa-check-double",
+            "text": "تعليم الكل كمقروء",
+            "class": "btn-primary",
+        })
 
     context = {
         "page_title": "إشعاراتي",
+        "page_subtitle": "إدارة ومتابعة جميع الإشعارات والتنبيهات",
         "page_icon": "fas fa-bell",
+        "header_buttons": header_buttons,
         "unread_notifications": unread_notifications,
         "read_notifications": read_notifications,
         "total_count": total_count,
         "unread_count": unread_count,
         "read_count": read_count,
         "filtered_count": filtered_count,
-        "action_buttons": action_buttons,
         "filter_type": filter_type,
         "notification_type": notification_type,
         "type_counts": type_counts,
@@ -592,11 +600,9 @@ def notifications_list(request):
                 "title": "الرئيسية",
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
-                "active": False
             },
             {
                 "title": "إشعاراتي",
-                "icon": "fas fa-bell",
                 "active": True
             },
         ],
@@ -697,10 +703,12 @@ def system_reset(request):
 @login_required
 def notification_settings(request):
     """
-    صفحة إعدادات الإشعارات للمستخدم
+    عرض وتعديل إعدادات الإشعارات للمستخدم الحالي
     """
-    # الحصول على تفضيلات المستخدم أو إنشاؤها
-    preference = NotificationPreference.get_or_create_for_user(request.user)
+    # الحصول على أو إنشاء تفضيلات الإشعارات للمستخدم
+    preference, created = NotificationPreference.objects.get_or_create(
+        user=request.user
+    )
     
     if request.method == 'POST':
         form = NotificationSettingsForm(request.POST, instance=preference)
@@ -711,49 +719,75 @@ def notification_settings(request):
     else:
         form = NotificationSettingsForm(instance=preference)
     
-    # إحصائيات الإشعارات
-    from datetime import datetime, timedelta
-    thirty_days_ago = datetime.now() - timedelta(days=30)
+    # إحصائيات الإشعارات (آخر 30 يوم)
+    from datetime import timedelta
+    thirty_days_ago = timezone.now() - timedelta(days=30)
     
-    user_notifications = Notification.objects.filter(user=request.user, created_at__gte=thirty_days_ago)
-    total_notifications = user_notifications.count()
-    read_notifications = user_notifications.filter(is_read=True).count()
-    unread_notifications = user_notifications.filter(is_read=False).count()
+    total_notifications = Notification.objects.filter(
+        user=request.user,
+        created_at__gte=thirty_days_ago
+    ).count()
     
-    # أكثر الأنواع شيوعاً
+    read_notifications = Notification.objects.filter(
+        user=request.user,
+        created_at__gte=thirty_days_ago,
+        is_read=True
+    ).count()
+    
+    unread_notifications = total_notifications - read_notifications
+    read_percentage = (read_notifications / total_notifications * 100) if total_notifications > 0 else 0
+    
+    # إحصائيات حسب النوع
     type_stats = []
     for choice in Notification.TYPE_CHOICES:
-        type_key = choice[0]
-        type_label = choice[1]
-        count = user_notifications.filter(type=type_key).count()
+        count = Notification.objects.filter(
+            user=request.user,
+            created_at__gte=thirty_days_ago,
+            type=choice[0]
+        ).count()
         if count > 0:
             type_stats.append({
-                'type': type_key,
-                'label': type_label,
+                'type': choice[0],
+                'label': choice[1],
                 'count': count
             })
     
-    # ترتيب حسب العدد
-    type_stats.sort(key=lambda x: x['count'], reverse=True)
-    
-    # Breadcrumbs
-    breadcrumb_items = [
-        {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
-        {'title': 'الإشعارات', 'url': reverse('core:notifications_list'), 'icon': 'fas fa-bell'},
-        {'title': 'إعدادات الإشعارات', 'active': True, 'icon': 'fas fa-cog'}
-    ]
+    # ترتيب حسب الأكثر شيوعاً
+    type_stats = sorted(type_stats, key=lambda x: x['count'], reverse=True)[:5]
     
     context = {
+        'title': 'إعدادات الإشعارات',
         'page_title': 'إعدادات الإشعارات',
+        'page_subtitle': 'تخصيص تفضيلات وطرق استلام الإشعارات',
         'page_icon': 'fas fa-cog',
-        'breadcrumb_items': breadcrumb_items,
+        'header_buttons': [
+            {
+                'url': reverse('core:notifications_list'),
+                'icon': 'fa-bell',
+                'text': 'عرض الإشعارات',
+                'class': 'btn-outline-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {
+                'title': 'الرئيسية',
+                'url': reverse('core:dashboard'),
+                'icon': 'fas fa-home',
+            },
+            {
+                'title': 'الإشعارات',
+                'url': reverse('core:notifications_list'),
+                'icon': 'fas fa-bell',
+            },
+            {'title': 'إعدادات الإشعارات', 'active': True},
+        ],
         'form': form,
         'preference': preference,
         'total_notifications': total_notifications,
         'read_notifications': read_notifications,
         'unread_notifications': unread_notifications,
-        'read_percentage': round((read_notifications / total_notifications * 100) if total_notifications > 0 else 0),
-        'type_stats': type_stats[:5],  # أعلى 5 أنواع
+        'read_percentage': round(read_percentage, 1),
+        'type_stats': type_stats,
     }
     
     return render(request, 'core/notification_settings.html', context)

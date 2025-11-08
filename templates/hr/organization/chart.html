@@ -3,11 +3,10 @@
 {% load i18n %}
 {% load custom_filters %}
 
-{% block title %}الهيكل التنظيمي{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
 .org-chart-wrapper {
     background: white;
@@ -163,50 +162,13 @@
     border-color: var(--primary-color);
     border-width: 2px;
 }
-
-.stat-card {
-    background: var(--card-bg);
-    border-radius: 8px;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-.stat-card h6 {
-    color: var(--text-muted);
-    margin-bottom: 10px;
-}
-
-.stat-card h3 {
-    color: var(--primary-color);
-    margin: 0;
-}
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:hr_settings' %}"><i class="fas fa-cog me-1"></i>الإعدادات</a></li>
-                  <li class="breadcrumb-item active"><i class="fas fa-sitemap me-1"></i>الهيكل التنظيمي</li>
-              </ol>
-          </nav>
-      </div>
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3"><i class="fas fa-sitemap fa-2x text-primary"></i></div>
-              <div>
-                  <h1 class="h3 mb-1">الهيكل التنظيمي</h1>
-                  <p class="text-muted mb-0">عرض الهيكل التنظيمي للشركة</p>
-              </div>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
 
   <div class="section-container">

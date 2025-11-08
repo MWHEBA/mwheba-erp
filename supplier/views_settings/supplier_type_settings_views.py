@@ -11,6 +11,7 @@ from django.db import transaction
 from django.utils.translation import gettext_lazy as _
 from django.core.paginator import Paginator
 from django.db.models import Q
+from django.urls import reverse
 
 from ..models import SupplierTypeSettings
 from ..forms.supplier_type_forms import (
@@ -67,7 +68,23 @@ def supplier_type_settings_list(request):
         'stats': stats,
         'search': search,
         'status': status,
-        'title': _('إعدادات أنواع الموردين'),
+        'page_title': _('إعدادات أنواع الموردين'),
+        'page_subtitle': 'إدارة وتخصيص أنواع الموردين والخدمات',
+        'page_icon': 'fas fa-tags',
+        'header_buttons': [
+            {
+                'onclick': "openModal('createModal')",
+                'icon': 'fa-plus',
+                'text': 'إضافة نوع جديد',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموردين', 'url': reverse('supplier:supplier_list'), 'icon': 'fas fa-truck'},
+            {'title': 'الإعدادات', 'icon': 'fas fa-cog'},
+            {'title': 'أنواع الموردين', 'active': True},
+        ],
     }
     
     return render(request, 'supplier/settings/supplier_types/list.html', context)

@@ -7,35 +7,7 @@
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
 <style>
-    .expense-card {
-        transition: transform 0.2s;
-    }
-    .expense-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
-    }
-    .expense-icon {
-        font-size: 2rem;
-        opacity: 0.7;
-    }
-    .expense-status {
-        position: absolute;
-        top: 10px;
-        right: 10px;
-    }
-    .expense-amount {
-        font-size: 1.5rem;
-        font-weight: bold;
-    }
-    .filter-section {
-        background-color: #f8f9fa;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
-        margin-bottom: 1.5rem;
-    }
     .transaction-icon {
         width: 35px;
         height: 35px;
@@ -49,63 +21,13 @@
     .transaction-expense {
         background-color: #dc3545;
     }
-    .expense-status-cell {
-        width: 100%;
-        text-align: center;
-    }
-
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title }}</h1>
-                    <p class="text-muted mb-0">إدارة وتتبع المصروفات في النظام</p>
-                </div>
-            </div>
-            <div>
-                <button type="button" class="btn btn-primary" onclick="openQuickExpenseModal()">
-                    <i class="fas fa-plus me-2"></i>{% trans "إضافة مصروف" %}
-                </button>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
     
     <!-- الإحصائيات -->
     <div class="section-container">
@@ -267,6 +189,15 @@ document.addEventListener('DOMContentLoaded', function() {
     // تهيئة الجداول باستخدام النظام الموحد
     if (typeof initializeAllTables === 'function') {
         initializeAllTables();
+    }
+    
+    // ربط زر إضافة مصروف بفتح المودال
+    const addExpenseBtn = document.getElementById('addExpenseBtn');
+    if (addExpenseBtn) {
+        addExpenseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openQuickExpenseModal();
+        });
     }
 });
 </script>

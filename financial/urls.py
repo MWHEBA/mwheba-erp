@@ -189,7 +189,7 @@ urlpatterns = [
     # المصروفات والإيرادات
     path("expenses/", views.expense_list, name="expense_list"),
     path("expenses/create/", views.expense_create, name="expense_create"),  # AJAX only
-    path("expenses/<int:pk>/", views.expense_detail, name="expense_detail"),
+    path("expenses/<int:pk>/", views.expense_detail_enhanced, name="expense_detail"),  # استخدام النسخة المحسنة
     path("expenses/<int:pk>/edit/", views.expense_edit, name="expense_edit"),
     path("expenses/<int:pk>/cancel/", views.expense_cancel, name="expense_cancel"),  # بدلاً من delete
     path("expenses/<int:pk>/mark-paid/", views.expense_mark_paid, name="expense_mark_paid"),  # بدلاً من post

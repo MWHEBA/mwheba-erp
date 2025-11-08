@@ -71,7 +71,16 @@ def loans_dashboard(request):
         'recent_payments': recent_payments,
         'quick_payment_form': QuickLoanPaymentForm(),
         'page_title': 'إدارة القروض',
+        'page_subtitle': 'إدارة ومتابعة جميع القروض في النظام',
         'page_icon': 'fas fa-hand-holding-usd',
+        'header_buttons': [
+            {
+                'url': reverse('financial:loan_create'),
+                'icon': 'fa-plus',
+                'text': 'إضافة قرض جديد',
+                'class': 'btn-primary',
+            },
+        ],
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'النظام المالي', 'url': '#', 'icon': 'fas fa-calculator'},
@@ -104,7 +113,16 @@ def loans_list(request):
         'status_filter': status_filter,
         'lender_type_filter': lender_type_filter,
         'page_title': 'قائمة القروض',
-        'page_icon': 'fas fa-list',
+        'page_subtitle': 'قائمة بجميع القروض في النظام',
+        'page_icon': 'fas fa-hand-holding-usd',
+        'header_buttons': [
+            {
+                'url': reverse('financial:loan_create'),
+                'icon': 'fa-plus',
+                'text': 'إضافة قرض جديد',
+                'class': 'btn-primary',
+            }
+        ],
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'إدارة القروض', 'url': reverse('financial:loans_dashboard'), 'icon': 'fas fa-hand-holding-usd'},
@@ -139,6 +157,13 @@ def loan_detail(request, pk):
         Q(is_cash_account=True) | Q(is_bank_account=True)
     )
     
+    # تحديد حالة القرض كـ badge
+    status_badge = {
+        'active': {'text': 'نشط', 'class': 'bg-success'},
+        'completed': {'text': 'مكتمل', 'class': 'bg-primary'},
+        'cancelled': {'text': 'ملغي', 'class': 'bg-secondary'},
+    }.get(loan.status, {'text': loan.get_status_display(), 'class': 'bg-secondary'})
+    
     context = {
         'loan': loan,
         'payments': payments,
@@ -147,8 +172,16 @@ def loan_detail(request, pk):
         'overdue_payments': overdue_payments,
         'payment_accounts': payment_accounts,
         'today': timezone.now().date(),
-        'page_title': f'تفاصيل القرض - {loan.loan_number}',
+        'page_title': loan.loan_number,
+        'page_subtitle': f'{loan.lender_name} - {loan.get_lender_type_display()}',
         'page_icon': 'fas fa-file-invoice-dollar',
+        'header_buttons': [
+            {
+                'text': status_badge['text'],
+                'class': status_badge['class'],
+                'is_badge': True,
+            },
+        ],
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'إدارة القروض', 'url': reverse('financial:loans_dashboard'), 'icon': 'fas fa-hand-holding-usd'},
@@ -192,6 +225,7 @@ def loan_create(request):
     context = {
         'form': form,
         'page_title': 'إضافة قرض جديد',
+        'page_subtitle': 'أدخل بيانات القرض الجديد',
         'page_icon': 'fas fa-plus-circle',
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},

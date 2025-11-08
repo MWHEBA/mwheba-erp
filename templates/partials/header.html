@@ -1,6 +1,7 @@
 {% load static %}
 {% load i18n %}
 {% load arabic_time %}
+{% load notification_tags %}
 
 <header class="header">
     <div class="header-container">
@@ -199,18 +200,7 @@
                                 {% if not notification.is_read %}
                                     <a href="{% if notification.get_link_url %}{{ notification.get_link_url }}{% else %}#{% endif %}" class="notification-item unread" data-id="{{ notification.id }}">
                                         <div class="notification-icon bg-{{ notification.type }}">
-                                            <i class="fas 
-                                                {% if notification.type == 'info' %}fa-info
-                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
-                                                {% elif notification.type == 'success' %}fa-check
-                                                {% elif notification.type == 'danger' %}fa-times
-                                                {% elif notification.type == 'inventory_alert' %}fa-box
-                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
-                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
-                                                {% elif notification.type == 'return_request' %}fa-undo
-                                                {% else %}fa-bell
-                                                {% endif %}">
-                                            </i>
+                                            <i class="fas {% notification_icon notification.type %}"></i>
                                         </div>
                                         <div class="notification-content">
                                             <div class="notification-title">{{ notification.title }}</div>
@@ -228,19 +218,8 @@
                             {% for notification in notifications %}
                                 {% if notification.is_read %}
                                     <a href="{% if notification.get_link_url %}{{ notification.get_link_url }}{% else %}#{% endif %}" class="notification-item">
-                                        <div class="notification-icon bg-light text-{{ notification.type }}">
-                                            <i class="fas 
-                                                {% if notification.type == 'info' %}fa-info
-                                                {% elif notification.type == 'warning' %}fa-exclamation-triangle
-                                                {% elif notification.type == 'success' %}fa-check
-                                                {% elif notification.type == 'danger' %}fa-times
-                                                {% elif notification.type == 'inventory_alert' %}fa-box
-                                                {% elif notification.type == 'payment_received' %}fa-money-bill-wave
-                                                {% elif notification.type == 'new_invoice' %}fa-file-invoice
-                                                {% elif notification.type == 'return_request' %}fa-undo
-                                                {% else %}fa-bell
-                                                {% endif %}">
-                                            </i>
+                                        <div class="notification-icon bg-light">
+                                            <i class="fas {% notification_icon notification.type %}"></i>
                                         </div>
                                         <div class="notification-content">
                                             <div class="notification-title">{{ notification.title }}</div>

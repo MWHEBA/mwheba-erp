@@ -4,35 +4,12 @@
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 {% load utils_extras %}
-{% block title %}{% if sale.id %}تعديل فاتورة مبيعات - {{ sale.number }}{% else %}إضافة فاتورة مبيعات جديدة{% endif %}{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
 <style>
-    /* تصميم نظيف وبسيط */
-    .form-label {
-        font-weight: 500;
-        color: #2c3e50;
-        margin-bottom: 8px;
-    }
-    
-    .form-control {
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        font-size: 14px;
-        transition: border-color 0.2s ease;
-    }
-    
-    .form-control:focus {
-        border-color: #007bff;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.1);
-    }
-    
-    .card {
-        border: 1px solid #e9ecef;
-        border-radius: 8px;
-    }
-    
+    /* ستايلات خاصة بنموذج الفاتورة */
     .item-row {
         background-color: #f8f9fa;
         border: 1px solid #e9ecef;
@@ -49,20 +26,6 @@
         margin-top: 24px;
     }
     
-    .remove-item {
-        color: #dc3545;
-        cursor: pointer;
-        font-size: 18px;
-    }
-    
-    .remove-item:hover {
-        color: #c82333;
-    }
-    
-    .add-more-btn {
-        margin-top: 16px;
-    }
-    
     .stock-info {
         font-size: 12px;
         color: #6c757d;
@@ -73,78 +36,13 @@
         color: #dc3545;
         font-weight: 500;
     }
-    
-    /* تحسين المساحات */
-    .row.g-4 > * {
-        padding-right: 12px;
-        padding-left: 12px;
-    }
-    
-    /* تحسين الأزرار */
-    .btn {
-        border-radius: 6px;
-        font-weight: 500;
-        padding: 10px 20px;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة (مضمن مباشرة) -->
-    <div class="mb-4">
-        <!-- Breadcrumbs -->
-        {% if breadcrumb_items %}
-        <div class="mb-2">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                    {% for item in breadcrumb_items %}
-                        {% if forloop.last or item.active %}
-                            <li class="breadcrumb-item active" aria-current="page">
-                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                {{ item.title }}
-                            </li>
-                        {% else %}
-                            <li class="breadcrumb-item">
-                                <a href="{{ item.url }}">
-                                    {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
-                                    {{ item.title }}
-                                </a>
-                            </li>
-                        {% endif %}
-                    {% endfor %}
-                </ol>
-            </nav>
-        </div>
-        {% endif %}
-        
-        <!-- Header -->
-        <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-            <div class="d-flex align-items-center">
-                {% if page_icon %}
-                    <div class="me-3">
-                        <i class="{{ page_icon }} fa-2x text-primary"></i>
-                    </div>
-                {% endif %}
-                <div>
-                    <h1 class="h3 mb-1">{{ page_title|default:"إضافة فاتورة مبيعات" }}</h1>
-                    <p class="text-muted mb-0">{% if sale.id %}تعديل بيانات الفاتورة رقم {{ sale.number }}{% else %}إضافة فاتورة مبيعات جديدة إلى النظام{% endif %}</p>
-                </div>
-            </div>
-            
-            <div>
-                {% if selected_customer %}
-                    <a href="{% url 'client:customer_detail' pk=selected_customer.pk %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-right me-1"></i> العودة لتفاصيل العميل
-                    </a>
-                {% else %}
-                    <a href="{% url 'sale:sale_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-right me-1"></i> العودة للقائمة
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- نموذج الفاتورة -->
     <div class="card border-0 shadow-sm mb-4">

@@ -79,6 +79,24 @@ class OrderListView(LoginRequiredMixin, ListView):
             )['total'] or Decimal('0.00')
         }
         
+        # Page Header Context
+        context['page_title'] = 'طلبات التسعير'
+        context['page_subtitle'] = 'عرض وإدارة جميع طلبات التسعير'
+        context['page_icon'] = 'fas fa-list'
+        context['header_buttons'] = [
+            {
+                'url': reverse('printing_pricing:order_create'),
+                'icon': 'fa-plus',
+                'text': 'طلب جديد',
+                'class': 'btn-primary',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'نظام التسعير', 'url': reverse('printing_pricing:dashboard'), 'icon': 'fas fa-print'},
+            {'title': 'الطلبات', 'active': True},
+        ]
+        
         return context
 
 
@@ -126,6 +144,27 @@ class OrderCreateView(LoginRequiredMixin, CreateView):
     model = PrintingOrder
     form_class = PrintingOrderForm
     template_name = 'printing_pricing/orders/order_form.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = 'إنشاء طلب جديد'
+        context['page_subtitle'] = 'إنشاء طلب تسعير جديد مع حساب التكلفة التلقائي'
+        context['page_icon'] = 'fas fa-plus'
+        context['header_buttons'] = [
+            {
+                'url': reverse('printing_pricing:order_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'نظام التسعير', 'url': reverse('printing_pricing:dashboard'), 'icon': 'fas fa-print'},
+            {'title': 'الطلبات', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-list'},
+            {'title': 'إنشاء طلب', 'active': True},
+        ]
+        return context
     
     def form_valid(self, form):
         """معالجة النموذج الصحيح"""
@@ -262,6 +301,23 @@ class DashboardView(LoginRequiredMixin, ListView):
             context['order_type_stats'] = []
             context['status_stats'] = []
             context['top_customers'] = []
+        
+        # Page Header Context
+        context['page_title'] = 'لوحة التحكم - نظام التسعير'
+        context['page_subtitle'] = 'نظرة عامة على نشاط نظام التسعير المحسن'
+        context['page_icon'] = 'fas fa-tachometer-alt'
+        context['header_buttons'] = [
+            {
+                'url': reverse('printing_pricing:order_create'),
+                'icon': 'fa-plus',
+                'text': 'طلب جديد',
+                'class': 'btn-primary',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'نظام التسعير', 'active': True},
+        ]
         
         return context
 

@@ -59,6 +59,25 @@ def leave_balance_list(request):
     # جلب إعدادات الترحيل
     rollover_enabled = SystemSetting.get_setting('leave_rollover_enabled', False)
     
+    # إعداد الأزرار
+    header_buttons = [
+        {
+            'url': reverse('hr:leave_balance_update'),
+            'icon': 'fa-edit',
+            'text': 'تحديث',
+            'class': 'btn-primary',
+        },
+    ]
+    
+    if rollover_enabled:
+        header_buttons.append({
+            'url': reverse('hr:leave_balance_rollover'),
+            'icon': 'fa-sync',
+            'text': 'ترحيل',
+            'class': 'btn-success',
+            'title': 'ترحيل الأرصدة للسنة الجديدة',
+        })
+    
     context = {
         'balances': balances,
         'grouped_balances': grouped_balances,
@@ -67,6 +86,18 @@ def leave_balance_list(request):
         'selected_year': int(year),
         'years': range(current_year - 2, current_year + 2),
         'rollover_enabled': rollover_enabled,
+        
+        # بيانات الهيدر الموحد
+        'page_title': f'أرصدة الإجازات - {year}',
+        'page_subtitle': 'متابعة أرصدة إجازات الموظفين',
+        'page_icon': 'fas fa-chart-pie',
+        'header_buttons': header_buttons,
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'أرصدة الإجازات', 'active': True},
+        ],
     }
     return render(request, 'hr/leave_balance/list.html', context)
 
@@ -93,6 +124,25 @@ def leave_balance_employee(request, employee_id):
         'balances': balances,
         'leaves': leaves,
         'current_year': current_year,
+        
+        # بيانات الهيدر الموحد
+        'page_title': f'أرصدة إجازات: {employee.get_full_name_ar()}',
+        'page_subtitle': f'{employee.employee_number} - {employee.department.name_ar if employee.department else ""}',
+        'page_icon': 'fas fa-user-clock',
+        'header_buttons': [
+            {
+                'url': reverse('hr:leave_balance_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'أرصدة الإجازات', 'url': reverse('hr:leave_balance_list'), 'icon': 'fas fa-chart-pie'},
+            {'title': employee.get_full_name_ar(), 'active': True},
+        ],
     }
     return render(request, 'hr/leave_balance/employee.html', context)
 
@@ -100,6 +150,8 @@ def leave_balance_employee(request, employee_id):
 @login_required
 def leave_balance_update(request):
     """تحديث أرصدة الإجازات"""
+    from django.urls import reverse
+    
     if request.method == 'POST':
         employee_id = request.POST.get('employee_id')
         leave_type_id = request.POST.get('leave_type_id')
@@ -131,6 +183,23 @@ def leave_balance_update(request):
         'employees': employees,
         'leave_types': leave_types,
         'current_year': date.today().year,
+        'page_title': 'تحديث أرصدة الإجازات',
+        'page_subtitle': 'تحديث رصيد إجازة موظف',
+        'page_icon': 'fas fa-edit',
+        'header_buttons': [
+            {
+                'url': reverse('hr:leave_balance_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users'},
+            {'title': 'أرصدة الإجازات', 'url': reverse('hr:leave_balance_list'), 'icon': 'fas fa-chart-pie'},
+            {'title': 'تحديث', 'active': True},
+        ],
     }
     return render(request, 'hr/leave_balance/update.html', context)
 
@@ -209,6 +278,25 @@ def leave_balance_rollover(request):
         'rollover_enabled': rollover_enabled,
         'max_rollover_days': max_rollover_days,
         'annual_days': annual_days,
+        
+        # بيانات الهيدر الموحد
+        'page_title': 'ترحيل أرصدة الإجازات',
+        'page_subtitle': 'ترحيل الأرصدة للسنة الجديدة',
+        'page_icon': 'fas fa-sync',
+        'header_buttons': [
+            {
+                'url': reverse('hr:leave_balance_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'أرصدة الإجازات', 'url': reverse('hr:leave_balance_list'), 'icon': 'fas fa-chart-pie'},
+            {'title': 'ترحيل', 'active': True},
+        ],
     }
     return render(request, 'hr/leave_balance/rollover.html', context)
 

@@ -15,12 +15,41 @@ __all__ = [
 @login_required
 def department_list(request):
     """قائمة الأقسام"""
+    from django.urls import reverse
+    
     departments = Department.objects.all().select_related('manager', 'parent')
+    total_departments = departments.count()
+    active_departments = departments.filter(is_active=True).count()
+    total_employees = Employee.objects.filter(status='active').count()
+    
     context = {
         'departments': departments,
-        'total_departments': departments.count(),
-        'active_departments': departments.filter(is_active=True).count(),
-        'total_employees': Employee.objects.filter(status='active').count(),
+        'total_departments': total_departments,
+        'active_departments': active_departments,
+        'total_employees': total_employees,
+        
+        # بيانات الهيدر
+        'page_title': 'الأقسام',
+        'page_subtitle': 'إدارة الأقسام والهيكل التنظيمي',
+        'page_icon': 'fas fa-building',
+        
+        # أزرار الهيدر
+        'header_buttons': [
+            {
+                'url': reverse('hr:department_form'),
+                'icon': 'fa-plus',
+                'text': 'إضافة قسم',
+                'class': 'btn-primary',
+            },
+        ],
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الإعدادات', 'url': reverse('hr:hr_settings'), 'icon': 'fas fa-cog'},
+            {'title': 'الأقسام', 'active': True},
+        ],
     }
     return render(request, 'hr/department/list.html', context)
 
@@ -133,5 +162,24 @@ def department_form(request, pk=None):
         'next_code': next_code,
         'departments': departments,
         'employees': Employee.objects.filter(status='active'),
+        
+        # بيانات الهيدر
+        'page_title': 'تعديل قسم' if pk else 'إضافة قسم جديد',
+        'page_subtitle': department.name_ar if pk else 'إدخال بيانات القسم',
+        'page_icon': 'fas fa-building',
+        'header_buttons': [
+            {
+                'url': reverse('hr:department_list'),
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'الأقسام', 'url': reverse('hr:department_list'), 'icon': 'fas fa-building'},
+            {'title': 'تعديل قسم' if pk else 'إضافة قسم', 'active': True},
+        ],
     }
     return render(request, 'hr/department/form.html', context)

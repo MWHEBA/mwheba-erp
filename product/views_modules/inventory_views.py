@@ -10,6 +10,7 @@ from django.db.models import Q, Sum, Count, F
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.urls import reverse
 from datetime import datetime, timedelta
 import json
 
@@ -504,6 +505,23 @@ def abc_analysis_report(request):
             "category": category_id,
         },
         "error": report_data.get("error"),
+        "page_title": "تحليل ABC",
+        "page_subtitle": "تصنيف المنتجات حسب القيمة والأهمية",
+        "page_icon": "fas fa-chart-pie",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-success",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "تحليل ABC", "active": True},
+        ],
     }
 
     return render(request, "product/reports/abc_analysis.html", context)
@@ -563,6 +581,23 @@ def inventory_turnover_report(request):
         },
         "selected_warehouse": warehouse,
         "error": report_data.get("error"),
+        "page_title": "معدل دوران المخزون",
+        "page_subtitle": "تحليل سرعة حركة المنتجات",
+        "page_icon": "fas fa-sync-alt",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-primary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "معدل الدوران", "active": True},
+        ],
     }
 
     return render(request, "product/reports/inventory_turnover.html", context)
@@ -636,6 +671,23 @@ def reorder_point_report(request):
         },
         "selected_warehouse": warehouse,
         "error": report_data.get("error"),
+        "page_title": "نقاط إعادة الطلب",
+        "page_subtitle": "تحديد المنتجات التي تحتاج إعادة طلب",
+        "page_icon": "fas fa-exclamation-triangle",
+        "header_buttons": [
+            {
+                "onclick": "window.print()",
+                "icon": "fa-print",
+                "text": "طباعة",
+                "class": "btn-primary",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-box"},
+            {"title": "التقارير", "icon": "fas fa-chart-bar"},
+            {"title": "نقاط إعادة الطلب", "active": True},
+        ],
     }
 
     return render(request, "product/reports/reorder_point.html", context)

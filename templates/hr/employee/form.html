@@ -64,51 +64,8 @@
 
 {% block content %}
 <div class="container-fluid">
-  <!-- Breadcrumb + Header -->
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users-cog me-1"></i>الموظفين</a></li>
-                  <li class="breadcrumb-item active">
-                      <i class="fas {% if employee %}fa-user-edit{% else %}fa-user-plus{% endif %} me-1"></i>
-                      {% if employee %}تعديل موظف{% else %}إضافة موظف{% endif %}
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas {% if employee %}fa-user-edit{% else %}fa-user-plus{% endif %} fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">
-                      {% if employee %}
-                          تعديل بيانات الموظف: {{ employee.get_full_name_ar }}
-                      {% else %}
-                          إضافة موظف جديد
-                      {% endif %}
-                  </h1>
-                  <p class="text-muted mb-0">
-                      {% if employee %}
-                          تحديث بيانات الموظف في النظام
-                      {% else %}
-                          إضافة موظف جديد إلى النظام
-                      {% endif %}
-                  </p>
-              </div>
-          </div>
-          <div>
-              <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary">
-                  <i class="fas fa-arrow-right me-2"></i>رجوع
-              </a>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
   <!-- نموذج الموظف -->
   <div class="section-container">

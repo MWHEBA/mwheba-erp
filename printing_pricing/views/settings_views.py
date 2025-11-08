@@ -79,6 +79,15 @@ class PaperTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع الورق')
         context['page_icon'] = 'fas fa-layer-group'
+        context['page_subtitle'] = _('إدارة أنواع الورق المختلفة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:paper_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -165,6 +174,15 @@ class PaperSizeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مقاسات الورق')
         context['page_icon'] = 'fas fa-ruler-combined'
+        context['page_subtitle'] = _('إدارة مقاسات الورق المتاحة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:paper_size_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -249,6 +267,15 @@ class PaperWeightListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أوزان الورق')
         context['page_icon'] = 'fas fa-weight-hanging'
+        context['page_subtitle'] = _('إدارة أوزان الورق المختلفة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:paper_weight_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -351,6 +378,15 @@ class PaperOriginListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مناشئ الورق')
         context['page_icon'] = 'fas fa-globe-americas'
+        context['page_subtitle'] = _('إدارة مناشئ الورق')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:paper_origin_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -453,6 +489,15 @@ class PrintDirectionListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('اتجاهات الطباعة')
         context['page_icon'] = 'fas fa-arrows-alt'
+        context['page_subtitle'] = _('إدارة اتجاهات الطباعة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:print_direction_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -580,6 +625,15 @@ class CoatingTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع التغطية')
         context['page_icon'] = 'fas fa-paint-brush'
+        context['page_subtitle'] = _('إدارة أنواع التغطية والورنيش')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:coating_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -666,6 +720,15 @@ class FinishingTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع خدمات الطباعة')
         context['page_icon'] = 'fas fa-magic'
+        context['page_subtitle'] = _('إدارة أنواع التشطيب والتجليد')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:finishing_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -752,6 +815,15 @@ class PackagingTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع التقفيل')
         context['page_icon'] = 'fas fa-box'
+        context['page_subtitle'] = _('إدارة أنواع التقفيل والتغليف')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:packaging_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -832,6 +904,15 @@ class PieceSizeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مقاسات القطع')
         context['page_icon'] = 'fas fa-cut'
+        context['page_subtitle'] = _('إدارة مقاسات القطع المتاحة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:piece_size_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -924,6 +1005,8 @@ class PieceSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
 @login_required
 def settings_home(request):
     """الصفحة الرئيسية للإعدادات"""
+    from django.urls import reverse
+    
     context = {
         'title': _('إعدادات النظام'),
         'paper_types_count': PaperType.objects.filter(is_active=True).count(),
@@ -945,6 +1028,18 @@ def settings_home(request):
         'digital_machine_types_count': DigitalMachineType.objects.filter(is_active=True).count(),
         'digital_sheet_sizes_count': DigitalSheetSize.objects.filter(is_active=True).count(),
         'system_settings_count': SystemSetting.objects.filter(is_active=True).count(),
+        
+        # بيانات الهيدر
+        'page_title': 'إعدادات التسعير',
+        'page_subtitle': 'إدارة وتخصيص إعدادات نظام التسعير',
+        'page_icon': 'fas fa-cog',
+        
+        # البريدكرمب
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'تسعير الطباعة', 'url': reverse('printing_pricing:order_list'), 'icon': 'fas fa-print'},
+            {'title': 'إعدادات التسعير', 'active': True},
+        ],
     }
     return render(request, 'printing_pricing/settings/settings_home.html', context)
 
@@ -966,6 +1061,39 @@ class VATSettingListView(LoginRequiredMixin, ListView):
                 Q(description__icontains=search) | Q(percentage__icontains=search)
             )
         return queryset.order_by('-created_at')
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = _('إعدادات ضريبة القيمة المضافة')
+        context['page_icon'] = 'fas fa-percentage'
+        context['page_subtitle'] = _('إدارة إعدادات ضريبة القيمة المضافة')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:vat_setting_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
+        context['breadcrumb_items'] = [
+            {
+                'title': _('الرئيسية'),
+                'url': '/',
+                'icon': 'fas fa-home'
+            },
+            {
+                'title': _('الإعدادات'),
+                'url': reverse_lazy('printing_pricing:settings_home'),
+                'icon': 'fas fa-cog'
+            },
+            {
+                'title': _('ضريبة القيمة المضافة'),
+                'url': '',
+                'icon': 'fas fa-percentage',
+                'active': True
+            }
+        ]
+        return context
 
 
 class VATSettingCreateView(LoginRequiredMixin, CreateView):
@@ -1013,6 +1141,15 @@ class OffsetMachineTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع ماكينات الأوفست')
         context['page_icon'] = 'fas fa-print'
+        context['page_subtitle'] = _('إدارة أنواع ماكينات الأوفست')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:offset_machine_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -1115,6 +1252,15 @@ class OffsetSheetSizeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مقاسات ماكينات الأوفست')
         context['page_icon'] = 'fas fa-expand-arrows-alt'
+        context['page_subtitle'] = _('إدارة مقاسات ماكينات الأوفست')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:offset_sheet_size_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -1199,6 +1345,15 @@ class DigitalMachineTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع ماكينات الديجيتال')
         context['page_icon'] = 'fas fa-desktop'
+        context['page_subtitle'] = _('إدارة أنواع ماكينات الديجيتال')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:digital_machine_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -1285,6 +1440,15 @@ class DigitalSheetSizeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مقاسات ماكينات الديجيتال')
         context['page_icon'] = 'fas fa-tablet-alt'
+        context['page_subtitle'] = _('إدارة مقاسات ماكينات الديجيتال')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:digital_sheet_size_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -1481,6 +1645,15 @@ class ProductTypeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('أنواع المنتجات')
         context['page_icon'] = 'fas fa-box'
+        context['page_subtitle'] = _('إدارة أنواع المنتجات')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:product_type_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),
@@ -1567,6 +1740,15 @@ class ProductSizeListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = _('مقاسات المنتجات')
         context['page_icon'] = 'fas fa-ruler'
+        context['page_subtitle'] = _('إدارة مقاسات المنتجات')
+        context['header_buttons'] = [
+            {
+                'url': reverse_lazy('printing_pricing:product_size_create'),
+                'icon': 'fa-plus',
+                'text': _('إضافة جديد'),
+                'class': 'btn-primary',
+            },
+        ]
         context['breadcrumb_items'] = [
             {
                 'title': _('الرئيسية'),

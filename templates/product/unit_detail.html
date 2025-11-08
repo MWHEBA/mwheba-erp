@@ -6,26 +6,12 @@
 {% block title %}{{ title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
-    <div class="row mb-4">
-        <div class="col">
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="page-title">{% trans "تفاصيل وحدة القياس:" %} {{ unit.name }}</h1>
-                <div>
-                    <a href="{% url 'product:unit_edit' unit.pk %}" class="btn btn-warning">
-                        <i class="fas fa-edit ml-1"></i> {% trans "تعديل" %}
-                    </a>
-                    <a href="{% url 'product:unit_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-right ml-1"></i> {% trans "العودة للقائمة" %}
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <div class="row">
         <!-- بطاقة معلومات وحدة القياس -->

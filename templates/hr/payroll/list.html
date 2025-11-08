@@ -3,41 +3,16 @@
 {% load i18n %}
 {% load custom_filters %}
 
-{% block title %}كشوف الرواتب{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item active"><i class="fas fa-money-bill-wave me-1"></i>كشوف الرواتب</li>
-              </ol>
-          </nav>
-      </div>
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3"><i class="fas fa-money-bill-wave fa-2x text-primary"></i></div>
-              <div>
-                  <h1 class="h3 mb-1">كشوف الرواتب</h1>
-                  <p class="text-muted mb-0">إدارة ومعالجة رواتب الموظفين</p>
-              </div>
-          </div>
-          <div>
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#processPayrollModal">
-                    <i class="fas fa-calculator me-2"></i>
-                    معالجة رواتب شهر
-                </button>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>

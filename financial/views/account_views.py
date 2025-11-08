@@ -279,6 +279,7 @@ def cash_and_bank_accounts_list(request):
         "bank_accounts_count": bank_accounts_count,
         "total_balance": total_balance,
         "page_title": "قائمة الخزن والحسابات النقدية",
+        "page_subtitle": "الحسابات النقدية والبنكية التي يمكن الصرف منها والإيداع فيها",
         "page_icon": "fas fa-money-bill-wave",
         "breadcrumb_items": [
             {
@@ -286,8 +287,16 @@ def cash_and_bank_accounts_list(request):
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "قائمة الخزن والحسابات النقدية", "active": True},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
+            {"title": "قائمة الخزن", "active": True},
+        ],
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_create"),
+                "icon": "fa-plus",
+                "text": "إضافة خزنة جديدة",
+                "class": "btn-success",
+            }
         ],
     }
     return render(
@@ -483,7 +492,22 @@ def chart_of_accounts_list(request):
         "view_mode": view_mode if "view_mode" in locals() else "tree",
         "show_inactive": show_inactive,
         "page_title": "دليل الحسابات",
+        "page_subtitle": "إدارة دليل الحسابات المحاسبي الشامل",
         "page_icon": "fas fa-sitemap",
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_types_list"),
+                "icon": "fa-layer-group",
+                "text": "أنواع الحسابات",
+                "class": "btn-outline-secondary",
+            },
+            {
+                "url": reverse("financial:chart_of_accounts_create"),
+                "icon": "fa-plus",
+                "text": "إضافة حساب جديد",
+                "class": "btn-primary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -663,6 +687,14 @@ def chart_of_accounts_create(request):
                     "form_data": request.POST,
                     "page_title": "إنشاء حساب جديد",
                     "page_icon": "fas fa-plus",
+                    "header_buttons": [
+                        {
+                            "url": reverse("financial:chart_of_accounts_list"),
+                            "icon": "fa-arrow-left",
+                            "text": "العودة للقائمة",
+                            "class": "btn-secondary",
+                        }
+                    ],
                     "breadcrumb_items": [
                         {
                             "title": "الرئيسية",
@@ -761,7 +793,16 @@ def chart_of_accounts_create(request):
         "parent_accounts": parent_accounts,
         "suggested_code": suggested_code,
         "page_title": "إضافة حساب جديد",
+        "page_subtitle": "إنشاء حساب جديد في دليل الحسابات",
         "page_icon": "fas fa-plus-circle",
+        "header_buttons": [
+            {
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            }
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -771,7 +812,7 @@ def chart_of_accounts_create(request):
             {"title": "النظام المحاسبي", "url": "#", "icon": "fas fa-calculator"},
             {
                 "title": "دليل الحسابات",
-                "url": reverse("financial:account_list"),
+                "url": reverse("financial:chart_of_accounts_list"),
                 "icon": "fas fa-sitemap",
             },
             {"title": "إضافة حساب جديد", "active": True},
@@ -955,7 +996,22 @@ def chart_of_accounts_detail(request, pk):
         "balance_summary": balance_summary,
         "is_cash_account": account.is_cash_account or account.is_bank_account,
         "page_title": f"تفاصيل حساب: {account.name}",
+        "page_subtitle": f"كود الحساب: {account.code} - {account.account_type.name if account.account_type else 'غير محدد'}",
         "page_icon": "fas fa-file-invoice-dollar",
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_edit", args=[account.pk]),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-outline-warning",
+            },
+            {
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -1068,14 +1124,19 @@ def account_types_list(request):
         "category_stats": category_stats,
         "level_stats": level_stats,
         "page_title": "أنواع الحسابات",
+        "page_subtitle": "إدارة أنواع الحسابات المحاسبية وتصنيفاتها",
         "page_icon": "fas fa-layer-group",
-        "breadcrumb_items": [
+        "header_buttons": [
             {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+                "url": reverse("financial:account_types_create"),
+                "icon": "fa-plus",
+                "text": "إضافة نوع جديد",
+                "class": "btn-primary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-chart-line"},
             {"title": "أنواع الحسابات", "active": True},
         ],
     }
@@ -1109,20 +1170,35 @@ def account_types_detail(request, pk):
         "accounts_count": accounts_count,
         "children_count": children_count,
         "page_title": f"تفاصيل نوع الحساب: {account_type.name}",
-        "page_icon": "fas fa-info-circle",
+        "page_subtitle": f"عرض تفاصيل وإحصائيات نوع الحساب ({account_type.code})",
+        "page_icon": "fas fa-layer-group",
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
                 "url": reverse("core:dashboard"),
                 "icon": "fas fa-home",
             },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
             {
                 "title": "أنواع الحسابات",
                 "url": reverse("financial:account_types_list"),
                 "icon": "fas fa-layer-group",
             },
             {"title": account_type.name, "active": True},
+        ],
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_types_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+            {
+                "url": reverse("financial:account_types_edit", kwargs={"pk": account_type.pk}),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-primary",
+            },
         ],
     }
     return render(request, "financial/accounts/account_types_detail.html", context)
@@ -1175,7 +1251,22 @@ def account_types_create(request):
     context = {
         "parent_types": parent_types,
         "page_title": "إضافة نوع حساب جديد",
+        "page_subtitle": "إدارة أنواع الحسابات المحاسبية",
         "page_icon": "fas fa-plus-circle",
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_types_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المالية", "url": "#", "icon": "fas fa-coins"},
+            {"title": "أنواع الحسابات", "url": reverse("financial:account_types_list"), "icon": "fas fa-layer-group"},
+            {"title": "إضافة نوع جديد", "active": True},
+        ],
     }
     return render(request, "financial/accounts/account_types_form.html", context)
 
@@ -1248,7 +1339,22 @@ def account_types_edit(request, pk):
         "account_type": account_type,
         "parent_types": parent_types,
         "page_title": f"تعديل نوع حساب: {account_type.name}",
+        "page_subtitle": "إدارة أنواع الحسابات المحاسبية",
         "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("financial:account_types_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المالية", "url": "#", "icon": "fas fa-coins"},
+            {"title": "أنواع الحسابات", "url": reverse("financial:account_types_list"), "icon": "fas fa-layer-group"},
+            {"title": f"تعديل: {account_type.name}", "active": True},
+        ],
     }
     return render(request, "financial/accounts/account_types_form.html", context)
 
@@ -1268,46 +1374,6 @@ def account_types_delete(request, pk):
         "page_icon": "fas fa-times-circle",
     }
     return render(request, "financial/accounts/account_types_delete.html", context)
-
-
-@login_required
-def account_list(request):
-    """
-    عرض قائمة الحسابات المالية
-    """
-    accounts = get_all_active_accounts()
-
-    # إحصائيات من النظام الجديد
-    total_assets = (
-        accounts.filter(opening_balance__gt=0)
-        .aggregate(Sum("opening_balance"))
-        .get("opening_balance__sum", 0)
-        or 0
-    )
-    # total_income = 0  # سيتم حسابها من القيود المحاسبية لاحقاً
-    # total_expenses = 0  # سيتم حسابها من القيود المحاسبية لاحقاً
-    total_income = 0
-    total_expenses = 0
-
-    context = {
-        "accounts": accounts,
-        "total_assets": total_assets,
-        "total_income": total_income,
-        "total_expenses": total_expenses,
-        "page_title": "الحسابات المالية",
-        "page_icon": "fas fa-landmark",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "الحسابات المالية", "active": True},
-        ],
-    }
-
-    return render(request, "financial/accounts/account_list.html", context)
 
 
 def get_account_transactions(account, limit=50, transaction_type="all"):
@@ -1412,214 +1478,10 @@ def get_account_analytics(account, period_days=30):
     return analytics
 
 
-@login_required
-def account_detail(request, pk):
-    """
-    عرض تفاصيل حساب مالي محدد - محسن ومطور
-    """
-    account = get_object_or_404(ChartOfAccounts, pk=pk)
+# تم حذف account_detail - مكرر مع chart_of_accounts_detail
 
-    # جلب المعاملات بالطريقة الذكية الجديدة
-    transactions = get_account_transactions(account, limit=20)
-
-    # جلب التحليلات المتقدمة
-    analytics = get_account_analytics(account, period_days=30)
-
-    # إحصائيات إضافية للعرض
-    try:
-        # إحصائيات الحساب من القيود المحاسبية
-        if account.is_leaf:
-            all_lines = JournalEntryLine.objects.filter(
-                account=account, journal_entry__status="posted"
-            )
-        else:
-            leaf_accounts = account.get_leaf_descendants(include_self=True)
-            all_lines = JournalEntryLine.objects.filter(
-                account__in=leaf_accounts, journal_entry__status="posted"
-            )
-
-        income_sum = all_lines.aggregate(Sum("credit")).get("credit__sum", 0) or 0
-        expense_sum = all_lines.aggregate(Sum("debit")).get("debit__sum", 0) or 0
-    except Exception:
-        income_sum = 0
-        expense_sum = 0
-
-    # تعريف رؤوس الأعمدة للجدول الموحد
-    transaction_headers = [
-        {
-            "key": "transaction_type",
-            "label": "النوع",
-            "sortable": False,
-            "format": "icon_text",
-            "icon_callback": "get_type_class",
-            "icon_class_callback": "get_type_icon",
-            "width": "8%",
-        },
-        {
-            "key": "created_at",
-            "label": "التاريخ والوقت",
-            "sortable": True,
-            "format": "datetime_12h",
-            "class": "text-center",
-            "width": "12%",
-        },
-        {
-            "key": "description",
-            "label": "الوصف",
-            "sortable": False,
-            "ellipsis": True,
-            "width": "auto",
-        },
-        {
-            "key": "deposit",
-            "label": "الإيراد",
-            "sortable": False,
-            "format": "currency",
-            "class": "text-center",
-            "variant": "positive",
-            "width": "10%",
-            "decimals": 2,
-        },
-        {
-            "key": "withdraw",
-            "label": "المصروف",
-            "sortable": False,
-            "format": "currency",
-            "class": "text-center",
-            "variant": "negative",
-            "width": "10%",
-            "decimals": 2,
-        },
-        {
-            "key": "reference_number",
-            "label": "المرجع",
-            "sortable": False,
-            "format": "reference",
-            "class": "text-center",
-            "width": "10%",
-        },
-    ]
-
-    # تعريف أزرار الإجراءات
-    transaction_actions = [
-        {
-            "url": "financial:transaction_detail",
-            "icon": "fa-eye",
-            "label": "عرض",
-            "class": "action-view",
-        },
-        {
-            "url": "financial:transaction_edit",
-            "icon": "fa-edit",
-            "label": "تعديل",
-            "class": "action-edit",
-        },
-    ]
-
-    # معلومات إضافية للحسابات الأب
-    sub_accounts = []
-    if not account.is_leaf:
-        sub_accounts = account.children.filter(is_active=True).order_by("code")
-
-    context = {
-        "account": account,
-        "transactions": transactions,
-        "analytics": analytics,
-        "income_sum": income_sum,
-        "expense_sum": expense_sum,
-        "sub_accounts": sub_accounts,
-        "title": f"حساب: {account.name}",
-        "transaction_headers": transaction_headers,
-        "transaction_actions": transaction_actions,
-        "page_title": f"تفاصيل الحساب - {account.name}",
-        "page_icon": "fas fa-file-invoice-dollar",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "النظام المحاسبي", "url": "#", "icon": "fas fa-calculator"},
-            {
-                "title": "دليل الحسابات",
-                "url": reverse("financial:chart_of_accounts_list"),
-                "icon": "fas fa-sitemap",
-            },
-            {"title": account.name, "active": True},
-        ],
-    }
-
-    return render(request, "financial/accounts/chart_of_accounts_detail.html", context)
-
-
-@login_required
-def account_create(request):
-    """
-    إنشاء حساب مالي جديد
-    """
-    if request.method == "POST":
-        form = AccountForm(request.POST)
-        if form.is_valid():
-            account = form.save(commit=False)
-            account.created_by = request.user
-
-            # التعامل مع الرصيد الافتتاحي
-            initial_balance = form.cleaned_data.get("initial_balance", 0)
-            account.balance = initial_balance
-
-            account.save()
-
-            # إنشاء معاملة افتتاحية إذا كان الرصيد الافتتاحي موجودًا
-            if initial_balance > 0:
-                transaction = Transaction.objects.create(
-                    account=account,
-                    transaction_type="income",
-                    amount=initial_balance,
-                    date=timezone.now().date(),
-                    description=f"رصيد افتتاحي - {account.name}",
-                    reference=f"INIT-{account.code}",
-                    created_by=request.user,
-                )
-
-                # إنشاء بنود القيد المحاسبي
-                TransactionLine.objects.create(
-                    transaction=transaction,
-                    account=account,
-                    debit=initial_balance,
-                    credit=0,
-                    description="رصيد افتتاحي",
-                )
-
-                # حساب رأس المال أو الأصول
-                capital_account = get_accounts_by_category("equity").first()
-                if not capital_account:
-                    # يجب إنشاء حساب رأس المال في النظام الجديد
-                    messages.warning(
-                        request, "يجب إنشاء حساب رأس المال في دليل الحسابات أولاً"
-                    )
-                    return redirect(
-                        reverse("financial:account_create") + "?category=equity"
-                    )
-
-                TransactionLine.objects.create(
-                    transaction=transaction,
-                    account=capital_account,
-                    debit=0,
-                    credit=initial_balance,
-                    description="رصيد افتتاحي",
-                )
-
-            messages.success(request, f'تم إنشاء الحساب "{account.name}" بنجاح.')
-            return redirect("financial:account_detail", pk=account.pk)
-    else:
-        form = AccountForm()
-
-    context = {
-        "form": form,
-        "title": "إنشاء حساب جديد",
-    }
-
-    return render(request, "financial/accounts/account_form.html", context)
+# تم حذف view account_create القديم - غير مستخدم
+# استخدم chart_of_accounts_create بدلاً منه
 
 
 @login_required
@@ -1686,178 +1548,7 @@ def account_edit(request, pk):
     return render(request, "financial/accounts/chart_of_accounts_form.html", context)
 
 
-@login_required
-def account_transactions(request, pk):
-    """
-    عرض معاملات حساب محدد
-    """
-    account = get_object_or_404(ChartOfAccounts, pk=pk)
-
-    # استخدام النظام الجديد
-    try:
-        journal_lines = (
-            JournalEntryLine.objects.filter(account=account)
-            .select_related("journal_entry")
-            .order_by("-journal_entry__date", "-id")
-        )
-        transactions = journal_lines
-    except Exception:
-        transactions = []
-
-    # تعريف رؤوس الأعمدة للجدول الموحد
-    transaction_headers = [
-        {
-            "key": "transaction_type",
-            "label": "النوع",
-            "sortable": False,
-            "format": "icon_text",
-            "icon_callback": "get_type_class",
-            "icon_class_callback": "get_type_icon",
-            "width": "8%",
-        },
-        {
-            "key": "created_at",
-            "label": "التاريخ والوقت",
-            "sortable": True,
-            "format": "datetime_12h",
-            "class": "text-center",
-            "width": "12%",
-        },
-        {
-            "key": "description",
-            "label": "الوصف",
-            "sortable": False,
-            "ellipsis": True,
-            "width": "auto",
-        },
-        {
-            "key": "deposit",
-            "label": "الإيراد",
-            "sortable": False,
-            "format": "currency",
-            "class": "text-center",
-            "variant": "positive",
-            "width": "10%",
-            "decimals": 2,
-        },
-        {
-            "key": "withdraw",
-            "label": "المصروف",
-            "sortable": False,
-            "format": "currency",
-            "class": "text-center",
-            "variant": "negative",
-            "width": "10%",
-            "decimals": 2,
-        },
-        {
-            "key": "balance_after",
-            "label": "الرصيد بعد",
-            "sortable": False,
-            "format": "currency",
-            "class": "text-center fw-bold",
-            "variant": "neutral",
-            "width": "12%",
-            "decimals": 2,
-        },
-        {
-            "key": "reference_number",
-            "label": "المرجع",
-            "sortable": False,
-            "format": "reference",
-            "class": "text-center",
-            "width": "10%",
-        },
-    ]
-
-    # تعريف أزرار الإجراءات
-    transaction_actions = [
-        {
-            "url": "financial:transaction_detail",
-            "icon": "fa-eye",
-            "label": "عرض",
-            "class": "action-view",
-        },
-        {
-            "url": "financial:transaction_edit",
-            "icon": "fa-edit",
-            "label": "تعديل",
-            "class": "action-edit",
-        },
-        {
-            "url": "financial:transaction_delete",
-            "icon": "fa-trash-alt",
-            "label": "حذف",
-            "class": "action-delete",
-        },
-    ]
-
-    context = {
-        "account": account,
-        "transactions": transactions,
-        "title": f"معاملات حساب: {account.name}",
-        "transaction_headers": transaction_headers,
-        "transaction_actions": transaction_actions,
-        "page_title": f"معاملات حساب: {account.name}",
-        "page_icon": "fas fa-exchange-alt",
-        "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {
-                "title": "الحسابات",
-                "url": reverse("financial:chart_of_accounts_list"),
-                "icon": "fas fa-wallet",
-            },
-            {
-                "title": account.name,
-                "url": reverse("financial:account_detail", kwargs={"pk": account.pk}),
-                "icon": "fas fa-info-circle",
-            },
-            {"title": "المعاملات", "active": True},
-        ],
-    }
-
-    return render(request, "financial/accounts/account_transactions.html", context)
-
-
-@login_required
-def account_delete(request, pk):
-    """
-    حذف حساب مالي
-    """
-    account = get_object_or_404(ChartOfAccounts, pk=pk)
-
-    # التحقق من عدم وجود معاملات مرتبطة بالحساب
-    has_transactions = False
-    try:
-        has_transactions = JournalEntryLine.objects.filter(account=account).exists()
-    except Exception:
-        pass
-
-    if request.method == "POST":
-        account_name = account.name
-
-        # تعديل حالة الحساب بدلاً من الحذف الفعلي (حذف ناعم)
-        account.is_active = False
-        account.save()
-
-        messages.success(request, f'تم حذف الحساب "{account_name}" بنجاح.')
-        return redirect("financial:chart_of_accounts_list")
-
-    context = {
-        "object": account,
-        "object_name": "الحساب",
-        "title": f"حذف حساب: {account.name}",
-        "cancel_url": reverse("financial:account_detail", kwargs={"pk": account.pk}),
-        "warning_message": "سيتم تعطيل الحساب وعدم ظهوره في قوائم الحسابات النشطة."
-        + (" كما أن هذا الحساب مرتبط بمعاملات مالية." if has_transactions else ""),
-    }
-
-    return render(request, "financial/accounts/account_confirm_delete.html", context)
+# تم حذف account_delete - مكرر مع chart_of_accounts_delete
 
 
 @login_required
@@ -1945,7 +1636,27 @@ def enhanced_balances_list(request):
         "cash_accounts_count": cash_accounts_count,
         "other_accounts_count": other_accounts_count,
         "page_title": "الأرصدة المحسنة",
+        "page_subtitle": "عرض وإدارة أرصدة الحسابات المالية المحسنة",
         "page_icon": "fas fa-balance-scale",
+        "header_buttons": [
+            {
+                "form_id": "refresh-form",
+                "icon": "fa-sync-alt",
+                "text": "تحديث الأرصدة",
+                "class": "btn-primary",
+            },
+            {
+                "url": reverse("financial:enhanced_balances_audit"),
+                "icon": "fa-search",
+                "text": "مراجعة الأرصدة",
+                "class": "btn-outline-info",
+            },
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": "الأرصدة المحسنة", "active": True},
+        ],
     }
     return render(request, "financial/accounts/enhanced_balances_list.html", context)
 
@@ -2156,7 +1867,43 @@ def partner_dashboard(request):
         'monthly_stats': monthly_stats,
         'cash_accounts': cash_accounts,
         'page_title': 'معاملات الشريك',
+        'page_subtitle': 'إدارة مساهمات وسحوبات الشريك في النظام',
         'page_icon': 'fas fa-handshake',
+        'header_buttons': [
+            {
+                'onclick': 'openContributionModal()',
+                'icon': 'fa-plus-circle',
+                'text': 'مساهمة جديدة',
+                'class': 'btn-success',
+            },
+            {
+                'onclick': 'openWithdrawalModal()',
+                'icon': 'fa-minus-circle',
+                'text': 'سحب مبلغ',
+                'class': 'btn-warning',
+            },
+            {
+                'url': reverse('financial:partner_transactions_list'),
+                'icon': 'fa-list',
+                'text': 'جميع المعاملات',
+                'class': 'btn-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {
+                'title': 'الرئيسية',
+                'url': reverse('core:dashboard'),
+                'icon': 'fas fa-home',
+            },
+            {
+                'title': 'الإدارة المالية',
+                'icon': 'fas fa-money-bill-wave',
+            },
+            {
+                'title': 'معاملات الشريك',
+                'active': True
+            },
+        ],
     }
     
     return render(request, 'financial/partner/dashboard.html', context)
@@ -2338,6 +2085,7 @@ def payment_list(request):
                 "total_amount": total_amount,
             },
             "page_title": "قائمة الدفعات",
+            "page_subtitle": "عرض وإدارة جميع دفعات المبيعات والمشتريات",
             "page_icon": "fas fa-credit-card",
             "breadcrumb_items": [
                 {
@@ -2694,8 +2442,21 @@ def partner_transactions_list(request):
         'total_contributions': total_contributions,
         'total_withdrawals': total_withdrawals,
         'net_balance': net_balance,
-        'page_title': 'معاملات الشريك',
-        'page_icon': 'fas fa-handshake',
+        'filters': {
+            'type': transaction_type,
+            'status': status_filter,
+        },
+        'page_title': 'قائمة معاملات الشريك',
+        'page_subtitle': 'قائمة شاملة بجميع معاملات الشريك في النظام',
+        'page_icon': 'fas fa-list',
+        'header_buttons': [
+            {
+                'url': reverse('financial:partner_dashboard'),
+                'icon': 'fa-arrow-left',
+                'text': 'العودة للوحة التحكم',
+                'class': 'btn-primary',
+            },
+        ],
         'breadcrumb_items': [
             {
                 'title': 'الرئيسية',
@@ -2704,10 +2465,14 @@ def partner_transactions_list(request):
             },
             {
                 'title': 'الإدارة المالية',
-                'url': '#',
                 'icon': 'fas fa-money-bill-wave'
             },
-            {'title': 'معاملات الشريك', 'active': True}
+            {
+                'title': 'معاملات الشريك',
+                'url': reverse('financial:partner_dashboard'),
+                'icon': 'fas fa-handshake'
+            },
+            {'title': 'قائمة المعاملات', 'active': True}
         ]
     }
     

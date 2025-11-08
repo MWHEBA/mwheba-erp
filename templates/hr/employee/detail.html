@@ -6,39 +6,13 @@
 {% block title %}{{ employee.get_full_name_ar }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<style>
-  .section-container {background-color: #fff;border-radius: 12px;box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);padding: 1.5rem;margin-bottom: 1.8rem;border: 1px solid rgba(0, 0, 0, 0.05);}
-</style>
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users me-1"></i>الموظفين</a></li>
-                  <li class="breadcrumb-item active">{{ employee.get_full_name_ar }}</li>
-              </ol>
-          </nav>
-      </div>
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3"><i class="fas fa-user fa-2x text-primary"></i></div>
-              <div>
-                  <h1 class="h3 mb-1">{{ employee.get_full_name_ar }}</h1>
-                  <p class="text-muted mb-0">{{ employee.job_title.title_ar }} - {{ employee.department.name_ar }}</p>
-              </div>
-          </div>
-          <div>
-              <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-warning me-2"><i class="fas fa-edit me-2"></i>تعديل</a>
-              <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
   <div class="row">
     <!-- العمود الأيسر -->

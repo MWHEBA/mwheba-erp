@@ -8,7 +8,6 @@
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/cards.css' %}">
 <style>
     .detail-card {
         border-radius: 15px;
@@ -16,8 +15,7 @@
         margin-bottom: 20px;
     }
     .transaction-header {
-        background: linear-gradient(135deg, 
-            {% if transaction.transaction_type == 'contribution' %}#28a745, #20c997{% else %}#ffc107, #fd7e14{% endif %});
+        background: {% if transaction.transaction_type == 'contribution' %}#28a745{% else %}#ffc107{% endif %};
         color: white;
         border-radius: 15px 15px 0 0;
         padding: 25px;
@@ -47,11 +45,11 @@
         margin: 20px 0;
     }
     .amount-contribution {
-        background: linear-gradient(135deg, #d4edda, #c3e6cb);
+        background: #d4edda;
         color: #155724;
     }
     .amount-withdrawal {
-        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        background: #fff3cd;
         color: #856404;
     }
     .status-badge {

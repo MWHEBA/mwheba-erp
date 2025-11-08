@@ -39,17 +39,25 @@ def accounting_periods_list(request):
         except Exception as e:
             periods = []
             open_periods_count = 0
-            closed_periods_count = 0
             current_period = None
             messages.error(request, f"خطأ في تحميل الفترات المحاسبية: {str(e)}")
     
     context = {
         "page_title": "الفترات المحاسبية",
+        "page_subtitle": "إدارة الفترات المحاسبية وإغلاق الحسابات",
         "page_icon": "fas fa-calendar-alt",
         "breadcrumb_items": [
-            {"title": "الرئيسية", "url": "/", "icon": "fas fa-home"},
-            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "الفترات المحاسبية", "active": True, "icon": "fas fa-calendar-alt"},
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "الإدارة المالية", "url": reverse("financial:chart_of_accounts_list"), "icon": "fas fa-money-bill-wave"},
+            {"title": "الفترات المحاسبية", "active": True},
+        ],
+        "header_buttons": [
+            {
+                "url": reverse("financial:accounting_periods_create"),
+                "icon": "fa-plus",
+                "text": "إضافة فترة جديدة",
+                "class": "btn-primary",
+            }
         ],
         "periods": periods,
         "open_periods_count": open_periods_count,
@@ -82,7 +90,14 @@ def accounting_periods_create(request):
 
     context = {
         "page_title": "إنشاء فترة محاسبية جديدة",
+        "page_subtitle": "إدارة الفترات المحاسبية للنظام",
         "page_icon": "fas fa-plus-circle",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/dashboard/", "icon": "fas fa-home"},
+            {"title": "النظام المالي", "url": "#", "icon": "fas fa-calculator"},
+            {"title": "الفترات المحاسبية", "url": "/financial/accounting-periods/", "icon": "fas fa-calendar-alt"},
+            {"title": "إنشاء فترة جديدة", "active": True},
+        ],
     }
     return render(request, "financial/periods/accounting_periods_form.html", context)
 
@@ -111,7 +126,14 @@ def accounting_periods_edit(request, pk):
     context = {
         "period": period,
         "page_title": f"تعديل فترة: {period.name}",
+        "page_subtitle": "إدارة الفترات المحاسبية للنظام",
         "page_icon": "fas fa-edit",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/dashboard/", "icon": "fas fa-home"},
+            {"title": "النظام المالي", "url": "#", "icon": "fas fa-calculator"},
+            {"title": "الفترات المحاسبية", "url": "/financial/accounting-periods/", "icon": "fas fa-calendar-alt"},
+            {"title": f"تعديل: {period.name}", "active": True},
+        ],
     }
     return render(request, "financial/periods/accounting_periods_form.html", context)
 
@@ -135,6 +157,13 @@ def accounting_periods_close(request, pk):
     context = {
         "period": period,
         "page_title": f"إغلاق فترة: {period.name}",
+        "page_subtitle": "إغلاق الفترة المحاسبية ومنع التعديل",
         "page_icon": "fas fa-lock",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": "/dashboard/", "icon": "fas fa-home"},
+            {"title": "النظام المالي", "url": "#", "icon": "fas fa-calculator"},
+            {"title": "الفترات المحاسبية", "url": "/financial/accounting-periods/", "icon": "fas fa-calendar-alt"},
+            {"title": f"إغلاق: {period.name}", "active": True},
+        ],
     }
     return render(request, "financial/periods/accounting_periods_close.html", context)

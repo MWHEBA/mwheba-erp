@@ -3,132 +3,19 @@
 {% load i18n %}
 {% load custom_filters %}
 
-{% block title %}قائمة الموظفين{% endblock %}
+{% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
-<style>
-  .section-container {
-    background-color: #fff;
-    border-radius: 12px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-    padding: 1.5rem;
-    margin-bottom: 1.8rem;
-    border: 1px solid rgba(0, 0, 0, 0.05);
-  }
-  
-  .section-title {
-    color: #344767;
-    font-size: 1.2rem;
-    font-weight: 600;
-    margin-bottom: 1.2rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #eee;
-  }
-  
-  .stat-card {
-    transition: all 0.3s ease;
-    height: 100%;
-  }
-  
-  .stat-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  }
-  
-  .card-footer {
-    border-top: 1px solid rgba(0, 0, 0, 0.05);
-    padding: 1rem 1.5rem;
-  }
-  
-  .export-buttons .btn {
-    margin-left: 0.5rem;
-    transition: all 0.3s ease;
-  }
-  
-  .export-buttons .btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  }
-  
-  .export-buttons .btn i {
-    font-size: 0.9rem;
-  }
-  
-  #importModal .modal-content {
-    border: none;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
-  }
-  
-  #importModal .modal-header {
-    border-bottom: none;
-    border-radius: 12px 12px 0 0;
-  }
-  
-  #importModal .alert {
-    border-radius: 8px;
-    border: none;
-  }
-  
-  #importModal .card {
-    border: none;
-    border-radius: 8px;
-  }
-  
-  #importModal .form-control:focus {
-    border-color: var(--primary-color);
-    box-shadow: 0 0 0 0.2rem rgba(54, 96, 146, 0.15);
-  }
-</style>
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-  <!-- Breadcrumb + Header -->
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'core:dashboard' %}">
-                          <i class="fas fa-home me-1"></i>الرئيسية
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item">
-                      <a href="{% url 'hr:dashboard' %}">
-                          <i class="fas fa-users-cog me-1"></i>الموارد البشرية
-                      </a>
-                  </li>
-                  <li class="breadcrumb-item active" aria-current="page">
-                      <i class="fas fa-users me-1"></i>قائمة الموظفين
-                  </li>
-              </ol>
-          </nav>
-      </div>
-      
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3">
-                  <i class="fas fa-users fa-2x text-primary"></i>
-              </div>
-              <div>
-                  <h1 class="h3 mb-1">قائمة الموظفين</h1>
-                  <p class="text-muted mb-0">إدارة وعرض جميع الموظفين في النظام</p>
-              </div>
-          </div>
-          <div>
-              <button type="button" class="btn btn-outline-success me-2" data-bs-toggle="modal" data-bs-target="#importModal">
-                  <i class="fas fa-file-import me-2"></i>استيراد
-              </button>
-              <a href="{% url 'hr:employee_form' %}" class="btn btn-primary">
-                  <i class="fas fa-plus me-2"></i>إضافة موظف
-              </a>
-          </div>
-      </div>
-  </div>
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
 
 
+  
   <!-- تصفية وبحث -->
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>

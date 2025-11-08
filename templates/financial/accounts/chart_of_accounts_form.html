@@ -7,19 +7,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <style>
-    .form-section {
-        background: white;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    }
-    .section-title {
-        color: #2c3e50;
-        border-bottom: 2px solid #3498db;
-        padding-bottom: 10px;
-        margin-bottom: 20px;
-    }
+    /* form-section و section-title موجودين في components.css */
     .required-field {
         color: #e74c3c;
     }
@@ -32,7 +20,7 @@
         margin-bottom: 15px;
     }
     .btn-save {
-        background: linear-gradient(45deg, #27ae60, #2ecc71);
+        background: #27ae60;
         border: none;
         color: white;
         padding: 12px 30px;
@@ -40,7 +28,7 @@
         font-weight: bold;
     }
     .btn-save:hover {
-        background: linear-gradient(45deg, #229954, #27ae60);
+        background: #229954;
         color: white;
     }
     .btn-cancel {
@@ -59,15 +47,12 @@
 
 {% block content %}
 <div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
     <div class="row">
         <div class="col-12">
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">
-                        <i class="{{ page_icon }}"></i>
-                        {{ page_title }}
-                    </h3>
-                </div>
                 <div class="card-body">
                     <form method="post" id="accountForm">
                         {% csrf_token %}

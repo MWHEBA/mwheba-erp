@@ -1725,7 +1725,7 @@ html[dir="rtl"] .stat-currency {
 .quick-actions-header {
     padding: 1rem 1.25rem;
     border-bottom: 1px solid rgba(0, 0, 0, 0.03);
-    background: linear-gradient(to bottom, #ffffff, #fafafa);
+    background: #fafafa;
 }
 
 .quick-actions-header .dropdown-header {
@@ -1863,49 +1863,13 @@ html[dir="rtl"] .stat-currency {
     background-color: rgba(253, 126, 20, 0.1);
 }
 
-/* تحسينات شريط التنقل التسلسلي - Breadcrumb */
-.breadcrumb {
-    background-color: #f8f9fa;
-    border-radius: 0.25rem;
-    padding: 0.5rem 1rem;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.03);
-    border: 1px solid rgba(0, 0, 0, 0.05);
-    margin-bottom: 1rem;
-}
-
-.breadcrumb-item + .breadcrumb-item::before {
-    content: "\f105";
-    font-family: "Font Awesome 5 Free";
-    font-weight: 900;
-    color: #adb5bd;
-}
-
-.breadcrumb-item a {
-    color: var(--primary-color);
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.2s;
-}
-
-.breadcrumb-item a:hover {
-    color: #2980b9;
-    text-decoration: none;
-}
-
-.breadcrumb-item.active {
-    color: #6c757d;
-    font-weight: 500;
-}
-
-.breadcrumb-item i {
-    margin-right: 0.25rem;
-    font-size: 0.875rem;
-}
-
-/* للواجهات العربية - تعديل اتجاه السهم */
-html[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
-    content: "\f104";
-}
+/* 
+ * ملاحظة: تم نقل جميع ستايلات Breadcrumb و Page Header و Stats Cards
+ * إلى ملف مركزي واحد: static/css/shared-components.css
+ * 
+ * ❌ لا تضيف ستايلات للمكونات المشتركة هنا
+ * ✅ استخدم shared-components.css فقط
+ */
 
 .text-primary {
     color: var(--primary-color) !important;

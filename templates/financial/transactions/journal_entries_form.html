@@ -11,24 +11,8 @@
 
 {% block content %}
 <div class="container-fluid">
-    <!-- Header -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <h1 class="h3 mb-0">
-                        <i class="{{ page_icon }} me-2"></i>{{ page_title }}
-                    </h1>
-                    <p class="text-muted mb-0">إدارة القيود المحاسبية</p>
-                </div>
-                <div>
-                    <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-secondary">
-                        <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
 
     <!-- Content -->
     <div class="row justify-content-center">
@@ -433,23 +417,9 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-.form-section {
-    border-bottom: 1px solid #e9ecef;
-    padding-bottom: 1rem;
-}
+/* form-section موجود في components.css */
 
-.form-section:last-child {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.section-title {
-    color: #495057;
-    font-weight: 600;
-    margin-bottom: 1rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 2px solid #007bff;
-}
+/* section-title موجود في components.css */
 
 .required::after {
     content: " *";

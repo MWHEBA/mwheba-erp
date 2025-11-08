@@ -173,7 +173,7 @@
     width: 100px;
     height: 100px;
     border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-light));
+    background: var(--primary-color);
     display: flex;
     align-items: center;
     justify-content: center;

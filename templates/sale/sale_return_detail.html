@@ -29,35 +29,13 @@
         font-weight: 600;
     }
     .total-value {
-        font-size: 1.1rem;
-        font-weight: bold;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <!-- عنوان الصفحة -->
-    <div class="row mb-4">
-        <div class="col">
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}">{% trans "الرئيسية" %}</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'sale:sale_list' %}">{% trans "المبيعات" %}</a></li>
-                    <li class="breadcrumb-item"><a href="{% url 'sale:sale_return_list' %}">{% trans "مرتجعات المبيعات" %}</a></li>
-                    <li class="breadcrumb-item active" aria-current="page">{{ sale_return.number }}</li>
-                </ol>
-            </nav>
-            
-            <div class="d-flex justify-content-between align-items-center">
-                <h1 class="page-title">{% trans "مرتجع مبيعات" %} - {{ sale_return.number }}</h1>
-                <div class="btn-group">
-                    {% if sale_return.status == 'draft' %}
-                    <a href="{% url 'sale:sale_return_confirm' sale_return.pk %}" class="btn btn-success">
-                        <i class="fas fa-check me-1"></i> {% trans "تأكيد المرتجع" %}
-                    </a>
-                    <a href="{% url 'sale:sale_return_cancel' sale_return.pk %}" class="btn btn-danger">
-                        <i class="fas fa-ban me-1"></i> {% trans "إلغاء المرتجع" %}
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
                     </a>
                     {% endif %}
                     

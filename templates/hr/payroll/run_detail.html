@@ -2,16 +2,21 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}تفاصيل مسيرة رواتب {{ month }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
   <div class="mb-4">
       <div class="mb-2">
           <nav aria-label="breadcrumb">
@@ -39,27 +44,47 @@
       <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات</h5>
       <div class="row">
         <div class="col-md-3">
-            <div class="stat-card">
-                <h6>عدد الموظفين</h6>
-                <h3>{{ stats.total_employees }}</h3>
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-users"></i></div>
+                    <div class="stats-card-title">عدد الموظفين</div>
+                    <div class="stats-card-value">{{ stats.total_employees }}</div>
+                    <div class="stats-card-unit">موظف</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stat-card stat-success">
-                <h6>إجمالي الرواتب</h6>
-                <h3>{{ stats.total_gross|floatformat:2 }}</h3>
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-money-bill-wave"></i></div>
+                    <div class="stats-card-title">إجمالي الرواتب</div>
+                    <div class="stats-card-value">{{ stats.total_gross|floatformat:2 }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stat-card stat-danger">
-                <h6>إجمالي الخصومات</h6>
-                <h3>{{ stats.total_deductions|floatformat:2 }}</h3>
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-minus-circle"></i></div>
+                    <div class="stats-card-title">إجمالي الخصومات</div>
+                    <div class="stats-card-value">{{ stats.total_deductions|floatformat:2 }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
             </div>
         </div>
         <div class="col-md-3">
-            <div class="stat-card stat-info">
-                <h6>صافي الرواتب</h6>
-                <h3>{{ stats.total_net|floatformat:2 }}</h3>
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon"><i class="fas fa-wallet"></i></div>
+                    <div class="stats-card-title">صافي الرواتب</div>
+                    <div class="stats-card-value">{{ stats.total_net|floatformat:2 }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
             </div>
           </div>
       </div>

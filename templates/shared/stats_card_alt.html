@@ -1,0 +1,43 @@
+{% comment %}
+========================================
+STATS CARD البديل - MWHEBA ERP
+========================================
+
+نمط بديل للكروت بدون الشريط الملون في الأعلى
+
+الاستخدام:
+{% include "shared/stats_card_alt.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
+
+معاملات:
+- title: عنوان الكارت (مطلوب)
+- value: القيمة الرئيسية (مطلوب)
+- unit: الوحدة (اختياري)
+- icon: أيقونة Font Awesome (اختياري)
+- color: اللون (primary/success/danger/info/warning) (افتراضي: primary)
+- url: رابط عند الضغط على الكارت (اختياري)
+
+========================================
+{% endcomment %}
+
+<div class="col-xl-3 col-md-6 mb-4">
+    {% if url %}
+    <a href="{{ url }}" class="text-decoration-none">
+    {% endif %}
+        <div class="stats-card-alt {{ color|default:'primary' }}">
+            {% if icon %}
+            <div class="stats-card-alt-icon">
+                <i class="fas {{ icon }}"></i>
+            </div>
+            {% endif %}
+            <div class="stats-card-alt-content">
+                <div class="stats-card-alt-title">{{ title }}</div>
+                <div class="stats-card-alt-value">{{ value|default:0 }}</div>
+                {% if unit %}
+                <div class="stats-card-alt-unit">{{ unit }}</div>
+                {% endif %}
+            </div>
+        </div>
+    {% if url %}
+    </a>
+    {% endif %}
+</div>

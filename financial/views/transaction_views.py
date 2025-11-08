@@ -313,7 +313,8 @@ def journal_entries_list(request):
         "total_transactions": total_transactions if 'total_transactions' in locals() else 0,
         "total_debit": total_debit if 'total_debit' in locals() else 0,
         "total_credit": total_credit if 'total_credit' in locals() else 0,
-        "page_title": "القيود اليومية",
+        "page_title": "القيود المحاسبية",
+        "page_subtitle": "إدارة القيود المحاسبية والقيود اليومية",
         "page_icon": "fas fa-book",
         "breadcrumb_items": [
             {
@@ -354,7 +355,16 @@ def journal_entries_create(request):
         "accounts": accounts,
         "accounting_periods": accounting_periods,
         "page_title": "إنشاء قيد جديد",
+        "page_subtitle": "إدارة القيود المحاسبية",
         "page_icon": "fas fa-plus-square",
+        "header_buttons": [
+            {
+                "url": reverse("financial:journal_entries_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            },
+        ],
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -470,7 +480,34 @@ def journal_entries_detail(request, pk):
         "source_payment": source_payment,
         "source_payment_url": source_payment_url,
         "page_title": f"قيد رقم: {journal_entry.number}",
-        "page_icon": "fas fa-info-circle",
+        "page_subtitle": "تفاصيل القيد المحاسبي والبنود المرتبطة",
+        "page_icon": "fas fa-file-invoice",
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "القيود المحاسبية", "url": reverse("financial:journal_entries_list"), "icon": "fas fa-book"},
+            {"title": f"قيد {journal_entry.number}", "active": True},
+        ],
+        "header_buttons": [
+            {
+                "url": reverse("financial:journal_entries_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقيود",
+                "class": "btn-secondary",
+            }
+        ] + ([
+            {
+                "url": reverse("financial:journal_entries_edit", kwargs={"pk": journal_entry.pk}),
+                "icon": "fa-edit",
+                "text": "تعديل القيد",
+                "class": "btn-warning",
+            },
+            {
+                "url": reverse("financial:journal_entries_post", kwargs={"pk": journal_entry.pk}),
+                "icon": "fa-check",
+                "text": "ترحيل القيد",
+                "class": "btn-success",
+            }
+        ] if journal_entry.status == 'draft' else []),
     }
     return render(request, "financial/transactions/journal_entries_detail.html", context)
 
@@ -814,236 +851,8 @@ def transaction_detail(request, pk):
     return render(request, "financial/transactions/transaction_detail.html", context)
 
 
-@login_required
-def transaction_create(request):
-    """
-    إنشاء قيد محاسبي جديد - تحت التطوير
-    """
-    messages.info(
-        request,
-        "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية من القائمة الجانبية.",
-    )
-    return redirect("financial:journal_entries_list")
-
-    if request.method == "POST":
-        form = TransactionForm(request.POST)
-        if form.is_valid():
-            from django.db import transaction as db_transaction
-
-            with db_transaction.atomic():
-                # إنشاء المعاملة
-                trans = form.save(commit=False)
-                trans.created_by = request.user
-                trans.save()
-
-                # استخراج البيانات الأخرى من النموذج
-                account = form.cleaned_data["account"]
-                transaction_type = form.cleaned_data["transaction_type"]
-                amount = form.cleaned_data["amount"]
-                description = form.cleaned_data.get("description", "")
-
-                # حساب مقابل افتراضي حسب نوع المعاملة
-                contra_account = None
-                if transaction_type == "income":
-                    # بحث عن حساب إيرادات افتراضي
-                    contra_account = get_accounts_by_category("revenue").first()
-                    if not contra_account:
-                        # إنشاء حساب افتراضي في النظام القديم (مؤقت)
-                        contra_account = Account.objects.create(
-                            name="الإيرادات",
-                            code="INC001",
-                            account_type="income",
-                            created_by=request.user,
-                        )
-                elif transaction_type == "expense":
-                    # بحث عن حساب مصروفات افتراضي
-                    contra_account = get_accounts_by_category("expense").first()
-                    if not contra_account:
-                        # إنشاء حساب افتراضي في النظام القديم (مؤقت)
-                        contra_account = Account.objects.create(
-                            name="المصروفات",
-                            code="EXP001",
-                            account_type="expense",
-                            created_by=request.user,
-                        )
-
-                # التأكد من وجود حساب قبل الاستمرار
-                if not account:
-                    messages.error(request, "يجب تحديد الحساب الرئيسي للمعاملة")
-                    return redirect("financial:transaction_create")
-
-                # إنشاء بنود القيد المحاسبي
-                if transaction_type == "income":
-                    # التأكد من وجود الحسابات المطلوبة
-                    if not contra_account:
-                        messages.error(request, "لم يتم العثور على حساب الإيرادات")
-                        return redirect("financial:transaction_create")
-
-                    # مدين: الحساب المختار (زيادة في الأصول)
-                    TransactionLine.objects.create(
-                        transaction=trans,
-                        account=account,
-                        debit=amount,
-                        credit=0,
-                        description=description,
-                    )
-                    # دائن: حساب الإيرادات
-                    TransactionLine.objects.create(
-                        transaction=trans,
-                        account=contra_account,
-                        debit=0,
-                        credit=amount,
-                        description=description,
-                    )
-
-                    # تحديث رصيد الحساب
-                    account.update_balance(amount, "add")
-
-                elif transaction_type == "expense":
-                    # التأكد من وجود الحسابات المطلوبة
-                    if not contra_account:
-                        messages.error(request, "لم يتم العثور على حساب المصروفات")
-                        return redirect("financial:transaction_create")
-
-                    # مدين: حساب المصروفات
-                    TransactionLine.objects.create(
-                        transaction=trans,
-                        account=contra_account,
-                        debit=amount,
-                        credit=0,
-                        description=description,
-                    )
-                    # دائن: الحساب المختار (نقص في الأصول)
-                    TransactionLine.objects.create(
-                        transaction=trans,
-                        account=account,
-                        debit=0,
-                        credit=amount,
-                        description=description,
-                    )
-
-                    # تحديث رصيد الحساب
-                    account.update_balance(amount, "subtract")
-
-                elif transaction_type == "transfer":
-                    to_account = form.cleaned_data.get("to_account")
-                    if to_account:
-                        # مدين: حساب الوجهة (زيادة)
-                        TransactionLine.objects.create(
-                            transaction=trans,
-                            account=to_account,
-                            debit=amount,
-                            credit=0,
-                            description=description,
-                        )
-                        # دائن: حساب المصدر (نقص)
-                        TransactionLine.objects.create(
-                            transaction=trans,
-                            account=account,
-                            debit=0,
-                            credit=amount,
-                            description=description,
-                        )
-
-                        # تحديث رصيد الحسابين
-                        account.update_balance(amount, "subtract")
-                        to_account.update_balance(amount, "add")
-                    else:
-                        # في حالة عدم وجود حساب وجهة (يجب ألا يحدث بسبب التحقق في النموذج)
-                        messages.error(request, "يجب تحديد حساب الوجهة للتحويل")
-                        return redirect("financial:transaction_create")
-
-            messages.success(request, "تم إنشاء المعاملة المالية بنجاح.")
-            return redirect("financial:transaction_detail", pk=trans.pk)
-    else:
-        form = TransactionForm()
-
-    context = {
-        "form": form,
-        "title": "إنشاء معاملة مالية",
-    }
-    return render(request, "financial/transactions/transaction_form.html", context)
-
-
-@login_required
-def transaction_edit(request, pk):
-    """
-    تعديل قيد محاسبي - تحت التطوير
-    """
-    messages.info(
-        request,
-        "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية من القائمة الجانبية.",
-    )
-    return redirect("financial:journal_entries_list")
-
-
-@login_required
-def transaction_delete(request, pk):
-    """
-    حذف قيد محاسبي - تحت التطوير
-    """
-    messages.info(
-        request,
-        "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية من القائمة الجانبية.",
-    )
-    return redirect("financial:journal_entries_list")
-
-    journal_entry = get_object_or_404(JournalEntry, pk=pk)
-
-    if request.method == "POST":
-        # إلغاء تأثير المعاملة على الحساب
-        if transaction.transaction_type == "income" and transaction.account:
-            # التأكد من وجود الحساب قبل تعديل رصيده
-            if hasattr(transaction.account, "balance"):
-                transaction.account.balance -= transaction.amount
-                transaction.account.save()
-            else:
-                messages.warning(
-                    request,
-                    "لم يتم العثور على الحساب المرتبط بالمعاملة أو تم حذفه مسبقاً.",
-                )
-
-        elif transaction.transaction_type == "expense" and transaction.account:
-            # التأكد من وجود الحساب قبل تعديل رصيده
-            if hasattr(transaction.account, "balance"):
-                transaction.account.balance += transaction.amount
-                transaction.account.save()
-            else:
-                messages.warning(
-                    request,
-                    "لم يتم العثور على الحساب المرتبط بالمعاملة أو تم حذفه مسبقاً.",
-                )
-
-        elif transaction.transaction_type == "transfer":
-            # التحقق من وجود الحساب المصدر
-            if transaction.account and hasattr(transaction.account, "balance"):
-                transaction.account.balance += transaction.amount
-                transaction.account.save()
-            else:
-                messages.warning(
-                    request, "لم يتم العثور على الحساب المصدر أو تم حذفه مسبقاً."
-                )
-
-            # التحقق من وجود الحساب المستلم
-            if transaction.to_account and hasattr(transaction.to_account, "balance"):
-                transaction.to_account.balance -= transaction.amount
-                transaction.to_account.save()
-            else:
-                messages.warning(
-                    request, "لم يتم العثور على الحساب المستلم أو تم حذفه مسبقاً."
-                )
-
-        # حذف المعاملة بغض النظر عن حالة الحسابات
-        transaction.delete()
-        messages.success(request, "تم حذف المعاملة بنجاح.")
-        return redirect("financial:transaction_list")
-
-    context = {
-        "object": transaction,
-        "title": "حذف معاملة",
-    }
-
-    return render(request, "financial/confirm_delete.html", context)
+# تم حذف transaction_create, transaction_edit, transaction_delete
+# كانت "تحت التطوير" وغير مستخدمة - استخدم journal_entries بدلاً منها
 
 
 @login_required
