@@ -5,7 +5,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
-from rest_framework.authtoken.models import Token
+from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
@@ -39,12 +39,13 @@ class LoginAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # إنشاء أو استرداد الرمز المميز للمستخدم
-        token, created = Token.objects.get_or_create(user=user)
+        # إنشاء JWT tokens للمستخدم
+        refresh = RefreshToken.for_user(user)
 
         return Response(
             {
-                "token": token.key,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
                 "user_id": user.id,
                 "username": user.username,
                 "email": user.email,
@@ -92,12 +93,13 @@ class RegisterAPIView(APIView):
             username=username, email=email, password=password
         )
 
-        # إنشاء الرمز المميز للمستخدم
-        token, created = Token.objects.get_or_create(user=user)
+        # إنشاء JWT tokens للمستخدم
+        refresh = RefreshToken.for_user(user)
 
         return Response(
             {
-                "token": token.key,
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
                 "user_id": user.id,
                 "username": user.username,
                 "email": user.email,
