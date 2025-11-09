@@ -5,8 +5,13 @@ from .base_imports import *
 from ..models import Payroll, Advance, Employee, Salary
 from ..forms.payroll_forms import PayrollProcessForm
 from ..services.payroll_service import PayrollService
+from ..decorators import can_view_salaries, can_process_payroll, hr_manager_required
+from django.core.paginator import Paginator
 from django.db.models import Count, Sum, Q
 from datetime import date
+import logging
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     'payroll_list',
@@ -24,12 +29,24 @@ __all__ = [
 
 
 @login_required
+@can_view_salaries
 def payroll_list(request):
     """قائمة كشوف الرواتب"""
-    payrolls = Payroll.objects.select_related('employee', 'salary').all()
+    # Query Optimization
+    payrolls = Payroll.objects.select_related(
+        'employee',
+        'employee__department',
+        'employee__job_title',
+        'salary'
+    ).all()
+    
+    # Pagination - 50 راتب لكل صفحة
+    paginator = Paginator(payrolls, 50)
+    page = request.GET.get('page', 1)
+    payrolls_page = paginator.get_page(page)
     
     context = {
-        'payrolls': payrolls,
+        'payrolls': payrolls_page,
         
         # بيانات الهيدر الموحد
         'page_title': 'كشوف الرواتب',
@@ -87,6 +104,7 @@ def payroll_run_list(request):
 
 
 @login_required
+@can_process_payroll
 def payroll_run_process(request):
     """معالجة مسيرة رواتب جديدة"""
     if request.method == 'POST':
@@ -96,15 +114,40 @@ def payroll_run_process(request):
                 month_str = form.cleaned_data['month']
                 department = form.cleaned_data.get('department')
                 
-                payrolls = PayrollService.process_monthly_payroll(
+                logger.info(f"بدء معالجة رواتب شهر {month_str} بواسطة {request.user.username}")
+                
+                results = PayrollService.process_monthly_payroll(
                     month_str,
-                    department,
                     request.user
                 )
-                messages.success(request, f'تم معالجة {len(payrolls)} كشف راتب بنجاح')
+                
+                # حساب النتائج
+                success_count = sum(1 for r in results if r['success'])
+                fail_count = len(results) - success_count
+                
+                # رسائل النجاح والفشل
+                if success_count > 0:
+                    messages.success(request, f'تم معالجة {success_count} راتب بنجاح')
+                
+                if fail_count > 0:
+                    messages.warning(request, f'فشلت معالجة {fail_count} راتب')
+                    # عرض تفاصيل الأخطاء
+                    for result in results:
+                        if not result['success']:
+                            messages.error(
+                                request,
+                                f"{result['employee'].get_full_name_ar()}: {result['error']}"
+                            )
+                
+                logger.info(f"انتهت معالجة الرواتب - النجاح: {success_count}, الفشل: {fail_count}")
                 return redirect('hr:payroll_run_detail', month=month_str)
+                
+            except ValueError as e:
+                logger.error(f"خطأ في البيانات عند معالجة الرواتب: {str(e)}")
+                messages.error(request, f'خطأ في البيانات: {str(e)}')
             except Exception as e:
-                messages.error(request, f'خطأ: {str(e)}')
+                logger.exception(f"خطأ غير متوقع في معالجة الرواتب: {str(e)}")
+                messages.error(request, f'حدث خطأ غير متوقع: {str(e)}')
         else:
             messages.error(request, 'يرجى تصحيح الأخطاء في النموذج')
     else:

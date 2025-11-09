@@ -4,6 +4,8 @@ Views إدارة الموظفين
 from .base_imports import *
 from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricLog, BiometricUserMapping
 from ..forms.employee_forms import EmployeeForm
+from ..decorators import hr_manager_required
+from django.core.paginator import Paginator
 
 __all__ = [
     'employee_list',
@@ -16,8 +18,13 @@ __all__ = [
 @login_required
 def employee_list(request):
     """قائمة الموظفين"""
-    # جلب جميع الموظفين مع العلاقات
-    employees = Employee.objects.select_related('department', 'job_title').all()
+    # جلب جميع الموظفين مع العلاقات - Query Optimization
+    employees = Employee.objects.select_related(
+        'department',
+        'job_title',
+        'direct_manager',
+        'shift'
+    ).all()
     
     # الفلترة حسب البحث
     search = request.GET.get('search', '')
@@ -118,8 +125,13 @@ def employee_list(request):
         from .employee_import import export_employees
         return export_employees(employees, export_format)
     
+    # Pagination - 50 موظف لكل صفحة
+    paginator = Paginator(employees, 50)
+    page = request.GET.get('page', 1)
+    employees_page = paginator.get_page(page)
+    
     context = {
-        'employees': employees,
+        'employees': employees_page,
         'departments': departments,
         'job_titles': job_titles,
         'total_employees': total_employees,
@@ -242,6 +254,7 @@ def employee_detail(request, pk):
 
 
 @login_required
+@hr_manager_required
 def employee_delete(request, pk):
     """حذف موظف"""
     employee = get_object_or_404(Employee, pk=pk)
@@ -267,6 +280,7 @@ def employee_delete(request, pk):
 
 
 @login_required
+@hr_manager_required
 def employee_form(request, pk=None):
     """نموذج موحد لإضافة/تعديل موظف"""
     employee = get_object_or_404(Employee, pk=pk) if pk else None

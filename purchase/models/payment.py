@@ -144,11 +144,13 @@ class PurchasePayment(PaymentAuditMixin, models.Model):
         # حقل cash_movement تم حذفه - نستخدم القيود المحاسبية فقط
         self.financial_status = "synced"
         self.financial_error = None
+        self.status = "posted"  # تغيير الحالة إلى مرحّلة
         self.save(
             update_fields=[
                 "financial_transaction",
                 "financial_status",
                 "financial_error",
+                "status",
             ]
         )
 

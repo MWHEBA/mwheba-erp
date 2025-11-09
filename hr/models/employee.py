@@ -196,6 +196,18 @@ class Employee(models.Model):
         """الحصول على الاسم الكامل بالعربية"""
         return f"{self.first_name_ar} {self.last_name_ar}"
     
+    def get_masked_national_id(self):
+        """إخفاء الرقم القومي - عرض آخر 3 أرقام فقط"""
+        if self.national_id:
+            return f"***********{self.national_id[-3:]}"
+        return ""
+    
+    def get_masked_mobile(self):
+        """إخفاء رقم الموبايل - عرض آخر 4 أرقام فقط"""
+        if self.mobile_phone:
+            return f"*******{self.mobile_phone[-4:]}"
+        return ""
+    
     def get_full_name_en(self):
         """الحصول على الاسم الكامل بالإنجليزية"""
         if self.first_name_en and self.last_name_en:

@@ -573,7 +573,7 @@ def journal_entries_delete(request, pk):
 
 @login_required
 def journal_entries_post(request, pk):
-    """ترحيل قيد"""
+    """ترحيل قيد - AJAX only"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
 
     if request.method == "POST":
@@ -581,7 +581,7 @@ def journal_entries_post(request, pk):
             # استخدام الـ method المخصص للترحيل
             journal_entry.post(user=request.user)
 
-            # إرجاع JSON response دائماً للطلبات POST
+            # إرجاع JSON response
             return JsonResponse(
                 {
                     "success": True,
@@ -592,23 +592,69 @@ def journal_entries_post(request, pk):
         except Exception as e:
             logger.error(f"Error in views.py: {str(e)}", exc_info=True)
             return JsonResponse({"success": False, "message": "حدث خطأ غير متوقع"})
+    
+    # GET request - إرجاع خطأ (يجب استخدام المودال)
+    return JsonResponse({"success": False, "message": "يجب استخدام المودال للترحيل"}, status=405)
 
-    context = {
-        "journal_entry": journal_entry,
-        "page_title": f"ترحيل قيد: {journal_entry.reference}",
-        "page_icon": "fas fa-check-circle",
-    }
-    return render(request, "financial/transactions/journal_entries_post.html", context)
+
+@login_required
+def journal_entries_unpost(request, pk):
+    """إلغاء ترحيل قيد - AJAX only"""
+    journal_entry = get_object_or_404(JournalEntry, pk=pk)
+
+    if request.method == "POST":
+        try:
+            # التحقق من أن القيد مرحل
+            if journal_entry.status != 'posted':
+                return JsonResponse({"success": False, "message": "القيد غير مرحل"})
+            
+            # إلغاء الترحيل
+            journal_entry.status = 'draft'
+            journal_entry.posted_at = None
+            journal_entry.posted_by = None
+            journal_entry.save()
+
+            # إرجاع JSON response
+            return JsonResponse(
+                {
+                    "success": True,
+                    "message": f'تم إلغاء ترحيل القيد "{journal_entry.number or journal_entry.reference}" بنجاح.',
+                }
+            )
+
+        except Exception as e:
+            logger.error(f"Error in unpost: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "message": "حدث خطأ غير متوقع"})
+    
+    # GET request - إرجاع خطأ
+    return JsonResponse({"success": False, "message": "يجب استخدام المودال لإلغاء الترحيل"}, status=405)
 
 
 @login_required
 def transaction_list(request):
     """
-    عرض قائمة القيود المحاسبية (المعاملات المالية) باستخدام النظام الجديد
+    عرض قائمة المعاملات النقدية والبنكية فقط
+    (القيود التي تحتوي على حركة في الصندوق أو البنك)
     """
-    # استخدام JournalEntry بدلاً من Transaction
-    journal_entries = JournalEntry.objects.all().order_by("-date", "-id")
-    accounts = AccountHelperService.get_all_active_accounts()
+    # استخدام JournalEntry بدلاً من Transaction مع prefetch للأداء
+    from django.db.models import Prefetch, Q
+    
+    # جلب القيود التي تحتوي على حسابات نقدية أو بنكية فقط
+    journal_entries = (
+        JournalEntry.objects.filter(
+            Q(lines__account__is_cash_account=True) | 
+            Q(lines__account__is_bank_account=True)
+        )
+        .distinct()
+        .prefetch_related('lines', 'lines__account', 'lines__account__account_type')
+        .order_by("-date", "-id")
+    )
+    
+    # جلب الحسابات النقدية والبنكية فقط للفلترة
+    accounts = ChartOfAccounts.objects.filter(
+        Q(is_cash_account=True) | Q(is_bank_account=True),
+        is_active=True
+    ).order_by('code')
 
     # فلترة
     account_id = request.GET.get("account")
@@ -644,19 +690,25 @@ def transaction_list(request):
         date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
         journal_entries = journal_entries.filter(date__lte=date_to)
 
-    # إحصائيات - حساب إجمالي المدين والدائن
+    # إحصائيات - حساب إجمالي الوارد والصادر من الحسابات النقدية فقط
     total_entries = journal_entries.count()
+    
+    # حساب الوارد: المدين في الحسابات النقدية والبنكية
     total_debit = (
-        JournalEntryLine.objects.filter(journal_entry__in=journal_entries).aggregate(
-            Sum("debit")
-        )["debit__sum"]
-        or 0
+        JournalEntryLine.objects.filter(
+            journal_entry__in=journal_entries
+        ).filter(
+            Q(account__is_cash_account=True) | Q(account__is_bank_account=True)
+        ).aggregate(Sum("debit"))["debit__sum"] or 0
     )
+    
+    # حساب الصادر: الدائن في الحسابات النقدية والبنكية
     total_credit = (
-        JournalEntryLine.objects.filter(journal_entry__in=journal_entries).aggregate(
-            Sum("credit")
-        )["credit__sum"]
-        or 0
+        JournalEntryLine.objects.filter(
+            journal_entry__in=journal_entries
+        ).filter(
+            Q(account__is_cash_account=True) | Q(account__is_bank_account=True)
+        ).aggregate(Sum("credit"))["credit__sum"] or 0
     )
 
     # تعريف رؤوس الأعمدة للجدول الموحد
@@ -751,12 +803,30 @@ def transaction_list(request):
     # معالجة الترتيب
     current_order_by = request.GET.get("order_by", "")
     current_order_dir = request.GET.get("order_dir", "")
-
+    
     # إعداد الترقيم الصفحي
     paginator = Paginator(journal_entries, 25)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
+    # أزرار الإجراءات
+    page_actions = [
+        {
+            "label": "إضافة إيراد",
+            "url": "#",
+            "icon": "fas fa-plus-circle",
+            "class": "btn-success",
+            "modal": "#quickIncomeModal"
+        },
+        {
+            "label": "إضافة مصروف",
+            "url": "#",
+            "icon": "fas fa-minus-circle",
+            "class": "btn-danger",
+            "modal": "#quickExpenseModal"
+        },
+    ]
+    
     context = {
         "transactions": page_obj,  # استخدام transactions للتوافق مع template
         "journal_entries": page_obj,
@@ -766,8 +836,10 @@ def transaction_list(request):
         "total_transactions": total_entries,
         "total_debit": total_debit,
         "total_credit": total_credit,
-        "page_title": "القيود المحاسبية",
-        "page_icon": "fas fa-book",
+        "page_title": "الحركات النقدية والبنكية",
+        "page_subtitle": "عرض جميع المعاملات التي تؤثر على الصندوق والبنك",
+        "page_icon": "fas fa-money-bill-wave",
+        "page_actions": page_actions,
         "breadcrumb_items": [
             {
                 "title": "الرئيسية",
@@ -775,7 +847,7 @@ def transaction_list(request):
                 "icon": "fas fa-home",
             },
             {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "القيود المحاسبية", "active": True},
+            {"title": "الحركات النقدية والبنكية", "active": True},
         ],
         "current_order_by": current_order_by,
         "current_order_dir": current_order_dir,
@@ -804,6 +876,7 @@ def transaction_detail(request, pk):
             self.reference_number = journal_entry.reference or journal_entry.number
             self.created_at = journal_entry.created_at
             self.created_by = journal_entry.created_by
+            self.status = journal_entry.status  # إضافة الحالة
             self.amount = self._calculate_amount(journal_entry)
             self.transaction_type = self._determine_type(journal_entry)
             self.account = self._get_main_account(journal_entry)
@@ -821,18 +894,24 @@ def transaction_detail(request, pk):
                 return "manual"
 
             # فحص أنواع الحسابات لتحديد النوع
-            account_types = [
-                line.account.account_type.nature
-                for line in lines
-                if line.account.account_type
-            ]
-
-            if "credit" in account_types and any(line.credit > 0 for line in lines):
+            has_revenue = False
+            has_expense = False
+            
+            for line in lines:
+                if line.account and line.account.account_type:
+                    category = line.account.account_type.category
+                    if category == "revenue":
+                        has_revenue = True
+                    elif category == "expense":
+                        has_expense = True
+            
+            # تحديد النوع بناءً على الحسابات الموجودة
+            if has_revenue:
                 return "income"
-            elif "debit" in account_types and any(line.debit > 0 for line in lines):
+            elif has_expense:
                 return "expense"
-            else:
-                return "manual"
+            
+            return "manual"
 
         def _get_main_account(self, entry):
             """الحصول على الحساب الرئيسي (أول حساب في القيد)"""
@@ -840,12 +919,36 @@ def transaction_detail(request, pk):
             return first_line.account if first_line else None
 
     transaction_proxy = TransactionProxy(journal_entry)
+    
+    # تحديد نوع المعاملة للـ breadcrumb
+    transaction_type = transaction_proxy.transaction_type
+    if transaction_type == "income":
+        parent_title = "الإيرادات"
+        parent_url = reverse("financial:income_list")
+    elif transaction_type == "expense":
+        parent_title = "المصروفات"
+        parent_url = reverse("financial:expense_list")
+    else:
+        parent_title = "الحركات النقدية والبنكية"
+        parent_url = reverse("financial:transaction_list")
 
     context = {
         "transaction": transaction_proxy,  # للتوافق مع template
         "journal_entry": journal_entry,
         "journal_lines": journal_entry.lines.all(),
         "title": f"قيد محاسبي: {journal_entry.number}",
+        "page_title": f"تفاصيل القيد - {journal_entry.number}",
+        "page_icon": "fas fa-file-invoice",
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
+            {"title": parent_title, "url": parent_url},
+            {"title": f"قيد {journal_entry.number}", "active": True},
+        ],
     }
 
     return render(request, "financial/transactions/transaction_detail.html", context)

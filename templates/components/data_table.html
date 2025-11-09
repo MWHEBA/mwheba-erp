@@ -67,7 +67,7 @@
 {% endif %}
 
 <div {% if responsive|default:True %}class="table-responsive"{% endif %}>
-    <table id="{{ table_id|default:'data-table' }}" class="transaction-table table-hover table-striped {{ table_class }}" style="width: 100%">
+    <table id="{{ table_id|default:'data-table' }}" class="transaction-table table-hover table-striped {{ table_class }}" style="width: 100%" {% if disable_ordering %}data-disable-ordering="true"{% endif %}>
         <thead>
             <tr>
                 {% for header in headers %}
@@ -346,6 +346,34 @@
                                         {% elif button.condition == 'no_posted_payments' %}
                                             {% if not item.has_posted_payments %}
                                                 {% if ':' in button.url %}
+                                                    {% with url_name=button.url %}
+                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
+                                                           class="action-button {{ button.class|default:'action-view' }}" 
+                                                           title="{{ button.label }}"
+                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                            <i class="fas {{ button.icon }}"></i>
+                                                        </a>
+                                                    {% endwith %}
+                                                {% else %}
+                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+                                                       class="action-button {{ button.class|default:'action-view' }}" 
+                                                       title="{{ button.label }}"
+                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                        <i class="fas {{ button.icon }}"></i>
+                                                    </a>
+                                                {% endif %}
+                                            {% endif %}
+                                        {% elif button.condition == 'status == \'draft\'' %}
+                                            {% if item.status == 'draft' %}
+                                                {% if button.onclick %}
+                                                    <button type="button"
+                                                       class="action-button {{ button.class|default:'action-view' }}" 
+                                                       title="{{ button.label }}"
+                                                       onclick="openPostModal({{ item.id }})"
+                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                                                        <i class="fas {{ button.icon }}"></i>
+                                                    </button>
+                                                {% elif ':' in button.url %}
                                                     {% with url_name=button.url %}
                                                         <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
                                                            class="action-button {{ button.class|default:'action-view' }}" 

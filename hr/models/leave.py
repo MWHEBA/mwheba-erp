@@ -71,7 +71,10 @@ class LeaveBalance(models.Model):
         self.save()
     
     def calculate_accrued_days(self):
-        """حساب الأيام المستحقة بناءً على فترة الخدمة"""
+        """
+        حساب الأيام المستحقة - مبسط
+        استحقاق شهري بسيط بعد انتهاء الفترة التجريبية
+        """
         from datetime import date
         from dateutil.relativedelta import relativedelta
         from core.models import SystemSetting
@@ -80,24 +83,24 @@ class LeaveBalance(models.Model):
             return 0
         
         today = date.today()
-        months_worked = relativedelta(today, self.accrual_start_date).months + \
-                       (relativedelta(today, self.accrual_start_date).years * 12)
+        delta = relativedelta(today, self.accrual_start_date)
         
-        # جلب الإعدادات من SystemSetting
+        # حساب الأشهر الكاملة فقط
+        total_months = delta.years * 12 + delta.months
+        
+        # جلب فترة التجربة من الإعدادات (افتراضي 3 أشهر)
         probation_months = SystemSetting.get_setting('leave_accrual_probation_months', 3)
-        partial_percentage = SystemSetting.get_setting('leave_accrual_partial_percentage', 25)
-        full_months = SystemSetting.get_setting('leave_accrual_full_months', 6)
         
-        # نظام الاستحقاق التدريجي
-        if months_worked < probation_months:
-            # أقل من الفترة التجريبية: لا يستحق شيء
+        if total_months < probation_months:
+            # لم ينتهي من الفترة التجريبية
             return 0
-        elif months_worked < full_months:
-            # بين الفترة التجريبية والكاملة: يستحق النسبة الجزئية
-            return int(self.total_days * (partial_percentage / 100.0))
-        else:
-            # بعد الفترة الكاملة: يستحق الرصيد كاملاً
-            return self.total_days
+        
+        # استحقاق شهري بسيط
+        monthly_rate = self.total_days / 12.0
+        accrued = int((total_months - probation_months) * monthly_rate)
+        
+        # لا يتجاوز الإجمالي السنوي
+        return min(accrued, self.total_days)
     
     def update_accrued_days(self):
         """تحديث الأيام المستحقة وحفظها"""
@@ -201,6 +204,52 @@ class Leave(models.Model):
     
     def __str__(self):
         return f"{self.employee.get_full_name_ar()} - {self.leave_type.name_ar} ({self.start_date})"
+    
+    def clean(self):
+        """التحقق من صحة البيانات"""
+        from django.core.exceptions import ValidationError
+        from datetime import date
+        errors = {}
+        
+        # التحقق من التواريخ
+        if self.start_date and self.end_date:
+            if self.start_date > self.end_date:
+                errors['end_date'] = 'تاريخ النهاية يجب أن يكون بعد تاريخ البداية'
+            
+            # التحقق من عدم تجاوز سنة
+            days_diff = (self.end_date - self.start_date).days + 1
+            if days_diff > 365:
+                errors['end_date'] = 'مدة الإجازة لا يمكن أن تتجاوز سنة'
+            
+            # التحقق من عدم طلب إجازة في الماضي البعيد
+            if self.start_date < date.today() and not self.pk:
+                # السماح بـ 7 أيام ماضية فقط للطلبات الجديدة
+                days_past = (date.today() - self.start_date).days
+                if days_past > 7:
+                    errors['start_date'] = 'لا يمكن طلب إجازة قبل أكثر من 7 أيام'
+        
+        # التحقق من عدد الأيام
+        if self.days_count <= 0:
+            errors['days_count'] = 'عدد الأيام يجب أن يكون أكبر من صفر'
+        
+        if self.days_count > 365:
+            errors['days_count'] = 'عدد الأيام لا يمكن أن يتجاوز 365 يوم'
+        
+        # التحقق من الرصيد المتاح
+        if self.employee_id and self.leave_type_id and not self.pk:
+            try:
+                balance = LeaveBalance.objects.get(
+                    employee=self.employee,
+                    leave_type=self.leave_type,
+                    year=self.start_date.year if self.start_date else date.today().year
+                )
+                if self.days_count > balance.remaining_days:
+                    errors['days_count'] = f'الرصيد المتاح فقط {balance.remaining_days} يوم'
+            except LeaveBalance.DoesNotExist:
+                pass  # سيتم إنشاء الرصيد تلقائياً
+        
+        if errors:
+            raise ValidationError(errors)
     
     def calculate_days(self):
         """حساب عدد أيام الإجازة"""

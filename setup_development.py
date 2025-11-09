@@ -516,43 +516,58 @@ def main():
                 print_warning(f"خطأ في تحميل علاقات الموردين: {str(e)[:100]}")
                 test_failed += 1
         
-        # تحميل الفواتير التجريبية باستخدام السكريبت
-        print_info("تحميل فواتير ودفعات تجريبية...")
-        try:
-            result = subprocess.run(
-                ["python", "tests/fixtures/load_demo_transactions.py"],
-                capture_output=True,
-                text=True,
-                check=False
-            )
-            # نتحقق من exit code فقط، نتجاهل warnings في stderr
-            if result.returncode == 0:
-                # عرض تفاصيل ما تم تحميله
-                if result.stdout:
-                    for line in result.stdout.strip().split('\n'):
-                        if line.strip():
-                            # عرض الرسائل المهمة فقط
-                            if '[OK]' in line or 'تم' in line or 'فاتورة' in line or 'قيد' in line:
-                                print_success(f"   {line.strip()}")
-                print_success("تم تحميل فواتير ودفعات تجريبية")
-                test_loaded += 1
-            else:
-                print_warning("فشل تحميل فواتير ودفعات تجريبية")
-                # عرض آخر 15 سطر من الخطأ
-                if result.stderr:
-                    print_warning("الخطأ:")
-                    lines = result.stderr.strip().split('\n')
-                    for line in lines[-15:]:
-                        print(f"   {line}")
-                elif result.stdout:
-                    print_warning("التفاصيل:")
-                    lines = result.stdout.strip().split('\n')
-                    for line in lines[-15:]:
-                        print(f"   {line}")
+        # تحميل الفواتير التجريبية باستخدام السكريبت (اختياري)
+        load_invoices = False
+        if auto_mode:
+            # في الوضع التلقائي، لا نحمل الفواتير افتراضياً
+            print_info("الوضع التلقائي: تخطي تحميل الفواتير التجريبية")
+        else:
+            # سؤال المستخدم
+            print_colored("\n📋 تحميل الفواتير التجريبية", Colors.CYAN)
+            print_info("هل تريد تحميل فواتير ودفعات تجريبية؟")
+            print_info("(يتضمن: فواتير شراء، فواتير بيع، دفعات، قيود محاسبية)")
+            invoice_confirm = input("تحميل الفواتير؟ (yes/no): ").strip().lower()
+            load_invoices = (invoice_confirm == "yes")
+        
+        if load_invoices:
+            print_info("تحميل فواتير ودفعات تجريبية (وضع تلقائي)...")
+            try:
+                result = subprocess.run(
+                    ["python", "tests/fixtures/load_demo_transactions_automated.py"],
+                    capture_output=True,
+                    text=True,
+                    check=False
+                )
+                # نتحقق من exit code فقط، نتجاهل warnings في stderr
+                if result.returncode == 0:
+                    # عرض تفاصيل ما تم تحميله
+                    if result.stdout:
+                        for line in result.stdout.strip().split('\n'):
+                            if line.strip():
+                                # عرض الرسائل المهمة فقط
+                                if '[OK]' in line or '[X]' in line or '[*]' in line or 'تم' in line or 'الملخص' in line or 'الأتمتة' in line or '[1/4]' in line or '[2/4]' in line or '[3/4]' in line or '[4/4]' in line:
+                                    print_success(f"   {line.strip()}")
+                    print_success("تم تحميل فواتير ودفعات تجريبية (معالجة تلقائية)")
+                    test_loaded += 1
+                else:
+                    print_warning("فشل تحميل فواتير ودفعات تجريبية")
+                    # عرض آخر 15 سطر من الخطأ
+                    if result.stderr:
+                        print_warning("الخطأ:")
+                        lines = result.stderr.strip().split('\n')
+                        for line in lines[-15:]:
+                            print(f"   {line}")
+                    elif result.stdout:
+                        print_warning("التفاصيل:")
+                        lines = result.stdout.strip().split('\n')
+                        for line in lines[-15:]:
+                            print(f"   {line}")
+                    test_failed += 1
+            except Exception as e:
+                print_warning(f"خطأ في تحميل فواتير ودفعات تجريبية: {str(e)[:100]}")
                 test_failed += 1
-        except Exception as e:
-            print_warning(f"خطأ في تحميل فواتير ودفعات تجريبية: {str(e)[:100]}")
-            test_failed += 1
+        else:
+            print_info("تم تخطي تحميل الفواتير التجريبية")
         
         # إنشاء أرصدة الإجازات إذا تم تحميل الموظفين
         if Path("hr/fixtures/employees_demo.json").exists():

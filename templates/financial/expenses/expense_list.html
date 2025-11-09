@@ -151,7 +151,9 @@
                           {% with empty_message="لا توجد مصروفات متاحة" %}
                             {% with clickable_rows=True %}
                               {% with show_export=True export_filename="expenses" %}
-                                {% include "components/data_table.html" %}
+                                {% with disable_ordering=True %}
+                                  {% include "components/data_table.html" %}
+                                {% endwith %}
                               {% endwith %}
                             {% endwith %}
                           {% endwith %}
@@ -162,16 +164,6 @@
                 {% else %}
                   {% include 'partials/empty_state.html' with message="لا توجد مصروفات متاحة" icon="money-bill-wave" %}
                 {% endif %}
-                
-                <!-- إضافة زر تصدير البيانات -->
-                <div class="d-flex justify-content-end mt-3">
-                  <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="expenses-table" data-filename="expenses.csv">
-                    <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="expenses-table" data-filename="expenses.xlsx">
-                    <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-                  </button>
-                </div>
             </div>
         </div>
     </div>
@@ -179,6 +171,9 @@
 
 <!-- تضمين مودال المصروف السريع -->
 {% include 'financial/components/quick_expense_modal.html' %}
+
+<!-- تضمين مودال الترحيل -->
+{% include 'financial/components/post_entry_modal.html' %}
 
 {% endblock %}
 

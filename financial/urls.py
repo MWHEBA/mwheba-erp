@@ -154,6 +154,11 @@ urlpatterns = [
         views.journal_entries_post,
         name="journal_entries_post",
     ),
+    path(
+        "journal-entries/<int:pk>/unpost/",
+        views.journal_entries_unpost,
+        name="journal_entries_unpost",
+    ),
     # الفترات المحاسبية
     path(
         "accounting-periods/",
@@ -189,15 +194,12 @@ urlpatterns = [
     # المصروفات والإيرادات
     path("expenses/", views.expense_list, name="expense_list"),
     path("expenses/create/", views.expense_create, name="expense_create"),  # AJAX only
-    path("expenses/<int:pk>/", views.expense_detail_enhanced, name="expense_detail"),  # استخدام النسخة المحسنة
+    path("expenses/<int:pk>/", views.expense_detail, name="expense_detail"),
     path("expenses/<int:pk>/edit/", views.expense_edit, name="expense_edit"),
-    path("expenses/<int:pk>/cancel/", views.expense_cancel, name="expense_cancel"),  # بدلاً من delete
-    path("expenses/<int:pk>/mark-paid/", views.expense_mark_paid, name="expense_mark_paid"),  # بدلاً من post
     path("incomes/", views.income_list, name="income_list"),
-    path("incomes/create/", views.expense_create_enhanced, name="income_create"),  # استخدام دالة إنشاء محسنة
+    path("incomes/create/", views.income_create, name="income_create"),  # AJAX only
     path("incomes/<int:pk>/", views.income_detail, name="income_detail"),
-    path("incomes/<int:pk>/cancel/", views.income_cancel, name="income_cancel"),  # بدلاً من delete
-    path("incomes/<int:pk>/mark-received/", views.income_mark_received, name="income_mark_received"),  # بدلاً من post
+    path("incomes/<int:pk>/edit/", views.income_edit, name="income_edit"),
     # المعاملات العامة
     path("transactions/", views.transaction_list, name="transaction_list"),
     path("transactions/<int:pk>/", views.transaction_detail, name="transaction_detail"),

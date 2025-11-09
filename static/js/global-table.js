@@ -80,6 +80,9 @@ function initializeTable(tableId, options = {}) {
     // التحقق من وجود مربع بحث خارجي
     const hasExternalSearch = document.querySelector(`.table-search[data-table="${tableId}"]`) !== null;
     
+    // التحقق من تعطيل الترتيب
+    const disableOrdering = table.getAttribute('data-disable-ordering') === 'true';
+    
     // إعدادات DataTables الافتراضية
     const defaultOptions = {
         responsive: true,
@@ -92,8 +95,11 @@ function initializeTable(tableId, options = {}) {
              '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
         searching: hasExternalSearch,  // تفعيل البحث إذا كان هناك مربع بحث خارجي
         lengthChange: false,  // تعطيل قائمة عدد العناصر التلقائية
-        order: [[0, 'desc']],
-        columnDefs: [
+        ordering: !disableOrdering,  // تعطيل الترتيب إذا كان محدد
+        order: [],  // بدون ترتيب افتراضي - استخدام ترتيب البيانات الأصلي
+        columnDefs: disableOrdering ? [
+            { targets: '_all', className: 'text-center', orderable: false }
+        ] : [
             { targets: '_all', className: 'text-center' }
         ]
     };

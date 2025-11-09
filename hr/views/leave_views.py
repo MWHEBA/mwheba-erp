@@ -5,7 +5,12 @@ from .base_imports import *
 from ..models import Leave, LeaveBalance, Employee, LeaveType
 from ..forms.leave_forms import LeaveRequestForm
 from ..services.leave_service import LeaveService
+from ..decorators import can_approve_leaves
+from django.core.paginator import Paginator
 from datetime import date
+import logging
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
     'leave_list',
@@ -19,7 +24,13 @@ __all__ = [
 @login_required
 def leave_list(request):
     """قائمة الإجازات"""
-    leaves = Leave.objects.select_related('employee', 'leave_type').all()
+    # Query Optimization
+    leaves = Leave.objects.select_related(
+        'employee',
+        'employee__department',
+        'leave_type',
+        'approved_by'
+    ).all()
     
     # الإحصائيات
     total_leaves = leaves.count()
@@ -31,8 +42,13 @@ def leave_list(request):
     employees = Employee.objects.filter(status='active')
     leave_types = LeaveType.objects.filter(is_active=True)
     
+    # Pagination - 30 إجازة لكل صفحة
+    paginator = Paginator(leaves, 30)
+    page = request.GET.get('page', 1)
+    leaves_page = paginator.get_page(page)
+    
     context = {
-        'leaves': leaves,
+        'leaves': leaves_page,
         'employees': employees,
         'leave_types': leave_types,
         'total_leaves': total_leaves,
@@ -92,22 +108,43 @@ def leave_request(request):
     if request.method == 'POST':
         form = LeaveRequestForm(request.POST, request.FILES)
         if form.is_valid():
-            leave = form.save(commit=False)
-            leave.employee = employee
-            leave.requested_by = request.user
-            
-            # حساب عدد الأيام
-            days_count = (leave.end_date - leave.start_date).days + 1
-            leave.days_count = days_count
-            
-            # التحقق من الرصيد المتاح
-            balance = balances.filter(leave_type=leave.leave_type).first()
-            if balance and balance.remaining_days < days_count:
-                messages.error(request, f'رصيدك غير كافٍ. المتبقي: {balance.remaining_days} يوم، المطلوب: {days_count} يوم')
-            else:
-                leave.save()
-                messages.success(request, 'تم تقديم طلب الإجازة بنجاح')
-                return redirect('hr:leave_detail', pk=leave.pk)
+            try:
+                leave = form.save(commit=False)
+                leave.employee = employee
+                leave.requested_by = request.user
+                
+                # حساب عدد الأيام
+                days_count = (leave.end_date - leave.start_date).days + 1
+                leave.days_count = days_count
+                
+                logger.info(
+                    f"طلب إجازة جديد من {employee.get_full_name_ar()} - "
+                    f"النوع: {leave.leave_type.name_ar}, الأيام: {days_count}"
+                )
+                
+                # التحقق من الرصيد المتاح
+                balance = balances.filter(leave_type=leave.leave_type).first()
+                if balance and balance.remaining_days < days_count:
+                    logger.warning(
+                        f"رصيد غير كافٍ للموظف {employee.get_full_name_ar()} - "
+                        f"المتبقي: {balance.remaining_days}, المطلوب: {days_count}"
+                    )
+                    messages.error(
+                        request,
+                        f'رصيدك غير كافٍ. المتبقي: {balance.remaining_days} يوم، المطلوب: {days_count} يوم'
+                    )
+                else:
+                    leave.save()
+                    logger.info(f"تم حفظ طلب الإجازة #{leave.pk} بنجاح")
+                    messages.success(request, 'تم تقديم طلب الإجازة بنجاح')
+                    return redirect('hr:leave_detail', pk=leave.pk)
+                    
+            except ValueError as e:
+                logger.error(f"خطأ في البيانات عند طلب إجازة: {str(e)}")
+                messages.error(request, f'خطأ في البيانات: {str(e)}')
+            except Exception as e:
+                logger.exception(f"خطأ غير متوقع عند طلب إجازة: {str(e)}")
+                messages.error(request, f'حدث خطأ غير متوقع: {str(e)}')
         else:
             messages.error(request, 'يرجى تصحيح الأخطاء في النموذج')
     else:
@@ -185,6 +222,7 @@ def leave_detail(request, pk):
 
 
 @login_required
+@can_approve_leaves
 def leave_approve(request, pk):
     """اعتماد الإجازة"""
     leave = get_object_or_404(Leave, pk=pk)
@@ -221,6 +259,7 @@ def leave_approve(request, pk):
 
 
 @login_required
+@can_approve_leaves
 def leave_reject(request, pk):
     """رفض الإجازة"""
     leave = get_object_or_404(Leave, pk=pk)

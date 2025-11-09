@@ -4,7 +4,9 @@ Views إدارة العقود (الجزء الأول - الدوال الأساس
 from .base_imports import *
 from ..models import Contract, Employee, Department
 from ..models.contract import ContractDocument, ContractAmendment, ContractIncrease
+from ..decorators import can_manage_contracts, hr_manager_required
 from core.models import SystemSetting
+from django.core.paginator import Paginator
 from datetime import date, timedelta
 
 __all__ = [
@@ -20,9 +22,20 @@ __all__ = [
 
 
 @login_required
+@hr_manager_required
 def contract_list(request):
     """قائمة العقود"""
-    contracts = Contract.objects.select_related('employee', 'employee__department').all()
+    # Query Optimization - تقليل عدد الـ queries
+    contracts = Contract.objects.select_related(
+        'employee',
+        'employee__department',
+        'employee__job_title',
+        'job_title',
+        'department'
+    ).prefetch_related(
+        'scheduled_increases',
+        'amendments'
+    ).all()
     
     # إحصائيات
     stats = {
@@ -54,9 +67,14 @@ def contract_list(request):
         {'url': 'hr:contract_form_edit', 'icon': 'fa-edit', 'label': 'تعديل', 'class': 'action-edit'},
     ]
     
+    # Pagination - 30 عقد لكل صفحة
+    paginator = Paginator(contracts, 30)
+    page = request.GET.get('page', 1)
+    contracts_page = paginator.get_page(page)
+    
     context = {
         'headers': headers,
-        'data': contracts,
+        'data': contracts_page,
         'action_buttons': action_buttons,
         'table_id': 'contracts-table',
         'primary_key': 'pk',

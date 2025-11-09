@@ -307,7 +307,7 @@
     margin-top: var(--header-height);
     margin-bottom: var(--footer-height);
     min-height: calc(100vh - var(--header-height) - var(--footer-height));
-    max-width: 1200px;
+    max-width: 1400px;
     width: 100%;
     margin-left: auto;
     margin-right: auto;

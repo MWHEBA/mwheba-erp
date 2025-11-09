@@ -63,6 +63,9 @@
   <!-- عنوان الصفحة -->
   <div class="mb-4">
     <!-- Breadcrumbs -->
+    {% if breadcrumb_items %}
+      {% include "shared/breadcrumb.html" %}
+    {% else %}
     <div class="mb-2">
       <nav aria-label="breadcrumb">
         <ol class="breadcrumb mb-0">
@@ -82,6 +85,7 @@
         </ol>
       </nav>
     </div>
+    {% endif %}
     
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
@@ -118,9 +122,31 @@
         </div>
       </div>
       <div>
-        <a href="{% url 'financial:transaction_list' %}" class="btn btn-outline-secondary">
-          <i class="fas fa-arrow-right me-1"></i>{% trans "قائمة المعاملات" %}
+        <button type="button" class="btn btn-outline-secondary" onclick="history.back()">
+          <i class="fas fa-arrow-right me-1"></i>{% trans "رجوع" %}
+        </button>
+        {% if transaction.status == 'posted' %}
+        <button type="button" class="btn btn-outline-warning" onclick="openUnpostModal({{ transaction.id }})">
+          <i class="fas fa-undo me-1"></i>{% trans "إلغاء الترحيل" %}
+        </button>
+        {% elif transaction.status == 'draft' %}
+        {% if transaction.transaction_type == 'expense' %}
+        <button type="button" class="btn btn-outline-primary" onclick="openEditExpenseModal({{ transaction.id }})">
+          <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+        </button>
+        {% elif transaction.transaction_type == 'income' %}
+        <button type="button" class="btn btn-outline-primary" onclick="openEditIncomeModal({{ transaction.id }})">
+          <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
+        </button>
+        {% else %}
+        <a href="{% url 'financial:journal_entries_edit' transaction.id %}" class="btn btn-outline-primary">
+          <i class="fas fa-edit me-1"></i>{% trans "تعديل" %}
         </a>
+        {% endif %}
+        <button type="button" class="btn btn-outline-success" onclick="openPostModal({{ transaction.id }})">
+          <i class="fas fa-check-circle me-1"></i>{% trans "ترحيل" %}
+        </button>
+        {% endif %}
         <button type="button" class="btn btn-outline-primary" onclick="window.print()">
           <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
         </button>
@@ -304,4 +330,188 @@
   </div>
   {% endif %}
 </div>
+
+<!-- تضمين مودال الترحيل -->
+{% include 'financial/components/post_entry_modal.html' %}
+
+<!-- مودال إلغاء الترحيل -->
+<div class="modal fade" id="unpostEntryModal" tabindex="-1" aria-labelledby="unpostEntryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title" id="unpostEntryModalLabel">
+          <i class="fas fa-undo me-2"></i>
+          {% trans "إلغاء ترحيل القيد" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <form id="unpostEntryForm" method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" id="unpost_entry_id" name="entry_id">
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% trans "هل أنت متأكد من إلغاء ترحيل هذا القيد؟" %}
+          </div>
+          
+          <div class="mb-3">
+            <p class="mb-2"><strong>{% trans "رقم القيد:" %}</strong> <span id="unpost_entry_number"></span></p>
+            <p class="mb-0"><strong>{% trans "البيان:" %}</strong> <span id="unpost_entry_description"></span></p>
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            <small>{% trans "بعد إلغاء الترحيل، سيعود القيد إلى حالة المسودة ويمكن تعديله." %}</small>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>
+            {% trans "إلغاء" %}
+          </button>
+          <button type="submit" class="btn btn-warning" id="unpostEntrySubmitBtn">
+            <i class="fas fa-undo me-1"></i>
+            {% trans "إلغاء الترحيل" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// دالة فتح مودال إلغاء الترحيل
+function openUnpostModal(entryId) {
+  document.getElementById('unpost_entry_id').value = entryId;
+  document.getElementById('unpost_entry_number').textContent = entryId;
+  document.getElementById('unpost_entry_description').textContent = 'قيد محاسبي';
+  
+  const modal = new bootstrap.Modal(document.getElementById('unpostEntryModal'));
+  modal.show();
+}
+
+// معالجة إرسال نموذج إلغاء الترحيل
+document.getElementById('unpostEntryForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const entryId = document.getElementById('unpost_entry_id').value;
+  const submitBtn = document.getElementById('unpostEntrySubmitBtn');
+  
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الإلغاء..." %}';
+  
+  fetch(`/financial/journal-entries/${entryId}/unpost/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      bootstrap.Modal.getInstance(document.getElementById('unpostEntryModal')).hide();
+      location.reload();
+    } else {
+      alert(data.message || '{% trans "حدث خطأ أثناء إلغاء الترحيل" %}');
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-undo me-1"></i> {% trans "إلغاء الترحيل" %}';
+    }
+  })
+  .catch(error => {
+    console.error('خطأ:', error);
+    alert('{% trans "حدث خطأ في الاتصال بالخادم" %}');
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-undo me-1"></i> {% trans "إلغاء الترحيل" %}';
+  });
+});
+
+// دالة فتح مودال تعديل المصروف
+function openEditExpenseModal(entryId) {
+  // تحميل نموذج التعديل من الخادم
+  fetch(`/financial/expenses/${entryId}/edit/`, {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.text())
+  .then(html => {
+    // إنشاء مودال ديناميكي
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = html;
+    document.body.appendChild(modalDiv);
+    
+    // استخراج بيانات الحسابات من الـ HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // البحث عن الـ script tag وتنفيذ الكود
+    const scripts = tempDiv.querySelectorAll('script');
+    scripts.forEach(script => {
+      if (script.textContent.includes('loadExpenseAccounts')) {
+        // تنفيذ الكود
+        eval(script.textContent);
+      }
+    });
+    
+    const modal = new bootstrap.Modal(modalDiv.querySelector('.modal'));
+    modal.show();
+    
+    // حذف المودال بعد الإغلاق
+    modalDiv.querySelector('.modal').addEventListener('hidden.bs.modal', function() {
+      modalDiv.remove();
+    });
+  })
+  .catch(error => {
+    console.error('خطأ:', error);
+    alert('حدث خطأ في تحميل نموذج التعديل');
+  });
+}
+
+// دالة فتح مودال تعديل الإيراد
+function openEditIncomeModal(entryId) {
+  // تحميل نموذج التعديل من الخادم
+  fetch(`/financial/incomes/${entryId}/edit/`, {
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest'
+    }
+  })
+  .then(response => response.text())
+  .then(html => {
+    // إنشاء مودال ديناميكي
+    const modalDiv = document.createElement('div');
+    modalDiv.innerHTML = html;
+    document.body.appendChild(modalDiv);
+    
+    // استخراج بيانات الحسابات من الـ HTML
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    
+    // البحث عن الـ script tag وتنفيذ الكود
+    const scripts = tempDiv.querySelectorAll('script');
+    scripts.forEach(script => {
+      if (script.textContent.includes('loadIncomeAccounts')) {
+        // تنفيذ الكود
+        eval(script.textContent);
+      }
+    });
+    
+    const modal = new bootstrap.Modal(modalDiv.querySelector('.modal'));
+    modal.show();
+    
+    // حذف المودال بعد الإغلاق
+    modalDiv.querySelector('.modal').addEventListener('hidden.bs.modal', function() {
+      modalDiv.remove();
+    });
+  })
+  .catch(error => {
+    console.error('خطأ:', error);
+    alert('حدث خطأ في تحميل نموذج التعديل');
+  });
+}
+</script>
 {% endblock %} 

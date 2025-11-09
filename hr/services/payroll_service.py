@@ -6,6 +6,9 @@ from datetime import date
 from decimal import Decimal
 from ..models import Payroll, Employee, Advance
 from .attendance_service import AttendanceService
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class PayrollService:
@@ -25,64 +28,96 @@ class PayrollService:
         Returns:
             Payroll: كشف الراتب
         """
-        # الحصول على الراتب النشط
-        salary = employee.salaries.filter(is_active=True).first()
-        if not salary:
-            raise ValueError('لا يوجد راتب نشط للموظف')
-        
-        # حساب الحضور
-        attendance_stats = AttendanceService.calculate_monthly_attendance(employee, month)
-        
-        # حساب العمل الإضافي
-        overtime_rate = salary.basic_salary / 180  # سعر الساعة
-        overtime_amount = Decimal(str(attendance_stats['total_overtime_hours'])) * overtime_rate
-        
-        # حساب خصم الغياب
-        absence_days = attendance_stats.get('absent_days', 0)
-        absence_deduction = (salary.basic_salary / 30) * absence_days
-        
-        # حساب خصم السلف
-        advance_deduction = PayrollService._calculate_advance_deduction(employee, month)
-        
-        # إنشاء كشف الراتب
-        payroll = Payroll.objects.create(
-            employee=employee,
-            month=month,
-            salary=salary,
-            basic_salary=salary.basic_salary,
-            allowances=salary.housing_allowance + salary.transport_allowance + salary.food_allowance,
-            overtime_hours=Decimal(str(attendance_stats['total_overtime_hours'])),
-            overtime_rate=overtime_rate,
-            overtime_amount=overtime_amount,
-            absence_days=absence_days,
-            absence_deduction=absence_deduction,
-            social_insurance=salary.basic_salary * (salary.social_insurance_rate / 100),
-            tax=salary.gross_salary * (salary.tax_rate / 100),
-            advance_deduction=advance_deduction,
-            processed_by=processed_by,
-            status='calculated'
-        )
-        
-        # حساب الإجماليات
-        payroll.calculate_totals()
-        
-        return payroll
+        try:
+            logger.info(f"بدء حساب راتب {employee.get_full_name_ar()} لشهر {month.strftime('%Y-%m')}")
+            
+            # الحصول على الراتب النشط
+            salary = employee.salaries.filter(is_active=True).first()
+            if not salary:
+                logger.error(f"لا يوجد راتب نشط للموظف {employee.get_full_name_ar()}")
+                raise ValueError('لا يوجد راتب نشط للموظف')
+            
+            # حساب الحضور
+            attendance_stats = AttendanceService.calculate_monthly_attendance(employee, month)
+            
+            # حساب العمل الإضافي
+            overtime_rate = salary.basic_salary / 180  # سعر الساعة
+            overtime_amount = Decimal(str(attendance_stats['total_overtime_hours'])) * overtime_rate
+            
+            # حساب خصم الغياب
+            absence_days = attendance_stats.get('absent_days', 0)
+            absence_deduction = (salary.basic_salary / 30) * absence_days
+            
+            # حساب خصم السلف
+            advance_deduction = PayrollService._calculate_advance_deduction(employee, month)
+            
+            # حساب الإجماليات مسبقاً
+            social_insurance = salary.basic_salary * (salary.social_insurance_rate / Decimal('100'))
+            allowances_total = salary.housing_allowance + salary.transport_allowance + salary.food_allowance
+            gross_salary = salary.basic_salary + allowances_total + overtime_amount
+            tax = gross_salary * (salary.tax_rate / Decimal('100'))
+            total_deductions = social_insurance + tax + absence_deduction + advance_deduction
+            net_salary = gross_salary - total_deductions
+            
+            # إنشاء كشف الراتب
+            payroll = Payroll.objects.create(
+                employee=employee,
+                month=month,
+                salary=salary,
+                basic_salary=salary.basic_salary,
+                allowances=allowances_total,
+                overtime_hours=Decimal(str(attendance_stats['total_overtime_hours'])),
+                overtime_rate=overtime_rate,
+                overtime_amount=overtime_amount,
+                absence_days=absence_days,
+                absence_deduction=absence_deduction,
+                social_insurance=social_insurance,
+                tax=tax,
+                advance_deduction=advance_deduction,
+                gross_salary=gross_salary,
+                total_additions=overtime_amount,
+                total_deductions=total_deductions,
+                net_salary=net_salary,
+                processed_by=processed_by,
+                status='calculated'
+            )
+            
+            logger.info(
+                f"تم حساب الراتب بنجاح - الموظف: {employee.get_full_name_ar()}, "
+                f"الإجمالي: {payroll.gross_salary}, الصافي: {payroll.net_salary}"
+            )
+            
+            return payroll
+            
+        except ValueError as e:
+            logger.error(f"خطأ في البيانات عند حساب راتب {employee.get_full_name_ar()}: {str(e)}")
+            raise
+        except Exception as e:
+            logger.exception(f"خطأ غير متوقع في حساب راتب {employee.get_full_name_ar()}: {str(e)}")
+            raise
     
     @staticmethod
     def _calculate_advance_deduction(employee, month):
-        """حساب خصم السلف للشهر"""
+        """
+        خصم السلف - مؤقت حتى يتم تطبيق نظام الأقساط
+        يخصم سلفة واحدة فقط في كل شهر
+        """
         # الحصول على السلف المعتمدة وغير المخصومة
         advances = Advance.objects.filter(
             employee=employee,
             status='paid',
             deducted=False
-        )
+        ).order_by('requested_at')
         
-        total_deduction = sum(advance.amount for advance in advances)
+        if not advances.exists():
+            return Decimal('0')
         
-        # تحديد السلف كمخصومة
-        for advance in advances:
-            advance.mark_as_deducted(month)
+        # خصم سلفة واحدة فقط في كل شهر (مؤقت)
+        advance = advances.first()
+        total_deduction = advance.amount
+        
+        # تحديد السلفة كمخصومة
+        advance.mark_as_deducted(month)
         
         return Decimal(str(total_deduction))
     
@@ -99,8 +134,12 @@ class PayrollService:
         Returns:
             list: نتائج المعالجة
         """
+        logger.info(f"بدء معالجة رواتب شهر {month.strftime('%Y-%m')} بواسطة {processed_by.username}")
+        
         employees = Employee.objects.filter(status='active')
         results = []
+        success_count = 0
+        fail_count = 0
         
         for employee in employees:
             try:
@@ -110,12 +149,20 @@ class PayrollService:
                     'payroll': payroll,
                     'success': True
                 })
+                success_count += 1
             except Exception as e:
+                logger.error(f"فشل حساب راتب {employee.get_full_name_ar()}: {str(e)}")
                 results.append({
                     'employee': employee,
                     'error': str(e),
                     'success': False
                 })
+                fail_count += 1
+        
+        logger.info(
+            f"انتهت معالجة الرواتب - النجاح: {success_count}, الفشل: {fail_count}, "
+            f"الإجمالي: {len(results)}"
+        )
         
         return results
     

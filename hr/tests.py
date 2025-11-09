@@ -4,7 +4,7 @@ Tests لوحدة الموارد البشرية
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
 from django.urls import reverse
-from datetime import date, timedelta
+from datetime import date, timedelta, time
 from decimal import Decimal
 
 from .models import (
@@ -37,7 +37,7 @@ class DepartmentModelTest(TestCase):
     
     def test_department_str(self):
         """اختبار __str__"""
-        self.assertEqual(str(self.department), 'تقنية المعلومات')
+        self.assertEqual(str(self.department), 'IT - تقنية المعلومات')
 
 
 class EmployeeModelTest(TestCase):
@@ -63,8 +63,13 @@ class EmployeeModelTest(TestCase):
             first_name_ar='أحمد',
             last_name_ar='محمد',
             national_id='12345678901234',
+            birth_date=date(1990, 1, 1),
+            gender='male',
+            marital_status='single',
             work_email='ahmed@test.com',
             mobile_phone='01234567890',
+            address='القاهرة',
+            city='القاهرة',
             department=self.department,
             job_title=self.job_title,
             hire_date=date.today(),
@@ -94,8 +99,13 @@ class AttendanceServiceTest(TestCase):
             first_name_ar='أحمد',
             last_name_ar='محمد',
             national_id='12345678901234',
+            birth_date=date(1990, 1, 1),
+            gender='male',
+            marital_status='single',
             work_email='test@test.com',
             mobile_phone='01234567890',
+            address='القاهرة',
+            city='القاهرة',
             department=self.department,
             job_title=self.job_title,
             hire_date=date.today(),
@@ -104,21 +114,21 @@ class AttendanceServiceTest(TestCase):
         self.shift = Shift.objects.create(
             name='صباحي',
             shift_type='morning',
-            start_time='08:00',
-            end_time='16:00'
+            start_time=time(8, 0),
+            end_time=time(16, 0)
         )
     
     def test_check_in(self):
         """اختبار تسجيل الحضور"""
-        attendance = AttendanceService.check_in(self.employee, self.shift)
+        attendance = AttendanceService.record_check_in(self.employee, shift=self.shift)
         self.assertIsNotNone(attendance)
         self.assertEqual(attendance.employee, self.employee)
         self.assertEqual(attendance.date, date.today())
     
     def test_check_out(self):
         """اختبار تسجيل الانصراف"""
-        attendance = AttendanceService.check_in(self.employee, self.shift)
-        updated = AttendanceService.check_out(self.employee)
+        attendance = AttendanceService.record_check_in(self.employee, shift=self.shift)
+        updated = AttendanceService.record_check_out(self.employee)
         self.assertIsNotNone(updated.check_out)
 
 
@@ -135,8 +145,13 @@ class LeaveServiceTest(TestCase):
             first_name_ar='أحمد',
             last_name_ar='محمد',
             national_id='12345678901234',
+            birth_date=date(1990, 1, 1),
+            gender='male',
+            marital_status='single',
             work_email='test@test.com',
             mobile_phone='01234567890',
+            address='القاهرة',
+            city='القاهرة',
             department=self.department,
             job_title=self.job_title,
             hire_date=date.today(),
@@ -151,18 +166,19 @@ class LeaveServiceTest(TestCase):
             employee=self.employee,
             leave_type=self.leave_type,
             year=date.today().year,
-            total_days=21
+            total_days=21,
+            remaining_days=21
         )
     
     def test_request_leave(self):
         """اختبار طلب إجازة"""
-        leave = LeaveService.request_leave(
-            employee=self.employee,
-            leave_type=self.leave_type,
-            start_date=date.today(),
-            end_date=date.today() + timedelta(days=2),
-            reason='إجازة'
-        )
+        leave_data = {
+            'leave_type': self.leave_type,
+            'start_date': date.today(),
+            'end_date': date.today() + timedelta(days=2),
+            'reason': 'إجازة'
+        }
+        leave = LeaveService.request_leave(self.employee, leave_data)
         self.assertIsNotNone(leave)
         self.assertEqual(leave.status, 'pending')
     
@@ -179,6 +195,112 @@ class LeaveServiceTest(TestCase):
         LeaveService.approve_leave(leave, self.user)
         leave.refresh_from_db()
         self.assertEqual(leave.status, 'approved')
+
+
+class PayrollServiceTest(TestCase):
+    """اختبارات خدمة الرواتب"""
+    
+    def setUp(self):
+        self.user = User.objects.create_user(username='test', password='test')
+        self.department = Department.objects.create(code='IT', name_ar='IT')
+        self.job_title = JobTitle.objects.create(code='DEV', title_ar='Dev', department=self.department)
+        self.employee = Employee.objects.create(
+            user=self.user,
+            employee_number='EMP001',
+            first_name_ar='أحمد',
+            last_name_ar='محمد',
+            national_id='12345678901234',
+            birth_date=date(1990, 1, 1),
+            gender='male',
+            marital_status='single',
+            work_email='test@test.com',
+            mobile_phone='01234567890',
+            address='القاهرة',
+            city='القاهرة',
+            department=self.department,
+            job_title=self.job_title,
+            hire_date=date.today(),
+            created_by=self.user
+        )
+        self.salary = Salary.objects.create(
+            employee=self.employee,
+            effective_date=date.today(),
+            basic_salary=Decimal('5000.00'),
+            housing_allowance=Decimal('1000.00'),
+            transport_allowance=Decimal('500.00'),
+            food_allowance=Decimal('300.00'),
+            gross_salary=Decimal('0'),
+            total_deductions=Decimal('0'),
+            net_salary=Decimal('0'),
+            is_active=True,
+            created_by=self.user
+        )
+    
+    def test_calculate_payroll_basic(self):
+        """اختبار حساب راتب أساسي"""
+        payroll = PayrollService.calculate_payroll(
+            self.employee,
+            date(2025, 1, 1),
+            self.user
+        )
+        
+        self.assertIsNotNone(payroll)
+        self.assertEqual(payroll.employee, self.employee)
+        self.assertEqual(payroll.status, 'calculated')
+        self.assertEqual(payroll.basic_salary, Decimal('5000.00'))
+        self.assertGreater(payroll.net_salary, 0)
+    
+    def test_calculate_payroll_with_advance(self):
+        """اختبار حساب راتب مع سلفة"""
+        # إنشاء سلفة
+        advance = Advance.objects.create(
+            employee=self.employee,
+            amount=Decimal('1000.00'),
+            reason='سلفة اختبار',
+            status='paid'
+        )
+        
+        payroll = PayrollService.calculate_payroll(
+            self.employee,
+            date(2025, 1, 1),
+            self.user
+        )
+        
+        # التحقق من خصم السلفة
+        self.assertEqual(payroll.advance_deduction, Decimal('1000.00'))
+        self.assertLess(payroll.net_salary, payroll.gross_salary)
+        
+        # التحقق من تحديث حالة السلفة
+        advance.refresh_from_db()
+        self.assertTrue(advance.deducted)
+        self.assertEqual(advance.status, 'deducted')
+    
+    def test_calculate_payroll_no_active_salary(self):
+        """اختبار حساب راتب بدون راتب نشط"""
+        # تعطيل الراتب
+        self.salary.is_active = False
+        self.salary.save()
+        
+        with self.assertRaises(ValueError) as context:
+            PayrollService.calculate_payroll(
+                self.employee,
+                date(2025, 1, 1),
+                self.user
+            )
+        
+        self.assertIn('لا يوجد راتب نشط', str(context.exception))
+    
+    def test_process_monthly_payroll(self):
+        """اختبار معالجة رواتب شهرية"""
+        results = PayrollService.process_monthly_payroll(
+            date(2025, 1, 1),
+            self.user
+        )
+        
+        self.assertIsNotNone(results)
+        self.assertEqual(len(results), 1)
+        self.assertTrue(results[0]['success'])
+        self.assertEqual(results[0]['employee'], self.employee)
 
 
 class ViewsTest(TestCase):

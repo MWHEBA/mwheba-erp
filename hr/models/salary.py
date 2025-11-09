@@ -3,6 +3,7 @@
 """
 from django.db import models
 from django.contrib.auth import get_user_model
+from decimal import Decimal
 
 User = get_user_model()
 
@@ -126,8 +127,8 @@ class Salary(models.Model):
     
     def calculate_deductions(self):
         """حساب الاستقطاعات"""
-        social_insurance = self.basic_salary * (self.social_insurance_rate / 100)
-        tax = self.gross_salary * (self.tax_rate / 100)
+        social_insurance = self.basic_salary * (self.social_insurance_rate / Decimal('100'))
+        tax = self.gross_salary * (self.tax_rate / Decimal('100'))
         self.total_deductions = social_insurance + tax
         return self.total_deductions
     

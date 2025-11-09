@@ -266,6 +266,36 @@ class Payroll(models.Model):
         )
         
         return self.net_salary
+    
+    def clean(self):
+        """التحقق من صحة البيانات"""
+        from django.core.exceptions import ValidationError
+        errors = {}
+        
+        # التحقق من صافي الراتب
+        if hasattr(self, 'net_salary') and self.net_salary < 0:
+            errors['net_salary'] = 'صافي الراتب لا يمكن أن يكون سالب'
+        
+        # التحقق من ساعات العمل الإضافي
+        if self.overtime_hours < 0:
+            errors['overtime_hours'] = 'ساعات العمل الإضافي لا يمكن أن تكون سالبة'
+        
+        if self.overtime_hours > 160:  # حد أقصى معقول
+            errors['overtime_hours'] = 'ساعات العمل الإضافي تبدو غير منطقية (أكثر من 160 ساعة)'
+        
+        # التحقق من أيام الغياب
+        if self.absence_days < 0:
+            errors['absence_days'] = 'أيام الغياب لا يمكن أن تكون سالبة'
+        
+        if self.absence_days > 31:
+            errors['absence_days'] = 'أيام الغياب لا يمكن أن تتجاوز 31 يوم'
+        
+        # التحقق من الراتب الأساسي
+        if self.basic_salary <= 0:
+            errors['basic_salary'] = 'الراتب الأساسي يجب أن يكون أكبر من صفر'
+        
+        if errors:
+            raise ValidationError(errors)
 
 
 class Advance(models.Model):
@@ -333,6 +363,26 @@ class Advance(models.Model):
     
     def __str__(self):
         return f"{self.employee.get_full_name_ar()} - {self.amount}"
+    
+    def clean(self):
+        """التحقق من صحة البيانات"""
+        from django.core.exceptions import ValidationError
+        errors = {}
+        
+        # التحقق من المبلغ
+        if self.amount <= 0:
+            errors['amount'] = 'المبلغ يجب أن يكون أكبر من صفر'
+        
+        # التحقق من عدم تجاوز حد معقول
+        if self.amount > 50000:  # حد أقصى 50,000 جنيه
+            errors['amount'] = 'المبلغ يتجاوز الحد الأقصى المسموح (50,000 جنيه)'
+        
+        # التحقق من السبب
+        if not self.reason or len(self.reason.strip()) < 10:
+            errors['reason'] = 'يجب كتابة سبب واضح للسلفة (10 أحرف على الأقل)'
+        
+        if errors:
+            raise ValidationError(errors)
     
     def mark_as_deducted(self, month):
         """تحديد السلفة كمخصومة"""

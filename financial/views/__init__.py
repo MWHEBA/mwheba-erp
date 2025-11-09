@@ -65,6 +65,7 @@ from .transaction_views import (
     journal_entries_edit,
     journal_entries_delete,
     journal_entries_post,
+    journal_entries_unpost,
     transaction_list,
     transaction_detail,
     # transaction_create,  # تم حذفه - تحت التطوير
@@ -103,24 +104,20 @@ from .api_views import (
     customer_supplier_balances_report,
 )
 
-# من income_views.py
-from .income_views import (
+# من expense_views.py - المصروفات
+from .expense_views import (
     expense_list,
     expense_detail,
     expense_create,
     expense_edit,
-    expense_mark_paid,
-    expense_cancel,
+)
+
+# من income_views.py - الإيرادات
+from .income_views import (
     income_list,
     income_detail,
-    income_mark_received,
-    income_cancel,
-    category_list,
-    category_create,
-    category_edit,
-    category_delete,
-    expense_create_enhanced,
-    expense_detail_enhanced,
+    income_create,
+    income_edit,
 )
 
 # من period_views.py

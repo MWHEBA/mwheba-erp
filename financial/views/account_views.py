@@ -1738,11 +1738,11 @@ def cash_account_movements(request, pk):
         messages.error(request, "هذا الحساب ليس حساباً نقدياً أو بنكياً")
         return redirect("financial:cash_and_bank_accounts_list")
 
-    # جلب حركات الحساب من القيود المحاسبية
+    # جلب حركات الحساب من القيود المحاسبية (من الأقدم للأحدث لحساب الرصيد)
     movements = (
         JournalEntryLine.objects.filter(account=account)
         .select_related("journal_entry")
-        .order_by("-journal_entry__date", "-id")
+        .order_by("journal_entry__date", "id")  # من الأقدم للأحدث
     )
 
     # الفلترة
@@ -1763,8 +1763,21 @@ def cash_account_movements(request, pk):
             | models.Q(description__icontains=search)
         )
 
-    # حساب الرصيد التراكمي لكل حركة
-    running_balance = 0
+    # حساب الرصيد الافتتاحي (قبل الفلترة)
+    opening_balance = 0
+    if date_from:
+        # حساب الرصيد من بداية الحساب حتى تاريخ البداية
+        from django.db.models import Sum
+        opening_movements = JournalEntryLine.objects.filter(
+            account=account,
+            journal_entry__date__lt=date_from
+        )
+        opening_debit = opening_movements.aggregate(Sum("debit"))["debit__sum"] or 0
+        opening_credit = opening_movements.aggregate(Sum("credit"))["credit__sum"] or 0
+        opening_balance = opening_debit - opening_credit
+
+    # حساب الرصيد التراكمي لكل حركة (من الأقدم للأحدث)
+    running_balance = opening_balance
     movements_with_balance = []
 
     for movement in movements:
@@ -1775,6 +1788,9 @@ def cash_account_movements(request, pk):
         # إضافة الرصيد التراكمي للحركة
         movement.running_balance = running_balance
         movements_with_balance.append(movement)
+    
+    # عكس الترتيب للعرض (من الأحدث للأقدم) لكن الرصيد محسوب صح
+    movements_with_balance.reverse()
 
     # الترقيم
     paginator = Paginator(movements_with_balance, 25)
@@ -1786,7 +1802,7 @@ def cash_account_movements(request, pk):
 
     total_debit = movements.aggregate(Sum("debit"))["debit__sum"] or 0
     total_credit = movements.aggregate(Sum("credit"))["credit__sum"] or 0
-    current_balance = total_debit - total_credit
+    current_balance = opening_balance + total_debit - total_credit
 
     context = {
         "account": account,
@@ -1794,6 +1810,7 @@ def cash_account_movements(request, pk):
         "total_debit": total_debit,
         "total_credit": total_credit,
         "current_balance": current_balance,
+        "opening_balance": opening_balance,
         "date_from": date_from,
         "date_to": date_to,
         "search": search,

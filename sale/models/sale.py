@@ -120,6 +120,10 @@ class Sale(models.Model):
         # تحديث حالة الدفع بعد الحفظ
         self.update_payment_status()
 
+        # ملاحظة: القيود المحاسبية للفواتير تُنشأ عبر:
+        # - AccountingIntegrationService.create_sale_journal_entry()
+        # - يتم استدعاؤها من sale/views.py عند إنشاء الفاتورة
+
     @property
     def amount_paid(self):
         """

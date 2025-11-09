@@ -1,0 +1,205 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="account" class="form-label">{% trans "الحساب" %}</label>
+          <select class="form-select" id="account" name="account">
+            <option value="">{% trans "جميع الحسابات" %}</option>
+            {% for acc in accounts %}
+            <option value="{{ acc.id }}" {% if request.GET.account == acc.id|stringformat:"s" %}selected{% endif %}>
+              {{ acc.code }} - {{ acc.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="type" class="form-label">{% trans "النوع" %}</label>
+          <select class="form-select" id="type" name="type">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="income" {% if request.GET.type == 'income' %}selected{% endif %}>{% trans "إيراد" %}</option>
+            <option value="expense" {% if request.GET.type == 'expense' %}selected{% endif %}>{% trans "مصروف" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+          <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="col-md-2">
+          <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+          <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- إحصائيات -->
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card bg-light">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-2">{% trans "إجمالي المعاملات" %}</h6>
+          <h4 class="mb-0">{{ total_transactions }}</h4>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-success bg-opacity-10">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-2">
+            <i class="fas fa-arrow-down me-1"></i>{% trans "إجمالي الوارد" %}
+          </h6>
+          <h4 class="mb-0 text-success">{{ total_debit|remove_trailing_zeros }} ج.م</h4>
+          <small class="text-muted">{% trans "المبالغ الداخلة للصندوق والبنك" %}</small>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card bg-danger bg-opacity-10">
+        <div class="card-body text-center">
+          <h6 class="text-muted mb-2">
+            <i class="fas fa-arrow-up me-1"></i>{% trans "إجمالي الصادر" %}
+          </h6>
+          <h4 class="mb-0 text-danger">{{ total_credit|remove_trailing_zeros }} ج.م</h4>
+          <small class="text-muted">{% trans "المبالغ الخارجة من الصندوق والبنك" %}</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- قائمة المعاملات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-money-bill-wave me-2"></i>{% trans "الحركات النقدية والبنكية" %}
+        </h5>
+        <small class="text-muted">{% trans "المعاملات التي تؤثر على الصندوق والبنك فقط" %}</small>
+      </div>
+      <div class="card-body">
+        {% if journal_entries %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th class="text-center" style="width: 10%;">{% trans "رقم القيد" %}</th>
+                <th class="text-center" style="width: 12%;">{% trans "التاريخ" %}</th>
+                <th style="width: 30%;">{% trans "الوصف" %}</th>
+                <th class="text-center text-success" style="width: 13%;">
+                  <i class="fas fa-arrow-down me-1"></i>{% trans "وارد" %}
+                </th>
+                <th class="text-center text-danger" style="width: 13%;">
+                  <i class="fas fa-arrow-up me-1"></i>{% trans "صادر" %}
+                </th>
+                <th class="text-center" style="width: 10%;">{% trans "الحالة" %}</th>
+                <th class="text-center" style="width: 12%;">{% trans "الإجراءات" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in journal_entries %}
+              <tr>
+                <td class="text-center">
+                  <a href="{% url 'financial:transaction_detail' entry.id %}" class="text-decoration-none">
+                    {{ entry.number }}
+                  </a>
+                </td>
+                <td class="text-center">{{ entry.date|date:"Y-m-d" }}</td>
+                <td>{{ entry.description|truncatewords:10 }}</td>
+                <td class="text-center">
+                  {% for line in entry.lines.all %}
+                    {% if line.account.is_cash_account or line.account.is_bank_account %}
+                      {% if line.debit %}
+                        <span class="badge bg-success-subtle text-success fs-6 fw-normal">
+                          {{ line.debit|remove_trailing_zeros }} ج.م
+                        </span>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                </td>
+                <td class="text-center">
+                  {% for line in entry.lines.all %}
+                    {% if line.account.is_cash_account or line.account.is_bank_account %}
+                      {% if line.credit %}
+                        <span class="badge bg-danger-subtle text-danger fs-6 fw-normal">
+                          {{ line.credit|remove_trailing_zeros }} ج.م
+                        </span>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                </td>
+                <td class="text-center">
+                  {% if entry.is_posted %}
+                    <span class="badge bg-success">{% trans "مرحل" %}</span>
+                  {% else %}
+                    <span class="badge bg-warning">{% trans "مسودة" %}</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <a href="{% url 'financial:transaction_detail' entry.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if journal_entries.has_other_pages %}
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center">
+            {% if journal_entries.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ journal_entries.previous_page_number }}{% if request.GET.account %}&account={{ request.GET.account }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                {% trans "السابق" %}
+              </a>
+            </li>
+            {% endif %}
+
+            <li class="page-item active">
+              <span class="page-link">
+                {% trans "صفحة" %} {{ journal_entries.number }} {% trans "من" %} {{ journal_entries.paginator.num_pages }}
+              </span>
+            </li>
+
+            {% if journal_entries.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ journal_entries.next_page_number }}{% if request.GET.account %}&account={{ request.GET.account }}{% endif %}{% if request.GET.type %}&type={{ request.GET.type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">
+                {% trans "التالي" %}
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-money-bill-wave fa-3x text-muted mb-3"></i>
+          <p class="text-muted">{% trans "لا توجد حركات نقدية أو بنكية" %}</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

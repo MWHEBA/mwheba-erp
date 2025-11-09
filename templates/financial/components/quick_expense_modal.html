@@ -2,19 +2,23 @@
 {% load crispy_forms_tags %}
 {% load pricing_filters %}
 
-<!-- مودال المصروف السريع -->
+<!-- مودال المصروف السريع / التعديل -->
 <div class="modal fade" id="quickExpenseModal" tabindex="-1" aria-labelledby="quickExpenseModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header bg-danger text-white">
+      <div class="modal-header {% if journal_entry %}bg-primary{% else %}bg-danger{% endif %} text-white">
         <h5 class="modal-title" id="quickExpenseModalLabel">
-          <i class="fas fa-plus-circle me-2"></i>
-          {% trans "إضافة مصروف جديد" %}
+          <i class="fas {% if journal_entry %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+          {% if journal_entry %}
+            {% trans "تعديل مصروف" %}
+          {% else %}
+            {% trans "إضافة مصروف جديد" %}
+          {% endif %}
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       
-      <form id="quickExpenseForm" method="post" action="{% url 'financial:expense_create' %}">
+      <form id="quickExpenseForm" method="post" action="{% if journal_entry %}{% url 'financial:expense_edit' journal_entry.id %}{% else %}{% url 'financial:expense_create' %}{% endif %}">
         <div class="modal-body">
           {% csrf_token %}
           
@@ -31,6 +35,7 @@
                 {% trans "وصف المصروف" %} <span class="text-danger">*</span>
               </label>
               <input type="text" class="form-control" id="quick_description" name="description" 
+                     value="{% if journal_entry %}{{ journal_entry.description }}{% endif %}"
                      placeholder="{% trans 'أدخل وصف المصروف' %}" required>
             </div>
             
@@ -42,6 +47,7 @@
               </label>
               <div class="input-group">
                 <input type="number" class="form-control" id="quick_amount" name="amount" 
+                       value="{% if expense_amount %}{{ expense_amount }}{% endif %}"
                        placeholder="0" step="any" min="0.01" required>
               </div>
             </div>
@@ -52,7 +58,9 @@
                 <i class="fas fa-calendar me-1"></i>
                 {% trans "تاريخ المصروف" %} <span class="text-danger">*</span>
               </label>
-              <input type="text" class="form-control" id="quick_expense_date" name="expense_date" data-date-picker placeholder="اختر التاريخ" required>
+              <input type="text" class="form-control" id="quick_expense_date" name="expense_date" 
+                     value="{% if journal_entry %}{{ journal_entry.date|date:'Y-m-d' }}{% endif %}"
+                     data-date-picker placeholder="اختر التاريخ" required>
             </div>
             
             <!-- حساب المصروف -->
@@ -86,10 +94,11 @@
                 {% trans "ملاحظات" %}
               </label>
               <textarea class="form-control" id="quick_notes" name="notes" rows="2" 
-                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}"></textarea>
+                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}">{% if journal_entry %}{{ journal_entry.notes }}{% endif %}</textarea>
             </div>
             
-            <!-- ترحيل تلقائي -->
+            <!-- ترحيل تلقائي (فقط للإنشاء) -->
+            {% if not journal_entry %}
             <div class="col-12 mb-3">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="quick_auto_post" name="auto_post" value="1">
@@ -99,6 +108,7 @@
                 </label>
               </div>
             </div>
+            {% endif %}
           </div>
         </div>
         
@@ -107,9 +117,13 @@
             <i class="fas fa-times me-1"></i>
             {% trans "إلغاء" %}
           </button>
-          <button type="submit" class="btn btn-danger" id="quickExpenseSubmitBtn">
+          <button type="submit" class="btn {% if journal_entry %}btn-primary{% else %}btn-danger{% endif %}" id="quickExpenseSubmitBtn">
             <i class="fas fa-save me-1"></i>
-            {% trans "حفظ المصروف" %}
+            {% if journal_entry %}
+              {% trans "حفظ التعديلات" %}
+            {% else %}
+              {% trans "حفظ المصروف" %}
+            {% endif %}
           </button>
         </div>
       </form>
@@ -138,19 +152,33 @@ function openQuickExpenseModal() {
 }
 
 // تحميل حسابات المصروفات
-function loadExpenseAccounts() {
+function loadExpenseAccounts(selectedId = null) {
+  console.log('loadExpenseAccounts called with selectedId:', selectedId);
+  
   fetch('/financial/api/expense-accounts/')
     .then(response => response.json())
     .then(data => {
       const expenseSelect = document.getElementById('quick_expense_account');
+      if (!expenseSelect) {
+        console.error('Element quick_expense_account not found!');
+        return;
+      }
+      
+      console.log('Found expense select element, loading', data.length, 'accounts');
       expenseSelect.innerHTML = '<option value="">{% trans "اختر حساب المصروف" %}</option>';
       
       data.forEach(account => {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        if (selectedId && account.id == selectedId) {
+          option.selected = true;
+          console.log('Selected expense account:', account.name, '(ID:', account.id, ')');
+        }
         expenseSelect.appendChild(option);
       });
+      
+      console.log('Expense accounts loaded. Selected value:', expenseSelect.value);
     })
     .catch(error => {
       console.error('Error loading expense accounts:', error);
@@ -166,19 +194,33 @@ function loadExpenseAccounts() {
 }
 
 // تحميل حسابات الدفع
-function loadPaymentAccounts() {
+function loadPaymentAccounts(selectedId = null) {
+  console.log('loadPaymentAccounts called with selectedId:', selectedId);
+  
   fetch('/financial/api/payment-accounts/')
     .then(response => response.json())
     .then(data => {
       const paymentSelect = document.getElementById('quick_payment_account');
+      if (!paymentSelect) {
+        console.error('Element quick_payment_account not found!');
+        return;
+      }
+      
+      console.log('Found payment select element, loading', data.length, 'accounts');
       paymentSelect.innerHTML = '<option value="">{% trans "اختر الخزينة" %}</option>';
       
       data.forEach(account => {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        if (selectedId && account.id == selectedId) {
+          option.selected = true;
+          console.log('Selected payment account:', account.name, '(ID:', account.id, ')');
+        }
         paymentSelect.appendChild(option);
       });
+      
+      console.log('Payment accounts loaded. Selected value:', paymentSelect.value);
     })
     .catch(error => {
       console.error('Error loading payment accounts:', error);
@@ -221,23 +263,30 @@ function submitQuickExpense() {
       'X-CSRFToken': formData.get('csrfmiddlewaretoken')
     }
   })
-  .then(response => response.json())
+  .then(response => {
+    // التحقق من نوع المحتوى
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // إذا لم يكن JSON، فهناك خطأ في الخادم
+      throw new Error('Server returned HTML instead of JSON');
+    }
+  })
   .then(data => {
     if (data.success) {
       // إغلاق المودال
       const modal = bootstrap.Modal.getInstance(document.getElementById('quickExpenseModal'));
-      modal.hide();
+      if (modal) {
+        modal.hide();
+      }
       
       // عرض رسالة النجاح
       showSuccessToast(data.message);
       
-      // إعادة تحميل الصفحة أو تحديث القائمة
+      // إعادة تحميل الصفحة بعد ثانية
       setTimeout(() => {
-        if (data.redirect_url) {
-          window.location.href = data.redirect_url;
-        } else {
-          location.reload();
-        }
+        location.reload();
       }, 1000);
     } else {
       // عرض الأخطاء
@@ -325,4 +374,19 @@ document.getElementById('quickExpenseModal').addEventListener('keydown', functio
     document.getElementById('quickExpenseForm').dispatchEvent(new Event('submit'));
   }
 });
+
+// تحميل القيم المحفوظة في حالة التعديل
+{% if journal_entry and expense_account and payment_account %}
+// انتظار تحميل العناصر في DOM ثم تحميل الحسابات
+setTimeout(function() {
+  console.log('Loading saved accounts for edit mode...');
+  console.log('Expense Account ID:', {{ expense_account.id }});
+  console.log('Payment Account ID:', {{ payment_account.id }});
+  
+  // تحميل الحسابات مع القيم المحددة
+  loadExpenseAccounts({{ expense_account.id }});
+  loadPaymentAccounts({{ payment_account.id }});
+}, 100);
+{% endif %}
 </script>
+

@@ -2,19 +2,23 @@
 {% load crispy_forms_tags %}
 {% load pricing_filters %}
 
-<!-- مودال الإيراد السريع -->
+<!-- مودال الإيراد السريع / التعديل -->
 <div class="modal fade" id="quickIncomeModal" tabindex="-1" aria-labelledby="quickIncomeModalLabel" aria-hidden="true">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
-      <div class="modal-header bg-success text-white">
+      <div class="modal-header {% if journal_entry %}bg-primary{% else %}bg-success{% endif %} text-white">
         <h5 class="modal-title" id="quickIncomeModalLabel">
-          <i class="fas fa-plus-circle me-2"></i>
-          {% trans "إضافة إيراد جديد" %}
+          <i class="fas {% if journal_entry %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+          {% if journal_entry %}
+            {% trans "تعديل إيراد" %}
+          {% else %}
+            {% trans "إضافة إيراد جديد" %}
+          {% endif %}
         </h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       
-      <form id="quickIncomeForm" method="post" action="{% url 'financial:income_create' %}">
+      <form id="quickIncomeForm" method="post" action="{% if journal_entry %}{% url 'financial:income_edit' journal_entry.id %}{% else %}{% url 'financial:income_create' %}{% endif %}">
         <div class="modal-body">
           {% csrf_token %}
           
@@ -31,6 +35,7 @@
                 {% trans "وصف الإيراد" %} <span class="text-danger">*</span>
               </label>
               <input type="text" class="form-control" id="quick_income_description" name="description" 
+                     value="{% if journal_entry %}{{ journal_entry.description }}{% endif %}"
                      placeholder="{% trans 'أدخل وصف الإيراد' %}" required>
             </div>
             
@@ -42,6 +47,7 @@
               </label>
               <div class="input-group">
                 <input type="number" class="form-control" id="quick_income_amount" name="amount" 
+                       value="{% if income_amount %}{{ income_amount }}{% endif %}"
                        placeholder="0" step="any" min="0.01" required>
               </div>
             </div>
@@ -52,7 +58,9 @@
                 <i class="fas fa-calendar me-1"></i>
                 {% trans "تاريخ الإيراد" %} <span class="text-danger">*</span>
               </label>
-              <input type="text" class="form-control" id="quick_income_date" name="income_date" data-date-picker placeholder="اختر التاريخ" required>
+              <input type="text" class="form-control" id="quick_income_date" name="income_date" 
+                     value="{% if journal_entry %}{{ journal_entry.date|date:'Y-m-d' }}{% endif %}"
+                     data-date-picker placeholder="اختر التاريخ" required>
             </div>
             
             <!-- حساب الإيراد -->
@@ -86,10 +94,11 @@
                 {% trans "ملاحظات" %}
               </label>
               <textarea class="form-control" id="quick_income_notes" name="notes" rows="2" 
-                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}"></textarea>
+                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}">{% if journal_entry %}{{ journal_entry.notes }}{% endif %}</textarea>
             </div>
             
-            <!-- ترحيل تلقائي -->
+            <!-- ترحيل تلقائي (فقط للإنشاء) -->
+            {% if not journal_entry %}
             <div class="col-12 mb-3">
               <div class="form-check">
                 <input class="form-check-input" type="checkbox" id="quick_income_auto_post" name="auto_post" value="1">
@@ -99,6 +108,7 @@
                 </label>
               </div>
             </div>
+            {% endif %}
           </div>
         </div>
         
@@ -107,9 +117,13 @@
             <i class="fas fa-times me-1"></i>
             {% trans "إلغاء" %}
           </button>
-          <button type="submit" class="btn btn-success" id="quickIncomeSubmitBtn">
+          <button type="submit" class="btn {% if journal_entry %}btn-primary{% else %}btn-success{% endif %}" id="quickIncomeSubmitBtn">
             <i class="fas fa-save me-1"></i>
-            {% trans "حفظ الإيراد" %}
+            {% if journal_entry %}
+              {% trans "حفظ التعديلات" %}
+            {% else %}
+              {% trans "حفظ الإيراد" %}
+            {% endif %}
           </button>
         </div>
       </form>
@@ -138,7 +152,7 @@ function openQuickIncomeModal() {
 }
 
 // تحميل حسابات الإيرادات
-function loadIncomeAccounts() {
+function loadIncomeAccounts(selectedId = null) {
   fetch('/financial/api/income-accounts/')
     .then(response => response.json())
     .then(data => {
@@ -149,6 +163,9 @@ function loadIncomeAccounts() {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        if (selectedId && account.id == selectedId) {
+          option.selected = true;
+        }
         incomeSelect.appendChild(option);
       });
     })
@@ -166,7 +183,7 @@ function loadIncomeAccounts() {
 }
 
 // تحميل حسابات الاستلام
-function loadReceivingAccounts() {
+function loadReceivingAccounts(selectedId = null) {
   fetch('/financial/api/payment-accounts/')
     .then(response => response.json())
     .then(data => {
@@ -177,6 +194,9 @@ function loadReceivingAccounts() {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        if (selectedId && account.id == selectedId) {
+          option.selected = true;
+        }
         receivingSelect.appendChild(option);
       });
     })
@@ -221,7 +241,16 @@ function submitQuickIncome() {
       'X-CSRFToken': formData.get('csrfmiddlewaretoken')
     }
   })
-  .then(response => response.json())
+  .then(response => {
+    // التحقق من نوع المحتوى
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // إذا لم يكن JSON، فهناك خطأ في الخادم
+      throw new Error('Server returned HTML instead of JSON');
+    }
+  })
   .then(data => {
     if (data.success) {
       // إغلاق المودال
@@ -231,13 +260,9 @@ function submitQuickIncome() {
       // عرض رسالة النجاح
       showSuccessToast(data.message);
       
-      // إعادة تحميل الصفحة أو تحديث القائمة
+      // إعادة تحميل الصفحة بعد ثانية
       setTimeout(() => {
-        if (data.redirect_url) {
-          window.location.href = data.redirect_url;
-        } else {
-          location.reload();
-        }
+        location.reload();
       }, 1000);
     } else {
       // عرض الأخطاء
@@ -325,4 +350,18 @@ document.getElementById('quickIncomeModal').addEventListener('keydown', function
     document.getElementById('quickIncomeForm').dispatchEvent(new Event('submit'));
   }
 });
+
+// تحميل القيم المحفوظة في حالة التعديل
+{% if journal_entry and income_account and receipt_account %}
+// انتظار تحميل العناصر في DOM ثم تحميل الحسابات
+setTimeout(function() {
+  console.log('Loading saved accounts for edit mode...');
+  console.log('Income Account ID:', {{ income_account.id }});
+  console.log('Receipt Account ID:', {{ receipt_account.id }});
+  
+  // تحميل الحسابات مع القيم المحددة
+  loadIncomeAccounts({{ income_account.id }});
+  loadReceivingAccounts({{ receipt_account.id }});
+}, 100);
+{% endif %}
 </script>

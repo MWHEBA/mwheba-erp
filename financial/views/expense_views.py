@@ -1,5 +1,5 @@
-# financial/views/income_views.py
-# عروض إدارة الإيرادات
+# financial/views/expense_views.py
+# عروض إدارة المصروفات
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
@@ -15,19 +15,20 @@ from ..models import JournalEntry, ChartOfAccounts, JournalEntryLine
 from ..services.account_helper import AccountHelperService
 from .shared_helpers import (
     validate_transaction_data,
-    create_journal_entry_for_income,
+    create_journal_entry_for_expense,
     prepare_list_context
 )
 
+
 @login_required
-def income_list(request):
-    """
-    عرض قائمة الإيرادات من القيود المحاسبية
-    """
-    # فلترة القيود التي تحتوي على إيرادات (من الأحدث للأقدم)
-    income_entries = (
+def expense_list(request):
+    """عرض قائمة المصروفات من القيود المحاسبية"""
+    
+    # فلترة القيود التي تحتوي على مصروفات (من الأحدث للأقدم)
+    expense_entries = (
         JournalEntry.objects.filter(
-            lines__account__account_type__category="revenue", lines__credit__gt=0
+            lines__account__account_type__category="expense", 
+            lines__debit__gt=0
         )
         .order_by("-date", "-id")
         .distinct()
@@ -42,23 +43,24 @@ def income_list(request):
 
     if account_id:
         account = get_object_or_404(ChartOfAccounts, id=account_id)
-        income_entries = income_entries.filter(lines__account=account).distinct()
+        expense_entries = expense_entries.filter(lines__account=account).distinct()
 
     if date_from:
         date_from = datetime.strptime(date_from, "%Y-%m-%d").date()
-        income_entries = income_entries.filter(date__gte=date_from)
+        expense_entries = expense_entries.filter(date__gte=date_from)
 
     if date_to:
         date_to = datetime.strptime(date_to, "%Y-%m-%d").date()
-        income_entries = income_entries.filter(date__lte=date_to)
+        expense_entries = expense_entries.filter(date__lte=date_to)
 
     # إحصائيات
-    total_incomes = 0
-    for entry in income_entries:
-        income_lines = entry.lines.filter(
-            account__account_type__category="revenue", credit__gt=0
+    total_expenses = 0
+    for entry in expense_entries:
+        expense_lines = entry.lines.filter(
+            account__account_type__category="expense", 
+            debit__gt=0
         )
-        total_incomes += sum(line.credit for line in income_lines)
+        total_expenses += sum(line.debit for line in expense_lines)
 
     # تعريف رؤوس الأعمدة للجدول
     headers = [
@@ -69,7 +71,7 @@ def income_list(request):
             "sortable": True,
             "format": "date",
             "class": "text-center",
-            "width": "120px",
+            "width": "14%",
         },
         {
             "key": "description",
@@ -79,16 +81,16 @@ def income_list(request):
             "width": "auto",
         },
         {
-            "key": "income_amount",
-            "label": "قيمة الإيراد",
+            "key": "expense_amount",
+            "label": "قيمة المصروف",
             "sortable": False,
-            "template": "components/cells/income_amount.html",
+            "template": "components/cells/expense_amount.html",
             "class": "text-center",
             "width": "15%",
         },
         {
-            "key": "income_accounts",
-            "label": "حسابات الإيراد",
+            "key": "expense_accounts",
+            "label": "حسابات المصروف",
             "sortable": False,
             "width": "20%",
         },
@@ -96,7 +98,7 @@ def income_list(request):
             "key": "status",
             "label": "الحالة",
             "sortable": False,
-            "template": "components/cells/income_status.html",
+            "template": "components/cells/expense_status.html",
             "class": "text-center",
             "width": "10%",
         },
@@ -120,46 +122,32 @@ def income_list(request):
     ]
 
     # إعداد بيانات محسنة لكل قيد
-    enhanced_entries = prepare_list_context(income_entries, 'income')
+    enhanced_entries = prepare_list_context(expense_entries, 'expense')
 
     # إعداد الترقيم الصفحي
     paginator = Paginator(enhanced_entries, 25)
     page_number = request.GET.get("page")
     page_obj = paginator.get_page(page_number)
 
-    # حساب الإحصائيات
-    total_income = total_incomes
-    received_incomes = sum(
-        sum(line.credit for line in entry.lines.filter(
-            account__account_type__category="revenue", credit__gt=0
-        ))
-        for entry in income_entries.filter(status="posted")
-    )
-    pending_incomes = total_income - received_incomes
-    monthly_average = total_income / 12 if total_income > 0 else 0
-
     context = {
-        "incomes": page_obj,  # للتوافق مع template
+        "expenses": page_obj,
         "journal_entries": page_obj,
-        "income_headers": headers,
-        "income_actions": action_buttons,
+        "expense_headers": headers,
+        "expense_actions": action_buttons,
         "primary_key": "id",
         "accounts": accounts,
-        "categories": [],  # سيتم إضافتها لاحقاً
-        "total_income": total_income,
-        "received_incomes": received_incomes,
-        "pending_incomes": pending_incomes,
-        "monthly_average": monthly_average,
-        "page_title": "الإيرادات",
-        "page_subtitle": "إدارة وتتبع الإيرادات في النظام",
-        "page_icon": "fas fa-cash-register",
+        "total_expenses": total_expenses,
+        "page_title": "المصروفات",
+        "page_subtitle": "إدارة وتتبع المصروفات في النظام",
+        "page_icon": "fas fa-money-bill-wave",
         "header_buttons": [
             {
-                "onclick": "openQuickIncomeModal()",
+                "url": "#",
                 "icon": "fa-plus",
-                "text": "إضافة إيراد",
-                "class": "btn-success",
-            }
+                "text": "إضافة مصروف",
+                "class": "btn-primary",
+                "id": "addExpenseBtn",
+            },
         ],
         "breadcrumb_items": [
             {
@@ -168,35 +156,25 @@ def income_list(request):
                 "icon": "fas fa-home",
             },
             {"title": "الإدارة المالية", "url": "#", "icon": "fas fa-money-bill-wave"},
-            {"title": "الإيرادات", "active": True},
+            {"title": "المصروفات", "active": True},
         ],
     }
 
-    return render(request, "financial/income/income_list.html", context)
+    return render(request, "financial/expenses/expense_list.html", context)
 
 
 @login_required
-def income_detail(request, pk):
-    """
-    ❌ تم إلغاء هذه الصفحة - الموديل Income غير موجود
-    النظام الجديد يستخدم JournalEntry للقيود المحاسبية
-    """
-    messages.info(request, "هذه الميزة تحت التطوير. يرجى استخدام صفحة القيود المحاسبية.")
-    return redirect("financial:income_list")
-
-
-@login_required
-def income_create(request):
-    """إنشاء إيراد جديد - يدعم AJAX"""
+def expense_create(request):
+    """إنشاء مصروف جديد - يدعم AJAX"""
     
     if request.method != 'POST':
-        return redirect('financial:income_list')
+        return redirect('financial:expense_list')
     
     try:
         # التحقق من البيانات
         is_valid, errors, cleaned_data = validate_transaction_data(
             request.POST, 
-            transaction_type='income'
+            transaction_type='expense'
         )
         
         if not is_valid:
@@ -209,49 +187,92 @@ def income_create(request):
             for field, field_errors in errors.items():
                 for error in field_errors:
                     messages.error(request, error)
-            return redirect('financial:income_list')
+            return redirect('financial:expense_list')
         
         # إنشاء القيد المحاسبي
-        journal_entry = create_journal_entry_for_income(cleaned_data, request.user)
+        journal_entry = create_journal_entry_for_expense(cleaned_data, request.user)
         
-        success_msg = _('تم إنشاء الإيراد بنجاح')
+        success_msg = _('تم إنشاء المصروف بنجاح')
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': True,
                 'message': success_msg,
-                'redirect_url': reverse('financial:income_list')
+                'redirect_url': reverse('financial:expense_list')
             })
         
         messages.success(request, success_msg)
-        return redirect('financial:income_list')
+        return redirect('financial:expense_list')
         
     except Exception as e:
-        error_msg = _('حدث خطأ أثناء إنشاء الإيراد: {}').format(str(e))
+        error_msg = _('حدث خطأ أثناء إنشاء المصروف: {}').format(str(e))
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({
                 'success': False,
                 'message': error_msg
             })
         messages.error(request, error_msg)
-        return redirect('financial:income_list')
+        return redirect('financial:expense_list')
 
 
 @login_required
-def income_edit(request, pk):
-    """تعديل إيراد"""
+def expense_detail(request, pk):
+    """عرض تفاصيل مصروف معين"""
+    
+    try:
+        journal_entry = get_object_or_404(JournalEntry, pk=pk)
+
+        # استخراج معلومات المصروف من بنود القيد
+        expense_lines = journal_entry.lines.filter(debit__gt=0)
+        payment_lines = journal_entry.lines.filter(credit__gt=0)
+
+        expense_amount = sum(line.debit for line in expense_lines)
+
+        context = {
+            "journal_entry": journal_entry,
+            "expense_lines": expense_lines,
+            "payment_lines": payment_lines,
+            "expense_amount": expense_amount,
+            "page_title": f"تفاصيل المصروف - {journal_entry.number}",
+            "page_subtitle": "عرض تفاصيل المصروف والقيد المحاسبي المرتبط",
+            "page_icon": "fas fa-receipt",
+            "breadcrumb_items": [
+                {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+                {"title": "المصروفات", "url": reverse("financial:expense_list"), "icon": "fas fa-money-bill-wave"},
+                {"title": f"المصروف {journal_entry.number}", "active": True},
+            ],
+            "header_buttons": [
+                {
+                    "url": reverse("financial:expense_list"),
+                    "icon": "fa-arrow-left",
+                    "text": "العودة للقائمة",
+                    "class": "btn-secondary",
+                }
+            ],
+        }
+
+        return render(request, "financial/expense_detail.html", context)
+
+    except Exception as e:
+        messages.error(request, f"خطأ في تحميل تفاصيل المصروف: {str(e)}")
+        return redirect("financial:expense_list")
+
+
+@login_required
+def expense_edit(request, pk):
+    """تعديل مصروف"""
     journal_entry = get_object_or_404(JournalEntry, pk=pk)
     
     # التحقق من أن القيد غير مرحل
     if journal_entry.status == 'posted':
         messages.error(request, "لا يمكن تعديل قيد مرحل. يجب إلغاء الترحيل أولاً.")
-        return redirect("financial:income_list")
+        return redirect("financial:expense_detail", pk=pk)
     
     if request.method == "POST":
         try:
             # التحقق من البيانات
             is_valid, errors, cleaned_data = validate_transaction_data(
                 request.POST, 
-                transaction_type='income'
+                transaction_type='expense'
             )
             
             if not is_valid:
@@ -264,7 +285,7 @@ def income_edit(request, pk):
                 for field, field_errors in errors.items():
                     for error in field_errors:
                         messages.error(request, error)
-                return redirect("financial:income_list")
+                return redirect("financial:expense_detail", pk=pk)
             
             # تحديث القيد المحاسبي
             journal_entry.date = cleaned_data['date']
@@ -275,22 +296,22 @@ def income_edit(request, pk):
             journal_entry.lines.all().delete()
             
             # إنشاء البنود الجديدة
-            income_account = get_object_or_404(ChartOfAccounts, id=cleaned_data['account_id'])
-            receipt_account = get_object_or_404(ChartOfAccounts, id=cleaned_data['payment_account_id'])
+            expense_account = get_object_or_404(ChartOfAccounts, id=cleaned_data['account_id'])
+            payment_account = get_object_or_404(ChartOfAccounts, id=cleaned_data['payment_account_id'])
             
-            # سطر المدين (الخزينة)
+            # سطر المدين (حساب المصروف)
             JournalEntryLine.objects.create(
                 journal_entry=journal_entry,
-                account=receipt_account,
+                account=expense_account,
                 debit=cleaned_data['amount'],
                 credit=Decimal('0'),
                 description=cleaned_data['description']
             )
             
-            # سطر الدائن (حساب الإيراد)
+            # سطر الدائن (الخزينة)
             JournalEntryLine.objects.create(
                 journal_entry=journal_entry,
-                account=income_account,
+                account=payment_account,
                 debit=Decimal('0'),
                 credit=cleaned_data['amount'],
                 description=cleaned_data['description']
@@ -298,60 +319,60 @@ def income_edit(request, pk):
             
             journal_entry.save()
             
-            success_msg = _('تم تحديث الإيراد بنجاح')
+            success_msg = _('تم تحديث المصروف بنجاح')
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': True,
                     'message': success_msg,
-                    'redirect_url': reverse('financial:income_list')
+                    'redirect_url': reverse('financial:expense_detail', args=[pk])
                 })
             
             messages.success(request, success_msg)
-            return redirect('financial:income_list')
+            return redirect('financial:expense_detail', pk=pk)
             
         except Exception as e:
-            error_msg = _('حدث خطأ أثناء تحديث الإيراد: {}').format(str(e))
+            error_msg = _('حدث خطأ أثناء تحديث المصروف: {}').format(str(e))
             if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
                 return JsonResponse({
                     'success': False,
                     'message': error_msg
                 })
             messages.error(request, error_msg)
-            return redirect('financial:income_list')
+            return redirect('financial:expense_detail', pk=pk)
     
     # GET request - عرض نموذج التعديل
     # استخراج البيانات من القيد
-    income_lines = journal_entry.lines.filter(
-        account__account_type__category="revenue", 
-        credit__gt=0
-    )
-    receipt_lines = journal_entry.lines.filter(
-        account__account_type__category__in=["asset", "liability"], 
+    expense_lines = journal_entry.lines.filter(
+        account__account_type__category="expense", 
         debit__gt=0
     )
+    payment_lines = journal_entry.lines.filter(
+        account__account_type__category__in=["asset", "liability"], 
+        credit__gt=0
+    )
     
-    income_account = income_lines.first().account if income_lines.exists() else None
-    receipt_account = receipt_lines.first().account if receipt_lines.exists() else None
-    income_amount = income_lines.first().credit if income_lines.exists() else 0
+    expense_account = expense_lines.first().account if expense_lines.exists() else None
+    payment_account = payment_lines.first().account if payment_lines.exists() else None
+    expense_amount = expense_lines.first().debit if expense_lines.exists() else 0
     
     accounts = AccountHelperService.get_all_active_accounts()
     
     context = {
         "journal_entry": journal_entry,
-        "income_account": income_account,
-        "receipt_account": receipt_account,
-        "income_amount": income_amount,
+        "expense_account": expense_account,
+        "payment_account": payment_account,
+        "expense_amount": expense_amount,
         "accounts": accounts,
     }
     
-    # للطلبات AJAX، إرجاع المودال الموحد
+    # للطلبات AJAX، إرجاع المودال فقط
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-        return render(request, "financial/components/quick_income_modal.html", context)
+        return render(request, "financial/components/quick_expense_modal.html", context)
     
     # للطلبات العادية، إرجاع صفحة كاملة
     context.update({
-        "page_title": f"تعديل إيراد - {journal_entry.number}",
-        "page_subtitle": "تعديل بيانات الإيراد",
+        "page_title": f"تعديل مصروف - {journal_entry.number}",
+        "page_subtitle": "تعديل بيانات المصروف",
         "page_icon": "fas fa-edit",
     })
-    return render(request, "financial/income/income_edit.html", context)
+    return render(request, "financial/expenses/expense_edit.html", context)
