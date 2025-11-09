@@ -20,8 +20,12 @@
         altInput: true,
         altFormat: "d/m/Y",
         allowInput: true,
+        disableMobile: false,  // السماح بالعمل على الموبايل
         position: "auto right",
         onReady: function(selectedDates, dateStr, instance) {
+            // التحقق من وجود calendarContainer
+            if (!instance.calendarContainer) return;
+            
             // إضافة class للـ RTL
             instance.calendarContainer.classList.add('flatpickr-rtl');
             
@@ -34,6 +38,8 @@
      * إضافة زر "اليوم"
      */
     function addTodayButton(instance) {
+        if (!instance.calendarContainer) return;
+        
         const todayBtn = document.createElement('button');
         todayBtn.type = 'button';
         todayBtn.className = 'btn-today';
@@ -49,8 +55,10 @@
      * تهيئة تلقائية لجميع حقول التاريخ
      */
     function initializeDatePickers() {
-        // 1. حقول التاريخ العادية
-        document.querySelectorAll('input[data-date-picker]').forEach(function(input) {
+        
+        // 1. حقول التاريخ العادية (النظام الجديد)
+        const datePickers = document.querySelectorAll('input[data-date-picker]');
+        datePickers.forEach(function(input) {
             if (input._flatpickr) return; // تجنب التهيئة المكررة
             
             const customConfig = {};
@@ -128,6 +136,9 @@
                     })
                 ],
                 onReady: function(selectedDates, dateStr, instance) {
+                    // التحقق من وجود calendarContainer
+                    if (!instance.calendarContainer) return;
+                    
                     instance.calendarContainer.classList.add('flatpickr-rtl');
                     instance.calendarContainer.classList.add('flatpickr-monthSelect');
                     addCurrentMonthButton(instance);
@@ -144,12 +155,92 @@
             
             flatpickr(input, monthConfig);
         });
+
+        // 5. حقول التاريخ القديمة (class="datepicker") - للتوافق مع النظام القديم
+        const oldDatePickers = document.querySelectorAll('input.datepicker:not([data-date-picker]):not([data-datetime-picker]):not([data-date-range]):not([data-month-picker])');
+        oldDatePickers.forEach(function(input) {
+            if (input._flatpickr) return; // تجنب التهيئة المكررة
+            
+            const customConfig = {
+                wrap: false  // عدم استخدام wrap mode
+            };
+            
+            // قراءة الإعدادات من data attributes القديمة
+            if (input.dataset.format) {
+                // تحويل التنسيق القديم للجديد
+                let format = input.dataset.format;
+                format = format.replace(/YYYY/g, 'Y').replace(/MM/g, 'm').replace(/DD/g, 'd').replace(/HH/g, 'H').replace(/mm/g, 'i');
+                customConfig.dateFormat = format;
+                
+                // إذا كان التنسيق يحتوي على وقت
+                if (format.includes('H') || format.includes('i')) {
+                    customConfig.enableTime = true;
+                    customConfig.time_24hr = true;
+                    customConfig.altFormat = "d/m/Y - H:i";
+                } else {
+                    customConfig.altFormat = "d/m/Y";
+                }
+            }
+            
+            if (input.dataset.minDate) customConfig.minDate = input.dataset.minDate;
+            if (input.dataset.maxDate) customConfig.maxDate = input.dataset.maxDate;
+            
+            flatpickr(input, { ...defaultConfig, ...customConfig });
+        });
+
+        // 6. استبدال حقول type="date" و type="datetime-local" من Django widgets
+        const nativeDateInputs = document.querySelectorAll('input[type="date"]:not(.flatpickr-input), input[type="datetime-local"]:not(.flatpickr-input)');
+        
+        if (nativeDateInputs.length > 0) {
+            nativeDateInputs.forEach(function(input, index) {
+            });
+        }
+        
+        nativeDateInputs.forEach(function(input) {
+            if (input._flatpickr || input.classList.contains('flatpickr-input')) {
+                return; // تجنب التهيئة المكررة
+            }
+            
+            const customConfig = {};
+            const originalType = input.type;
+            
+            // إذا كان datetime-local
+            if (originalType === 'datetime-local') {
+                customConfig.enableTime = true;
+                customConfig.time_24hr = true;
+                customConfig.altFormat = "d/m/Y - H:i";
+                customConfig.dateFormat = "Y-m-d H:i";
+            }
+            
+            // تغيير type لمنع datepicker الأصلي من المتصفح
+            input.type = 'text';
+            
+            // إضافة علامة لمنع إعادة التحويل
+            input.dataset.flatpickrInitialized = 'true';
+            input.setAttribute('data-original-type', originalType);
+            
+            const identifier = input.id || input.name || `حقل رقم ${Array.from(nativeDateInputs).indexOf(input) + 1}`;
+            
+            const instance = flatpickr(input, { ...defaultConfig, ...customConfig });
+            
+            // حماية من إعادة تغيير type
+            Object.defineProperty(input, 'type', {
+                get: function() { return 'text'; },
+                set: function(value) {
+                    console.warn('⚠️ محاولة تغيير type - تم منعها للحقل:', identifier);
+                    // لا نفعل شيء - نمنع التغيير
+                }
+            });
+        });
+        
     }
 
     /**
      * إضافة زر "الشهر الحالي"
      */
     function addCurrentMonthButton(instance) {
+        if (!instance.calendarContainer) return;
+        
         const currentMonthBtn = document.createElement('button');
         currentMonthBtn.type = 'button';
         currentMonthBtn.className = 'btn-today';
@@ -182,14 +273,87 @@
         }
     };
 
+    // علامة لمنع التهيئة المتعددة
+    let isInitialized = false;
+    
+    // دالة wrapper للتهيئة مع حماية من التكرار
+    function safeInitialize() {
+        if (isInitialized) {
+            return;
+        }
+        isInitialized = true;
+        initializeDatePickers();
+        
+        // السماح بإعادة التهيئة بعد 500ms (للمحتوى الديناميكي)
+        setTimeout(() => { isInitialized = false; }, 500);
+    }
+
     // تهيئة تلقائية عند تحميل الصفحة
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initializeDatePickers);
+        document.addEventListener('DOMContentLoaded', safeInitialize);
     } else {
-        initializeDatePickers();
+        safeInitialize();
     }
 
     // إعادة التهيئة عند تحميل محتوى ديناميكي (AJAX)
-    document.addEventListener('contentLoaded', initializeDatePickers);
+    document.addEventListener('contentLoaded', function() {
+        // تأخير بسيط للسماح للمحتوى بالتحميل الكامل
+        setTimeout(initializeDatePickers, 100);
+    });
+
+    // مراقبة محاولات إعادة تحويل الحقول لـ type="date"
+    const observer = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) {
+            if (mutation.type === 'attributes' && mutation.attributeName === 'type') {
+                const input = mutation.target;
+                if (input.dataset.flatpickrInitialized === 'true' && input.type !== 'text') {
+                    console.warn('🚫 محاولة إعادة تحويل الحقل - تم منعها:', input.id || input.name, 'من', input.type, 'إلى text');
+                    console.trace('Stack trace للمحاولة:');
+                    input.type = 'text';
+                    // إعادة تهيئة Flatpickr إذا تم تدميره
+                    if (!input._flatpickr) {
+                        const originalType = input.getAttribute('data-original-type');
+                        const customConfig = {};
+                        if (originalType === 'datetime-local') {
+                            customConfig.enableTime = true;
+                            customConfig.time_24hr = true;
+                            customConfig.altFormat = "d/m/Y - H:i";
+                            customConfig.dateFormat = "Y-m-d H:i";
+                        }
+                        flatpickr(input, { ...defaultConfig, ...customConfig });
+                    }
+                }
+            }
+        });
+    });
+
+    // مراقبة جميع حقول الإدخال في الصفحة
+    setTimeout(function() {
+        document.querySelectorAll('input[data-flatpickr-initialized="true"]').forEach(function(input) {
+            observer.observe(input, {
+                attributes: true,
+                attributeFilter: ['type']
+            });
+        });
+    }, 1000);
+
+    // منع jQuery datepicker من الشغل على حقول Flatpickr
+    if (typeof jQuery !== 'undefined' && jQuery.fn.datepicker) {
+        const originalDatepicker = jQuery.fn.datepicker;
+        jQuery.fn.datepicker = function() {
+            // فحص إذا كان الحقل مهيأ بـ Flatpickr
+            const hasFlatpickr = this.filter(function() {
+                return this._flatpickr || this.dataset.flatpickrInitialized === 'true';
+            }).length > 0;
+            
+            if (hasFlatpickr) {
+                console.warn('🚫 محاولة تهيئة jQuery datepicker على حقل Flatpickr - تم منعها');
+                return this; // إرجاع jQuery object بدون تهيئة
+            }
+            
+            // السماح بالتهيئة للحقول الأخرى
+            return originalDatepicker.apply(this, arguments);
+        };
+    }
 
 })();

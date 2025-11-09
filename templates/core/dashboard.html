@@ -238,15 +238,76 @@
         border-color: var(--primary-color);
     }
     
-    .quick-action-icon {
-        width: 56px;
-        height: 56px;
-        margin: 0 auto 1rem;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--border-radius);
-        font-size: 1.5rem;
+    
+    /* تحسينات الموبايل */
+    @media (max-width: 768px) {
+        .welcome-banner {
+            min-height: 120px;
+            padding: 1.5rem;
+        }
+        
+        .welcome-title {
+            font-size: 1.25rem;
+        }
+        
+        .welcome-subtitle {
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+        
+        .welcome-actions .btn {
+            padding: 0.4rem 1rem;
+            font-size: 0.85rem;
+        }
+        
+        .dashboard-card {
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .dashboard-card .card-title {
+            font-size: 1rem;
+        }
+        
+        .chart-container {
+            height: 250px;
+        }
+        
+        .chart-tabs {
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        
+        .chart-tab {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.85rem;
+        }
+        
+        .recent-table th,
+        .recent-table td {
+            padding: 0.5rem;
+            font-size: 0.85rem;
+        }
+        
+        .quick-action-card {
+            padding: 1rem;
+        }
+        
+        .quick-action-icon {
+            width: 48px;
+            height: 48px;
+            font-size: 1.25rem;
+        }
+        
+        .inventory-alert {
+            padding: 0.5rem;
+        }
+        
+        .inventory-alert-icon {
+            width: 32px;
+            height: 32px;
+            margin-left: 0.5rem;
+        }
     }
 </style>
 {% endblock %}

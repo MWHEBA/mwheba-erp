@@ -3,7 +3,6 @@
  * @version 2.0.0
  */
 
-console.log('🔄 تحميل global-table.js - الإصدار 2.0.0');
 
 // التحقق من وجود المكتبات المطلوبة
 function checkRequiredLibraries() {
@@ -80,7 +79,6 @@ function initializeTable(tableId, options = {}) {
     
     // التحقق من وجود مربع بحث خارجي
     const hasExternalSearch = document.querySelector(`.table-search[data-table="${tableId}"]`) !== null;
-    console.log(`🔍 الجدول ${tableId}: مربع البحث الخارجي ${hasExternalSearch ? 'موجود' : 'غير موجود'}`);
     
     // إعدادات DataTables الافتراضية
     const defaultOptions = {
@@ -149,7 +147,6 @@ function initializeTable(tableId, options = {}) {
         
         // إضافة علامة نجاح التهيئة
         table.classList.add('table-initialized');
-        console.info(`تم تهيئة الجدول ${tableId} بنجاح`);
         
     } catch (error) {
         console.error(`خطأ في تهيئة الجدول ${tableId}:`, error);
@@ -229,9 +226,7 @@ function setupExternalControls(tableId, dataTable) {
     // ربط البحث الخارجي
     const searchInput = document.querySelector(`.table-search[data-table="${tableId}"]`);
     if (searchInput) {
-        console.log(`🔍 ربط البحث للجدول ${tableId}`);
         searchInput.addEventListener('keyup', function() {
-            console.log(`🔍 البحث في الجدول ${tableId}: "${this.value}"`);
             dataTable.search(this.value).draw();
         });
     } else {
@@ -241,9 +236,7 @@ function setupExternalControls(tableId, dataTable) {
     // ربط تحكم عدد العناصر
     const lengthSelect = document.querySelector(`.table-length[data-table="${tableId}"]`);
     if (lengthSelect) {
-        console.log(`📊 ربط تحكم العدد للجدول ${tableId}`);
         lengthSelect.addEventListener('change', function() {
-            console.log(`📊 تغيير عدد العناصر للجدول ${tableId}: ${this.value}`);
             dataTable.page.len(parseInt(this.value)).draw();
         });
     }
@@ -414,7 +407,6 @@ function initializeAllTables() {
 
 // دالة للتوافق مع الكود القديم
 function initGlobalTable(tableId, options = {}) {
-    console.log(`✅ استدعاء initGlobalTable للجدول: ${tableId}`);
     return initializeTable(tableId, options);
 }
 

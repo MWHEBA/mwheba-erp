@@ -7,8 +7,7 @@
 {% block title %}تحليل ABC للمخزون{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'css/components.css' %}">
-<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
 <style>
 .abc-category {
     padding: 8px 16px;
@@ -22,17 +21,6 @@
 .abc-a { background-color: #28a745; }
 .abc-b { background-color: #ffc107; color: #000; }
 .abc-c { background-color: #dc3545; }
-
-.summary-card {
-    border: none;
-    border-radius: 15px;
-    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
-    transition: all 0.3s;
-}
-.summary-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 0.25rem 2rem 0 rgba(58, 59, 69, 0.2);
-}
 </style>
 {% endblock %}
 
@@ -93,71 +81,47 @@
     </div>
     {% else %}
     <!-- Summary Cards -->
-    <div class="row mb-4">
-        <div class="col-md-4">
-            <div class="card summary-card border-left-success">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                فئة A (عالية القيمة)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ summary.category_a_count }} منتج
-                            </div>
-                            <div class="text-xs text-muted">
-                                {{ summary.category_a_percentage|smart_float }}% من المنتجات
-                            </div>
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات التصنيف</h5>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-star"></i>
                         </div>
-                        <div class="col-auto">
-                            <div class="abc-category abc-a">A</div>
-                        </div>
+                        <div class="stats-card-title">فئة A - عالية القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_a_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_a_percentage|smart_float }}%)</div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card summary-card border-left-warning">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
-                                فئة B (متوسطة القيمة)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ summary.category_b_count }} منتج
-                            </div>
-                            <div class="text-xs text-muted">
-                                {{ summary.category_b_percentage|smart_float }}% من المنتجات
-                            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-circle"></i>
                         </div>
-                        <div class="col-auto">
-                            <div class="abc-category abc-b">B</div>
-                        </div>
+                        <div class="stats-card-title">فئة B - متوسطة القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_b_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_b_percentage|smart_float }}%)</div>
                     </div>
                 </div>
             </div>
-        </div>
-        
-        <div class="col-md-4">
-            <div class="card summary-card border-left-danger">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                فئة C (منخفضة القيمة)
-                            </div>
-                            <div class="h5 mb-0 font-weight-bold text-gray-800">
-                                {{ summary.category_c_count }} منتج
-                            </div>
-                            <div class="text-xs text-muted">
-                                {{ summary.category_c_percentage|smart_float }}% من المنتجات
-                            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-dot-circle"></i>
                         </div>
-                        <div class="col-auto">
-                            <div class="abc-category abc-c">C</div>
-                        </div>
+                        <div class="stats-card-title">فئة C - منخفضة القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_c_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_c_percentage|smart_float }}%)</div>
                     </div>
                 </div>
             </div>

@@ -2,6 +2,10 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
+import warnings
+
+# إخفاء تحذيرات pkg_resources المهملة من coreapi
+warnings.filterwarnings('ignore', category=UserWarning, module='coreapi')
 
 
 def main():

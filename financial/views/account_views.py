@@ -252,7 +252,6 @@ def cash_and_bank_accounts_list(request):
             
             # تشخيص: عد الحركات للحساب
             movements_count = JournalEntryLine.objects.filter(account=account).count()
-            print(f"Account {account.name} ({account.code}) has {movements_count} movements")
             
             last_movement = JournalEntryLine.objects.filter(
                 account=account
@@ -260,10 +259,8 @@ def cash_and_bank_accounts_list(request):
             
             if last_movement:
                 account.last_movement_date = last_movement.journal_entry.date
-                print(f"Last movement date for {account.name}: {last_movement.journal_entry.date}")
             else:
                 account.last_movement_date = None
-                print(f"No movements found for {account.name}")
 
         except Exception as e:
             # في حالة الخطأ، استخدم الرصيد الافتتاحي فقط

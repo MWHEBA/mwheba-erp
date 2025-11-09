@@ -12,6 +12,10 @@ import os
 import sys
 import subprocess
 from pathlib import Path
+import warnings
+
+# إخفاء تحذيرات pkg_resources المهملة من coreapi
+warnings.filterwarnings('ignore', category=UserWarning, module='coreapi')
 
 # إعداد encoding لـ Windows console
 if sys.platform == 'win32':
@@ -71,13 +75,23 @@ def print_warning(text):
     print_colored(f"   ⚠️  {text}", Colors.RED)
 
 
-def run_command(command, check=True):
+def run_command(command, check=True, show_output=False):
     """تشغيل أمر في الـ shell"""
     try:
-        result = subprocess.run(
-            command, shell=True, check=check, capture_output=True, text=True
-        )
-        return result.returncode == 0
+        # إذا كان show_output=True، نعرض الـ output مباشرة بدون capture
+        if show_output:
+            result = subprocess.run(
+                command, shell=True, check=check, text=True
+            )
+            return result.returncode == 0
+        else:
+            # إذا كان show_output=False، نخفي الـ output
+            result = subprocess.run(
+                command, shell=True, check=check, capture_output=True, text=True
+            )
+            if result.returncode != 0 and result.stderr:
+                print_warning(f"خطأ: {result.stderr[:200]}")
+            return result.returncode == 0
     except subprocess.CalledProcessError as e:
         print_warning(f"فشل تنفيذ الأمر: {e}")
         return False
@@ -265,7 +279,7 @@ def main():
 
     # المرحلة 2: تطبيق الهجرات
     print_step(2, 9, "تطبيق الهجرات")
-    if not run_command("python manage.py migrate"):
+    if not run_command("python manage.py migrate", show_output=True):
         print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
         sys.exit(1)
     print_success("تم تطبيق الهجرات بنجاح")
@@ -333,7 +347,7 @@ def main():
     print_step(4, 10, "إنشاء الصلاحيات المخصصة والأدوار")
     
     print_info("إنشاء الصلاحيات المخصصة (37 صلاحية)...")
-    if run_command("python manage.py create_custom_permissions", check=False):
+    if run_command("python manage.py create_custom_permissions", check=False, show_output=True):
         print_success("تم إنشاء الصلاحيات المخصصة بنجاح")
         print_info("   ✓ تم تقليل الصلاحيات من 544 إلى 37 (تقليل 93%)")
         print_info("   ✓ صلاحيات عربية واضحة وسهلة الاستخدام")
@@ -341,7 +355,7 @@ def main():
         print_warning("فشل إنشاء الصلاحيات المخصصة")
     
     print_info("إنشاء الأدوار الأساسية (8 أدوار)...")
-    if run_command("python manage.py update_roles_with_custom_permissions", check=False):
+    if run_command("python manage.py update_roles_with_custom_permissions", check=False, show_output=True):
         print_success("تم إنشاء الأدوار بنجاح")
         print_info("   ✓ مدير النظام (45 صلاحية)")
         print_info("   ✓ محاسب (9 صلاحيات)")
@@ -357,38 +371,51 @@ def main():
     # المرحلة 5: تحميل إعدادات النظام
     print_step(5, 10, "تحميل إعدادات النظام")
     
-    print_info("تحميل الإعدادات الشاملة (101 إعداد)...")
-    if run_command(
-        "python manage.py loaddata core/fixtures/system_settings_final.json", check=False
-    ):
-        print_success("تم تحميل جميع إعدادات النظام بنجاح")
-        print_info("   ✓ إعدادات الشركة (18 حقل)")
-        print_info("   ✓ إعدادات الفواتير والمالية (4 حقول)")
-        print_info("   ✓ إعدادات النظام الأخرى (79 إعداد)")
+    settings_file = Path("core/fixtures/system_settings_final.json")
+    if not settings_file.exists():
+        print_warning(f"الملف غير موجود: {settings_file}")
     else:
-        print_warning("فشل تحميل إعدادات النظام")
+        print_info("تحميل الإعدادات الشاملة (101 إعداد)...")
+        try:
+            if run_command("python manage.py loaddata core/fixtures/system_settings_final.json", check=False, show_output=True):
+                print_success("تم تحميل جميع إعدادات النظام بنجاح")
+                print_info("   ✓ إعدادات الشركة (18 حقل)")
+                print_info("   ✓ إعدادات الفواتير والمالية (4 حقول)")
+                print_info("   ✓ إعدادات النظام الأخرى (79 إعداد)")
+            else:
+                print_warning("فشل تحميل إعدادات النظام")
+        except Exception as e:
+            print_warning(f"خطأ في تحميل إعدادات النظام: {str(e)[:100]}")
 
     # المرحلة 6: تحميل الدليل المحاسبي
     print_step(6, 10, "تحميل الدليل المحاسبي")
 
+    chart_file = Path("financial/fixtures/chart_of_accounts_final.json")
+    if not chart_file.exists():
+        print_colored("\n❌ الملف غير موجود: financial/fixtures/chart_of_accounts_final.json", Colors.RED)
+        sys.exit(1)
+    
     print_info("تحميل شجرة الحسابات (النسخة النهائية المحدثة)...")
-    if not run_command(
-        "python manage.py loaddata financial/fixtures/chart_of_accounts_final.json"
-    ):
-        print_colored("\n❌ فشل تحميل الدليل المحاسبي", Colors.RED)
-        print_info(
-            "تأكد من وجود الملف: financial/fixtures/chart_of_accounts_final.json"
-        )
+    try:
+        if not run_command("python manage.py loaddata financial/fixtures/chart_of_accounts_final.json", show_output=True):
+            print_colored("\n❌ فشل تحميل الدليل المحاسبي", Colors.RED)
+            sys.exit(1)
+    except Exception as e:
+        print_colored(f"\n❌ خطأ في تحميل الدليل المحاسبي: {str(e)[:100]}", Colors.RED)
         sys.exit(1)
 
-    print_info("تحميل قواعد التزامن المالي...")
-    if run_command(
-        "python manage.py loaddata financial/fixtures/payment_sync_rules.json",
-        check=False,
-    ):
-        print_success("تم تحميل قواعد التزامن بنجاح")
+    sync_rules_file = Path("financial/fixtures/payment_sync_rules.json")
+    if sync_rules_file.exists():
+        print_info("تحميل قواعد التزامن المالي...")
+        try:
+            if run_command("python manage.py loaddata financial/fixtures/payment_sync_rules.json", check=False, show_output=True):
+                print_success("تم تحميل قواعد التزامن بنجاح")
+            else:
+                print_warning("فشل تحميل قواعد التزامن")
+        except Exception as e:
+            print_warning(f"خطأ في تحميل قواعد التزامن: {str(e)[:100]}")
     else:
-        print_warning("فشل تحميل قواعد التزامن")
+        print_warning("الملف غير موجود: financial/fixtures/payment_sync_rules.json")
 
     print_success("تم تحميل الدليل المحاسبي")
 
@@ -479,96 +506,83 @@ def main():
     print_step(8, 10, "تحميل البيانات التجريبية")
 
     if load_test_data:
-        print_info("تحميل المخازن والمنتجات...")
-        if run_command(
-            "python manage.py loaddata product/fixtures/initial_data.json", check=False
-        ):
-            print_success("تم تحميل المخازن والمنتجات")
-        else:
-            print_warning("فشل تحميل المخازن والمنتجات")
-
-        print_info("تحميل العملاء...")
-        if run_command(
-            "python manage.py loaddata client/fixtures/initial_data.json", check=False
-        ):
-            print_success("تم تحميل العملاء")
-        else:
-            print_warning("فشل تحميل العملاء")
-
-        print_info("تحميل الأقسام...")
-        if run_command(
-            "python manage.py loaddata hr/fixtures/departments.json", check=False
-        ):
-            print_success("تم تحميل الأقسام")
-        else:
-            print_warning("فشل تحميل الأقسام")
-
-        print_info("تحميل المسميات الوظيفية...")
-        if run_command(
-            "python manage.py loaddata hr/fixtures/job_titles.json", check=False
-        ):
-            print_success("تم تحميل المسميات الوظيفية")
-        else:
-            print_warning("فشل تحميل المسميات الوظيفية")
-
-        print_info("تحميل الورديات...")
-        if run_command(
-            "python manage.py loaddata hr/fixtures/shifts.json", check=False
-        ):
-            print_success("تم تحميل الورديات")
-        else:
-            print_warning("فشل تحميل الورديات")
-
-        print_info("تحميل ماكينات البصمة...")
-        if run_command(
-            "python manage.py loaddata hr/fixtures/biometric_devices.json", check=False
-        ):
-            print_success("تم تحميل ماكينات البصمة")
-        else:
-            print_warning("فشل تحميل ماكينات البصمة")
-
-        print_info("تحميل الموظفين التجريبيين...")
-        if run_command(
-            "python manage.py loaddata hr/fixtures/employees_demo.json", check=False
-        ):
-            print_success("تم تحميل الموظفين التجريبيين (3 موظفين)")
+        # قائمة البيانات التجريبية للتحميل
+        test_fixtures = [
+            ("product/fixtures/initial_data.json", "المخازن والمنتجات"),
+            ("client/fixtures/initial_data.json", "العملاء"),
+            ("hr/fixtures/departments.json", "الأقسام"),
+            ("hr/fixtures/job_titles.json", "المسميات الوظيفية"),
+            ("hr/fixtures/initial_data.json", "أنواع الإجازات والورديات"),
+            ("hr/fixtures/biometric_devices.json", "ماكينات البصمة"),
+            ("hr/fixtures/employees_demo.json", "الموظفين التجريبيين"),
+            ("supplier/fixtures/supplier_types.json", "أنواع الموردين"),
+            ("supplier/fixtures/initial_data.json", "الموردين"),
+            ("supplier/fixtures/supplier_relationships.json", "علاقات الموردين"),
+        ]
+        
+        test_loaded = 0
+        test_failed = 0
+        
+        for fixture_path, description in test_fixtures:
+            fixture_file = Path(fixture_path)
+            if not fixture_file.exists():
+                print_warning(f"الملف غير موجود: {fixture_path}")
+                test_failed += 1
+                continue
             
-            # إنشاء أرصدة الإجازات للموظفين
-            print_info("إنشاء أرصدة الإجازات للموظفين...")
-            if run_command(
-                "python manage.py create_leave_balances --year 2025", check=False
-            ):
-                print_success("تم إنشاء أرصدة الإجازات للموظفين")
+            print_info(f"تحميل {description}...")
+            try:
+                if run_command(f"python manage.py loaddata {fixture_path}", check=False, show_output=True):
+                    print_success(f"تم تحميل {description}")
+                    test_loaded += 1
+                else:
+                    print_warning(f"فشل تحميل {description}")
+                    test_failed += 1
+            except Exception as e:
+                print_warning(f"خطأ في تحميل {description}: {str(e)[:100]}")
+                test_failed += 1
+        
+        # تحميل الفواتير التجريبية باستخدام السكريبت
+        print_info("تحميل فواتير ودفعات تجريبية...")
+        try:
+            result = subprocess.run(
+                ["python", "tests/fixtures/load_demo_transactions.py"],
+                capture_output=True,
+                text=True,
+                check=False
+            )
+            # نتحقق من exit code فقط، نتجاهل warnings في stderr
+            if result.returncode == 0:
+                print_success("تم تحميل فواتير ودفعات تجريبية")
+                test_loaded += 1
             else:
-                print_warning("فشل إنشاء أرصدة الإجازات")
-        else:
-            print_warning("فشل تحميل الموظفين التجريبيين")
-
-        print_info("تحميل أنواع الموردين (النسخة الموحدة الجديدة)...")
-        if run_command(
-            "python manage.py loaddata supplier/fixtures/supplier_types.json",
-            check=False,
-        ):
-            print_success("تم تحميل أنواع الموردين")
-        else:
-            print_warning("فشل تحميل أنواع الموردين من الـ fixtures")
-
-        print_info("تحميل الموردين...")
-        if run_command(
-            "python manage.py loaddata supplier/fixtures/initial_data.json", check=False
-        ):
-            print_success("تم تحميل الموردين")
-        else:
-            print_warning("فشل تحميل الموردين من الـ fixtures")
-
-        print_info("تحميل علاقات الموردين بأنواعهم...")
-        if run_command(
-            "python manage.py loaddata supplier/fixtures/supplier_relationships.json",
-            check=False,
-        ):
-            print_success("تم تحميل علاقات الموردين")
-        else:
-            print_warning("فشل تحميل علاقات الموردين من الـ fixtures")
+                print_warning("فشل تحميل فواتير ودفعات تجريبية")
+                # نعرض فقط الأخطاء الحقيقية (مش warnings)
+                if result.stderr:
+                    error_lines = [line for line in result.stderr.split('\n') 
+                                 if 'Error' in line or 'Traceback' in line]
+                    if error_lines:
+                        print_warning(f"خطأ: {error_lines[0][:200]}")
+                test_failed += 1
+        except Exception as e:
+            print_warning(f"خطأ في تحميل فواتير ودفعات تجريبية: {str(e)[:100]}")
+            test_failed += 1
+        
+        # إنشاء أرصدة الإجازات إذا تم تحميل الموظفين
+        if Path("hr/fixtures/employees_demo.json").exists():
+            print_info("إنشاء أرصدة الإجازات للموظفين...")
+            try:
+                if run_command("python manage.py create_leave_balances --year 2025", check=False, show_output=True):
+                    print_success("تم إنشاء أرصدة الإجازات")
+                else:
+                    print_warning("فشل إنشاء أرصدة الإجازات")
+            except Exception as e:
+                print_warning(f"خطأ في إنشاء أرصدة الإجازات: {str(e)[:100]}")
+        
+        if test_loaded > 0:
+            print_success(f"تم تحميل {test_loaded} من {len(test_fixtures) + 1} ملف بيانات تجريبية")
+        if test_failed > 0:
+            print_warning(f"فشل تحميل {test_failed} ملف")
 
         # التحقق من نجاح تحميل البيانات
         try:
@@ -576,6 +590,8 @@ def main():
             from client.models import Customer
             from supplier.models import Supplier
             from hr.models import Department, Employee
+            from purchase.models import Purchase, PurchasePayment
+            from sale.models import Sale, SalePayment
 
             products_count = Product.objects.count()
             warehouses_count = Warehouse.objects.count()
@@ -583,6 +599,10 @@ def main():
             suppliers_count = Supplier.objects.count()
             departments_count = Department.objects.count()
             employees_count = Employee.objects.count()
+            purchases_count = Purchase.objects.count()
+            sales_count = Sale.objects.count()
+            purchase_payments_count = PurchasePayment.objects.count()
+            sale_payments_count = SalePayment.objects.count()
 
             print_success(f"تم تحميل البيانات التجريبية بنجاح:")
             print_success(f"   - {products_count} منتج")
@@ -591,6 +611,27 @@ def main():
             print_success(f"   - {suppliers_count} مورد")
             print_success(f"   - {departments_count} قسم")
             print_success(f"   - {employees_count} موظف")
+            
+            if purchases_count > 0 or sales_count > 0:
+                print_success(f"\n   📦 الفواتير والدفعات:")
+                print_success(f"   - {purchases_count} فاتورة شراء")
+                print_success(f"   - {sales_count} فاتورة بيع")
+                print_success(f"   - {purchase_payments_count} دفعة شراء")
+                print_success(f"   - {sale_payments_count} دفعة بيع")
+                
+                # حساب الملخص المالي
+                from django.db.models import Sum
+                total_purchases = Purchase.objects.aggregate(total=Sum('total'))['total'] or 0
+                total_sales = Sale.objects.aggregate(total=Sum('total'))['total'] or 0
+                total_purchase_payments = PurchasePayment.objects.filter(status='posted').aggregate(total=Sum('amount'))['total'] or 0
+                total_sale_payments = SalePayment.objects.filter(status='posted').aggregate(total=Sum('amount'))['total'] or 0
+                
+                print_success(f"\n   💰 الملخص المالي:")
+                print_success(f"   - إجمالي المشتريات: {total_purchases} ج")
+                print_success(f"   - إجمالي المبيعات: {total_sales} ج")
+                print_success(f"   - المدفوع للموردين: {total_purchase_payments} ج")
+                print_success(f"   - المحصل من العملاء: {total_sale_payments} ج")
+                print_success(f"   - صافي حركة الخزينة: {total_sale_payments - total_purchase_payments} ج")
 
         except Exception as e:
             print_warning(f"خطأ في التحقق من البيانات: {e}")
@@ -620,11 +661,32 @@ def main():
             ("printing_pricing/fixtures/digital_sheet_sizes.json", "مقاسات ماكينات الديجيتال"),
         ]
         
+        loaded_count = 0
+        failed_count = 0
+        
         for fixture_path, description in fixtures_to_load:
-            if run_command(f"python manage.py loaddata {fixture_path}", check=False):
-                print_success(f"تم تحميل {description}")
-            else:
-                print_warning(f"فشل تحميل {description}")
+            # التحقق من وجود الملف قبل التحميل
+            fixture_file = Path(fixture_path)
+            if not fixture_file.exists():
+                print_warning(f"الملف غير موجود: {fixture_path}")
+                failed_count += 1
+                continue
+            
+            try:
+                if run_command(f"python manage.py loaddata {fixture_path}", check=False, show_output=True):
+                    print_success(f"تم تحميل {description}")
+                    loaded_count += 1
+                else:
+                    print_warning(f"فشل تحميل {description}")
+                    failed_count += 1
+            except Exception as e:
+                print_warning(f"خطأ في تحميل {description}: {str(e)[:100]}")
+                failed_count += 1
+        
+        if loaded_count > 0:
+            print_success(f"تم تحميل {loaded_count} من {len(fixtures_to_load)} ملف بنجاح")
+        if failed_count > 0:
+            print_warning(f"فشل تحميل {failed_count} ملف")
         
         print_success("تم تحميل إعدادات نظام طباعة التسعير")
 
@@ -724,7 +786,7 @@ def main():
 
     print_colored("\n📊 المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
     print()
-    print_colored("   ✅ mwheba (محمد يوسف) - كلمة المرور: 2951096", Colors.GREEN)
+    print_colored("   ✅ mwheba (محمد يوسف) - كلمة المرور: MedooAlnems2008", Colors.GREEN)
     print_colored("   ✅ fatma - كلمة المرور: 2951096", Colors.GREEN)
     print_colored("   ✅ admin - كلمة المرور: admin123", Colors.GREEN)
 
@@ -734,7 +796,7 @@ def main():
     print_colored("   1. قم بتشغيل السيرفر: python manage.py runserver", Colors.WHITE)
     print_colored("   2. افتح المتصفح على: http://127.0.0.1:8000", Colors.WHITE)
     print_colored(
-        "   3. اذهب إلى نظام التسعير: http://127.0.0.1:8000/pricing/", Colors.WHITE
+        "   3. اذهب إلى نظام التسعير: /printing-pricing/", Colors.WHITE
     )
     print_colored("   4. راجع دليل الحسابات المحاسبي المحمّل", Colors.WHITE)
     print_colored("   5. جرب إنشاء طلب تسعير جديد", Colors.WHITE)
@@ -751,10 +813,18 @@ def main():
 
     print_colored("\n   🏢 العملاء والموردين:", Colors.YELLOW + Colors.BOLD)
     print_colored(
-        "   - 3 عملاء: راقيات الابداع، شركة النهضة، مكتبة المعرفة", Colors.GRAY
+        "   - 5 عملاء: راقيات الابداع، تراست بلس، وغيرهم", Colors.GRAY
     )
-    print_colored("   - 3 موردين: مخزن مكة، مطبعة الأهرام، ورشة التجليد", Colors.GRAY)
+    print_colored("   - 5 موردين: شركة الورق السعودية، مطابع الخليج، وغيرهم", Colors.GRAY)
     print_colored("   - 3 موظفين: محمد يوسف، هبة حافظ، فاطمة عمار", Colors.GRAY)
+    
+    print_colored("\n   📦 الفواتير التجريبية:", Colors.YELLOW + Colors.BOLD)
+    print_colored("   - 2 فاتورة شراء (نقدي + آجل مع دفعة جزئية)", Colors.GRAY)
+    print_colored("   - 2 فاتورة بيع (نقدي + آجل مع تحصيل جزئي)", Colors.GRAY)
+    print_colored("   - 4 دفعات مرحّلة (2 شراء + 2 بيع)", Colors.GRAY)
+    print_colored("   - إجمالي المشتريات: 6,200 ج", Colors.GRAY)
+    print_colored("   - إجمالي المبيعات: 1,675 ج", Colors.GRAY)
+    print_colored("   - صافي حركة الخزينة: -3,300 ج", Colors.GRAY)
 
     print_colored("\n📋 نظام التسعير الموحد (محمل من fixtures):", Colors.YELLOW + Colors.BOLD)
     print_colored("   - نظام طباعة التسعير (printing_pricing) - 8 ملفات fixtures", Colors.GRAY)

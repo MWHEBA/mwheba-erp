@@ -247,35 +247,7 @@ label {
 /*===================================================
   4. Dashboard Styles
 ===================================================*/
-/* Stat Cards */
-.stat-card {
-    padding: 1.5rem;
-    border-radius: var(--border-radius);
-    box-shadow: var(--box-shadow);
-    transition: transform var(--transition-speed);
-    margin-bottom: 1.5rem;
-}
-
-.stat-card:hover {
-    transform: translateY(-5px);
-}
-
-.stat-card-title {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    margin-bottom: 0.5rem;
-}
-
-.stat-card-value {
-    font-size: 1.5rem;
-    font-weight: 700;
-    margin-bottom: 0.25rem;
-}
-
-.stat-card-percent {
-    font-size: 0.85rem;
-}
+/* Stat Cards - تم نقلها إلى shared-components.css */
 
 /* Progress */
 .progress {
