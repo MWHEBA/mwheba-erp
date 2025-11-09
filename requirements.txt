@@ -29,7 +29,6 @@ django-import-export==4.3.13
 
 # History & Audit
 django-simple-history==3.10.1
-django-auditlog==3.3.0
 
 # Performance
 django-compressor==4.5.1
