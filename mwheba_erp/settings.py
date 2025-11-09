@@ -81,7 +81,6 @@ INSTALLED_APPS = [
     "compressor",
     "smart_selects",
     "colorfield",
-    "auditlog",
     "django_select2",
     # Custom apps
     "core.apps.CoreConfig",
@@ -109,7 +108,6 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
-    "auditlog.middleware.AuditlogMiddleware",
 ]
 
 # تعطيل Debug Toolbar مؤقتا
