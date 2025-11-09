@@ -1,9 +1,12 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from rest_framework_simplejwt.views import (
+
+# ✅ استخدام Custom JWT Views مع Throttling بدلاً من الافتراضية
+from .jwt_views import (
     TokenObtainPairView,
     TokenRefreshView,
     TokenVerifyView,
+    TokenBlacklistView,
 )
 
 from .viewsets import (
@@ -47,11 +50,17 @@ router.register(r'purchases', PurchaseViewSet, basename='purchase')
 router.register(r'accounts', ChartOfAccountsViewSet, basename='account')
 router.register(r'journal-entries', JournalEntryViewSet, basename='journal-entry')
 
+from users.logout_views import JWTLogoutView, JWTLogoutAllDevicesView
+
 urlpatterns = [
-    # تسجيل الدخول والمصادقة (JWT فقط)
+    # ✅ تسجيل الدخول والمصادقة (JWT مع Rate Limiting)
     path("token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("token/verify/", TokenVerifyView.as_view(), name="token_verify"),
+    path("token/blacklist/", TokenBlacklistView.as_view(), name="token_blacklist"),
+    # ✅ Logout endpoints مع Token Blacklist
+    path("logout/", JWTLogoutView.as_view(), name="jwt_logout"),
+    path("logout-all/", JWTLogoutAllDevicesView.as_view(), name="jwt_logout_all"),
     # توجيه المسارات إلى الراوتر
     path("", include(router.urls)),
     # توجيه المسارات إلى واجهة API للمصادقة

@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils.safestring import mark_safe
+from core.models import SystemSetting
 from .models import (
     AccountType,
     ChartOfAccounts,
@@ -15,7 +16,6 @@ from .models import (
     PartnerBalance,
     InvoiceAuditLog,
 )
-from core.models import SystemSetting
 
 
 class JournalEntryLineInline(admin.TabularInline):
@@ -258,10 +258,11 @@ class PartnerTransactionAdmin(admin.ModelAdmin):
     
     def amount_display(self, obj):
         """عرض المبلغ مع تنسيق"""
+        currency = SystemSetting.get_currency_symbol()
         color = 'green' if obj.transaction_type == 'contribution' else 'orange'
         return format_html(
             '<span style="color: {}; font-weight: bold;">{} {}</span>',
-            color, obj.amount, SystemSetting.get_currency_symbol()
+            color, obj.amount, currency
         )
     amount_display.short_description = _('المبلغ')
     amount_display.admin_order_field = 'amount'
@@ -335,28 +336,31 @@ class PartnerBalanceAdmin(admin.ModelAdmin):
     
     def total_contributions_display(self, obj):
         """عرض إجمالي المساهمات"""
+        currency = SystemSetting.get_currency_symbol()
         return format_html(
             '<span style="color: green; font-weight: bold;">{} {}</span>',
-            obj.total_contributions, SystemSetting.get_currency_symbol()
+            obj.total_contributions, currency
         )
     total_contributions_display.short_description = _('إجمالي المساهمات')
     total_contributions_display.admin_order_field = 'total_contributions'
     
     def total_withdrawals_display(self, obj):
         """عرض إجمالي السحوبات"""
+        currency = SystemSetting.get_currency_symbol()
         return format_html(
             '<span style="color: orange; font-weight: bold;">{} {}</span>',
-            obj.total_withdrawals, SystemSetting.get_currency_symbol()
+            obj.total_withdrawals, currency
         )
     total_withdrawals_display.short_description = _('إجمالي السحوبات')
     total_withdrawals_display.admin_order_field = 'total_withdrawals'
     
     def current_balance_display(self, obj):
         """عرض الرصيد الحالي"""
+        currency = SystemSetting.get_currency_symbol()
         color = 'green' if obj.current_balance >= 0 else 'red'
         return format_html(
             '<span style="color: {}; font-weight: bold; font-size: 1.1em;">{} {}</span>',
-            color, obj.current_balance, SystemSetting.get_currency_symbol()
+            color, obj.current_balance, currency
         )
     current_balance_display.short_description = _('الرصيد الحالي')
     current_balance_display.admin_order_field = 'current_balance'
@@ -527,11 +531,13 @@ class InvoiceAuditLogAdmin(admin.ModelAdmin):
             color = "#9e9e9e"  # رمادي لعدم التغيير
             icon = "="
 
+        currency = SystemSetting.get_currency_symbol()
         return format_html(
-            '<span style="color: {}; font-weight: bold;">{} {} ج.م</span>',
+            '<span style="color: {}; font-weight: bold;">{} {} {}</span>',
             color,
             icon,
             abs(obj.total_difference),
+            currency
         )
 
     difference_display.short_description = _("الفرق")

@@ -1540,6 +1540,29 @@ def account_edit(request, pk):
         "account_types": account_types,
         "parent_accounts": parent_accounts,
         "title": f"تعديل حساب: {account.name}",
+        "page_title": f"تعديل حساب: {account.name}",
+        "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fa-arrow-left",
+                "text": "العودة للقائمة",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {
+                "title": "الرئيسية",
+                "url": reverse("core:dashboard"),
+                "icon": "fas fa-home",
+            },
+            {
+                "title": "دليل الحسابات",
+                "url": reverse("financial:chart_of_accounts_list"),
+                "icon": "fas fa-sitemap",
+            },
+            {"title": f"تعديل: {account.name}", "active": True},
+        ],
     }
 
     return render(request, "financial/accounts/chart_of_accounts_form.html", context)

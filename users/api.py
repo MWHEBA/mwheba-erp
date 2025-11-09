@@ -5,12 +5,12 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework import status
-from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from django.utils import timezone
 
 from utils.throttling import LoginRateThrottle, RegisterRateThrottle
 from .models import User
+from .jwt_serializers import get_tokens_for_user
 
 
 class LoginAPIView(APIView):
@@ -39,17 +39,20 @@ class LoginAPIView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        # إنشاء JWT tokens للمستخدم
-        refresh = RefreshToken.for_user(user)
+        # إنشاء JWT tokens مع custom claims
+        tokens = get_tokens_for_user(user)
 
         return Response(
             {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user_id": user.id,
-                "username": user.username,
-                "email": user.email,
-                "is_staff": user.is_staff,
+                **tokens,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "full_name": user.get_full_name(),
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
+                },
             },
             status=status.HTTP_200_OK,
         )
@@ -93,16 +96,20 @@ class RegisterAPIView(APIView):
             username=username, email=email, password=password
         )
 
-        # إنشاء JWT tokens للمستخدم
-        refresh = RefreshToken.for_user(user)
+        # إنشاء JWT tokens مع custom claims
+        tokens = get_tokens_for_user(user)
 
         return Response(
             {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user_id": user.id,
-                "username": user.username,
-                "email": user.email,
+                **tokens,
+                "user": {
+                    "id": user.id,
+                    "username": user.username,
+                    "email": user.email,
+                    "full_name": user.get_full_name(),
+                    "is_staff": user.is_staff,
+                    "is_superuser": user.is_superuser,
+                },
             },
             status=status.HTTP_201_CREATED,
         )

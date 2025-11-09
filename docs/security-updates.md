@@ -1,6 +1,27 @@
-# تحديثات الأمان - Security Updates
+# Security Updates
 
-## الثغرات المُصلحة - Fixed Vulnerabilities
+**Last Updated:** 2025-11-09  
+**Status:** ✅ Active
+
+---
+
+## JWT Security Implementation (2025-11-09)
+
+### Overview
+Comprehensive JWT security improvements with token lifetime reduction, rate limiting, and auto-refresh.
+
+### Key Changes
+- Access Token: 15 minutes (was 60 min)
+- Refresh Token: 1 day (was 7 days)
+- Rate Limiting: 5 attempts/min on login
+- Real-time permission checking
+- Auto-refresh system
+
+**Details:** See `jwt-security.md`
+
+---
+
+## Dependency Vulnerabilities Fixed
 
 ### High Priority (عالية الأولوية)
 

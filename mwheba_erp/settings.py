@@ -75,6 +75,7 @@ INSTALLED_APPS = [
     "mptt",
     "import_export",
     "rest_framework",
+    "rest_framework_simplejwt.token_blacklist",
     "simple_history",
     "bootstrap_datepicker_plus",
     "compressor",
@@ -104,6 +105,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "core.middleware.current_user.CurrentUserMiddleware",  # تخزين المستخدم الحالي للـ Signals
+    "core.middleware.permission_checker.RealTimePermissionMiddleware",  # ✅ التحقق من الصلاحيات Real-Time
+    "core.middleware.jwt_middleware.JWTLoggingMiddleware",  # ✅ تتبع استخدام JWT
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "simple_history.middleware.HistoryRequestMiddleware",
@@ -318,6 +321,10 @@ REST_FRAMEWORK = {
         "register": "3/hour",
         "import_export": "10/hour",
         "report": "30/hour",
+        # ✅ إضافة rates للـ JWT Token endpoints
+        "token_obtain": "5/min",
+        "token_refresh": "10/min",
+        "token_verify": "20/min",
     },
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
@@ -331,11 +338,13 @@ REST_FRAMEWORK = {
 from datetime import timedelta
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    # ✅ تم تقصير المدة للأمان - من ساعة إلى 15 دقيقة
+    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=15),
+    # ✅ تم تقصير المدة للأمان - من 7 أيام إلى يوم واحد
     "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "ROTATE_REFRESH_TOKENS": False,
+    "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    "UPDATE_LAST_LOGIN": False,
+    "UPDATE_LAST_LOGIN": True,
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
     "VERIFYING_KEY": None,
@@ -352,6 +361,8 @@ SIMPLE_JWT = {
     "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
     "SLIDING_TOKEN_LIFETIME": timedelta(hours=1),
     "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
+    # Custom serializer مع claims إضافية
+    "TOKEN_OBTAIN_SERIALIZER": "users.jwt_serializers.CustomTokenObtainPairSerializer",
 }
 
 # Default primary key field type

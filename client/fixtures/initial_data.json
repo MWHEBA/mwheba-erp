@@ -47,7 +47,7 @@
       "balance": "0.00",
       "notes": "عميل مؤسسي كبير - يحتاج مطبوعات تقنية عالية الجودة",
       "is_active": true,
-      "financial_account": 101,
+      "financial_account": null,
       "created_at": "2025-01-01T00:00:00Z",
       "updated_at": "2025-01-01T00:00:00Z",
       "created_by": 1
@@ -71,7 +71,7 @@
       "balance": "0.00",
       "notes": "مؤسسة تعليمية - تحتاج كتب ومواد تعليمية",
       "is_active": true,
-      "financial_account": 102,
+      "financial_account": null,
       "created_at": "2025-01-01T00:00:00Z",
       "updated_at": "2025-01-01T00:00:00Z",
       "created_by": 1

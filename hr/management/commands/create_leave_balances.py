@@ -45,7 +45,7 @@ class Command(BaseCommand):
         # جلب أنواع الإجازات النشطة
         leave_types = LeaveType.objects.filter(is_active=True)
         if not leave_types.exists():
-            self.stdout.write(self.style.ERROR('❌ لا توجد أنواع إجازات نشطة في النظام!'))
+            self.stdout.write(self.style.ERROR('[X] لا توجد أنواع إجازات نشطة في النظام!'))
             self.stdout.write(self.style.WARNING('يرجى إضافة أنواع الإجازات أولاً من لوحة الإدارة.'))
             return
         
@@ -57,7 +57,7 @@ class Command(BaseCommand):
         if employee_id:
             employees = Employee.objects.filter(pk=employee_id, status='active')
             if not employees.exists():
-                self.stdout.write(self.style.ERROR(f'❌ الموظف #{employee_id} غير موجود أو غير نشط!'))
+                self.stdout.write(self.style.ERROR(f'[X] الموظف #{employee_id} غير موجود أو غير نشط!'))
                 return
         else:
             employees = Employee.objects.filter(status='active')
@@ -66,7 +66,7 @@ class Command(BaseCommand):
         self.stdout.write(f'\nعدد الموظفين النشطين: {total_employees}\n')
         
         if total_employees == 0:
-            self.stdout.write(self.style.WARNING('⚠️ لا يوجد موظفين نشطين!'))
+            self.stdout.write(self.style.WARNING('[!] لا يوجد موظفين نشطين!'))
             return
         
         created_count = 0
@@ -125,7 +125,7 @@ class Command(BaseCommand):
                         created_count += 1
                 
                 # عرض معلومات الموظف
-                status_icon = '✓' if (employee_created + employee_updated) > 0 else '○'
+                status_icon = '[OK]' if (employee_created + employee_updated) > 0 else '[--]'
                 status_text = []
                 if employee_created > 0:
                     status_text.append(f'{employee_created} جديد')

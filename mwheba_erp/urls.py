@@ -23,12 +23,13 @@ from django.contrib.auth.views import LoginView, LogoutView
 from django.views.generic import RedirectView
 from django.contrib.auth.decorators import login_required
 from users.views import CustomLoginView
+from users.logout_views import CustomLogoutView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     # روابط المصادقة
     path("login/", CustomLoginView.as_view(), name="login"),
-    path("logout/", LogoutView.as_view(), name="logout"),
+    path("logout/", CustomLogoutView.as_view(), name="logout"),  # ✅ استخدام Custom Logout
     # تطبيقات النظام
     path("", include("core.urls")),  # تم تفعيله لحل مشكلة NoReverseMatch
     path("users/", include("users.urls")),

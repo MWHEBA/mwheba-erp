@@ -43,6 +43,7 @@ import logging
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.db.models import Avg, Max, Min
+from core.models import SystemSetting
 
 # استيراد نماذج المبيعات والمشتريات للتحقق من الارتباطات
 try:
@@ -3242,11 +3243,13 @@ def export_products_pdf_weasy(request, products):
             except:
                 pass
         
+        currency = SystemSetting.get_currency_symbol()
+        
         if request.GET.get('min_price'):
-            filters_applied.append(f"السعر الأدنى: {request.GET.get('min_price')} ج.م")
+            filters_applied.append(f"السعر الأدنى: {request.GET.get('min_price')} {currency}")
         
         if request.GET.get('max_price'):
-            filters_applied.append(f"السعر الأقصى: {request.GET.get('max_price')} ج.م")
+            filters_applied.append(f"السعر الأقصى: {request.GET.get('max_price')} {currency}")
         
         if request.GET.get('is_active'):
             filters_applied.append("الحالة: نشط فقط")
@@ -3308,7 +3311,7 @@ def export_products_pdf_weasy(request, products):
                         <td style="text-align: center;">{product.name}</td>
                         <td>{product.category.name if product.category else '-'}</td>
                         <td>{product.brand.name if product.brand else '-'}</td>
-                        <td>{product.selling_price:.2f} ج.م</td>
+                        <td>{product.selling_price:.2f} {currency}</td>
                         <td>{int(total_stock)}</td>
                         <td class="{status_class}">{status}</td>
                     </tr>
