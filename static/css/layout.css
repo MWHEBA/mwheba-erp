@@ -307,6 +307,10 @@
     margin-top: var(--header-height);
     margin-bottom: var(--footer-height);
     min-height: calc(100vh - var(--header-height) - var(--footer-height));
+    max-width: 1200px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 .content-container {
@@ -315,6 +319,8 @@
     border-radius: var(--border-radius);
     box-shadow: var(--shadow-sm);
     height: 100%;
+    max-width: 100%;
+    overflow-x: auto;
 }
 
 /**
@@ -742,50 +748,6 @@
     }
 }
 
-/* Quick Actions */
-.quick-actions {
-    position: relative;
-}
-
-.quick-action-btn {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: var(--primary-color);
-    color: white;
-    border-radius: 5px;
-    border: none;
-    font-weight: 500;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-    cursor: pointer;
-}
-
-.quick-action-btn:hover {
-    background-color: var(--primary-dark);
-}
-
-.quick-actions .dropdown-menu {
-    width: 240px;
-    padding: 0;
-}
-
-.quick-actions .dropdown-header {
-    padding: 12px 15px;
-    font-weight: 600;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.quick-actions .dropdown-item {
-    padding: 10px 15px;
-}
-
-.quick-actions .dropdown-item i {
-    width: 20px;
-    text-align: center;
-}
-
 /* Header Left Section - اسم الصفحة وأيقونتها */
 .header-left {
     display: flex;
@@ -823,24 +785,33 @@
     width: 40px;
     height: 40px;
     border-radius: 8px;
-    background-color: var(--light);
+    background-color: transparent;
     border: none;
-    color: var(--gray-600);
-    display: flex;
+    color: var(--text-color);
+    display: none;
     align-items: center;
     justify-content: center;
     transition: all 0.2s ease;
     margin-left: 10px;
+    cursor: pointer;
+    font-size: 1.2rem;
 }
 
 .mobile-sidebar-btn:hover {
-    background-color: var(--primary-color);
-    color: white;
-    transform: scale(1.05);
+    background-color: var(--hover-bg);
+    color: var(--primary-color);
 }
 
 .mobile-sidebar-btn:active {
     transform: scale(0.95);
+}
+
+.mobile-sidebar-btn i {
+    transition: transform 0.3s ease;
+}
+
+.sidebar-toggled .mobile-sidebar-btn i {
+    transform: rotate(90deg);
 }
 
 /* Mobile & Responsive Adjustments */
@@ -851,6 +822,10 @@
     
     .quick-action-btn span {
         display: none;
+    }
+    
+    .mobile-sidebar-btn {
+        display: flex !important;
     }
 }
 
@@ -863,6 +838,14 @@
     .header-right {
         gap: 0.5rem;
     }
+    
+    .page-title {
+        font-size: 0.95rem;
+    }
+    
+    .user-name-short {
+        display: none !important;
+    }
 }
 
 /**
@@ -871,11 +854,21 @@
  * ===========================
  */
 @media (max-width: 991px) {
+    /* إخفاء السايدبار افتراضياً على الموبايل */
     .sidebar-wrapper {
-        transform: translateX(260px);
-        box-shadow: -10px 0 15px rgba(0, 0, 0, 0.1);
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 280px;
+        transform: translateX(280px);
+        transition: transform 0.3s ease;
+        box-shadow: -5px 0 15px rgba(0, 0, 0, 0.2);
+        z-index: 1050;
+        overflow-y: auto;
     }
     
+    /* إزالة المسافة من المحتوى */
     .main-content,
     .main-header,
     .footer {
@@ -883,26 +876,22 @@
         right: 0;
     }
     
+    /* عند فتح السايدبار على الموبايل */
     .sidebar-toggled .sidebar-wrapper {
         transform: translateX(0);
-        width: 280px;
     }
     
-    .sidebar-toggled .main-content,
-    .sidebar-toggled .main-header,
-    .sidebar-toggled .footer {
-        margin-right: 0;
-    }
-    
+    /* إظهار جميع النصوص والأيقونات */
     .sidebar-toggled .sidebar-text,
     .sidebar-toggled .sidebar-arrow,
     .sidebar-toggled .submenu {
-        display: flex;
+        display: block !important;
+        opacity: 1 !important;
     }
     
     .sidebar-toggled .sidebar-icon {
         margin-left: var(--spacing-2);
-        font-size: 1rem;
+        font-size: 1.1rem;
     }
     
     .sidebar-toggled .sidebar-link {
@@ -910,32 +899,8 @@
         justify-content: flex-start;
     }
     
-    #sidebar-toggle {
-        display: block;
-    }
-    
-    /* Overlay */
-    .sidebar-toggled:before {
-        content: '';
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.3);
-        z-index: 998;
-    }
-    
-    .mobile-sidebar-btn {
-        display: block;
-    }
-    
-    .mobile-sidebar-visible .sidebar-wrapper {
-        width: 260px;
-        transform: translateX(0);
-    }
-    
-    .mobile-sidebar-visible::after {
+    /* Overlay عند فتح السايدبار */
+    .sidebar-toggled::before {
         content: '';
         position: fixed;
         top: 0;
@@ -943,14 +908,34 @@
         right: 0;
         bottom: 0;
         background-color: rgba(0, 0, 0, 0.5);
-        z-index: 999;
-    }
-
-
-    .sidebar-toggled .sidebar-text {
-            display: block !important;
+        z-index: 1040;
+        animation: fadeIn 0.3s ease;
     }
     
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    /* منع التمرير عند فتح السايدبار */
+    .sidebar-toggled {
+        overflow: hidden;
+    }
+    
+    /* إخفاء زر التصغير داخل السايدبار على الموبايل */
+    #sidebar-collapse {
+        display: none !important;
+    }
+    
+    /* التأكد من عدم تطبيق sidebar-collapsed على الموبايل */
+    .sidebar-collapsed .sidebar-wrapper {
+        width: 280px;
+        transform: translateX(280px);
+    }
+    
+    .sidebar-collapsed.sidebar-toggled .sidebar-wrapper {
+        transform: translateX(0);
+    }
 }
 
 @media (max-width: 767px) {
@@ -983,7 +968,13 @@
     }
     
     .page-title {
-        font-size: 1.1rem;
+        font-size: 0.9rem;
+    }
+    
+    .page-icon {
+        font-size: 1rem;
+        width: 32px;
+        height: 32px;
     }
     
     .breadcrumb-wrapper {
@@ -992,6 +983,19 @@
     
     .search-wrapper {
         display: none;
+    }
+    
+    /* تصغير الأزرار في الهيدر */
+    .quick-action-btn,
+    .notification-btn,
+    .user-dropdown-toggle {
+        padding: 0.4rem;
+        font-size: 0.9rem;
+    }
+    
+    .avatar {
+        width: 32px;
+        height: 32px;
     }
 }
 
@@ -1006,6 +1010,12 @@
     right: var(--sidebar-width);
     z-index: 990;
     transition: right var(--transition-speed) ease;
+}
+
+@media (max-width: 991px) {
+    .footer {
+        right: 0;
+    }
 }
 
 .footer-container {

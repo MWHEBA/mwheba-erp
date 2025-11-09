@@ -430,3 +430,28 @@
 .text-probation_ending { color: var(--warning-color); }
 .text-contract_expiring_soon { color: var(--warning-color); }
 .text-contract_expiring_urgent { color: var(--danger-color); }
+
+/* ===========================
+ * تحسينات الموبايل
+ * ===========================
+ */
+
+@media (max-width: 768px) {
+    .notifications-dropdown {
+        width: 85vw !important;
+        left: -20vw !important;
+        max-width: none;
+    }
+    
+    .notifications-dropdown::before {
+        left: auto;
+        right: 20px;
+    }
+    
+    .quick-actions-dropdown {
+        width: 85vw !important;
+        left: -30vw !important;
+        max-width: none;
+    }
+
+}

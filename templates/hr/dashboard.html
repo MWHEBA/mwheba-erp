@@ -32,66 +32,58 @@
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
     <div class="row">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">إجمالي الموظفين</h6>
-                            <h3 class="mb-0">{{ total_employees }}</h3>
-                        </div>
-                        <div class="stat-icon bg-primary">
-                            <i class="fas fa-users"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-users"></i>
                     </div>
+                    <div class="stats-card-title">إجمالي الموظفين</div>
+                    <div class="stats-card-value">{{ total_employees }}</div>
+                    <div class="stats-card-unit">موظف</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">الأقسام</h6>
-                            <h3 class="mb-0">{{ total_departments }}</h3>
-                        </div>
-                        <div class="stat-icon bg-success">
-                            <i class="fas fa-building"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-building"></i>
                     </div>
+                    <div class="stats-card-title">الأقسام</div>
+                    <div class="stats-card-value">{{ total_departments }}</div>
+                    <div class="stats-card-unit">قسم</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">طلبات الإجازات المعلقة</h6>
-                            <h3 class="mb-0">{{ pending_leaves }}</h3>
-                        </div>
-                        <div class="stat-icon bg-warning">
-                            <i class="fas fa-calendar-alt"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-calendar-alt"></i>
                     </div>
+                    <div class="stats-card-title">طلبات الإجازات المعلقة</div>
+                    <div class="stats-card-value">{{ pending_leaves }}</div>
+                    <div class="stats-card-unit">طلب</div>
                 </div>
             </div>
         </div>
 
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">الحضور اليوم</h6>
-                            <h3 class="mb-0">{{ today_attendance }}</h3>
-                        </div>
-                        <div class="stat-icon bg-info">
-                            <i class="fas fa-clock"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-clock"></i>
                     </div>
+                    <div class="stats-card-title">الحضور اليوم</div>
+                    <div class="stats-card-value">{{ today_attendance }}</div>
+                    <div class="stats-card-unit">موظف</div>
                 </div>
             </div>
         </div>
@@ -169,70 +161,58 @@
   <div class="section-container">
     <h5 class="section-title"><i class="fas fa-fingerprint me-2"></i>نظام البصمة</h5>
     <div class="row">
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card border-primary">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">سجلات اليوم</h6>
-                            <h3 class="mb-0 text-primary">-</h3>
-                            <small class="text-muted">سجلات البصمة</small>
-                        </div>
-                        <div class="stat-icon bg-primary">
-                            <i class="fas fa-fingerprint"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-fingerprint"></i>
                     </div>
+                    <div class="stats-card-title">سجلات اليوم</div>
+                    <div class="stats-card-value">-</div>
+                    <div class="stats-card-unit">سجل</div>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card border-success">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">سجلات مربوطة</h6>
-                            <h3 class="mb-0 text-success">-</h3>
-                            <small class="text-muted">نسبة الربط</small>
-                        </div>
-                        <div class="stat-icon bg-success">
-                            <i class="fas fa-link"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-link"></i>
                     </div>
+                    <div class="stats-card-title">سجلات مربوطة</div>
+                    <div class="stats-card-value">-</div>
+                    <div class="stats-card-unit">سجل</div>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card border-info">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">أجهزة متصلة</h6>
-                            <h3 class="mb-0 text-info">-</h3>
-                            <small class="text-muted">من إجمالي الأجهزة</small>
-                        </div>
-                        <div class="stat-icon bg-info">
-                            <i class="fas fa-server"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-server"></i>
                     </div>
+                    <div class="stats-card-title">أجهزة متصلة</div>
+                    <div class="stats-card-value">-</div>
+                    <div class="stats-card-unit">جهاز</div>
                 </div>
             </div>
         </div>
         
-        <div class="col-xl-3 col-md-6 mb-3">
-            <div class="card stat-card border-warning">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-2">سجلات غير معالجة</h6>
-                            <h3 class="mb-0 text-warning">-</h3>
-                            <small class="text-muted">تحتاج معالجة</small>
-                        </div>
-                        <div class="stat-icon bg-warning">
-                            <i class="fas fa-clock"></i>
-                        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
                     </div>
+                    <div class="stats-card-title">سجلات غير معالجة</div>
+                    <div class="stats-card-value">-</div>
+                    <div class="stats-card-unit">سجل</div>
                 </div>
             </div>
         </div>
@@ -258,8 +238,8 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    // تأثيرات بسيطة للكروت
-    $('.stat-card').hover(
+    // تأثيرات بسيطة للكروت - الآن تستخدم stats-card
+    $('.stats-card').hover(
         function() { $(this).addClass('shadow-lg'); },
         function() { $(this).removeClass('shadow-lg'); }
     );

@@ -446,7 +446,6 @@
         // إيقاف الفحص عند إغلاق الصفحة
         window.addEventListener('beforeunload', stopNotificationPolling);
 
-        console.log('✅ تم تهيئة نظام الإشعارات بنجاح');
     }
 
     // تهيئة عند تحميل DOM

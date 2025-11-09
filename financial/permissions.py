@@ -33,8 +33,6 @@ def create_custom_permissions():
         content_type=journal_entry_ct,
     )
 
-    print("✅ تم إنشاء الصلاحيات المخصصة بنجاح")
-
 
 def check_user_can_delete_entry(user, entry):
     """

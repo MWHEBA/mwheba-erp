@@ -21,33 +21,7 @@
     margin-bottom: var(--spacing-3);
 }
 
-.stat-card-icon {
-    position: absolute;
-    left: var(--spacing-3);
-    bottom: var(--spacing-3);
-    opacity: 0.3;
-    font-size: 2.5rem;
-}
-
-.stat-card.primary .stat-card-icon {
-    color: var(--primary-color);
-}
-
-.stat-card.success .stat-card-icon {
-    color: var(--success-color);
-}
-
-.stat-card.warning .stat-card-icon {
-    color: var(--warning-color);
-}
-
-.stat-card.danger .stat-card-icon {
-    color: var(--danger-color);
-}
-
-.stat-card.info .stat-card-icon {
-    color: var(--info-color);
-}
+/* stat-card - تم نقلها إلى shared-components.css */
 
 /**
  * ===========================
