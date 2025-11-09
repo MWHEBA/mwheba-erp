@@ -120,10 +120,11 @@ class AttendanceServiceTest(TestCase):
     
     def test_check_in(self):
         """اختبار تسجيل الحضور"""
+        from django.utils import timezone
         attendance = AttendanceService.record_check_in(self.employee, shift=self.shift)
         self.assertIsNotNone(attendance)
         self.assertEqual(attendance.employee, self.employee)
-        self.assertEqual(attendance.date, date.today())
+        self.assertEqual(attendance.date, timezone.now().date())
     
     def test_check_out(self):
         """اختبار تسجيل الانصراف"""
@@ -162,12 +163,17 @@ class LeaveServiceTest(TestCase):
             name_ar='إجازة سنوية',
             max_days_per_year=21
         )
+        # تاريخ بداية الاستحقاق قبل سنة لضمان الاستحقاق الكامل
+        accrual_start = date.today() - timedelta(days=365)
         self.leave_balance = LeaveBalance.objects.create(
             employee=self.employee,
             leave_type=self.leave_type,
             year=date.today().year,
             total_days=21,
-            remaining_days=21
+            accrued_days=21,
+            used_days=0,
+            remaining_days=21,
+            accrual_start_date=accrual_start
         )
     
     def test_request_leave(self):

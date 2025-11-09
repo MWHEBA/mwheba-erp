@@ -106,7 +106,7 @@ class AttendanceService:
     @staticmethod
     def _calculate_late_minutes(check_in, shift):
         """حساب دقائق التأخير"""
-        shift_start = datetime.combine(check_in.date(), shift.start_time)
+        shift_start = timezone.make_aware(datetime.combine(check_in.date(), shift.start_time))
         if check_in > shift_start:
             delta = check_in - shift_start
             return int(delta.total_seconds() / 60)
@@ -115,7 +115,7 @@ class AttendanceService:
     @staticmethod
     def _calculate_early_leave(check_out, shift):
         """حساب دقائق الانصراف المبكر"""
-        shift_end = datetime.combine(check_out.date(), shift.end_time)
+        shift_end = timezone.make_aware(datetime.combine(check_out.date(), shift.end_time))
         if check_out < shift_end:
             delta = shift_end - check_out
             return int(delta.total_seconds() / 60)
