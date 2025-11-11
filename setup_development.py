@@ -105,6 +105,24 @@ def run_command(command, check=True, show_output=False):
         return False
 
 
+def check_database_locks():
+    """فحص ما إذا كانت قاعدة البيانات مقفلة"""
+    db_path = Path("db.sqlite3")
+    if not db_path.exists():
+        return False
+    
+    try:
+        # محاولة فتح قاعدة البيانات للكتابة
+        import sqlite3
+        conn = sqlite3.connect(str(db_path), timeout=1)
+        conn.execute("BEGIN IMMEDIATE;")
+        conn.rollback()
+        conn.close()
+        return False  # غير مقفلة
+    except sqlite3.OperationalError:
+        return True  # مقفلة
+
+
 def kill_django_processes():
     """محاولة إيقاف عمليات Django التي قد تستخدم قاعدة البيانات"""
     try:
@@ -223,12 +241,36 @@ def main():
     load_test_data = True
 
     # المرحلة 1: حذف قاعدة البيانات القديمة
-    print_step(1, 9, "حذف قاعدة البيانات القديمة")
+    print_step(1, 10, "حذف قاعدة البيانات القديمة")
+    
+    # الحل الجذري: التأكد من إغلاق جميع الاتصالات
+    print_info("إغلاق جميع اتصالات قاعدة البيانات...")
+    
+    # محاولة إغلاق اتصالات Django
+    try:
+        from django.db import connections
+        for conn in connections.all():
+            conn.close()
+        print_success("تم إغلاق اتصالات Django")
+    except Exception as e:
+        print_warning(f"تحذير: {e}")
+    
     db_path = Path("db.sqlite3")
     if db_path.exists():
         try:
-            db_path.unlink()
-            print_success("تم حذف قاعدة البيانات القديمة")
+            # محاولة حذف قاعدة البيانات مع إعادة المحاولة
+            import time
+            for attempt in range(3):
+                try:
+                    db_path.unlink()
+                    print_success("تم حذف قاعدة البيانات القديمة")
+                    break
+                except PermissionError:
+                    if attempt < 2:
+                        print_info(f"محاولة {attempt + 1}/3: انتظار إغلاق العمليات...")
+                        time.sleep(2)
+                    else:
+                        raise
         except PermissionError:
             print_warning("⚠️  قاعدة البيانات مفتوحة في عملية أخرى!")
             print_colored("   الحلول المقترحة:", Colors.YELLOW)
@@ -241,6 +283,13 @@ def main():
             print_colored(
                 "   3. أعد تشغيل السكريبت بعد إغلاق العمليات", Colors.WHITE
             )
+
+            # فحص أقفال قاعدة البيانات
+            if check_database_locks():
+                print_warning("⚠️  قاعدة البيانات مقفلة، لا يمكن حذفها")
+                print_colored("   يرجى إغلاق جميع العمليات التي تستخدم قاعدة البيانات يدوياً", Colors.GRAY)
+                print_colored("   ثم إعادة تشغيل السكريبت", Colors.GRAY)
+                sys.exit(1)
 
             # محاولة إيقاف عمليات Django
             if kill_django_processes():
@@ -280,14 +329,26 @@ def main():
         print_info("لا توجد قاعدة بيانات سابقة")
 
     # المرحلة 2: تطبيق الهجرات
-    print_step(2, 9, "تطبيق الهجرات")
-    if not run_command("python manage.py migrate", show_output=False):
+    print_step(2, 10, "تطبيق الهجرات")
+    
+    # الحل الجذري الأمثل: تطبيق الهجرات مرة واحدة فقط
+    print_info("تطبيق جميع الهجرات...")
+    
+    # إنشاء قاعدة البيانات والجداول الأساسية أولاً
+    migration_success = run_command("python manage.py migrate", show_output=True)
+    
+    if not migration_success:
         print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
+        print_info("تفاصيل المشكلة:")
+        print_info("- تأكد من أن جميع ملفات الهجرات صحيحة")
+        print_info("- تحقق من إعدادات قاعدة البيانات في settings.py")
+        print_info("- جرب تشغيل: python manage.py migrate --verbosity=2")
         sys.exit(1)
+    
     print_success("تم تطبيق الهجرات بنجاح")
 
     # المرحلة 3: إنشاء المستخدمين الأساسيين
-    print_step(3, 9, "إنشاء المستخدمين الأساسيين")
+    print_step(3, 10, "إنشاء المستخدمين الأساسيين")
     
     try:
         from django.contrib.auth import get_user_model
@@ -353,32 +414,22 @@ def main():
         except Exception as e:
             print_warning(f"خطأ في تحميل إعدادات النظام: {str(e)[:100]}")
 
-    # المرحلة 6: تحميل الدليل المحاسبي
-    print_step(6, 10, "تحميل الدليل المحاسبي")
-
-    chart_file = Path("financial/fixtures/chart_of_accounts_final.json")
-    if not chart_file.exists():
-        print_colored("\n❌ الملف غير موجود: financial/fixtures/chart_of_accounts_final.json", Colors.RED)
-        sys.exit(1)
+    # المرحلة 6: تحميل قواعد التزامن (الدليل المحاسبي في migration)
+    print_step(6, 10, "تحميل قواعد التزامن")
     
-    print_info("تحميل الدليل المحاسبي وقواعد التزامن...")
+    print_info("تحميل قواعد التزامن...")
     try:
-        # تحميل الدليل المحاسبي وقواعد التزامن معاً (دفعة واحدة)
-        financial_fixtures = ["financial/fixtures/chart_of_accounts_final.json"]
         sync_rules_file = Path("financial/fixtures/payment_sync_rules.json")
         
         if sync_rules_file.exists():
-            financial_fixtures.append("financial/fixtures/payment_sync_rules.json")
-        
-        fixtures_str = " ".join(financial_fixtures)
-        
-        if not run_command(f"python manage.py loaddata {fixtures_str}", show_output=False):
-            print_colored("\n❌ فشل تحميل البيانات المالية", Colors.RED)
-            sys.exit(1)
-        
-        print_success(f"تم تحميل الدليل المحاسبي ({len(financial_fixtures)} ملف)")
+            if not run_command(f"python manage.py loaddata financial/fixtures/payment_sync_rules.json", show_output=False):
+                print_colored("\n❌ فشل تحميل قواعد التزامن", Colors.RED)
+                sys.exit(1)
+            print_success("تم تحميل قواعد التزامن")
+        else:
+            print_warning("ملف قواعد التزامن غير موجود (اختياري)")
     except Exception as e:
-        print_colored(f"\n❌ خطأ في تحميل البيانات المالية: {str(e)[:100]}", Colors.RED)
+        print_colored(f"\n❌ خطأ في تحميل قواعد التزامن: {str(e)[:100]}", Colors.RED)
         sys.exit(1)
 
     # التحقق من الصلاحيات المخصصة
@@ -386,9 +437,9 @@ def main():
     try:
         from django.contrib.auth.models import Permission
         from django.contrib.contenttypes.models import ContentType
-        from users.models import User as UserModel
 
-        ct = ContentType.objects.get_for_model(UserModel)
+        User = get_user_model()
+        ct = ContentType.objects.get_for_model(User)
         custom_permissions = Permission.objects.filter(content_type=ct)
         total_permissions = Permission.objects.count()
         
@@ -443,8 +494,6 @@ def main():
 
     try:
         # الحصول على المستخدم الأول لتعيينه كمنشئ
-        from django.contrib.auth import get_user_model
-
         User = get_user_model()
         first_user = User.objects.first()
 
@@ -579,6 +628,36 @@ def main():
                     print_warning("فشل إنشاء أرصدة الإجازات")
             except Exception as e:
                 print_warning(f"خطأ في إنشاء أرصدة الإجازات: {str(e)[:100]}")
+        
+        # إنشاء قوالب مكونات الراتب (إذا لم تكن موجودة)
+        print_info("التحقق من قوالب مكونات الراتب...")
+        try:
+            if run_command("python manage.py create_salary_templates", check=False, show_output=False):
+                print_success("تم إنشاء/تحديث قوالب مكونات الراتب")
+            else:
+                print_warning("قوالب مكونات الراتب موجودة مسبقاً")
+        except Exception as e:
+            print_warning(f"خطأ في إنشاء قوالب الراتب: {str(e)[:100]}")
+        
+        # تحديث أرصدة الإجازات السنوية
+        print_info("تحديث أرصدة الإجازات بناءً على مدة الخدمة...")
+        try:
+            if run_command("python manage.py update_leave_accruals --year 2025", check=False, show_output=False):
+                print_success("تم تحديث أرصدة الإجازات")
+            else:
+                print_warning("فشل تحديث أرصدة الإجازات")
+        except Exception as e:
+            print_warning(f"خطأ في تحديث أرصدة الإجازات: {str(e)[:100]}")
+        
+        # التحقق من أمان نظام الرواتب
+        print_info("التحقق من أمان نظام الرواتب...")
+        try:
+            if run_command("python manage.py validate_payroll_security --fix-templates", check=False, show_output=False):
+                print_success("تم التحقق من أمان نظام الرواتب")
+            else:
+                print_warning("تحذيرات أمنية في نظام الرواتب - راجع السجلات")
+        except Exception as e:
+            print_warning(f"خطأ في فحص أمان الرواتب: {str(e)[:100]}")
         
         # حساب إجمالي الملفات المتوقعة
         total_expected = len(basic_fixtures) + 2  # +1 للعلاقات +1 للفواتير
@@ -761,33 +840,46 @@ def main():
     # المرحلة 10: التحقق من نظام الشراكة المالية والأنظمة المتقدمة
     print_step(10, 10, "التحقق من نظام الشراكة المالية والأنظمة المتقدمة")
     
-    print_info("التحقق من وجود حسابات الشراكة في دليل الحسابات...")
-    print_success("حسابات الشراكة متوفرة في chart_of_accounts_final.json")
-    print_info("حساب جاري الشريك محمد يوسف موجود ومُعرَّف مسبقاً")
-    
-    print_info("التحقق من نظام تزامن المدفوعات...")
-    print_success("نظام التزامن المالي جاهز")
-
-    print_info("التحقق من نظام الأرصدة المحسنة...")
-    print_success("نظام الأرصدة المحسنة جاهز")
-
-    print_info("التحقق من نظام طباعة التسعير (printing_pricing)...")
-    print_success("نظام طباعة التسعير جاهز")
-    
-    print_info("التحقق من النظام الموحد للخدمات...")
-    print_success("النظام الموحد للخدمات جاهز")
-    
-    print_info("التحقق من نظام الشراكة المالية...")
-    print_success("نظام الشراكة المالية جاهز")
+    try:
+        # التحقق من النظام المالي
+        from financial.models import ChartOfAccounts, AccountingPeriod
+        accounts_count = ChartOfAccounts.objects.count()
+        periods_count = AccountingPeriod.objects.count()
+        
+        print_success(f"تم العثور على {accounts_count} حساب في الدليل المحاسبي")
+        print_success(f"تم العثور على {periods_count} فترة محاسبية")
+        
+        if accounts_count >= 35:
+            print_success("✅ الدليل المحاسبي جاهز!")
+        else:
+            print_warning(f"⚠️ عدد الحسابات أقل من المتوقع ({accounts_count}/35+)")
+            
+        # التحقق من نظام الشراكة
+        try:
+            from financial.models import PartnerBalance, PartnerTransaction
+            partner_accounts = ChartOfAccounts.objects.filter(name__icontains='شريك').count()
+            partner_transactions = PartnerTransaction.objects.count()
+            
+            if partner_accounts > 0:
+                print_success(f"✅ تم العثور على {partner_accounts} حساب شراكة")
+            else:
+                print_info("لم يتم العثور على حسابات شراكة (سيتم إنشاؤها عند الحاجة)")
+                
+            if partner_transactions > 0:
+                print_success(f"تم العثور على {partner_transactions} معاملة شراكة")
+                
+        except Exception as e:
+            print_warning(f"خطأ في فحص نظام الشراكة: {e}")
+            
+        print_success("✅ تم التحقق من الأنظمة المتقدمة بنجاح")
+        
+    except Exception as e:
+        print_warning(f"خطأ في التحقق من الأنظمة المتقدمة: {e}")
 
     # النتيجة النهائية
     print_header("✅ تم تهيئة النظام بنجاح للتطوير!")
 
     print_colored("\n📊 المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
-    print()
-    print_colored("   ✅ mwheba (محمد يوسف) - كلمة المرور: MedooAlnems2008", Colors.GREEN)
-    print_colored("   ✅ fatma - كلمة المرور: 2951096", Colors.GREEN)
-    print_colored("   ✅ admin - كلمة المرور: admin123", Colors.GREEN)
 
     print_colored(f"\n{'='*50}", Colors.CYAN)
 
@@ -832,26 +924,34 @@ def main():
     # النظام جاهز
     print_colored("\n🚀 النظام جاهز للاستخدام!", Colors.GREEN + Colors.BOLD)
     
-    # تشغيل السيرفر تلقائياً في الوضع التلقائي
+    # في الوضع التلقائي، لا نشغل السيرفر لتجنب التوقف
     if auto_mode:
-        print_colored("\n🔄 تشغيل السيرفر تلقائياً...", Colors.CYAN)
-        print_info("سيتم تشغيل السيرفر على: http://127.0.0.1:8000")
-        print_info("لإيقاف السيرفر اضغط Ctrl+C")
-        
-        import time
-        time.sleep(2)
-        
-        # تشغيل السيرفر
-        try:
-            subprocess.run(
-                [sys.executable, "manage.py", "runserver"],
-                cwd=os.getcwd()
-            )
-        except KeyboardInterrupt:
-            print_colored("\n✅ تم إيقاف السيرفر", Colors.YELLOW)
+        print_colored("\n✅ تم إكمال الإعداد بنجاح!", Colors.GREEN)
+        print_info("لتشغيل السيرفر استخدم: python manage.py runserver")
+        print_info("ثم افتح المتصفح على: http://127.0.0.1:8000")
     else:
-        print("   لتشغيل السيرفر استخدم: python manage.py runserver")
-        print("   ثم افتح المتصفح على: http://127.0.0.1:8000")
+        print_colored("\n🔄 هل تريد تشغيل السيرفر الآن؟", Colors.CYAN)
+        run_server = input("تشغيل السيرفر؟ (yes/no): ").strip().lower()
+        
+        if run_server == "yes":
+            print_colored("\n🔄 تشغيل السيرفر...", Colors.CYAN)
+            print_info("سيتم تشغيل السيرفر على: http://127.0.0.1:8000")
+            print_info("لإيقاف السيرفر اضغط Ctrl+C")
+            
+            import time
+            time.sleep(2)
+            
+            # تشغيل السيرفر
+            try:
+                subprocess.run(
+                    [sys.executable, "manage.py", "runserver"],
+                    cwd=os.getcwd()
+                )
+            except KeyboardInterrupt:
+                print_colored("\n✅ تم إيقاف السيرفر", Colors.YELLOW)
+        else:
+            print("   لتشغيل السيرفر لاحقاً استخدم: python manage.py runserver")
+            print("   ثم افتح المتصفح على: http://127.0.0.1:8000")
 
 
 if __name__ == "__main__":

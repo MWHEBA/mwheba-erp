@@ -162,22 +162,28 @@
             </div>
             <div class="col-md-3">
                 <div class="mb-3">
-                    <label class="form-label">مدة العقد</label>
+                    <label class="form-label">مدة العقد <span class="text-danger">*</span></label>
                     {{ form.contract_duration }}
                     <small class="text-muted">
                         <i class="fas fa-info-circle me-1"></i>
                         سيتم حساب تاريخ النهاية تلقائياً
                     </small>
+                    {% if form.contract_duration.errors %}
+                        <div class="text-danger">{{ form.contract_duration.errors }}</div>
+                    {% endif %}
                 </div>
             </div>
             <div class="col-md-3">
                 <div class="mb-3">
                     <label class="form-label">
                         <i class="fas fa-calendar-check me-1"></i>
-                        تاريخ النهاية
+                        تاريخ النهاية <span class="text-danger">*</span>
                     </label>
                     {{ form.end_date }}
-                    <small class="text-muted">اتركه فارغاً للعقود الدائمة</small>
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        إجباري - سيتم حسابه تلقائياً عند اختيار المدة
+                    </small>
                     {% if form.end_date.errors %}
                         <div class="text-danger">{{ form.end_date.errors }}</div>
                     {% endif %}
@@ -479,15 +485,15 @@
                 <div class="salary-totals">
                     <div class="total-row">
                         <span class="total-label">إجمالي المستحقات:</span>
-                        <span class="total-value text-success"><span id="total-earnings">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                        <span class="total-value text-success"><span id="total-earnings">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">إجمالي الاستقطاعات:</span>
-                        <span class="total-value text-danger"><span id="total-deductions">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                        <span class="total-value text-danger"><span id="total-deductions">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">صافي الراتب:</span>
-                        <span class="total-value text-primary"><span id="net-salary">0.00</span> <span class="currency-symbol">{{ system_settings.currency_symbol|default:'جنيه' }}</span></span>
+                        <span class="total-value text-primary"><span id="net-salary">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
                     </div>
                 </div>
             </div>
@@ -507,15 +513,52 @@
 
         <hr class="my-4">
 
+        <!-- رسالة توضيحية للمسودات -->
+        {% if not contract or contract.status == 'draft' %}
+        <div class="alert alert-info" id="draft-notice">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ملاحظة:</strong> 
+            {% if not contract %}
+            يمكنك حفظ العقد كمسودة أولاً، ثم تفعيله لاحقاً. عند التفعيل، سيتم نسخ جميع البنود تلقائياً للموظف.
+            {% else %}
+            هذا العقد في حالة مسودة. البنود لن تُنسخ للموظف إلا عند التفعيل.
+            {% endif %}
+        </div>
+        {% endif %}
+
         <div class="mt-4">
-            <button type="submit" class="btn btn-primary">
-                <i class="fas fa-save me-2"></i>
-                {% if contract %}حفظ التعديلات{% else %}حفظ{% endif %}
+            {% if not contract %}
+                <!-- عقد جديد: زرين -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-secondary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ كمسودة
+                </button>
+                <button type="submit" name="action" value="save_activate" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    حفظ وتفعيل
+                </button>
+            {% elif contract.status == 'draft' %}
+                <!-- تعديل مسودة: زرين -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-secondary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ التعديلات
+                </button>
+                <button type="submit" name="action" value="save_activate" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    حفظ وتفعيل
+                </button>
+            {% else %}
+                <!-- تعديل عقد ساري: زر واحد -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ التعديلات
+                </button>
+            {% endif %}
+            
+            <button type="button" onclick="window.history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-2"></i>
+                رجوع
             </button>
-            <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
-                <i class="fas fa-times me-2"></i>
-                إلغاء
-            </a>
         </div>
     </form>
   </div>
@@ -575,9 +618,14 @@
 <script src="{% static 'js/hr/salary-components.js' %}"></script>
 <script>
 // تفعيل تنسيق الأرقام على الحقول (باستخدام event delegation)
+let numberFormattingInitialized = false;
 function initNumberFormatting() {
+    // تجنب إضافة event listeners مكررة
+    if (numberFormattingInitialized) return;
+    numberFormattingInitialized = true;
+    
     // استخدام event delegation على document للحقول الديناميكية
-    $(document).off('blur focus', '.smart-float').on('blur', '.smart-float', function() {
+    $(document).on('blur', '.smart-float', function() {
         let value = $(this).val().replace(/,/g, '');
         if (value && !isNaN(value)) {
             let num = parseFloat(value);
@@ -657,6 +705,9 @@ $(document).ready(function() {
     
     // تهيئة date pickers باستخدام النظام الموحد
     const startDatePicker = MWHEBADatePicker.init("#id_start_date", {
+        {% if not contract %}
+        defaultDate: new Date(), // ✅ تاريخ اليوم للعقود الجديدة
+        {% endif %}
         onChange: function(selectedDates, dateStr, instance) {
             // إعادة حساب تاريخ النهاية عند تغيير تاريخ البداية
             const duration = $('#id_contract_duration').val();
@@ -666,13 +717,59 @@ $(document).ready(function() {
         }
     });
     
+    // تعيين تاريخ اليوم للعقود الجديدة
+    {% if not contract %}
+    if (!$('#id_start_date').val()) {
+        startDatePicker.setDate(new Date(), true);
+    }
+    {% endif %}
+    
     // حساب آخر يوم في الشهر الحالي
     const today = new Date();
     const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
     
+    // Flags لمنع loop بين الحقلين
+    let isUpdatingFromDuration = false;
+    let isUpdatingFromEndDate = false;
+    
     const endDatePicker = MWHEBADatePicker.init("#id_end_date", {
-        minDate: lastDayOfMonth  // على الأقل آخر يوم في الشهر الحالي
+        minDate: lastDayOfMonth,  // على الأقل آخر يوم في الشهر الحالي
+        onChange: function(selectedDates, dateStr, instance) {
+            // منع التأثير المتبادل: إذا التغيير جاي من duration، متعملش حاجة
+            if (isUpdatingFromDuration) {
+                return;
+            }
+            
+            // عند تغيير تاريخ النهاية يدوياً، تغيير المدة لـ "مدة مخصصة"
+            const currentDuration = $('#id_contract_duration').val();
+            
+            // إذا كانت المدة ليست "custom" بالفعل، غيرها
+            if (currentDuration !== 'custom' && dateStr) {
+                isUpdatingFromEndDate = true; // ✅ رفع الـ flag
+                $('#id_contract_duration').val('custom').trigger('change');
+                
+                // تأثير بصري لتوضيح التغيير
+                $('#id_contract_duration').addClass('bg-warning bg-opacity-25');
+                setTimeout(() => {
+                    $('#id_contract_duration').removeClass('bg-warning bg-opacity-25');
+                    isUpdatingFromEndDate = false; // ✅ خفض الـ flag
+                }, 1500);
+            }
+        }
     });
+    
+    // تعيين نوع العقد افتراضياً على "دائم" للعقود الجديدة
+    {% if not contract %}
+    if (!$('#id_contract_type').val()) {
+        // البحث عن option "دائم" (permanent)
+        $('#id_contract_type option').each(function() {
+            if ($(this).text().includes('دائم') || $(this).val() === 'permanent') {
+                $('#id_contract_type').val($(this).val()).trigger('change');
+                return false; // break
+            }
+        });
+    }
+    {% endif %}
     
     // تفعيل Select2 لحقل الموظف
     $('#id_employee').select2({
@@ -685,6 +782,18 @@ $(document).ready(function() {
         templateResult: formatEmployee,
         templateSelection: formatEmployeeSelection
     });
+    
+    // اختيار الموظف تلقائياً من URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const employeeParam = urlParams.get('employee');
+    if (employeeParam) {
+        // تعيين القيمة وتفعيل التغيير (Select2 يحتاج trigger خاص)
+        $('#id_employee').val(employeeParam).trigger('change.select2');
+        // تفعيل الـ change event العادي كمان عشان يجيب بيانات الموظف
+        setTimeout(function() {
+            $('#id_employee').trigger('change');
+        }, 100);
+    }
 
     // تنسيق عرض الموظف في القائمة
     function formatEmployee(employee) {
@@ -706,6 +815,9 @@ $(document).ready(function() {
         return employee.text;
     }
 
+    // Cache لبيانات الموظفين (تجنب AJAX requests مكررة)
+    const employeeDataCache = {};
+    
     // ملء بيانات الوظيفة تلقائياً عند اختيار الموظف
     $('#id_employee').on('change', function() {
         const employeeId = $(this).val();
@@ -714,11 +826,30 @@ $(document).ready(function() {
             return;
         }
         
+        // التحقق من الـ cache أولاً
+        if (employeeDataCache[employeeId]) {
+            fillEmployeeData(employeeDataCache[employeeId]);
+            return;
+        }
+        
         // جلب بيانات الموظف
         $.ajax({
             url: '/hr/api/employees/' + employeeId + '/',
             method: 'GET',
+            cache: true, // تفعيل browser cache
             success: function(data) {
+                // حفظ في الـ cache
+                employeeDataCache[employeeId] = data;
+                fillEmployeeData(data);
+            },
+            error: function(xhr, status, error) {
+                console.error('خطأ في جلب بيانات الموظف:', error);
+            }
+        });
+    });
+    
+    // دالة مشتركة لملء بيانات الموظف
+    function fillEmployeeData(data) {
                 // ملء الوظيفة
                 if (data.job_title && !$('#id_job_title').prop('disabled')) {
                     $('#id_job_title').val(data.job_title).trigger('change');
@@ -751,15 +882,15 @@ $(document).ready(function() {
                         }, 1500);
                     }
                 }
-            },
-            error: function(xhr, status, error) {
-                console.error('خطأ في جلب بيانات الموظف:', error);
-            }
-        });
-    });
+    }
 
     // حساب تاريخ النهاية تلقائياً عند اختيار مدة العقد
     $('#id_contract_duration').on('change', function() {
+        // منع التأثير المتبادل: إذا التغيير جاي من end_date، متعملش حاجة
+        if (isUpdatingFromEndDate) {
+            return;
+        }
+        
         const duration = $(this).val();
         const startDate = $('#id_start_date').val();
         
@@ -788,9 +919,17 @@ $(document).ready(function() {
             // تعيين آخر يوم في الشهر
             endDate.setDate(0);
             
+            // رفع الـ flag قبل تعيين التاريخ
+            isUpdatingFromDuration = true; // ✅ رفع الـ flag
+            
             // تعيين القيمة في Flatpickr وقفل الحقل
             endDatePicker.setDate(endDate, true);
             endDatePicker.set('disabled', true);
+            
+            // خفض الـ flag بعد التعيين
+            setTimeout(() => {
+                isUpdatingFromDuration = false; // ✅ خفض الـ flag
+            }, 100);
             
             // إضافة تأثير بصري
             $('#id_end_date').next('.flatpickr-input').addClass('bg-warning bg-opacity-25');
@@ -805,15 +944,40 @@ $(document).ready(function() {
         }
     });
 
+    // حفظ قيمة action عند الضغط على أي زر submit
+    let clickedAction = 'save_draft'; // القيمة الافتراضية
+    $('button[type="submit"][name="action"]').on('click', function() {
+        clickedAction = $(this).val();
+    });
+    
+    // Cache للـ overlap validation (تجنب requests مكررة)
+    const overlapValidationCache = {};
+    
     // التحقق من التداخل قبل الإرسال
     $('#contractForm').on('submit', function(e) {
         const employeeId = $('#id_employee').val();
         const startDate = $('#id_start_date').val();
-        const endDate = $('#id_end_date').val();
+        const endDate = $('#id_end_date').val() || '';
         const contractId = '{{ contract.pk|default:"" }}';
         
+        // التحقق من الحقول الأساسية
         if (!employeeId || !startDate) {
             return true; // دع Django يتعامل مع الأخطاء الأساسية
+        }
+        
+        // التحقق من تاريخ النهاية (إجباري)
+        if (!endDate) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'تاريخ النهاية مطلوب',
+                text: 'يجب تحديد تاريخ نهاية للعقد. لا يمكن إنشاء عقود مفتوحة.',
+                confirmButtonText: 'حسناً',
+                confirmButtonColor: '#dc3545'
+            });
+            // تركيز على حقل تاريخ النهاية
+            $('#id_end_date').focus();
+            return false;
         }
         
         // منع الإرسال المتكرر
@@ -822,11 +986,38 @@ $(document).ready(function() {
             return false;
         }
         
+        // مفتاح الـ cache
+        const cacheKey = `${employeeId}_${startDate}_${endDate}_${contractId}`;
+        
+        // التحقق من الـ cache أولاً
+        if (overlapValidationCache[cacheKey] !== undefined) {
+            if (overlapValidationCache[cacheKey].has_overlap) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'تداخل في العقود',
+                    html: overlapValidationCache[cacheKey].message,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#dc3545'
+                });
+                return false;
+            } else {
+                // لا يوجد تداخل - إرسال النموذج
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'action',
+                    value: clickedAction
+                }).appendTo('#contractForm');
+                $('#contractForm').off('submit').submit();
+                return;
+            }
+        }
+        
         // التحقق من التداخل عبر AJAX
         e.preventDefault();
         $(this).data('submitting', true);
         
-        const submitBtn = $(this).find('button[type="submit"]');
+        const submitBtn = $('button[type="submit"][name="action"][value="' + clickedAction + '"]');
         const originalText = submitBtn.html();
         submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التحقق...');
         
@@ -840,7 +1031,10 @@ $(document).ready(function() {
                 'contract_id': contractId,
                 'csrfmiddlewaretoken': '{{ csrf_token }}'
             },
+            timeout: 10000, // 10 ثواني timeout
             success: function(response) {
+                // حفظ النتيجة في الـ cache
+                overlapValidationCache[cacheKey] = response;
                 if (response.has_overlap) {
                     // عرض رسالة التداخل
                     Swal.fire({
@@ -853,13 +1047,42 @@ $(document).ready(function() {
                     submitBtn.prop('disabled', false).html(originalText);
                     $('#contractForm').data('submitting', false);
                 } else {
-                    // لا يوجد تداخل - إرسال النموذج
+                    // لا يوجد تداخل - إضافة hidden input بقيمة action وإرسال النموذج
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: 'action',
+                        value: clickedAction
+                    }).appendTo('#contractForm');
+                    
                     $('#contractForm').off('submit').submit();
                 }
             },
-            error: function() {
-                // في حالة الخطأ، دع النموذج يُرسل (Django سيتحقق)
-                $('#contractForm').off('submit').submit();
+            error: function(xhr, status, error) {
+                console.error('خطأ في التحقق من التداخل:', error);
+                submitBtn.prop('disabled', false).html(originalText);
+                $('#contractForm').data('submitting', false);
+                
+                // عرض رسالة خطأ للمستخدم
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تعذر التحقق من التداخل',
+                    text: 'هل تريد المتابعة بدون التحقق؟',
+                    showCancelButton: true,
+                    confirmButtonText: 'نعم، متابعة',
+                    cancelButtonText: 'إلغاء',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // المستخدم وافق على المتابعة
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: 'action',
+                            value: clickedAction
+                        }).appendTo('#contractForm');
+                        $('#contractForm').off('submit').submit();
+                    }
+                });
             }
         });
     });

@@ -106,11 +106,19 @@ urlpatterns = [
     # الرواتب
     path('payroll/', views.payroll_list, name='payroll_list'),
     path('payroll/<int:pk>/', views.payroll_detail, name='payroll_detail'),
+    path('payroll/<int:pk>/edit-lines/', views.payroll_edit_lines, name='payroll_edit_lines'),
+    path('payroll/<int:pk>/approve/', views.payroll_approve, name='payroll_approve'),
+    path('payroll/<int:pk>/delete/', views.payroll_delete, name='payroll_delete'),
+    # ✨ مسارات الدفع الجديدة
+    path('payroll/<int:pk>/pay/', views.payroll_pay, name='payroll_pay'),
     
     # مسيرات الرواتب
     path('payroll-runs/', views.payroll_run_list, name='payroll_run_list'),
     path('payroll-runs/process/', views.payroll_run_process, name='payroll_run_process'),
     path('payroll-runs/<str:month>/', views.payroll_run_detail, name='payroll_run_detail'),
+    path('payroll-runs/<str:month>/delete/', views.payroll_run_delete, name='payroll_run_delete'),
+    # ✨ دفع جميع رواتب الشهر
+    path('payroll-runs/<str:month>/pay-all/', views.payroll_run_pay_all, name='payroll_run_pay_all'),
     
     # السلف
     path('advances/', views.advance_list, name='advance_list'),
@@ -125,9 +133,13 @@ urlpatterns = [
     # العقود
     path('contracts/', views.contract_list, name='contract_list'),
     path('contracts/<int:pk>/', views.contract_detail, name='contract_detail'),
-    path('contracts/<int:pk>/activate/', views.contract_activate, name='contract_activate'),
-    path('contracts/<int:pk>/suspend/', views.contract_suspend, name='contract_suspend'),
-    path('contracts/<int:pk>/reactivate/', views.contract_reactivate, name='contract_reactivate'),
+    # نموذج موحد للإضافة والتعديل
+    path('contracts/form/', views.contract_form, name='contract_form'),
+    path('contracts/<int:pk>/form/', views.contract_form, name='contract_form_edit'),
+    # تفعيل العقد
+    path('contracts/<int:pk>/activate/', views.contract_activate, name='contract_activate_confirm'),
+    
+    # إدارة العقود
     path('contracts/<int:pk>/renew/', views.contract_renew, name='contract_renew'),
     path('contracts/<int:pk>/terminate/', views.contract_terminate, name='contract_terminate'),
     path('contracts/expiring/', views.contract_expiring, name='contract_expiring'),
@@ -143,9 +155,6 @@ urlpatterns = [
     path('contracts/<int:pk>/documents/<int:doc_id>/delete/', views.contract_document_delete, name='contract_document_delete'),
     # تعديلات العقود
     path('contracts/<int:pk>/amendments/create/', views.contract_amendment_create, name='contract_amendment_create'),
-    # نموذج موحد
-    path('contracts/form/', views.contract_form, name='contract_form'),
-    path('contracts/<int:pk>/form/', views.contract_form, name='contract_form_edit'),
     
     # API التحقق من تداخل العقود
     path('contracts/check-overlap/', views.contract_check_overlap, name='contract_check_overlap'),
@@ -161,6 +170,14 @@ urlpatterns = [
     path('salary-component-templates/form/', views.salary_component_template_form, name='salary_component_template_form'),
     path('salary-component-templates/<int:pk>/form/', views.salary_component_template_form, name='salary_component_template_form_edit'),
     path('salary-component-templates/<int:pk>/delete/', views.salary_component_template_delete, name='salary_component_template_delete'),
+    
+    # بنود راتب الموظف
+    path('employees/<int:employee_id>/salary-components/', views.employee_salary_components, name='employee_salary_components'),
+    path('employees/<int:employee_id>/salary-components/add/', views.salary_component_create, name='salary_component_create'),
+    path('employees/<int:employee_id>/salary-components/<int:component_id>/edit/', views.salary_component_edit, name='salary_component_edit'),
+    path('employees/<int:employee_id>/salary-components/<int:component_id>/delete/', views.salary_component_delete, name='salary_component_delete'),
+    path('employees/<int:employee_id>/salary-components/<int:component_id>/toggle/', views.salary_component_toggle_active, name='salary_component_toggle_active'),
+    path('employees/<int:employee_id>/salary-components/quick-add/', views.salary_component_quick_add, name='salary_component_quick_add'),
     
     # التقارير
     path('reports/', include([

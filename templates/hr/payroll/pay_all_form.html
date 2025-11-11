@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include 'components/page_header.html' %}
+    
+    <div class="row">
+        <div class="col-md-10 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-money-check-alt me-2"></i>
+                        دفع رواتب شهر {{ month_date|date:"F Y" }}
+                    </h5>
+                </div>
+                
+                <div class="card-body">
+                    <!-- إحصائيات -->
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">عدد الموظفين</h6>
+                                    <h3 class="text-primary">{{ approved_payrolls.count }}</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">إجمالي الرواتب</h6>
+                                    <h3 class="text-info">{{ total_gross|remove_trailing_zeros }} ج.م</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="text-muted">صافي المدفوع</h6>
+                                    <h3 class="text-success">{{ total_net|remove_trailing_zeros }} ج.م</h3>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- نموذج الدفع -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="payment_account" class="form-label">
+                                <i class="fas fa-wallet me-1"></i>
+                                حساب الدفع <span class="text-danger">*</span>
+                            </label>
+                            <select name="payment_account" id="payment_account" class="form-select" required>
+                                <option value="">-- اختر حساب الدفع --</option>
+                                {% for account in payment_accounts %}
+                                <option value="{{ account.id }}">
+                                    {{ account.name }} - رصيد: {{ account.current_balance|remove_trailing_zeros }} ج.م
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="payment_reference" class="form-label">
+                                <i class="fas fa-hashtag me-1"></i>
+                                مرجع الدفع (اختياري)
+                            </label>
+                            <input type="text" name="payment_reference" id="payment_reference" 
+                                   class="form-control" placeholder="مثال: PAYROLL-2025-01">
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="create_journal" id="create_journal" checked>
+                            <label class="form-check-label" for="create_journal">
+                                <i class="fas fa-book me-1"></i>
+                                إنشاء قيد محاسبي عام لجميع الرواتب
+                            </label>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'hr:payroll_run_detail' month %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-right me-2"></i>
+                                رجوع
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>
+                                دفع جميع الرواتب ({{ approved_payrolls.count }} موظف)
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <!-- قائمة الموظفين -->
+                    <div class="mt-4">
+                        <h6 class="mb-3">قائمة الموظفين:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>الموظف</th>
+                                        <th>الإجمالي</th>
+                                        <th>الاستقطاعات</th>
+                                        <th>الصافي</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payroll in approved_payrolls %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ payroll.employee.get_full_name_ar }}</td>
+                                        <td>{{ payroll.gross_salary|remove_trailing_zeros }} ج.م</td>
+                                        <td>{{ payroll.total_deductions|remove_trailing_zeros }} ج.م</td>
+                                        <td class="text-success fw-bold">{{ payroll.net_salary|remove_trailing_zeros }} ج.م</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

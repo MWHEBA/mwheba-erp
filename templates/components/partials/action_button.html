@@ -1,0 +1,37 @@
+{% if show_button %}
+    {% comment %} تحديد نوع الزر {% endcomment %}
+    {% if button.modal %}
+        {% comment %} زر مودال {% endcomment %}
+        <button type="button"
+               class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+               title="{{ button.label }}"
+               {% if button.class == 'action-delete' %}
+               onclick="openDeleteModal('{{ item_id }}')"
+               {% elif button.class == 'action-approve' %}
+               onclick="openApproveModal('{{ item_id }}')"
+               {% elif button.onclick %}
+               onclick="openPostModal({{ item.id }})"
+               {% endif %}
+               {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </button>
+    {% elif ':' in button.url %}
+        {% comment %} رابط بـ URL name {% endcomment %}
+        {% with url_name=button.url %}
+            <a href="{% url url_name item_id %}" 
+               class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+               title="{{ button.label }}"
+               {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                <i class="fas {{ button.icon }}"></i>
+            </a>
+        {% endwith %}
+    {% else %}
+        {% comment %} رابط افتراضي {% endcomment %}
+        <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+           class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+           title="{{ button.label }}"
+           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </a>
+    {% endif %}
+{% endif %}

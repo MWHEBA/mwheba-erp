@@ -1,0 +1,242 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+<style>
+.warning-box {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe5e5 100%);
+  border: 2px solid #dc3545;
+  border-radius: 12px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.warning-icon {
+  font-size: 4rem;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.warning-title {
+  font-size: 1.5rem;
+  font-weight: bold;
+  color: #dc3545;
+  margin-bottom: 1rem;
+}
+
+.warning-list {
+  list-style: none;
+  padding: 0;
+  margin: 1.5rem 0;
+}
+
+.warning-list li {
+  padding: 0.75rem;
+  margin-bottom: 0.5rem;
+  background: white;
+  border-radius: 8px;
+  border-right: 4px solid #dc3545;
+  display: flex;
+  align-items: center;
+}
+
+.warning-list li i {
+  margin-left: 1rem;
+  color: #dc3545;
+  font-size: 1.2rem;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.stat-box {
+  background: white;
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary-color);
+  margin-bottom: 0.5rem;
+}
+
+.stat-label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 2rem;
+}
+</style>
+
+<div class="modal-header bg-danger text-white">
+  <h5 class="modal-title">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    حذف مسيرة رواتب {{ month_name }}
+  </h5>
+  <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<div class="modal-body">
+  <div class="section-container">
+    <!-- تحذير مختصر -->
+    <div class="alert alert-danger text-center mb-3" role="alert">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong>سيتم حذف {{ stats.total_employees }} قسيمة راتب لشهر {{ month_name }} نهائياً</strong>
+    </div>
+
+    <!-- إحصائيات مختصرة -->
+    <div class="row text-center mb-3">
+      <div class="col-3">
+        <div class="border rounded p-2">
+          <div class="fw-bold text-primary">{{ stats.total_employees }}</div>
+          <small class="text-muted">القسائم</small>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="border rounded p-2">
+          <div class="fw-bold text-success">{{ stats.approved_count }}</div>
+          <small class="text-muted">معتمدة</small>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="border rounded p-2">
+          <div class="fw-bold text-info">{{ stats.calculated_count }}</div>
+          <small class="text-muted">محسوبة</small>
+        </div>
+      </div>
+      <div class="col-3">
+        <div class="border rounded p-2">
+          <div class="fw-bold text-warning">{{ stats.draft_count }}</div>
+          <small class="text-muted">مسودة</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center mb-3">
+      <span class="badge bg-secondary fs-6">إجمالي المبلغ: {{ stats.total_net|remove_trailing_zeros }} ج.م</span>
+    </div>
+
+    <!-- نموذج التأكيد -->
+    <form method="post" id="deleteForm" action="{% url 'hr:payroll_run_delete' month=month %}">
+      {% csrf_token %}
+    </form>
+  </div>
+</div>
+
+<div class="modal-footer">
+  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+    <i class="fas fa-times me-2"></i>
+    إلغاء
+  </button>
+  <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+    <i class="fas fa-trash-alt me-2"></i>
+    تأكيد الحذف
+  </button>
+</div>
+
+<script>
+// إضافة event listener للزر عند تحميل المحتوى
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmDelete);
+    }
+});
+
+// أو إضافة event listener فوراً إذا كان الزر موجود
+setTimeout(() => {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmDelete);
+    }
+}, 100);
+
+function confirmDelete() {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        html: `
+            <p class="mb-3">سيتم حذف <strong>{{ stats.total_employees }}</strong> قسيمة راتب لشهر <strong>{{ month_name }}</strong></p>
+            <p class="text-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>هذه العملية لا يمكن التراجع عنها!</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، احذف المسيرة',
+        cancelButtonText: 'إلغاء',
+        reverseButtons: true,
+        focusCancel: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // عرض مؤشر التحميل
+            Swal.fire({
+                title: 'جاري الحذف...',
+                html: 'يرجى الانتظار',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // إرسال طلب AJAX
+            const form = document.getElementById('deleteForm');
+            const formData = new FormData(form);
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الحذف!',
+                        text: data.message,
+                        confirmButtonColor: '#28a745'
+                    }).then(() => {
+                        // إغلاق المودال وإعادة تحميل الصفحة
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                        if (modal) modal.hide();
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ!',
+                        text: data.message,
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ!',
+                    text: 'حدث خطأ أثناء الحذف',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
+};
+</script>

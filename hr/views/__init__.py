@@ -69,8 +69,6 @@ from .contract_views import (
     contract_list,
     contract_detail,
     contract_activate,
-    contract_suspend,
-    contract_reactivate,
     contract_document_upload,
     contract_document_delete,
     contract_amendment_create,
@@ -80,13 +78,21 @@ from .payroll_advance_views import (
     payroll_run_list,
     payroll_run_process,
     payroll_run_detail,
+    payroll_run_delete,
     payroll_detail,
+    payroll_edit_lines,
+    payroll_approve,
+    payroll_delete,
     advance_list,
     advance_request,
     advance_detail,
     advance_approve,
     advance_reject,
     salary_settings,
+)
+from .payroll_payment_views import (
+    payroll_pay,
+    payroll_run_pay_all,
 )
 from .other_views import (
     organization_chart,
@@ -102,6 +108,14 @@ from .other_views import (
     salary_component_template_delete,
     employee_detail_api,
     contract_check_overlap,
+)
+from .salary_component_views import (
+    employee_salary_components,
+    salary_component_create,
+    salary_component_edit,
+    salary_component_delete,
+    salary_component_toggle_active,
+    salary_component_quick_add,
 )
 from .report_views import (
     reports_home,
@@ -139,6 +153,9 @@ from .contract_views import (
 from .contract_form_views import (
     contract_form,
 )
+# ملاحظة: تم حذف contract_views_new.py ودمج contract_activate في contract_views.py
+# contract_create_with_components و contract_update_with_components تم استبدالهم بـ contract_form
+# contract_deactivate و contract_component_delete غير مستخدمين حالياً
 
 __all__ = [
     'dashboard',
@@ -195,6 +212,8 @@ __all__ = [
     'payroll_run_process',
     'payroll_run_detail',
     'payroll_detail',
+    'payroll_edit_lines',
+    'payroll_approve',
     'advance_list',
     'advance_request',
     'advance_detail',
@@ -215,6 +234,13 @@ __all__ = [
     'salary_component_template_delete',
     'employee_detail_api',
     'contract_check_overlap',
+    # دوال بنود الراتب
+    'employee_salary_components',
+    'salary_component_create',
+    'salary_component_edit',
+    'salary_component_delete',
+    'salary_component_toggle_active',
+    'salary_component_quick_add',
     # دوال العقود الإضافية
     'get_salary_component_templates',
     'contract_renew',

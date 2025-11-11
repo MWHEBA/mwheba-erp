@@ -146,7 +146,8 @@ PAGE HEADER المركزي - MWHEBA ERP
                                        class="btn {{ button.class|default:'btn-primary' }}"
                                        {% if button.id %}id="{{ button.id }}"{% endif %}
                                        {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
-                                       {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}>
+                                       {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}
+                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
                                         {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
                                         {{ button.text }}
                                     </a>

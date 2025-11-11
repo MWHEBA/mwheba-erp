@@ -1,0 +1,76 @@
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+
+<form method="post" action="{% url 'hr:salary_component_delete' employee.id component.id %}" id="deleteForm">
+    {% csrf_token %}
+    
+    <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title">
+            <i class="fas fa-trash me-2"></i>تأكيد الحذف
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+    </div>
+    
+    <div class="modal-body">
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            هل أنت متأكد من حذف هذا البند؟
+        </div>
+        
+        <div class="card">
+            <div class="card-body">
+                <h6>{{ component.name }}</h6>
+                <p class="mb-1"><strong>الكود:</strong> {{ component.code }}</p>
+                <p class="mb-1"><strong>النوع:</strong> 
+                    {% if component.component_type == 'earning' %}
+                        <span class="badge bg-success">مستحق</span>
+                    {% else %}
+                        <span class="badge bg-danger">استقطاع</span>
+                    {% endif %}
+                </p>
+                <p class="mb-0"><strong>المبلغ:</strong> {{ component.amount|remove_trailing_zeros }} {% currency_symbol %}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>حذف
+        </button>
+    </div>
+</form>
+
+<script>
+document.getElementById('deleteForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
+            if (modal) modal.hide();
+            
+            Swal.fire({
+                icon: 'success',
+                title: 'تم الحذف!',
+                text: data.message,
+                timer: 2000
+            }).then(() => location.reload());
+        }
+    });
+});
+</script>

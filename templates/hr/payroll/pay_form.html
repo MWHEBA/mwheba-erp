@@ -1,0 +1,85 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    {% include 'components/page_header.html' %}
+    
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-money-bill-wave me-2"></i>
+                        دفع راتب {{ payroll.employee.get_full_name_ar }}
+                    </h5>
+                </div>
+                
+                <div class="card-body">
+                    <!-- معلومات الراتب -->
+                    <div class="alert alert-info mb-4">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>الموظف:</strong> {{ payroll.employee.get_full_name_ar }}</p>
+                                <p class="mb-1"><strong>الشهر:</strong> {{ payroll.month|date:"F Y" }}</p>
+                                <p class="mb-0"><strong>الراتب الإجمالي:</strong> {{ payroll.gross_salary|remove_trailing_zeros }} ج.م</p>
+                            </div>
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>الاستقطاعات:</strong> {{ payroll.total_deductions|remove_trailing_zeros }} ج.م</p>
+                                <p class="mb-0"><strong class="text-success fs-5">صافي الراتب:</strong> 
+                                    <span class="text-success fs-4">{{ payroll.net_salary|remove_trailing_zeros }} ج.م</span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- نموذج الدفع -->
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="payment_account" class="form-label">
+                                <i class="fas fa-wallet me-1"></i>
+                                حساب الدفع <span class="text-danger">*</span>
+                            </label>
+                            <select name="payment_account" id="payment_account" class="form-select" required>
+                                <option value="">-- اختر حساب الدفع --</option>
+                                {% for account in payment_accounts %}
+                                <option value="{{ account.id }}">
+                                    {{ account.name }} - رصيد: {{ account.current_balance|remove_trailing_zeros }} ج.م
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="form-text text-muted">اختر الصندوق أو البنك الذي سيتم الدفع منه</small>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="payment_reference" class="form-label">
+                                <i class="fas fa-hashtag me-1"></i>
+                                مرجع الدفع (اختياري)
+                            </label>
+                            <input type="text" name="payment_reference" id="payment_reference" 
+                                   class="form-control" placeholder="رقم الشيك أو رقم التحويل">
+                            <small class="form-text text-muted">مثال: CHK-001 أو TRF-12345</small>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-right me-2"></i>
+                                رجوع
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check me-2"></i>
+                                تأكيد الدفع
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

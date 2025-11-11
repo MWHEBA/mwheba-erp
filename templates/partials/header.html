@@ -161,30 +161,26 @@
                         <span class="fw-bold">
                             <i class="fas fa-bell me-2 text-primary"></i>
                             {% trans "التنبيهات" %}
-                            {% with unread_count=0 %}
-                            {% for notification in notifications %}
-                                {% if not notification.is_read %}
-                                    {% with unread_count=unread_count|add:1 %}{% endwith %}
+                            {% if notifications %}
+                                {% regroup notifications by is_read as notifications_by_status %}
+                                {% for status_group in notifications_by_status %}
+                                    {% if not status_group.grouper %}
+                                        <span class="badge bg-danger rounded-pill ms-2">{{ status_group.list|length }}</span>
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        </span>
+                        {% if notifications %}
+                            {% regroup notifications by is_read as notifications_by_status %}
+                            {% for status_group in notifications_by_status %}
+                                {% if not status_group.grouper and status_group.list|length > 0 %}
+                                <button type="button" class="btn btn-sm btn-outline-primary mark-all-read" data-url="{% url 'core:mark_all_notifications_read' %}">
+                                    <i class="fas fa-check-double"></i>
+                                    <span class="d-none d-md-inline-block">تعليم الكل كمقروء</span>
+                                </button>
                                 {% endif %}
                             {% endfor %}
-                            {% if unread_count > 0 %}
-                            <span class="badge bg-danger rounded-pill ms-2">{{ unread_count }}</span>
-                            {% endif %}
-                            {% endwith %}
-                        </span>
-                        {% with unread_count=0 %}
-                        {% for notification in notifications %}
-                            {% if not notification.is_read %}
-                                {% with unread_count=unread_count|add:1 %}{% endwith %}
-                            {% endif %}
-                        {% endfor %}
-                        {% if unread_count > 0 %}
-                        <button type="button" class="btn btn-sm btn-outline-primary mark-all-read" data-url="{% url 'core:mark_all_notifications_read' %}">
-                            <i class="fas fa-check-double"></i>
-                            <span class="d-none d-md-inline-block">{% trans "تعليم الكل كمقروء" %}</span>
-                        </button>
                         {% endif %}
-                        {% endwith %}
                     </div>
                     
                     <div class="notification-list ps-custom">
@@ -621,4 +617,42 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-{% endif %} 
+{% endif %}
+
+<script>
+// معالجة زر "جعل الكل مقروء"
+document.addEventListener('DOMContentLoaded', function() {
+    const markAllReadBtn = document.querySelector('.mark-all-read');
+    
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const url = this.getAttribute('data-url');
+            
+            // إرسال الطلب
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // إعادة تحميل الصفحة لتحديث التنبيهات
+                    location.reload();
+                } else {
+                    alert('حدث خطأ أثناء تعليم الإشعارات كمقروءة');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('حدث خطأ في الاتصال بالخادم');
+            });
+        });
+    }
+});
+</script> 

@@ -1,12 +1,16 @@
 from django import template
-from decimal import Decimal, ROUND_HALF_UP
-import json
 from django.utils.safestring import mark_safe
+from django.utils.html import format_html
+from django.urls import reverse
+from decimal import Decimal
+import re
+import json
 from django.template.defaultfilters import floatformat
 import locale
 from django.contrib.auth.models import Permission
 from django.utils import timezone
 from datetime import datetime
+import datetime as dt
 
 register = template.Library()
 
@@ -499,76 +503,212 @@ def arabic_day(value):
 @register.filter
 def arabic_timesince(value):
     """
-    تحويل الوقت إلى صيغة عربية (منذ كم)
+    تحويل الوقت إلى صيغة عربية (منذ كم) - حساب دقيق بالسنوات والشهور
     """
     if not value:
         return ""
     
-    now = timezone.now()
+    # تحويل date إلى datetime إذا لزم الأمر
+    if isinstance(value, dt.date) and not isinstance(value, dt.datetime):
+        value = dt.datetime.combine(value, dt.time.min)
+    
+    # الحصول على التاريخ الحالي
     if timezone.is_aware(value):
-        diff = now - value
+        now = timezone.now()
     else:
-        diff = datetime.now() - value
+        now = datetime.now()
+        
+    # حساب الفرق بالسنوات والشهور والأيام
+    years = now.year - value.year
+    months = now.month - value.month
+    days = now.day - value.day
     
-    seconds = diff.total_seconds()
+    # تعديل الحساب إذا كان الشهر أو اليوم سالب
+    if days < 0:
+        months -= 1
+        # حساب عدد الأيام في الشهر السابق
+        if now.month == 1:
+            prev_month_days = 31
+        else:
+            prev_month = now.month - 1
+            prev_month_year = now.year
+            if prev_month == 2:
+                prev_month_days = 29 if (prev_month_year % 4 == 0 and prev_month_year % 100 != 0) or prev_month_year % 400 == 0 else 28
+            elif prev_month in [4, 6, 9, 11]:
+                prev_month_days = 30
+            else:
+                prev_month_days = 31
+        days += prev_month_days
     
-    if seconds < 60:
-        return "الآن"
-    elif seconds < 3600:  # أقل من ساعة
-        minutes = int(seconds / 60)
-        if minutes == 1:
-            return "منذ دقيقة"
-        elif minutes == 2:
-            return "منذ دقيقتين"
-        elif minutes <= 10:
-            return f"منذ {minutes} دقائق"
+    if months < 0:
+        years -= 1
+        months += 12
+    
+    # تنسيق النتيجة بالعربي
+    if years > 0:
+        if months > 0:
+            # سنوات وشهور
+            year_text = "سنة" if years == 1 else "سنتين" if years == 2 else f"{years} سنوات" if years <= 10 else f"{years} سنة"
+            month_text = "شهر" if months == 1 else "شهرين" if months == 2 else f"{months} أشهر" if months <= 10 else f"{months} شهر"
+            return f"{year_text} و{month_text}"
         else:
-            return f"منذ {minutes} دقيقة"
-    elif seconds < 86400:  # أقل من يوم
-        hours = int(seconds / 3600)
-        if hours == 1:
-            return "منذ ساعة"
-        elif hours == 2:
-            return "منذ ساعتين"
-        elif hours <= 10:
-            return f"منذ {hours} ساعات"
-        else:
-            return f"منذ {hours} ساعة"
-    elif seconds < 604800:  # أقل من أسبوع
-        days = int(seconds / 86400)
-        if days == 1:
-            return "منذ يوم"
-        elif days == 2:
-            return "منذ يومين"
-        elif days <= 10:
-            return f"منذ {days} أيام"
-        else:
-            return f"منذ {days} يوم"
-    elif seconds < 2592000:  # أقل من شهر
-        weeks = int(seconds / 604800)
-        if weeks == 1:
-            return "منذ أسبوع"
-        elif weeks == 2:
-            return "منذ أسبوعين"
-        else:
-            return f"منذ {weeks} أسابيع"
-    elif seconds < 31536000:  # أقل من سنة
-        months = int(seconds / 2592000)
+            # سنوات فقط
+            if years == 1:
+                return "سنة واحدة"
+            elif years == 2:
+                return "سنتين"
+            elif years <= 10:
+                return f"{years} سنوات"
+            else:
+                return f"{years} سنة"
+    elif months > 0:
+        if days > 15:
+            # إضافة شهر إذا كان أكثر من نصف شهر
+            months += 1
         if months == 1:
-            return "منذ شهر"
+            return "شهر واحد"
         elif months == 2:
-            return "منذ شهرين"
+            return "شهرين"
         elif months <= 10:
-            return f"منذ {months} أشهر"
+            return f"{months} أشهر"
         else:
-            return f"منذ {months} شهر"
-    else:  # أكثر من سنة
-        years = int(seconds / 31536000)
-        if years == 1:
-            return "منذ سنة"
-        elif years == 2:
-            return "منذ سنتين"
-        elif years <= 10:
-            return f"منذ {years} سنوات"
+            return f"{months} شهر"
+    elif days > 0:
+        if days == 1:
+            return "يوم واحد"
+        elif days == 2:
+            return "يومين"
+        elif days <= 10:
+            return f"{days} أيام"
         else:
-            return f"منذ {years} سنة"
+            return f"{days} يوم"
+    else:
+        return "اليوم"
+
+
+@register.filter
+def arabic_month_year(date_value):
+    """
+    تحويل التاريخ إلى شهر وسنة بالعربي
+    مثال: 2025-01-15 -> يناير 2025
+    """
+    from utils.helpers import arabic_date_format
+    
+    if not date_value:
+        return ""
+    
+    try:
+        # استخدام الدالة الموجودة في utils.helpers
+        formatted = arabic_date_format(date_value, with_time=False)
+        # استخراج الشهر والسنة فقط (بدون اليوم)
+        parts = formatted.split()
+        if len(parts) >= 3:
+            return f"{parts[1]} {parts[2]}"  # الشهر والسنة
+        return formatted
+    except:
+        return str(date_value)
+
+
+@register.inclusion_tag('components/partials/action_button.html')
+def render_action_button(button, item, primary_key='id'):
+    """
+    عرض زر الإجراء مع التحقق من الشروط
+    """
+    # التحقق من الشرط
+    show_button = True
+    
+    # التحقق من وجود شرط في الزر
+    if hasattr(button, 'condition') and button.condition:
+        if button.condition == 'not_fully_paid':
+            show_button = getattr(item, 'payment_status', None) != 'paid'
+        elif button.condition == 'no_posted_payments':
+            show_button = not getattr(item, 'has_posted_payments', False)
+        elif button.condition == 'status == \'draft\'':
+            show_button = getattr(item, 'status', None) == 'draft'
+        elif button.condition == 'can_delete':
+            show_button = getattr(item, 'can_delete', True)
+        elif button.condition == "status != 'approved' and status != 'paid'":
+            status = getattr(item, 'status', None)
+            show_button = status != 'approved' and status != 'paid'
+        elif button.condition == "status == 'approved'":
+            show_button = getattr(item, 'status', None) == 'approved'
+    elif hasattr(button, 'get') and button.get('condition'):
+        # للتعامل مع dictionary buttons
+        if button.get('condition') == 'not_fully_paid':
+            show_button = getattr(item, 'payment_status', None) != 'paid'
+        elif button.get('condition') == 'no_posted_payments':
+            show_button = not getattr(item, 'has_posted_payments', False)
+        elif button.get('condition') == 'status == \'draft\'':
+            show_button = getattr(item, 'status', None) == 'draft'
+        elif button.get('condition') == 'can_delete':
+            show_button = getattr(item, 'can_delete', True)
+        elif button.get('condition') == "status != 'approved' and status != 'paid'":
+            status = getattr(item, 'status', None)
+            show_button = status != 'approved' and status != 'paid'
+        elif button.get('condition') == "status == 'approved'":
+            show_button = getattr(item, 'status', None) == 'approved'
+    
+    # الحصول على المفتاح الأساسي
+    if hasattr(item, primary_key):
+        item_id = getattr(item, primary_key, '0')
+    else:
+        item_id = getattr(item, 'id', '0')
+    
+    return {
+        'button': button,
+        'item': item,
+        'item_id': item_id,
+        'show_button': show_button,
+    }
+
+
+@register.filter
+def format_date_safe(value, format_type='date'):
+    """
+    تنسيق التاريخ مع معالجة آمنة للقيم الفارغة
+    """
+    if not value:
+        return '<span class="text-muted">-</span>'
+    
+    try:
+        if format_type == 'date':
+            return f'<span class="transaction-date">{value.strftime("%d-%m-%Y")}</span>'
+        elif format_type == 'datetime':
+            return f'<span class="transaction-date">{value.strftime("%d-%m-%Y %H:%M")}</span>'
+        elif format_type == 'datetime_12h':
+            date_part = value.strftime("%Y-%m-%d")
+            time_part = value.strftime("%I:%M %p")
+            return f'<div>{date_part}</div><small class="text-muted">{time_part}</small>'
+    except:
+        return '<span class="text-muted">-</span>'
+    
+    return '<span class="text-muted">-</span>'
+
+
+@register.filter  
+def is_empty_value(value):
+    """
+    فحص آمن للقيم الفارغة
+    """
+    if value is None:
+        return True
+    if str(value).strip() == "":
+        return True
+    return False
+
+
+@register.filter
+def format_boolean_badge(value, field_key=''):
+    """
+    تنسيق القيم المنطقية كـ badges
+    """
+    if field_key == 'is_active':
+        if value:
+            return '<span class="badge bg-success">نشط</span>'
+        else:
+            return '<span class="badge bg-secondary">غير نشط</span>'
+    else:
+        if value:
+            return '<span class="badge bg-success">نعم</span>'
+        else:
+            return '<span class="badge bg-secondary">لا</span>'

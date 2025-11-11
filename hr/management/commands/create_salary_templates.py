@@ -1,129 +1,207 @@
 """
-أمر لإنشاء قوالب مكونات الراتب الافتراضية
+أمر لإنشاء قوالب مكونات الراتب الافتراضية المحدثة
 """
 from django.core.management.base import BaseCommand
 from hr.models import SalaryComponentTemplate
+from decimal import Decimal
 
 
 class Command(BaseCommand):
-    help = 'إنشاء قوالب مكونات الراتب الافتراضية'
+    help = 'إنشاء قوالب مكونات الراتب الافتراضية المحدثة مع الحسابات المحاسبية'
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            '--reset',
+            action='store_true',
+            help='حذف جميع القوالب الموجودة قبل الإنشاء',
+        )
 
     def handle(self, *args, **options):
-        # حذف القوالب القديمة
-        SalaryComponentTemplate.objects.all().delete()
+        if options['reset']:
+            deleted_count = SalaryComponentTemplate.objects.all().delete()[0]
+            self.stdout.write(
+                self.style.WARNING(f'🗑️ تم حذف {deleted_count} قالب موجود')
+            )
         
-        # قوالب المستحقات
-        earnings = [
+        # قوالب الخصومات الافتراضية
+        deduction_templates = [
             {
-                'name': 'بدل السكن',
-                'component_type': 'earning',
-                'formula': 'basic * 0.25',
-                'default_amount': 0,
-                'description': '25% من الراتب الأساسي',
-                'order': 1
+                'code': 'UNION_FEE',
+                'name': 'اشتراك النقابة',
+                'component_type': 'deduction',
+                'default_amount': Decimal('50.00'),
+                'default_account_code': '21033',
+                'description': 'اشتراك النقابة الشهري للموظفين',
+                'order': 1,
+                'is_active': True
             },
             {
-                'name': 'بدل المواصلات',
-                'component_type': 'earning',
-                'formula': 'basic * 0.10',
-                'default_amount': 0,
-                'description': '10% من الراتب الأساسي',
-                'order': 2
+                'code': 'MEDICAL_INS',
+                'name': 'التأمين الطبي',
+                'component_type': 'deduction',
+                'default_amount': Decimal('100.00'),
+                'default_account_code': '21034',
+                'description': 'اشتراك التأمين الطبي الشامل',
+                'order': 2,
+                'is_active': True
             },
             {
-                'name': 'بدل الطعام',
-                'component_type': 'earning',
-                'formula': '',
-                'default_amount': 500,
-                'description': 'مبلغ ثابت شهرياً',
-                'order': 3
-            },
-            {
-                'name': 'بدل الهاتف',
-                'component_type': 'earning',
-                'formula': '',
-                'default_amount': 200,
-                'description': 'مبلغ ثابت شهرياً',
-                'order': 4
-            },
-            {
-                'name': 'علاوة',
-                'component_type': 'earning',
-                'formula': 'basic * 0.05',
-                'default_amount': 0,
-                'description': '5% من الراتب الأساسي',
-                'order': 5
-            },
-            {
-                'name': 'حافز',
-                'component_type': 'earning',
-                'formula': '',
-                'default_amount': 1000,
-                'description': 'حافز شهري',
-                'order': 6
-            },
-        ]
-        
-        # قوالب الاستقطاعات
-        deductions = [
-            {
+                'code': 'SOCIAL_INS',
                 'name': 'التأمينات الاجتماعية',
                 'component_type': 'deduction',
-                'formula': 'basic * 0.11',
-                'default_amount': 0,
-                'description': '11% من الراتب الأساسي',
-                'order': 1
+                'formula': 'basic * 0.14',
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '21031',
+                'description': 'التأمينات الاجتماعية 14% من الراتب الأساسي',
+                'order': 3,
+                'is_active': True
             },
             {
+                'code': 'INCOME_TAX',
                 'name': 'ضريبة الدخل',
                 'component_type': 'deduction',
-                'formula': 'basic * 0.05',
-                'default_amount': 0,
-                'description': '5% من الراتب الأساسي',
-                'order': 2
+                'formula': 'basic * 0.10',
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '21032',
+                'description': 'ضريبة الدخل 10% من الراتب الأساسي',
+                'order': 4,
+                'is_active': True
             },
             {
-                'name': 'سلفة',
+                'code': 'ABSENCE_PENALTY',
+                'name': 'خصم غياب',
                 'component_type': 'deduction',
-                'formula': '',
-                'default_amount': 500,
-                'description': 'خصم سلفة شهرية',
-                'order': 3
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '21020',
+                'description': 'خصم أيام الغياب بدون إذن',
+                'order': 6,
+                'is_active': True
             },
             {
-                'name': 'غياب',
+                'code': 'LATE_PENALTY',
+                'name': 'خصم تأخير',
                 'component_type': 'deduction',
-                'formula': '',
-                'default_amount': 0,
-                'description': 'خصم أيام الغياب',
-                'order': 4
-            },
-            {
-                'name': 'تأخير',
-                'component_type': 'deduction',
-                'formula': '',
-                'default_amount': 0,
-                'description': 'خصم التأخير',
-                'order': 5
-            },
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '21020',
+                'description': 'خصم التأخير عن العمل',
+                'order': 7,
+                'is_active': True
+            }
         ]
         
-        # إنشاء المستحقات
-        for earning in earnings:
-            SalaryComponentTemplate.objects.create(**earning)
-            self.stdout.write(
-                self.style.SUCCESS(f'✅ تم إنشاء قالب المستحق: {earning["name"]}')
-            )
+        # قوالب المستحقات الافتراضية (النظام المبسط)
+        earning_templates = [
+            {
+                'code': 'TRANSPORT_ALLOWANCE',
+                'name': 'بدل انتقال',
+                'component_type': 'earning',
+                'default_amount': Decimal('300.00'),
+                'default_account_code': '52021',
+                'description': 'بدل المواصلات الشهري للموظفين',
+                'order': 1,
+                'is_active': True
+            },
+            {
+                'code': 'MEAL_ALLOWANCE',
+                'name': 'بدل وجبات',
+                'component_type': 'earning',
+                'default_amount': Decimal('200.00'),
+                'default_account_code': '52021',
+                'description': 'بدل الوجبات اليومي للموظفين',
+                'order': 2,
+                'is_active': True
+            },
+            {
+                'code': 'PHONE_ALLOWANCE',
+                'name': 'بدل هاتف',
+                'component_type': 'earning',
+                'default_amount': Decimal('150.00'),
+                'default_account_code': '52021',
+                'description': 'بدل الهاتف والاتصالات',
+                'order': 3,
+                'is_active': True
+            },
+            {
+                'code': 'OVERTIME_PAY',
+                'name': 'أجر إضافي',
+                'component_type': 'earning',
+                'formula': 'basic * 0.05',
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '52022',
+                'description': 'الأجر الإضافي 5% من الراتب الأساسي',
+                'order': 5,
+                'is_active': True
+            },
+            {
+                'code': 'PERFORMANCE_BONUS',
+                'name': 'مكافأة أداء',
+                'component_type': 'earning',
+                'default_amount': Decimal('500.00'),
+                'default_account_code': '52022',
+                'description': 'مكافأة الأداء المتميز',
+                'order': 6,
+                'is_active': True
+            },
+            {
+                'code': 'ANNUAL_BONUS',
+                'name': 'مكافأة سنوية',
+                'component_type': 'earning',
+                'formula': 'basic * 1.0',
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '52022',
+                'description': 'المكافأة السنوية (راتب شهر)',
+                'order': 7,
+                'is_active': True
+            },
+            {
+                'code': 'HOUSING_ALLOWANCE',
+                'name': 'بدل سكن',
+                'component_type': 'earning',
+                'formula': 'basic * 0.25',
+                'default_amount': Decimal('0.00'),
+                'default_account_code': '52023',
+                'description': 'بدل السكن 25% من الراتب الأساسي',
+                'order': 8,
+                'is_active': True
+            }
+        ]
         
-        # إنشاء الاستقطاعات
-        for deduction in deductions:
-            SalaryComponentTemplate.objects.create(**deduction)
-            self.stdout.write(
-                self.style.SUCCESS(f'✅ تم إنشاء قالب الاستقطاع: {deduction["name"]}')
+        # دمج جميع القوالب
+        all_templates = deduction_templates + earning_templates
+        
+        # إنشاء القوالب (أو تحديثها إذا كانت موجودة)
+        created_count = 0
+        updated_count = 0
+        
+        for template_data in all_templates:
+            template, created = SalaryComponentTemplate.objects.get_or_create(
+                code=template_data['code'],
+                defaults=template_data
             )
+            
+            if created:
+                created_count += 1
+                self.stdout.write(
+                    self.style.SUCCESS(f'✅ تم إنشاء قالب: {template.name}')
+                )
+            else:
+                # تحديث القالب الموجود بالبيانات الجديدة
+                for key, value in template_data.items():
+                    if key != 'code':  # لا نغير الكود
+                        setattr(template, key, value)
+                template.save()
+                updated_count += 1
+                self.stdout.write(
+                    self.style.WARNING(f'🔄 تم تحديث قالب: {template.name}')
+                )
         
         self.stdout.write(
             self.style.SUCCESS(
-                f'\n🎉 تم إنشاء {len(earnings)} قالب مستحق و {len(deductions)} قالب استقطاع بنجاح!'
+                f'\n🎉 تم إنشاء {created_count} قالب جديد وتحديث {updated_count} قالب موجود'
+            )
+        )
+        self.stdout.write(
+            self.style.SUCCESS(
+                f'📋 إجمالي القوالب: {len(all_templates)} ({len(earning_templates)} مستحق + {len(deduction_templates)} خصم)'
             )
         )

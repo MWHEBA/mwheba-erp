@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h3 class="card-title mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        تفعيل العقد
+                    </h3>
+                </div>
+                
+                <div class="card-body">
+                    <!-- معلومات العقد -->
+                    <div class="alert alert-info">
+                        <h5>
+                            <i class="fas fa-file-contract me-2"></i>
+                            العقد: {{ contract.contract_number }}
+                        </h5>
+                        <p class="mb-0">
+                            <strong>الموظف:</strong> {{ contract.employee.get_full_name_ar }}<br>
+                            <strong>تاريخ البداية:</strong> {{ contract.start_date }}<br>
+                            <strong>الراتب الأساسي:</strong> {{ contract.basic_salary }} ج.م
+                        </p>
+                    </div>
+                    
+                    <!-- ملخص البنود -->
+                    <h5 class="mb-3">
+                        <i class="fas fa-list me-2"></i>
+                        ملخص بنود الراتب
+                    </h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="text-success">
+                                        <i class="fas fa-plus-circle me-2"></i>
+                                        المستحقات
+                                    </h6>
+                                    <p class="mb-0">
+                                        <strong>عدد البنود:</strong> {{ summary.earnings_count }}<br>
+                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_earnings }} ج.م
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="text-danger">
+                                        <i class="fas fa-minus-circle me-2"></i>
+                                        الاستقطاعات
+                                    </h6>
+                                    <p class="mb-0">
+                                        <strong>عدد البنود:</strong> {{ summary.deductions_count }}<br>
+                                        <strong>إجمالي ثابت:</strong> {{ summary.total_fixed_deductions }} ج.م
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-success mt-3">
+                        <h5 class="mb-0">
+                            <i class="fas fa-calculator me-2"></i>
+                            الراتب التقديري: {{ summary.estimated_net }} ج.م
+                        </h5>
+                    </div>
+                    
+                    <!-- تحذير -->
+                    <div class="alert alert-warning">
+                        <h6>
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            ماذا سيحدث عند التفعيل؟
+                        </h6>
+                        <ul class="mb-0">
+                            <li>سيتم تعطيل أي عقد نشط سابق للموظف</li>
+                            <li>سيتم نسخ جميع بنود العقد ({{ summary.total_components }} بند) إلى بنود الموظف</li>
+                            <li>ستصبح البنود المنسوخة للقراءة فقط ولا يمكن تعديلها إلا من العقد</li>
+                            <li>سيتم تحديث بيانات الموظف (الوظيفة والقسم) حسب العقد</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="card-footer">
+                    <form method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check me-2"></i>
+                            تأكيد التفعيل
+                        </button>
+                        <a href="{% url 'hr:contract_detail' contract.id %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>
+                            إلغاء
+                        </a>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

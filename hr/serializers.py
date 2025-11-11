@@ -4,7 +4,7 @@ Serializers لـ API وحدة الموارد البشرية
 from rest_framework import serializers
 from .models import (
     Employee, Department, JobTitle, Shift, Attendance,
-    LeaveType, LeaveBalance, Leave, Salary, Payroll, Advance
+    LeaveType, LeaveBalance, Leave, Payroll, Advance
 )
 
 
@@ -77,9 +77,9 @@ class ShiftSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'shift_type', 'start_time', 'end_time',
             'grace_period_in', 'grace_period_out', 'work_hours',
-            'is_active', 'created_at', 'updated_at'
+            'is_active'
         ]
-        read_only_fields = ['created_at', 'updated_at']
+        read_only_fields = []
 
 
 class AttendanceSerializer(serializers.ModelSerializer):
@@ -144,31 +144,15 @@ class LeaveSerializer(serializers.ModelSerializer):
         read_only_fields = ['created_at', 'updated_at', 'requested_at', 'days_count']
 
 
-class SalarySerializer(serializers.ModelSerializer):
-    """Serializer للرواتب"""
-    employee_name = serializers.CharField(source='employee.get_full_name_ar', read_only=True)
-    
-    class Meta:
-        model = Salary
-        fields = [
-            'id', 'employee', 'employee_name', 'basic_salary',
-            'housing_allowance', 'transport_allowance', 'food_allowance',
-            'other_allowances', 'gross_salary', 'social_insurance_rate',
-            'tax_rate', 'effective_date', 'end_date', 'is_active',
-            'created_at', 'updated_at'
-        ]
-        read_only_fields = ['created_at', 'updated_at', 'gross_salary']
-
-
 class PayrollSerializer(serializers.ModelSerializer):
-    """Serializer لكشوف الرواتب"""
+    """Serializer لقسائم الرواتب"""
     employee_name = serializers.CharField(source='employee.get_full_name_ar', read_only=True)
     processed_by_name = serializers.CharField(source='processed_by.get_full_name', read_only=True)
     
     class Meta:
         model = Payroll
         fields = [
-            'id', 'employee', 'employee_name', 'month', 'salary',
+            'id', 'employee', 'employee_name', 'month', 'contract',
             'basic_salary', 'allowances', 'bonus', 'overtime_hours',
             'overtime_rate', 'overtime_amount', 'total_additions',
             'absence_days', 'absence_deduction', 'late_deduction',

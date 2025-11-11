@@ -1,0 +1,371 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load widget_tweaks %}
+{% load pricing_filters %}
+
+{% block extra_css %}
+<style>
+    .component-card {
+        border-right: 4px solid;
+        transition: all 0.3s ease;
+    }
+    .component-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .component-card.earning {
+        border-right-color: #28a745;
+    }
+    .component-card.deduction {
+        border-right-color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- الإحصائيات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>ملخص الراتب</h5>
+        <div class="row">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stats-card-title">الراتب الأساسي</div>
+                        <div class="stats-card-value">{{ salary_summary.basic_salary|remove_trailing_zeros }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المستحقات</div>
+                        <div class="stats-card-value">{{ salary_summary.total_earnings|remove_trailing_zeros }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-minus-circle"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي الاستقطاعات</div>
+                        <div class="stats-card-value">{{ salary_summary.total_deductions|remove_trailing_zeros }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stats-card-title">صافي الراتب</div>
+                        <div class="stats-card-value">{{ salary_summary.net_salary|remove_trailing_zeros }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- المستحقات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-plus-circle me-2 text-success"></i>المستحقات ({{ earnings.count }})</h5>
+        {% if earnings %}
+            <div class="row">
+                    {% for component in earnings %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card component-card earning">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ component.name }}</h6>
+                                        <small class="text-muted">{{ component.code }}</small>
+                                        {% if component.calculation_method == 'fixed' %}
+                                            <span class="badge bg-primary badge-calculation ms-2">ثابت</span>
+                                        {% elif component.calculation_method == 'percentage' %}
+                                            <span class="badge bg-info badge-calculation ms-2">نسبة {{ component.percentage|remove_trailing_zeros }}%</span>
+                                        {% elif component.calculation_method == 'formula' %}
+                                            <span class="badge bg-warning badge-calculation ms-2">صيغة</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <h5 class="text-success mb-0">{{ component.amount|remove_trailing_zeros }} ج.م</h5>
+                                        <div class="btn-group btn-group-sm mt-2">
+                                            <button class="btn btn-outline-primary" onclick="editComponent({{ component.id }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                                <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if component.notes %}
+                                <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>لا توجد مستحقات حالياً</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- الاستقطاعات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-minus-circle me-2 text-danger"></i>الاستقطاعات ({{ deductions.count }})</h5>
+        {% if deductions %}
+            <div class="row">
+                    {% for component in deductions %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card component-card deduction">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ component.name }}</h6>
+                                        <small class="text-muted">{{ component.code }}</small>
+                                        {% if component.calculation_method == 'fixed' %}
+                                            <span class="badge bg-primary badge-calculation ms-2">ثابت</span>
+                                        {% elif component.calculation_method == 'percentage' %}
+                                            <span class="badge bg-info badge-calculation ms-2">نسبة {{ component.percentage|remove_trailing_zeros }}%</span>
+                                        {% elif component.calculation_method == 'formula' %}
+                                            <span class="badge bg-warning badge-calculation ms-2">صيغة</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-end">
+                                        <h5 class="text-danger mb-0">{{ component.amount|remove_trailing_zeros }} ج.م</h5>
+                                        <div class="btn-group btn-group-sm mt-2">
+                                            <button class="btn btn-outline-primary" onclick="editComponent({{ component.id }})">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                                <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% if component.notes %}
+                                <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+            </div>
+        {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-3x mb-3"></i>
+                <p>لا توجد استقطاعات حالياً</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- البنود غير النشطة -->
+    {% if inactive_components %}
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-archive me-2 text-secondary"></i>البنود غير النشطة ({{ inactive_components.count }})</h5>
+        <div class="card">
+            <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>الاسم</th>
+                            <th>النوع</th>
+                            <th>المبلغ</th>
+                            <th>الإجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for component in inactive_components %}
+                        <tr>
+                            <td>{{ component.name }}</td>
+                            <td>
+                                {% if component.component_type == 'earning' %}
+                                    <span class="badge bg-success">مستحق</span>
+                                {% else %}
+                                    <span class="badge bg-danger">استقطاع</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ component.amount|remove_trailing_zeros }} ج.م</td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success" onclick="toggleActive({{ component.id }})">
+                                    <i class="fas fa-eye"></i> تفعيل
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal: إضافة بند -->
+<div class="modal fade" id="addComponentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="addModalContent">
+            <!-- سيتم تحميل المحتوى عبر AJAX -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal: إضافة سريعة -->
+<div class="modal fade" id="quickAddModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" id="quickAddModalContent">
+            <!-- سيتم تحميل المحتوى عبر AJAX -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal: تعديل -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="editModalContent">
+            <!-- سيتم تحميل المحتوى عبر AJAX -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal: حذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" id="deleteModalContent">
+            <!-- سيتم تحميل المحتوى عبر AJAX -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// فتح مودال الإضافة
+document.addEventListener('DOMContentLoaded', function() {
+    const addBtn = document.querySelector('[data-bs-target="#addComponentModal"]');
+    if (addBtn) {
+        addBtn.addEventListener('click', function() {
+            fetch('{% url "hr:salary_component_create" employee.id %}')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('addModalContent').innerHTML = html;
+                    
+                    // تشغيل الـ scripts الموجودة في المحتوى المُحمّل
+                    const scripts = document.getElementById('addModalContent').querySelectorAll('script');
+                    scripts.forEach(script => {
+                        const newScript = document.createElement('script');
+                        newScript.textContent = script.textContent;
+                        document.body.appendChild(newScript);
+                        document.body.removeChild(newScript);
+                    });
+                    
+                    new bootstrap.Modal(document.getElementById('addComponentModal')).show();
+                });
+        });
+    }
+
+    const quickAddBtn = document.querySelector('[data-bs-target="#quickAddModal"]');
+    if (quickAddBtn) {
+        quickAddBtn.addEventListener('click', function() {
+            fetch('{% url "hr:salary_component_quick_add" employee.id %}')
+                .then(response => response.text())
+                .then(html => {
+                    document.getElementById('quickAddModalContent').innerHTML = html;
+                    new bootstrap.Modal(document.getElementById('quickAddModal')).show();
+                });
+        });
+    }
+});
+
+// تعديل بند
+function editComponent(id) {
+    fetch(`{% url "hr:salary_component_edit" employee.id 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('editModalContent').innerHTML = html;
+            
+            // تشغيل الـ scripts
+            const scripts = document.getElementById('editModalContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+            
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        });
+}
+
+// حذف بند
+function deleteComponent(id) {
+    fetch(`{% url "hr:salary_component_delete" employee.id 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+}
+
+// تفعيل/إلغاء تفعيل
+function toggleActive(id) {
+    if (!confirm('هل تريد تغيير حالة هذا البند؟')) return;
+    
+    fetch(`{% url "hr:salary_component_toggle_active" employee.id 0 %}`.replace('0', id), {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            Swal.fire({
+                icon: 'success',
+                title: 'نجح!',
+                text: data.message,
+                timer: 2000
+            }).then(() => location.reload());
+        }
+    });
+}
+</script>
+{% endblock %}

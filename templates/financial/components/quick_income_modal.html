@@ -138,17 +138,31 @@ function openQuickIncomeModal() {
   loadIncomeAccounts();
   loadReceivingAccounts();
   
-  // تعيين التاريخ الحالي
-  document.getElementById('quick_income_date').value = new Date().toISOString().split('T')[0];
-  
   // إظهار المودال
   const modal = new bootstrap.Modal(document.getElementById('quickIncomeModal'));
   modal.show();
   
-  // التركيز على حقل الوصف
+  // تهيئة datepicker بالتاريخ الحالي بعد فتح المودال
   setTimeout(() => {
+    const dateInput = document.getElementById('quick_income_date');
+    // استخدام التوقيت المحلي للمتصفح
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
+    // تعيين القيمة
+    dateInput.value = todayStr;
+    
+    // إذا كان datepicker مهيأ، حدث القيمة
+    if (dateInput._flatpickr) {
+      dateInput._flatpickr.setDate(todayStr);
+    }
+    
+    // التركيز على حقل الوصف
     document.getElementById('quick_income_description').focus();
-  }, 500);
+  }, 300);
 }
 
 // تحميل حسابات الإيرادات
@@ -190,11 +204,14 @@ function loadReceivingAccounts(selectedId = null) {
       const receivingSelect = document.getElementById('quick_receiving_account');
       receivingSelect.innerHTML = '<option value="">{% trans "اختر الخزينة" %}</option>';
       
-      data.forEach(account => {
+      data.forEach((account, index) => {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        // اختيار الحساب المحدد أو أول حساب افتراضياً
         if (selectedId && account.id == selectedId) {
+          option.selected = true;
+        } else if (!selectedId && index === 0) {
           option.selected = true;
         }
         receivingSelect.appendChild(option);

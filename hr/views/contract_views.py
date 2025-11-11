@@ -5,6 +5,7 @@ from .base_imports import *
 from ..models import Contract, Employee, Department
 from ..models.contract import ContractDocument, ContractAmendment, ContractIncrease
 from ..decorators import can_manage_contracts, hr_manager_required
+from ..services.contract_activation_service import ContractActivationService
 from core.models import SystemSetting
 from django.core.paginator import Paginator
 from datetime import date, timedelta
@@ -35,7 +36,7 @@ def contract_list(request):
     ).prefetch_related(
         'scheduled_increases',
         'amendments'
-    ).all()
+    ).order_by('-created_at')  # ✅ ترتيب بالأحدث أولاً
     
     # إحصائيات
     stats = {
@@ -157,27 +158,31 @@ def contract_detail(request, pk):
             'is_badge': True,
         },
         {
-            'url': f'/hr/contracts/{contract.pk}/edit/',
+            'url': f'/hr/contracts/{contract.pk}/form/',
             'icon': 'fa-edit',
             'text': 'تعديل',
             'class': 'btn-warning',
         },
     ]
     
+    # أزرار حسب الحالة
     if contract.status == 'draft':
+        # عقد مسودة - يمكن تفعيله
         header_buttons.append({
             'url': f'/hr/contracts/{contract.pk}/activate/',
-            'icon': 'fa-check',
-            'text': 'تفعيل',
+            'icon': 'fa-check-circle',
+            'text': 'تفعيل العقد',
             'class': 'btn-success',
         })
     elif contract.status == 'active':
-        header_buttons.append({
-            'url': f'/hr/contracts/{contract.pk}/suspend/',
-            'icon': 'fa-pause',
-            'text': 'إيقاف مؤقت',
-            'class': 'btn-secondary',
-        })
+        # عقد نشط - يمكن إيقافه أو إنهاؤه أو تجديده
+        # TODO: إضافة وظيفة إيقاف العقد
+        # header_buttons.append({
+        #     'url': f'/hr/contracts/{contract.pk}/suspend/',
+        #     'icon': 'fa-pause-circle',
+        #     'text': 'إيقاف العقد',
+        #     'class': 'btn-warning',
+        # })
         if contract.end_date:
             header_buttons.append({
                 'url': f'/hr/contracts/{contract.pk}/renew/',
@@ -192,10 +197,11 @@ def contract_detail(request, pk):
             'class': 'btn-danger',
         })
     elif contract.status == 'suspended':
+        # عقد موقوف - يمكن إعادة تفعيله أو تجديده
         header_buttons.extend([
             {
-                'url': f'/hr/contracts/{contract.pk}/reactivate/',
-                'icon': 'fa-play',
+                'url': f'/hr/contracts/{contract.pk}/activate/',
+                'icon': 'fa-play-circle',
                 'text': 'إعادة تفعيل',
                 'class': 'btn-success',
             },
@@ -207,6 +213,7 @@ def contract_detail(request, pk):
             },
         ])
     elif contract.status in ['expired', 'terminated']:
+        # عقد منتهي - يمكن تجديده فقط
         header_buttons.append({
             'url': f'/hr/contracts/{contract.pk}/renew/',
             'icon': 'fa-redo',
@@ -230,6 +237,7 @@ def contract_detail(request, pk):
             {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
             {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users-cog'},
             {'title': 'العقود', 'url': '/hr/contracts/', 'icon': 'fas fa-file-contract'},
+            {'title': contract.employee.get_full_name_ar(), 'url': f'/hr/employees/{contract.employee.pk}/', 'icon': 'fas fa-user'},
             {'title': contract.contract_number, 'active': True},
         ],
     }
@@ -237,49 +245,6 @@ def contract_detail(request, pk):
     return render(request, 'hr/contract/detail.html', context)
 
 
-@login_required
-def contract_activate(request, pk):
-    """تفعيل العقد (draft → active)"""
-    contract = get_object_or_404(Contract, pk=pk)
-    
-    if contract.status == 'draft':
-        contract.status = 'active'
-        contract.save()
-        messages.success(request, f'تم تفعيل العقد {contract.contract_number} بنجاح')
-    else:
-        messages.warning(request, 'لا يمكن تفعيل هذا العقد')
-    
-    return redirect('hr:contract_detail', pk=pk)
-
-
-@login_required
-def contract_suspend(request, pk):
-    """إيقاف العقد مؤقتاً (active → suspended)"""
-    contract = get_object_or_404(Contract, pk=pk)
-    
-    if contract.status == 'active':
-        contract.status = 'suspended'
-        contract.save()
-        messages.warning(request, f'تم إيقاف العقد {contract.contract_number} مؤقتاً')
-    else:
-        messages.warning(request, 'لا يمكن إيقاف هذا العقد')
-    
-    return redirect('hr:contract_detail', pk=pk)
-
-
-@login_required
-def contract_reactivate(request, pk):
-    """إعادة تفعيل العقد (suspended → active)"""
-    contract = get_object_or_404(Contract, pk=pk)
-    
-    if contract.status == 'suspended':
-        contract.status = 'active'
-        contract.save()
-        messages.success(request, f'تم إعادة تفعيل العقد {contract.contract_number} بنجاح')
-    else:
-        messages.warning(request, 'لا يمكن إعادة تفعيل هذا العقد')
-    
-    return redirect('hr:contract_detail', pk=pk)
 
 
 @login_required
@@ -611,3 +576,61 @@ def contract_expiring(request):
         ],
     }
     return render(request, 'hr/contract/expiring.html', context)
+
+
+@login_required
+@hr_manager_required
+def contract_activate(request, pk):
+    """
+    تفعيل العقد ونسخ البنود تلقائياً
+    
+    يستخدم ContractActivationService لـ:
+    - تعطيل العقد القديم (إن وجد)
+    - تفعيل العقد الجديد
+    - نسخ جميع البنود من ContractSalaryComponent إلى SalaryComponent
+    - ربط البصمة
+    - تحديث بيانات الموظف
+    """
+    contract = get_object_or_404(Contract, pk=pk)
+    
+    # التحقق من أن العقد في حالة مسودة
+    if contract.status != 'draft':
+        messages.warning(request, 'العقد مفعّل بالفعل أو في حالة أخرى')
+        return redirect('hr:contract_detail', pk=pk)
+    
+    if request.method == 'POST':
+        try:
+            # استخدام ContractActivationService
+            success, message = ContractActivationService.activate_contract(
+                contract=contract,
+                activated_by=request.user
+            )
+            
+            if success:
+                messages.success(request, message)
+                return redirect('hr:contract_detail', pk=pk)
+            else:
+                messages.error(request, message)
+        except Exception as e:
+            messages.error(request, f'حدث خطأ أثناء تفعيل العقد: {str(e)}')
+    
+    # عرض صفحة التأكيد
+    components_count = contract.salary_components.count()
+    
+    context = {
+        'contract': contract,
+        'components_count': components_count,
+        'earnings_count': contract.salary_components.filter(component_type='earning').count(),
+        'deductions_count': contract.salary_components.filter(component_type='deduction').count(),
+        'page_title': f'تفعيل العقد: {contract.contract_number}',
+        'page_subtitle': f'الموظف: {contract.employee.get_full_name_ar()}',
+        'page_icon': 'fas fa-check-circle',
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'العقود', 'url': reverse('hr:contract_list'), 'icon': 'fas fa-file-contract'},
+            {'title': contract.contract_number, 'url': reverse('hr:contract_detail', args=[pk]), 'icon': 'fas fa-file-contract'},
+            {'title': 'تفعيل', 'active': True},
+        ],
+    }
+    return render(request, 'hr/contract/activate_confirm.html', context)

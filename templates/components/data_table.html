@@ -2,6 +2,7 @@
 {% load i18n %}
 {% load pricing_filters %}
 {% load utils_extras %}
+{% load custom_filters %}
 
 {% comment %}
 مكون جدول بيانات للعرض في صفحات القوائم مع دعم الترتيب والفلترة
@@ -90,40 +91,31 @@
                                     {% if header.template %}
                                         {% include header.template with value=field_value object=item %}
                                     {% elif header.format == 'date' %}
-                                        <span class="transaction-date">{{ field_value|date:"d-m-Y" }}</span>
+                                        {{ field_value|format_date_safe:"date"|safe }}
                                     {% elif header.format == 'datetime' %}
-                                        <span class="transaction-date">{{ field_value|date:"d-m-Y H:i" }}</span>
+                                        {{ field_value|format_date_safe:"datetime"|safe }}
                                     {% elif header.format == 'datetime_12h' %}
-                                        <div>{{ field_value|date:"Y-m-d" }}</div>
-                                        <small class="text-muted">{{ field_value|date:"g:i A" }}</small>
-                                    {% elif header.format == 'currency' %}
-                                        <span class="transaction-amount {% if header.variant %}{{ header.variant }}{% endif %}" style="text-align: center; width: 100%; display: block;">
-                                            {% if field_value == None or field_value == '' %}
-                                                <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
-                                            {% elif field_value == 0 %}
-                                                {% if header.key == 'balance' %}
-                                                    <strong style="text-align: center; display: block;"><span class="text-muted">-</span></strong>
-                                                {% else %}
-                                                    <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> 0</strong>
-                                                {% endif %}
+                                        {{ field_value|format_date_safe:"datetime_12h"|safe }}
+                                    {% elif header.format == 'number' %}
+                                        <span class="transaction-amount {% if header.variant %}{{ header.variant }}{% endif %} text-center d-block">
+                                            {% if field_value|is_empty_value %}
+                                                <span class="text-muted">-</span>
                                             {% else %}
-                                                <strong style="text-align: center; display: block;"><span class="currency-symbol">{{ currency_symbol }}</span> {{ field_value|smart_float }}</strong>
+                                                {{ field_value|remove_trailing_zeros }}
+                                            {% endif %}
+                                        </span>
+                                    {% elif header.format == 'currency' %}
+                                        <span class="transaction-amount {% if header.variant %}{{ header.variant }}{% endif %} text-center d-block fw-bold">
+                                            {% if field_value|is_empty_value %}
+                                                <span class="text-muted">-</span>
+                                            {% elif field_value == 0 and header.key == 'balance' %}
+                                                <span class="text-muted">-</span>
+                                            {% else %}
+                                                <span class="currency-symbol">{{ currency_symbol|default:"ج.م" }}</span> {{ field_value|smart_float|default:"0" }}
                                             {% endif %}
                                         </span>
                                     {% elif header.format == 'boolean' %}
-                                        {% if header.key == 'is_active' %}
-                                            {% if field_value %}
-                                                <span class="badge bg-success">{% trans "نشط" %}</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
-                                            {% endif %}
-                                        {% else %}
-                                            {% if field_value %}
-                                                <span class="badge bg-success">نعم</span>
-                                            {% else %}
-                                                <span class="badge bg-secondary">لا</span>
-                                            {% endif %}
-                                        {% endif %}
+                                        {{ field_value|format_boolean_badge:header.key|safe }}
                                     {% elif header.format == 'image' %}
                                         {% if field_value %}
                                             <img src="{{ field_value.url }}" alt="صورة" class="img-thumbnail" style="max-width: 50px; height: auto;">
@@ -156,13 +148,17 @@
                                             <!-- معالجة طريقة الدفع -->
                                             {% elif header.key == 'payment_method' %}
                                                 {% if field_value == 'cash' %}
-                                                    <span class="badge payment-method cash">{% trans "نقدي" %}</span>
+                                                    <span class="badge bg-success">{% trans "نقدي" %}</span>
                                                 {% elif field_value == 'credit' %}
-                                                    <span class="badge payment-method credit">{% trans "آجل" %}</span>
+                                                    <span class="badge bg-warning">{% trans "آجل" %}</span>
                                                 {% elif field_value == 'bank_transfer' %}
-                                                    <span class="badge payment-method bank-transfer">{% trans "تحويل بنكي" %}</span>
+                                                    <span class="badge bg-primary">{% trans "تحويل بنكي" %}</span>
+                                                {% elif field_value == 'cheque' %}
+                                                    <span class="badge bg-info">{% trans "شيك" %}</span>
+                                                {% elif not field_value %}
+                                                    <span class="text-muted">-</span>
                                                 {% else %}
-                                                    <span class="badge payment-method">{{ field_value }}</span>
+                                                    <span class="badge bg-secondary">{{ field_value }}</span>
                                                 {% endif %}
                                                 
                                             <!-- معالجة حالة الإرجاع -->
@@ -189,6 +185,12 @@
                                                     <span class="badge bg-secondary">{{ field_value }}</span>
                                                 {% endif %}
                                                 
+                                            <!-- معالجة حالات مسيرات الرواتب (يجب أن تأتي أولاً) -->
+                                            {% elif field_value == 'completed' %}
+                                                <span class="badge bg-success">{% trans "مكتمل" %}</span>
+                                            {% elif field_value == 'partial' %}
+                                                <span class="badge bg-warning text-dark">{% trans "جزئي" %}</span>
+                                            
                                             <!-- معالجة حالات القيود المحاسبية -->
                                             {% elif field_value == 'posted' %}
                                                 <span class="badge bg-success">مرحل</span>
@@ -196,8 +198,12 @@
                                                 <span class="badge bg-warning">مسودة</span>
                                             {% elif field_value == 'paid' %}
                                                 <span class="badge bg-success">{% trans "مدفوع" %}</span>
+                                            {% elif field_value == 'approved' %}
+                                                <span class="badge bg-info">{% trans "معتمد" %}</span>
+                                            {% elif field_value == 'calculated' %}
+                                                <span class="badge bg-warning">{% trans "محسوب" %}</span>
                                             {% elif field_value == 'pending' %}
-                                                <span class="badge bg-warning">{% trans "معلق" %}</span>
+                                                <span class="badge bg-secondary">{% trans "قيد الانتظار" %}</span>
                                             {% elif field_value == 'received' %}
                                                 <span class="badge bg-success">{% trans "مستلم" %}</span>
                                             {% elif field_value == 'cancelled' %}
@@ -322,95 +328,8 @@
                             <td class="text-center col-actions">
                                 <div class="d-flex justify-content-center">
                                     {% for button in action_buttons %}
-                                        {% comment %} التحقق من الشرط إذا كان موجوداً {% endcomment %}
-                                        {% if button.condition == 'not_fully_paid' %}
-                                            {% if item.payment_status != 'paid' %}
-                                                {% if ':' in button.url %}
-                                                    {% with url_name=button.url %}
-                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
-                                                           class="action-button {{ button.class|default:'action-view' }}" 
-                                                           title="{{ button.label }}"
-                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                            <i class="fas {{ button.icon }}"></i>
-                                                        </a>
-                                                    {% endwith %}
-                                                {% else %}
-                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
-                                                       class="action-button {{ button.class|default:'action-view' }}" 
-                                                       title="{{ button.label }}"
-                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                        <i class="fas {{ button.icon }}"></i>
-                                                    </a>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% elif button.condition == 'no_posted_payments' %}
-                                            {% if not item.has_posted_payments %}
-                                                {% if ':' in button.url %}
-                                                    {% with url_name=button.url %}
-                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
-                                                           class="action-button {{ button.class|default:'action-view' }}" 
-                                                           title="{{ button.label }}"
-                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                            <i class="fas {{ button.icon }}"></i>
-                                                        </a>
-                                                    {% endwith %}
-                                                {% else %}
-                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
-                                                       class="action-button {{ button.class|default:'action-view' }}" 
-                                                       title="{{ button.label }}"
-                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                        <i class="fas {{ button.icon }}"></i>
-                                                    </a>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% elif button.condition == 'status == \'draft\'' %}
-                                            {% if item.status == 'draft' %}
-                                                {% if button.onclick %}
-                                                    <button type="button"
-                                                       class="action-button {{ button.class|default:'action-view' }}" 
-                                                       title="{{ button.label }}"
-                                                       onclick="openPostModal({{ item.id }})"
-                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                        <i class="fas {{ button.icon }}"></i>
-                                                    </button>
-                                                {% elif ':' in button.url %}
-                                                    {% with url_name=button.url %}
-                                                        <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
-                                                           class="action-button {{ button.class|default:'action-view' }}" 
-                                                           title="{{ button.label }}"
-                                                           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                            <i class="fas {{ button.icon }}"></i>
-                                                        </a>
-                                                    {% endwith %}
-                                                {% else %}
-                                                    <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
-                                                       class="action-button {{ button.class|default:'action-view' }}" 
-                                                       title="{{ button.label }}"
-                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                        <i class="fas {{ button.icon }}"></i>
-                                                    </a>
-                                                {% endif %}
-                                            {% endif %}
-                                        {% else %}
-                                            {% comment %} عرض الزر بدون شرط {% endcomment %}
-                                            {% if ':' in button.url %}
-                                                {% with url_name=button.url %}
-                                                    <a href="{% url url_name item|get_attr:primary_key|default:'0' %}" 
-                                                       class="action-button {{ button.class|default:'action-view' }}" 
-                                                       title="{{ button.label }}"
-                                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                        <i class="fas {{ button.icon }}"></i>
-                                                    </a>
-                                                {% endwith %}
-                                            {% else %}
-                                                <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
-                                                   class="action-button {{ button.class|default:'action-view' }}" 
-                                                   title="{{ button.label }}"
-                                                   {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
-                                                    <i class="fas {{ button.icon }}"></i>
-                                                </a>
-                                            {% endif %}
-                                        {% endif %}
+                                        {% comment %} استخدام template tag محسن للأزرار {% endcomment %}
+                                        {% render_action_button button item primary_key %}
                                     {% endfor %}
                                 </div>
                             </td>

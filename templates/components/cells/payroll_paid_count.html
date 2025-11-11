@@ -1,0 +1,11 @@
+{% comment %}
+خلية عرض عدد المدفوعات من إجمالي الموظفين
+الاستخدام: يتم استخدامها في جدول مسيرات الرواتب
+المعلمات:
+- object: كائن run (dictionary)
+- value: قيمة paid_count
+{% endcomment %}
+
+<div class="text-center">
+    <strong>{{ object.paid_count }}</strong> / <strong>{{ object.total_employees }}</strong>
+</div>

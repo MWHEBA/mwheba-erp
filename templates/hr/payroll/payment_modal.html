@@ -1,0 +1,175 @@
+{% load pricing_filters %}
+{% load custom_filters %}
+
+<!-- مودال دفع الراتب -->
+<div class="modal-header">
+    <h5 class="modal-title" id="paymentModalLabel">
+        <i class="fas fa-money-bill-wave me-2"></i>
+        دفع راتب {{ payroll.employee.get_full_name_ar }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+</div>
+
+<div class="modal-body">
+    <!-- معلومات الموظف والراتب -->
+    <div class="alert alert-info mb-4">
+        <div class="row">
+            <div class="col-md-6">
+                <strong><i class="fas fa-user me-2"></i>الموظف:</strong>
+                {{ payroll.employee.get_full_name_ar }}
+            </div>
+            <div class="col-md-6">
+                <strong><i class="fas fa-calendar me-2"></i>الشهر:</strong>
+                {{ payroll.month|arabic_month_year }}
+            </div>
+        </div>
+        <hr class="my-2">
+        <div class="text-center">
+            <strong><i class="fas fa-hand-holding-usd me-2"></i>صافي الراتب:</strong>
+            <span class="text-primary fw-bold fs-4">{{ payroll.net_salary|remove_trailing_zeros }} ج.م</span>
+        </div>
+    </div>
+
+    <!-- نموذج الدفع -->
+    <form id="paymentForm" method="post">
+        {% csrf_token %}
+        
+        <div class="mb-3">
+            <label for="payment_account" class="form-label">
+                <i class="fas fa-university me-2"></i>حساب الدفع <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="payment_account" name="payment_account" required>
+                <option value="">اختر حساب الدفع...</option>
+                {% for account in payment_accounts %}
+                <option value="{{ account.id }}">
+                    {{ account.name }} 
+                    {% if account.current_balance %}
+                        - الرصيد: {{ account.current_balance|remove_trailing_zeros }} ج.م
+                    {% endif %}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="form-text">اختر الصندوق أو البنك الذي سيتم الدفع منه</div>
+        </div>
+
+        <div class="mb-3">
+            <label for="payment_reference" class="form-label">
+                <i class="fas fa-hashtag me-2"></i>مرجع الدفع
+            </label>
+            <input type="text" class="form-control" id="payment_reference" name="payment_reference" 
+                   placeholder="رقم الشيك، رقم التحويل، أو أي مرجع آخر...">
+            <div class="form-text">اختياري - يمكن إدخال رقم الشيك أو رقم التحويل</div>
+        </div>
+
+        <!-- تحذير مهم -->
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>تنبيه:</strong> 
+            سيتم إنشاء قيد محاسبي فوري لدفع الراتب وتحديث حالة القسيمة إلى "مدفوع".
+            القيد سيشمل: مصروف الرواتب، صافي الراتب، التأمينات، والضرائب.
+            هذا الإجراء لا يمكن التراجع عنه.
+        </div>
+    </form>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times me-2"></i>إلغاء
+    </button>
+    <button type="button" class="btn btn-primary" onclick="submitPayment()">
+        <i class="fas fa-money-bill-wave me-2"></i>تأكيد الدفع
+    </button>
+</div>
+
+<script>
+function submitPayment() {
+    const form = document.getElementById('paymentForm');
+    const formData = new FormData(form);
+    
+    // التحقق من البيانات المطلوبة
+    const paymentAccount = document.getElementById('payment_account').value;
+    if (!paymentAccount) {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: 'يجب اختيار حساب الدفع',
+            confirmButtonText: 'موافق'
+        });
+        return;
+    }
+    
+    // تأكيد الدفع
+    Swal.fire({
+        title: 'تأكيد دفع الراتب',
+        html: `
+            <div class="text-start">
+                <p><strong>الموظف:</strong> {{ payroll.employee.get_full_name_ar }}</p>
+                <p><strong>المبلغ:</strong> {{ payroll.net_salary|remove_trailing_zeros }} ج.م</p>
+                <p><strong>الشهر:</strong> {{ payroll.month|arabic_month_year }}</p>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'نعم، ادفع الراتب',
+        cancelButtonText: 'إلغاء',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // إظهار مؤشر التحميل
+            Swal.fire({
+                title: 'جاري دفع الراتب...',
+                html: 'يرجى الانتظار حتى اكتمال العملية',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                showConfirmButton: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            // إرسال الطلب
+            fetch('{% url "hr:payroll_pay" payroll.pk %}', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الدفع بنجاح!',
+                        text: data.message,
+                        confirmButtonText: 'موافق'
+                    }).then(() => {
+                        // إغلاق المودال وإعادة تحميل الصفحة
+                        bootstrap.Modal.getInstance(document.getElementById('paymentModal')).hide();
+                        location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ في الدفع',
+                        text: data.message || 'حدث خطأ أثناء دفع الراتب',
+                        confirmButtonText: 'موافق'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ في الشبكة',
+                    text: 'حدث خطأ في الاتصال. يرجى المحاولة مرة أخرى.',
+                    confirmButtonText: 'موافق'
+                });
+            });
+        }
+    });
+}
+</script>

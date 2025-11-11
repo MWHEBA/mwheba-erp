@@ -41,6 +41,22 @@ class SalaryComponentTemplate(models.Model):
         blank=True,
         verbose_name='الوصف'
     )
+    
+    # الحساب المحاسبي الافتراضي
+    default_account_code = models.CharField(
+        max_length=20,
+        blank=True,
+        verbose_name='رمز الحساب المحاسبي الافتراضي',
+        help_text='الحساب المحاسبي الذي سيُستخدم عند تطبيق هذا القالب'
+    )
+    
+    # كود القالب للتعرف عليه
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='كود القالب',
+        help_text='كود فريد للقالب (مثل: UNION_FEE, MEDICAL_INS)'
+    )
     is_active = models.BooleanField(
         default=True,
         verbose_name='نشط'
@@ -79,3 +95,49 @@ class SalaryComponentTemplate(models.Model):
             except:
                 return self.default_amount
         return self.default_amount
+    
+    def apply_to_employee(self, employee, contract=None):
+        """
+        تطبيق القالب على موظف معين
+        
+        Args:
+            employee: الموظف
+            contract: العقد (اختياري)
+            
+        Returns:
+            SalaryComponent: مكون الراتب المُنشأ
+        """
+        from .salary_component import SalaryComponent
+        
+        # التحقق من عدم وجود مكون بنفس الكود
+        existing = SalaryComponent.objects.filter(
+            employee=employee,
+            code=self.code
+        ).first()
+        
+        if existing:
+            # تحديث المكون الموجود
+            existing.name = self.name
+            existing.component_type = self.component_type
+            existing.formula = self.formula
+            existing.amount = self.default_amount
+            existing.account_code = self.default_account_code
+            existing.template = self
+            existing.save()
+            return existing
+        
+        # إنشاء مكون جديد
+        component = SalaryComponent.objects.create(
+            template=self,
+            employee=employee,
+            contract=contract,
+            code=self.code,
+            name=self.name,
+            component_type=self.component_type,
+            formula=self.formula,
+            amount=self.default_amount,
+            account_code=self.default_account_code,
+            is_from_contract=False
+        )
+        
+        return component

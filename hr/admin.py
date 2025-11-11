@@ -6,8 +6,9 @@ from .models import (
     Employee, Department, JobTitle,
     Shift, Attendance,
     LeaveType, LeaveBalance, Leave,
-    Salary, Payroll, Advance,
-    SalaryComponent, SalaryComponentTemplate
+    Payroll, Advance, AdvanceInstallment,
+    SalaryComponent, SalaryComponentTemplate, PayrollLine,
+    ContractSalaryComponent
 )
 from .models.contract import Contract, ContractAmendment, ContractDocument, ContractIncrease
 
@@ -28,6 +29,19 @@ class JobTitleAdmin(admin.ModelAdmin):
     ordering = ['code']
 
 
+class SalaryComponentInline(admin.TabularInline):
+    """Inline لعرض بنود الراتب في صفحة الموظف"""
+    model = SalaryComponent
+    extra = 0
+    fields = ['code', 'name', 'component_type', 'calculation_method', 'amount', 'percentage', 'is_active', 'effective_from', 'effective_to']
+    readonly_fields = ['created_at']
+    ordering = ['component_type', 'order']
+    
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        return qs.select_related('template', 'contract')
+
+
 @admin.register(Employee)
 class EmployeeAdmin(admin.ModelAdmin):
     list_display = ['employee_number', 'get_full_name_ar', 'department', 'job_title', 'status', 'hire_date']
@@ -35,6 +49,7 @@ class EmployeeAdmin(admin.ModelAdmin):
     search_fields = ['employee_number', 'first_name_ar', 'last_name_ar', 'national_id', 'work_email']
     ordering = ['employee_number']
     date_hierarchy = 'hire_date'
+    inlines = [SalaryComponentInline]
     
     fieldsets = (
         ('معلومات المستخدم', {
@@ -106,19 +121,21 @@ class LeaveBalanceAdmin(admin.ModelAdmin):
 @admin.register(Leave)
 class LeaveAdmin(admin.ModelAdmin):
     list_display = ['employee', 'leave_type', 'start_date', 'end_date', 'days_count', 'status']
-    list_filter = ['status', 'leave_type', 'start_date']
-    search_fields = ['employee__first_name_ar', 'employee__last_name_ar']
     date_hierarchy = 'start_date'
-    ordering = ['-requested_at']
+    ordering = ['-start_date']
 
 
-@admin.register(Salary)
-class SalaryAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'effective_date', 'basic_salary', 'gross_salary', 'net_salary', 'is_active']
-    list_filter = ['is_active', 'effective_date']
-    search_fields = ['employee__first_name_ar', 'employee__last_name_ar']
-    date_hierarchy = 'effective_date'
-    ordering = ['-effective_date']
+class PayrollLineInline(admin.TabularInline):
+    """Inline لعرض بنود قسيمة الراتب"""
+    model = PayrollLine
+    extra = 0
+    fields = ['code', 'name', 'component_type', 'amount', 'order']
+    readonly_fields = ['code', 'name', 'component_type', 'amount', 'calculation_details', 'order']
+    ordering = ['order']
+    can_delete = False
+    
+    def has_add_permission(self, request, obj=None):
+        return False
 
 
 @admin.register(Payroll)
@@ -128,15 +145,69 @@ class PayrollAdmin(admin.ModelAdmin):
     search_fields = ['employee__first_name_ar', 'employee__last_name_ar']
     date_hierarchy = 'month'
     ordering = ['-month']
+    inlines = [PayrollLineInline]
+    
+    readonly_fields = ['gross_salary', 'total_deductions', 'net_salary']
+    
+    fieldsets = (
+        ('معلومات أساسية', {
+            'fields': ('employee', 'month', 'contract', 'processed_by')
+        }),
+        ('الإجماليات', {
+            'fields': ('basic_salary', 'gross_salary', 'total_deductions', 'net_salary')
+        }),
+        ('الحالة والدفع', {
+            'fields': ('status', 'payment_method', 'payment_date', 'payment_reference')
+        }),
+        ('ملاحظات', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(Advance)
 class AdvanceAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'amount', 'status', 'deducted', 'requested_at']
-    list_filter = ['status', 'deducted']
-    search_fields = ['employee__first_name_ar', 'employee__last_name_ar']
+    list_display = [
+        'employee', 'amount', 'installments_count', 'installment_amount',
+        'paid_installments', 'remaining_amount', 'status', 'requested_at'
+    ]
+    list_filter = ['status', 'deduction_start_month']
+    search_fields = ['employee__first_name_ar', 'employee__last_name_ar', 'reason']
     date_hierarchy = 'requested_at'
     ordering = ['-requested_at']
+    readonly_fields = ['installment_amount', 'remaining_amount', 'paid_installments']
+    
+    fieldsets = (
+        ('معلومات السلفة', {
+            'fields': ('employee', 'amount', 'reason')
+        }),
+        ('نظام الأقساط', {
+            'fields': (
+                'installments_count', 'installment_amount', 
+                'deduction_start_month', 'paid_installments', 'remaining_amount'
+            )
+        }),
+        ('الحالة والاعتماد', {
+            'fields': ('status', 'approved_by', 'approved_at', 'payment_date', 'completed_at')
+        }),
+        ('ملاحظات', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(AdvanceInstallment)
+class AdvanceInstallmentAdmin(admin.ModelAdmin):
+    list_display = [
+        'advance', 'installment_number', 'month', 'amount', 'payroll', 'created_at'
+    ]
+    list_filter = ['month', 'created_at']
+    search_fields = ['advance__employee__first_name_ar', 'advance__employee__last_name_ar']
+    date_hierarchy = 'month'
+    ordering = ['-month', 'advance']
+    readonly_fields = ['created_at']
 
 
 @admin.register(SalaryComponentTemplate)
@@ -150,12 +221,47 @@ class SalaryComponentTemplateAdmin(admin.ModelAdmin):
 
 @admin.register(SalaryComponent)
 class SalaryComponentAdmin(admin.ModelAdmin):
-    list_display = ['employee', 'contract', 'component_type', 'name', 'amount', 'order', 'created_at']
-    list_filter = ['component_type', 'is_basic', 'is_taxable', 'is_fixed']
-    search_fields = ['name', 'employee__first_name_ar', 'employee__last_name_ar', 'employee__employee_number', 'notes']
+    list_display = ['employee', 'code', 'name', 'component_type', 'calculation_method', 'get_amount_display', 'is_active', 'effective_from']
+    list_filter = ['component_type', 'calculation_method', 'is_active', 'is_basic', 'is_taxable', 'is_fixed']
+    search_fields = ['code', 'name', 'employee__first_name_ar', 'employee__last_name_ar', 'employee__employee_number', 'notes']
     ordering = ['employee', 'component_type', 'order']
-    readonly_fields = ['created_at']
+    readonly_fields = ['created_at', 'updated_at']
     date_hierarchy = 'created_at'
+    list_editable = ['is_active']
+    
+    fieldsets = (
+        ('معلومات أساسية', {
+            'fields': ('employee', 'contract', 'template', 'code', 'name', 'component_type')
+        }),
+        ('طريقة الحساب', {
+            'fields': ('calculation_method', 'amount', 'percentage', 'formula')
+        }),
+        ('الإعدادات', {
+            'fields': ('is_basic', 'is_taxable', 'is_fixed', 'affects_overtime', 'show_in_payslip', 'order')
+        }),
+        ('الفترة الزمنية', {
+            'fields': ('is_active', 'effective_from', 'effective_to')
+        }),
+        ('ملاحظات', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_amount_display(self, obj):
+        """عرض المبلغ حسب طريقة الحساب"""
+        if obj.calculation_method == 'fixed':
+            return f"{obj.amount} ج.م"
+        elif obj.calculation_method == 'percentage':
+            return f"{obj.percentage}%"
+        elif obj.calculation_method == 'formula':
+            return f"صيغة: {obj.formula[:30]}..."
+        return '-'
+    get_amount_display.short_description = 'القيمة'
 
 
 class ContractDocumentInline(admin.TabularInline):
@@ -172,13 +278,21 @@ class ContractAmendmentInline(admin.TabularInline):
     readonly_fields = ['amendment_number', 'created_at', 'created_by']
 
 
+class ContractSalaryComponentInline(admin.TabularInline):
+    """Inline لعرض بنود الراتب في صفحة العقد"""
+    model = ContractSalaryComponent
+    extra = 0
+    fields = ['code', 'name', 'component_type', 'calculation_method', 'amount', 'percentage', 'is_basic', 'order']
+    ordering = ['component_type', 'order']
+
+
 @admin.register(Contract)
 class ContractAdmin(admin.ModelAdmin):
     list_display = ['contract_number', 'employee', 'contract_type', 'status', 'start_date', 'end_date', 'basic_salary', 'has_annual_increase', 'next_increase_date']
     list_filter = ['status', 'contract_type', 'has_annual_increase', 'increase_frequency', 'start_date']
     search_fields = ['contract_number', 'employee__first_name_ar', 'employee__last_name_ar']
     ordering = ['-start_date']
-    inlines = [ContractDocumentInline, ContractAmendmentInline]
+    inlines = [ContractSalaryComponentInline, ContractDocumentInline, ContractAmendmentInline]
     readonly_fields = ['created_at', 'created_by']
     
     fieldsets = (
@@ -206,6 +320,36 @@ class ContractAdmin(admin.ModelAdmin):
         }),
         ('معلومات النظام', {
             'fields': ('created_at', 'created_by'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ContractSalaryComponent)
+class ContractSalaryComponentAdmin(admin.ModelAdmin):
+    """إدارة بنود الراتب في العقود"""
+    list_display = ['contract', 'code', 'name', 'component_type', 'calculation_method', 'amount', 'is_basic', 'order']
+    list_filter = ['component_type', 'calculation_method', 'is_basic', 'is_taxable']
+    search_fields = ['code', 'name', 'contract__contract_number', 'contract__employee__first_name_ar']
+    ordering = ['contract', 'component_type', 'order']
+    readonly_fields = ['created_at', 'updated_at']
+    
+    fieldsets = (
+        ('معلومات البند', {
+            'fields': ('contract', 'template', 'code', 'name', 'component_type')
+        }),
+        ('طريقة الحساب', {
+            'fields': ('calculation_method', 'amount', 'percentage', 'formula')
+        }),
+        ('الخصائص', {
+            'fields': ('is_basic', 'is_taxable', 'is_fixed', 'affects_overtime', 'show_in_payslip', 'order')
+        }),
+        ('ملاحظات', {
+            'fields': ('notes',),
+            'classes': ('collapse',)
+        }),
+        ('معلومات النظام', {
+            'fields': ('created_at', 'updated_at'),
             'classes': ('collapse',)
         }),
     )

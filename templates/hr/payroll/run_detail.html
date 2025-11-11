@@ -9,7 +9,108 @@
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/components.css' %}">
 <link rel="stylesheet" href="{% static 'css/tables.css' %}">
-<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+/* تنسيقات التابات - مستوحاة من صفحة الموردين */
+.nav-tabs {
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.5rem;
+}
+
+.nav-tabs .nav-item {
+  margin-bottom: -1px;
+}
+
+.nav-tabs .nav-link {
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  margin-right: 0.5rem;
+  transition: all 0.2s ease;
+  position: relative;
+  background-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+  background-color: transparent;
+}
+
+.nav-tabs .nav-link:hover {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color-light);
+}
+
+.nav-tabs .nav-link .badge {
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.tab-content {
+  padding-top: 1rem;
+}
+
+.tab-pane {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Timeline Styles */
+.timeline {
+  position: relative;
+  padding: 20px 0;
+}
+
+.timeline-item {
+  position: relative;
+  padding-left: 40px;
+  padding-bottom: 30px;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-item::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 30px;
+  bottom: -10px;
+  width: 2px;
+  background: #dee2e6;
+}
+
+.timeline-item:last-child::before {
+  display: none;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: 0;
+  top: 5px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 3px solid white;
+  box-shadow: 0 0 0 2px #dee2e6;
+}
+
+.timeline-content {
+  background: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 15px;
+}
+</style>
 {% endblock %}
 
 {% block content %}
@@ -17,28 +118,19 @@
   <!-- Page Header المركزي -->
   {% include "shared/page_header.html" %}
   
-  <div class="mb-4">
-      <div class="mb-2">
-          <nav aria-label="breadcrumb">
-              <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:dashboard' %}"><i class="fas fa-users me-1"></i>الموارد البشرية</a></li>
-                  <li class="breadcrumb-item"><a href="{% url 'hr:payroll_run_list' %}"><i class="fas fa-calculator me-1"></i>مسيرات الرواتب</a></li>
-                  <li class="breadcrumb-item active"><i class="fas fa-info-circle me-1"></i>تفاصيل</li>
-              </ol>
-          </nav>
-      </div>
-      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
-          <div class="d-flex align-items-center">
-              <div class="me-3"><i class="fas fa-calculator fa-2x text-primary"></i></div>
-              <div>
-                  <h1 class="h3 mb-1">مسيرة رواتب {{ month|date:"F Y" }}</h1>
-                  <p class="text-muted mb-0">تفاصيل وكشوف الرواتب</p>
-              </div>
-          </div>
-          <div><a href="{% url 'hr:payroll_run_list' %}" class="btn btn-secondary"><i class="fas fa-arrow-right me-2"></i>رجوع</a></div>
-      </div>
+  <!-- زر حذف المسيرة -->
+  {% if stats.paid_count == 0 %}
+  <div class="alert alert-warning d-flex justify-content-between align-items-center mb-3" role="alert">
+    <div>
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      <strong>تنبيه:</strong> يمكنك حذف مسيرة الرواتب هذه لأنه لا توجد رواتب مدفوعة
+    </div>
+    <a href="{% url 'hr:payroll_run_delete' month=month %}" class="btn btn-danger btn-sm">
+      <i class="fas fa-trash-alt me-1"></i>
+      حذف المسيرة
+    </a>
   </div>
+  {% endif %}
 
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات</h5>
@@ -60,7 +152,7 @@
                 <div class="stats-card-body">
                     <div class="stats-card-icon"><i class="fas fa-money-bill-wave"></i></div>
                     <div class="stats-card-title">إجمالي الرواتب</div>
-                    <div class="stats-card-value">{{ stats.total_gross|floatformat:2 }}</div>
+                    <div class="stats-card-value">{{ stats.total_gross|remove_trailing_zeros }}</div>
                     <div class="stats-card-unit">{% currency_symbol %}</div>
                 </div>
             </div>
@@ -71,7 +163,7 @@
                 <div class="stats-card-body">
                     <div class="stats-card-icon"><i class="fas fa-minus-circle"></i></div>
                     <div class="stats-card-title">إجمالي الخصومات</div>
-                    <div class="stats-card-value">{{ stats.total_deductions|floatformat:2 }}</div>
+                    <div class="stats-card-value">{{ stats.total_deductions|remove_trailing_zeros }}</div>
                     <div class="stats-card-unit">{% currency_symbol %}</div>
                 </div>
             </div>
@@ -82,7 +174,7 @@
                 <div class="stats-card-body">
                     <div class="stats-card-icon"><i class="fas fa-wallet"></i></div>
                     <div class="stats-card-title">صافي الرواتب</div>
-                    <div class="stats-card-value">{{ stats.total_net|floatformat:2 }}</div>
+                    <div class="stats-card-value">{{ stats.total_net|remove_trailing_zeros }}</div>
                     <div class="stats-card-unit">{% currency_symbol %}</div>
                 </div>
             </div>
@@ -91,83 +183,197 @@
   </div>
 
   <div class="section-container">
-      <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>كشوف الرواتب</h5>
-                    <div>
-                        <button class="btn btn-sm btn-success" onclick="exportToExcel()">
-                            <i class="fas fa-file-excel me-1"></i>
-                            تصدير Excel
-                        </button>
-                        <button class="btn btn-sm btn-primary" onclick="printPayslips()">
-                            <i class="fas fa-print me-1"></i>
-                            طباعة الكل
-                        </button>
-                    </div>
+      <!-- Tabs Navigation -->
+      <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="payslips-tab" data-bs-toggle="tab" data-bs-target="#payslips" type="button" role="tab">
+            <i class="fas fa-file-invoice me-2"></i>قسائم الرواتب
+            <span class="badge bg-primary ms-2">{{ stats.total_employees }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments" type="button" role="tab">
+            <i class="fas fa-money-check-alt me-2"></i>المدفوعات
+            <span class="badge bg-success ms-2">{{ stats.paid_count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+            <i class="fas fa-history me-2"></i>سجل النشاطات
+          </button>
+        </li>
+      </ul>
+
+      <!-- Tabs Content -->
+      <div class="tab-content">
+        <!-- Tab 1: قسائم الرواتب -->
+        <div class="tab-pane fade show active" id="payslips" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-list me-2"></i>قسائم الرواتب</h5>
+            <div>
+              <button class="btn btn-sm btn-success" onclick="exportToExcel()">
+                <i class="fas fa-file-excel me-1"></i>
+                تصدير Excel
+              </button>
+              <button class="btn btn-sm btn-primary" onclick="printPayslips()">
+                <i class="fas fa-print me-1"></i>
+                طباعة الكل
+              </button>
+            </div>
+          </div>
+          
+          {% with table_id="payrollsTable" %}
+            {% with headers=payslips_headers %}
+              {% with data=payrolls %}
+                {% with action_buttons=payslips_action_buttons %}
+                  {% with primary_key="pk" %}
+                    {% with empty_message="لا توجد قسائم رواتب لهذا الشهر" %}
+                      {% with show_currency=True %}
+                        {% with clickable_rows=True %}
+                          {% with row_click_url="/hr/payroll/0/" %}
+                            {% include "components/data_table.html" %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+
+        <!-- Tab 2: المدفوعات -->
+        <div class="tab-pane fade" id="payments" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-money-check-alt me-2"></i>المدفوعات</h5>
+            <button class="btn btn-sm btn-success" onclick="exportPayments()">
+              <i class="fas fa-file-excel me-1"></i>
+              تصدير المدفوعات
+            </button>
+          </div>
+          
+          {% with table_id="paymentsTable" %}
+            {% with headers=payments_headers %}
+              {% with data=paid_payrolls %}
+                {% with primary_key="pk" %}
+                  {% with empty_message="لا توجد مدفوعات بعد" %}
+                    {% with show_currency=True %}
+                      {% with clickable_rows=True %}
+                        {% with row_click_url="/hr/payroll/0/" %}
+                          {% include "components/data_table.html" %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+
+        <!-- Tab 3: سجل النشاطات -->
+        <div class="tab-pane fade" id="activity" role="tabpanel">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-history me-2"></i>سجل النشاطات</h5>
+          </div>
+          <div class="timeline">
+            {% for payroll in payrolls %}
+              {% if payroll.processed_at %}
+              <div class="timeline-item">
+                <div class="timeline-marker bg-primary"></div>
+                <div class="timeline-content">
+                  <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">تم حساب راتب {{ payroll.employee.get_full_name_ar }}</h6>
+                    <small class="text-muted">{{ payroll.processed_at|date:"Y-m-d H:i" }}</small>
+                  </div>
+                  <p class="mb-0 text-muted">بواسطة: {{ payroll.processed_by.get_full_name|default:"النظام" }}</p>
+                </div>
+              </div>
+              {% endif %}
+              
+              {% if payroll.approved_at %}
+              <div class="timeline-item">
+                <div class="timeline-marker bg-success"></div>
+                <div class="timeline-content">
+                  <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">تم اعتماد راتب {{ payroll.employee.get_full_name_ar }}</h6>
+                    <small class="text-muted">{{ payroll.approved_at|date:"Y-m-d H:i" }}</small>
+                  </div>
+                  <p class="mb-0 text-muted">بواسطة: {{ payroll.approved_by.get_full_name|default:"النظام" }}</p>
+                </div>
+              </div>
+              {% endif %}
+              
+              {% if payroll.payment_date %}
+              <div class="timeline-item">
+                <div class="timeline-marker bg-info"></div>
+                <div class="timeline-content">
+                  <div class="d-flex justify-content-between">
+                    <h6 class="mb-1">تم دفع راتب {{ payroll.employee.get_full_name_ar }}</h6>
+                    <small class="text-muted">{{ payroll.payment_date|date:"Y-m-d" }}</small>
+                  </div>
+                  <p class="mb-0 text-muted">المبلغ: {{ payroll.net_salary|remove_trailing_zeros }} {% currency_symbol %}</p>
+                </div>
+              </div>
+              {% endif %}
+            {% empty %}
+              <div class="text-center text-muted py-4">
+                <i class="fas fa-inbox fa-2x mb-2"></i>
+                <p>لا توجد نشاطات بعد</p>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
       </div>
-                    <div class="table-responsive">
-                        <table class="table table-hover" id="payrollsTable">
-                            <thead>
-                                <tr>
-                                    <th>الموظف</th>
-                                    <th>القسم</th>
-                                    <th>الراتب الأساسي</th>
-                                    <th>الإضافات</th>
-                                    <th>الخصومات</th>
-                                    <th>الصافي</th>
-                                    <th>الحالة</th>
-                                    <th>الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for payroll in payrolls %}
-                                <tr>
-                                    <td>{{ payroll.employee.get_full_name_ar }}</td>
-                                    <td>{{ payroll.employee.department.name_ar }}</td>
-                                    <td>{{ payroll.basic_salary|floatformat:2 }}</td>
-                                    <td>{{ payroll.total_additions|floatformat:2 }}</td>
-                                    <td>{{ payroll.total_deductions|floatformat:2 }}</td>
-                                    <td><strong>{{ payroll.net_salary|floatformat:2 }}</strong></td>
-                                    <td>
-                                        {% if payroll.status == 'paid' %}
-                                            <span class="badge bg-success">مدفوع</span>
-                                        {% elif payroll.status == 'approved' %}
-                                            <span class="badge bg-info">معتمد</span>
-                                        {% elif payroll.status == 'calculated' %}
-                                            <span class="badge bg-warning">محسوب</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">مسودة</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-sm btn-info" title="عرض">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <button class="btn btn-sm btn-primary" onclick="printPayslip({{ payroll.pk }})" title="طباعة">
-                                            <i class="fas fa-print"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
   </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
 <script>
+// تهيئة الجداول
 $(document).ready(function() {
-    $('#payrollsTable').DataTable({
-        language: {
-            url: '//cdn.datatables.net/plug-ins/1.13.1/i18n/ar.json'
-        },
-        pageLength: 50
-    });
+    // تهيئة جدول قسائم الرواتب
+    if ($('#payrollsTable').length) {
+        $('#payrollsTable').DataTable({
+            language: {
+                url: "{% static 'js/datatables/ar.json' %}"
+            },
+            pageLength: 25,
+            order: [[0, 'asc']],
+            dom: 'rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            searching: true,
+            ordering: true,
+            info: true,
+            paging: true
+        });
+    }
+    
+    // تهيئة جدول المدفوعات
+    if ($('#paymentsTable').length) {
+        $('#paymentsTable').DataTable({
+            language: {
+                url: "{% static 'js/datatables/ar.json' %}"
+            },
+            pageLength: 25,
+            order: [[3, 'desc']], // ترتيب حسب تاريخ الدفع
+            dom: 'rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            searching: true,
+            ordering: true,
+            info: true,
+            paging: true
+        });
+    }
 });
 
 function exportToExcel() {
     alert('سيتم تصدير البيانات إلى Excel');
+}
+
+function exportPayments() {
+    alert('سيتم تصدير المدفوعات إلى Excel');
 }
 
 function printPayslips() {

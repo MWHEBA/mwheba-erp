@@ -17,86 +17,94 @@
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
                     <form method="get" class="row g-3">
-                        <div class="col-md-3">
-                            <input type="text" name="month" class="form-control" data-month-picker value="{{ request.GET.month }}" placeholder="فلتر حسب الشهر...">
-                        </div>
-                        <div class="col-md-3">
-                            <select name="status" class="form-select">
-                                <option value="">جميع الحالات</option>
-                                <option value="draft">مسودة</option>
-                                <option value="calculated">محسوب</option>
-                                <option value="approved">معتمد</option>
-                                <option value="paid">مدفوع</option>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">السنة</label>
+                            <select name="year" class="form-select">
+                                {% for year in available_years %}
+                                    <option value="{{ year }}" {% if year == selected_year %}selected{% endif %}>
+                                        {{ year }}
+                                    </option>
+                                {% endfor %}
                             </select>
                         </div>
-                        <div class="col-md-3">
-                            <input type="text" name="search" class="form-control" placeholder="بحث...">
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">الشهر</label>
+                            <select name="month" class="form-select">
+                                <option value="">جميع الشهور</option>
+                                <option value="01" {% if request.GET.month == '01' %}selected{% endif %}>يناير</option>
+                                <option value="02" {% if request.GET.month == '02' %}selected{% endif %}>فبراير</option>
+                                <option value="03" {% if request.GET.month == '03' %}selected{% endif %}>مارس</option>
+                                <option value="04" {% if request.GET.month == '04' %}selected{% endif %}>أبريل</option>
+                                <option value="05" {% if request.GET.month == '05' %}selected{% endif %}>مايو</option>
+                                <option value="06" {% if request.GET.month == '06' %}selected{% endif %}>يونيو</option>
+                                <option value="07" {% if request.GET.month == '07' %}selected{% endif %}>يوليو</option>
+                                <option value="08" {% if request.GET.month == '08' %}selected{% endif %}>أغسطس</option>
+                                <option value="09" {% if request.GET.month == '09' %}selected{% endif %}>سبتمبر</option>
+                                <option value="10" {% if request.GET.month == '10' %}selected{% endif %}>أكتوبر</option>
+                                <option value="11" {% if request.GET.month == '11' %}selected{% endif %}>نوفمبر</option>
+                                <option value="12" {% if request.GET.month == '12' %}selected{% endif %}>ديسمبر</option>
+                            </select>
                         </div>
-                        <div class="col-md-3">
-                            <button type="submit" class="btn btn-secondary w-100">
-                                <i class="fas fa-search me-2"></i>
+                        <div class="col-md-2">
+                            <label class="form-label text-muted small">الحالة</label>
+                            <select name="status" class="form-select">
+                                <option value="">جميع الحالات</option>
+                                <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>مسودة</option>
+                                <option value="calculated" {% if request.GET.status == 'calculated' %}selected{% endif %}>محسوب</option>
+                                <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+                                <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>مدفوع</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label text-muted small">البحث</label>
+                            <input type="text" name="search" class="form-control" value="{{ request.GET.search }}" placeholder="اسم الموظف أو رقمه...">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
+                            <button type="submit" class="btn btn-primary flex-fill">
+                                <i class="fas fa-search me-1"></i>
                                 بحث
                             </button>
+                            <a href="{% url 'hr:payroll_list' %}" class="btn btn-outline-secondary flex-fill">
+                                <i class="fas fa-times me-1"></i>
+                                إلغاء
+                            </a>
                         </div>
                     </form>
   </div>
 
+  <!-- الجدول الموحد -->
   <div class="section-container">
       <h5 class="section-title"><i class="fas fa-list me-2"></i>قائمة الكشوف</h5>
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>الموظف</th>
-                                    <th>الشهر</th>
-                                    <th>الراتب الأساسي</th>
-                                    <th>البدلات</th>
-                                    <th>الخصومات</th>
-                                    <th>الصافي</th>
-                                    <th>الحالة</th>
-                                    <th>الإجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for payroll in payrolls %}
-                                <tr>
-                                    <td>{{ payroll.employee.get_full_name_ar }}</td>
-                                    <td>{{ payroll.month|date:"Y-m" }}</td>
-                                    <td>{{ payroll.basic_salary }}</td>
-                                    <td>{{ payroll.total_additions }}</td>
-                                    <td>{{ payroll.total_deductions }}</td>
-                                    <td><strong>{{ payroll.net_salary }}</strong></td>
-                                    <td>
-                                        {% if payroll.status == 'draft' %}
-                                            <span class="badge bg-secondary">مسودة</span>
-                                        {% elif payroll.status == 'calculated' %}
-                                            <span class="badge bg-info">محسوب</span>
-                                        {% elif payroll.status == 'approved' %}
-                                            <span class="badge bg-success">معتمد</span>
-                                        {% elif payroll.status == 'paid' %}
-                                            <span class="badge bg-primary">مدفوع</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-sm btn-info" title="عرض">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        {% if payroll.status == 'calculated' %}
-                                        <button class="btn btn-sm btn-success" title="اعتماد">
-                                            <i class="fas fa-check"></i>
-                                        </button>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% empty %}
-                                <tr>
-                                    <td colspan="8" class="text-center">لا توجد كشوف رواتب</td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-  </div>
+      
+      {% include "components/data_table.html" with table_id="payrolls-table" headers=table_headers data=payrolls action_buttons=table_actions clickable_rows=True row_click_url="/hr/payroll/0/" primary_key="pk" empty_message="لا توجد قسائم رواتب" currency_symbol=currency_symbol %}
+    </div>
+</div>
+
+<!-- Modal حذف القسيمة -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="deleteModalContent">
+            <!-- المحتوى سيتم تحميله ديناميكياً -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal اعتماد القسيمة -->
+<div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" id="approveModalContent">
+            <!-- المحتوى سيتم تحميله ديناميكياً -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal الدفع -->
+<div class="modal fade" id="payModal" tabindex="-1" aria-labelledby="payModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" id="payModalContent">
+            <!-- المحتوى سيتم تحميله ديناميكياً -->
+        </div>
+    </div>
 </div>
 
 <!-- Modal معالجة الرواتب -->
@@ -104,7 +112,7 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title">معالجة رواتب شهر</h5>
+                <h5 class="modal-title">إنشاء مسيرة رواتب</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -127,4 +135,123 @@
 
 {% block extra_js %}
 <script src="{% static 'js/hr/payroll.js' %}"></script>
+<script>
+// تفعيل النقر على صفوف الجدول
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديث تلقائي عند تغيير السنة
+    const yearSelect = document.querySelector('select[name="year"]');
+    if (yearSelect) {
+        yearSelect.addEventListener('change', function() {
+            this.form.submit();
+        });
+    }
+    
+    const table = document.getElementById('payrolls-table');
+    if (table) {
+        const rows = table.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const payrollId = row.getAttribute('data-id');
+            if (payrollId && payrollId !== '0') {
+                // جعل الصف قابل للنقر
+                row.style.cursor = 'pointer';
+                
+                // إضافة حدث النقر
+                row.addEventListener('click', function(e) {
+                    // تجاهل النقر على الأزرار
+                    if (e.target.closest('.action-button') || e.target.closest('a') || e.target.closest('button')) {
+                        return;
+                    }
+                    
+                    // الانتقال لصفحة التفاصيل
+                    window.location.href = `/hr/payroll/${payrollId}/`;
+                });
+                
+                // تأثير hover
+                row.addEventListener('mouseenter', function() {
+                    this.style.backgroundColor = 'var(--bs-table-hover-bg, rgba(0, 0, 0, 0.075))';
+                });
+                
+                row.addEventListener('mouseleave', function() {
+                    this.style.backgroundColor = '';
+                });
+            }
+        });
+    }
+});
+
+// دالة لفتح مودال الحذف
+function openDeleteModal(payrollId) {
+    fetch(`/hr/payroll/${payrollId}/delete/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            
+            // تنفيذ السكريبت المحمل في المحتوى
+            const scripts = document.getElementById('deleteModalContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+            
+            var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ في تحميل نموذج الحذف');
+        });
+}
+
+// دالة لفتح مودال الاعتماد
+function openApproveModal(payrollId) {
+    fetch(`/hr/payroll/${payrollId}/approve/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('approveModalContent').innerHTML = html;
+            
+            // تنفيذ السكريبت المحمل في المحتوى
+            const scripts = document.getElementById('approveModalContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+            
+            var modal = new bootstrap.Modal(document.getElementById('approveModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ في تحميل نموذج الاعتماد');
+        });
+}
+
+// دالة لفتح مودال الدفع
+function openPayModal(payrollId) {
+    fetch(`/hr/payroll/${payrollId}/pay/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('payModalContent').innerHTML = html;
+            
+            // تنفيذ السكريبت المحمل في المحتوى
+            const scripts = document.getElementById('payModalContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+            
+            var modal = new bootstrap.Modal(document.getElementById('payModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ في تحميل نموذج الدفع');
+        });
+}
+</script>
 {% endblock %}

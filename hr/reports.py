@@ -115,10 +115,10 @@ def payroll_report(request):
     except:
         month_date = date.today().replace(day=1)
     
-    # جلب كشوف الرواتب
+    # جلب قسائم الرواتب
     payrolls = Payroll.objects.filter(
         month=month_date
-    ).select_related('employee', 'salary', 'processed_by')
+    ).select_related('employee', 'contract', 'processed_by')
     
     if department_id:
         payrolls = payrolls.filter(employee__department_id=department_id)

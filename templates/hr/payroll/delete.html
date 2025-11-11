@@ -1,0 +1,159 @@
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+<!-- Modal Header -->
+<div class="modal-header bg-danger text-white">
+    <h5 class="modal-title">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        حذف قسيمة راتب {{ payroll.employee.get_full_name_ar }}
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<!-- Modal Body -->
+<div class="modal-body">
+    <!-- تحذير -->
+    <div class="alert alert-danger text-center mb-3" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>سيتم حذف قسيمة راتب {{ payroll.employee.get_full_name_ar }} لشهر {{ payroll.month|arabic_month_year }} نهائياً</strong>
+    </div>
+
+    <!-- معلومات القسيمة -->
+    <div class="row text-center mb-3">
+        <div class="col-6">
+            <div class="border rounded p-2">
+                <div class="fw-bold text-primary">{{ payroll.basic_salary|remove_trailing_zeros }}</div>
+                <small class="text-muted">الراتب الأساسي</small>
+            </div>
+        </div>
+        <div class="col-6">
+            <div class="border rounded p-2">
+                <div class="fw-bold text-success">{{ payroll.net_salary|remove_trailing_zeros }}</div>
+                <small class="text-muted">صافي الراتب</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mb-3">
+        <span class="badge bg-secondary fs-6">{{ payroll.month|arabic_month_year }}</span>
+        {% if payroll.status == 'draft' %}
+            <span class="badge bg-secondary fs-6 ms-2">مسودة</span>
+        {% elif payroll.status == 'calculated' %}
+            <span class="badge bg-info fs-6 ms-2">محسوب</span>
+        {% elif payroll.status == 'approved' %}
+            <span class="badge bg-success fs-6 ms-2">معتمد</span>
+        {% elif payroll.status == 'paid' %}
+            <span class="badge bg-primary fs-6 ms-2">مدفوع</span>
+        {% endif %}
+    </div>
+
+    <!-- نموذج الحذف -->
+    <form method="post" id="deleteForm" action="{% url 'hr:payroll_delete' payroll.pk %}">
+        {% csrf_token %}
+    </form>
+</div>
+
+<!-- Modal Footer -->
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times me-2"></i>
+        إلغاء
+    </button>
+    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+        <i class="fas fa-trash-alt me-2"></i>
+        تأكيد الحذف
+    </button>
+</div>
+
+<script>
+// إضافة event listener للزر عند تحميل المحتوى
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmDelete);
+    }
+});
+
+// أو إضافة event listener فوراً إذا كان الزر موجود
+setTimeout(() => {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', confirmDelete);
+    }
+}, 100);
+
+function confirmDelete() {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        html: `
+            <p class="mb-3">سيتم حذف قسيمة راتب <strong>{{ payroll.employee.get_full_name_ar }}</strong> لشهر <strong>{{ payroll.month|arabic_month_year }}</strong></p>
+            <p class="text-danger mb-0"><i class="fas fa-exclamation-triangle me-2"></i>هذه العملية لا يمكن التراجع عنها!</p>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، احذف القسيمة',
+        cancelButtonText: 'إلغاء',
+        reverseButtons: true,
+        focusCancel: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            Swal.fire({
+                title: 'جاري الحذف...',
+                html: 'يرجى الانتظار',
+                allowOutsideClick: false,
+                allowEscapeKey: false,
+                didOpen: () => {
+                    Swal.showLoading();
+                }
+            });
+            
+            const form = document.getElementById('deleteForm');
+            const formData = new FormData(form);
+            
+            fetch(form.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تم الحذف!',
+                        text: data.message,
+                        confirmButtonColor: '#28a745'
+                    }).then(() => {
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+                        if (modal) modal.hide();
+                        window.location.reload();
+                    });
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ!',
+                        text: data.message,
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({
+                    icon: 'error',
+                    title: 'خطأ!',
+                    text: 'حدث خطأ أثناء الحذف',
+                    confirmButtonColor: '#dc3545'
+                });
+            });
+        }
+    });
+}
+</script>

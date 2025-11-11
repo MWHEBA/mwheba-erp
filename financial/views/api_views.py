@@ -90,13 +90,16 @@ except ImportError:
 
 @login_required
 def api_expense_accounts(request):
-    """API لجلب حسابات المصروفات النهائية فقط"""
+    """API لجلب حسابات المصروفات النهائية فقط (باستثناء تكلفة البضاعة المباعة)"""
     try:
         # جلب الحسابات النهائية (الفرعية) فقط من فئة المصروفات
+        # استثناء: تكلفة البضاعة المباعة (خاصة بالمبيعات فقط)
         accounts = ChartOfAccounts.objects.filter(
             is_active=True, 
             is_leaf=True,  # الحسابات النهائية فقط
             account_type__category="expense"  # فئة المصروفات
+        ).exclude(
+            code__startswith='51'  # استثناء تكلفة البضاعة المباعة (51xxx)
         ).values('id', 'name', 'code').order_by('code')
         
         return JsonResponse(list(accounts), safe=False)
@@ -127,13 +130,16 @@ def api_payment_accounts(request):
 
 @login_required
 def api_income_accounts(request):
-    """API لجلب حسابات الإيرادات النهائية فقط"""
+    """API لجلب حسابات الإيرادات النهائية فقط (باستثناء إيرادات المبيعات)"""
     try:
         # جلب الحسابات النهائية (الفرعية) فقط من فئة الإيرادات
+        # استثناء: إيرادات المبيعات (خاصة بالمبيعات فقط)
         accounts = ChartOfAccounts.objects.filter(
             is_active=True, 
             is_leaf=True,  # الحسابات النهائية فقط
             account_type__category="revenue"  # فئة الإيرادات
+        ).exclude(
+            code__startswith='41'  # استثناء إيرادات المبيعات (41xxx)
         ).values('id', 'name', 'code').order_by('code')
         
         return JsonResponse(list(accounts), safe=False)

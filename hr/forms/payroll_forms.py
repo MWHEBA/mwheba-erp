@@ -6,20 +6,21 @@ from ..models import Payroll, Department
 
 
 class PayrollForm(forms.ModelForm):
-    """نموذج كشف الراتب"""
+    """نموذج قسيمة الراتب"""
     
     class Meta:
         model = Payroll
-        fields = ['employee', 'month', 'salary', 'bonus', 'other_deductions', 
+        fields = ['employee', 'month', 'contract', 'bonus', 'other_deductions', 
                   'payment_method', 'notes']
         widgets = {
             'employee': forms.Select(attrs={'class': 'form-select'}),
-            'month': forms.TextInput(attrs={
+            'month': forms.DateInput(attrs={
                 'class': 'form-control',
+                'type': 'month',
                 'data-month-picker': True,
                 'placeholder': 'اختر الشهر...'
             }),
-            'salary': forms.Select(attrs={'class': 'form-select'}),
+            'contract': forms.Select(attrs={'class': 'form-select'}),
             'bonus': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'other_deductions': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
             'payment_method': forms.Select(attrs={'class': 'form-select'}),
@@ -47,3 +48,11 @@ class PayrollProcessForm(forms.Form):
         empty_label='جميع الأقسام',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # تعيين الشهر الحالي كقيمة افتراضية
+        if not self.is_bound:
+            from datetime import date
+            current_month = date.today().strftime('%Y-%m')
+            self.fields['month'].initial = current_month

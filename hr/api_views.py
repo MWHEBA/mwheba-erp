@@ -10,12 +10,12 @@ from datetime import date
 
 from .models import (
     Employee, Department, JobTitle, Shift, Attendance,
-    LeaveType, LeaveBalance, Leave, Salary, Payroll, Advance
+    LeaveType, LeaveBalance, Leave, Payroll, Advance
 )
 from .serializers import (
     EmployeeSerializer, DepartmentSerializer, JobTitleSerializer,
     ShiftSerializer, AttendanceSerializer, LeaveTypeSerializer,
-    LeaveBalanceSerializer, LeaveSerializer, SalarySerializer,
+    LeaveBalanceSerializer, LeaveSerializer,
     PayrollSerializer, AdvanceSerializer
 )
 from .services import EmployeeService, AttendanceService, LeaveService, PayrollService
@@ -196,19 +196,8 @@ class LeaveViewSet(viewsets.ModelViewSet):
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SalaryViewSet(viewsets.ModelViewSet):
-    """API للرواتب"""
-    queryset = Salary.objects.all()
-    serializer_class = SalarySerializer
-    permission_classes = [IsAuthenticated]
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
-    filterset_fields = ['employee', 'is_active']
-    ordering_fields = ['effective_date']
-    ordering = ['-effective_date']
-
-
 class PayrollViewSet(viewsets.ModelViewSet):
-    """API لكشوف الرواتب"""
+    """API لقسائم الرواتب"""
     queryset = Payroll.objects.all()
     serializer_class = PayrollSerializer
     permission_classes = [IsAuthenticated]
@@ -238,11 +227,11 @@ class PayrollViewSet(viewsets.ModelViewSet):
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):
-        """اعتماد كشف راتب"""
+        """اعتماد قسيمة راتب"""
         payroll = self.get_object()
         try:
             PayrollService.approve_payroll(payroll, request.user)
-            return Response({'status': 'success', 'message': 'تم اعتماد كشف الراتب'})
+            return Response({'status': 'success', 'message': 'تم اعتماد قسيمة الراتب'})
         except Exception as e:
             return Response({'status': 'error', 'message': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -253,10 +242,10 @@ class AdvanceViewSet(viewsets.ModelViewSet):
     serializer_class = AdvanceSerializer
     permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-    filterset_fields = ['employee', 'status', 'deducted']
+    filterset_fields = ['employee', 'status']
     search_fields = ['employee__first_name_ar', 'employee__last_name_ar', 'reason']
-    ordering_fields = ['request_date', 'amount']
-    ordering = ['-request_date']
+    ordering_fields = ['requested_at', 'amount']
+    ordering = ['-requested_at']
     
     @action(detail=True, methods=['post'])
     def approve(self, request, pk=None):

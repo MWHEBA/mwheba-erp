@@ -1,0 +1,349 @@
+{% load widget_tweaks %}
+{% load i18n %}
+
+<form id="componentForm" method="post" action="{% if is_edit %}{% url 'hr:salary_component_edit' employee.id component.id %}{% else %}{% url 'hr:salary_component_create' employee.id %}{% endif %}">
+    {% csrf_token %}
+    
+    <!-- حقول مخفية -->
+    {{ form.order.as_hidden }}
+    
+    <div class="modal-header">
+        <h5 class="modal-title">
+            <i class="fas fa-{% if is_edit %}edit{% else %}plus{% endif %} me-2"></i>
+            {% if is_edit %}تعديل{% else %}إضافة{% endif %} بند راتب
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    </div>
+    
+    <div class="modal-body">
+        <!-- السطر الأول: اسم البند + النوع -->
+        <div class="row mb-3">
+            <div class="col-md-8">
+                <label class="form-label">{{ form.name.label }}</label>
+                {{ form.name|add_class:"form-control" }}
+                {% if form.name.errors %}
+                    <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">{{ form.component_type.label }}</label>
+                {{ form.component_type|add_class:"form-select" }}
+            </div>
+        </div>
+
+        <!-- السطر الثاني: طريقة الحساب + المبلغ -->
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">{{ form.calculation_method.label }}</label>
+                {{ form.calculation_method|add_class:"form-select" }}
+            </div>
+            <div class="col-md-6">
+                <!-- حقول الحساب (تظهر حسب الطريقة) -->
+                <div id="amountField" style="display: none;">
+                    <label class="form-label">{{ form.amount.label }}</label>
+                    {{ form.amount|add_class:"form-control" }}
+                    {% if form.amount.errors %}
+                        <div class="invalid-feedback d-block">{{ form.amount.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div id="percentageField" style="display: none;">
+                    <label class="form-label">{{ form.percentage.label }}</label>
+                    <div class="input-group">
+                        {{ form.percentage|add_class:"form-control" }}
+                        <span class="input-group-text">%</span>
+                    </div>
+                    {% if form.percentage.errors %}
+                        <div class="invalid-feedback d-block">{{ form.percentage.errors.0 }}</div>
+                    {% endif %}
+                </div>
+
+                <div id="formulaField" style="display: none;">
+                    <label class="form-label">{{ form.formula.label }}</label>
+                    {{ form.formula|add_class:"form-control" }}
+                    <small class="text-muted">مثال: BASIC * 0.1 + 500</small>
+                    {% if form.formula.errors %}
+                        <div class="invalid-feedback d-block">{{ form.formula.errors.0 }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- المدة -->
+        <div class="mb-3">
+            <label class="form-label">المدة</label>
+            <select id="duration_type" class="form-select">
+                <option value="permanent">دائم (بدون تاريخ نهاية)</option>
+                <option value="one_time">لمرة واحدة (شهر واحد)</option>
+                <option value="custom">مدة محددة (من - إلى)</option>
+            </select>
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <span id="duration_hint">بند دائم يستمر بدون تاريخ نهاية</span>
+            </small>
+        </div>
+
+        <!-- التواريخ (ديناميكية حسب نوع المدة) -->
+        <div class="row mb-3" id="datesRow">
+            <!-- ساري من (full width للدائم/لمرة واحدة، نصف للمدة المحددة) -->
+            <div id="startDateCol" class="col-md-12">
+                <label class="form-label">{{ form.effective_from.label }}</label>
+                {{ form.effective_from|add_class:"form-control" }}
+                <small class="text-muted">تاريخ بداية تطبيق البند</small>
+            </div>
+
+            <!-- ساري حتى (يظهر للمدة المحددة فقط) -->
+            <div id="endDateCol" class="col-md-6" style="display: none;">
+                <label class="form-label">{{ form.effective_to.label }}</label>
+                {{ form.effective_to|add_class:"form-control" }}
+                <small class="text-muted">تاريخ نهاية تطبيق البند</small>
+            </div>
+        </div>
+
+        <!-- الإعدادات -->
+        <div class="card mb-3">
+            <div class="card-header">
+                <h6 class="mb-0">الإعدادات</h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.show_in_payslip|add_class:"form-check-input" }}
+                            <label class="form-check-label">{{ form.show_in_payslip.label }}</label>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ form.is_active|add_class:"form-check-input" }}
+                            <label class="form-check-label">{{ form.is_active.label }}</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ملاحظات -->
+        <div class="mb-3">
+            <label class="form-label">{{ form.notes.label }}</label>
+            {{ form.notes|add_class:"form-control" }}
+        </div>
+
+        <!-- عرض الأخطاء العامة -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>حفظ
+        </button>
+    </div>
+</form>
+
+<script>
+// تشغيل فوري بدون انتظار DOMContentLoaded
+(function() {
+    // الانتظار حتى يتم تحميل النموذج
+    function initForm() {
+        const form = document.getElementById('componentForm');
+        if (!form) {
+            setTimeout(initForm, 100);
+            return;
+        }
+
+        const methodField = document.getElementById('id_calculation_method');
+        const amountField = document.getElementById('amountField');
+        const percentageField = document.getElementById('percentageField');
+        const formulaField = document.getElementById('formulaField');
+        const durationTypeField = document.getElementById('duration_type');
+        const startDateCol = document.getElementById('startDateCol');
+        const endDateCol = document.getElementById('endDateCol');
+        const effectiveFromField = document.getElementById('id_effective_from');
+        const effectiveToField = document.getElementById('id_effective_to');
+        const durationHint = document.getElementById('duration_hint');
+
+        // تحديث الحقول حسب طريقة الحساب
+        function updateFields() {
+            const method = methodField.value;
+            amountField.style.display = method === 'fixed' ? 'block' : 'none';
+            percentageField.style.display = method === 'percentage' ? 'block' : 'none';
+            formulaField.style.display = method === 'formula' ? 'block' : 'none';
+        }
+
+        // تحديث حقول المدة
+        function updateDuration() {
+            const durationType = durationTypeField.value;
+            const today = new Date();
+            
+            // تعيين تاريخ البداية لليوم الحالي افتراضياً
+            if (!effectiveFromField.value) {
+                effectiveFromField.value = formatDate(today);
+            }
+            
+            if (durationType === 'permanent') {
+                // دائم: بدون تاريخ نهاية
+                effectiveToField.value = '';
+                startDateCol.className = 'col-md-12'; // ✅ full width
+                endDateCol.style.display = 'none';
+                durationHint.textContent = 'بند دائم يستمر بدون تاريخ نهاية';
+            } else if (durationType === 'one_time') {
+                // لمرة واحدة: شهر واحد فقط
+                const startDate = effectiveFromField.value ? new Date(effectiveFromField.value) : today;
+                const endOfMonth = new Date(startDate.getFullYear(), startDate.getMonth() + 1, 0);
+                
+                effectiveToField.value = formatDate(endOfMonth);
+                startDateCol.className = 'col-md-12'; // ✅ full width
+                endDateCol.style.display = 'none';
+                durationHint.textContent = 'بند لمرة واحدة (حتى نهاية الشهر)';
+            } else {
+                // مدة محددة: إظهار حقل النهاية جنب البداية
+                startDateCol.className = 'col-md-6'; // ✅ نصف
+                endDateCol.style.display = 'block';
+                durationHint.textContent = 'حدد تاريخ البداية والنهاية';
+            }
+        }
+
+        // تنسيق التاريخ بصيغة YYYY-MM-DD
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        methodField.addEventListener('change', updateFields);
+        durationTypeField.addEventListener('change', updateDuration);
+        
+        // تحديث تاريخ النهاية عند تغيير تاريخ البداية (للمرة واحدة)
+        effectiveFromField.addEventListener('change', function() {
+            if (durationTypeField.value === 'one_time') {
+                updateDuration();
+            }
+        });
+        
+        updateFields();
+        updateDuration();
+
+        // معالجة إرسال النموذج عبر AJAX
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const formData = new FormData(this);
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+                }
+            })
+            .then(response => {
+                console.log('Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('Response data:', data);
+                
+                // عرض الأخطاء في Console بشكل واضح
+                if (data.errors) {
+                    console.error('Form Errors:', data.errors);
+                    for (const [field, errors] of Object.entries(data.errors)) {
+                        console.error(`- ${field}:`, errors);
+                    }
+                }
+                
+                if (data.success) {
+                    // ✅ إغلاق المودال الصحيح باستخدام ID محدد
+                    const modalElement = document.getElementById('addComponentModal') || document.getElementById('editModal');
+                    const modal = bootstrap.Modal.getInstance(modalElement);
+                    if (modal) {
+                        modal.hide();
+                    }
+                    
+                    // ✅ إزالة backdrop يدوياً (في حالة بقائه)
+                    const backdrops = document.querySelectorAll('.modal-backdrop');
+                    backdrops.forEach(backdrop => backdrop.remove());
+                    
+                    // ✅ إزالة class من body
+                    document.body.classList.remove('modal-open');
+                    document.body.style.removeProperty('overflow');
+                    document.body.style.removeProperty('padding-right');
+                    
+                    // رسالة نجاح
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'نجح!',
+                            text: data.message,
+                            timer: 2000,
+                            showConfirmButton: false
+                        }).then(() => {
+                            window.location.reload();
+                        });
+                    } else {
+                        alert(data.message);
+                        window.location.reload();
+                    }
+                } else {
+                    // عرض الأخطاء
+                    if (data.errors) {
+                        // إزالة الأخطاء السابقة
+                        document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+                        
+                        for (const [field, errors] of Object.entries(data.errors)) {
+                            const fieldElement = document.querySelector(`[name="${field}"]`);
+                            if (fieldElement) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'invalid-feedback d-block';
+                                errorDiv.textContent = Array.isArray(errors) ? errors.join(', ') : errors;
+                                fieldElement.parentNode.appendChild(errorDiv);
+                            }
+                        }
+                    }
+                    
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
+            })
+            .catch(error => {
+                console.error('خطأ:', error);
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ!',
+                        text: 'حدث خطأ أثناء الحفظ'
+                    });
+                } else {
+                    alert('حدث خطأ أثناء الحفظ');
+                }
+                
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+            
+            return false;
+        });
+    }
+
+    // بدء التهيئة
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initForm);
+    } else {
+        initForm();
+    }
+})();
+</script>

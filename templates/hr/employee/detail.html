@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load utils_extras %}
 
 {% block title %}{{ employee.get_full_name_ar }}{% endblock %}
 
@@ -57,8 +58,8 @@
                     <strong>{{ employee.hire_date|date:"d/m/Y" }}</strong>
                 </div>
                 <div class="mb-3">
-                    <small class="text-muted d-block">سنوات الخدمة</small>
-                    <strong>{{ employee.years_of_service }} سنة</strong>
+                    <small class="text-muted d-block">مدة الخدمة</small>
+                    <strong>{{ employee.hire_date|arabic_timesince }}</strong>
                 </div>
                 <div>
                     <small class="text-muted d-block">العمر</small>
@@ -108,6 +109,54 @@
             </div>
         </div>
         
+        <!-- إحصائيات الراتب -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>إحصائيات الراتب</h6>
+            </div>
+            <div class="card-body">
+                {% if payroll_slips %}
+                    {% with latest_payroll=payroll_slips.0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">آخر راتب ({{ latest_payroll.month|arabic_month_year }})</small>
+                        <strong class="text-success">{{ latest_payroll.net_salary|remove_trailing_zeros }} ج.م</strong>
+                    </div>
+                    {% endwith %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">عدد القسائم</small>
+                        <strong>{{ total_payrolls }} قسيمة</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">القسائم المدفوعة</small>
+                        <strong class="text-success">{{ paid_payrolls }} قسيمة</strong>
+                    </div>
+                    
+                    {% if approved_payrolls > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">القسائم المعتمدة</small>
+                        <strong class="text-info">{{ approved_payrolls }} قسيمة</strong>
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-money-check-alt me-2"></i>عرض جميع القسائم
+                    </a>
+                {% else %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>لا توجد قسائم راتب</strong>
+                    </div>
+                    <p class="text-muted small mb-3">لم يتم إنشاء أي قسائم راتب بعد</p>
+                    <a href="{% url 'hr:payroll_run_list' %}" class="btn btn-primary w-100">
+                        <i class="fas fa-cogs me-2"></i>معالجة الرواتب
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- حالة الربط بالوردية -->
         <div class="section-container">
             <div class="card-header">
@@ -230,6 +279,188 @@
                             <strong>{{ employee.address }}</strong>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <!-- بنود الراتب -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>بنود الراتب</h6>
+                    <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog me-1"></i>إدارة البنود
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if employee.salary_components.exists %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>{{ employee.salary_components.count }} بند راتب نشط</strong>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>البند</th>
+                                        <th>النوع</th>
+                                        <th>المبلغ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for component in salary_components_preview %}
+                                    <tr>
+                                        <td>
+                                            {{ component.name }}
+                                            {% if component.is_basic %}
+                                            <span class="badge bg-primary">أساسي</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if component.component_type == 'earning' %}
+                                                <span class="badge bg-success">مستحق</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">خصم</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if component.calculation_method == 'fixed' %}
+                                                {{ component.amount }} ج.م
+                                            {% elif component.calculation_method == 'percentage' %}
+                                                {{ component.percentage }}%
+                                            {% elif component.calculation_method == 'formula' %}
+                                                <small class="text-muted">{{ component.get_formula_display }}</small>
+                                            {% else %}
+                                                {{ component.amount }} ج.م
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if employee.salary_components.count > 5 %}
+                        <div class="text-center mt-2">
+                            <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-sm btn-outline-primary">
+                                عرض جميع البنود ({{ employee.salary_components.count }})
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد بنود راتب</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم إضافة أي بنود راتب لهذا الموظف. يجب إضافة بنود الراتب قبل معالجة الرواتب.</p>
+                        <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>إضافة بنود الراتب
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- قسائم الراتب -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>قسائم الراتب</h6>
+                    <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-list me-1"></i>عرض الكل
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if payroll_slips %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>{{ total_payrolls }} قسيمة راتب مسجلة</strong>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>الشهر</th>
+                                        <th>إجمالي الراتب</th>
+                                        <th>الخصومات</th>
+                                        <th>صافي الراتب</th>
+                                        <th>الحالة</th>
+                                        <th>الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payroll in payroll_slips %}
+                                    <tr class="{% if payroll.status == 'paid' %}table-success{% elif payroll.status == 'approved' %}table-info{% endif %}">
+                                        <td>
+                                            <strong>{{ payroll.month|arabic_month_year }}</strong>
+                                            <br><small class="text-muted">{{ payroll.month|date:"m/Y" }}</small>
+                                        </td>
+                                        <td>
+                                            <span class="text-success">{{ payroll.gross_salary|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-danger">{{ payroll.total_deductions|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-primary fw-bold">{{ payroll.net_salary|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td>
+                                            {% if payroll.status == 'paid' %}
+                                                <span class="badge bg-success">مدفوع</span>
+                                            {% elif payroll.status == 'approved' %}
+                                                <span class="badge bg-info">معتمد</span>
+                                            {% elif payroll.status == 'calculated' %}
+                                                <span class="badge bg-warning">محسوب</span>
+                                            {% elif payroll.status == 'draft' %}
+                                                <span class="badge bg-secondary">مسودة</span>
+                                            {% elif payroll.status == 'cancelled' %}
+                                                <span class="badge bg-danger">ملغي</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">{{ payroll.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-outline-primary btn-sm" title="عرض التفاصيل">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                {% if payroll.status in 'paid,approved' %}
+                                                <a href="{% url 'hr:payroll_detail' payroll.pk %}?print=1" class="btn btn-outline-success btn-sm" title="طباعة">
+                                                    <i class="fas fa-print"></i>
+                                                </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if total_payrolls > 6 %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                                عرض جميع القسائم ({{ total_payrolls }})
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد قسائم راتب</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم إنشاء أي قسائم راتب لهذا الموظف بعد. يتم إنشاء قسائم الراتب تلقائياً عند معالجة الرواتب الشهرية.</p>
+                        <div class="row">
+                            <div class="col-6">
+                                <a href="{% url 'hr:payroll_run_list' %}" class="btn btn-primary w-100">
+                                    <i class="fas fa-cogs me-2"></i>معالجة الرواتب
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{% url 'hr:payroll_list' %}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-list me-2"></i>قائمة الرواتب
+                                </a>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </div>
 

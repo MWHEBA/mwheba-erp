@@ -1,0 +1,297 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+.line-row {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 10px;
+    transition: all 0.3s;
+}
+
+.line-row:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.line-input {
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px 12px;
+    width: 100%;
+}
+
+.line-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.btn-delete-line {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.btn-delete-line:hover {
+    background: #c82333;
+}
+
+.summary-box {
+    background: var(--bs-light);
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.summary-item:last-child {
+    border-bottom: none;
+    font-weight: bold;
+    font-size: 1.2rem;
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <form method="post" id="editLinesForm">
+    {% csrf_token %}
+    <input type="hidden" name="lines_data" id="linesData">
+
+    <div class="row">
+      <!-- المستحقات -->
+      <div class="col-md-6">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-plus-circle me-2 text-success"></i>
+              المستحقات
+            </h5>
+            <button type="button" class="btn btn-sm btn-success" onclick="addLine('earning')">
+              <i class="fas fa-plus me-1"></i>إضافة بند
+            </button>
+          </div>
+
+          <!-- الراتب الأساسي (ثابت) -->
+          <div class="line-row">
+            <div class="row align-items-center">
+              <div class="col-md-6">
+                <strong>الراتب الأساسي</strong>
+              </div>
+              <div class="col-md-6 text-end">
+                <strong>{{ payroll.basic_salary|remove_trailing_zeros }} {% currency_symbol %}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- بنود المستحقات -->
+          <div id="earningsContainer">
+            {% for line in earnings %}
+            <div class="line-row" data-type="earning" data-code="{{ line.code }}" data-order="{{ line.order }}">
+              <div class="row align-items-center">
+                <div class="col-md-5">
+                  <input type="text" class="line-input line-name" value="{{ line.name }}" placeholder="اسم البند">
+                </div>
+                <div class="col-md-4">
+                  <input type="number" step="0.01" class="line-input line-amount" value="{{ line.amount|remove_trailing_zeros }}" placeholder="المبلغ" onchange="calculateTotals()">
+                </div>
+                <div class="col-md-3 text-end">
+                  <button type="button" class="btn-delete-line" onclick="deleteLine(this)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- الاستقطاعات -->
+      <div class="col-md-6">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-minus-circle me-2 text-danger"></i>
+              الاستقطاعات
+            </h5>
+            <button type="button" class="btn btn-sm btn-danger" onclick="addLine('deduction')">
+              <i class="fas fa-plus me-1"></i>إضافة بند
+            </button>
+          </div>
+
+          <!-- بنود الاستقطاعات -->
+          <div id="deductionsContainer">
+            {% for line in deductions %}
+            <div class="line-row" data-type="deduction" data-code="{{ line.code }}" data-order="{{ line.order }}">
+              <div class="row align-items-center">
+                <div class="col-md-5">
+                  <input type="text" class="line-input line-name" value="{{ line.name }}" placeholder="اسم البند">
+                </div>
+                <div class="col-md-4">
+                  <input type="number" step="0.01" class="line-input line-amount" value="{{ line.amount|remove_trailing_zeros }}" placeholder="المبلغ" onchange="calculateTotals()">
+                </div>
+                <div class="col-md-3 text-end">
+                  <button type="button" class="btn-delete-line" onclick="deleteLine(this)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الملخص -->
+    <div class="row">
+      <div class="col-md-6 mx-auto">
+        <div class="summary-box">
+          <h5 class="text-center mb-3">
+            <i class="fas fa-calculator me-2"></i>
+            ملخص القسيمة
+          </h5>
+          <div class="summary-item">
+            <span>إجمالي المستحقات:</span>
+            <span id="totalEarnings">{{ payroll.basic_salary|remove_trailing_zeros }} {% currency_symbol %}</span>
+          </div>
+          <div class="summary-item">
+            <span>إجمالي الاستقطاعات:</span>
+            <span id="totalDeductions">0.00 {% currency_symbol %}</span>
+          </div>
+          <div class="summary-item">
+            <span>صافي الراتب:</span>
+            <span id="netSalary">{{ payroll.basic_salary|remove_trailing_zeros }} {% currency_symbol %}</span>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-save me-2"></i>
+            حفظ التعديلات
+          </button>
+          <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-secondary btn-lg">
+            <i class="fas fa-times me-2"></i>
+            إلغاء
+          </a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<script>
+const basicSalary = {{ payroll.basic_salary }};
+let lineCounter = 1000;
+
+// حساب الإجماليات
+function calculateTotals() {
+    let totalEarnings = basicSalary;
+    let totalDeductions = 0;
+
+    // حساب المستحقات
+    document.querySelectorAll('#earningsContainer .line-row').forEach(row => {
+        const amount = parseFloat(row.querySelector('.line-amount').value) || 0;
+        totalEarnings += amount;
+    });
+
+    // حساب الاستقطاعات
+    document.querySelectorAll('#deductionsContainer .line-row').forEach(row => {
+        const amount = parseFloat(row.querySelector('.line-amount').value) || 0;
+        totalDeductions += amount;
+    });
+
+    const netSalary = totalEarnings - totalDeductions;
+
+    // تحديث العرض
+    const currencySymbol = '{% currency_symbol %}';
+    document.getElementById('totalEarnings').textContent = totalEarnings.toFixed(2) + ' ' + currencySymbol;
+    document.getElementById('totalDeductions').textContent = totalDeductions.toFixed(2) + ' ' + currencySymbol;
+    document.getElementById('netSalary').textContent = netSalary.toFixed(2) + ' ' + currencySymbol;
+}
+
+// إضافة بند جديد
+function addLine(type) {
+    const container = type === 'earning' ? 'earningsContainer' : 'deductionsContainer';
+    const code = `NEW_${type.toUpperCase()}_${lineCounter++}`;
+    
+    const html = `
+        <div class="line-row" data-type="${type}" data-code="${code}" data-order="${lineCounter}">
+            <div class="row align-items-center">
+                <div class="col-md-5">
+                    <input type="text" class="line-input line-name" placeholder="اسم البند">
+                </div>
+                <div class="col-md-4">
+                    <input type="number" step="0.01" class="line-input line-amount" value="0" placeholder="المبلغ" onchange="calculateTotals()">
+                </div>
+                <div class="col-md-3 text-end">
+                    <button type="button" class="btn-delete-line" onclick="deleteLine(this)">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById(container).insertAdjacentHTML('beforeend', html);
+    calculateTotals();
+}
+
+// حذف بند
+function deleteLine(btn) {
+    if (confirm('هل أنت متأكد من حذف هذا البند؟')) {
+        btn.closest('.line-row').remove();
+        calculateTotals();
+    }
+}
+
+// جمع البيانات قبل الإرسال
+document.getElementById('editLinesForm').addEventListener('submit', function(e) {
+    const lines = [];
+    
+    document.querySelectorAll('.line-row').forEach((row, index) => {
+        const name = row.querySelector('.line-name')?.value;
+        const amount = row.querySelector('.line-amount')?.value;
+        
+        if (name && amount) {
+            lines.push({
+                code: row.dataset.code,
+                name: name,
+                type: row.dataset.type,
+                amount: parseFloat(amount),
+                order: index + 1
+            });
+        }
+    });
+    
+    document.getElementById('linesData').value = JSON.stringify(lines);
+});
+
+// حساب أولي عند تحميل الصفحة
+calculateTotals();
+</script>
+{% endblock %}

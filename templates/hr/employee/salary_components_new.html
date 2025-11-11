@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}بنود راتب {{ employee.get_full_name_ar }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- بنود العقد الثابتة -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lock me-2"></i>
+                        البنود الثابتة من العقد
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if active_contract %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            هذه البنود منسوخة من العقد <strong>{{ active_contract.contract_number }}</strong>
+                            ولا يمكن تعديلها إلا من العقد نفسه
+                        </div>
+                        
+                        <div class="row">
+                            <!-- المستحقات -->
+                            <div class="col-md-6">
+                                <h6 class="text-success">
+                                    <i class="fas fa-plus-circle me-2"></i>
+                                    المستحقات
+                                </h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>البند</th>
+                                                <th>طريقة الحساب</th>
+                                                <th>القيمة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <!-- الراتب الأساسي من العقد -->
+                                            {% if active_contract.basic_salary %}
+                                            <tr class="table-primary">
+                                                <td>
+                                                    <strong>الراتب الأساسي</strong>
+                                                    <span class="badge bg-primary">أساسي</span>
+                                                </td>
+                                                <td>ثابت</td>
+                                                <td><strong>{{ active_contract.basic_salary }} ج.م</strong></td>
+                                            </tr>
+                                            {% endif %}
+                                            
+                                            {% for component in contract_earnings %}
+                                            <tr>
+                                                <td>
+                                                    {{ component.name }}
+                                                    {% if component.is_basic %}
+                                                    <span class="badge bg-primary">أساسي</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if component.calculation_method == 'fixed' %}
+                                                    ثابت
+                                                    {% elif component.calculation_method == 'percentage' %}
+                                                    نسبة
+                                                    {% else %}
+                                                    صيغة
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if component.calculation_method == 'fixed' %}
+                                                    {{ component.amount }} ج.م
+                                                    {% elif component.calculation_method == 'percentage' %}
+                                                    {{ component.percentage }}%
+                                                    {% else %}
+                                                    {{ component.formula }}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <!-- الاستقطاعات -->
+                            <div class="col-md-6">
+                                <h6 class="text-danger">
+                                    <i class="fas fa-minus-circle me-2"></i>
+                                    الاستقطاعات
+                                </h6>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>البند</th>
+                                                <th>طريقة الحساب</th>
+                                                <th>القيمة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for component in contract_deductions %}
+                                            <tr>
+                                                <td>{{ component.name }}</td>
+                                                <td>
+                                                    {% if component.calculation_method == 'fixed' %}
+                                                    ثابت
+                                                    {% elif component.calculation_method == 'percentage' %}
+                                                    نسبة
+                                                    {% else %}
+                                                    صيغة
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if component.calculation_method == 'fixed' %}
+                                                    {{ component.amount }} ج.م
+                                                    {% elif component.calculation_method == 'percentage' %}
+                                                    {{ component.percentage }}%
+                                                    {% else %}
+                                                    {{ component.formula }}
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            لا يوجد عقد نشط للموظف
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- بنود الموظف المتغيرة -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-edit me-2"></i>
+                            البنود المتغيرة
+                        </h5>
+                        <button class="btn btn-light btn-sm" data-bs-toggle="modal" data-bs-target="#addComponentModal">
+                            <i class="fas fa-plus me-2"></i>
+                            إضافة بند جديد
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        <i class="fas fa-info-circle me-2"></i>
+                        هذه البنود قابلة للإضافة والتعديل والحذف (حوافز، خصومات مؤقتة، إلخ)
+                    </p>
+                    
+                    {% if employee_components %}
+                    <div class="row">
+                        <!-- المستحقات المتغيرة -->
+                        <div class="col-md-6">
+                            <h6 class="text-success">
+                                <i class="fas fa-plus-circle me-2"></i>
+                                المستحقات
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>البند</th>
+                                            <th>القيمة</th>
+                                            <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for component in employee_earnings %}
+                                        <tr>
+                                            <td>{{ component.name }}</td>
+                                            <td>{{ component.amount }} ج.م</td>
+                                            <td>
+                                                <a href="{% url 'hr:salary_component_edit' employee.id component.id %}" 
+                                                   class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-danger" 
+                                                        onclick="deleteComponent({{ component.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        
+                        <!-- الاستقطاعات المتغيرة -->
+                        <div class="col-md-6">
+                            <h6 class="text-danger">
+                                <i class="fas fa-minus-circle me-2"></i>
+                                الاستقطاعات
+                            </h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>البند</th>
+                                            <th>القيمة</th>
+                                            <th>إجراءات</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for component in employee_deductions %}
+                                        <tr>
+                                            <td>{{ component.name }}</td>
+                                            <td>{{ component.amount }} ج.م</td>
+                                            <td>
+                                                <a href="{% url 'hr:salary_component_edit' employee.id component.id %}" 
+                                                   class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                                <button class="btn btn-sm btn-danger" 
+                                                        onclick="deleteComponent({{ component.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">لا توجد بنود متغيرة</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ملخص الراتب -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card border-info">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calculator me-2"></i>
+                        ملخص الراتب
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-md-4">
+                            <h3 class="text-success">{{ salary_summary.total_earnings }} ج.م</h3>
+                            <p class="text-muted">إجمالي المستحقات</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h3 class="text-danger">{{ salary_summary.total_deductions }} ج.م</h3>
+                            <p class="text-muted">إجمالي الاستقطاعات</p>
+                        </div>
+                        <div class="col-md-4">
+                            <h3 class="text-primary">{{ salary_summary.net_salary }} ج.م</h3>
+                            <p class="text-muted">صافي الراتب</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function deleteComponent(componentId) {
+    if (confirm('هل أنت متأكد من حذف هذا البند؟')) {
+        // AJAX delete request
+        fetch(`/hr/employees/{{ employee.id }}/salary-components/${componentId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('حدث خطأ أثناء الحذف');
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

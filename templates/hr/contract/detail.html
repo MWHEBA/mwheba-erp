@@ -113,6 +113,18 @@
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
     
+    {% if contract.status == 'draft' %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>عقد في حالة مسودة</strong> - البنود لن تُنسخ للموظف إلا عند التفعيل
+        </div>
+        <a href="{% url 'hr:contract_activate_confirm' contract.pk %}" class="btn btn-success">
+            <i class="fas fa-check-circle me-2"></i>تفعيل العقد
+        </a>
+    </div>
+    {% endif %}
+    
     {% if contract.status == 'renewed' and contract.renewed_to %}
     <div class="alert alert-info">
         <i class="fas fa-info-circle me-1"></i>
@@ -337,7 +349,7 @@
             <div class="mb-4">
                 <h6 class="text-primary mb-2"><i class="fas fa-money-check me-2"></i>الراتب الأساسي</h6>
                 <div class="p-3 bg-light rounded">
-                    <strong class="h4 text-success">{{ contract.basic_salary|custom_number_format }} {{ system_settings.currency_symbol|default:'جنيه' }}</strong>
+                    <strong class="h4 text-success">{{ contract.basic_salary|custom_number_format }} {% currency_symbol %}</strong>
                 </div>
             </div>
 
@@ -364,7 +376,7 @@
                                     {% if contract.annual_increase_type == 'percentage' %}
                                         {{ contract.annual_increase_percentage|custom_number_format }}%
                                     {% elif contract.annual_increase_type == 'fixed' %}
-                                        {{ contract.annual_increase_amount|custom_number_format }} {{ system_settings.currency_symbol|default:'جنيه' }}
+                                        {{ contract.annual_increase_amount|custom_number_format }} {% currency_symbol %}
                                     {% endif %}
                                 </strong>
                             </div>
@@ -378,13 +390,13 @@
                             <div class="col-md-6 mb-3">
                                 <small class="text-muted d-block">الزيادة المحسوبة</small>
                                 <strong class="text-primary">
-                                    {{ contract.calculated_annual_increase|custom_number_format }} {{ system_settings.currency_symbol|default:'جنيه' }}
+                                    {{ contract.calculated_annual_increase|custom_number_format }} {% currency_symbol %}
                                 </strong>
                             </div>
                             <div class="col-md-6 mb-3">
                                 <small class="text-muted d-block">الراتب بعد الزيادة</small>
                                 <strong class="text-success h5 mb-0">
-                                    {{ contract.salary_after_increase|custom_number_format }} {{ system_settings.currency_symbol|default:'جنيه' }}
+                                    {{ contract.salary_after_increase|custom_number_format }} {% currency_symbol %}
                                 </strong>
                             </div>
                             {% if contract.next_increase_date %}
@@ -406,6 +418,67 @@
                 </div>
             </div>
             {% endif %}
+
+            <!-- بنود العقد الثابتة -->
+            <div class="mb-4">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-file-contract me-2"></i>بنود العقد الثابتة
+                    {% if contract.status == 'draft' %}
+                    <span class="badge bg-warning text-dark">لم تُنسخ بعد</span>
+                    {% else %}
+                    <span class="badge bg-success">منسوخة للموظف</span>
+                    {% endif %}
+                </h6>
+                
+                {% with contract_components=contract.salary_components.all|dictsort:"order" %}
+                {% if contract_components %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>البند</th>
+                                <th>النوع</th>
+                                <th width="200">الصيغة الحسابية</th>
+                                <th width="150" class="text-center">المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component in contract_components %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-lock text-muted me-1" title="بند ثابت من العقد"></i>
+                                    {{ component.name }}
+                                </td>
+                                <td>
+                                    {% if component.component_type == 'earning' %}
+                                    <span class="badge bg-success">مستحق</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">مستقطع</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if component.formula %}
+                                        <code class="text-muted">{{ component.formula }}</code>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ component.amount|custom_number_format }}</strong>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    لا توجد بنود مضافة للعقد بعد
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
 
             <!-- المستحقات -->
             {% with earnings=contract.employee.salary_components.all|dictsort:"order" %}
@@ -548,7 +621,7 @@
                                         <strong>{{ component.name }}</strong>
                                     </td>
                                     <td class="text-center">
-                                        <strong class="text-success">{{ component.amount|floatformat:2 }} جنيه</strong>
+                                        <strong class="text-success">{{ component.amount|floatformat:2 }} {% currency_symbol %}</strong>
                                     </td>
                                     <td class="text-center">
                                         {{ component.created_at|date:"d/m/Y" }}

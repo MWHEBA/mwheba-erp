@@ -2,7 +2,7 @@
 Views نموذج العقود - Contract Form
 """
 from .base_imports import *
-from ..models import Contract, SalaryComponent
+from ..models import Contract, SalaryComponent, ContractSalaryComponent
 from ..forms.contract_forms import ContractForm
 from core.utils import get_default_currency
 from decimal import Decimal
@@ -36,7 +36,47 @@ def contract_form(request, pk=None):
                 if not contract_obj.contract_type:
                     contract_obj.contract_type = 'contract'
             
+            # تحديد الإجراء: حفظ كمسودة أو حفظ وتفعيل
+            action = request.POST.get('action', 'save_draft')
+            
+            # إذا كان عقد جديد وليس تفعيل، احفظه كمسودة
+            if not pk and action == 'save_draft':
+                contract_obj.status = 'draft'
+            elif action == 'save_activate':
+                contract_obj.status = 'active'
+            
             contract_obj.save()
+            
+            # إضافة بند الراتب الأساسي تلقائياً (للعقود الجديدة فقط)
+            if not pk and contract_obj.basic_salary and contract_obj.basic_salary > 0:
+                # التحقق من عدم وجود بند راتب أساسي بالفعل
+                basic_exists = ContractSalaryComponent.objects.filter(
+                    contract=contract_obj,
+                    is_basic=True
+                ).exists()
+                
+                if not basic_exists:
+                    basic_component = ContractSalaryComponent.objects.create(
+                        contract=contract_obj,
+                        component_type='earning',
+                        code='BASIC_SALARY',
+                        name='الراتب الأساسي',
+                        calculation_method='fixed',
+                        amount=contract_obj.basic_salary,
+                        is_basic=True,
+                        is_taxable=True,
+                        is_fixed=True,
+                        affects_overtime=True,
+                        order=0,
+                        show_in_payslip=True,
+                        notes='تم إضافته تلقائياً من العقد'
+                    )
+                    logger.info(f"تم إضافة بند الراتب الأساسي تلقائياً: {contract_obj.basic_salary} ج.م")
+                    
+                    # إذا تم التفعيل مباشرة، انسخ للموظف
+                    if action == 'save_activate':
+                        emp_comp = basic_component.copy_to_employee_component(contract_obj.employee)
+                        logger.info(f"  → تم نسخ الراتب الأساسي إلى SalaryComponent - ID={emp_comp.id}")
             
             # حفظ مكونات الراتب بطريقة ذكية (update or create)
             # جمع البيانات الجديدة من الـ POST مع IDs
@@ -113,14 +153,17 @@ def contract_form(request, pk=None):
                         'order': int(order) if order else 0
                     })
             
+            # ============================================
+            # حفظ البنود في ContractSalaryComponent
+            # ============================================
             if pk:
-                # للتعديل: استخدام ID tracking
+                # للتعديل: تحديث ContractSalaryComponent
                 logger.info("=" * 80)
                 logger.info(f"معالجة التعديل - العقد: {contract_obj.contract_number}")
                 logger.info(f"عدد المستحقات في POST: {len(new_earnings)}")
                 logger.info(f"عدد الاستقطاعات في POST: {len(new_deductions)}")
                 
-                # فصل البنود الموجودة عن الجديدة
+                # معالجة المستحقات
                 existing_earning_ids = []
                 new_earnings_data = []
                 
@@ -128,11 +171,11 @@ def contract_form(request, pk=None):
                     logger.info(f"معالجة مستحق {idx+1}: ID={item['id']}, Name={item['name']}")
                     if item['id']:
                         existing_earning_ids.append(item['id'])
-                        # تحديث الموجود مباشرة
+                        # تحديث في ContractSalaryComponent
                         try:
-                            obj = SalaryComponent.objects.get(
+                            obj = ContractSalaryComponent.objects.get(
                                 id=item['id'],
-                                employee=contract_obj.employee,
+                                contract=contract_obj,
                                 component_type='earning'
                             )
                             obj.name = item['name']
@@ -140,56 +183,85 @@ def contract_form(request, pk=None):
                             obj.amount = item['amount']
                             obj.order = item['order']
                             obj.save()
-                            logger.info(f"  → تم تحديث ID={item['id']}")
-                        except SalaryComponent.DoesNotExist:
-                            logger.error(f"  → خطأ: ID={item['id']} غير موجود!")
+                            logger.info(f"  → تم تحديث ContractSalaryComponent ID={item['id']}")
+                            
+                            # إذا العقد active، حدث SalaryComponent المنسوخة
+                            if contract_obj.status == 'active':
+                                try:
+                                    emp_comp = SalaryComponent.objects.get(
+                                        employee=contract_obj.employee,
+                                        source_contract_component=obj,
+                                        is_from_contract=True
+                                    )
+                                    emp_comp.name = item['name']
+                                    emp_comp.formula = item['formula']
+                                    emp_comp.amount = item['amount']
+                                    emp_comp.order = item['order']
+                                    emp_comp.save()
+                                    logger.info(f"  → تم تحديث SalaryComponent المنسوخة")
+                                except SalaryComponent.DoesNotExist:
+                                    logger.warning(f"  → SalaryComponent المنسوخة غير موجودة")
+                        except ContractSalaryComponent.DoesNotExist:
+                            logger.error(f"  → خطأ: ContractSalaryComponent ID={item['id']} غير موجود!")
                     else:
                         new_earnings_data.append(item)
                         logger.info(f"  → سيتم إنشاء جديد: {item['name']}")
                 
-                # إنشاء المستحقات الجديدة
+                # إنشاء المستحقات الجديدة في ContractSalaryComponent
                 logger.info(f"إنشاء {len(new_earnings_data)} مستحق جديد...")
                 created_earning_ids = []
                 for data in new_earnings_data:
-                    new_obj = SalaryComponent.objects.create(
-                        employee=contract_obj.employee,
+                    # إنشاء كود تلقائي
+                    code = data['name'].upper().replace(' ', '_')[:50]
+                    new_obj = ContractSalaryComponent.objects.create(
                         contract=contract_obj,
                         component_type='earning',
+                        code=code,
                         name=data['name'],
                         formula=data['formula'],
                         amount=data['amount'],
-                        order=data['order']
+                        order=data['order'],
+                        calculation_method='formula' if data['formula'] else 'fixed'
                     )
                     created_earning_ids.append(new_obj.id)
-                    logger.info(f"  → تم إنشاء: {data['name']} - ID={new_obj.id}")
+                    logger.info(f"  → تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
+                    # إذا العقد active، انسخ للموظف
+                    if contract_obj.status == 'active':
+                        emp_comp = new_obj.copy_to_employee_component(contract_obj.employee)
+                        logger.info(f"  → تم نسخ إلى SalaryComponent - ID={emp_comp.id}")
                 
-                # حذف المستحقات المحذوفة (اللي مش موجودة في الـ POST)
+                # حذف المستحقات المحذوفة
                 all_earning_ids = existing_earning_ids + created_earning_ids
                 logger.info(f"IDs المحفوظة: {all_earning_ids}")
-                # البنود تتبع الموظف الآن
-                deleted_earnings = contract_obj.employee.salary_components.filter(
+                deleted_earnings = contract_obj.salary_components.filter(
                     component_type='earning',
                     is_basic=False
                 ).exclude(id__in=all_earning_ids)
                 if deleted_earnings.exists():
                     logger.info(f"حذف {deleted_earnings.count()} مستحق...")
                     for item in deleted_earnings:
-                        logger.info(f"  → حذف: {item.name} - ID={item.id}")
+                        logger.info(f"  → حذف ContractSalaryComponent: {item.name} - ID={item.id}")
+                        # حذف SalaryComponent المنسوخة إذا كان العقد active
+                        if contract_obj.status == 'active':
+                            SalaryComponent.objects.filter(
+                                source_contract_component=item,
+                                is_from_contract=True
+                            ).delete()
                     deleted_earnings.delete()
                 logger.info("=" * 80)
                 
-                # معالجة الاستقطاعات
+                # معالجة الاستقطاعات (نفس المنطق)
                 existing_deduction_ids = []
                 new_deductions_data = []
                 
                 for item in new_deductions:
                     if item['id']:
                         existing_deduction_ids.append(item['id'])
-                        # تحديث الموجود مباشرة
                         try:
-                            obj = SalaryComponent.objects.get(
+                            obj = ContractSalaryComponent.objects.get(
                                 id=item['id'],
-                                employee=contract_obj.employee,
+                                contract=contract_obj,
                                 component_type='deduction'
                             )
                             obj.name = item['name']
@@ -197,50 +269,104 @@ def contract_form(request, pk=None):
                             obj.amount = item['amount']
                             obj.order = item['order']
                             obj.save()
-                        except SalaryComponent.DoesNotExist:
-                            pass  # تجاهل لو الـ ID مش موجود
+                            
+                            if contract_obj.status == 'active':
+                                try:
+                                    emp_comp = SalaryComponent.objects.get(
+                                        employee=contract_obj.employee,
+                                        source_contract_component=obj,
+                                        is_from_contract=True
+                                    )
+                                    emp_comp.name = item['name']
+                                    emp_comp.formula = item['formula']
+                                    emp_comp.amount = item['amount']
+                                    emp_comp.order = item['order']
+                                    emp_comp.save()
+                                except SalaryComponent.DoesNotExist:
+                                    pass
+                        except ContractSalaryComponent.DoesNotExist:
+                            pass
                     else:
                         new_deductions_data.append(item)
                 
                 # إنشاء الاستقطاعات الجديدة
                 created_deduction_ids = []
                 for data in new_deductions_data:
-                    new_obj = SalaryComponent.objects.create(
-                        employee=contract_obj.employee,
+                    code = data['name'].upper().replace(' ', '_')[:50]
+                    new_obj = ContractSalaryComponent.objects.create(
                         contract=contract_obj,
                         component_type='deduction',
+                        code=code,
                         name=data['name'],
                         formula=data['formula'],
                         amount=data['amount'],
-                        order=data['order']
+                        order=data['order'],
+                        calculation_method='formula' if data['formula'] else 'fixed'
                     )
                     created_deduction_ids.append(new_obj.id)
+                    
+                    if contract_obj.status == 'active':
+                        new_obj.copy_to_employee_component(contract_obj.employee)
                 
-                # حذف الاستقطاعات المحذوفة (اللي مش موجودة في الـ POST)
+                # حذف الاستقطاعات المحذوفة
                 all_deduction_ids = existing_deduction_ids + created_deduction_ids
-                # البنود تتبع الموظف الآن
-                contract_obj.employee.salary_components.filter(
+                deleted_deductions = contract_obj.salary_components.filter(
                     component_type='deduction'
-                ).exclude(id__in=all_deduction_ids).delete()
+                ).exclude(id__in=all_deduction_ids)
+                if deleted_deductions.exists():
+                    for item in deleted_deductions:
+                        if contract_obj.status == 'active':
+                            SalaryComponent.objects.filter(
+                                source_contract_component=item,
+                                is_from_contract=True
+                            ).delete()
+                    deleted_deductions.delete()
             else:
-                # للإضافة: إنشاء جديد
+                # للإضافة: إنشاء في ContractSalaryComponent
+                logger.info("=" * 80)
+                logger.info(f"إضافة عقد جديد - Action: {action}")
+                logger.info(f"عدد المستحقات: {len(new_earnings)}")
+                logger.info(f"عدد الاستقطاعات: {len(new_deductions)}")
+                
                 for data in new_earnings:
-                    data.pop('id', None)  # إزالة ID لو موجود
-                    SalaryComponent.objects.create(
-                        employee=contract_obj.employee,
+                    data.pop('id', None)
+                    code = data['name'].upper().replace(' ', '_')[:50]
+                    new_obj = ContractSalaryComponent.objects.create(
                         contract=contract_obj,
                         component_type='earning',
+                        code=code,
+                        calculation_method='formula' if data['formula'] else 'fixed',
                         **data
                     )
+                    logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
+                    # إذا تم التفعيل مباشرة، انسخ للموظف
+                    if action == 'save_activate':
+                        emp_comp = new_obj.copy_to_employee_component(contract_obj.employee)
+                        logger.info(f"  → تم نسخ إلى SalaryComponent - ID={emp_comp.id}")
+                    else:
+                        logger.info(f"  → لم يتم النسخ (Action={action})")
                 
                 for data in new_deductions:
-                    data.pop('id', None)  # إزالة ID لو موجود
-                    SalaryComponent.objects.create(
-                        employee=contract_obj.employee,
+                    data.pop('id', None)
+                    code = data['name'].upper().replace(' ', '_')[:50]
+                    new_obj = ContractSalaryComponent.objects.create(
                         contract=contract_obj,
                         component_type='deduction',
+                        code=code,
+                        calculation_method='formula' if data['formula'] else 'fixed',
                         **data
                     )
+                    logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
+                    # إذا تم التفعيل مباشرة، انسخ للموظف
+                    if action == 'save_activate':
+                        emp_comp = new_obj.copy_to_employee_component(contract_obj.employee)
+                        logger.info(f"  → تم نسخ إلى SalaryComponent - ID={emp_comp.id}")
+                    else:
+                        logger.info(f"  → لم يتم النسخ (Action={action})")
+                
+                logger.info("=" * 80)
             
             if pk:
                 messages.success(request, 'تم تحديث العقد بنجاح')
@@ -259,9 +385,9 @@ def contract_form(request, pk=None):
     earnings = []
     deductions = []
     if contract:
-        # البنود تتبع الموظف الآن
-        earnings = contract.employee.salary_components.filter(component_type='earning', is_basic=False)
-        deductions = contract.employee.salary_components.filter(component_type='deduction')
+        # جلب البنود من ContractSalaryComponent
+        earnings = contract.salary_components.filter(component_type='earning', is_basic=False)
+        deductions = contract.salary_components.filter(component_type='deduction')
     
     # جلب إعدادات النظام
     try:

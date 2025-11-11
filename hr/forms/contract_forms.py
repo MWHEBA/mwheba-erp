@@ -22,9 +22,10 @@ class ContractForm(forms.ModelForm):
     
     contract_duration = forms.ChoiceField(
         choices=DURATION_CHOICES,
-        required=False,
+        required=True,
         label='مدة العقد',
-        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_contract_duration'})
+        widget=forms.Select(attrs={'class': 'form-select', 'id': 'id_contract_duration'}),
+        help_text='<i class="fas fa-info-circle me-1"></i>اختر المدة لحساب تاريخ النهاية تلقائياً'
     )
     
     class Meta:
@@ -145,6 +146,25 @@ class ContractForm(forms.ModelForm):
             self.fields['department'].help_text = '<i class="fas fa-info-circle me-1"></i>سيتم نسخها من ملف الموظف تلقائياً'
             self.fields['biometric_user_id'].help_text = '<i class="fas fa-info-circle me-1"></i>اختياري - سيتم ربط الموظف بجهاز البصمة تلقائياً'
         else:
+            # في حالة التعديل: حساب مدة العقد من التواريخ الموجودة
+            if self.instance.start_date and self.instance.end_date:
+                delta = self.instance.end_date - self.instance.start_date
+                months = delta.days / 30.44  # متوسط عدد الأيام في الشهر
+                
+                # تحديد المدة المناسبة بناءً على عدد الأشهر
+                if abs(months - 3) < 0.5:
+                    self.fields['contract_duration'].initial = '3'
+                elif abs(months - 6) < 0.5:
+                    self.fields['contract_duration'].initial = '6'
+                elif abs(months - 12) < 1:
+                    self.fields['contract_duration'].initial = '12'
+                elif abs(months - 24) < 1:
+                    self.fields['contract_duration'].initial = '24'
+                elif abs(months - 36) < 1:
+                    self.fields['contract_duration'].initial = '36'
+                else:
+                    self.fields['contract_duration'].initial = 'custom'
+            
             # في حالة التعديل: منع تغيير الموظف وتاريخ البداية
             self.fields['employee'].disabled = True
             self.fields['employee'].widget.attrs['readonly'] = 'readonly'
@@ -291,6 +311,12 @@ class ContractForm(forms.ModelForm):
         end_date = cleaned_data.get('end_date')
         job_title = cleaned_data.get('job_title')
         department = cleaned_data.get('department')
+        
+        # التحقق من وجود تاريخ النهاية (إجباري)
+        if start_date and not end_date:
+            raise forms.ValidationError({
+                'end_date': '⚠️ تاريخ النهاية إجباري. لا يمكن إنشاء عقود مفتوحة بدون تاريخ نهاية.'
+            })
         
         # التحقق من التواريخ
         if start_date and end_date and end_date <= start_date:

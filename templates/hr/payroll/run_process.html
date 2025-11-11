@@ -24,16 +24,16 @@
                         
                         <div class="alert alert-info">
                             <i class="fas fa-info-circle me-2"></i>
-                            سيتم معالجة رواتب جميع الموظفين النشطين للشهر المحدد
+سيتم إنشاء مسيرة رواتب جديدة لجميع الموظفين النشطين للشهر المحدد
                         </div>
 
                         {% bootstrap_field form.month %}
                         {% bootstrap_field form.department %}
 
                         <div class="mt-4">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-calculator me-2"></i>
-                                معالجة الرواتب
+                            <button type="submit" name="action" value="preview" class="btn btn-primary">
+                                <i class="fas fa-eye me-2"></i>
+                                معاينة قبل المعالجة
                             </button>
                             <a href="{% url 'hr:payroll_run_list' %}" class="btn btn-secondary">
                                 <i class="fas fa-times me-2"></i>

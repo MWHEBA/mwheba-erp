@@ -318,6 +318,12 @@ th.col-date {
     color: #ffffff;
 }
 
+.action-button.action-pay:hover {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: #ffffff;
+}
+
 /* حالة عدم وجود بيانات */
 .empty-state-sm {
     padding: 2rem 1rem;

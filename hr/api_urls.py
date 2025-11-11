@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from .api_views import (
     EmployeeViewSet, DepartmentViewSet, JobTitleViewSet,
     ShiftViewSet, AttendanceViewSet, LeaveTypeViewSet,
-    LeaveBalanceViewSet, LeaveViewSet, SalaryViewSet,
+    LeaveBalanceViewSet, LeaveViewSet,
     PayrollViewSet, AdvanceViewSet
 )
 
@@ -24,7 +24,6 @@ router.register(r'attendance', AttendanceViewSet, basename='attendance')
 router.register(r'leave-types', LeaveTypeViewSet, basename='leavetype')
 router.register(r'leave-balances', LeaveBalanceViewSet, basename='leavebalance')
 router.register(r'leaves', LeaveViewSet, basename='leave')
-router.register(r'salaries', SalaryViewSet, basename='salary')
 router.register(r'payroll', PayrollViewSet, basename='payroll')
 router.register(r'advances', AdvanceViewSet, basename='advance')
 

@@ -211,6 +211,22 @@ def employee_detail(request, pk):
     # تحديد العقد النشط
     active_contract = contracts.filter(status='active').first()
     
+    # جلب بنود الراتب (أول 5 بنود مرتبة: مستحقات ثم خصومات)
+    salary_components_preview = employee.salary_components.filter(
+        is_active=True
+    ).order_by('component_type', 'order')[:5]
+    
+    # جلب قسائم الراتب (آخر 6 قسائم)
+    from ..models.payroll import Payroll
+    payroll_slips = Payroll.objects.filter(
+        employee=employee
+    ).select_related('contract').order_by('-month')[:6]
+    
+    # إحصائيات قسائم الراتب
+    total_payrolls = employee.payrolls.count()
+    paid_payrolls = employee.payrolls.filter(status='paid').count()
+    approved_payrolls = employee.payrolls.filter(status='approved').count()
+    
     context = {
         'employee': employee,
         'unlinked_users': unlinked_users,
@@ -220,6 +236,11 @@ def employee_detail(request, pk):
         'biometric_mappings': biometric_mappings,
         'contracts': contracts,
         'active_contract': active_contract,
+        'salary_components_preview': salary_components_preview,
+        'payroll_slips': payroll_slips,
+        'total_payrolls': total_payrolls,
+        'paid_payrolls': paid_payrolls,
+        'approved_payrolls': approved_payrolls,
         
         # بيانات الهيدر
         'page_title': employee.get_full_name_ar(),

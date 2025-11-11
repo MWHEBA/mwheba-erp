@@ -2,6 +2,7 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}مسيرات الرواتب{% endblock %}
 
@@ -22,7 +23,7 @@
       <div class="col-md-3 mb-3"><div class="stats-card stats-card-primary"><div class="stats-card-header"></div><div class="stats-card-body"><div class="stats-card-icon"><i class="fas fa-calculator"></i></div><div class="stats-card-title">إجمالي المسيرات</div><div class="stats-card-value">{{ total_runs|default:"0" }}</div><div class="stats-card-unit">مسيرة</div></div></div></div>
       <div class="col-md-3 mb-3"><div class="stats-card stats-card-success"><div class="stats-card-header"></div><div class="stats-card-body"><div class="stats-card-icon"><i class="fas fa-check-circle"></i></div><div class="stats-card-title">مكتملة</div><div class="stats-card-value">{{ completed_runs|default:"0" }}</div><div class="stats-card-unit">مسيرة</div></div></div></div>
       <div class="col-md-3 mb-3"><div class="stats-card stats-card-warning"><div class="stats-card-header"></div><div class="stats-card-body"><div class="stats-card-icon"><i class="fas fa-clock"></i></div><div class="stats-card-title">جزئية</div><div class="stats-card-value">{{ partial_runs|default:"0" }}</div><div class="stats-card-unit">مسيرة</div></div></div></div>
-      <div class="col-md-3 mb-3"><div class="stats-card stats-card-info"><div class="stats-card-header"></div><div class="stats-card-body"><div class="stats-card-icon"><i class="fas fa-money-bill-wave"></i></div><div class="stats-card-title">إجمالي المبالغ</div><div class="stats-card-value">{{ total_amount|default:"0" }}</div><div class="stats-card-unit">جنيه</div></div></div></div>
+      <div class="col-md-3 mb-3"><div class="stats-card stats-card-info"><div class="stats-card-header"></div><div class="stats-card-body"><div class="stats-card-icon"><i class="fas fa-money-bill-wave"></i></div><div class="stats-card-title">إجمالي المبالغ</div><div class="stats-card-value">{{ total_amount|remove_trailing_zeros|default:"0" }}</div><div class="stats-card-unit">{% currency_symbol %}</div></div></div></div>
     </div>
   </div>
 
@@ -30,39 +31,39 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة مسيرات الرواتب</h5>
-        <div class="actions-container"><a href="{% url 'hr:payroll_run_process' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>معالجة مسيرة</a></div>
+        <div class="d-flex gap-2">
+          <!-- فلتر السنة -->
+          <select class="form-select form-select-sm" id="yearFilter" style="width: auto;">
+            <option value="">جميع السنوات</option>
+            {% for year in available_years %}
+              <option value="{{ year.year }}" {% if year.year == selected_year %}selected{% endif %}>
+                {{ year.year }}
+              </option>
+            {% endfor %}
+          </select>
+          <a href="{% url 'hr:payroll_run_process' %}" class="btn btn-sm btn-primary"><i class="fas fa-plus me-1"></i>إنشاء مسيرة رواتب</a>
+        </div>
       </div>
       <div class="card-body">
-        {% if payroll_runs %}
-        <div class="table-responsive">
-            <table class="table table-hover" id="payrollRunsTable">
-                <thead>
-                    <tr><th>الشهر</th><th>عدد الموظفين</th><th>إجمالي المبلغ</th><th>المدفوع</th><th class="text-center">الحالة</th><th class="text-center">الإجراءات</th></tr>
-                </thead>
-                <tbody>
-                    {% for run in payroll_runs %}
-                    <tr style="cursor: pointer;">
-                        <td><strong>{{ run.month|date:"Y-m" }}</strong></td>
-                        <td><strong>{{ run.total_employees }}</strong> موظف</td>
-                        <td><strong>{{ run.total_amount|floatformat:2 }}</strong> جنيه</td>
-                        <td>{{ run.paid_count }} / {{ run.total_employees }}</td>
-                        <td class="text-center">
-                            {% if run.paid_count == run.total_employees %}<span class="badge bg-success">مكتمل</span>
-                            {% elif run.paid_count > 0 %}<span class="badge bg-warning text-dark">جزئي</span>
-                            {% else %}<span class="badge bg-secondary">قيد الانتظار</span>
-                            {% endif %}
-                        </td>
-                        <td class="text-center col-actions">
-                            <a href="{% url 'hr:payroll_run_detail' run.month|date:'Y-m' %}" class="btn btn-sm btn-info action-view"><i class="fas fa-eye me-1"></i>عرض</a>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد مسيرات رواتب" icon="calculator" %}
-        {% endif %}
+        {% with table_id="payrollRunsTable" %}
+          {% with headers=runs_headers %}
+            {% with data=payroll_runs %}
+              {% with action_buttons=runs_action_buttons %}
+                {% with primary_key="month_str" %}
+                  {% with empty_message="لا توجد مسيرات رواتب" %}
+                    {% with show_currency=True %}
+                      {% with clickable_rows=True %}
+                        {% with row_click_url="/hr/payroll-runs/0/" %}
+                          {% include "components/data_table.html" %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        {% endwith %}
       </div>
     </div>
   </div>
@@ -71,15 +72,78 @@
 
 {% block extra_js %}
 <script src="{% static 'js/global-table.js' %}"></script>
+
+<!-- Modal للحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" id="deleteModalContent">
+      <!-- المحتوى سيتم تحميله ديناميكياً -->
+    </div>
+  </div>
+</div>
+
 <script>
+// دالة لفتح مودال الحذف
+function openDeleteModal(month) {
+    fetch(`/hr/payroll-runs/${month}/delete/`)
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            
+            // تنفيذ السكريبت المحمل في المحتوى
+            const scripts = document.getElementById('deleteModalContent').querySelectorAll('script');
+            scripts.forEach(script => {
+                const newScript = document.createElement('script');
+                newScript.textContent = script.textContent;
+                document.body.appendChild(newScript);
+                document.body.removeChild(newScript);
+            });
+            
+            var modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('حدث خطأ في تحميل نموذج الحذف');
+        });
+}
+
 $(document).ready(function() {
     if ($('#payrollRunsTable').length) {
-        initGlobalTable('payrollRunsTable', {ordering: true, order: [[0, 'desc']], responsive: true, columnDefs: [{ targets: [4, 5], orderable: false, className: 'text-center' }]});
+        var table = $('#payrollRunsTable').DataTable({
+            language: {
+                url: "{% static 'js/datatables/ar.json' %}"
+            },
+            pageLength: 25,
+            order: [[0, 'desc']], // ترتيب حسب الشهر - الأحدث أولاً
+            dom: 'rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
+            searching: true,
+            ordering: true,
+            info: true,
+            paging: true
+        });
+        
+        // ربط مربع البحث الخارجي
+        $('.table-search[data-table="payrollRunsTable"]').on('keyup', function() {
+            table.search(this.value).draw();
+        });
+        
+        // ربط قائمة عدد العناصر
+        $('.table-length[data-table="payrollRunsTable"]').on('change', function() {
+            table.page.len(parseInt(this.value)).draw();
+        });
     }
-    $('#payrollRunsTable tbody').on('click', 'tr', function(e) {
-        if ($(e.target).closest('.col-actions').length > 0) return;
-        var viewButton = $(this).find('.action-view');
-        if (viewButton.length > 0) window.location.href = viewButton.attr('href');
+    
+    // فلتر السنة
+    $('#yearFilter').on('change', function() {
+        var year = $(this).val();
+        var url = new URL(window.location.href);
+        if (year) {
+            url.searchParams.set('year', year);
+        } else {
+            url.searchParams.delete('year');
+        }
+        window.location.href = url.toString();
     });
 });
 </script>

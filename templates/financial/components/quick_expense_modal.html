@@ -138,17 +138,31 @@ function openQuickExpenseModal() {
   loadExpenseAccounts();
   loadPaymentAccounts();
   
-  // تعيين التاريخ الحالي
-  document.getElementById('quick_expense_date').value = new Date().toISOString().split('T')[0];
-  
   // إظهار المودال
   const modal = new bootstrap.Modal(document.getElementById('quickExpenseModal'));
   modal.show();
   
-  // التركيز على حقل الوصف
+  // تهيئة datepicker بالتاريخ الحالي بعد فتح المودال
   setTimeout(() => {
+    const dateInput = document.getElementById('quick_expense_date');
+    // استخدام التوقيت المحلي للمتصفح
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
+    // تعيين القيمة
+    dateInput.value = todayStr;
+    
+    // إذا كان datepicker مهيأ، حدث القيمة
+    if (dateInput._flatpickr) {
+      dateInput._flatpickr.setDate(todayStr);
+    }
+    
+    // التركيز على حقل الوصف
     document.getElementById('quick_description').focus();
-  }, 500);
+  }, 300);
 }
 
 // تحميل حسابات المصروفات
@@ -209,13 +223,17 @@ function loadPaymentAccounts(selectedId = null) {
       console.log('Found payment select element, loading', data.length, 'accounts');
       paymentSelect.innerHTML = '<option value="">{% trans "اختر الخزينة" %}</option>';
       
-      data.forEach(account => {
+      data.forEach((account, index) => {
         const option = document.createElement('option');
         option.value = account.id;
         option.textContent = `${account.name} (${account.code})`;
+        // اختيار الحساب المحدد أو أول حساب افتراضياً
         if (selectedId && account.id == selectedId) {
           option.selected = true;
           console.log('Selected payment account:', account.name, '(ID:', account.id, ')');
+        } else if (!selectedId && index === 0) {
+          option.selected = true;
+          console.log('Auto-selected first payment account:', account.name);
         }
         paymentSelect.appendChild(option);
       });
