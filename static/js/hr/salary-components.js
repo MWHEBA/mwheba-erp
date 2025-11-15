@@ -27,14 +27,19 @@ class SalaryComponentManager {
     }
     
     init() {
+        // إزالة event listeners القديمة أولاً لمنع التكرار
+        $('#add-earning').off('click.salaryManager');
+        $('#add-deduction').off('click.salaryManager');
+        
         // إضافة مستحق
-        $('#add-earning').on('click', () => this.addRow('earning'));
+        $('#add-earning').on('click.salaryManager', () => this.addRow('earning'));
         
         // إضافة استقطاع
-        $('#add-deduction').on('click', () => this.addRow('deduction'));
+        $('#add-deduction').on('click.salaryManager', () => this.addRow('deduction'));
         
-        // حذف صف
-        $(document).on('click', '.remove-component-row', function() {
+        // حذف صف (مع namespace لمنع التكرار)
+        $(document).off('click.salaryManager', '.remove-component-row');
+        $(document).on('click.salaryManager', '.remove-component-row', function() {
             $(this).closest('tr').fadeOut(300, function() {
                 $(this).remove();
             });
@@ -44,23 +49,30 @@ class SalaryComponentManager {
         this.initSortable();
         
         // حساب الإجمالي عند تغيير المبالغ
-        $(document).on('input', '.component-amount', () => this.calculateTotals());
+        $(document).off('input.salaryManager', '.component-amount');
+        $(document).on('input.salaryManager', '.component-amount', () => this.calculateTotals());
         
         // حساب من الصيغة
-        $(document).on('blur', '.component-formula', (e) => this.calculateFromFormula(e.target));
+        $(document).off('blur.salaryManager', '.component-formula');
+        $(document).on('blur.salaryManager', '.component-formula', (e) => this.calculateFromFormula(e.target));
         
         // قفل/فتح حقل المبلغ حسب الصيغة
-        $(document).on('input', '.component-formula', (e) => this.toggleAmountField(e.target));
+        $(document).off('input.salaryManager', '.component-formula');
+        $(document).on('input.salaryManager', '.component-formula', (e) => this.toggleAmountField(e.target));
         
         // تحميل القوالب عند فتح المودال
-        $('#earningTemplatesModal').on('show.bs.modal', () => this.loadTemplates('earning'));
-        $('#deductionTemplatesModal').on('show.bs.modal', () => this.loadTemplates('deduction'));
+        $('#earningTemplatesModal').off('show.bs.modal.salaryManager');
+        $('#deductionTemplatesModal').off('show.bs.modal.salaryManager');
+        $('#earningTemplatesModal').on('show.bs.modal.salaryManager', () => this.loadTemplates('earning'));
+        $('#deductionTemplatesModal').on('show.bs.modal.salaryManager', () => this.loadTemplates('deduction'));
         
         // إضافة قالب عند النقر
-        $(document).on('click', '.template-item', (e) => this.addFromTemplate(e));
+        $(document).off('click.salaryManager', '.template-item');
+        $(document).on('click.salaryManager', '.template-item', (e) => this.addFromTemplate(e));
         
         // Validation والـ Preview للصيغة
-        $(document).on('input', '.component-formula', (e) => this.validateAndPreviewFormula(e.target));
+        $(document).off('input.salaryManagerValidation', '.component-formula');
+        $(document).on('input.salaryManagerValidation', '.component-formula', (e) => this.validateAndPreviewFormula(e.target));
     }
     
     validateAndPreviewFormula(input) {
@@ -448,7 +460,7 @@ class SalaryComponentManager {
 
 // تفعيل عند تحميل الصفحة
 $(document).ready(function() {
-    if ($('#earnings-body').length) {
+    if ($('#earnings-body').length && !window.salaryManager) {
         window.salaryManager = new SalaryComponentManager();
         
         // حساب الإجمالي عند تغيير الراتب الأساسي

@@ -32,6 +32,11 @@
                 <p class="mb-0"><strong>المبلغ:</strong> {{ component.amount|remove_trailing_zeros }} {% currency_symbol %}</p>
             </div>
         </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ملاحظة:</strong> إذا كان هذا البند مستخدم في قسائم رواتب سابقة، سيتم إلغاء تفعيله بدلاً من حذفه نهائياً للحفاظ على سجلات الرواتب.
+        </div>
     </div>
     
     <div class="modal-footer">
@@ -64,13 +69,40 @@ document.getElementById('deleteForm').addEventListener('submit', function(e) {
             const modal = bootstrap.Modal.getInstance(document.querySelector('.modal.show'));
             if (modal) modal.hide();
             
+            // تحديد نوع الرسالة حسب الإجراء
+            let icon = 'success';
+            let title = 'تم بنجاح!';
+            
+            if (data.action === 'deleted') {
+                icon = 'success';
+                title = 'تم الحذف!';
+            } else if (data.action === 'deactivated') {
+                icon = 'warning';
+                title = 'تم إلغاء التفعيل!';
+            }
+            
             Swal.fire({
-                icon: 'success',
-                title: 'تم الحذف!',
+                icon: icon,
+                title: title,
                 text: data.message,
-                timer: 2000
+                timer: 3000,
+                showConfirmButton: true
             }).then(() => location.reload());
+        } else {
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ!',
+                text: data.message || 'حدث خطأ غير متوقع'
+            });
         }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ!',
+            text: 'حدث خطأ في الاتصال'
+        });
     });
 });
 </script>

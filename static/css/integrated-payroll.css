@@ -1,0 +1,553 @@
+/**
+ * Integrated Payroll System - Custom Styles
+ * نظام معالجة الرواتب المتكامل - الأنماط المخصصة
+ * 
+ * يستخدم CSS Variables من :root فقط
+ * بدون gradients، ألوان مسطحة فقط
+ * تصميم هادئ، احترافي، وأنيق
+ */
+
+/* ========================================
+   CSS Variables - استخدام المتغيرات من :root
+   ======================================== */
+
+:root {
+    /* Primary Colors */
+    --payroll-primary: var(--color-primary, #2563eb);
+    --payroll-success: var(--color-success, #10b981);
+    --payroll-warning: var(--color-warning, #f59e0b);
+    --payroll-danger: var(--color-danger, #ef4444);
+    --payroll-info: var(--color-info, #3b82f6);
+    
+    /* Background Colors */
+    --payroll-bg-light: var(--color-bg-light, #f9fafb);
+    --payroll-bg-white: #ffffff;
+    
+    /* Border Colors */
+    --payroll-border: var(--color-border, #e5e7eb);
+    --payroll-border-light: #f3f4f6;
+    
+    /* Text Colors */
+    --payroll-text-primary: var(--color-text-primary, #111827);
+    --payroll-text-secondary: var(--color-text-secondary, #6b7280);
+    --payroll-text-light: #9ca3af;
+    
+    /* Spacing */
+    --payroll-spacing-xs: 0.25rem;
+    --payroll-spacing-sm: 0.5rem;
+    --payroll-spacing-md: 1rem;
+    --payroll-spacing-lg: 1.5rem;
+    --payroll-spacing-xl: 2rem;
+    
+    /* Border Radius */
+    --payroll-radius-sm: 0.375rem;
+    --payroll-radius-md: 0.5rem;
+    --payroll-radius-lg: 0.75rem;
+    
+    /* Shadows */
+    --payroll-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+    --payroll-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --payroll-shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.1);
+    
+    /* Transitions */
+    --payroll-transition: all 0.2s ease;
+}
+
+/* ========================================
+   Base Styles - الأنماط الأساسية
+   ======================================== */
+
+.payroll-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: var(--payroll-spacing-xl);
+}
+
+.payroll-section {
+    background: var(--payroll-bg-white);
+    border: 1px solid var(--payroll-border);
+    border-radius: var(--payroll-radius-lg);
+    padding: var(--payroll-spacing-xl);
+    margin-bottom: var(--payroll-spacing-xl);
+}
+
+/* ========================================
+   Typography - الطباعة
+   ======================================== */
+
+.payroll-title {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: var(--payroll-text-primary);
+    margin: 0 0 var(--payroll-spacing-md) 0;
+}
+
+.payroll-subtitle {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--payroll-text-primary);
+    margin: 0 0 var(--payroll-spacing-md) 0;
+}
+
+.payroll-text {
+    font-size: 0.9375rem;
+    color: var(--payroll-text-primary);
+    line-height: 1.6;
+}
+
+.payroll-text-secondary {
+    color: var(--payroll-text-secondary);
+}
+
+.payroll-text-light {
+    color: var(--payroll-text-light);
+}
+
+/* ========================================
+   Cards - البطاقات
+   ======================================== */
+
+.payroll-card {
+    background: var(--payroll-bg-white);
+    border: 1px solid var(--payroll-border);
+    border-radius: var(--payroll-radius-lg);
+    padding: var(--payroll-spacing-lg);
+    transition: var(--payroll-transition);
+}
+
+.payroll-card:hover {
+    box-shadow: var(--payroll-shadow-md);
+    transform: translateY(-2px);
+}
+
+.payroll-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--payroll-spacing-md);
+    padding-bottom: var(--payroll-spacing-md);
+    border-bottom: 1px solid var(--payroll-border);
+}
+
+.payroll-card-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--payroll-text-primary);
+    margin: 0;
+}
+
+.payroll-card-body {
+    padding: 0;
+}
+
+/* ========================================
+   Badges - الشارات
+   ======================================== */
+
+.payroll-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--payroll-spacing-xs);
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--payroll-radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.payroll-badge-primary {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-primary);
+    border: 1px solid var(--payroll-primary);
+}
+
+.payroll-badge-success {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-success);
+    border: 1px solid var(--payroll-success);
+}
+
+.payroll-badge-warning {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-warning);
+    border: 1px solid var(--payroll-warning);
+}
+
+.payroll-badge-danger {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-danger);
+    border: 1px solid var(--payroll-danger);
+}
+
+/* ========================================
+   Buttons - الأزرار
+   ======================================== */
+
+.payroll-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--payroll-spacing-sm);
+    padding: 0.625rem 1.25rem;
+    border: none;
+    border-radius: var(--payroll-radius-md);
+    font-size: 0.9375rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--payroll-transition);
+    text-decoration: none;
+}
+
+.payroll-btn-primary {
+    background: var(--payroll-primary);
+    color: white;
+}
+
+.payroll-btn-primary:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+    box-shadow: var(--payroll-shadow-md);
+}
+
+.payroll-btn-success {
+    background: var(--payroll-success);
+    color: white;
+}
+
+.payroll-btn-success:hover {
+    background: #059669;
+    transform: translateY(-1px);
+    box-shadow: var(--payroll-shadow-md);
+}
+
+.payroll-btn-warning {
+    background: var(--payroll-warning);
+    color: white;
+}
+
+.payroll-btn-warning:hover {
+    background: #d97706;
+    transform: translateY(-1px);
+    box-shadow: var(--payroll-shadow-md);
+}
+
+.payroll-btn-outline {
+    background: var(--payroll-bg-white);
+    color: var(--payroll-text-primary);
+    border: 1px solid var(--payroll-border);
+}
+
+.payroll-btn-outline:hover {
+    background: var(--payroll-bg-light);
+}
+
+.payroll-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ========================================
+   Tables - الجداول
+   ======================================== */
+
+.payroll-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payroll-table thead {
+    background: var(--payroll-bg-light);
+}
+
+.payroll-table th {
+    padding: 1rem 1.5rem;
+    text-align: right;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--payroll-text-secondary);
+    border-bottom: 1px solid var(--payroll-border);
+}
+
+.payroll-table td {
+    padding: 1rem 1.5rem;
+    font-size: 0.875rem;
+    color: var(--payroll-text-primary);
+    border-bottom: 1px solid var(--payroll-border);
+}
+
+.payroll-table tbody tr:hover {
+    background: var(--payroll-bg-light);
+}
+
+.payroll-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* ========================================
+   Progress Bar - شريط التقدم
+   ======================================== */
+
+.payroll-progress-container {
+    width: 100%;
+    height: 1rem;
+    background: var(--payroll-bg-light);
+    border-radius: var(--payroll-radius-md);
+    overflow: hidden;
+}
+
+.payroll-progress-bar {
+    height: 100%;
+    background: var(--payroll-primary);
+    transition: width 0.5s ease;
+}
+
+/* ========================================
+   Stats Grid - شبكة الإحصائيات
+   ======================================== */
+
+.payroll-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--payroll-spacing-lg);
+    margin-bottom: var(--payroll-spacing-xl);
+}
+
+.payroll-stat-card {
+    background: var(--payroll-bg-white);
+    border: 1px solid var(--payroll-border);
+    border-radius: var(--payroll-radius-lg);
+    padding: var(--payroll-spacing-lg);
+    transition: var(--payroll-transition);
+}
+
+.payroll-stat-card:hover {
+    box-shadow: var(--payroll-shadow-md);
+    transform: translateY(-2px);
+}
+
+.payroll-stat-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: var(--payroll-spacing-md);
+}
+
+.payroll-stat-icon {
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--payroll-radius-lg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.payroll-stat-icon-primary {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-primary);
+}
+
+.payroll-stat-icon-success {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-success);
+}
+
+.payroll-stat-icon-warning {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-warning);
+}
+
+.payroll-stat-label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--payroll-text-secondary);
+    margin-bottom: var(--payroll-spacing-xs);
+}
+
+.payroll-stat-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--payroll-text-primary);
+}
+
+/* ========================================
+   Alerts - التنبيهات
+   ======================================== */
+
+.payroll-alert {
+    padding: 1rem 1.25rem;
+    border-radius: var(--payroll-radius-md);
+    margin-bottom: var(--payroll-spacing-lg);
+    display: flex;
+    align-items: center;
+    gap: var(--payroll-spacing-sm);
+}
+
+.payroll-alert-success {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-success);
+    border: 1px solid var(--payroll-success);
+}
+
+.payroll-alert-warning {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-warning);
+    border: 1px solid var(--payroll-warning);
+}
+
+.payroll-alert-danger {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-danger);
+    border: 1px solid var(--payroll-danger);
+}
+
+.payroll-alert-info {
+    background: var(--payroll-bg-light);
+    color: var(--payroll-info);
+    border: 1px solid var(--payroll-info);
+}
+
+/* ========================================
+   Loading Spinner - مؤشر التحميل
+   ======================================== */
+
+.payroll-spinner {
+    display: inline-block;
+    width: 1rem;
+    height: 1rem;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: payroll-spin 0.6s linear infinite;
+}
+
+@keyframes payroll-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ========================================
+   Responsive Design - التصميم المتجاوب
+   ======================================== */
+
+@media (max-width: 768px) {
+    .payroll-container {
+        padding: var(--payroll-spacing-md);
+    }
+
+    .payroll-stats-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .payroll-table {
+        font-size: 0.8125rem;
+    }
+
+    .payroll-table th,
+    .payroll-table td {
+        padding: 0.75rem 1rem;
+    }
+}
+
+/* ========================================
+   Print Styles - أنماط الطباعة
+   ======================================== */
+
+@media print {
+    .payroll-btn,
+    .no-print {
+        display: none !important;
+    }
+
+    .payroll-section {
+        page-break-inside: avoid;
+    }
+
+    .payroll-card {
+        box-shadow: none;
+        border: 1px solid var(--payroll-border);
+    }
+}
+
+/* ========================================
+   Utility Classes - الفئات المساعدة
+   ======================================== */
+
+.payroll-text-center {
+    text-align: center;
+}
+
+.payroll-text-right {
+    text-align: right;
+}
+
+.payroll-text-left {
+    text-align: left;
+}
+
+.payroll-mt-sm {
+    margin-top: var(--payroll-spacing-sm);
+}
+
+.payroll-mt-md {
+    margin-top: var(--payroll-spacing-md);
+}
+
+.payroll-mt-lg {
+    margin-top: var(--payroll-spacing-lg);
+}
+
+.payroll-mb-sm {
+    margin-bottom: var(--payroll-spacing-sm);
+}
+
+.payroll-mb-md {
+    margin-bottom: var(--payroll-spacing-md);
+}
+
+.payroll-mb-lg {
+    margin-bottom: var(--payroll-spacing-lg);
+}
+
+.payroll-p-sm {
+    padding: var(--payroll-spacing-sm);
+}
+
+.payroll-p-md {
+    padding: var(--payroll-spacing-md);
+}
+
+.payroll-p-lg {
+    padding: var(--payroll-spacing-lg);
+}
+
+.payroll-flex {
+    display: flex;
+}
+
+.payroll-flex-center {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.payroll-flex-between {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.payroll-gap-sm {
+    gap: var(--payroll-spacing-sm);
+}
+
+.payroll-gap-md {
+    gap: var(--payroll-spacing-md);
+}
+
+.payroll-gap-lg {
+    gap: var(--payroll-spacing-lg);
+}
+

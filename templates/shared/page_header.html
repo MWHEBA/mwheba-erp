@@ -77,8 +77,22 @@ PAGE HEADER المركزي - MWHEBA ERP
                 </div>
             </div>
             
-            {% if header_buttons or supplier_types_badges %}
+            {% if header_buttons or supplier_types_badges or month_selector %}
                 <div class="page-header-actions">
+                    <!-- Month Selector -->
+                    {% if month_selector %}
+                    <div class="month-selector me-3">
+                        <label for="month-select" style="font-weight: 600; color: var(--text-secondary);">الشهر:</label>
+                        <select id="month-select" onchange="changeMonth(this.value)">
+                            {% for month_option in month_selector.available_months %}
+                            <option value="{{ month_option.value }}" {% if month_option.value == month_selector.current_month|date:'Y-m' %}selected{% endif %}>
+                                {{ month_option.date_obj|arabic_month_year }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
                     <!-- أنواع الخدمات (للموردين) -->
                     {% if supplier_types_badges %}
                         <div class="d-flex flex-wrap align-items-center me-3">

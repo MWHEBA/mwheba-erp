@@ -6,12 +6,20 @@ from ..models import Employee, Department, JobTitle, Shift, Contract, BiometricL
 from ..forms.employee_forms import EmployeeForm
 from ..decorators import hr_manager_required
 from django.core.paginator import Paginator
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+import json
+from ..models import SalaryComponent, Advance
+from ..models.payroll import Payroll
+from django.db.models import Sum
+from ..services.user_employee_service import UserEmployeeService
 
 __all__ = [
     'employee_list',
     'employee_detail',
     'employee_form',
     'employee_delete',
+    'check_component_code',
 ]
 
 
@@ -178,7 +186,6 @@ def employee_list(request):
 @login_required
 def employee_detail(request, pk):
     """تفاصيل الموظف"""
-    from ..services.user_employee_service import UserEmployeeService
     
     employee = get_object_or_404(Employee, pk=pk)
     
@@ -217,7 +224,6 @@ def employee_detail(request, pk):
     ).order_by('component_type', 'order')[:5]
     
     # جلب قسائم الراتب (آخر 6 قسائم)
-    from ..models.payroll import Payroll
     payroll_slips = Payroll.objects.filter(
         employee=employee
     ).select_related('contract').order_by('-month')[:6]
@@ -226,6 +232,18 @@ def employee_detail(request, pk):
     total_payrolls = employee.payrolls.count()
     paid_payrolls = employee.payrolls.filter(status='paid').count()
     approved_payrolls = employee.payrolls.filter(status='approved').count()
+
+    # جلب السلف (آخر 6 سلف)
+    advances = Advance.objects.filter(
+        employee=employee
+    ).order_by('-requested_at')[:6]
+
+    # إحصائيات السلف
+    total_advances = employee.advances.count()
+    paid_advances = employee.advances.filter(status='paid').count()
+    approved_advances_count = employee.advances.filter(status='approved').count()
+    total_advances_amount = employee.advances.filter(status__in=['approved', 'paid']).aggregate(total=Sum('amount'))['total'] or 0
+
     
     context = {
         'employee': employee,
@@ -241,6 +259,11 @@ def employee_detail(request, pk):
         'total_payrolls': total_payrolls,
         'paid_payrolls': paid_payrolls,
         'approved_payrolls': approved_payrolls,
+        'advances': advances,
+        'total_advances': total_advances,
+        'paid_advances': paid_advances,
+        'approved_advances_count': approved_advances_count,
+        'total_advances_amount': total_advances_amount,
         
         # بيانات الهيدر
         'page_title': employee.get_full_name_ar(),
@@ -372,3 +395,37 @@ def employee_form(request, pk=None):
         ],
     }
     return render(request, 'hr/employee/form.html', context)
+
+
+@login_required
+@require_POST
+def check_component_code(request, employee_id):
+    """التحقق من وجود كود البند للموظف"""
+    
+    try:
+        employee = get_object_or_404(Employee, id=employee_id)
+        data = json.loads(request.body)
+        code = data.get('code', '').strip()
+        
+        if not code:
+            return JsonResponse({'exists': False})
+        
+        existing = SalaryComponent.objects.filter(
+            employee=employee,
+            code=code
+        ).first()
+        
+        if existing:
+            return JsonResponse({
+                'exists': True,
+                'component_id': existing.id,
+                'existing_name': existing.name,
+                'amount': str(existing.amount),
+                'is_from_contract': existing.is_from_contract,
+                'component_type': existing.get_component_type_display()
+            })
+        else:
+            return JsonResponse({'exists': False})
+            
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=400)

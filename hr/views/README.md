@@ -103,9 +103,7 @@
 
 ### الرواتب والسلف (11 دالة):
 - ✅ `payroll_list` - قائمة قسائم الرواتب
-- ✅ `payroll_run_list` - قائمة مسيرات الرواتب
-- ✅ `payroll_run_process` - معالجة مسيرة جديدة
-- ✅ `payroll_run_detail` - تفاصيل مسيرة
+- ✅ `payroll_list` - قائمة قسائم الرواتب
 - ✅ `payroll_detail` - تفاصيل قسيمة راتب
 - ✅ `advance_list` - قائمة السلف
 - ✅ `advance_request` - طلب سلفة

@@ -1,0 +1,551 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+{% csrf_token %}
+
+{% block title %}لوحة تحكم الصيانة الإدارية{% endblock %}
+
+{% block extra_css %}
+<style>
+.maintenance-card {
+    transition: all 0.3s ease;
+    border: 1px solid #dee2e6;
+}
+
+.maintenance-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.stat-card {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%);
+    color: white;
+    border-radius: 10px;
+}
+
+.stat-card.warning {
+    background: linear-gradient(135deg, var(--bs-warning) 0%, #e0a800 100%);
+}
+
+.stat-card.danger {
+    background: linear-gradient(135deg, var(--bs-danger) 0%, #c82333 100%);
+}
+
+.stat-card.success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #1e7e34 100%);
+}
+
+.recommendation-card {
+    border-left: 4px solid var(--bs-primary);
+    background: #f8f9fa;
+}
+
+.recommendation-card.high {
+    border-left-color: var(--bs-danger);
+}
+
+.recommendation-card.medium {
+    border-left-color: var(--bs-warning);
+}
+
+.recommendation-card.low {
+    border-left-color: var(--bs-info);
+}
+
+.progress-ring {
+    width: 60px;
+    height: 60px;
+}
+
+.progress-ring circle {
+    fill: transparent;
+    stroke-width: 4;
+    stroke-linecap: round;
+    transform: rotate(-90deg);
+    transform-origin: 50% 50%;
+}
+
+.action-button {
+    border-radius: 20px;
+    padding: 8px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.action-button:hover {
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- نظرة عامة سريعة -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card text-center p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h3 class="mb-0">{{ overview.employees.active|remove_trailing_zeros }}</h3>
+                        <small>موظف نشط</small>
+                    </div>
+                    <i class="fas fa-users fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card success text-center p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h3 class="mb-0">{{ overview.components.active|remove_trailing_zeros }}</h3>
+                        <small>بند نشط</small>
+                    </div>
+                    <i class="fas fa-list-alt fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card warning text-center p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h3 class="mb-0">{{ overview.components.expiring|remove_trailing_zeros }}</h3>
+                        <small>بند منتهي قريباً</small>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card danger text-center p-3">
+                <div class="d-flex align-items-center justify-content-between">
+                    <div>
+                        <h3 class="mb-0">{{ overview.data_quality.duplicate_components|add:overview.data_quality.inconsistent_records|remove_trailing_zeros }}</h3>
+                        <small>مشكلة في البيانات</small>
+                    </div>
+                    <i class="fas fa-exclamation-circle fa-2x opacity-75"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- أدوات الصيانة السريعة -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>أدوات الصيانة السريعة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-danger action-button w-100" onclick="cleanupExpiredComponents()">
+                                <i class="fas fa-trash-alt me-2"></i>
+                                تنظيف البنود المنتهية
+                                <span class="badge bg-danger ms-2">{{ expired_analysis.total_candidates }}</span>
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-warning action-button w-100" onclick="cleanupOrphanedComponents()">
+                                <i class="fas fa-unlink me-2"></i>
+                                تنظيف البنود اليتيمة
+                                <span class="badge bg-warning ms-2">{{ orphaned_analysis.total_orphaned }}</span>
+                            </button>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-info action-button w-100" onclick="fixDataInconsistencies()">
+                                <i class="fas fa-wrench me-2"></i>
+                                إصلاح تضارب البيانات
+                                <span class="badge bg-info ms-2">{{ inconsistencies_analysis.total_fixes }}</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <button class="btn btn-outline-success action-button w-100" onclick="generateMaintenanceReport()">
+                                <i class="fas fa-file-alt me-2"></i>
+                                توليد تقرير صيانة شامل
+                            </button>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <button class="btn btn-outline-primary action-button w-100" onclick="refreshSystemOverview()">
+                                <i class="fas fa-sync-alt me-2"></i>
+                                تحديث الإحصائيات
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- التوصيات والتحذيرات -->
+    {% if recommendations %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>توصيات الصيانة
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for rec in recommendations %}
+                    <div class="recommendation-card {{ rec.priority }} p-3 mb-3 rounded">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-2">
+                                    {% if rec.priority == 'high' %}
+                                        <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                                    {% elif rec.priority == 'medium' %}
+                                        <i class="fas fa-exclamation-circle text-warning me-2"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle text-info me-2"></i>
+                                    {% endif %}
+                                    {{ rec.title }}
+                                    <span class="badge {% if rec.priority == 'high' %}bg-danger{% elif rec.priority == 'medium' %}bg-warning{% else %}bg-info{% endif %} ms-2">
+                                        {% if rec.priority == 'high' %}عالية{% elif rec.priority == 'medium' %}متوسطة{% else %}منخفضة{% endif %}
+                                    </span>
+                                </h6>
+                                <p class="mb-2 text-muted">{{ rec.description }}</p>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>الوقت المقدر: {{ rec.estimated_time }}
+                                </small>
+                            </div>
+                            <div class="ms-3">
+                                <button class="btn btn-sm btn-primary" onclick="executeRecommendation('{{ rec.action }}')">
+                                    <i class="fas fa-play me-1"></i>تنفيذ
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- تفاصيل النظام -->
+    <div class="row">
+        <!-- إحصائيات البنود -->
+        <div class="col-md-6 mb-4">
+            <div class="card maintenance-card">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>توزيع البنود حسب المصدر
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for source, count in overview.components.by_source.items %}
+                        <div class="col-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <div class="progress-ring me-3">
+                                    <svg width="60" height="60">
+                                        <circle cx="30" cy="30" r="26" stroke="#e9ecef" stroke-width="4" fill="transparent"/>
+                                        <circle cx="30" cy="30" r="26" stroke="var(--bs-primary)" stroke-width="4" 
+                                                fill="transparent" stroke-dasharray="163" 
+                                                stroke-dashoffset="{% if overview.components.total > 0 %}{% widthratio count overview.components.total 163 %}{% else %}163{% endif %}"/>
+                                    </svg>
+                                    <div class="position-absolute top-50 start-50 translate-middle text-center">
+                                        <small class="fw-bold">{{ count }}</small>
+                                    </div>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0">
+                                        {% if source == 'contract' %}من العقد
+                                        {% elif source == 'temporary' %}مؤقت
+                                        {% elif source == 'personal' %}شخصي
+                                        {% elif source == 'exceptional' %}استثنائي
+                                        {% elif source == 'adjustment' %}تعديل
+                                        {% else %}{{ source|title }}{% endif %}
+                                    </h6>
+                                    <small class="text-muted">
+                                        {% widthratio count overview.components.total 100 %}%
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- حالة النظام -->
+        <div class="col-md-6 mb-4">
+            <div class="card maintenance-card">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-heartbeat me-2"></i>حالة النظام
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>صحة البيانات</span>
+                            <span class="badge bg-{% if overview.data_quality.duplicate_components == 0 and overview.data_quality.inconsistent_records == 0 %}success{% elif overview.data_quality.duplicate_components < 10 %}warning{% else %}danger{% endif %}">
+                                {% if overview.data_quality.duplicate_components == 0 and overview.data_quality.inconsistent_records == 0 %}
+                                    ممتازة
+                                {% elif overview.data_quality.duplicate_components < 10 %}
+                                    جيدة
+                                {% else %}
+                                    تحتاج صيانة
+                                {% endif %}
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-{% if overview.data_quality.duplicate_components == 0 and overview.data_quality.inconsistent_records == 0 %}success{% elif overview.data_quality.duplicate_components < 10 %}warning{% else %}danger{% endif %}" 
+                                 style="width: {% if overview.data_quality.duplicate_components == 0 and overview.data_quality.inconsistent_records == 0 %}100{% elif overview.data_quality.duplicate_components < 10 %}70{% else %}30{% endif %}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>البنود النشطة</span>
+                            <span>{{ overview.components.active|remove_trailing_zeros }} / {{ overview.components.total|remove_trailing_zeros }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-primary" 
+                                 style="width: {% widthratio overview.components.active overview.components.total 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <span>العقود النشطة</span>
+                            <span>{{ overview.contracts.active|remove_trailing_zeros }} / {{ overview.contracts.total|remove_trailing_zeros }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" 
+                                 style="width: {% widthratio overview.contracts.active overview.contracts.total 100 %}%"></div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <small class="text-muted">
+                            آخر تحديث: {{ overview.data_quality.last_cleanup|default:"لم يتم التنظيف بعد" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تأكيد العمليات -->
+<div class="modal fade" id="confirmationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmationModalLabel">تأكيد العملية</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="confirmationModalBody">
+                <!-- محتوى التأكيد -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-danger" id="confirmActionBtn">تأكيد</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- مودال النتائج -->
+<div class="modal fade" id="resultsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="resultsModalLabel">نتائج العملية</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="resultsModalBody">
+                <!-- نتائج العملية -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" data-bs-dismiss="modal">إغلاق</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+class MaintenanceDashboard {
+    constructor() {
+        this.confirmationModal = new bootstrap.Modal(document.getElementById('confirmationModal'));
+        this.resultsModal = new bootstrap.Modal(document.getElementById('resultsModal'));
+    }
+
+    async executeMaintenanceAction(action, params = {}) {
+        try {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]');
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (csrfToken) {
+                headers['X-CSRFToken'] = csrfToken.getAttribute('content');
+            }
+            
+            const response = await fetch(`/hr/admin/maintenance/${action}/`, {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify(params)
+            });
+
+            const data = await response.json();
+            
+            if (data.success) {
+                this.showResults(data.results);
+                // تحديث الإحصائيات
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
+            } else {
+                this.showError(data.message || 'حدث خطأ في العملية');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            this.showError('حدث خطأ في الاتصال بالخادم');
+        }
+    }
+
+    showConfirmation(title, message, action, params = {}) {
+        document.getElementById('confirmationModalLabel').textContent = title;
+        document.getElementById('confirmationModalBody').innerHTML = message;
+        
+        const confirmBtn = document.getElementById('confirmActionBtn');
+        confirmBtn.onclick = () => {
+            this.confirmationModal.hide();
+            this.executeMaintenanceAction(action, params);
+        };
+        
+        this.confirmationModal.show();
+    }
+
+    showResults(results) {
+        document.getElementById('resultsModalLabel').textContent = 'نتائج العملية';
+        
+        let html = '<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>تمت العملية بنجاح</div>';
+        
+        if (results.deleted_count !== undefined) {
+            html += `<p><strong>عدد العناصر المحذوفة:</strong> ${results.deleted_count}</p>`;
+        }
+        
+        if (results.protected_count !== undefined && results.protected_count > 0) {
+            html += `<div class="alert alert-warning mt-2"><i class="fas fa-shield-alt me-2"></i>
+                     <strong>تحذير:</strong> ${results.protected_count} بند لم يتم حذفه لأنه مرتبط بقسائم راتب</div>`;
+        }
+        
+        if (results.total_fixes !== undefined) {
+            html += `<p><strong>عدد الإصلاحات المطبقة:</strong> ${results.total_fixes}</p>`;
+        }
+        
+        if (results.fixes_by_type) {
+            html += '<h6>الإصلاحات حسب النوع:</h6><ul>';
+            for (const [type, count] of Object.entries(results.fixes_by_type)) {
+                html += `<li>${type}: ${count}</li>`;
+            }
+            html += '</ul>';
+        }
+        
+        document.getElementById('resultsModalBody').innerHTML = html;
+        this.resultsModal.show();
+    }
+
+    showError(message) {
+        document.getElementById('resultsModalLabel').textContent = 'خطأ في العملية';
+        document.getElementById('resultsModalBody').innerHTML = 
+            `<div class="alert alert-danger"><i class="fas fa-exclamation-triangle me-2"></i>${message}</div>`;
+        this.resultsModal.show();
+    }
+}
+
+// إنشاء مثيل عام
+const maintenanceDashboard = new MaintenanceDashboard();
+
+// دوال الصيانة
+function cleanupExpiredComponents() {
+    maintenanceDashboard.showConfirmation(
+        'تنظيف البنود المنتهية',
+        `<p>سيتم حذف <strong>{{ expired_analysis.total_candidates }}</strong> بند منتهي منذ أكثر من 90 يوم.</p>
+         <p class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>هذا الإجراء لا يمكن التراجع عنه.</p>`,
+        'cleanup_expired',
+        { days_old: 90, dry_run: false }
+    );
+}
+
+function cleanupOrphanedComponents() {
+    maintenanceDashboard.showConfirmation(
+        'تنظيف البنود اليتيمة',
+        `<p>سيتم حذف <strong>{{ orphaned_analysis.total_orphaned }}</strong> بند غير مرتبط بموظف أو عقد صحيح.</p>
+         <p class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>هذا الإجراء لا يمكن التراجع عنه.</p>`,
+        'cleanup_orphaned',
+        { dry_run: false }
+    );
+}
+
+function fixDataInconsistencies() {
+    maintenanceDashboard.showConfirmation(
+        'إصلاح تضارب البيانات',
+        `<p>سيتم إصلاح <strong>{{ inconsistencies_analysis.total_fixes }}</strong> مشكلة في البيانات.</p>
+         <p class="text-info"><i class="fas fa-info-circle me-2"></i>سيتم إصلاح التصنيفات والتواريخ والبيانات المكررة.</p>`,
+        'fix_inconsistencies',
+        { dry_run: false }
+    );
+}
+
+function executeRecommendation(action) {
+    const actions = {
+        'cleanup_expired_components': () => cleanupExpiredComponents(),
+        'cleanup_orphaned_components': () => cleanupOrphanedComponents(),
+        'fix_data_inconsistencies': () => fixDataInconsistencies(),
+        'process_auto_renewals': () => processAutoRenewals()
+    };
+    
+    if (actions[action]) {
+        actions[action]();
+    }
+}
+
+function processAutoRenewals() {
+    maintenanceDashboard.executeMaintenanceAction('auto_renewals', { dry_run: false });
+}
+
+function generateMaintenanceReport() {
+    window.open('/hr/admin/maintenance/report/', '_blank');
+}
+
+function refreshSystemOverview() {
+    window.location.reload();
+}
+
+// تحديث تلقائي كل 5 دقائق
+setInterval(() => {
+    fetch('/hr/admin/maintenance/overview/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // تحديث الإحصائيات بدون إعادة تحميل كاملة
+                updateStatistics(data.overview);
+            }
+        })
+        .catch(error => console.error('Error updating statistics:', error));
+}, 300000); // 5 دقائق
+
+function updateStatistics(overview) {
+    // تحديث الإحصائيات في الواجهة
+    // يمكن تطوير هذا لاحقاً
+}
+</script>
+{% endblock %}

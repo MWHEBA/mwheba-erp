@@ -1,35 +1,5 @@
 [
   {
-    "model": "financial.chartofaccounts",
-    "pk": 101,
-    "fields": {
-      "code": "1103003",
-      "name": "عميل - راقيات الإبداع",
-      "name_en": "Customer - Raqiyat Al Ibdaa",
-      "account_type": 5,
-      "parent": 3,
-      "is_active": true,
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z",
-      "created_by": 1
-    }
-  },
-  {
-    "model": "financial.chartofaccounts",
-    "pk": 102,
-    "fields": {
-      "code": "1103004",
-      "name": "عميل - شركة تراست بلس",
-      "name_en": "Customer - Trust Plus",
-      "account_type": 5,
-      "parent": 3,
-      "is_active": true,
-      "created_at": "2025-01-01T00:00:00Z",
-      "updated_at": "2025-01-01T00:00:00Z",
-      "created_by": 1
-    }
-  },
-  {
     "model": "client.customer",
     "pk": 1,
     "fields": {

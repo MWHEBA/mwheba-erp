@@ -15,15 +15,18 @@
   {% include "shared/page_header.html" %}
 
   <div class="row">
+    <!-- نموذج طلب السلفة -->
     <div class="col-lg-8">
         <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-hand-holding-usd me-2"></i>طلب سلفة جديدة</h5>
+            <div class="card">
                 <div class="card-body">
                     <form method="post">
                         {% csrf_token %}
-                        
-                        <div class="alert alert-info">
+
+                        <div class="alert alert-info mb-4">
                             <i class="fas fa-info-circle me-2"></i>
-                            سيتم خصم السلفة من راتب الشهر القادم
+                            سيتم خصم السلفة على أقساط شهرية تبدأ من شهر الخصم المحدد، وفقاً لعدد الأقساط.
                         </div>
 
                         <div class="mb-3">
@@ -36,9 +39,40 @@
                             </select>
                         </div>
 
-                        <div class="mb-3">
-                            <label class="form-label">المبلغ المطلوب *</label>
-                            <input type="number" class="form-control" name="amount" step="0.01" required>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">المبلغ المطلوب *</label>
+                                    <input type="number" class="form-control" name="amount" step="0.01" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">عدد الأقساط *</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           name="installments_count"
+                                           id="installmentsInput"
+                                           min="1"
+                                           max="24"
+                                           value="1"
+                                           required>
+                                    <small class="text-muted">عدد الأشهر (1-24 شهر)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">شهر بدء الخصم *</label>
+                                    <input type="month"
+                                           class="form-control"
+                                           name="deduction_start_month"
+                                           id="startMonthInput"
+                                           required>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="mb-3">
@@ -51,7 +85,7 @@
                                 <i class="fas fa-paper-plane me-2"></i>
                                 إرسال الطلب
                             </button>
-                            <a href="{% url 'hr:advance_list' %}" class="btn btn-secondary">
+                            <a href="{% url 'hr:advance_list' %}" class="btn btn-secondary ms-1">
                                 <i class="fas fa-times me-2"></i>
                                 إلغاء
                             </a>
@@ -61,5 +95,105 @@
             </div>
         </div>
     </div>
+
+    <!-- المعاينة والإرشادات -->
+    <div class="col-lg-4">
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>معاينة الأقساط</h5>
+            <div class="card">
+                <div class="card-body" id="installmentPreview" style="display: none;">
+                    <div class="mb-3">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">المبلغ الإجمالي</small>
+                                <div><strong id="previewTotalAmount">-</strong></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">عدد الأقساط</small>
+                                <div><strong id="previewInstallments">-</strong></div>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">قيمة القسط الشهري</small>
+                                <div><strong class="text-primary" id="previewMonthlyAmount">-</strong></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">شهر بدء الخصم</small>
+                                <div><strong id="previewStartMonth">-</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>إرشادات السلف</h5>
+            <div class="card">
+                <div class="card-body">
+                    <ul class="mb-0 text-muted" style="font-size: 0.9rem;">
+                        <li>الحد الأقصى للمبلغ: 50,000 جنيه.</li>
+                        <li>عدد الأقساط من 1 إلى 24 شهر.</li>
+                        <li>يُفضّل أن يكون السبب واضحاً ومختصراً.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function () {
+        var $amountInput = $('input[name="amount"]');
+        var $installmentsInput = $('#installmentsInput');
+        var $startMonthInput = $('#startMonthInput');
+        var $preview = $('#installmentPreview');
+        var $previewTotal = $('#previewTotalAmount');
+        var $previewInstallments = $('#previewInstallments');
+        var $previewMonthly = $('#previewMonthlyAmount');
+        var $previewStart = $('#previewStartMonth');
+
+        // تعيين الشهر الافتراضي (الشهر القادم)
+        var today = new Date();
+        var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        var monthString = nextMonth.toISOString().slice(0, 7);
+        $startMonthInput.val(monthString);
+
+        function formatCurrency(value) {
+            if (!value || isNaN(value)) {
+                return '-';
+            }
+            return parseFloat(value).toFixed(2) + ' جنيه';
+        }
+
+        function updatePreview() {
+            var amount = parseFloat($amountInput.val()) || 0;
+            var installments = parseInt($installmentsInput.val(), 10) || 0;
+            var startMonth = $startMonthInput.val();
+
+            if (amount > 0 && installments > 0 && startMonth) {
+                var monthlyAmount = amount / installments;
+
+                $previewTotal.text(formatCurrency(amount));
+                $previewInstallments.text(installments + ' شهر');
+                $previewMonthly.text(formatCurrency(monthlyAmount));
+                $previewStart.text(startMonth);
+
+                $preview.slideDown();
+            } else {
+                $preview.slideUp();
+            }
+        }
+
+        $amountInput.on('input', updatePreview);
+        $installmentsInput.on('input change', updatePreview);
+        $startMonthInput.on('change', updatePreview);
+
+        updatePreview();
+    });
+</script>
 {% endblock %}

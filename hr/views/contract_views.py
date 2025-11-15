@@ -6,9 +6,14 @@ from ..models import Contract, Employee, Department
 from ..models.contract import ContractDocument, ContractAmendment, ContractIncrease
 from ..decorators import can_manage_contracts, hr_manager_required
 from ..services.contract_activation_service import ContractActivationService
+from ..services.contract_component_service import ContractComponentService
 from core.models import SystemSetting
 from django.core.paginator import Paginator
 from datetime import date, timedelta
+from django.views.decorators.http import require_POST
+from django.http import JsonResponse
+from ..models import SalaryComponent, SalaryComponentTemplate, BiometricUserMapping, ContractIncrease
+from ..forms.contract_forms import ContractForm
 
 __all__ = [
     'contract_list',
@@ -19,6 +24,10 @@ __all__ = [
     'contract_document_upload',
     'contract_document_delete',
     'contract_amendment_create',
+    'sync_component',
+    'sync_contract_components',
+    'contract_activation_preview',
+    'contract_activate_with_components',
 ]
 
 
@@ -129,6 +138,30 @@ def contract_detail(request, pk):
     pending_increases = scheduled_increases.filter(status='pending')
     applied_increases = scheduled_increases.filter(status='applied')
     
+    # تصنيف بنود الراتب (حل مشكلة التكرار)
+    employee_components = contract.employee.salary_components.filter(
+        is_active=True
+    ).select_related('source_contract_component').order_by('order')
+    
+    # تصنيف البنود لمنع التكرار
+    contract_synced_components = []
+    manual_components = []
+    
+    for component in employee_components:
+        if component.is_from_contract and component.contract == contract:
+            # بند منسوخ من هذا العقد
+            contract_synced_components.append({
+                'component': component,
+                'source': component.source_contract_component,
+                'is_synced': (
+                    component.source_contract_component and 
+                    component.amount == component.source_contract_component.amount
+                )
+            })
+        elif not component.is_from_contract:
+            # بند يدوي
+            manual_components.append(component)
+    
     # تعريف رؤوس جدول المرفقات
     documents_headers = [
         {'key': 'file', 'label': '', 'template': 'hr/contract/cells/document_icon.html', 'class': 'text-center', 'width': '40', 'searchable': False},
@@ -229,6 +262,8 @@ def contract_detail(request, pk):
         'scheduled_increases': scheduled_increases,
         'pending_increases': pending_increases,
         'applied_increases': applied_increases,
+        'contract_synced_components': contract_synced_components,
+        'manual_components': manual_components,
         'page_title': f'عقد رقم {contract.contract_number}',
         'page_subtitle': f'{contract.employee.get_full_name_ar()} - {contract.employee.employee_number} • من تاريخ {contract.start_date.strftime("%d/%m/%Y")}' + (f' → {contract.end_date.strftime("%d/%m/%Y")}' if contract.end_date else ''),
         'page_icon': 'fas fa-file-contract',
@@ -243,6 +278,71 @@ def contract_detail(request, pk):
     }
     
     return render(request, 'hr/contract/detail.html', context)
+
+
+@login_required
+@require_POST
+def sync_component(request, pk):
+    """مزامنة بند واحد مع مصدره"""
+    
+    try:
+        component = get_object_or_404(SalaryComponent, pk=pk)
+        
+        if component.source_contract_component:
+            source = component.source_contract_component
+            component.name = source.name
+            component.amount = source.amount
+            component.percentage = source.percentage
+            component.formula = source.formula
+            component.save()
+            
+            return JsonResponse({
+                'success': True, 
+                'message': 'تم التزامن بنجاح',
+                'new_amount': str(component.amount)
+            })
+        else:
+            return JsonResponse({
+                'success': False, 
+                'message': 'لا يوجد مصدر للمزامنة'
+            })
+            
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
+
+
+@login_required
+@require_POST
+def sync_contract_components(request, pk):
+    """مزامنة جميع بنود العقد"""
+    
+    try:
+        contract = get_object_or_404(Contract, pk=pk)
+        
+        synced_count = 0
+        components = contract.employee.salary_components.filter(
+            is_from_contract=True, 
+            contract=contract,
+            is_active=True
+        )
+        
+        for component in components:
+            if component.source_contract_component:
+                source = component.source_contract_component
+                component.name = source.name
+                component.amount = source.amount
+                component.percentage = source.percentage
+                component.formula = source.formula
+                component.save()
+                synced_count += 1
+        
+        return JsonResponse({
+            'success': True, 
+            'message': f'تم تزامن {synced_count} بند بنجاح'
+        })
+        
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': str(e)}, status=400)
 
 
 
@@ -336,8 +436,6 @@ def contract_amendment_create(request, pk):
 @login_required
 def get_salary_component_templates(request):
     """API لجلب قوالب مكونات الراتب"""
-    from django.http import JsonResponse
-    from ..models import SalaryComponentTemplate
     
     component_type = request.GET.get('type', 'earning')
     
@@ -360,8 +458,6 @@ def get_salary_component_templates(request):
 @login_required
 def contract_renew(request, pk):
     """تجديد العقد - يفتح form كامل للتعديل"""
-    from datetime import datetime, timedelta, date
-    from ..forms.contract_forms import ContractForm
     old_contract = get_object_or_404(Contract, pk=pk)
     
     if request.method == 'POST':
@@ -394,7 +490,6 @@ def contract_renew(request, pk):
             new_start_date = date.today()
         
         # جلب رقم البصمة من BiometricUserMapping
-        from ..models import BiometricUserMapping
         biometric_mapping = BiometricUserMapping.objects.filter(
             employee=old_contract.employee,
             is_active=True
@@ -508,8 +603,6 @@ def contract_create_increase_schedule(request, pk):
 @require_http_methods(["POST"])
 def contract_increase_action(request, increase_id, action):
     """دالة موحدة لإجراءات الزيادات (تطبيق/إلغاء)"""
-    from ..models import ContractIncrease
-    from django.http import JsonResponse
     
     increase = get_object_or_404(ContractIncrease, pk=increase_id)
     
@@ -634,3 +727,81 @@ def contract_activate(request, pk):
         ],
     }
     return render(request, 'hr/contract/activate_confirm.html', context)
+
+
+@login_required
+@hr_manager_required
+def contract_activation_preview(request, pk):
+    """معاينة تأثير تفعيل العقد على بنود الموظف"""
+    contract = get_object_or_404(Contract, pk=pk)
+    
+    if contract.status != 'draft':
+        return JsonResponse({
+            'success': False,
+            'message': 'العقد مفعّل بالفعل أو في حالة أخرى'
+        })
+    
+    try:
+        # الحصول على معاينة التفعيل
+        preview = ContractActivationService.get_activation_preview(contract)
+        
+        return JsonResponse({
+            'success': True,
+            'preview': preview
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'حدث خطأ في تحليل العقد: {str(e)}'
+        })
+
+
+@login_required
+@hr_manager_required
+def contract_activate_with_components(request, pk):
+    """تفعيل العقد مع نقل البنود المختارة"""
+    contract = get_object_or_404(Contract, pk=pk)
+    
+    if contract.status != 'draft':
+        return JsonResponse({
+            'success': False,
+            'message': 'العقد مفعّل بالفعل أو في حالة أخرى'
+        })
+    
+    if request.method != 'POST':
+        return JsonResponse({
+            'success': False,
+            'message': 'طريقة الطلب غير صحيحة'
+        })
+    
+    try:
+        # الحصول على البنود المختارة للنقل
+        transfer_components = request.POST.getlist('transfer_components', [])
+        transfer_components = [int(id) for id in transfer_components if id.isdigit()]
+        
+        # تفعيل العقد مع نقل البنود
+        success, message, details = ContractActivationService.activate_contract(
+            contract=contract,
+            activated_by=request.user,
+            transfer_components=transfer_components
+        )
+        
+        if success:
+            return JsonResponse({
+                'success': True,
+                'message': message,
+                'details': details,
+                'redirect_url': reverse('hr:contract_detail', args=[pk])
+            })
+        else:
+            return JsonResponse({
+                'success': False,
+                'message': message
+            })
+            
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'message': f'حدث خطأ أثناء تفعيل العقد: {str(e)}'
+        })

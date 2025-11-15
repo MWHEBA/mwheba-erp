@@ -7,6 +7,9 @@ from .attendance import Shift, Attendance
 from .leave import LeaveType, LeaveBalance, Leave
 from .payroll import Payroll, Advance, AdvanceInstallment
 from .payroll_line import PayrollLine
+from .attendance_summary import AttendanceSummary
+from .leave_summary import LeaveSummary
+from .payroll_line import PayrollLine
 from .attendance import *
 from .biometric import *
 from .biometric_mapping import *
@@ -35,6 +38,8 @@ __all__ = [
     'Leave',
     'Payroll',
     'PayrollLine',
+    'AttendanceSummary',
+    'LeaveSummary',
     'PayrollPeriod',
     'PayrollPayment',
     'PayrollPaymentLine',

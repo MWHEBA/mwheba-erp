@@ -8,7 +8,7 @@ from .models import (
     LeaveType, LeaveBalance, Leave,
     Payroll, Advance, AdvanceInstallment,
     SalaryComponent, SalaryComponentTemplate, PayrollLine,
-    ContractSalaryComponent
+    ContractSalaryComponent  # TEMP: سيتم إزالته لاحقاً
 )
 from .models.contract import Contract, ContractAmendment, ContractDocument, ContractIncrease
 

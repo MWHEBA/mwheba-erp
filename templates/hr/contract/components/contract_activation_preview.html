@@ -1,0 +1,557 @@
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+
+<!-- مودال معاينة تفعيل العقد -->
+<div class="modal fade" id="activationPreviewModal" tabindex="-1" aria-labelledby="activationPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="activationPreviewModalLabel">
+                    <i class="fas fa-eye me-2"></i>معاينة تفعيل العقد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body">
+                <div id="previewContent">
+                    <!-- محتوى المعاينة سيتم تحميله هنا -->
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                        <p class="mt-2 text-muted">جاري تحليل تأثير تفعيل العقد...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>إلغاء
+                </button>
+                <button type="button" class="btn btn-success" id="proceedActivation" disabled>
+                    <i class="fas fa-check me-1"></i>متابعة التفعيل
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- قالب محتوى المعاينة -->
+<template id="previewTemplate">
+    <div class="preview-content">
+        <!-- معلومات الموظف -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card border-info">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0">
+                            <i class="fas fa-user me-2"></i>معلومات الموظف
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p><strong>الاسم:</strong> <span class="employee-name"></span></p>
+                                <p><strong>العقد الحالي:</strong> <span class="current-contract"></span></p>
+                            </div>
+                            <div class="col-md-6">
+                                <p><strong>عدد البنود الحالية:</strong> <span class="current-components-count"></span></p>
+                                <p><strong>الراتب الصافي الحالي:</strong> <span class="current-net-salary"></span> ج.م</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التأثير المالي -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card border-success">
+                    <div class="card-header bg-success text-white text-center">
+                        <h6 class="mb-0">المستحقات الجديدة</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h4 class="text-success mb-0 new-earnings">0</h4>
+                        <small class="text-muted">ج.م</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-danger">
+                    <div class="card-header bg-danger text-white text-center">
+                        <h6 class="mb-0">الاستقطاعات الجديدة</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h4 class="text-danger mb-0 new-deductions">0</h4>
+                        <small class="text-muted">ج.م</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card border-primary">
+                    <div class="card-header bg-primary text-white text-center">
+                        <h6 class="mb-0">الراتب الصافي الجديد</h6>
+                    </div>
+                    <div class="card-body text-center">
+                        <h4 class="text-primary mb-0 new-net-salary">0</h4>
+                        <small class="text-muted">ج.م</small>
+                        <div class="mt-2">
+                            <span class="badge salary-change-badge">التغيير: <span class="salary-change">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تأثير البنود -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-exchange-alt me-2"></i>تأثير البنود
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h5 class="text-danger mb-1 will-be-deactivated">0</h5>
+                                    <small class="text-muted">بند سيتم تعطيله</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h5 class="text-success mb-1 will-be-added">0</h5>
+                                    <small class="text-muted">بند سيتم إضافته</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h5 class="text-warning mb-1 transferable-count">0</h5>
+                                    <small class="text-muted">بند قابل للنقل</small>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="border rounded p-3">
+                                    <h5 class="text-info mb-1 expiring-count">0</h5>
+                                    <small class="text-muted">بند منتهي قريباً</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التحذيرات والتوصيات -->
+        <div class="warnings-section" style="display: none;">
+            <div class="card border-warning mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>تحذيرات مهمة
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="warnings-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- البنود القابلة للنقل -->
+        <div class="transferable-section" style="display: none;">
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-arrow-right me-2"></i>البنود القابلة للنقل
+                        <small class="ms-2">(اختر البنود التي تريد نقلها للعقد الجديد)</small>
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="transferable-components-list"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التوصيات -->
+        <div class="recommendations-section" style="display: none;">
+            <div class="card border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>التوصيات
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="recommendations-list"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+class ContractActivationPreview {
+    constructor() {
+        this.modal = document.getElementById('activationPreviewModal');
+        this.previewContent = document.getElementById('previewContent');
+        this.proceedButton = document.getElementById('proceedActivation');
+        this.selectedComponents = [];
+        this.contractId = null;
+    }
+
+    show(contractId) {
+        this.contractId = contractId;
+        this.loadPreview();
+        const modal = new bootstrap.Modal(this.modal);
+        modal.show();
+    }
+
+    async loadPreview() {
+        try {
+            const response = await fetch(`/hr/contracts/${this.contractId}/activation-preview/`);
+            const data = await response.json();
+            
+            if (data.success) {
+                this.renderPreview(data.preview);
+                this.proceedButton.disabled = false;
+            } else {
+                this.showError(data.message || 'حدث خطأ في تحميل المعاينة');
+            }
+        } catch (error) {
+            console.error('Error loading preview:', error);
+            this.showError('حدث خطأ في الاتصال بالخادم');
+        }
+    }
+
+    renderPreview(preview) {
+        const template = document.getElementById('previewTemplate');
+        const content = template.content.cloneNode(true);
+        
+        // ملء معلومات الموظف
+        content.querySelector('.employee-name').textContent = preview.employee.name;
+        content.querySelector('.current-contract').textContent = 
+            preview.employee.current_contract ? 
+            `عقد رقم ${preview.employee.current_contract.contract_number}` : 
+            'لا يوجد عقد نشط';
+        content.querySelector('.current-components-count').textContent = preview.employee.current_components_count;
+        content.querySelector('.current-net-salary').textContent = 
+            this.formatNumber(preview.current_financial.current_net_salary);
+
+        // ملء التأثير المالي
+        content.querySelector('.new-earnings').textContent = 
+            this.formatNumber(preview.new_financial.estimated_earnings);
+        content.querySelector('.new-deductions').textContent = 
+            this.formatNumber(preview.new_financial.estimated_deductions);
+        content.querySelector('.new-net-salary').textContent = 
+            this.formatNumber(preview.new_financial.estimated_net);
+
+        // حساب وعرض التغيير في الراتب
+        const change = preview.financial_change.net_change;
+        const changeElement = content.querySelector('.salary-change');
+        const badgeElement = content.querySelector('.salary-change-badge');
+        
+        changeElement.textContent = `${change >= 0 ? '+' : ''}${this.formatNumber(change)} ج.م`;
+        badgeElement.className = `badge ${change >= 0 ? 'bg-success' : 'bg-danger'}`;
+
+        // ملء تأثير البنود
+        content.querySelector('.will-be-deactivated').textContent = preview.components_impact.will_be_deactivated;
+        content.querySelector('.will-be-added').textContent = preview.components_impact.will_be_added;
+        content.querySelector('.transferable-count').textContent = preview.components_impact.transferable;
+        content.querySelector('.expiring-count').textContent = preview.components_impact.expiring_soon;
+
+        // عرض التحذيرات
+        if (preview.warnings && preview.warnings.length > 0) {
+            this.renderWarnings(content, preview.warnings);
+        }
+
+        // عرض البنود القابلة للنقل
+        if (preview.components_impact.transferable > 0) {
+            this.renderTransferableComponents(content, preview);
+        }
+
+        // عرض التوصيات
+        if (preview.recommendations && preview.recommendations.length > 0) {
+            this.renderRecommendations(content, preview.recommendations);
+        }
+
+        // استبدال المحتوى
+        this.previewContent.innerHTML = '';
+        this.previewContent.appendChild(content);
+    }
+
+    renderWarnings(content, warnings) {
+        const warningsSection = content.querySelector('.warnings-section');
+        const warningsList = content.querySelector('.warnings-list');
+        
+        warnings.forEach(warning => {
+            const alertClass = warning.level === 'warning' ? 'alert-warning' : 'alert-info';
+            const iconClass = warning.level === 'warning' ? 'fas fa-exclamation-triangle' : 'fas fa-info-circle';
+            
+            const warningElement = document.createElement('div');
+            warningElement.className = `alert ${alertClass} mb-2`;
+            warningElement.innerHTML = `
+                <i class="${iconClass} me-2"></i>
+                ${warning.message}
+                ${warning.action_required ? '<span class="badge bg-danger ms-2">يتطلب إجراء</span>' : ''}
+            `;
+            
+            warningsList.appendChild(warningElement);
+        });
+        
+        warningsSection.style.display = 'block';
+    }
+
+    renderTransferableComponents(content, preview) {
+        // هنا سنحتاج لجلب تفاصيل البنود القابلة للنقل من الخادم
+        // سيتم تنفيذها في المرحلة التالية
+        const transferableSection = content.querySelector('.transferable-section');
+        transferableSection.style.display = 'block';
+    }
+
+    renderRecommendations(content, recommendations) {
+        const recommendationsSection = content.querySelector('.recommendations-section');
+        const recommendationsList = content.querySelector('.recommendations-list');
+        
+        recommendations.forEach(rec => {
+            const recElement = document.createElement('div');
+            recElement.className = 'alert alert-success mb-2';
+            recElement.innerHTML = `
+                <h6 class="alert-heading">
+                    <i class="fas fa-lightbulb me-2"></i>${rec.title}
+                </h6>
+                <p class="mb-0">${rec.description}</p>
+            `;
+            
+            recommendationsList.appendChild(recElement);
+        });
+        
+        recommendationsSection.style.display = 'block';
+    }
+
+    showError(message) {
+        this.previewContent.innerHTML = `
+            <div class="alert alert-danger text-center">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                ${message}
+            </div>
+        `;
+        this.proceedButton.disabled = true;
+    }
+
+    formatNumber(number) {
+        return new Intl.NumberFormat('ar-EG').format(number || 0);
+    }
+
+    getSelectedComponents() {
+        return this.selectedComponents;
+    }
+}
+
+// إنشاء مثيل عام
+window.contractActivationPreview = new ContractActivationPreview();
+
+// ربط زر المتابعة
+document.getElementById('proceedActivation').addEventListener('click', function() {
+    // الحصول على البنود المحددة من الدالة الجديدة
+    const selectedComponents = window.getSelectedComponents ? window.getSelectedComponents() : [];
+    console.log('Selected components for transfer:', selectedComponents);
+    
+    // إنشاء قائمة بأسماء البنود المحددة
+    const selectedNames = [];
+    selectedComponents.forEach(id => {
+        const checkbox = document.getElementById(`component_${id}`);
+        if (checkbox) {
+            const label = document.querySelector(`label[for="component_${id}"]`);
+            if (label) {
+                selectedNames.push(label.textContent.trim());
+            }
+        }
+    });
+    
+    const componentsListHtml = selectedNames.length > 0 ? 
+        `<ul class="text-start mt-2">${selectedNames.map(name => `<li>${name}</li>`).join('')}</ul>` : 
+        '<p class="text-muted">لن يتم نقل أي بنود</p>';
+    
+    // تأكيد التفعيل
+    Swal.fire({
+        title: 'تأكيد تفعيل العقد',
+        html: `
+            <div class="text-center">
+                <p>سيتم تفعيل العقد مع نقل <strong>${selectedComponents.length}</strong> بند محدد:</p>
+                ${componentsListHtml}
+                <div class="alert alert-warning mt-3">
+                    <i class="fas fa-exclamation-triangle me-1"></i>هذا الإجراء لا يمكن التراجع عنه!
+                </div>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، فعل العقد',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        width: '500px'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // تنفيذ التفعيل الفعلي
+            activateContractWithComponents(selectedComponents);
+        }
+    });
+});
+
+// دالة تفعيل العقد مع البنود المحددة
+function activateContractWithComponents(selectedComponents) {
+    const form = document.getElementById('contractForm');
+    const formData = new FormData(form);
+    
+    // تحويل البنود المحددة للشكل المطلوب
+    const userSelections = {};
+    selectedComponents.forEach(componentId => {
+        userSelections[componentId] = {
+            "action": "auto_transfer",
+            "reason": "اختيار المستخدم"
+        };
+    });
+    
+    console.log('البنود بالشكل المطلوب:', userSelections);
+    
+    // إضافة البنود المحددة للطلب
+    formData.append('selected_components', JSON.stringify(userSelections));
+    formData.append('action', 'save_activate');
+    
+    // استخدام URL الحالي مباشرة لتجنب مشاكل form.action
+    const actionUrl = window.location.pathname;
+    console.log('استخدام URL:', actionUrl);
+    
+    // طباعة محتويات FormData للتشخيص
+    console.log('محتويات FormData:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+    }
+    
+    console.log('إرسال طلب التفعيل إلى:', actionUrl);
+    console.log('البنود المحددة:', selectedComponents);
+    
+    // عرض مؤشر التحميل
+    Swal.fire({
+        title: 'جاري تفعيل العقد...',
+        text: 'يرجى الانتظار',
+        allowOutsideClick: false,
+        didOpen: () => {
+            Swal.showLoading();
+        }
+    });
+    
+    // إرسال الطلب
+    fetch(actionUrl, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        console.log('استجابة الخادم:', response);
+        console.log('Content-Type:', response.headers.get('content-type'));
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        // التحقق من نوع المحتوى
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            // إذا كان HTML، اقرأ المحتوى لمعرفة السبب
+            return response.text().then(html => {
+                console.log('محتوى HTML المرجع:', html.substring(0, 500));
+                
+                // إذا كان redirect أو صفحة نجاح، اعتبرها نجاح
+                if (html.includes('contract_detail') || html.includes('تم بنجاح')) {
+                    return {
+                        success: true,
+                        message: 'تم تفعيل العقد بنجاح',
+                        redirect_url: '/hr/contracts/'
+                    };
+                }
+                
+                throw new Error('الخادم لم يرجع JSON - ربما هناك خطأ في الصفحة');
+            });
+        }
+        
+        return response.json();
+    })
+    .then(data => {
+        Swal.close();
+        console.log('بيانات الاستجابة:', data);
+        
+        if (data.success) {
+            Swal.fire({
+                title: 'تم بنجاح!',
+                text: data.summary || data.message || 'تم تفعيل العقد بنجاح',
+                icon: 'success',
+                confirmButtonText: 'موافق'
+            }).then(() => {
+                // إعادة توجيه أو إعادة تحميل
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.reload();
+                }
+            });
+        } else {
+            Swal.fire({
+                title: 'خطأ!',
+                text: data.message || 'حدث خطأ في تفعيل العقد',
+                icon: 'error',
+                confirmButtonText: 'موافق'
+            });
+        }
+    })
+    .catch(error => {
+        Swal.close();
+        console.error('خطأ في تفعيل العقد:', error);
+        
+        let errorMessage = 'حدث خطأ في الاتصال بالخادم';
+        if (error.message.includes('404')) {
+            errorMessage = 'الصفحة غير موجودة - تحقق من URL';
+        } else if (error.message.includes('JSON')) {
+            errorMessage = 'خطأ في تحليل استجابة الخادم';
+        }
+        
+        Swal.fire({
+            title: 'خطأ في الاتصال!',
+            text: errorMessage,
+            icon: 'error',
+            confirmButtonText: 'موافق'
+        });
+    });
+}
+</script>
+
+<style>
+.preview-content .card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.preview-content .border {
+    border-color: #dee2e6 !important;
+}
+
+.salary-change-badge {
+    font-size: 0.75rem;
+}
+
+.transferable-components-list .form-check {
+    padding: 0.5rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.transferable-components-list .form-check:hover {
+    background-color: #f8f9fa;
+}
+</style>

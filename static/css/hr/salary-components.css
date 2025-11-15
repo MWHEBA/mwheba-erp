@@ -108,6 +108,31 @@
     font-size: 0.9rem;
 }
 
+/* Copy Indicator Button (similar to formula-variables-btn) */
+.copy-input-wrapper {
+    position: relative;
+    margin-bottom: 0.25rem;
+}
+
+.copy-indicator-btn {
+    position: absolute;
+    left: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
+    border: none;
+    padding: 4px 8px;
+    color: var(--bs-info);
+    cursor: default;
+    border-radius: 4px;
+    z-index: 10;
+    font-size: 0.9rem;
+}
+
+.copy-input-wrapper .has-copy-icon {
+    padding-left: 35px;
+}
+
 /* Variables Dropdown */
 .variables-dropdown {
     position: absolute;

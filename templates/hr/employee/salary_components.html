@@ -3,22 +3,190 @@
 {% load i18n %}
 {% load widget_tweaks %}
 {% load pricing_filters %}
+{% load utils_extras %}
 
 {% block extra_css %}
 <style>
+    /* بطاقات البنود */
     .component-card {
-        border-right: 4px solid;
-        transition: all 0.3s ease;
+        border-right: 4px solid var(--border-color);
+        transition: all var(--transition-speed) var(--transition-function);
+        margin-bottom: var(--spacing-4);
+        background: var(--bg-card);
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow-sm);
     }
+    
     .component-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        box-shadow: var(--card-shadow);
     }
+    
     .component-card.earning {
-        border-right-color: #28a745;
+        border-right-color: var(--success-color);
     }
+    
     .component-card.deduction {
-        border-right-color: #dc3545;
+        border-right-color: var(--danger-color);
+    }
+    
+    /* تنسيق تاريخ إلغاء التنشيط */
+    .deactivation-date {
+        font-size: 0.875rem;
+        line-height: 1.4;
+    }
+    
+    .deactivation-date .date-badge {
+        display: inline-block;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .deactivation-date .date-badge.today {
+        background-color: var(--warning-soft);
+        color: var(--warning-color);
+    }
+    
+    .deactivation-date .date-badge.future {
+        background-color: var(--info-soft);
+        color: var(--info-color);
+    }
+    
+    .deactivation-date .date-badge.past {
+        background-color: var(--secondary-soft);
+        color: var(--secondary-color);
+    }
+    
+    
+    /* التنبيهات المخصصة */
+    .alert-info-custom {
+        background-color: var(--info-soft);
+        border: 1px solid var(--info-color);
+        color: var(--info-color);
+        border-right: 4px solid var(--info-color);
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius-sm);
+        margin-bottom: var(--spacing-4);
+    }
+    
+    .alert-warning-custom {
+        background-color: var(--warning-soft);
+        border: 1px solid var(--warning-color);
+        color: var(--warning-color);
+        border-right: 4px solid var(--warning-color);
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius-sm);
+        margin-bottom: var(--spacing-4);
+    }
+    
+    
+    /* الشارات */
+    .badge-source {
+        font-size: 0.7rem;
+        font-weight: var(--font-weight-medium);
+    }
+    
+    .badge-calculation {
+        font-size: 0.7rem;
+        font-weight: var(--font-weight-medium);
+    }
+    
+    /* شارات الانتهاء والتجديد */
+    .expiry-badge, .renewable-badge {
+        position: absolute;
+        top: var(--spacing-2);
+        left: var(--spacing-2);
+        font-size: 0.7rem;
+        font-weight: var(--font-weight-medium);
+        z-index: 10;
+    }
+    
+    
+    /* تحسين الأزرار */
+    .btn-group-sm .btn {
+        font-size: 0.75rem;
+        padding: var(--spacing-1) var(--spacing-2);
+    }
+    
+    /* تحسين الجداول */
+    .table-responsive {
+        border-radius: var(--border-radius);
+        overflow: hidden;
+    }
+    
+    .table th {
+        background: var(--bg-light);
+        color: var(--text-color);
+        font-weight: var(--font-weight-bold);
+        border-bottom: 2px solid var(--border-color);
+    }
+    
+    /* رسالة عدم وجود بنود */
+    .text-center.py-5 {
+        padding: var(--spacing-12) var(--spacing-4) !important;
+        background: var(--bg-card);
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow-sm);
+        margin: var(--spacing-6) 0;
+    }
+    
+    .text-center.py-5 h4 {
+        color: var(--text-medium);
+        font-weight: var(--font-weight-bold);
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .text-center.py-5 p {
+        color: var(--text-light);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    /* الشارات الناعمة */
+    .bg-success-soft {
+        background-color: var(--success-soft) !important;
+        border: 1px solid var(--success-light);
+    }
+    
+    .bg-danger-soft {
+        background-color: var(--danger-soft) !important;
+        border: 1px solid var(--danger-light);
+    }
+    
+    .bg-info-soft {
+        background-color: var(--info-soft) !important;
+        border: 1px solid var(--info-light);
+    }
+    
+    .bg-warning-soft {
+        background-color: var(--warning-soft) !important;
+        border: 1px solid var(--warning-light);
+    }
+    
+    /* تحسين hover للجداول */
+    .table-hover tbody tr:hover {
+        background-color: var(--gray-50);
+        transition: background-color var(--transition-speed);
+    }
+    
+    /* تحسين الأزرار الصغيرة */
+    .btn-sm {
+        font-size: var(--font-size-sm);
+        padding: var(--spacing-1) var(--spacing-3);
+        border-radius: var(--border-radius-sm);
+        font-weight: var(--font-weight-medium);
+    }
+    
+    /* تحسين العناوين */
+    .source-header h5 {
+        font-size: 1.1rem;
+        font-weight: var(--font-weight-bold);
+    }
+    
+    .source-header small {
+        font-size: 0.8rem;
+        opacity: 0.8;
     }
 </style>
 {% endblock %}
@@ -27,8 +195,8 @@
 <div class="container-fluid">
     <!-- Page Header -->
     {% include "shared/page_header.html" %}
-    
-    <!-- الإحصائيات -->
+
+    <!-- الإحصائيات المالية -->
     <div class="section-container">
         <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>ملخص الراتب</h5>
         <div class="row">
@@ -40,7 +208,7 @@
                             <i class="fas fa-money-bill-wave"></i>
                         </div>
                         <div class="stats-card-title">الراتب الأساسي</div>
-                        <div class="stats-card-value">{{ salary_summary.basic_salary|remove_trailing_zeros }}</div>
+                        <div class="stats-card-value">{{ salary_summary.basic_salary|smart_float }}</div>
                         <div class="stats-card-unit">ج.م</div>
                     </div>
                 </div>
@@ -54,7 +222,7 @@
                             <i class="fas fa-plus-circle"></i>
                         </div>
                         <div class="stats-card-title">إجمالي المستحقات</div>
-                        <div class="stats-card-value">{{ salary_summary.total_earnings|remove_trailing_zeros }}</div>
+                        <div class="stats-card-value">{{ salary_summary.total_earnings|smart_float }}</div>
                         <div class="stats-card-unit">ج.م</div>
                     </div>
                 </div>
@@ -68,7 +236,7 @@
                             <i class="fas fa-minus-circle"></i>
                         </div>
                         <div class="stats-card-title">إجمالي الاستقطاعات</div>
-                        <div class="stats-card-value">{{ salary_summary.total_deductions|remove_trailing_zeros }}</div>
+                        <div class="stats-card-value">{{ salary_summary.total_deductions|smart_float }}</div>
                         <div class="stats-card-unit">ج.م</div>
                     </div>
                 </div>
@@ -82,7 +250,7 @@
                             <i class="fas fa-wallet"></i>
                         </div>
                         <div class="stats-card-title">صافي الراتب</div>
-                        <div class="stats-card-value">{{ salary_summary.net_salary|remove_trailing_zeros }}</div>
+                        <div class="stats-card-value">{{ salary_summary.net_salary|smart_float }}</div>
                         <div class="stats-card-unit">ج.م</div>
                     </div>
                 </div>
@@ -90,141 +258,489 @@
         </div>
     </div>
 
-    <!-- المستحقات -->
+    <!-- بنود العقد الثابتة -->
+    {% if contract_components %}
     <div class="section-container">
-        <h5 class="section-title"><i class="fas fa-plus-circle me-2 text-success"></i>المستحقات ({{ earnings.count }})</h5>
-        {% if earnings %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-file-contract me-2"></i>بنود العقد الثابتة
+                <small class="text-muted ms-2">({{ contract_components.count }} بند)</small>
+            </h5>
+            <span class="badge bg-light text-muted">للقراءة فقط</span>
+        </div>
+        <div>
+            <div class="alert alert-info-custom">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>هذه البنود مرتبطة بالعقد ولا يمكن تعديلها من هنا.</strong>
+                لتعديل هذه البنود، يجب تعديل العقد أو إنشاء عقد جديد.
+            </div>
             <div class="row">
-                    {% for component in earnings %}
-                    <div class="col-md-6 mb-3">
-                        <div class="card component-card earning">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1">{{ component.name }}</h6>
-                                        <small class="text-muted">{{ component.code }}</small>
-                                        {% if component.calculation_method == 'fixed' %}
-                                            <span class="badge bg-primary badge-calculation ms-2">ثابت</span>
-                                        {% elif component.calculation_method == 'percentage' %}
-                                            <span class="badge bg-info badge-calculation ms-2">نسبة {{ component.percentage|remove_trailing_zeros }}%</span>
-                                        {% elif component.calculation_method == 'formula' %}
-                                            <span class="badge bg-warning badge-calculation ms-2">صيغة</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="text-end">
-                                        <h5 class="text-success mb-0">{{ component.amount|remove_trailing_zeros }} ج.م</h5>
-                                        <div class="btn-group btn-group-sm mt-2">
-                                            <button class="btn btn-outline-primary" onclick="editComponent({{ component.id }})">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
-                                                <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
-                                            </button>
-                                        </div>
-                                    </div>
+                {% for component in contract_components %}
+                <div class="col-md-6 mb-3">
+                    <div class="card component-card {{ component.component_type }} position-relative">
+                        
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ component.name }}</h6>
+                                    <span class="badge bg-primary badge-source ms-2">{{ component.get_source_display }}</span>
+                                    {% if component.calculation_method == 'fixed' %}
+                                        <span class="badge bg-secondary badge-calculation ms-1">ثابت</span>
+                                    {% elif component.calculation_method == 'percentage' %}
+                                        <span class="badge bg-info badge-calculation ms-1">نسبة {{ component.percentage|smart_float }}%</span>
+                                    {% elif component.calculation_method == 'formula' %}
+                                        <span class="badge bg-warning badge-calculation ms-1">صيغة</span>
+                                    {% endif %}
                                 </div>
-                                {% if component.notes %}
-                                <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                                <div class="text-end">
+                                    <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
+                                        {{ component.amount|smart_float }} ج.م
+                                    </h5>
+                                    {% if component.calculation_method == 'formula' and component.formula %}
+                                    <small class="text-muted d-block">
+                                        <i class="fas fa-calculator me-1"></i>{{ component.formula }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% if component.notes %}
+                            <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if component.effective_from %}
+                                <small class="text-info d-block">
+                                    <i class="fas fa-calendar-plus me-1"></i>
+                                    بدأ في: {{ component.effective_from|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                                {% if component.effective_to %}
+                                <small class="text-warning d-block">
+                                    <i class="fas fa-calendar-times me-1"></i>
+                                    ينتهي في: {{ component.effective_to|date:"d/m/Y" }}
+                                </small>
+                                {% else %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-infinity me-1"></i>
+                                    دائم
+                                </small>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
+                </div>
+                {% endfor %}
             </div>
-        {% else %}
-            <div class="text-center text-muted py-4">
-                <i class="fas fa-inbox fa-3x mb-3"></i>
-                <p>لا توجد مستحقات حالياً</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
+    {% endif %}
 
-    <!-- الاستقطاعات -->
+    <!-- البنود المؤقتة -->
+    {% if temporary_components %}
     <div class="section-container">
-        <h5 class="section-title"><i class="fas fa-minus-circle me-2 text-danger"></i>الاستقطاعات ({{ deductions.count }})</h5>
-        {% if deductions %}
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-clock me-2"></i>البنود المؤقتة
+                <small class="text-muted ms-2">({{ temporary_components.count }} بند)</small>
+            </h5>
+        </div>
+        <div>
+            <div class="alert alert-warning-custom">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>هذه البنود لها تاريخ انتهاء محدد.</strong>
+                تأكد من مراجعة تواريخ الانتهاء وتجديدها عند الحاجة.
+            </div>
             <div class="row">
-                    {% for component in deductions %}
-                    <div class="col-md-6 mb-3">
-                        <div class="card component-card deduction">
-                            <div class="card-body">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div>
-                                        <h6 class="mb-1">{{ component.name }}</h6>
-                                        <small class="text-muted">{{ component.code }}</small>
-                                        {% if component.calculation_method == 'fixed' %}
-                                            <span class="badge bg-primary badge-calculation ms-2">ثابت</span>
-                                        {% elif component.calculation_method == 'percentage' %}
-                                            <span class="badge bg-info badge-calculation ms-2">نسبة {{ component.percentage|remove_trailing_zeros }}%</span>
-                                        {% elif component.calculation_method == 'formula' %}
-                                            <span class="badge bg-warning badge-calculation ms-2">صيغة</span>
-                                        {% endif %}
-                                    </div>
-                                    <div class="text-end">
-                                        <h5 class="text-danger mb-0">{{ component.amount|remove_trailing_zeros }} ج.م</h5>
-                                        <div class="btn-group btn-group-sm mt-2">
-                                            <button class="btn btn-outline-primary" onclick="editComponent({{ component.id }})">
-                                                <i class="fas fa-edit"></i>
-                                            </button>
-                                            <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
-                                                <i class="fas fa-trash"></i>
-                                            </button>
-                                            <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
-                                                <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
-                                            </button>
-                                        </div>
+                {% for component in temporary_components %}
+                <div class="col-md-6 mb-3">
+                    <div class="card component-card {{ component.component_type }} position-relative">
+                        {% if component.needs_renewal %}
+                        <span class="badge bg-danger renewable-badge">
+                            <i class="fas fa-exclamation me-1"></i>يحتاج تجديد
+                        </span>
+                        {% endif %}
+                        
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ component.name }}</h6>
+                                    <span class="badge bg-warning badge-source ms-2">{{ component.get_source_display }}</span>
+                                    {% if component.calculation_method == 'fixed' %}
+                                        <span class="badge bg-secondary badge-calculation ms-1">ثابت</span>
+                                    {% elif component.calculation_method == 'percentage' %}
+                                        <span class="badge bg-info badge-calculation ms-1">نسبة {{ component.percentage|smart_float }}%</span>
+                                    {% elif component.calculation_method == 'formula' %}
+                                        <span class="badge bg-warning badge-calculation ms-1">صيغة</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
+                                        {{ component.amount|smart_float }} ج.م
+                                    </h5>
+                                    <div class="btn-group btn-group-sm mt-2">
+                                        <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                            <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                        </button>
                                     </div>
                                 </div>
-                                {% if component.notes %}
-                                <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            </div>
+                            {% if component.notes %}
+                            <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if component.effective_from %}
+                                <small class="text-info d-block">
+                                    <i class="fas fa-calendar-plus me-1"></i>
+                                    بدأ في: {{ component.effective_from|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                                {% if component.effective_to %}
+                                <small class="text-warning d-block">
+                                    <i class="fas fa-calendar-times me-1"></i>
+                                    ينتهي في: {{ component.effective_to|date:"d/m/Y" }}
+                                </small>
+                                {% else %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-infinity me-1"></i>
+                                    دائم
+                                </small>
                                 {% endif %}
                             </div>
                         </div>
                     </div>
-                    {% endfor %}
+                </div>
+                {% endfor %}
             </div>
-        {% else %}
-            <div class="text-center text-muted py-4">
-                <i class="fas fa-inbox fa-3x mb-3"></i>
-                <p>لا توجد استقطاعات حالياً</p>
-            </div>
-        {% endif %}
+        </div>
     </div>
+    {% endif %}
+
+    <!-- البنود الشخصية -->
+    {% if personal_components %}
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-user me-2"></i>البنود الشخصية
+                <small class="text-muted ms-2">({{ personal_components.count }} بند)</small>
+            </h5>
+            <span class="badge bg-info">شخصي</span>
+        </div>
+        <div>
+            <div class="row">
+                {% for component in personal_components %}
+                <div class="col-md-6 mb-3">
+                    <div class="card component-card {{ component.component_type }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ component.name }}</h6>
+                                    <span class="badge bg-info badge-source ms-2">{{ component.get_source_display }}</span>
+                                    {% if component.calculation_method == 'fixed' %}
+                                        <span class="badge bg-secondary badge-calculation ms-1">ثابت</span>
+                                    {% elif component.calculation_method == 'percentage' %}
+                                        <span class="badge bg-info badge-calculation ms-1">نسبة {{ component.percentage|smart_float }}%</span>
+                                    {% elif component.calculation_method == 'formula' %}
+                                        <span class="badge bg-warning badge-calculation ms-1">صيغة</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
+                                        {{ component.amount|smart_float }} ج.م
+                                    </h5>
+                                    <div class="btn-group btn-group-sm mt-2">
+                                        <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                            <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if component.notes %}
+                            <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if component.effective_from %}
+                                <small class="text-info d-block">
+                                    <i class="fas fa-calendar-plus me-1"></i>
+                                    بدأ في: {{ component.effective_from|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                                {% if component.effective_to %}
+                                <small class="text-warning d-block">
+                                    <i class="fas fa-calendar-times me-1"></i>
+                                    ينتهي في: {{ component.effective_to|date:"d/m/Y" }}
+                                </small>
+                                {% else %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-infinity me-1"></i>
+                                    دائم
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- البنود الاستثنائية -->
+    {% if exceptional_components %}
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-star me-2"></i>البنود الاستثنائية
+                <small class="text-muted ms-2">({{ exceptional_components.count }} بند)</small>
+            </h5>
+            <span class="badge bg-success">استثنائي</span>
+        </div>
+        <div>
+            <div class="row">
+                {% for component in exceptional_components %}
+                <div class="col-md-6 mb-3">
+                    <div class="card component-card {{ component.component_type }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ component.name }}</h6>
+                                    <span class="badge bg-success badge-source ms-2">{{ component.get_source_display }}</span>
+                                    {% if component.calculation_method == 'fixed' %}
+                                        <span class="badge bg-secondary badge-calculation ms-1">ثابت</span>
+                                    {% elif component.calculation_method == 'percentage' %}
+                                        <span class="badge bg-info badge-calculation ms-1">نسبة {{ component.percentage|smart_float }}%</span>
+                                    {% elif component.calculation_method == 'formula' %}
+                                        <span class="badge bg-warning badge-calculation ms-1">صيغة</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
+                                        {{ component.amount|smart_float }} ج.م
+                                    </h5>
+                                    <div class="btn-group btn-group-sm mt-2">
+                                        <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                            <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if component.notes %}
+                            <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if component.effective_from %}
+                                <small class="text-info d-block">
+                                    <i class="fas fa-calendar-plus me-1"></i>
+                                    بدأ في: {{ component.effective_from|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                                {% if component.effective_to %}
+                                <small class="text-warning d-block">
+                                    <i class="fas fa-calendar-times me-1"></i>
+                                    ينتهي في: {{ component.effective_to|date:"d/m/Y" }}
+                                </small>
+                                {% else %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-infinity me-1"></i>
+                                    دائم
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- تعديلات الراتب -->
+    {% if adjustment_components %}
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-adjust me-2"></i>تعديلات الراتب
+                <small class="text-muted ms-2">({{ adjustment_components.count }} بند)</small>
+            </h5>
+            <span class="badge bg-secondary">تعديل</span>
+        </div>
+        <div>
+            <div class="row">
+                {% for component in adjustment_components %}
+                <div class="col-md-6 mb-3">
+                    <div class="card component-card {{ component.component_type }}">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ component.name }}</h6>
+                                    <span class="badge bg-secondary badge-source ms-2">{{ component.get_source_display }}</span>
+                                    {% if component.calculation_method == 'fixed' %}
+                                        <span class="badge bg-secondary badge-calculation ms-1">ثابت</span>
+                                    {% elif component.calculation_method == 'percentage' %}
+                                        <span class="badge bg-info badge-calculation ms-1">نسبة {{ component.percentage|smart_float }}%</span>
+                                    {% elif component.calculation_method == 'formula' %}
+                                        <span class="badge bg-warning badge-calculation ms-1">صيغة</span>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end">
+                                    <h5 class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %} mb-0">
+                                        {{ component.amount|smart_float }} ج.م
+                                    </h5>
+                                    <div class="btn-group btn-group-sm mt-2">
+                                        <button class="btn btn-outline-danger" onclick="deleteComponent({{ component.id }})">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary" onclick="toggleActive({{ component.id }})">
+                                            <i class="fas fa-{% if component.is_active %}eye-slash{% else %}eye{% endif %}"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if component.notes %}
+                            <p class="text-muted small mb-0 mt-2">{{ component.notes }}</p>
+                            {% endif %}
+                            <div class="mt-2">
+                                {% if component.effective_from %}
+                                <small class="text-info d-block">
+                                    <i class="fas fa-calendar-plus me-1"></i>
+                                    بدأ في: {{ component.effective_from|date:"d/m/Y" }}
+                                </small>
+                                {% endif %}
+                                {% if component.effective_to %}
+                                <small class="text-warning d-block">
+                                    <i class="fas fa-calendar-times me-1"></i>
+                                    ينتهي في: {{ component.effective_to|date:"d/m/Y" }}
+                                </small>
+                                {% else %}
+                                <small class="text-success d-block">
+                                    <i class="fas fa-infinity me-1"></i>
+                                    دائم
+                                </small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- البنود غير النشطة -->
     {% if inactive_components %}
     <div class="section-container">
-        <h5 class="section-title"><i class="fas fa-archive me-2 text-secondary"></i>البنود غير النشطة ({{ inactive_components.count }})</h5>
-        <div class="card">
-            <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-archive me-2"></i>البنود غير النشطة
+                <small class="text-muted ms-2">({{ inactive_components.count }} بند)</small>
+            </h5>
+            <span class="badge bg-secondary">غير نشط</span>
+        </div>
+        <div>
             <div class="table-responsive">
-                <table class="table table-sm">
+                <table class="table table-hover mb-0">
                     <thead>
                         <tr>
-                            <th>الاسم</th>
-                            <th>النوع</th>
-                            <th>المبلغ</th>
-                            <th>الإجراءات</th>
+                            <th width="25%">الاسم</th>
+                            <th width="12%">النوع</th>
+                            <th width="13%">المبلغ</th>
+                            <th width="15%">تاريخ البداية</th>
+                            <th width="15%">تاريخ إلغاء التنشيط</th>
+                            <th width="20%">الإجراءات</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for component in inactive_components %}
                         <tr>
-                            <td>{{ component.name }}</td>
+                            <td>
+                                <div>
+                                    <strong>{{ component.name }}</strong>
+                                </div>
+                            </td>
                             <td>
                                 {% if component.component_type == 'earning' %}
-                                    <span class="badge bg-success">مستحق</span>
+                                    <span class="badge bg-success-soft text-success">
+                                        <i class="fas fa-plus-circle me-1"></i>مستحق
+                                    </span>
                                 {% else %}
-                                    <span class="badge bg-danger">استقطاع</span>
+                                    <span class="badge bg-danger-soft text-danger">
+                                        <i class="fas fa-minus-circle me-1"></i>استقطاع
+                                    </span>
                                 {% endif %}
                             </td>
-                            <td>{{ component.amount|remove_trailing_zeros }} ج.م</td>
                             <td>
-                                <button class="btn btn-sm btn-outline-success" onclick="toggleActive({{ component.id }})">
-                                    <i class="fas fa-eye"></i> تفعيل
+                                <strong class="{% if component.component_type == 'earning' %}text-success{% else %}text-danger{% endif %}">
+                                    {{ component.amount|smart_float }} ج.م
+                                </strong>
+                                {% if component.calculation_method == 'formula' and component.formula %}
+                                <br><small class="text-muted">
+                                    <i class="fas fa-calculator me-1"></i>{{ component.formula }}
+                                </small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if component.effective_from %}
+                                    <div class="text-center">
+                                        <i class="fas fa-calendar-plus text-info me-1"></i>
+                                        <span class="fw-medium">{{ component.effective_from|date:"d/m/Y" }}</span>
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-minus mb-1"></i>
+                                        <br>
+                                        <small>غير محدد</small>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if component.effective_to %}
+                                    <div class="deactivation-date" {% if component.notes %}title="{{ component.notes }}" data-bs-toggle="tooltip"{% endif %}>
+                                        <div class="d-flex align-items-center mb-1">
+                                            <i class="fas fa-calendar-times me-2 text-muted"></i>
+                                            <span class="fw-medium">{{ component.effective_to|date:"d/m/Y" }}</span>
+                                            {% if component.notes %}
+                                                <i class="fas fa-info-circle ms-2 text-info" title="{{ component.notes }}"></i>
+                                            {% endif %}
+                                        </div>
+                                        <div class="d-flex align-items-center gap-2">
+                                            {% now "Y-m-d" as today %}
+                                            {% if component.effective_to|date:"Y-m-d" == today %}
+                                                <span class="date-badge today">
+                                                    <i class="fas fa-exclamation-triangle me-1"></i>اليوم
+                                                </span>
+                                            {% elif component.effective_to|date:"Y-m-d" > today %}
+                                                <span class="date-badge future">
+                                                    <i class="fas fa-clock me-1"></i>مستقبلي
+                                                </span>
+                                            {% else %}
+                                                <span class="date-badge past">
+                                                    <i class="fas fa-check me-1"></i>منتهي
+                                                </span>
+                                            {% endif %}
+                                            <small class="text-muted">{{ component.get_source_display }}</small>
+                                        </div>
+                                    </div>
+                                {% else %}
+                                    <div class="text-center text-muted">
+                                        <i class="fas fa-minus mb-1"></i>
+                                        <br>
+                                        <small>غير محدد</small>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-success" onclick="toggleActive({{ component.id }})" title="تفعيل البند">
+                                    <i class="fas fa-eye me-1"></i>تفعيل
                                 </button>
                             </td>
                         </tr>
@@ -232,38 +748,40 @@
                     </tbody>
                 </table>
             </div>
-            </div>
         </div>
+    </div>
+    {% endif %}
+
+    <!-- رسالة عدم وجود بنود -->
+    {% if not contract_components and not temporary_components and not personal_components and not exceptional_components and not adjustment_components %}
+    <div class="text-center py-5">
+        <i class="fas fa-inbox fa-4x text-muted mb-3"></i>
+        <h4 class="text-muted">لا توجد بنود راتب</h4>
+        <p class="text-muted">ابدأ بإضافة بنود جديدة أو إنشاء عقد للموظف</p>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#unifiedComponentModal">
+            <i class="fas fa-plus me-2"></i>إضافة بند جديد
+        </button>
     </div>
     {% endif %}
 </div>
 
-<!-- Modal: إضافة بند -->
-<div class="modal fade" id="addComponentModal" tabindex="-1">
+<!-- Modal: النظام الموحد الجديد -->
+<div class="modal fade" id="unifiedComponentModal" tabindex="-1">
     <div class="modal-dialog modal-lg">
-        <div class="modal-content" id="addModalContent">
+        <div class="modal-content" id="unifiedModalContent">
             <!-- سيتم تحميل المحتوى عبر AJAX -->
         </div>
     </div>
 </div>
 
-<!-- Modal: إضافة سريعة -->
-<div class="modal fade" id="quickAddModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content" id="quickAddModalContent">
-            <!-- سيتم تحميل المحتوى عبر AJAX -->
-        </div>
-    </div>
-</div>
+<style>
+/* تنسيقات بسيطة للمودال */
+.modal {
+    outline: none;
+}
+</style>
 
-<!-- Modal: تعديل -->
-<div class="modal fade" id="editModal" tabindex="-1">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content" id="editModalContent">
-            <!-- سيتم تحميل المحتوى عبر AJAX -->
-        </div>
-    </div>
-</div>
+
 
 <!-- Modal: حذف -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
@@ -277,62 +795,105 @@
 
 {% block extra_js %}
 <script>
-// فتح مودال الإضافة
+// دالة فتح المودال من الهيدر
+function openUnifiedModal() {
+    loadUnifiedModal();
+}
+
+// دالة تحميل المودال
+function loadUnifiedModal() {
+    const modalContent = document.getElementById('unifiedModalContent');
+    const modalElement = document.getElementById('unifiedComponentModal');
+    
+    if (!modalContent || !modalElement) {
+        console.error('لم يتم العثور على عناصر المودال');
+        return;
+    }
+    
+    fetch('{% url "hr:unified_salary_component_create" employee.id %}')
+        .then(response => response.text())
+        .then(html => {
+            modalContent.innerHTML = html;
+            
+            // تشغيل الـ scripts الموجودة في المحتوى المُحمّل
+            const scripts = modalContent.querySelectorAll('script');
+            scripts.forEach(script => {
+                try {
+                    // إنشاء script element جديد وإضافته للـ DOM
+                    const newScript = document.createElement('script');
+                    
+                    // نسخ المحتوى مع تعديل المتغيرات المكررة
+                    let scriptContent = script.textContent;
+                    
+                    // استبدال تعريف المتغيرات المكررة
+                    scriptContent = scriptContent.replace(/const templatesData = /g, 'window.templatesData = window.templatesData || ');
+                    scriptContent = scriptContent.replace(/const employeeId = /g, 'window.employeeId = window.employeeId || ');
+                    scriptContent = scriptContent.replace(/const isEdit = /g, 'window.isEdit = window.isEdit !== undefined ? window.isEdit : ');
+                    
+                    newScript.textContent = scriptContent;
+                    document.head.appendChild(newScript);
+                    
+                    // إزالة الـ script بعد التنفيذ لتجنب التراكم
+                    setTimeout(() => {
+                        if (newScript.parentNode) {
+                            newScript.parentNode.removeChild(newScript);
+                        }
+                    }, 100);
+                    
+                } catch (error) {
+                    console.error('خطأ في تنفيذ script:', error);
+                }
+            });
+            
+            // إنشاء المودال وعرضه
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('خطأ في تحميل المودال:', error);
+        });
+}
+
+// إعداد المودال عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function() {
-    const addBtn = document.querySelector('[data-bs-target="#addComponentModal"]');
-    if (addBtn) {
-        addBtn.addEventListener('click', function() {
-            fetch('{% url "hr:salary_component_create" employee.id %}')
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('addModalContent').innerHTML = html;
-                    
-                    // تشغيل الـ scripts الموجودة في المحتوى المُحمّل
-                    const scripts = document.getElementById('addModalContent').querySelectorAll('script');
-                    scripts.forEach(script => {
-                        const newScript = document.createElement('script');
-                        newScript.textContent = script.textContent;
-                        document.body.appendChild(newScript);
-                        document.body.removeChild(newScript);
-                    });
-                    
-                    new bootstrap.Modal(document.getElementById('addComponentModal')).show();
-                });
+    // تفعيل tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    const modalElement = document.getElementById('unifiedComponentModal');
+    const modalContent = document.getElementById('unifiedModalContent');
+    
+    if (modalElement && modalContent) {
+        // تنظيف المحتوى عند إغلاق المودال
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            modalContent.innerHTML = '';
+            // إعادة تعيين المتغيرات لتجنب التكرار
+            window.unifiedManagerInitialized = false;
+            delete window.templatesData;
+            delete window.employeeId;
+            delete window.isEdit;
+            delete window.UnifiedSalaryComponentManager;
+        });
+        
+        // تركيز على أول حقل عند فتح المودال
+        modalElement.addEventListener('shown.bs.modal', function() {
+            const firstInput = modalContent.querySelector('input, select, textarea');
+            if (firstInput) {
+                firstInput.focus();
+            }
         });
     }
-
-    const quickAddBtn = document.querySelector('[data-bs-target="#quickAddModal"]');
-    if (quickAddBtn) {
-        quickAddBtn.addEventListener('click', function() {
-            fetch('{% url "hr:salary_component_quick_add" employee.id %}')
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('quickAddModalContent').innerHTML = html;
-                    new bootstrap.Modal(document.getElementById('quickAddModal')).show();
-                });
+    
+    // ربط الأزرار الموجودة في الصفحة
+    const unifiedBtn = document.querySelector('[data-bs-target="#unifiedComponentModal"]');
+    if (unifiedBtn) {
+        unifiedBtn.addEventListener('click', function() {
+            loadUnifiedModal();
         });
     }
 });
-
-// تعديل بند
-function editComponent(id) {
-    fetch(`{% url "hr:salary_component_edit" employee.id 0 %}`.replace('0', id))
-        .then(response => response.text())
-        .then(html => {
-            document.getElementById('editModalContent').innerHTML = html;
-            
-            // تشغيل الـ scripts
-            const scripts = document.getElementById('editModalContent').querySelectorAll('script');
-            scripts.forEach(script => {
-                const newScript = document.createElement('script');
-                newScript.textContent = script.textContent;
-                document.body.appendChild(newScript);
-                document.body.removeChild(newScript);
-            });
-            
-            new bootstrap.Modal(document.getElementById('editModal')).show();
-        });
-}
 
 // حذف بند
 function deleteComponent(id) {
@@ -368,4 +929,5 @@ function toggleActive(id) {
     });
 }
 </script>
+
 {% endblock %}

@@ -8,6 +8,7 @@ from .employee_views import (
     employee_detail,
     employee_form,
     employee_delete,
+    check_component_code,
 )
 from .employee_import import (
     export_employees,
@@ -69,16 +70,16 @@ from .contract_views import (
     contract_list,
     contract_detail,
     contract_activate,
+    sync_component,
+    sync_contract_components,
     contract_document_upload,
     contract_document_delete,
     contract_amendment_create,
+    contract_activation_preview,
+    contract_activate_with_components,
 )
 from .payroll_advance_views import (
     payroll_list,
-    payroll_run_list,
-    payroll_run_process,
-    payroll_run_detail,
-    payroll_run_delete,
     payroll_detail,
     payroll_edit_lines,
     payroll_approve,
@@ -88,11 +89,9 @@ from .payroll_advance_views import (
     advance_detail,
     advance_approve,
     advance_reject,
-    salary_settings,
 )
 from .payroll_payment_views import (
     payroll_pay,
-    payroll_run_pay_all,
 )
 from .other_views import (
     organization_chart,
@@ -115,7 +114,15 @@ from .salary_component_views import (
     salary_component_edit,
     salary_component_delete,
     salary_component_toggle_active,
-    salary_component_quick_add,
+    # salary_component_quick_add, # تم حذفها - النظام الموحد
+    salary_component_classify,
+    salary_component_renew,
+    salary_component_bulk_renew,
+    # النظام الموحد الجديد
+    UnifiedSalaryComponentView,
+    get_template_details,
+    get_form_preview,
+    validate_component_name,
 )
 from .report_views import (
     reports_home,
@@ -138,6 +145,29 @@ from .biometric_advanced_views import (
     api_bulk_process_logs,
     api_biometric_stats,
 )
+from .admin_maintenance_views import (
+    maintenance_dashboard,
+    maintenance_overview,
+    maintenance_report,
+    maintenance_cleanup_expired,
+    maintenance_cleanup_orphaned,
+    maintenance_fix_inconsistencies,
+    maintenance_auto_renewals,
+    employee_components_analysis,
+    test_connection_internal,
+)
+
+# النظام الموحد للعقود
+from .contract_unified_views import (
+    contract_create_unified,
+    contract_edit_unified,
+    SmartContractActivationView,
+    ContractActivationPreviewView,
+    contract_optimize_components,
+    contract_components_unified,
+    contract_preview_components,
+    contract_apply_component_selection,
+)
 
 # إضافة دوال العقود الإضافية
 from .contract_views import (
@@ -156,6 +186,19 @@ from .contract_form_views import (
 # ملاحظة: تم حذف contract_views_new.py ودمج contract_activate في contract_views.py
 # contract_create_with_components و contract_update_with_components تم استبدالهم بـ contract_form
 # contract_deactivate و contract_component_delete غير مستخدمين حالياً
+
+# معالجة الرواتب المتكاملة
+from .integrated_payroll_views import (
+    integrated_payroll_dashboard,
+    payroll_detail_integrated,
+    calculate_attendance_summaries,
+    process_monthly_payrolls,
+    calculate_single_payroll,
+    attendance_summary_detail,
+    approve_attendance_summary,
+    recalculate_attendance_summary,
+    payroll_print,
+)
 
 __all__ = [
     'dashboard',
@@ -207,10 +250,9 @@ __all__ = [
     'contract_document_upload',
     'contract_document_delete',
     'contract_amendment_create',
+    'contract_activation_preview',
+    'contract_activate_with_components',
     'payroll_list',
-    'payroll_run_list',
-    'payroll_run_process',
-    'payroll_run_detail',
     'payroll_detail',
     'payroll_edit_lines',
     'payroll_approve',
@@ -219,7 +261,6 @@ __all__ = [
     'advance_detail',
     'advance_approve',
     'advance_reject',
-    'salary_settings',
     # دوال أخرى
     'organization_chart',
     'hr_settings',
@@ -241,6 +282,14 @@ __all__ = [
     'salary_component_delete',
     'salary_component_toggle_active',
     'salary_component_quick_add',
+    'salary_component_classify',
+    'salary_component_renew',
+    'salary_component_bulk_renew',
+    # النظام الموحد الجديد لبنود الراتب
+    'unified_salary_component_view',
+    'get_template_details',
+    'get_form_preview',
+    'validate_component_name',
     # دوال العقود الإضافية
     'get_salary_component_templates',
     'contract_renew',
@@ -270,4 +319,31 @@ __all__ = [
     'api_bulk_link_logs',
     'api_bulk_process_logs',
     'api_biometric_stats',
+    # دوال الصيانة الإدارية
+    'maintenance_dashboard',
+    'maintenance_overview',
+    'maintenance_report',
+    'maintenance_cleanup_expired',
+    'maintenance_cleanup_orphaned',
+    'maintenance_fix_inconsistencies',
+    'maintenance_auto_renewals',
+    'employee_components_analysis',
+    'test_connection_internal',
+    # النظام الموحد للعقود
+    'contract_create_unified',
+    'contract_edit_unified',
+    'SmartContractActivationView',
+    'ContractActivationPreviewView',
+    'contract_optimize_components',
+    'contract_components_unified',
+    # معالجة الرواتب المتكاملة
+    'integrated_payroll_dashboard',
+    'payroll_detail_integrated',
+    'calculate_attendance_summaries',
+    'process_monthly_payrolls',
+    'calculate_single_payroll',
+    'attendance_summary_detail',
+    'approve_attendance_summary',
+    'recalculate_attendance_summary',
+    'payroll_print',
 ]

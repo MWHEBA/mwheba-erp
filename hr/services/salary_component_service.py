@@ -12,6 +12,46 @@ class SalaryComponentService:
     """خدمة إدارة بنود الراتب"""
     
     @staticmethod
+    def _generate_unique_code(employee, template):
+        """توليد كود فريد للبند"""
+        from ..models import SalaryComponent
+        from django.db import IntegrityError
+        
+        base_code = template.name.upper().replace(' ', '_')[:45]  # ترك مساحة للرقم
+        
+        # محاولة استخدام الكود الأساسي أولاً
+        if not SalaryComponent.objects.filter(employee=employee, code=base_code).exists():
+            return base_code
+        
+        # إذا كان الكود موجود، أضف رقم تسلسلي
+        counter = 1
+        while counter <= 999:
+            new_code = f"{base_code}_{counter}"
+            if not SalaryComponent.objects.filter(employee=employee, code=new_code).exists():
+                return new_code
+            counter += 1
+        
+        # إذا فشل كل شيء، استخدم UUID
+        import uuid
+        return f"{base_code}_{str(uuid.uuid4())[:8]}"
+    
+    @staticmethod
+    def _handle_duplicate_code_error(employee, template, original_error):
+        """معالجة خطأ تضارب الكود وإعادة المحاولة"""
+        try:
+            # توليد كود جديد مع timestamp
+            import time
+            timestamp = str(int(time.time()))[-6:]  # آخر 6 أرقام من timestamp
+            base_code = template.name.upper().replace(' ', '_')[:40]
+            new_code = f"{base_code}_{timestamp}"
+            
+            return new_code
+        except Exception:
+            # إذا فشل كل شيء، استخدم UUID
+            import uuid
+            return f"COMP_{str(uuid.uuid4())[:12]}"
+    
+    @staticmethod
     @transaction.atomic
     def create_from_template(employee, template, effective_from=None, contract=None, custom_amount=None):
         """
@@ -42,24 +82,56 @@ class SalaryComponentService:
             percentage = None
             formula = ''
         
-        component = SalaryComponent.objects.create(
-            employee=employee,
-            template=template,
-            contract=contract,
-            code=template.name.upper().replace(' ', '_')[:50],
-            name=template.name,
-            component_type=template.component_type,
-            calculation_method=calculation_method,
-            amount=amount,
-            percentage=percentage,
-            formula=formula,
-            is_basic=False,
-            is_taxable=True,
-            is_fixed=True,
-            order=template.order,
-            effective_from=effective_from,
-            notes=f'تم الإنشاء من القالب: {template.name}'
-        )
+        # توليد كود فريد للبند مع معالجة التضارب
+        unique_code = SalaryComponentService._generate_unique_code(employee, template)
+        
+        try:
+            component = SalaryComponent.objects.create(
+                employee=employee,
+                template=template,
+                contract=contract,
+                code=unique_code,
+                name=template.name,
+                component_type=template.component_type,
+                calculation_method=calculation_method,
+                amount=amount,
+                percentage=percentage,
+                formula=formula,
+                is_basic=False,
+                is_taxable=True,
+                is_fixed=True,
+                is_from_contract=False,  # البند ليس من العقد، بل مضاف يدوياً
+                source='adjustment',  # تصنيف كتعديل وليس من العقد
+                order=template.order,
+                effective_from=effective_from,
+                notes=f'تم الإنشاء من القالب: {template.name}'
+            )
+        except Exception as e:
+            # إذا حدث تضارب رغم التحقق، جرب كود بديل
+            if 'UNIQUE constraint failed' in str(e):
+                backup_code = SalaryComponentService._handle_duplicate_code_error(employee, template, e)
+                component = SalaryComponent.objects.create(
+                    employee=employee,
+                    template=template,
+                    contract=contract,
+                    code=backup_code,
+                    name=template.name,
+                    component_type=template.component_type,
+                    calculation_method=calculation_method,
+                    amount=amount,
+                    percentage=percentage,
+                    formula=formula,
+                    is_basic=False,
+                    is_taxable=True,
+                    is_fixed=True,
+                    is_from_contract=False,  # البند ليس من العقد، بل مضاف يدوياً
+                    source='adjustment',  # تصنيف كتعديل وليس من العقد
+                    order=template.order,
+                    effective_from=effective_from,
+                    notes=f'تم الإنشاء من القالب: {template.name}'
+                )
+            else:
+                raise e
         
         logger.info(
             f"تم إنشاء بند راتب من القالب - الموظف: {employee.get_full_name_ar()}, "
@@ -238,11 +310,37 @@ class SalaryComponentService:
         
         # جلب بنود الموظف النشطة
         components = employee.salary_components.filter(
-            is_active=True,
-            effective_from__lte=month
+            is_active=True
+        )
+        
+        # فصل بنود العقد عن بنود التعديلات
+        contract_components = components.filter(
+            Q(is_from_contract=True) | Q(source='contract')
+        )
+        
+        adjustment_components = components.exclude(
+            Q(is_from_contract=True) | Q(source='contract')
+        )
+        
+        # بنود العقد: نأخذها كلها إذا كانت نشطة (بغض النظر عن effective_from)
+        # لأن العقد النشط يعني أن بنوده سارية
+        valid_contract_components = contract_components.filter(
+            Q(effective_to__isnull=True) | Q(effective_to__gte=month)
+        )
+        
+        # بنود التعديلات: نطبق عليها فلتر التواريخ العادي
+        valid_adjustment_components = adjustment_components.filter(
+            Q(effective_from__isnull=True) | Q(effective_from__lte=month)
         ).filter(
             Q(effective_to__isnull=True) | Q(effective_to__gte=month)
         )
+        
+        # دمج البنود
+        from django.db.models import Q
+        component_ids = list(valid_contract_components.values_list('id', flat=True)) + \
+                       list(valid_adjustment_components.values_list('id', flat=True))
+        
+        components = employee.salary_components.filter(id__in=component_ids)
         
         # إذا كان مطلوب تضمين بنود العقد، نتأكد أنها موجودة
         if include_contract_components:
@@ -287,20 +385,21 @@ class SalaryComponentService:
         # إعداد السياق للحساب
         context = {
             'basic_salary': basic_salary,
+            'gross_salary': basic_salary,  # إضافة gross_salary للـ formulas
             'worked_days': 30,
             'month': month
         }
         
-        # حساب المستحقات
-        earnings = components.filter(component_type='earning')
-        earnings_sum = sum(c.calculate_amount(context) for c in earnings)
+        # حساب المستحقات (بدون الراتب الأساسي لتجنب التكرار)
+        earnings = components.filter(component_type='earning', is_basic=False)
+        earnings_sum = sum((c.calculate_amount(context) for c in earnings), Decimal('0'))
         
         # إضافة الراتب الأساسي لإجمالي المستحقات
         total_earnings = basic_salary + earnings_sum
         
         # حساب الاستقطاعات
         deductions = components.filter(component_type='deduction')
-        total_deductions = sum(c.calculate_amount(context) for c in deductions)
+        total_deductions = sum((c.calculate_amount(context) for c in deductions), Decimal('0'))
         
         return {
             'basic_salary': basic_salary,

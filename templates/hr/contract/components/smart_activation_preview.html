@@ -1,0 +1,359 @@
+{% load pricing_filters %}
+
+<!-- مودال معاينة التفعيل الذكي -->
+<div class="modal fade" id="smartActivationPreviewModal" tabindex="-1" aria-labelledby="smartActivationPreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="smartActivationPreviewModalLabel">
+                    <i class="fas fa-rocket me-2"></i>معاينة التفعيل الذكي للعقد
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- معلومات العقد -->
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-info">
+                            <div class="card-header bg-info text-white py-2">
+                                <h6 class="mb-0"><i class="fas fa-user me-1"></i>معلومات الموظف</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-1"><strong>الاسم:</strong> <span id="previewEmployeeName"></span></p>
+                                <p class="mb-1"><strong>الوظيفة:</strong> <span id="previewJobTitle"></span></p>
+                                <p class="mb-0"><strong>القسم:</strong> <span id="previewDepartment"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-success">
+                            <div class="card-header bg-success text-white py-2">
+                                <h6 class="mb-0"><i class="fas fa-file-contract me-1"></i>معلومات العقد</h6>
+                            </div>
+                            <div class="card-body">
+                                <p class="mb-1"><strong>الراتب الأساسي:</strong> <span id="previewBasicSalary"></span> ج.م</p>
+                                <p class="mb-1"><strong>تاريخ البداية:</strong> <span id="previewStartDate"></span></p>
+                                <p class="mb-0"><strong>نوع العقد:</strong> <span id="previewContractType"></span></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- إحصائيات التحليل -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-primary mb-1" id="previewTotalComponents">0</h4>
+                            <small class="text-muted">إجمالي البنود</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-success mb-1" id="previewAutoTransfer">0</h4>
+                            <small class="text-muted">نقل تلقائي</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-warning mb-1" id="previewManualReview">0</h4>
+                            <small class="text-muted">مراجعة يدوية</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h4 class="text-info mb-1" id="previewRiskLevel">منخفض</h4>
+                            <small class="text-muted">مستوى المخاطر</small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التأثير المالي -->
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h6 class="mb-0"><i class="fas fa-calculator me-1"></i>التأثير المالي المتوقع</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h5 class="text-success" id="previewCurrentNet">0 ج.م</h5>
+                                    <small class="text-muted">الراتب الصافي الحالي</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h5 class="text-primary" id="previewProjectedNet">0 ج.م</h5>
+                                    <small class="text-muted">الراتب الصافي المتوقع</small>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-center">
+                                    <h5 id="previewNetChange">0 ج.م</h5>
+                                    <small class="text-muted">التغيير الصافي</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الإجراءات المخططة -->
+                <div class="card mb-4">
+                    <div class="card-header bg-secondary text-white">
+                        <h6 class="mb-0"><i class="fas fa-tasks me-1"></i>الإجراءات المخططة</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewPlannedActions">
+                            <!-- سيتم ملؤها بـ JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التوصيات -->
+                <div class="card mb-4" id="previewRecommendationsCard" style="display: none;">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="fas fa-lightbulb me-1"></i>التوصيات</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewRecommendations">
+                            <!-- سيتم ملؤها بـ JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- التحذيرات -->
+                <div class="card mb-4" id="previewWarningsCard" style="display: none;">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i>تحذيرات مهمة</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="previewWarnings">
+                            <!-- سيتم ملؤها بـ JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-1"></i>إلغاء
+                </button>
+                <button type="button" class="btn btn-info me-2" onclick="showDetailedAnalysis()">
+                    <i class="fas fa-chart-bar me-1"></i>تحليل مفصل
+                </button>
+                <button type="button" class="btn btn-success" onclick="proceedWithSmartActivation()">
+                    <i class="fas fa-rocket me-1"></i>متابعة التفعيل الذكي
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// دالة عرض معاينة التفعيل الذكي
+function showActivationPreviewModal(previewData) {
+    // تحديث معلومات الموظف والعقد
+    $('#previewEmployeeName').text(previewData.contract.employee_name || 'غير محدد');
+    $('#previewJobTitle').text(previewData.contract.job_title || 'غير محدد');
+    $('#previewDepartment').text(previewData.contract.department || 'غير محدد');
+    $('#previewBasicSalary').text(formatNumber(previewData.contract.basic_salary || 0));
+    $('#previewStartDate').text(previewData.contract.start_date || 'غير محدد');
+    $('#previewContractType').text(previewData.contract.contract_type || 'غير محدد');
+
+    // تحديث الإحصائيات
+    $('#previewTotalComponents').text(previewData.preview.total_components || 0);
+    $('#previewAutoTransfer').text(previewData.preview.auto_transfer_count || 0);
+    $('#previewManualReview').text(previewData.preview.manual_review_count || 0);
+    
+    // تحديد مستوى المخاطر ولونه
+    const riskLevel = previewData.preview.estimated_impact?.risk_level || 'low';
+    const riskElement = $('#previewRiskLevel');
+    const riskText = {
+        'low': 'منخفض',
+        'medium': 'متوسط', 
+        'high': 'عالي'
+    };
+    const riskColors = {
+        'low': 'text-success',
+        'medium': 'text-warning',
+        'high': 'text-danger'
+    };
+    
+    riskElement.text(riskText[riskLevel] || 'منخفض');
+    riskElement.removeClass('text-success text-warning text-danger').addClass(riskColors[riskLevel] || 'text-success');
+
+    // تحديث التأثير المالي
+    const financialImpact = previewData.analysis?.financial_impact;
+    if (financialImpact) {
+        $('#previewCurrentNet').text(formatNumber(financialImpact.current?.net || 0) + ' ج.م');
+        $('#previewProjectedNet').text(formatNumber(financialImpact.projected?.net || 0) + ' ج.م');
+        
+        const netChange = financialImpact.changes?.net || 0;
+        const changeElement = $('#previewNetChange');
+        changeElement.text(formatNumber(netChange) + ' ج.م');
+        
+        if (netChange > 0) {
+            changeElement.removeClass('text-danger').addClass('text-success');
+        } else if (netChange < 0) {
+            changeElement.removeClass('text-success').addClass('text-danger');
+        } else {
+            changeElement.removeClass('text-success text-danger');
+        }
+    }
+
+    // عرض الإجراءات المخططة
+    renderPlannedActions(previewData.preview);
+
+    // عرض التوصيات
+    if (previewData.analysis?.recommendations && previewData.analysis.recommendations.length > 0) {
+        renderRecommendations(previewData.analysis.recommendations);
+        $('#previewRecommendationsCard').show();
+    } else {
+        $('#previewRecommendationsCard').hide();
+    }
+
+    // عرض التحذيرات
+    const warnings = extractWarnings(previewData);
+    if (warnings.length > 0) {
+        renderWarnings(warnings);
+        $('#previewWarningsCard').show();
+    } else {
+        $('#previewWarningsCard').hide();
+    }
+
+    // إظهار المودال
+    const modal = new bootstrap.Modal(document.getElementById('smartActivationPreviewModal'));
+    modal.show();
+}
+
+// دالة عرض الإجراءات المخططة
+function renderPlannedActions(preview) {
+    let html = '';
+    
+    if (preview.auto_transfer_count > 0) {
+        html += `
+            <div class="alert alert-success border-start border-4 border-success mb-2">
+                <h6 class="alert-heading mb-1">
+                    <i class="fas fa-check-circle me-1"></i>نقل تلقائي (${preview.auto_transfer_count} بند)
+                </h6>
+                <small>سيتم نقل البنود الشخصية والمؤقتة الصالحة تلقائياً</small>
+            </div>
+        `;
+    }
+    
+    if (preview.manual_review_count > 0) {
+        html += `
+            <div class="alert alert-warning border-start border-4 border-warning mb-2">
+                <h6 class="alert-heading mb-1">
+                    <i class="fas fa-exclamation-triangle me-1"></i>مراجعة يدوية (${preview.manual_review_count} بند)
+                </h6>
+                <small>بعض البنود تحتاج موافقة يدوية قبل النقل</small>
+            </div>
+        `;
+    }
+    
+    if (preview.archive_count > 0) {
+        html += `
+            <div class="alert alert-info border-start border-4 border-info mb-2">
+                <h6 class="alert-heading mb-1">
+                    <i class="fas fa-archive me-1"></i>أرشفة (${preview.archive_count} بند)
+                </h6>
+                <small>سيتم أرشفة البنود المنتهية الصلاحية</small>
+            </div>
+        `;
+    }
+    
+    if (!html) {
+        html = '<p class="text-muted mb-0">لا توجد إجراءات مخططة</p>';
+    }
+    
+    $('#previewPlannedActions').html(html);
+}
+
+// دالة عرض التوصيات
+function renderRecommendations(recommendations) {
+    let html = '';
+    
+    recommendations.forEach(rec => {
+        const priorityClass = rec.priority === 'high' ? 'danger' : 
+                            rec.priority === 'medium' ? 'warning' : 'info';
+        html += `
+            <div class="alert alert-${priorityClass} alert-dismissible fade show mb-2">
+                <strong>${rec.title || rec.message}</strong>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        `;
+    });
+    
+    $('#previewRecommendations').html(html);
+}
+
+// دالة استخراج التحذيرات
+function extractWarnings(previewData) {
+    const warnings = [];
+    
+    // تحذيرات المخاطر العالية
+    if (previewData.preview.estimated_impact?.risk_level === 'high') {
+        warnings.push({
+            type: 'high_risk',
+            message: 'مستوى المخاطر عالي - يُنصح بالمراجعة الدقيقة قبل التفعيل'
+        });
+    }
+    
+    // تحذيرات البنود المتضاربة
+    if (previewData.preview.conflicts_count > 0) {
+        warnings.push({
+            type: 'conflicts',
+            message: `يوجد ${previewData.preview.conflicts_count} تضارب في البنود يحتاج حل`
+        });
+    }
+    
+    // تحذيرات التأثير المالي الكبير
+    const netChange = previewData.analysis?.financial_impact?.changes?.net || 0;
+    if (Math.abs(netChange) > 1000) {
+        warnings.push({
+            type: 'financial_impact',
+            message: `تغيير كبير في الراتب الصافي: ${formatNumber(netChange)} ج.م`
+        });
+    }
+    
+    return warnings;
+}
+
+// دالة عرض التحذيرات
+function renderWarnings(warnings) {
+    let html = '';
+    
+    warnings.forEach(warning => {
+        html += `
+            <div class="alert alert-danger mb-2">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>${warning.message}</strong>
+            </div>
+        `;
+    });
+    
+    $('#previewWarnings').html(html);
+}
+
+// دالة عرض التحليل المفصل
+function showDetailedAnalysis() {
+    // فتح صفحة التحليل المفصل في نافذة جديدة
+    const employeeId = $('#id_employee').val();
+    if (employeeId) {
+        window.open(`/hr/employees/${employeeId}/salary-components/enhanced/`, '_blank');
+    }
+}
+
+// دالة متابعة التفعيل الذكي
+function proceedWithSmartActivation() {
+    // إغلاق مودال المعاينة
+    bootstrap.Modal.getInstance(document.getElementById('smartActivationPreviewModal')).hide();
+    
+    // تنفيذ التفعيل الذكي
+    smartActivateContract();
+}
+
+// دالة تنسيق الأرقام
+function formatNumber(number) {
+    return new Intl.NumberFormat('ar-EG').format(number || 0);
+}
+</script>

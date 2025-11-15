@@ -3,6 +3,7 @@ Views نموذج العقود - Contract Form
 """
 from .base_imports import *
 from ..models import Contract, SalaryComponent, ContractSalaryComponent
+from ..services.unified_salary_component_service import UnifiedSalaryComponentService
 from ..forms.contract_forms import ContractForm
 from core.utils import get_default_currency
 from decimal import Decimal
@@ -38,25 +39,31 @@ def contract_form(request, pk=None):
             
             # تحديد الإجراء: حفظ كمسودة أو حفظ وتفعيل
             action = request.POST.get('action', 'save_draft')
+            print(f"DEBUG: Action received: {action}, pk: {pk}")
             
-            # إذا كان عقد جديد وليس تفعيل، احفظه كمسودة
-            if not pk and action == 'save_draft':
-                contract_obj.status = 'draft'
+            # إذا كان عقد جديد، تحديد الحالة حسب الإجراء
+            if not pk:
+                if action == 'save_activate':
+                    contract_obj.status = 'active'
+                else:
+                    # أي إجراء آخر (save_draft أو فارغ) = مسودة
+                    contract_obj.status = 'draft'
             elif action == 'save_activate':
                 contract_obj.status = 'active'
+            # للعقود الموجودة، لا نغير الحالة إلا إذا كان تفعيل صريح
             
             contract_obj.save()
             
             # إضافة بند الراتب الأساسي تلقائياً (للعقود الجديدة فقط)
             if not pk and contract_obj.basic_salary and contract_obj.basic_salary > 0:
-                # التحقق من عدم وجود بند راتب أساسي بالفعل
-                basic_exists = ContractSalaryComponent.objects.filter(
-                    contract=contract_obj,
-                    is_basic=True
-                ).exists()
-                
-                if not basic_exists:
-                    basic_component = ContractSalaryComponent.objects.create(
+                    # التحقق من عدم وجود بند راتب أساسي بالفعل
+                    basic_exists = ContractSalaryComponent.objects.filter(
+                        contract=contract_obj,
+                        is_basic=True
+                    ).exists()
+                    
+                    if not basic_exists:
+                        basic_component = ContractSalaryComponent.objects.create(
                         contract=contract_obj,
                         component_type='earning',
                         code='BASIC_SALARY',
@@ -213,18 +220,34 @@ def contract_form(request, pk=None):
                 for data in new_earnings_data:
                     # إنشاء كود تلقائي
                     code = data['name'].upper().replace(' ', '_')[:50]
-                    new_obj = ContractSalaryComponent.objects.create(
+                    
+                    # استخدام get_or_create لتجنب UNIQUE constraint error
+                    new_obj, created = ContractSalaryComponent.objects.get_or_create(
                         contract=contract_obj,
-                        component_type='earning',
                         code=code,
-                        name=data['name'],
-                        formula=data['formula'],
-                        amount=data['amount'],
-                        order=data['order'],
-                        calculation_method='formula' if data['formula'] else 'fixed'
+                        defaults={
+                            'component_type': 'earning',
+                            'name': data['name'],
+                            'formula': data['formula'],
+                            'amount': data['amount'],
+                            'order': data['order'],
+                            'calculation_method': 'formula' if data['formula'] else 'fixed'
+                        }
                     )
+                    
+                    if not created:
+                        # تحديث البند الموجود
+                        new_obj.name = data['name']
+                        new_obj.formula = data['formula']
+                        new_obj.amount = data['amount']
+                        new_obj.order = data['order']
+                        new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+                        new_obj.save()
+                        logger.info(f"  → تم تحديث ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    else:
+                        logger.info(f"  → تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
                     created_earning_ids.append(new_obj.id)
-                    logger.info(f"  → تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
                     
                     # إذا العقد active، انسخ للموظف
                     if contract_obj.status == 'active':
@@ -293,16 +316,30 @@ def contract_form(request, pk=None):
                 created_deduction_ids = []
                 for data in new_deductions_data:
                     code = data['name'].upper().replace(' ', '_')[:50]
-                    new_obj = ContractSalaryComponent.objects.create(
+                    
+                    # استخدام get_or_create لتجنب UNIQUE constraint error
+                    new_obj, created = ContractSalaryComponent.objects.get_or_create(
                         contract=contract_obj,
-                        component_type='deduction',
                         code=code,
-                        name=data['name'],
-                        formula=data['formula'],
-                        amount=data['amount'],
-                        order=data['order'],
-                        calculation_method='formula' if data['formula'] else 'fixed'
+                        defaults={
+                            'component_type': 'deduction',
+                            'name': data['name'],
+                            'formula': data['formula'],
+                            'amount': data['amount'],
+                            'order': data['order'],
+                            'calculation_method': 'formula' if data['formula'] else 'fixed'
+                        }
                     )
+                    
+                    if not created:
+                        # تحديث البند الموجود
+                        new_obj.name = data['name']
+                        new_obj.formula = data['formula']
+                        new_obj.amount = data['amount']
+                        new_obj.order = data['order']
+                        new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+                        new_obj.save()
+                    
                     created_deduction_ids.append(new_obj.id)
                     
                     if contract_obj.status == 'active':
@@ -331,14 +368,27 @@ def contract_form(request, pk=None):
                 for data in new_earnings:
                     data.pop('id', None)
                     code = data['name'].upper().replace(' ', '_')[:50]
-                    new_obj = ContractSalaryComponent.objects.create(
+                    
+                    # استخدام get_or_create لتجنب UNIQUE constraint error
+                    new_obj, created = ContractSalaryComponent.objects.get_or_create(
                         contract=contract_obj,
-                        component_type='earning',
                         code=code,
-                        calculation_method='formula' if data['formula'] else 'fixed',
-                        **data
+                        defaults={
+                            'component_type': 'earning',
+                            'calculation_method': 'formula' if data['formula'] else 'fixed',
+                            **data
+                        }
                     )
-                    logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
+                    if not created:
+                        # تحديث البند الموجود
+                        for key, value in data.items():
+                            setattr(new_obj, key, value)
+                        new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+                        new_obj.save()
+                        logger.info(f"تم تحديث ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    else:
+                        logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
                     
                     # إذا تم التفعيل مباشرة، انسخ للموظف
                     if action == 'save_activate':
@@ -350,14 +400,27 @@ def contract_form(request, pk=None):
                 for data in new_deductions:
                     data.pop('id', None)
                     code = data['name'].upper().replace(' ', '_')[:50]
-                    new_obj = ContractSalaryComponent.objects.create(
+                    
+                    # استخدام get_or_create لتجنب UNIQUE constraint error
+                    new_obj, created = ContractSalaryComponent.objects.get_or_create(
                         contract=contract_obj,
-                        component_type='deduction',
                         code=code,
-                        calculation_method='formula' if data['formula'] else 'fixed',
-                        **data
+                        defaults={
+                            'component_type': 'deduction',
+                            'calculation_method': 'formula' if data['formula'] else 'fixed',
+                            **data
+                        }
                     )
-                    logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    
+                    if not created:
+                        # تحديث البند الموجود
+                        for key, value in data.items():
+                            setattr(new_obj, key, value)
+                        new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+                        new_obj.save()
+                        logger.info(f"تم تحديث ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
+                    else:
+                        logger.info(f"تم إنشاء ContractSalaryComponent: {data['name']} - ID={new_obj.id}")
                     
                     # إذا تم التفعيل مباشرة، انسخ للموظف
                     if action == 'save_activate':

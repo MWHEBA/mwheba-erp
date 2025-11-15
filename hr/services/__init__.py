@@ -6,6 +6,7 @@ from .attendance_service import AttendanceService
 from .leave_service import LeaveService
 from .payroll_service import PayrollService
 from .salary_component_service import SalaryComponentService
+from .advance_service import AdvanceService
 
 __all__ = [
     'EmployeeService',
@@ -13,4 +14,5 @@ __all__ = [
     'LeaveService',
     'PayrollService',
     'SalaryComponentService',
+    'AdvanceService',
 ]

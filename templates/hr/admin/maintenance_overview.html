@@ -1,0 +1,328 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}أدوات صيانة بنود الراتب{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.2s;
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+    }
+    .maintenance-action {
+        border: 1px solid var(--bs-border-color);
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        background: var(--bs-body-bg);
+    }
+    .action-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2><i class="fas fa-tools me-2"></i>أدوات صيانة بنود الراتب</h2>
+                    <p class="text-muted">إدارة وصيانة بيانات بنود الراتب</p>
+                </div>
+                <div>
+                    <button type="button" class="btn btn-success" onclick="backupData()">
+                        <i class="fas fa-download me-2"></i>نسخة احتياطية
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card border-primary">
+                <div class="card-body text-center">
+                    <i class="fas fa-list-ul text-primary" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ total_components }}</h3>
+                    <p class="text-muted mb-0">إجمالي البنود</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-success">
+                <div class="card-body text-center">
+                    <i class="fas fa-check-circle text-success" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ active_components }}</h3>
+                    <p class="text-muted mb-0">البنود النشطة</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-warning">
+                <div class="card-body text-center">
+                    <i class="fas fa-exclamation-triangle text-warning" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ expired_components }}</h3>
+                    <p class="text-muted mb-0">بنود منتهية</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stat-card border-info">
+                <div class="card-body text-center">
+                    <i class="fas fa-clock text-info" style="font-size: 2rem;"></i>
+                    <h3 class="mt-2 mb-0">{{ soon_expiring }}</h3>
+                    <p class="text-muted mb-0">ستنتهي قريباً</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Maintenance Actions -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-wrench me-2"></i>أدوات الصيانة</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Cleanup Expired Components -->
+                    <div class="maintenance-action">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-trash-alt text-danger action-icon"></i>
+                            </div>
+                            <div class="col-md-7">
+                                <h6>تنظيف البنود المنتهية</h6>
+                                <p class="text-muted mb-0">إلغاء تفعيل البنود المنتهية الصلاحية</p>
+                                <small class="text-info">{{ expired_components }} بند منتهي متاح للتنظيف</small>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-danger w-100" onclick="showCleanupModal()">
+                                    <i class="fas fa-broom me-2"></i>تنظيف
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Auto Classification -->
+                    <div class="maintenance-action">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-tags text-info action-icon"></i>
+                            </div>
+                            <div class="col-md-7">
+                                <h6>تصنيف تلقائي للبنود</h6>
+                                <p class="text-muted mb-0">تصنيف البنود غير المصنفة تلقائياً</p>
+                                <small class="text-info">{{ unclassified_count }} بند يحتاج تصنيف</small>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-info w-100" onclick="showClassificationModal()">
+                                    <i class="fas fa-magic me-2"></i>تصنيف
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Data Validation -->
+                    <div class="maintenance-action">
+                        <div class="row align-items-center">
+                            <div class="col-md-2 text-center">
+                                <i class="fas fa-check-double text-success action-icon"></i>
+                            </div>
+                            <div class="col-md-7">
+                                <h6>فحص سلامة البيانات</h6>
+                                <p class="text-muted mb-0">التحقق من سلامة وتماسك بيانات البنود</p>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-success w-100" onclick="validateData()">
+                                    <i class="fas fa-search me-2"></i>فحص
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Statistics by Type -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-chart-pie me-2"></i>إحصائيات حسب النوع</h5>
+                </div>
+                <div class="card-body">
+                    {% for stat in source_stats %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>{{ stat.name }}</span>
+                        <span class="badge bg-primary">{{ stat.count }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5><i class="fas fa-bolt me-2"></i>إجراءات سريعة</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'hr:salary_components_enhanced' 1 %}" class="btn btn-outline-primary">
+                            <i class="fas fa-eye me-2"></i>عرض النظام المحسن
+                        </a>
+                        <button type="button" class="btn btn-outline-info" onclick="refreshStats()">
+                            <i class="fas fa-sync me-2"></i>تحديث الإحصائيات
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cleanup Modal -->
+<div class="modal fade" id="cleanupModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تنظيف البنود المنتهية</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">البنود المنتهية منذ (أيام):</label>
+                    <input type="number" class="form-control" id="daysThreshold" value="30" min="1">
+                    <small class="text-muted">البنود المنتهية منذ هذا العدد من الأيام ستتم معالجتها</small>
+                </div>
+                <div id="cleanupPreview" class="alert alert-info" style="display: none;">
+                    <!-- معاينة البنود -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-info" onclick="previewCleanup()">معاينة</button>
+                <button type="button" class="btn btn-danger" onclick="confirmCleanup()" id="confirmCleanupBtn" style="display: none;">تأكيد التنظيف</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Classification Modal -->
+<div class="modal fade" id="classificationModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">تصنيف البنود تلقائياً</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="classificationPreview" class="alert alert-info" style="display: none;">
+                    <!-- معاينة التصنيف -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-info" onclick="previewClassification()">معاينة التصنيف</button>
+                <button type="button" class="btn btn-success" onclick="confirmClassification()" id="confirmClassificationBtn" style="display: none;">تأكيد التصنيف</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showCleanupModal() {
+    $('#cleanupModal').modal('show');
+}
+
+function showClassificationModal() {
+    $('#classificationModal').modal('show');
+}
+
+function previewCleanup() {
+    const days = $('#daysThreshold').val();
+    
+    $.post('{% url "hr:cleanup_expired_components" %}', {
+        'days_threshold': days,
+        'confirm': 'false',
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    })
+    .done(function(data) {
+        if (data.success) {
+            let html = `<h6>سيتم إلغاء تفعيل ${data.count} بند:</h6><ul>`;
+            data.components.forEach(function(comp) {
+                html += `<li>${comp.employee__name} - ${comp.name} (${comp.effective_to})</li>`;
+            });
+            html += '</ul>';
+            
+            $('#cleanupPreview').html(html).show();
+            $('#confirmCleanupBtn').show();
+        }
+    });
+}
+
+function confirmCleanup() {
+    const days = $('#daysThreshold').val();
+    
+    $.post('{% url "hr:cleanup_expired_components" %}', {
+        'days_threshold': days,
+        'confirm': 'true',
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    })
+    .done(function() {
+        location.reload();
+    });
+}
+
+function previewClassification() {
+    $.post('{% url "hr:auto_classify_components" %}', {
+        'confirm': 'false',
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    })
+    .done(function(data) {
+        if (data.success) {
+            let html = `<h6>سيتم تصنيف ${data.changes.length} بند:</h6><ul>`;
+            data.changes.forEach(function(change) {
+                html += `<li>${change.employee_name} - ${change.component_name}: ${change.old_source} → ${change.new_source}</li>`;
+            });
+            html += '</ul>';
+            
+            $('#classificationPreview').html(html).show();
+            $('#confirmClassificationBtn').show();
+        }
+    });
+}
+
+function confirmClassification() {
+    $.post('{% url "hr:auto_classify_components" %}', {
+        'confirm': 'true',
+        'csrfmiddlewaretoken': $('[name=csrfmiddlewaretoken]').val()
+    })
+    .done(function() {
+        location.reload();
+    });
+}
+
+function backupData() {
+    window.location.href = '{% url "hr:backup_components_data" %}';
+}
+
+function validateData() {
+    // يمكن إضافة وظيفة فحص البيانات لاحقاً
+    alert('وظيفة فحص البيانات ستتوفر قريباً');
+}
+
+function refreshStats() {
+    location.reload();
+}
+</script>
+{% endblock %}

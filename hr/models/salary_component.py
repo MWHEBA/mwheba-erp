@@ -17,8 +17,16 @@ class SalaryComponent(models.Model):
     
     CALCULATION_METHOD_CHOICES = [
         ('fixed', 'ثابت'),
-        ('percentage', 'نسبة مئوية'),
         ('formula', 'صيغة حسابية'),
+    ]
+    
+    # تصنيف البنود حسب المصدر والغرض
+    COMPONENT_SOURCE_CHOICES = [
+        ('contract', 'من العقد'),
+        ('temporary', 'مؤقت'),
+        ('personal', 'شخصي'),
+        ('exceptional', 'استثنائي'),
+        ('adjustment', 'تعديل'),
     ]
     
     # الربط (واحد منهم فقط)
@@ -67,6 +75,35 @@ class SalaryComponent(models.Model):
         default=False,
         verbose_name='منسوخ من العقد',
         help_text='هل هذا البند منسوخ من بنود العقد الثابتة؟'
+    )
+    
+    # تصنيف البند
+    source = models.CharField(
+        max_length=20,
+        choices=COMPONENT_SOURCE_CHOICES,
+        default='contract',
+        verbose_name='مصدر البند',
+        help_text='تصنيف البند حسب مصدره والغرض منه'
+    )
+    
+    # خصائص البنود المؤقتة والمتكررة
+    is_recurring = models.BooleanField(
+        default=True,
+        verbose_name='متكرر شهرياً',
+        help_text='هل يتكرر هذا البند كل شهر؟'
+    )
+    
+    auto_renew = models.BooleanField(
+        default=False,
+        verbose_name='تجديد تلقائي',
+        help_text='هل يتم تجديد البند تلقائياً عند انتهاء صلاحيته؟'
+    )
+    
+    renewal_period_months = models.IntegerField(
+        null=True, 
+        blank=True,
+        verbose_name='فترة التجديد (شهور)',
+        help_text='عدد الشهور للتجديد التلقائي (اتركه فارغاً للتجديد اليدوي)'
     )
     
     # البيانات الأساسية
@@ -205,7 +242,8 @@ class SalaryComponent(models.Model):
         ]
     
     def __str__(self):
-        return f"{self.get_component_type_display()} - {self.name}: {self.amount}"
+        source_display = self.get_source_display()
+        return f"{self.get_component_type_display()} - {self.name} ({source_display}): {self.amount}"
     
     def get_formula_display(self):
         """عرض الصيغة بالعربي"""
@@ -278,3 +316,62 @@ class SalaryComponent(models.Model):
             return Decimal(str(result))
         except:
             return self.amount
+    
+    def is_temporary(self):
+        """هل البند مؤقت (له تاريخ انتهاء)"""
+        return self.effective_to is not None
+    
+    def is_expired(self):
+        """هل البند منتهي الصلاحية"""
+        if not self.effective_to:
+            return False
+        from django.utils import timezone
+        return timezone.now().date() > self.effective_to
+    
+    def days_until_expiry(self):
+        """عدد الأيام المتبقية حتى انتهاء البند"""
+        if not self.effective_to:
+            return None
+        from django.utils import timezone
+        delta = self.effective_to - timezone.now().date()
+        return delta.days if delta.days > 0 else 0
+    
+    def needs_renewal(self):
+        """هل البند يحتاج تجديد (قارب على الانتهاء)"""
+        if not self.is_temporary() or not self.auto_renew:
+            return False
+        days_left = self.days_until_expiry()
+        if days_left is None:
+            return False
+        # تنبيه قبل 30 يوم من الانتهاء
+        return days_left <= 30
+    
+    def get_renewal_date(self):
+        """حساب تاريخ التجديد القادم"""
+        if not self.auto_renew or not self.renewal_period_months or not self.effective_to:
+            return None
+        
+        try:
+            from dateutil.relativedelta import relativedelta
+            return self.effective_to + relativedelta(months=self.renewal_period_months)
+        except ImportError:
+            # Fallback: استخدام timedelta (أقل دقة)
+            from datetime import timedelta
+            days = self.renewal_period_months * 30  # تقريبي
+            return self.effective_to + timedelta(days=days)
+    
+    def auto_classify_source(self):
+        """تصنيف تلقائي للبند بناءً على خصائصه"""
+        if self.is_from_contract:
+            return 'contract'
+        elif self.is_temporary():
+            # فحص نوع البند المؤقت
+            name_lower = self.name.lower()
+            if any(word in name_lower for word in ['قرض', 'سلفة', 'مقدم']):
+                return 'personal'
+            elif any(word in name_lower for word in ['مكافأة', 'حافز', 'بونص']):
+                return 'exceptional'
+            else:
+                return 'temporary'
+        else:
+            return 'adjustment'

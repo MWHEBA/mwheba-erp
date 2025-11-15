@@ -10,6 +10,24 @@ urlpatterns = [
     # API URLs
     path('api/', include('hr.api_urls')),
     
+    # New Unified Component Preview APIs
+    path('api/contracts/<int:contract_id>/preview-components/', 
+         views.contract_preview_components, name='contract_preview_components'),
+    path('api/contracts/<int:contract_id>/apply-component-selection/', 
+         views.contract_apply_component_selection, name='contract_apply_component_selection'),
+    
+    # Contract Analysis API
+    path('api/employees/<int:employee_id>/components-analysis/', 
+         views.employee_components_analysis, name='employee_components_analysis'),
+    path('api/contracts/<int:contract_id>/preview-activation/', 
+         views.ContractActivationPreviewView.as_view(), name='contract_preview_activation'),
+    path('api/contracts/preview-activation/', 
+         views.ContractActivationPreviewView.as_view(), name='contract_preview_activation_new'),
+    path('api/contracts/<int:contract_id>/smart-activate/', 
+         views.SmartContractActivationView.as_view(), name='contract_smart_activate'),
+    path('api/employees/<int:employee_id>/optimize-components/', 
+         views.contract_optimize_components, name='employee_optimize_components'),
+    
     # Dashboard
     path('', views.dashboard, name='dashboard'),
     
@@ -21,6 +39,7 @@ urlpatterns = [
     path('employees/check-email/', views.check_employee_email, name='check_employee_email'),
     path('employees/check-mobile/', views.check_employee_mobile, name='check_employee_mobile'),
     path('employees/check-national-id/', views.check_employee_national_id, name='check_employee_national_id'),
+    path('employees/<int:employee_id>/check-component-code/', views.check_component_code, name='check_component_code'),
     # نموذج موحد
     path('employees/form/', views.employee_form, name='employee_form'),
     path('employees/<int:pk>/form/', views.employee_form, name='employee_form_edit'),
@@ -112,14 +131,6 @@ urlpatterns = [
     # ✨ مسارات الدفع الجديدة
     path('payroll/<int:pk>/pay/', views.payroll_pay, name='payroll_pay'),
     
-    # مسيرات الرواتب
-    path('payroll-runs/', views.payroll_run_list, name='payroll_run_list'),
-    path('payroll-runs/process/', views.payroll_run_process, name='payroll_run_process'),
-    path('payroll-runs/<str:month>/', views.payroll_run_detail, name='payroll_run_detail'),
-    path('payroll-runs/<str:month>/delete/', views.payroll_run_delete, name='payroll_run_delete'),
-    # ✨ دفع جميع رواتب الشهر
-    path('payroll-runs/<str:month>/pay-all/', views.payroll_run_pay_all, name='payroll_run_pay_all'),
-    
     # السلف
     path('advances/', views.advance_list, name='advance_list'),
     path('advances/request/', views.advance_request, name='advance_request'),
@@ -127,17 +138,36 @@ urlpatterns = [
     path('advances/<int:pk>/approve/', views.advance_approve, name='advance_approve'),
     path('advances/<int:pk>/reject/', views.advance_reject, name='advance_reject'),
     
-    # إعدادات الرواتب
-    path('salary-settings/', views.salary_settings, name='salary_settings'),
+    # معالجة الرواتب المتكاملة
+    path('payroll/integrated/', views.integrated_payroll_dashboard, name='integrated_payroll_dashboard'),
+    path('payroll/integrated/<int:pk>/', views.payroll_detail_integrated, name='payroll_detail_integrated'),
+    path('payroll/integrated/calculate-summaries/', views.calculate_attendance_summaries, name='calculate_attendance_summaries'),
+    path('payroll/integrated/process/', views.process_monthly_payrolls, name='process_monthly_payrolls'),
+    path('payroll/integrated/calculate/<int:employee_id>/', views.calculate_single_payroll, name='calculate_single_payroll'),
+    
+    # ملخصات الحضور
+    path('attendance/summaries/<int:pk>/', views.attendance_summary_detail, name='attendance_summary_detail'),
+    path('attendance/summaries/<int:pk>/approve/', views.approve_attendance_summary, name='approve_attendance_summary'),
+    path('attendance/summaries/<int:pk>/recalculate/', views.recalculate_attendance_summary, name='recalculate_attendance_summary'),
+    
+    # طباعة قسيمة الراتب
+    path('payroll/<int:pk>/print/', views.payroll_print, name='payroll_print'),
     
     # العقود
     path('contracts/', views.contract_list, name='contract_list'),
     path('contracts/<int:pk>/', views.contract_detail, name='contract_detail'),
-    # نموذج موحد للإضافة والتعديل
+    # نموذج موحد
     path('contracts/form/', views.contract_form, name='contract_form'),
     path('contracts/<int:pk>/form/', views.contract_form, name='contract_form_edit'),
+    
+    # النظام الموحد للعقود
+    path('contracts/unified/create/', views.contract_create_unified, name='contract_create_unified'),
+    path('contracts/unified/<int:pk>/edit/', views.contract_edit_unified, name='contract_edit_unified'),
+    path('employees/<int:employee_id>/components/unified/', views.contract_components_unified, name='contract_components_unified'),
     # تفعيل العقد
     path('contracts/<int:pk>/activate/', views.contract_activate, name='contract_activate_confirm'),
+    path('contracts/<int:pk>/activation-preview/', views.contract_activation_preview, name='contract_activation_preview'),
+    path('contracts/<int:pk>/activate-with-components/', views.contract_activate_with_components, name='contract_activate_with_components'),
     
     # إدارة العقود
     path('contracts/<int:pk>/renew/', views.contract_renew, name='contract_renew'),
@@ -159,8 +189,22 @@ urlpatterns = [
     # API التحقق من تداخل العقود
     path('contracts/check-overlap/', views.contract_check_overlap, name='contract_check_overlap'),
     
+    # أدوات المزامنة للبنود
+    path('components/<int:pk>/sync/', views.sync_component, name='sync_component'),
+    path('contracts/<int:pk>/sync-components/', views.sync_contract_components, name='sync_contract_components'),
+    
     # API الموظفين
     path('api/employees/<int:pk>/', views.employee_detail_api, name='employee_detail_api'),
+    path('api/employees/<int:employee_id>/components-analysis/', views.employee_components_analysis, name='employee_components_analysis'),
+    
+    # أدوات الصيانة الإدارية
+    path('admin/maintenance/', views.maintenance_dashboard, name='maintenance_dashboard'),
+    path('admin/maintenance/overview/', views.maintenance_overview, name='maintenance_overview'),
+    path('admin/maintenance/report/', views.maintenance_report, name='maintenance_report'),
+    path('admin/maintenance/cleanup_expired/', views.maintenance_cleanup_expired, name='maintenance_cleanup_expired'),
+    path('admin/maintenance/cleanup_orphaned/', views.maintenance_cleanup_orphaned, name='maintenance_cleanup_orphaned'),
+    path('admin/maintenance/fix_inconsistencies/', views.maintenance_fix_inconsistencies, name='maintenance_fix_inconsistencies'),
+    path('admin/maintenance/auto_renewals/', views.maintenance_auto_renewals, name='maintenance_auto_renewals'),
     
     # API قوالب مكونات الراتب
     path('api/salary-templates/', views.get_salary_component_templates, name='salary_templates_api'),
@@ -173,11 +217,27 @@ urlpatterns = [
     
     # بنود راتب الموظف
     path('employees/<int:employee_id>/salary-components/', views.employee_salary_components, name='employee_salary_components'),
+    
+    # النظام الموحد الجديد لبنود الراتب
+    path('employees/<int:employee_id>/salary-components/unified/', views.UnifiedSalaryComponentView.as_view(), name='unified_salary_component_create'),
+    path('employees/<int:employee_id>/salary-components/unified/<int:component_id>/', views.UnifiedSalaryComponentView.as_view(), name='unified_salary_component_edit'),
+    
+    # APIs للنظام الموحد
+    path('api/salary-components/template-details/', views.get_template_details, name='get_template_details'),
+    path('api/salary-components/form-preview/', views.get_form_preview, name='get_form_preview'),
+    path('api/salary-components/validate-name/', views.validate_component_name, name='validate_component_name'),
+    
+    # النظام القديم (سيتم إزالته لاحقاً)
     path('employees/<int:employee_id>/salary-components/add/', views.salary_component_create, name='salary_component_create'),
     path('employees/<int:employee_id>/salary-components/<int:component_id>/edit/', views.salary_component_edit, name='salary_component_edit'),
     path('employees/<int:employee_id>/salary-components/<int:component_id>/delete/', views.salary_component_delete, name='salary_component_delete'),
     path('employees/<int:employee_id>/salary-components/<int:component_id>/toggle/', views.salary_component_toggle_active, name='salary_component_toggle_active'),
-    path('employees/<int:employee_id>/salary-components/quick-add/', views.salary_component_quick_add, name='salary_component_quick_add'),
+    # path('employees/<int:employee_id>/salary-components/quick-add/', views.salary_component_quick_add, name='salary_component_quick_add'), # تم حذفها - النظام الموحد
+    
+    # إدارة التصنيف والتجديد
+    path('employees/<int:employee_id>/salary-components/classify/', views.salary_component_classify, name='salary_component_classify'),
+    path('employees/<int:employee_id>/salary-components/renew/<int:component_id>/', views.salary_component_renew, name='salary_component_renew'),
+    path('employees/<int:employee_id>/salary-components/bulk-renew/', views.salary_component_bulk_renew, name='salary_component_bulk_renew'),
     
     # التقارير
     path('reports/', include([

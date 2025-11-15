@@ -6,6 +6,7 @@ from datetime import date
 from decimal import Decimal
 from ..models import Payroll, Employee, Advance
 from .attendance_service import AttendanceService
+from .advance_service import AdvanceService
 import logging
 
 logger = logging.getLogger(__name__)
@@ -75,13 +76,19 @@ class PayrollService:
                 logger.error(f"      - {comp.name}: is_active={comp.is_active}, effective_from={comp.effective_from}, effective_to={comp.effective_to}")
             raise ValueError('لا توجد بنود راتب نشطة للموظف')
         
-        # 3. حساب الراتب الأساسي من العقد أولاً
+        # 3. حساب الراتب الأساسي من العقد أولاً مع تجبير الكسور
         if contract.basic_salary:
             basic_salary = Decimal(str(contract.basic_salary))
+            # تجبير الراتب الأساسي لأقرب رقم صحيح
+            from decimal import ROUND_HALF_UP
+            basic_salary = basic_salary.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         else:
             # إذا لم يكن موجود في العقد، جربه من البند
             basic_component = components.filter(is_basic=True).first()
             basic_salary = basic_component.amount if basic_component else Decimal('0')
+            # تجبير الراتب الأساسي لأقرب رقم صحيح
+            from decimal import ROUND_HALF_UP
+            basic_salary = basic_salary.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         
         # 4. حساب الحضور وأيام العمل الفعلية
         attendance_stats = AttendanceService.calculate_monthly_attendance(employee, month)
@@ -97,10 +104,22 @@ class PayrollService:
             worked_days = days_from_start
             logger.info(f"راتب جزئي: الموظف {employee.get_full_name_ar()} معين من {contract_start} - أيام العمل: {worked_days}/{total_days_in_month}")
         else:
-            # الشهر كامل
-            worked_days = attendance_stats.get('present_days', total_days_in_month)
+            # الشهر كامل - استخدام أيام الحضور الفعلية
+            worked_days = attendance_stats.get('present_days', 0)
             if worked_days == 0:
-                worked_days = total_days_in_month  # افتراضي إذا لم يكن هناك حضور مسجل
+                # التحقق من إعداد النظام لسلوك عدم وجود بيانات حضور
+                from core.models import SystemSetting
+                no_attendance_behavior = SystemSetting.get_setting('payroll_no_attendance_behavior', 'full_salary')
+                
+                if no_attendance_behavior == 'zero_salary':
+                    logger.warning(f"⚠️ لا توجد بيانات حضور للموظف {employee.get_full_name_ar()} في شهر {month.strftime('%Y-%m')} - سيتم احتساب راتب صفر")
+                    worked_days = 0
+                elif no_attendance_behavior == 'error':
+                    logger.error(f"❌ لا توجد بيانات حضور للموظف {employee.get_full_name_ar()} في شهر {month.strftime('%Y-%m')}")
+                    raise ValueError(f'لا توجد بيانات حضور للموظف {employee.get_full_name_ar()} في شهر {month.strftime("%Y-%m")}')
+                else:  # 'full_salary' (افتراضي)
+                    logger.warning(f"⚠️ لا توجد بيانات حضور للموظف {employee.get_full_name_ar()} في شهر {month.strftime('%Y-%m')} - سيتم احتساب راتب كامل افتراضياً")
+                    worked_days = total_days_in_month
         
         # 5. التحقق من وجود راتب سابق لنفس الموظف والشهر
         existing_payroll = Payroll.objects.filter(
@@ -130,10 +149,10 @@ class PayrollService:
             social_insurance=Decimal('0'),
             tax=Decimal('0'),
             advance_deduction=Decimal('0'),
-            gross_salary=Decimal('0'),
+            gross_salary=basic_salary,
             total_additions=Decimal('0'),
             total_deductions=Decimal('0'),
-            net_salary=Decimal('0'),
+            net_salary=basic_salary,
         )
         
         # 7. إنشاء PayrollLine لكل بند (ماعدا الراتب الأساسي لأنه محفوظ في basic_salary)
@@ -153,7 +172,7 @@ class PayrollService:
             # تقريب المبلغ لأقرب رقم صحيح
             from decimal import ROUND_HALF_UP
             amount = amount.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
-            
+                        
             PayrollLine.objects.create(
                 payroll=payroll,
                 salary_component=component,
@@ -207,8 +226,7 @@ class PayrollService:
     @staticmethod
     def _calculate_advance_deduction(employee, month):
         """
-        خصم السلف - نظام الأقساط المحسّن
-        يخصم قسط شهري من كل سلفة نشطة
+        خصم السلف - استخدام AdvanceService
         
         Args:
             employee: الموظف
@@ -217,61 +235,15 @@ class PayrollService:
         Returns:
             Decimal: إجمالي خصم السلف لهذا الشهر
         """
-        from ..models import AdvanceInstallment
-        
-        # الحصول على السلف النشطة (مدفوعة أو قيد الخصم)
-        advances = Advance.objects.filter(
+        # استخدام AdvanceService لحساب الخصم
+        total_deduction, advances_list = AdvanceService.calculate_advance_deduction(
             employee=employee,
-            status__in=['paid', 'in_progress'],
-            deduction_start_month__lte=month
-        ).exclude(
-            status='completed'
-        ).order_by('deduction_start_month')
-        
-        if not advances.exists():
-            logger.debug(f"لا توجد سلف نشطة للموظف {employee.get_full_name_ar()} في شهر {month}")
-            return Decimal('0')
-        
-        total_deduction = Decimal('0')
-        
-        for advance in advances:
-            # التحقق من عدم وجود قسط لهذا الشهر بالفعل
-            existing_installment = AdvanceInstallment.objects.filter(
-                advance=advance,
-                month=month
-            ).exists()
-            
-            if existing_installment:
-                logger.warning(
-                    f"قسط موجود بالفعل للسلفة {advance.id} للموظف {employee.get_full_name_ar()} "
-                    f"في شهر {month}"
-                )
-                continue
-            
-            # الحصول على قيمة القسط التالي
-            installment_amount = advance.get_next_installment_amount()
-            
-            if installment_amount > 0:
-                try:
-                    # تسجيل القسط
-                    advance.record_installment_payment(month, installment_amount)
-                    total_deduction += installment_amount
-                    
-                    logger.info(
-                        f"تم خصم قسط {installment_amount} ج.م من السلفة {advance.id} "
-                        f"للموظف {employee.get_full_name_ar()} - "
-                        f"القسط {advance.paid_installments}/{advance.installments_count}"
-                    )
-                except Exception as e:
-                    logger.error(
-                        f"خطأ في خصم قسط السلفة {advance.id} للموظف {employee.get_full_name_ar()}: {str(e)}"
-                    )
-                    # نستمر مع السلف الأخرى
-                    continue
+            payroll_month=month
+        )
         
         logger.info(
             f"إجمالي خصم السلف للموظف {employee.get_full_name_ar()} في شهر {month}: "
-            f"{total_deduction} ج.م"
+            f"{total_deduction} ج.م من {len(advances_list)} سلفة"
         )
         
         return total_deduction
@@ -907,10 +879,21 @@ class PayrollService:
             payroll.journal_entry = journal_entry
             payroll.save()
             
-            logger.info(
-                f"تم دفع راتب {payroll.employee.get_full_name_ar()} - {payroll.month} "
-                f"من حساب {payment_account.name} وإنشاء القيد المحاسبي رقم {journal_entry.id}"
-            )
+            # ✅ ترحيل القيد تلقائياً
+            try:
+                from financial.services.expense_income_service import ExpenseIncomeService
+                ExpenseIncomeService.post_journal_entry(journal_entry, paid_by)
+                
+                logger.info(
+                    f"تم دفع راتب {payroll.employee.get_full_name_ar()} - {payroll.month} "
+                    f"من حساب {payment_account.name} وإنشاء وترحيل القيد المحاسبي رقم {journal_entry.id}"
+                )
+            except Exception as post_error:
+                logger.warning(
+                    f"تم إنشاء القيد المحاسبي رقم {journal_entry.id} لكن فشل ترحيله: {str(post_error)}"
+                )
+                # لا نرفع الخطأ لأن القيد تم إنشاؤه بنجاح
+                
         except Exception as e:
             logger.error(
                 f"تم دفع الراتب بنجاح لكن فشل إنشاء القيد المحاسبي: {str(e)}"
@@ -982,9 +965,19 @@ class PayrollService:
         # ربط القيد بالرواتب
         paid_payrolls.update(journal_entry=entry)
         
-        logger.info(
-            f"تم إنشاء قيد محاسبي عام لمرتبات {month.strftime('%Y-%m')} - "
-            f"عدد الموظفين: {paid_payrolls.count()}, الإجمالي: {totals['total_gross']}"
-        )
+        # ✅ ترحيل القيد تلقائياً
+        try:
+            from financial.services.expense_income_service import ExpenseIncomeService
+            ExpenseIncomeService.post_journal_entry(entry, created_by)
+            
+            logger.info(
+                f"تم إنشاء وترحيل قيد محاسبي عام لمرتبات {month.strftime('%Y-%m')} - "
+                f"عدد الموظفين: {paid_payrolls.count()}, الإجمالي: {totals['total_gross']}"
+            )
+        except Exception as post_error:
+            logger.warning(
+                f"تم إنشاء القيد المحاسبي رقم {entry.id} لكن فشل ترحيله: {str(post_error)}"
+            )
+            # لا نرفع الخطأ لأن القيد تم إنشاؤه بنجاح
         
         return entry

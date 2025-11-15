@@ -52,11 +52,9 @@ def load_chart_of_accounts(apps, schema_editor):
         {'pk': 1, 'code': '11011', 'name': 'الصندوق الرئيسي', 'name_en': 'Main Cash Box', 'account_type_id': 3, 'parent_id': 15, 'is_leaf': True, 'is_cash_account': True, 'is_bank_account': False},
         {'pk': 2, 'code': '11021', 'name': 'البنك الأهلي', 'name_en': 'National Bank', 'account_type_id': 4, 'parent_id': 15, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': True},
         {'pk': 3, 'code': '11030', 'name': 'العملاء', 'name_en': 'Customers', 'account_type_id': 5, 'parent_id': 15, 'is_leaf': False, 'is_cash_account': False, 'is_bank_account': False},
-        {'pk': 13, 'code': '1103001', 'name': 'عميل - راقيات الابداع', 'name_en': '', 'account_type_id': 5, 'parent_id': 3, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 4, 'code': '11051', 'name': 'مخزون البضاعة', 'name_en': 'Inventory', 'account_type_id': 6, 'parent_id': 15, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 16, 'code': '20000', 'name': 'الخصوم', 'name_en': '', 'account_type_id': 7, 'parent_id': None, 'is_leaf': False, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 5, 'code': '21010', 'name': 'الموردون', 'name_en': 'Suppliers', 'account_type_id': 9, 'parent_id': 16, 'is_leaf': False, 'is_cash_account': False, 'is_bank_account': False},
-        {'pk': 14, 'code': '2101001', 'name': 'مورد - مخزن مكة', 'name_en': '', 'account_type_id': 9, 'parent_id': 5, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 21, 'code': '21020', 'name': 'مستحقات الرواتب', 'name_en': 'Salaries Payable', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 20, 'code': '22010', 'name': 'القروض طويلة الأجل', 'name_en': 'Long-term Loans', 'account_type_id': 7, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 17, 'code': '30000', 'name': 'حقوق الملكية', 'name_en': '', 'account_type_id': 10, 'parent_id': None, 'is_leaf': False, 'is_cash_account': False, 'is_bank_account': False},
@@ -71,6 +69,21 @@ def load_chart_of_accounts(apps, schema_editor):
         {'pk': 22, 'code': '52020', 'name': 'الرواتب والأجور', 'name_en': 'Salaries and Wages', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 23, 'code': '53010', 'name': 'المصروفات التسويقية', 'name_en': 'Marketing Expenses', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
         {'pk': 12, 'code': '54010', 'name': 'مصروفات متنوعة', 'name_en': 'General Expenses', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        
+        # حسابات الرواتب - المصروفات
+        {'pk': 24, 'code': '52021', 'name': 'البدلات الثابتة', 'name_en': 'Fixed Allowances', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 25, 'code': '52022', 'name': 'المكافآت والحوافز', 'name_en': 'Bonuses and Incentives', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 26, 'code': '52023', 'name': 'بدل السكن', 'name_en': 'Housing Allowance', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 27, 'code': '52024', 'name': 'بدل النقل', 'name_en': 'Transportation Allowance', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 28, 'code': '52025', 'name': 'التأمينات الاجتماعية', 'name_en': 'Social Insurance', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 29, 'code': '52026', 'name': 'ضريبة الدخل', 'name_en': 'Income Tax', 'account_type_id': 18, 'parent_id': 19, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        
+        # حسابات الرواتب - الخصوم
+        {'pk': 30, 'code': '21030', 'name': 'سلف الموظفين', 'name_en': 'Employee Advances', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 31, 'code': '21031', 'name': 'مستحقات الرواتب الإضافية', 'name_en': 'Additional Salaries Payable', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 32, 'code': '21032', 'name': 'التأمينات الاجتماعية مستحقة', 'name_en': 'Social Insurance Payable', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 33, 'code': '21033', 'name': 'اشتراكات النقابة', 'name_en': 'Union Subscriptions', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
+        {'pk': 34, 'code': '21034', 'name': 'التأمين الطبي', 'name_en': 'Medical Insurance', 'account_type_id': 8, 'parent_id': 16, 'is_leaf': True, 'is_cash_account': False, 'is_bank_account': False},
     ]
     
     for data in accounts_data:

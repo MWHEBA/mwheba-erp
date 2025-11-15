@@ -418,19 +418,25 @@ class Contract(models.Model):
     
     @property
     def total_earnings(self):
-        """إجمالي المستحقات (من بنود الموظف)"""
+        """إجمالي المستحقات - محسن لمنع التكرار"""
         from decimal import Decimal
-        # البنود تتبع الموظف الآن (مش العقد)
-        earnings = self.employee.salary_components.filter(component_type='earning')
-        total = sum(component.amount for component in earnings)
-        return Decimal(str(self.basic_salary)) + Decimal(str(total))
+        # جلب البنود النشطة فقط
+        earnings = self.employee.salary_components.filter(
+            component_type='earning',
+            is_active=True
+        )
+        # لا حاجة للتحقق من التكرار لأنه مستحيل الآن مع UniqueConstraint
+        return sum(Decimal(str(component.amount)) for component in earnings)
     
     @property
     def total_deductions(self):
-        """إجمالي الاستقطاعات (من بنود الموظف)"""
+        """إجمالي الاستقطاعات - محسن لمنع التكرار"""
         from decimal import Decimal
-        # البنود تتبع الموظف الآن (مش العقد)
-        deductions = self.employee.salary_components.filter(component_type='deduction')
+        # جلب البنود النشطة فقط
+        deductions = self.employee.salary_components.filter(
+            component_type='deduction',
+            is_active=True
+        )
         return sum(Decimal(str(component.amount)) for component in deductions)
     
     @property

@@ -2,11 +2,62 @@
 {% load static %}
 {% load i18n %}
 {% load custom_filters %}
+{% load pricing_filters %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
 {% block extra_css %}
 <!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  .progress-bar-advance {
+      height: 8px;
+      border-radius: 4px;
+      background: var(--color-bg-light);
+      overflow: hidden;
+  }
+
+  .progress-bar-advance-fill {
+      height: 100%;
+      background: var(--color-success);
+      transition: width 0.3s ease;
+  }
+
+  .installment-summary-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+  }
+
+  .installment-timeline {
+      position: relative;
+      padding-right: 1.25rem;
+      border-right: 1px solid var(--color-border);
+  }
+
+  .timeline-item {
+      position: relative;
+      margin-bottom: 1rem;
+  }
+
+  .timeline-dot {
+      position: absolute;
+      right: -0.45rem;
+      top: 0.5rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-border);
+  }
+
+  .timeline-dot.paid {
+      background: var(--color-success);
+  }
+
+  .timeline-dot.pending {
+      background: var(--color-warning);
+  }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -15,83 +66,198 @@
   {% include "shared/page_header.html" %}
 
   <div class="row">
+    <!-- المحتوى الرئيسي: بيانات السلفة والموظف + سجل الأقساط -->
     <div class="col-lg-8">
+        <!-- تفاصيل السلفة والموظف -->
         <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-hand-holding-usd me-2"></i>تفاصيل السلفة</h5>
+            <div class="card">
                 <div class="card-body">
-                    <table class="table table-bordered">
-                        <tr>
-                            <th width="30%">الموظف</th>
-                            <td>{{ advance.employee.get_full_name_ar }}</td>
-                        </tr>
-                        <tr>
-                            <th>القسم</th>
-                            <td>{{ advance.employee.department.name_ar }}</td>
-                        </tr>
-                        <tr>
-                            <th>المبلغ</th>
-                            <td><strong>{{ advance.amount|floatformat:2 }} جنيه</strong></td>
-                        </tr>
-                        <tr>
-                            <th>السبب</th>
-                            <td>{{ advance.reason }}</td>
-                        </tr>
-                        <tr>
-                            <th>تاريخ الطلب</th>
-                            <td>{{ advance.requested_at|date:"Y-m-d H:i" }}</td>
-                        </tr>
-                        <tr>
-                            <th>الحالة</th>
-                            <td>
-                                {% if advance.status == 'pending' %}
-                                    <span class="badge bg-warning">قيد الانتظار</span>
-                                {% elif advance.status == 'approved' %}
-                                    <span class="badge bg-success">معتمدة</span>
-                                {% elif advance.status == 'rejected' %}
-                                    <span class="badge bg-danger">مرفوضة</span>
-                                {% elif advance.status == 'paid' %}
-                                    <span class="badge bg-info">مدفوعة</span>
-                                {% elif advance.status == 'deducted' %}
-                                    <span class="badge bg-secondary">تم الخصم</span>
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% if advance.approved_by %}
-                        <tr>
-                            <th>اعتمد بواسطة</th>
-                            <td>{{ advance.approved_by.get_full_name }}</td>
-                        </tr>
-                        <tr>
-                            <th>تاريخ الاعتماد</th>
-                            <td>{{ advance.approved_at|date:"Y-m-d H:i" }}</td>
-                        </tr>
-                        {% endif %}
-                        {% if advance.deduction_month %}
-                        <tr>
-                            <th>شهر الخصم</th>
-                            <td>{{ advance.deduction_month|date:"Y-m" }}</td>
-                        </tr>
-                        {% endif %}
-                    </table>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <h6 class="mb-3"><i class="fas fa-user me-2"></i>بيانات الموظف</h6>
+                            <dl class="row mb-0">
+                                <dt class="col-5 text-muted">الموظف</dt>
+                                <dd class="col-7">{{ advance.employee.get_full_name_ar }}</dd>
 
-                    <div class="mt-4">
-                        {% if advance.status == 'pending' %}
-                        <a href="{% url 'hr:advance_approve' advance.pk %}" class="btn btn-success">
-                            <i class="fas fa-check me-2"></i>
-                            اعتماد
-                        </a>
-                        <a href="{% url 'hr:advance_reject' advance.pk %}" class="btn btn-danger">
-                            <i class="fas fa-times me-2"></i>
-                            رفض
-                        </a>
+                                <dt class="col-5 text-muted">رقم الموظف</dt>
+                                <dd class="col-7">{{ advance.employee.employee_number }}</dd>
+
+                                <dt class="col-5 text-muted">القسم</dt>
+                                <dd class="col-7">{{ advance.employee.department.name_ar }}</dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <h6 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>بيانات السلفة</h6>
+                            <dl class="row mb-0">
+                                <dt class="col-6 text-muted">المبلغ الإجمالي</dt>
+                                <dd class="col-6"><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</dd>
+
+                                <dt class="col-6 text-muted">عدد الأقساط</dt>
+                                <dd class="col-6">{{ advance.installments_count }}</dd>
+
+                                <dt class="col-6 text-muted">قيمة القسط</dt>
+                                <dd class="col-6">{{ advance.installment_amount|remove_trailing_zeros }} جنيه</dd>
+
+                                <dt class="col-6 text-muted">المبلغ المتبقي</dt>
+                                <dd class="col-6">{{ advance.remaining_amount|remove_trailing_zeros }} جنيه</dd>
+
+                                <dt class="col-6 text-muted">شهر بدء الخصم</dt>
+                                <dd class="col-6">
+                                    {% if advance.deduction_start_month %}
+                                        {{ advance.deduction_start_month|date:"Y-m" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </dd>
+                            </dl>
+                        </div>
+                    </div>
+
+                    <hr class="my-3">
+
+                    <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>معلومات إضافية</h6>
+                    <dl class="row mb-0">
+                        <dt class="col-md-2 col-4 text-muted">الحالة</dt>
+                        <dd class="col-md-4 col-8">
+                            {% if advance.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                            {% elif advance.status == 'approved' %}
+                                <span class="badge bg-primary">معتمدة</span>
+                            {% elif advance.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوضة</span>
+                            {% elif advance.status == 'paid' %}
+                                <span class="badge bg-info">مدفوعة</span>
+                            {% elif advance.status == 'in_progress' %}
+                                <span class="badge bg-success">قيد الخصم</span>
+                            {% elif advance.status == 'completed' %}
+                                <span class="badge bg-secondary">مكتملة</span>
+                            {% elif advance.status == 'cancelled' %}
+                                <span class="badge bg-secondary">ملغاة</span>
+                            {% endif %}
+                        </dd>
+
+                        <dt class="col-md-2 col-4 text-muted">تاريخ الطلب</dt>
+                        <dd class="col-md-4 col-8">{{ advance.requested_at|date:"Y-m-d H:i" }}</dd>
+
+                        {% if advance.approved_by %}
+                            <dt class="col-md-2 col-4 text-muted">اعتمد بواسطة</dt>
+                            <dd class="col-md-4 col-8">{{ advance.approved_by.get_full_name }}</dd>
+
+                            <dt class="col-md-2 col-4 text-muted">تاريخ الاعتماد</dt>
+                            <dd class="col-md-4 col-8">{{ advance.approved_at|date:"Y-m-d H:i" }}</dd>
                         {% endif %}
-                        <a href="{% url 'hr:advance_list' %}" class="btn btn-secondary">
-                            <i class="fas fa-arrow-right me-2"></i>
-                            العودة
-                        </a>
+                    </dl>
+
+                    {% if advance.reason %}
+                    <div class="mt-3">
+                        <h6 class="mb-2"><i class="fas fa-align-right me-2"></i>سبب السلفة</h6>
+                        <p class="mb-0 text-muted">{{ advance.reason }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- سجل الأقساط -->
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-history me-2"></i>سجل الأقساط</h5>
+            <div class="card">
+                <div class="card-body">
+                    {% if installments %}
+                        <div class="installment-timeline">
+                            {% for installment in installments %}
+                            <div class="timeline-item">
+                                <div class="timeline-dot {% if installment.payroll %}paid{% else %}pending{% endif %}"></div>
+                                <div class="card">
+                                    <div class="card-body py-2 px-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <strong>القسط #{{ installment.installment_number }}</strong><br>
+                                                <small class="text-muted">{{ installment.month|date:"Y-m" }}</small>
+                                            </div>
+                                            <div class="text-end">
+                                                <div><strong>{{ installment.amount|remove_trailing_zeros }} جنيه</strong></div>
+                                                {% if installment.payroll %}
+                                                    <small class="text-success">مدفوع ضمن قسيمة {{ installment.payroll.month|date:"Y-m" }}</small>
+                                                {% else %}
+                                                    <small class="text-warning">مجدول</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">لا توجد أقساط مسجلة بعد.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- الأزرار -->
+        <div class="section-container">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    
+                </div>
+                <div>
+                    {% if advance.status == 'pending' %}
+                    <a href="{% url 'hr:advance_approve' advance.pk %}" class="btn btn-success">
+                        <i class="fas fa-check me-2"></i>
+                        اعتماد
+                    </a>
+                    <a href="{% url 'hr:advance_reject' advance.pk %}" class="btn btn-danger ms-1">
+                        <i class="fas fa-times me-2"></i>
+                        رفض
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'hr:advance_list' %}" class="btn btn-secondary ms-1">
+                        <i class="fas fa-arrow-right me-2"></i>
+                        العودة
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- العمود الجانبي: ملخص التقدم -->
+    <div class="col-lg-4">
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>تقدم السداد</h5>
+            <div class="card">
+                <div class="card-body">
+                    <div class="installment-summary-item">
+                        <span class="text-muted">إجمالي السلفة</span>
+                        <span><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</span>
+                    </div>
+                    <div class="installment-summary-item">
+                        <span class="text-muted">المبلغ المتبقي</span>
+                        <span><strong>{{ advance.remaining_amount|remove_trailing_zeros }}</strong> جنيه</span>
+                    </div>
+                    <div class="installment-summary-item">
+                        <span class="text-muted">الأقساط المدفوعة</span>
+                        <span><strong>{{ advance.paid_installments }}</strong> / {{ advance.installments_count }}</span>
+                    </div>
+                    <div class="mt-3">
+                        <div class="progress-bar-advance">
+                            <div class="progress-bar-advance-fill"
+                                 style="width: {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%;"></div>
+                        </div>
+                        <small class="text-muted d-block mt-1">
+                            {% if advance.installments_count %}
+                                {% widthratio advance.paid_installments advance.installments_count 100 %}% مكتمل
+                            {% else %}
+                                0% مكتمل
+                            {% endif %}
+                        </small>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+  </div>
 </div>
 {% endblock %}

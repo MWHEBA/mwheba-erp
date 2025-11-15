@@ -599,12 +599,11 @@ def arabic_month_year(date_value):
     
     try:
         # استخدام الدالة الموجودة في utils.helpers
-        formatted = arabic_date_format(date_value, with_time=False)
-        # استخراج الشهر والسنة فقط (بدون اليوم)
-        parts = formatted.split()
+        formatted_date = arabic_date_format(date_value)
+        parts = formatted_date.split()
         if len(parts) >= 3:
-            return f"{parts[1]} {parts[2]}"  # الشهر والسنة
-        return formatted
+            return f"{parts[1]} {parts[2]}"
+        return formatted_date
     except:
         return str(date_value)
 
@@ -641,7 +640,10 @@ def render_action_button(button, item, primary_key='id'):
         elif button.get('condition') == 'status == \'draft\'':
             show_button = getattr(item, 'status', None) == 'draft'
         elif button.get('condition') == 'can_delete':
-            show_button = getattr(item, 'can_delete', True)
+            if isinstance(item, dict):
+                show_button = item.get('can_delete', True)
+            else:
+                show_button = getattr(item, 'can_delete', True)
         elif button.get('condition') == "status != 'approved' and status != 'paid'":
             status = getattr(item, 'status', None)
             show_button = status != 'approved' and status != 'paid'
@@ -649,7 +651,11 @@ def render_action_button(button, item, primary_key='id'):
             show_button = getattr(item, 'status', None) == 'approved'
     
     # الحصول على المفتاح الأساسي
-    if hasattr(item, primary_key):
+    if isinstance(item, dict):
+        # التعامل مع dictionary items
+        item_id = item.get(primary_key, item.get('id', '0'))
+    elif hasattr(item, primary_key):
+        # التعامل مع object items
         item_id = getattr(item, primary_key, '0')
     else:
         item_id = getattr(item, 'id', '0')

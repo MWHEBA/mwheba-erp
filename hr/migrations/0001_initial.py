@@ -689,7 +689,6 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("fixed", "ثابت"),
-                            ("percentage", "نسبة مئوية"),
                             ("formula", "صيغة حسابية"),
                         ],
                         default="fixed",
@@ -1609,7 +1608,6 @@ class Migration(migrations.Migration):
                     models.CharField(
                         choices=[
                             ("fixed", "ثابت"),
-                            ("percentage", "نسبة مئوية"),
                             ("formula", "صيغة حسابية"),
                         ],
                         default="fixed",

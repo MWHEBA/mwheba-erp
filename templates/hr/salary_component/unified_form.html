@@ -1,0 +1,1111 @@
+{% load widget_tweaks %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+
+<form id="unifiedComponentForm" method="post" action="{% if is_edit %}{% url 'hr:unified_salary_component_edit' employee.id component.id %}{% else %}{% url 'hr:unified_salary_component_create' employee.id %}{% endif %}">
+    {% csrf_token %}
+    
+    <!-- حقول مخفية -->
+    {{ form.quick_type.as_hidden }}
+    {{ form.order.as_hidden }}
+    
+    <div class="modal-header">
+        <h5 class="modal-title">
+            <i class="fas fa-{% if is_edit %}edit{% else %}plus{% endif %} me-2"></i>
+            {% if is_edit %}تعديل{% else %}إضافة{% endif %} بند راتب - {{ employee.get_full_name_ar }}
+        </h5>
+        
+        
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+    </div>
+    
+    <div class="modal-body">
+        {% if not active_contract %}
+        <!-- تحذير عدم وجود عقد نشط -->
+        <div class="alert alert-warning mb-3">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>تنبيه:</strong> لا يوجد عقد نشط لهذا الموظف. الصيغ الحسابية لن تعمل بدون عقد نشط.
+        </div>
+        {% endif %}
+        
+        <!-- النموذج السريع الموحد -->
+        <div class="quick-form-content">
+            <!-- Toggle للاختيار بين قالب جاهز وبند مخصوص -->
+            <div class="row mb-3">
+                <div class="col-12">
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="component_source" id="source_template" value="template" checked>
+                        <label class="btn btn-outline-primary" for="source_template">
+                            <i class="fas fa-layer-group me-2"></i>قالب جاهز
+                        </label>
+                        
+                        <input type="radio" class="btn-check" name="component_source" id="source_custom" value="custom">
+                        <label class="btn btn-outline-primary" for="source_custom">
+                            <i class="fas fa-edit me-2"></i>بند مخصوص
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- حقول مخفية لتتبع حالة النموذج -->
+            <input type="hidden" id="quick_type" name="quick_type" value="template">
+            <input type="hidden" id="form_mode" name="form_mode" value="quick">
+            
+            <!-- الحقول المشتركة -->
+            <div class="unified-fields">
+                <!-- حقول خاصة بالقالب الجاهز -->
+                <div class="template-fields">
+                    <div class="row mb-2">
+                        <div class="col-12">
+                            <label class="form-label">{{ form.template.label }}</label>
+                            {{ form.template|add_class:"form-select" }}
+                            <small class="text-muted">اختر قالب جاهز لإضافته بسرعة</small>
+                        </div>
+                    </div>
+                    
+                    <div class="template-details" style="display: none;">
+                        <div class="alert alert-info py-2">
+                            <div class="template-info"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-2">
+                        <div class="col-12">
+                            <label class="form-label">{{ form.custom_amount.label }}</label>
+                            {{ form.custom_amount|add_class:"form-control" }}
+                            <small class="text-muted">{{ form.custom_amount.help_text }}</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- حقول خاصة بالبند المخصوص -->
+                <div class="custom-fields" style="display: none;">
+                    <div class="row mb-2">
+                        <div class="col-md-8">
+                            <label class="form-label">{{ form.name.label }}</label>
+                            {{ form.name|add_class:"form-control" }}
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">{{ form.component_type.label }}</label>
+                            {{ form.component_type|add_class:"form-select" }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.calculation_method.label }}</label>
+                            {{ form.calculation_method|add_class:"form-select" }}
+                        </div>
+                        
+                        <!-- حقل المبلغ الثابت - يظهر عند اختيار "مبلغ ثابت" -->
+                        <div class="col-md-6" id="fixed_amount_container" style="display: none;">
+                            <label class="form-label">{{ form.amount.label }}</label>
+                            {{ form.amount|add_class:"form-control" }}
+                        </div>
+                        
+                        <!-- حقل الصيغة المحاسبية - يظهر عند اختيار "صيغة محاسبية" -->
+                        <div class="col-md-6" id="formula_container" style="display: none;">
+                            <label class="form-label">{{ form.formula.label }}</label>
+                            <div class="formula-input-wrapper">
+                                <button type="button" class="formula-variables-btn" title="إضافة متغير">
+                                    <i class="fas fa-tag"></i>
+                                </button>
+                                {{ form.formula|add_class:"form-control component-formula" }}
+                                <div class="variables-dropdown" style="display: none;">
+                                    <div class="variables-list">
+                                        <div class="variable-item" data-value="basic">
+                                            <strong>basic</strong>
+                                            <small>الراتب الأساسي</small>
+                                        </div>
+                                        <div class="variable-item" data-value="total_earnings">
+                                            <strong>total_earnings</strong>
+                                            <small>إجمالي المستحقات</small>
+                                        </div>
+                                        <div class="variable-item" data-value="total_deductions">
+                                            <strong>total_deductions</strong>
+                                            <small>إجمالي الاستقطاعات</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- الحقول المشتركة -->
+                <div class="shared-fields">
+                    <div class="row mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label">{{ form.duration_type.label }}</label>
+                            {{ form.duration_type|add_class:"form-select" }}
+                        </div>
+                        <div class="col-md-6" id="effective_from_container">
+                            <label class="form-label">{{ form.effective_from.label }}</label>
+                            {{ form.effective_from|add_class:"form-control datepicker" }}
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-2">
+                        <div class="col-md-6" id="effective_to_container" style="display: none;">
+                            <label class="form-label">{{ form.effective_to.label }}</label>
+                            {{ form.effective_to|add_class:"form-control datepicker" }}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- حقل الكود مخفي -->
+                {{ form.code }}
+            </div>
+        </div>
+
+
+        <!-- معاينة فورية -->
+        <div class="preview-section mt-3">
+            <div class="card bg-light">
+                <div class="card-header py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>معاينة البند
+                    </h6>
+                </div>
+                <div class="card-body py-2">
+                    <div class="preview-content">
+                        <div class="text-center text-muted">
+                            <i class="fas fa-info-circle me-2"></i>
+                            أدخل البيانات لرؤية المعاينة
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- عرض الأخطاء -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger mt-3">
+                {{ form.non_field_errors }}
+            </div>
+        {% endif %}
+    </div>
+    
+    <div class="modal-footer py-2">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>حفظ
+        </button>
+    </div>
+</form>
+
+<script>
+// بيانات القوالب من الخادم - مع حماية من التكرار
+if (typeof window.templatesData === 'undefined') {
+    window.templatesData = {{ templates_data|safe }};
+}
+if (typeof window.employeeId === 'undefined') {
+    window.employeeId = {{ employee.id }};
+}
+if (typeof window.isEdit === 'undefined') {
+    window.isEdit = {% if is_edit %}true{% else %}false{% endif %};
+}
+
+// استخدام المتغيرات من window
+const templatesData = window.templatesData;
+const employeeId = window.employeeId;
+const isEdit = window.isEdit;
+
+// مدير النموذج الموحد - مع حماية من التكرار
+if (typeof window.UnifiedSalaryComponentManager === 'undefined') {
+    window.UnifiedSalaryComponentManager = class UnifiedSalaryComponentManager {
+    constructor() {
+        this.currentMode = 'quick';
+        this.currentQuickType = 'template';
+        this.form = document.getElementById('unifiedComponentForm');
+        
+        if (!this.form) {
+            return;
+        }
+        
+        this.init();
+    }
+    
+    init() {
+        this.bindEvents();
+        this.loadInitialMode();
+        this.initializeDatepickers();
+        this.updatePreview();
+    }
+    
+    bindEvents() {
+        // تبديل نوع الإضافة السريعة
+        const quickOptions = document.querySelectorAll('.quick-option');
+        quickOptions.forEach(card => {
+            card.addEventListener('click', (e) => {
+                const quickType = card.dataset.quickType;
+                this.switchQuickType(quickType);
+            });
+        });
+        
+        // تغيير القالب
+        const templateSelect = document.getElementById('id_template');
+        if (templateSelect) {
+            templateSelect.addEventListener('change', () => {
+                this.handleTemplateChange();
+            });
+        }
+        
+        
+        // معاينة فورية
+        this.form.addEventListener('input', () => {
+            this.updatePreview();
+        });
+        
+        // معاينة عند تغيير المبلغ المخصص
+        const customAmountField = document.getElementById('id_custom_amount');
+        if (customAmountField) {
+            customAmountField.addEventListener('input', () => {
+                this.updatePreview();
+            });
+        }
+        
+        // Toggle buttons للتبديل بين قالب جاهز وبند مخصوص
+        const sourceTemplate = document.getElementById('source_template');
+        const sourceCustom = document.getElementById('source_custom');
+        
+        if (sourceTemplate) {
+            sourceTemplate.addEventListener('change', () => {
+                if (sourceTemplate.checked) {
+                    this.switchQuickType('template');
+                }
+            });
+        }
+        
+        if (sourceCustom) {
+            sourceCustom.addEventListener('change', () => {
+                if (sourceCustom.checked) {
+                    this.switchQuickType('custom');
+                }
+            });
+        }
+        
+        // معالجة تغيير نوع المدة
+        const durationTypeSelect = document.getElementById('id_duration_type');
+        if (durationTypeSelect) {
+            durationTypeSelect.addEventListener('change', () => {
+                this.handleDurationTypeChange();
+            });
+        }
+        
+        // معالجة تغيير طريقة الحساب
+        const calculationMethodSelect = document.getElementById('id_calculation_method');
+        if (calculationMethodSelect) {
+            calculationMethodSelect.addEventListener('change', () => {
+                this.handleCalculationMethodChange();
+            });
+        }
+        
+        // معالجة الصيغة المحاسبية
+        const formulaField = document.getElementById('id_formula');
+        if (formulaField) {
+            // معاينة فورية للصيغة
+            formulaField.addEventListener('input', () => {
+                this.handleFormulaChange();
+            });
+            
+            // حساب المبلغ عند فقدان التركيز
+            formulaField.addEventListener('blur', () => {
+                this.calculateFromFormula();
+            });
+        }
+        
+        // كشف الصيغ في حقل المبلغ
+        const amountField = document.getElementById('id_amount');
+        if (amountField) {
+            amountField.addEventListener('input', () => {
+                this.detectFormulaInAmount();
+            });
+        }
+        
+        // إرسال النموذج
+        this.form.addEventListener('submit', (e) => {
+            this.handleSubmit(e);
+        });
+    }
+    
+    
+    switchQuickType(type) {
+        this.currentQuickType = type;
+        const quickTypeInput = document.getElementById('quick_type');
+        if (quickTypeInput) {
+            quickTypeInput.value = type;
+        }
+        
+        const formModeInput = document.getElementById('form_mode');
+        if (formModeInput) {
+            formModeInput.value = 'quick';
+        }
+        
+        // إخفاء/إظهار الحقول
+        const templateFields = document.querySelector('.template-fields');
+        const customFields = document.querySelector('.custom-fields');
+        
+        if (templateFields && customFields) {
+            if (type === 'template') {
+                templateFields.style.display = 'block';
+                customFields.style.display = 'none';
+            } else {
+                templateFields.style.display = 'none';
+                customFields.style.display = 'block';
+            }
+        }
+        
+        // تحديث الحقول المطلوبة
+        this.updateRequiredFields(type);
+        
+        // تهيئة datepicker عند تبديل الأنواع
+        setTimeout(() => {
+            this.initializeDatepickers();
+        }, 100);
+        
+        this.updatePreview();
+    }
+    
+    handleTemplateChange() {
+        const templateId = document.getElementById('id_template').value;
+        const templateDetails = document.querySelector('.template-details');
+        
+        if (templateId) {
+            const template = templatesData.find(t => t.id == templateId);
+            if (template) {
+                let info = `
+                    <strong>${template.name}</strong><br>
+                    <small class="text-muted">
+                        النوع: ${template.component_type_display} | 
+                        المبلغ الافتراضي: ${template.default_amount} ج.م
+                        ${template.description ? ' | ' + template.description : ''}
+                    </small>
+                `;
+                
+                // تحذير إذا كان القالب مستخدم بالفعل
+                if (template.is_used) {
+                    info += `
+                        <div class="alert alert-warning mt-2 mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>تنبيه:</strong> هذا القالب مستخدم بالفعل لهذا الموظف
+                        </div>
+                    `;
+                }
+                
+                document.querySelector('.template-info').innerHTML = info;
+                templateDetails.style.display = 'block';
+            }
+        } else {
+            templateDetails.style.display = 'none';
+        }
+        
+        // تهيئة datepicker بعد تحميل القالب
+        this.initializeDatepickers();
+        
+        this.updatePreview();
+    }
+    
+    
+    updatePreview() {
+        // التحقق من وجود النموذج
+        if (!this.form) return;
+        
+        // جمع البيانات وإرسالها للمعاينة
+        const formData = new FormData(this.form);
+        formData.append('employee_id', employeeId);
+        
+        
+        fetch('{% url "hr:get_form_preview" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                this.renderPreview(data.preview, data.salary_impact);
+            } else {
+                console.warn('فشل في المعاينة:', data.message);
+            }
+        })
+        .catch(error => {
+            console.error('خطأ في المعاينة:', error);
+        });
+    }
+    
+    renderPreview(preview, salaryImpact) {
+        const previewContent = document.querySelector('.preview-content');
+        
+        if (!preview.name) {
+            previewContent.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-info-circle me-2"></i>
+                    أدخل البيانات لرؤية المعاينة
+                </div>
+            `;
+            return;
+        }
+        
+        const changeClass = salaryImpact.salary_change >= 0 ? 'text-success' : 'text-danger';
+        const changeIcon = salaryImpact.salary_change >= 0 ? 'fa-plus' : 'fa-minus';
+        
+        previewContent.innerHTML = `
+            <div class="component-preview mb-3">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h6 class="mb-1">${preview.name}</h6>
+                        <small class="text-muted">${preview.component_type} - ${preview.calculation_method}</small>
+                        ${preview.formula ? `<div class="mt-1"><small class="text-info"><i class="fas fa-calculator me-1"></i>الصيغة: ${preview.formula}</small></div>` : ''}
+                        ${preview.notes ? `<div class="mt-1"><small class="text-secondary"><i class="fas fa-info-circle me-1"></i>${preview.notes}</small></div>` : ''}
+                    </div>
+                    <div class="text-end">
+                        <span class="h5 mb-0">${preview.amount} ج.م</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="salary-impact">
+                <h6 class="mb-2">التأثير على الراتب:</h6>
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block">الراتب الحالي</small>
+                        <div class="fw-bold">${salaryImpact.current_salary} ج.م</div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">التغيير</small>
+                        <div class="fw-bold ${changeClass}">
+                            <i class="fas ${changeIcon}"></i> ${Math.abs(salaryImpact.salary_change)} ج.م
+                        </div>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">الراتب الجديد</small>
+                        <div class="fw-bold text-primary">${salaryImpact.new_salary} ج.م</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    handleSubmit(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this.form);
+        const submitBtn = this.form.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+        
+        fetch(this.form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // رسالة نجاح
+                Swal.fire({
+                    icon: 'success',
+                    title: 'نجح!',
+                    text: data.message,
+                    timer: 2000
+                }).then(() => {
+                    // إغلاق المودال بعد النجاح
+                    const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+                    if (modal) modal.hide();
+                    
+                    if (data.redirect_url) {
+                        window.location.href = data.redirect_url;
+                    } else {
+                        location.reload();
+                    }
+                });
+            } else {
+                // عرض الأخطاء
+                console.error('أخطاء النموذج:', data.errors);
+                console.error('رسالة الخطأ:', data.message);
+                
+                // عرض تفاصيل الأخطاء
+                if (data.errors && data.errors.__all__) {
+                    console.error('أخطاء عامة:', data.errors.__all__);
+                }
+                
+                // عرض جميع أخطاء الحقول
+                for (const [field, errors] of Object.entries(data.errors || {})) {
+                    console.error(`خطأ في ${field}:`, errors);
+                }
+                
+                if (data.errors) {
+                    this.showErrors(data.errors);
+                    
+                    // عرض الأخطاء العامة في رسالة منفصلة
+                    if (data.errors.__all__ && data.errors.__all__.length > 0) {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'تنبيه!',
+                            text: data.errors.__all__.join('\n'),
+                            confirmButtonText: 'حسناً'
+                        });
+                    }
+                } else if (data.message) {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'خطأ!',
+                        text: data.message
+                    });
+                }
+            }
+        })
+        .catch(error => {
+            console.error('خطأ:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'خطأ!',
+                text: 'حدث خطأ أثناء الحفظ'
+            });
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+    
+    showErrors(errors) {
+        // إزالة الأخطاء السابقة
+        document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+        
+        for (const [field, messages] of Object.entries(errors)) {
+            const fieldElement = document.querySelector(`[name="${field}"]`);
+            if (fieldElement) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'invalid-feedback d-block';
+                errorDiv.textContent = Array.isArray(messages) ? messages.join(', ') : messages;
+                fieldElement.parentNode.appendChild(errorDiv);
+            }
+        }
+    }
+    
+    updateRequiredFields(type) {
+        // الحقول التي تحتاج تحديث
+        const fields = ['name', 'component_type', 'calculation_method', 'code', 'template'];
+        
+        fields.forEach(fieldName => {
+            const field = document.querySelector(`[name="${fieldName}"]`);
+            if (field) {
+                if (type === 'template') {
+                    // وضع القالب - القالب مطلوب فقط
+                    if (fieldName === 'template') {
+                        field.required = true;
+                    } else {
+                        field.required = false;
+                    }
+                } else {
+                    // الوضع المخصص - الحقول الأساسية مطلوبة
+                    if (['name', 'component_type', 'calculation_method'].includes(fieldName)) {
+                        field.required = true;
+                    } else {
+                        field.required = false;
+                    }
+                }
+            }
+        });
+    }
+    
+    handleDurationTypeChange() {
+        const durationTypeSelect = document.getElementById('id_duration_type');
+        const effectiveToContainer = document.getElementById('effective_to_container');
+        const effectiveFromContainer = document.getElementById('effective_from_container');
+        
+        if (!durationTypeSelect) return;
+        
+        const durationType = durationTypeSelect.value;
+        
+        if (durationType === 'fixed_period') {
+            // إظهار حقل تاريخ الانتهاء للمدة المحددة
+            if (effectiveToContainer) effectiveToContainer.style.display = 'block';
+            
+            // تقليل عرض "ساري من" لنصف العرض
+            if (effectiveFromContainer) effectiveFromContainer.className = 'col-md-6';
+            
+            const effectiveToField = document.getElementById('id_effective_to');
+            if (effectiveToField) {
+                effectiveToField.required = true;
+            }
+        } else {
+            // إخفاء حقل تاريخ الانتهاء للمدة الدائمة
+            if (effectiveToContainer) effectiveToContainer.style.display = 'none';
+            
+            // إعادة "ساري من" للعرض الكامل
+            if (effectiveFromContainer) effectiveFromContainer.className = 'col-md-6';
+            
+            const effectiveToField = document.getElementById('id_effective_to');
+            if (effectiveToField) {
+                effectiveToField.required = false;
+                effectiveToField.value = '';
+            }
+        }
+        
+        // تهيئة datepicker بعد التغيير
+        this.initializeDatepickers();
+        
+        this.updatePreview();
+    }
+    
+    initializeDatepickers() {
+        // تهيئة datepicker لحقول التاريخ
+        const effectiveFromField = document.getElementById('id_effective_from');
+        const effectiveToField = document.getElementById('id_effective_to');
+        
+        const dateFields = document.querySelectorAll('.datepicker');
+        dateFields.forEach(field => {
+            if (field && !field.classList.contains('datepicker-initialized')) {
+                let options = {};
+                
+                // تطبيق datepicker حسب النظام المستخدم
+                if (typeof $.fn.datepicker !== 'undefined') {
+                    // Bootstrap Datepicker
+                    options = {
+                        format: 'yyyy-mm-dd',
+                        autoclose: true,
+                        todayHighlight: true,
+                        language: 'ar'
+                    };
+                    
+                    // إعدادات خاصة لحقل "ساري حتى"
+                    if (field.id === 'id_effective_to') {
+                        options.startDate = '+1d'; // الحد الأدنى غداً
+                    }
+                    
+                    $(field).datepicker(options);
+                    
+                    // ربط الحقول ببعضها البعض
+                    if (field.id === 'id_effective_from') {
+                        $(field).on('changeDate', (e) => {
+                            this.updateEffectiveToMinDate(e.date);
+                        });
+                    }
+                    
+                } else if (typeof flatpickr !== 'undefined') {
+                    // Flatpickr
+                    options = {
+                        dateFormat: "Y-m-d",
+                        locale: "ar"
+                    };
+                    
+                    // إعدادات خاصة لحقل "ساري حتى"
+                    if (field.id === 'id_effective_to') {
+                        options.minDate = "today";
+                    }
+                    
+                    const picker = flatpickr(field, options);
+                    
+                    // ربط الحقول ببعضها البعض
+                    if (field.id === 'id_effective_from') {
+                        picker.config.onChange.push((selectedDates) => {
+                            if (selectedDates[0]) {
+                                this.updateEffectiveToMinDate(selectedDates[0]);
+                            }
+                        });
+                    }
+                    
+                } else {
+                    // fallback إلى HTML5 date input
+                    field.type = 'date';
+                    
+                    // إعدادات خاصة لحقل "ساري حتى"
+                    if (field.id === 'id_effective_to') {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        field.min = tomorrow.toISOString().split('T')[0];
+                    }
+                    
+                    // ربط الحقول ببعضها البعض
+                    if (field.id === 'id_effective_from') {
+                        field.addEventListener('change', (e) => {
+                            this.updateEffectiveToMinDate(new Date(e.target.value));
+                        });
+                    }
+                }
+                
+                field.classList.add('datepicker-initialized');
+            }
+        });
+        
+        // تحديث الحد الأدنى لـ "ساري حتى" إذا كان "ساري من" له قيمة
+        if (effectiveFromField && effectiveFromField.value) {
+            this.updateEffectiveToMinDate(new Date(effectiveFromField.value));
+        }
+    }
+    
+    updateEffectiveToMinDate(fromDate) {
+        const effectiveToField = document.getElementById('id_effective_to');
+        if (!effectiveToField || !fromDate) return;
+        
+        // حساب اليوم التالي
+        const nextDay = new Date(fromDate);
+        nextDay.setDate(nextDay.getDate() + 1);
+        
+        if (typeof $.fn.datepicker !== 'undefined') {
+            // Bootstrap Datepicker
+            $(effectiveToField).datepicker('setStartDate', nextDay);
+        } else if (typeof flatpickr !== 'undefined') {
+            // Flatpickr
+            const picker = effectiveToField._flatpickr;
+            if (picker) {
+                picker.set('minDate', nextDay);
+            }
+        } else {
+            // HTML5 date input
+            effectiveToField.min = nextDay.toISOString().split('T')[0];
+        }
+        
+        // إذا كان التاريخ المحدد أقل من الحد الأدنى، امسحه
+        const currentValue = effectiveToField.value;
+        if (currentValue && new Date(currentValue) <= fromDate) {
+            effectiveToField.value = '';
+        }
+    }
+    
+    handleCalculationMethodChange() {
+        const calculationMethodSelect = document.getElementById('id_calculation_method');
+        const fixedAmountContainer = document.getElementById('fixed_amount_container');
+        const formulaContainer = document.getElementById('formula_container');
+        const amountField = document.getElementById('id_amount');
+        const formulaField = document.getElementById('id_formula');
+        
+        if (!calculationMethodSelect) return;
+        
+        const selectedMethod = calculationMethodSelect.value;
+        
+        // إخفاء جميع الحقول أولاً
+        if (fixedAmountContainer) fixedAmountContainer.style.display = 'none';
+        if (formulaContainer) formulaContainer.style.display = 'none';
+        
+        // إظهار الحقل المناسب حسب طريقة الحساب
+        switch (selectedMethod) {
+            case 'fixed':
+                // مبلغ ثابت
+                if (fixedAmountContainer) {
+                    fixedAmountContainer.style.display = 'block';
+                    if (amountField) {
+                        amountField.required = true;
+                        amountField.readOnly = false;
+                        amountField.style.backgroundColor = '';
+                    }
+                }
+                if (formulaField) {
+                    formulaField.required = false;
+                    formulaField.value = '';
+                }
+                break;
+                
+            case 'formula':
+                // صيغة محاسبية
+                if (formulaContainer) {
+                    formulaContainer.style.display = 'block';
+                    if (formulaField) {
+                        formulaField.required = true;
+                    }
+                }
+                if (amountField) {
+                    amountField.required = false;
+                    amountField.value = '';
+                }
+                break;
+                
+            default:
+                // إخفاء جميع الحقول للطرق الأخرى
+                if (amountField) {
+                    amountField.required = false;
+                    amountField.value = '';
+                }
+                if (formulaField) {
+                    formulaField.required = false;
+                    formulaField.value = '';
+                }
+                break;
+        }
+        
+        this.updatePreview();
+    }
+    
+    handleFormulaChange() {
+        const formulaField = document.getElementById('id_formula');
+        const amountField = document.getElementById('id_amount');
+        
+        if (!formulaField || !amountField) return;
+        
+        const formula = formulaField.value.trim();
+        
+        if (formula) {
+            // إذا كانت هناك صيغة، قفل حقل المبلغ
+            amountField.readOnly = true;
+            amountField.style.backgroundColor = '#e9ecef';
+            amountField.placeholder = 'محسوب تلقائياً من الصيغة';
+        } else {
+            // إذا لم تكن هناك صيغة، فتح حقل المبلغ
+            amountField.readOnly = false;
+            amountField.style.backgroundColor = '';
+            amountField.placeholder = '0';
+        }
+        
+        this.updatePreview();
+    }
+    
+    calculateFromFormula() {
+        const formulaField = document.getElementById('id_formula');
+        const amountField = document.getElementById('id_amount');
+        
+        if (!formulaField || !amountField) return;
+        
+        const formula = formulaField.value.trim();
+        if (!formula) return;
+        
+        try {
+            // الحصول على الراتب الأساسي من السياق
+            const basicSalary = this.getBasicSalary();
+            
+            // استبدال المتغيرات في الصيغة
+            let calculatedFormula = formula
+                .replace(/basic/g, basicSalary)
+                .replace(/total_earnings/g, '0') // يمكن تحسينها لاحقاً
+                .replace(/total_deductions/g, '0'); // يمكن تحسينها لاحقاً
+            
+            // حساب النتيجة
+            const result = eval(calculatedFormula);
+            
+            if (!isNaN(result) && isFinite(result)) {
+                // تنسيق النتيجة
+                const formattedResult = Math.round(result * 100) / 100;
+                amountField.value = formattedResult;
+                this.updatePreview();
+            }
+        } catch (error) {
+            console.warn('خطأ في حساب الصيغة:', error);
+            // يمكن إضافة رسالة خطأ للمستخدم هنا
+        }
+    }
+    
+    getBasicSalary() {
+        // الحصول على الراتب الأساسي من العقد النشط فقط
+        {% if active_contract and active_contract.basic_salary %}
+            return {{ active_contract.basic_salary }};
+        {% else %}
+            return 0; // لا يوجد عقد نشط أو راتب أساسي
+        {% endif %}
+    }
+    
+    detectFormulaInAmount() {
+        const amountField = document.getElementById('id_amount');
+        const formulaField = document.getElementById('id_formula');
+        const calculationMethodSelect = document.getElementById('id_calculation_method');
+        
+        if (!amountField || !formulaField || !calculationMethodSelect) return;
+        
+        const amountValue = amountField.value.trim();
+        
+        // كشف الصيغ الحسابية
+        const formulaIndicators = ['basic', 'gross', 'days', '*', '/', '+', '-', '(', ')'];
+        const isFormula = formulaIndicators.some(indicator => 
+            amountValue.toLowerCase().includes(indicator.toLowerCase())
+        );
+        
+        if (isFormula && amountValue.length > 1) {
+            // نقل الصيغة من حقل المبلغ إلى حقل الصيغة
+            formulaField.value = amountValue;
+            amountField.value = '';
+            
+            // تغيير طريقة الحساب إلى صيغة
+            calculationMethodSelect.value = 'formula';
+            
+            // تحديث واجهة المستخدم
+            this.handleCalculationMethodChange();
+            
+            // إظهار رسالة للمستخدم
+            const notification = document.createElement('div');
+            notification.className = 'alert alert-info alert-dismissible fade show mt-2';
+            notification.innerHTML = `
+                <i class="fas fa-info-circle me-2"></i>
+                تم اكتشاف صيغة حسابية ونقلها إلى الحقل المناسب
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            
+            // إضافة الإشعار بعد حقل المبلغ
+            const amountContainer = amountField.closest('.col-md-6');
+            if (amountContainer) {
+                amountContainer.appendChild(notification);
+                
+                // إزالة الإشعار بعد 3 ثوان
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 3000);
+            }
+        }
+    }
+    
+    loadInitialMode() {
+        // تحميل الوضع الافتراضي (سريع فقط)
+        this.switchQuickType('template');
+        
+        // تطبيق حالة نوع المدة الأولية
+        this.handleDurationTypeChange();
+        
+        // تطبيق حالة طريقة الحساب الأولية
+        this.handleCalculationMethodChange();
+    }
+    }; // إغلاق الـ class والـ if statement
+}
+
+</script>
+
+<style>
+/* تنسيقات خاصة بالنموذج الموحد */
+.quick-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 2px solid transparent;
+}
+
+.quick-option:hover {
+    border-color: var(--bs-primary);
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.quick-option.border-primary {
+    border-color: var(--bs-primary) !important;
+    background-color: rgba(var(--bs-primary-rgb), 0.1);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.preview-section .card {
+    border: 1px solid var(--bs-border-color);
+}
+
+.component-preview {
+    padding: 1rem;
+    background: white;
+    border-radius: 0.375rem;
+    border: 1px solid var(--bs-border-color);
+}
+
+.salary-impact {
+    background: rgba(var(--bs-info-rgb), 0.1);
+    padding: 1rem;
+    border-radius: 0.375rem;
+}
+
+.template-details {
+    margin-top: 0.5rem;
+}
+
+/* تنسيقات الصيغة المحاسبية */
+.formula-input-wrapper {
+    position: relative;
+}
+
+.formula-variables-btn {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--bs-secondary);
+    padding: 0.25rem;
+    z-index: 10;
+    cursor: pointer;
+}
+
+.formula-variables-btn:hover {
+    color: var(--bs-primary);
+}
+
+.variables-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    z-index: 1000;
+    min-width: 200px;
+}
+
+.variables-list {
+    padding: 0.5rem 0;
+}
+
+.variable-item {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    border-bottom: 1px solid var(--bs-border-color-translucent);
+}
+
+.variable-item:last-child {
+    border-bottom: none;
+}
+
+.variable-item:hover {
+    background-color: var(--bs-light);
+}
+
+.variable-item strong {
+    display: block;
+    color: var(--bs-primary);
+}
+
+.variable-item small {
+    color: var(--bs-secondary);
+}
+
+/* تنسيقات أساسية للمودال */
+.modal .btn-close {
+    outline: none;
+    box-shadow: none;
+}
+</style>
+
+<script>
+// معالجة بسيطة للمودال
+document.addEventListener('DOMContentLoaded', function() {
+    // معالجة عند إخفاء المودال
+    const modals = document.querySelectorAll('.modal');
+    modals.forEach(modal => {
+        modal.addEventListener('hidden.bs.modal', function() {
+            // تنظيف بسيط عند إغلاق المودال
+            const focusedElements = this.querySelectorAll(':focus');
+            focusedElements.forEach(el => el.blur());
+        });
+    });
+});
+
+// تهيئة مدير النموذج الموحد فوراً (للـ AJAX) - مع حماية من التكرار
+if (document.getElementById('unifiedComponentForm') && !window.unifiedManagerInitialized) {
+    window.unifiedManagerInitialized = true;
+    new window.UnifiedSalaryComponentManager();
+} else if (!document.getElementById('unifiedComponentForm')) {
+    // إذا لم يكن النموذج جاهز، انتظر قليلاً
+    setTimeout(() => {
+        if (document.getElementById('unifiedComponentForm') && !window.unifiedManagerInitialized) {
+            window.unifiedManagerInitialized = true;
+            new window.UnifiedSalaryComponentManager();
+        }
+    }, 100);
+}
+</script>

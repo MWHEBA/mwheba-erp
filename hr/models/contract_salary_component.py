@@ -16,7 +16,6 @@ class ContractSalaryComponent(models.Model):
     
     CALCULATION_METHOD_CHOICES = [
         ('fixed', 'ثابت'),
-        ('percentage', 'نسبة مئوية'),
         ('formula', 'صيغة حسابية'),
     ]
     
@@ -164,21 +163,26 @@ class ContractSalaryComponent(models.Model):
         نسخ هذا البند إلى SalaryComponent للموظف
         يُستخدم عند تفعيل العقد
         
-        يستخدم update_or_create لتجنب تضارب UNIQUE constraint
+        المنطق:
+        1. البحث عن بند بنفس الكود (مهما كان مصدره)
+        2. إذا وُجد، تحديثه وتحويله لبند عقد
+        3. إذا لم يوجد، إنشاء بند جديد
         """
         from hr.models import SalaryComponent
         from django.utils import timezone
         
-        # البحث أولاً عن بند منسوخ من نفس المصدر
+        # البحث عن أي بند بنفس الكود للموظف (مهما كان مصدره)
         existing = SalaryComponent.objects.filter(
             employee=employee,
-            source_contract_component=self,
-            is_from_contract=True
+            code=self.code
         ).first()
         
         if existing:
-            # تحديث البند الموجود
+            # تحديث البند الموجود وتحويله لبند عقد
             existing.contract = self.contract
+            existing.source_contract_component = self
+            existing.is_from_contract = True
+            existing.source = 'contract'  # تغيير المصدر لعقد
             existing.name = self.name
             existing.component_type = self.component_type
             existing.calculation_method = self.calculation_method
@@ -198,15 +202,7 @@ class ContractSalaryComponent(models.Model):
             existing.save()
             return existing
         else:
-            # إنشاء بند جديد - توليد code فريد إذا كان موجود
-            base_code = self.code
-            code = base_code
-            counter = 1
-            
-            # التحقق من وجود code مكرر
-            while SalaryComponent.objects.filter(employee=employee, code=code).exists():
-                code = f"{base_code}_{counter}"
-                counter += 1
+            code = self.code
             
             # إنشاء البند الجديد
             component = SalaryComponent.objects.create(
@@ -214,6 +210,7 @@ class ContractSalaryComponent(models.Model):
                 contract=self.contract,
                 source_contract_component=self,
                 is_from_contract=True,
+                source='contract',  # تحديد المصدر كعقد
                 template=self.template,
                 code=code,
                 name=self.name,

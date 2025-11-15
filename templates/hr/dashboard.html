@@ -154,6 +154,14 @@
                 ربط البصمة
             </a>
         </div>
+        {% if user.is_superuser %}
+        <div class="col-md-3 mb-3">
+            <a href="{% url 'hr:maintenance_dashboard' %}" class="btn btn-outline-danger btn-block w-100 quick-action-btn">
+                <i class="fas fa-tools me-2"></i>
+                الصيانة الإدارية
+            </a>
+        </div>
+        {% endif %}
     </div>
   </div>
   

@@ -344,15 +344,6 @@
         <div class="tab-pane fade" id="salary-tab">
             <div class="section-container">
             <h5 class="mb-3"><i class="fas fa-money-bill-wave me-2"></i>تفاصيل الراتب</h5>
-            
-            <!-- الراتب الأساسي -->
-            <div class="mb-4">
-                <h6 class="text-primary mb-2"><i class="fas fa-money-check me-2"></i>الراتب الأساسي</h6>
-                <div class="p-3 bg-light rounded">
-                    <strong class="h4 text-success">{{ contract.basic_salary|custom_number_format }} {% currency_symbol %}</strong>
-                </div>
-            </div>
-
             <!-- الزيادة السنوية -->
             {% if contract.has_annual_increase %}
             <div class="mb-4">
@@ -444,6 +435,7 @@
                         </thead>
                         <tbody>
                             {% for component in contract_components %}
+                            {% if not component.is_basic %}
                             <tr>
                                 <td>
                                     <i class="fas fa-lock text-muted me-1" title="بند ثابت من العقد"></i>
@@ -467,6 +459,7 @@
                                     <strong>{{ component.amount|custom_number_format }}</strong>
                                 </td>
                             </tr>
+                            {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -480,11 +473,14 @@
                 {% endwith %}
             </div>
 
-            <!-- المستحقات -->
-            {% with earnings=contract.employee.salary_components.all|dictsort:"order" %}
-            {% if earnings %}
+            <!-- المستحقات الإضافية (غير منسوخة من العقد) -->
+            {% with additional_earnings=contract.employee.salary_components.filter|dictsort:"order" %}
+            {% if additional_earnings %}
             <div class="mb-4">
-                <h6 class="text-success mb-2"><i class="fas fa-plus-circle me-2"></i>المستحقات</h6>
+                <h6 class="text-success mb-2">
+                    <i class="fas fa-plus-circle me-2"></i>المستحقات الإضافية
+                    <span class="badge bg-success">مضافة للموظف مباشرة</span>
+                </h6>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
@@ -495,10 +491,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for component in earnings %}
-                            {% if component.component_type == 'earning' %}
+                            {% for component in additional_earnings %}
+                            {% if component.component_type == 'earning' and not component.is_from_contract %}
                             <tr>
-                                <td>{{ component.name }}</td>
+                                <td>
+                                    <i class="fas fa-user-plus text-muted me-1" title="بند مضاف للموظف مباشرة"></i>
+                                    {{ component.name }}
+                                </td>
                                 <td>
                                     {% if component.formula %}
                                         <code class="text-muted small">{{ component.formula|translate_formula }}</code>
@@ -519,11 +518,14 @@
             {% endif %}
             {% endwith %}
 
-            <!-- الاستقطاعات -->
-            {% with deductions=contract.employee.salary_components.all|dictsort:"order" %}
-            {% if deductions %}
+            <!-- الاستقطاعات الإضافية (غير منسوخة من العقد) -->
+            {% with additional_deductions=contract.employee.salary_components.filter|dictsort:"order" %}
+            {% if additional_deductions %}
             <div class="mb-4">
-                <h6 class="text-danger mb-2"><i class="fas fa-minus-circle me-2"></i>الاستقطاعات</h6>
+                <h6 class="text-danger mb-2">
+                    <i class="fas fa-minus-circle me-2"></i>الاستقطاعات الإضافية
+                    <span class="badge bg-danger">مضافة للموظف مباشرة</span>
+                </h6>
                 <div class="table-responsive">
                     <table class="table table-sm table-bordered">
                         <thead class="table-light">
@@ -534,10 +536,13 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for component in deductions %}
-                            {% if component.component_type == 'deduction' %}
+                            {% for component in additional_deductions %}
+                            {% if component.component_type == 'deduction' and not component.is_from_contract %}
                             <tr>
-                                <td>{{ component.name }}</td>
+                                <td>
+                                    <i class="fas fa-user-minus text-muted me-1" title="بند مضاف للموظف مباشرة"></i>
+                                    {{ component.name }}
+                                </td>
                                 <td>
                                     {% if component.formula %}
                                         <code class="text-muted small">{{ component.formula|translate_formula }}</code>
@@ -621,7 +626,7 @@
                                         <strong>{{ component.name }}</strong>
                                     </td>
                                     <td class="text-center">
-                                        <strong class="text-success">{{ component.amount|floatformat:2 }} {% currency_symbol %}</strong>
+                                        <strong class="text-success">{{ component.amount|custom_number_format }} {% currency_symbol %}</strong>
                                     </td>
                                     <td class="text-center">
                                         {{ component.created_at|date:"d/m/Y" }}

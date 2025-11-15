@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("financial", "0003_load_chart_of_accounts"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("hr", "0002_create_payroll_accounts"),
+        ("hr", "0001_initial"),
     ]
 
     operations = [

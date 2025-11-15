@@ -110,7 +110,7 @@ def payroll_run_pay_all(request, month):
         month_date = datetime.strptime(month, '%Y-%m').date()
     except ValueError:
         messages.error(request, 'صيغة الشهر غير صحيحة')
-        return redirect('hr:payroll_run_list')
+        return redirect('hr:payroll_list')
     
     # الحصول على الرواتب المعتمدة وغير المدفوعة
     approved_payrolls = Payroll.objects.filter(
@@ -211,7 +211,7 @@ def payroll_run_pay_all(request, month):
         'breadcrumb_items': [
             {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
             {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
-            {'title': 'مسيرات الرواتب', 'url': reverse('hr:payroll_run_list'), 'icon': 'fas fa-money-check-alt'},
+            {'title': 'معالجة الرواتب', 'url': reverse('hr:payroll_list'), 'icon': 'fas fa-money-check-alt'},
             {'title': 'دفع رواتب الشهر', 'active': True},
         ],
     }

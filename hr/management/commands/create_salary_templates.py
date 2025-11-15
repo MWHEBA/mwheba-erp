@@ -26,23 +26,13 @@ class Command(BaseCommand):
         # قوالب الخصومات الافتراضية
         deduction_templates = [
             {
-                'code': 'UNION_FEE',
-                'name': 'اشتراك النقابة',
-                'component_type': 'deduction',
-                'default_amount': Decimal('50.00'),
-                'default_account_code': '21033',
-                'description': 'اشتراك النقابة الشهري للموظفين',
-                'order': 1,
-                'is_active': True
-            },
-            {
                 'code': 'MEDICAL_INS',
                 'name': 'التأمين الطبي',
                 'component_type': 'deduction',
-                'default_amount': Decimal('100.00'),
+                'default_amount': Decimal('0.00'),
                 'default_account_code': '21034',
                 'description': 'اشتراك التأمين الطبي الشامل',
-                'order': 2,
+                'order': 1,
                 'is_active': True
             },
             {
@@ -53,7 +43,7 @@ class Command(BaseCommand):
                 'default_amount': Decimal('0.00'),
                 'default_account_code': '21031',
                 'description': 'التأمينات الاجتماعية 14% من الراتب الأساسي',
-                'order': 3,
+                'order': 2,
                 'is_active': True
             },
             {
@@ -64,7 +54,7 @@ class Command(BaseCommand):
                 'default_amount': Decimal('0.00'),
                 'default_account_code': '21032',
                 'description': 'ضريبة الدخل 10% من الراتب الأساسي',
-                'order': 4,
+                'order': 3,
                 'is_active': True
             },
             {
@@ -74,7 +64,7 @@ class Command(BaseCommand):
                 'default_amount': Decimal('0.00'),
                 'default_account_code': '21020',
                 'description': 'خصم أيام الغياب بدون إذن',
-                'order': 6,
+                'order': 5,
                 'is_active': True
             },
             {
@@ -84,7 +74,7 @@ class Command(BaseCommand):
                 'default_amount': Decimal('0.00'),
                 'default_account_code': '21020',
                 'description': 'خصم التأخير عن العمل',
-                'order': 7,
+                'order': 6,
                 'is_active': True
             }
         ]
@@ -95,27 +85,17 @@ class Command(BaseCommand):
                 'code': 'TRANSPORT_ALLOWANCE',
                 'name': 'بدل انتقال',
                 'component_type': 'earning',
-                'default_amount': Decimal('300.00'),
+                'default_amount': Decimal('0.00'),
                 'default_account_code': '52021',
-                'description': 'بدل المواصلات الشهري للموظفين',
+                'description': 'بدل الانتقال والمواصلات اليومي',
                 'order': 1,
-                'is_active': True
-            },
-            {
-                'code': 'MEAL_ALLOWANCE',
-                'name': 'بدل وجبات',
-                'component_type': 'earning',
-                'default_amount': Decimal('200.00'),
-                'default_account_code': '52021',
-                'description': 'بدل الوجبات اليومي للموظفين',
-                'order': 2,
                 'is_active': True
             },
             {
                 'code': 'PHONE_ALLOWANCE',
                 'name': 'بدل هاتف',
                 'component_type': 'earning',
-                'default_amount': Decimal('150.00'),
+                'default_amount': Decimal('0.00'),
                 'default_account_code': '52021',
                 'description': 'بدل الهاتف والاتصالات',
                 'order': 3,
@@ -136,7 +116,7 @@ class Command(BaseCommand):
                 'code': 'PERFORMANCE_BONUS',
                 'name': 'مكافأة أداء',
                 'component_type': 'earning',
-                'default_amount': Decimal('500.00'),
+                'default_amount': Decimal('0.00'),
                 'default_account_code': '52022',
                 'description': 'مكافأة الأداء المتميز',
                 'order': 6,

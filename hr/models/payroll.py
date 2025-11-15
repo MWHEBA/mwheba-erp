@@ -264,6 +264,22 @@ class Payroll(models.Model):
     
     def __str__(self):
         return f"{self.employee.get_full_name_ar()} - {self.month.strftime('%Y-%m')}"
+
+    def delete(self, *args, **kwargs):
+        # استعادة المبالغ المخصومة من السلف المرتبطة
+        for installment in self.advance_installments.all():
+            advance = installment.advance
+            advance.paid_installments -= 1
+            # إذا عادت السلفة إلى حالة "مدفوعة" من "قيد الخصم"
+            if advance.paid_installments == 0 and advance.status == 'in_progress':
+                advance.status = 'paid'
+            advance.save()
+        
+        # حذف الأقساط المرتبطة (سيتم تلقائياً بسبب on_delete=CASCADE)
+        # لكن يمكننا التأكيد على الحذف اليدوي إذا لزم الأمر
+        # self.advance_installments.all().delete()
+        
+        super().delete(*args, **kwargs)
     
     def calculate_overtime(self):
         """حساب قيمة العمل الإضافي"""
@@ -305,12 +321,13 @@ class Payroll(models.Model):
         self.total_additions = self.total_additions.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         self.total_deductions = self.total_deductions.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         
-        # صافي الراتب
-        self.net_salary = (
+        # صافي الراتب مع تجبير الكسور
+        net_salary = (
             self.gross_salary +
             self.total_additions -
             self.total_deductions
         )
+        self.net_salary = net_salary.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         
         return self.net_salary
     
@@ -327,8 +344,12 @@ class Payroll(models.Model):
             component_type='earning'
         ).aggregate(total=Sum('amount'))['total'] or Decimal('0')
         
-        # إضافة الراتب الأساسي لإجمالي المستحقات
-        total_earnings = self.basic_salary + earnings_from_lines
+        # في بعض التدفقات الراتب الأساسي مضاف كـ PayrollLine، وفي أخرى مخزن فقط في basic_salary
+        has_basic_line = self.lines.filter(code='BASIC_SALARY').exists()
+        if has_basic_line:
+            total_earnings = earnings_from_lines
+        else:
+            total_earnings = self.basic_salary + earnings_from_lines
         
         # حساب الاستقطاعات
         deductions = self.lines.filter(
@@ -342,7 +363,10 @@ class Payroll(models.Model):
         # تحديث الإجماليات (total_earnings هو property فلا نحدثه)
         self.total_deductions = deductions
         self.gross_salary = total_earnings
-        self.net_salary = total_earnings - deductions
+        
+        # حساب صافي الراتب مع تجبير الكسور
+        net_salary = total_earnings - deductions
+        self.net_salary = net_salary.quantize(Decimal('1'), rounding=ROUND_HALF_UP)
         
         return self.net_salary
     
@@ -598,7 +622,7 @@ class AdvanceInstallment(models.Model):
     )
     payroll = models.ForeignKey(
         Payroll,
-        on_delete=models.SET_NULL,
+        on_delete=models.CASCADE,
         null=True,
         blank=True,
         related_name='advance_installments',

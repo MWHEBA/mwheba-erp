@@ -1,0 +1,50 @@
+{% comment %}
+Custom status badge for advance workflows
+Parameters:
+- status: required status code
+- label: optional custom label
+{% endcomment %}
+
+{% with current_status=status|default:"pending" %}
+    {% if current_status == "pending" %}
+        <span class="badge bg-warning text-dark rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-hourglass-half"></i>
+            {{ label|default:"قيد المراجعة" }}
+        </span>
+    {% elif current_status == "approved" %}
+        <span class="badge bg-primary rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-check"></i>
+            {{ label|default:"معتمدة" }}
+        </span>
+    {% elif current_status == "rejected" %}
+        <span class="badge bg-danger rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-times"></i>
+            {{ label|default:"مرفوضة" }}
+        </span>
+    {% elif current_status == "paid" %}
+        <span class="badge bg-success rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-money-bill-wave"></i>
+            {{ label|default:"مدفوعة" }}
+        </span>
+    {% elif current_status == "in_progress" %}
+        <span class="badge bg-info text-dark rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-sync"></i>
+            {{ label|default:"قيد الخصم" }}
+        </span>
+    {% elif current_status == "completed" %}
+        <span class="badge bg-success rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-flag-checkered"></i>
+            {{ label|default:"مكتملة" }}
+        </span>
+    {% elif current_status == "cancelled" %}
+        <span class="badge bg-secondary rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-ban"></i>
+            {{ label|default:"ملغاة" }}
+        </span>
+    {% else %}
+        <span class="badge bg-secondary rounded-pill d-inline-flex align-items-center gap-1 px-3 py-1">
+            <i class="fas fa-circle"></i>
+            {{ label|default:"غير محددة" }}
+        </span>
+    {% endif %}
+{% endwith %}

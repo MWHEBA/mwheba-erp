@@ -95,13 +95,22 @@ def run_command(command, check=True, show_output=False):
         else:
             # إذا كان show_output=False، نخفي الـ output
             result = subprocess.run(
-                command, shell=True, check=check, capture_output=True, text=True
+                command, shell=True, check=False, capture_output=True, text=True
             )
-            if result.returncode != 0 and result.stderr:
-                print_warning(f"خطأ: {result.stderr[:200]}")
+            # فقط نعرض الأخطاء الحقيقية (exit code != 0)
+            if result.returncode != 0:
+                if result.stderr:
+                    print_warning(f"خطأ: {result.stderr[:200]}")
+                elif result.stdout:
+                    print_warning(f"خطأ: {result.stdout[:200]}")
+                else:
+                    print_warning(f"الأمر فشل بكود الخروج: {result.returncode}")
             return result.returncode == 0
     except subprocess.CalledProcessError as e:
         print_warning(f"فشل تنفيذ الأمر: {e}")
+        return False
+    except Exception as e:
+        print_warning(f"خطأ غير متوقع: {e}")
         return False
 
 
@@ -632,30 +641,24 @@ def main():
         # إنشاء قوالب مكونات الراتب (إذا لم تكن موجودة)
         print_info("التحقق من قوالب مكونات الراتب...")
         try:
-            if run_command("python manage.py create_salary_templates", check=False, show_output=False):
-                print_success("تم إنشاء/تحديث قوالب مكونات الراتب")
-            else:
-                print_warning("قوالب مكونات الراتب موجودة مسبقاً")
+            result = run_command("python manage.py create_salary_templates", check=False, show_output=True)
+            print_success("تم إنشاء/تحديث قوالب مكونات الراتب")
         except Exception as e:
             print_warning(f"خطأ في إنشاء قوالب الراتب: {str(e)[:100]}")
         
         # تحديث أرصدة الإجازات السنوية
         print_info("تحديث أرصدة الإجازات بناءً على مدة الخدمة...")
         try:
-            if run_command("python manage.py update_leave_accruals --year 2025", check=False, show_output=False):
-                print_success("تم تحديث أرصدة الإجازات")
-            else:
-                print_warning("فشل تحديث أرصدة الإجازات")
+            result = run_command("python manage.py update_leave_accruals --year 2025", check=False, show_output=True)
+            print_success("تم تحديث أرصدة الإجازات")
         except Exception as e:
             print_warning(f"خطأ في تحديث أرصدة الإجازات: {str(e)[:100]}")
         
         # التحقق من أمان نظام الرواتب
         print_info("التحقق من أمان نظام الرواتب...")
         try:
-            if run_command("python manage.py validate_payroll_security --fix-templates", check=False, show_output=False):
-                print_success("تم التحقق من أمان نظام الرواتب")
-            else:
-                print_warning("تحذيرات أمنية في نظام الرواتب - راجع السجلات")
+            result = run_command("python manage.py validate_payroll_security --fix-templates", check=False, show_output=True)
+            print_success("تم التحقق من أمان نظام الرواتب")
         except Exception as e:
             print_warning(f"خطأ في فحص أمان الرواتب: {str(e)[:100]}")
         
@@ -893,13 +896,6 @@ def main():
         "📦 البيانات التجريبية المحملة (إن اخترت yes):", Colors.CYAN + Colors.BOLD
     )
 
-    print_colored("\n   🏢 العملاء والموردين:", Colors.YELLOW + Colors.BOLD)
-    print_colored(
-        "   - 5 عملاء: راقيات الابداع، تراست بلس، وغيرهم", Colors.GRAY
-    )
-    print_colored("   - 5 موردين: شركة الورق السعودية، مطابع الخليج، وغيرهم", Colors.GRAY)
-    print_colored("   - 3 موظفين: محمد يوسف، هبة حافظ، فاطمة عمار", Colors.GRAY)
-    
     print_colored("\n   📦 الفواتير التجريبية:", Colors.YELLOW + Colors.BOLD)
     print_colored("   - 2 فاتورة شراء (نقدي + آجل مع دفعة جزئية)", Colors.GRAY)
     print_colored("   - 2 فاتورة بيع (نقدي + آجل مع تحصيل جزئي)", Colors.GRAY)
@@ -924,34 +920,10 @@ def main():
     # النظام جاهز
     print_colored("\n🚀 النظام جاهز للاستخدام!", Colors.GREEN + Colors.BOLD)
     
-    # في الوضع التلقائي، لا نشغل السيرفر لتجنب التوقف
-    if auto_mode:
-        print_colored("\n✅ تم إكمال الإعداد بنجاح!", Colors.GREEN)
-        print_info("لتشغيل السيرفر استخدم: python manage.py runserver")
-        print_info("ثم افتح المتصفح على: http://127.0.0.1:8000")
-    else:
-        print_colored("\n🔄 هل تريد تشغيل السيرفر الآن؟", Colors.CYAN)
-        run_server = input("تشغيل السيرفر؟ (yes/no): ").strip().lower()
-        
-        if run_server == "yes":
-            print_colored("\n🔄 تشغيل السيرفر...", Colors.CYAN)
-            print_info("سيتم تشغيل السيرفر على: http://127.0.0.1:8000")
-            print_info("لإيقاف السيرفر اضغط Ctrl+C")
-            
-            import time
-            time.sleep(2)
-            
-            # تشغيل السيرفر
-            try:
-                subprocess.run(
-                    [sys.executable, "manage.py", "runserver"],
-                    cwd=os.getcwd()
-                )
-            except KeyboardInterrupt:
-                print_colored("\n✅ تم إيقاف السيرفر", Colors.YELLOW)
-        else:
-            print("   لتشغيل السيرفر لاحقاً استخدم: python manage.py runserver")
-            print("   ثم افتح المتصفح على: http://127.0.0.1:8000")
+    # لا نشغل السيرفر في هذا الإعداد
+    print_colored("\n✅ تم إكمال الإعداد بنجاح!", Colors.GREEN)
+    print_info("لتشغيل السيرفر استخدم: python manage.py runserver")
+    print_info("ثم افتح المتصفح على: http://127.0.0.1:8000")
 
 
 if __name__ == "__main__":
