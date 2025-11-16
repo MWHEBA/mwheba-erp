@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static core_tags custom_filters pricing_filters %}
+
+{% block page_title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+
+{% include 'shared/page_header.html' %}
+
+<div class="container-fluid">
+    <div class="row">
+        <!-- Employee Info and Actions -->
+        <div class="col-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap">
+                        <div class="d-flex align-items-center">
+                            <img src="{{ employee.get_avatar }}" alt="{{ employee.get_full_name_ar }}" class="rounded-circle me-3" width="60" height="60">
+                            <div>
+                                <h4 class="mb-0">{{ employee.get_full_name_ar }}</h4>
+                                <p class="mb-0 text-muted">{{ employee.job_title.name_ar|default:'غير محدد' }} - {{ employee.department.name_ar|default:'غير محدد' }}</p>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center gap-2 mt-3 mt-md-0">
+                            {% if not summary.is_approved %}
+                                <form method="post" action="{% url 'hr:recalculate_attendance_summary' summary.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        <i class="fas fa-sync-alt me-1"></i> إعادة الحساب
+                                    </button>
+                                </form>
+                                {% if perms.hr.change_attendancesummary %}
+                                <form method="post" action="{% url 'hr:approve_attendance_summary' summary.id %}">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-sm btn-success">
+                                        <i class="fas fa-check-circle me-1"></i> اعتماد الملخص
+                                    </button>
+                                </form>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-success-soft text-success p-2"><i class="fas fa-check-circle me-1"></i> معتمد</span>
+                            {% endif %}
+                            <button onclick="window.print()" class="btn btn-sm btn-outline-primary"><i class="fas fa-print me-1"></i> طباعة</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row">
+        {% include 'shared/stats_card.html' with title='أيام العمل' value=stats.total_working_days|default:0 icon='fa-calendar-day' color='primary' %}
+        {% include 'shared/stats_card.html' with title='أيام الحضور' value=stats.present_days|default:0 icon='fa-calendar-check' color='success' %}
+        {% include 'shared/stats_card.html' with title='أيام الغياب' value=stats.absent_days|default:0 icon='fa-calendar-times' color='danger' %}
+        {% include 'shared/stats_card.html' with title='أيام التأخير' value=stats.late_days|default:0 icon='fa-clock' color='warning' %}
+        {% include 'shared/stats_card.html' with title='ساعات العمل' value=stats.total_work_hours|default:0 unit='ساعة' icon='fa-user-clock' color='info' %}
+        {% include 'shared/stats_card.html' with title='إجمالي دقائق التأخير' value=stats.total_late_minutes|default:0 unit='دقيقة' icon='fa-history' color='warning' %}
+        {% include 'shared/stats_card.html' with title='إجمالي دقائق الانصراف المبكر' value=stats.total_early_leave_minutes|default:0 unit='دقيقة' icon='fa-running' color='secondary' %}
+    </div>
+
+    <!-- Daily Records Table -->
+    <div class="card shadow-sm">
+        <div class="card-header">
+            <h5 class="card-title mb-0"><i class="fas fa-list-ul me-2"></i>السجل اليومي المفصل</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>اليوم</th>
+                            <th class="text-center">الحضور</th>
+                            <th class="text-center">الانصراف</th>
+                            <th class="text-center">ساعات العمل</th>
+                            <th class="text-center">التأخير (دقيقة)</th>
+                            <th class="text-center">انصراف مبكر (دقيقة)</th>
+                            <th class="text-center">الحالة</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for record in daily_records %}
+                            <tr>
+                                <td>{{ record.date|date:"Y-m-d" }}</td>
+                                <td>{{ record.date|arabic_day_name }}</td>
+                                <td class="text-center">{{ record.check_in|date:"H:i"|default:"-" }}</td>
+                                <td class="text-center">{{ record.check_out|date:"H:i"|default:"-" }}</td>
+                                <td class="text-center">{{ record.work_hours|remove_trailing_zeros|default:"0" }}</td>
+                                <td class="text-center text-warning fw-bold">{{ record.late_minutes|remove_trailing_zeros|default:"0" }}</td>
+                                <td class="text-center text-secondary">{{ record.early_leave_minutes|remove_trailing_zeros|default:"0" }}</td>
+                                <td class="text-center">
+                                    {% display_attendance_status record.status %}
+                                </td>
+                            </tr>
+                        {% empty %}
+                            <tr>
+                                <td colspan="8" class="text-center p-4">
+                                    <i class="fas fa-info-circle me-2"></i> لا توجد سجلات حضور لهذا الشهر.
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

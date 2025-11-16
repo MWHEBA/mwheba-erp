@@ -374,6 +374,13 @@ def biometric_log_list(request):
         'page_icon': 'fas fa-list',
         'header_buttons': [
             {
+                'onclick': 'runBiometricBulkLink()',
+                'icon': 'fa-sync',
+                'text': 'تحديث الربط',
+                'class': 'btn-success',
+                'id': 'btn-biometric-refresh-linking',
+            },
+            {
                 'url': reverse('hr:biometric_device_list'),
                 'icon': 'fa-fingerprint',
                 'text': 'الماكينات',

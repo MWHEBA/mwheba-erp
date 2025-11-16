@@ -2,13 +2,18 @@
 Views إدارة الحضور
 """
 from .base_imports import *
-from ..models import Employee, Department, Shift, BiometricLog
+from django.views.decorators.http import require_POST
+from ..models import Employee, Department, Shift, BiometricLog, AttendanceSummary, Attendance
 from ..services.attendance_service import AttendanceService
+from ..services.attendance_summary_service import AttendanceSummaryService
 
 __all__ = [
     'attendance_list',
     'attendance_check_in',
     'attendance_check_out',
+    'attendance_summary_detail',
+    'approve_attendance_summary',
+    'recalculate_attendance_summary',
 ]
 
 
@@ -153,6 +158,11 @@ def attendance_list(request):
                         else:
                             status = 'early_leave'
             
+            summary, _ = AttendanceSummary.objects.get_or_create(
+                employee=employee,
+                month=log_date.replace(day=1)
+            )
+
             attendance_data.append({
                 'employee': employee,
                 'date': log_date,
@@ -163,7 +173,8 @@ def attendance_list(request):
                 'early_leave_minutes': early_leave_minutes,
                 'status': status,
                 'total_movements': total_movements,
-                'movements': movements
+                'movements': movements,
+                'summary_id': summary.id
             })
     
     # ترتيب حسب التاريخ ثم اسم الموظف
@@ -247,6 +258,82 @@ def attendance_check_in(request):
         'shifts': Shift.objects.filter(is_active=True)
     }
     return render(request, 'hr/attendance/check_in.html', context)
+
+
+@login_required
+def attendance_summary_detail(request, pk):
+    """
+    عرض تفاصيل ملخص الحضور لموظف معين في شهر معين.
+    """
+    summary = get_object_or_404(AttendanceSummary, pk=pk)
+
+    # تحديد بداية ونهاية الشهر بناءً على حقل month في الملخص
+    start_date = summary.month.replace(day=1)
+    if summary.month.month == 12:
+        end_date = summary.month.replace(year=summary.month.year + 1, month=1, day=1) - timedelta(days=1)
+    else:
+        end_date = summary.month.replace(month=summary.month.month + 1, day=1) - timedelta(days=1)
+
+    # السجلات اليومية من نموذج Attendance
+    daily_records = Attendance.objects.filter(
+        employee=summary.employee,
+        date__gte=start_date,
+        date__lte=end_date,
+    ).select_related("shift").order_by("date")
+
+    # إحصائيات جاهزة من نموذج AttendanceSummary نفسه
+    stats = {
+        "total_working_days": summary.total_working_days,
+        "present_days": summary.present_days,
+        "absent_days": summary.absent_days,
+        "late_days": summary.late_days,
+        "total_work_hours": summary.total_work_hours,
+        "total_late_minutes": summary.total_late_minutes,
+        "total_early_leave_minutes": summary.total_early_leave_minutes,
+    }
+
+    context = {
+        'summary': summary,
+        'employee': summary.employee,
+        'daily_records': daily_records,
+        'stats': stats,
+        'page_title': f'ملخص الحضور - {summary.employee.get_full_name_ar()}',
+        'page_subtitle': f'تقرير مفصل لشهر {summary.month.strftime("%B %Y")}',
+        'page_icon': 'fas fa-calendar-check',
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard')},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard')},
+            {'title': 'سجل الحضور', 'url': reverse('hr:attendance_list')},
+            {'title': 'تفاصيل الملخص', 'active': True},
+        ],
+    }
+    return render(request, 'hr/attendance/attendance_summary_detail.html', context)
+
+
+@login_required
+@require_POST
+def approve_attendance_summary(request, pk):
+    """اعتماد ملخص الحضور."""
+    summary = get_object_or_404(AttendanceSummary, pk=pk)
+    try:
+        AttendanceSummaryService.approve_summary(summary, request.user)
+        messages.success(request, 'تم اعتماد ملخص الحضور بنجاح.')
+    except Exception as e:
+        messages.error(request, f'حدث خطأ أثناء اعتماد الملخص: {e}')
+    return redirect('hr:attendance_summary_detail', pk=pk)
+
+
+@login_required
+@require_POST
+def recalculate_attendance_summary(request, pk):
+    """إعادة حساب ملخص الحضور."""
+    summary = get_object_or_404(AttendanceSummary, pk=pk)
+    try:
+        AttendanceSummaryService.recalculate_summary(summary)
+        messages.success(request, 'تمت إعادة حساب ملخص الحضور بنجاح.')
+    except Exception as e:
+        messages.error(request, f'حدث خطأ أثناء إعادة الحساب: {e}')
+    return redirect('hr:attendance_summary_detail', pk=pk)
 
 
 @login_required

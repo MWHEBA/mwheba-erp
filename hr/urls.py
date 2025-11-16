@@ -107,6 +107,8 @@ urlpatterns = [
     
     # Bridge Agent API
     path('api/biometric/bridge-sync/', views.biometric_bridge_sync, name='biometric_bridge_sync'),
+    # Biometric logs APIs (linking/processing)
+    path('api/biometric/logs/bulk-link/', views.api_bulk_link_logs, name='api_bulk_link_logs'),
     
     # الإجازات
     path('leaves/', views.leave_list, name='leave_list'),
@@ -140,7 +142,6 @@ urlpatterns = [
     
     # معالجة الرواتب المتكاملة
     path('payroll/integrated/', views.integrated_payroll_dashboard, name='integrated_payroll_dashboard'),
-    path('payroll/integrated/<int:pk>/', views.payroll_detail_integrated, name='payroll_detail_integrated'),
     path('payroll/integrated/calculate-summaries/', views.calculate_attendance_summaries, name='calculate_attendance_summaries'),
     path('payroll/integrated/process/', views.process_monthly_payrolls, name='process_monthly_payrolls'),
     path('payroll/integrated/calculate/<int:employee_id>/', views.calculate_single_payroll, name='calculate_single_payroll'),

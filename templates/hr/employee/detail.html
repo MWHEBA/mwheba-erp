@@ -224,7 +224,7 @@
                         <strong>لا توجد سلف</strong>
                     </div>
                     <p class="text-muted small mb-3">لم يتم تسجيل أي سلف للموظف.</p>
-                    <a href="{% url 'hr:advance_create' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
+                    <a href="{% url 'hr:advance_request' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
                         <i class="fas fa-plus me-2"></i>طلب سلفة جديدة
                     </a>
                 {% endif %}
@@ -559,7 +559,7 @@
                             <strong>لا توجد سلف مسجلة</strong>
                         </div>
                         <p class="text-muted small mb-3">لم يتم تسجيل أي سلف لهذا الموظف.</p>
-                        <a href="{% url 'hr:advance_create' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
+                        <a href="{% url 'hr:advance_request' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
                             <i class="fas fa-plus me-2"></i>طلب سلفة جديدة
                         </a>
                     {% endif %}

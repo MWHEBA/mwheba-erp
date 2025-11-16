@@ -1,3 +1,7 @@
+<a href="{% url 'hr:attendance_summary_detail' object.summary_id %}" class="btn btn-sm btn-outline-primary" title="عرض الملخص الشهري">
+    <i class="fas fa-file-alt"></i>
+</a>
+
 <button type="button" class="btn btn-sm btn-outline-info" 
         data-bs-toggle="modal" 
         data-bs-target="#movementsModal{{ object.employee.id }}_{{ object.date|date:'Ymd' }}"

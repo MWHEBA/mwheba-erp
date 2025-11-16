@@ -587,6 +587,32 @@ def arabic_timesince(value):
 
 
 @register.filter
+def arabic_day_name(date_value):
+    """
+    تحويل تاريخ إلى اسم اليوم بالعربي
+    مثال: 2025-01-18 -> السبت
+    """
+    if not date_value:
+        return ""
+    
+    days = {
+        'Saturday': 'السبت',
+        'Sunday': 'الأحد',
+        'Monday': 'الاثنين',
+        'Tuesday': 'الثلاثاء',
+        'Wednesday': 'الأربعاء',
+        'Thursday': 'الخميس',
+        'Friday': 'الجمعة',
+    }
+    
+    try:
+        day_name_en = date_value.strftime('%A')
+        return days.get(day_name_en, day_name_en)
+    except:
+        return ""
+
+
+@register.filter
 def arabic_month_year(date_value):
     """
     تحويل التاريخ إلى شهر وسنة بالعربي

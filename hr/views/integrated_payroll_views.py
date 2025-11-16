@@ -133,7 +133,7 @@ def integrated_payroll_dashboard(request):
         'processing_percentage': (calculated_payrolls / total_employees * 100) if total_employees > 0 else 0,
     }
     
-    return render(request, 'hr/integrated_payroll/dashboard.html', context)
+    return render(request, 'hr/payroll/dashboard.html', context)
 
 
 @login_required
@@ -214,45 +214,6 @@ def process_monthly_payrolls(request):
 
 
 @login_required
-def payroll_detail_integrated(request, pk):
-    """تفاصيل قسيمة الراتب المتكاملة"""
-    
-    payroll = get_object_or_404(Payroll, pk=pk)
-    
-    # التحقق من الصلاحيات
-    if not request.user.has_perm('hr.can_view_all_salaries'):
-        # السماح للموظف بعرض راتبه فقط
-        if not hasattr(request.user, 'employee_profile') or request.user.employee_profile != payroll.employee:
-            messages.error(request, 'ليس لديك صلاحية لعرض هذه القسيمة')
-            return redirect('hr:payroll_list')
-    
-    # جلب البنود مصنفة
-    earning_lines = payroll.lines.filter(component_type='earning').order_by('order')
-    deduction_lines = payroll.lines.filter(component_type='deduction').order_by('order')
-    
-    # جلب الملخصات
-    attendance_summary = AttendanceSummary.objects.filter(
-        employee=payroll.employee,
-        month=payroll.month
-    ).first()
-    
-    leave_summary = LeaveSummary.objects.filter(
-        employee=payroll.employee,
-        month=payroll.month
-    ).first()
-    
-    context = {
-        'payroll': payroll,
-        'earning_lines': earning_lines,
-        'deduction_lines': deduction_lines,
-        'attendance_summary': attendance_summary,
-        'leave_summary': leave_summary,
-    }
-    
-    return render(request, 'hr/integrated_payroll/payroll_detail.html', context)
-
-
-@login_required
 @permission_required('hr.can_process_payroll', raise_exception=True)
 def calculate_single_payroll(request, employee_id):
     """حساب راتب موظف واحد"""
@@ -279,7 +240,7 @@ def calculate_single_payroll(request, employee_id):
             f'صافي الراتب: {payroll.net_salary}'
         )
         
-        return redirect('hr:payroll_detail_integrated', pk=payroll.id)
+        return redirect('hr:payroll_detail', pk=payroll.id)
         
     except Exception as e:
         logger.error(f"فشل حساب راتب {employee.get_full_name_ar()}: {str(e)}")
@@ -291,28 +252,79 @@ def calculate_single_payroll(request, employee_id):
 @login_required
 @permission_required('hr.can_process_payroll', raise_exception=True)
 def attendance_summary_detail(request, pk):
-    """تفاصيل ملخص الحضور"""
-    
+    """تفاصيل ملخص الحضور مع عرض احترافي متكامل"""
+
     summary = get_object_or_404(AttendanceSummary, pk=pk)
-    
-    # جلب سجلات الحضور للشهر
+
+    # تحديد بداية ونهاية الشهر
     start_date = summary.month.replace(day=1)
     if summary.month.month == 12:
         end_date = summary.month.replace(year=summary.month.year + 1, month=1, day=1) - timedelta(days=1)
     else:
         end_date = summary.month.replace(month=summary.month.month + 1, day=1) - timedelta(days=1)
-    
-    attendance_records = summary.employee.attendances.filter(
+
+    # السجلات اليومية من نموذج Attendance
+    daily_records = summary.employee.attendances.filter(
         date__gte=start_date,
-        date__lte=end_date
-    ).order_by('date')
-    
+        date__lte=end_date,
+    ).select_related('shift').order_by('date')
+
+    # إحصائيات ملخص الحضور من AttendanceSummary نفسه
+    stats = {
+        'total_working_days': summary.total_working_days,
+        'present_days': summary.present_days,
+        'absent_days': summary.absent_days,
+        'late_days': summary.late_days,
+        'total_work_hours': summary.total_work_hours,
+        'total_late_minutes': summary.total_late_minutes,
+        'total_early_leave_minutes': summary.total_early_leave_minutes,
+    }
+
+    # عنوان فرعي بالشهر العربي
+    month_ar = arabic_date_format(summary.month)
+    try:
+        # arabic_date_format يرجع مثلاً "السبت 01 يناير 2025" → نأخذ الجزء بعد اليوم
+        month_suffix = month_ar.split(' ', 1)[1]
+    except Exception:
+        month_suffix = summary.month.strftime('%Y-%m')
+
     context = {
         'summary': summary,
-        'attendance_records': attendance_records,
+        'employee': summary.employee,
+        'daily_records': daily_records,
+        'stats': stats,
+        'page_title': f'ملخص الحضور - {summary.employee.get_full_name_ar()}',
+        'page_subtitle': f'تقرير الحضور لشهر {month_suffix}',
+        'page_icon': 'fas fa-calendar-check',
+        'header_buttons': [
+            {
+                'url': reverse('hr:integrated_payroll_dashboard'),
+                'icon': 'fa-calculator',
+                'text': 'معالجة الرواتب',
+                'class': 'btn-outline-primary',
+            },
+            {
+                'url': reverse('hr:payroll_list'),
+                'icon': 'fa-money-bill-wave',
+                'text': 'قائمة الرواتب',
+                'class': 'btn-outline-secondary',
+            },
+            {
+                'onclick': 'window.print()',
+                'icon': 'fa-print',
+                'text': 'طباعة الملخص',
+                'class': 'btn-outline-primary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': reverse('core:dashboard'), 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': reverse('hr:dashboard'), 'icon': 'fas fa-users-cog'},
+            {'title': 'معالجة الرواتب', 'url': reverse('hr:integrated_payroll_dashboard'), 'icon': 'fas fa-calculator'},
+            {'title': 'ملخص الحضور', 'active': True},
+        ],
     }
-    
-    return render(request, 'hr/integrated_payroll/attendance_summary_detail.html', context)
+
+    return render(request, 'hr/attendance/attendance_summary_detail.html', context)
 
 
 @login_required
@@ -385,5 +397,5 @@ def payroll_print(request, pk):
         'company_logo': None,  # يمكن جلبها من الإعدادات
     }
     
-    return render(request, 'hr/integrated_payroll/payroll_print.html', context)
+    return render(request, 'hr/payroll/print.html', context)
 

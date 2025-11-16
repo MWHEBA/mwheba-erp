@@ -114,7 +114,7 @@ class IntegratedPayrollService:
     
     @staticmethod
     def _add_contract_components(payroll, contract):
-        """إضافة بنود الراتب من العقد"""
+        """إضافة بنود الراتب من العقد والموظف بمنطق تواريخ متسق"""
         # الراتب الأساسي
         PayrollLine.objects.create(
             payroll=payroll,
@@ -129,9 +129,18 @@ class IntegratedPayrollService:
         )
         
         # بنود الراتب الإضافية من الموظف
+        # ملاحظة: هنا كنا نستبعد البنود التي effective_from = NULL
+        # عن طريق الشرط (effective_from__lte)، وده كان بيخلي بعض البنود
+        # النشطة لا تدخل في قسيمة الراتب المتكاملة رغم ظهورها في
+        # صفحة بنود الراتب. لذلك نستخدم منطق شبيه بـ
+        # SalaryComponentService.get_active_components:
+        #   - is_active = True
+        #   - (effective_from IS NULL OR effective_from <= month)
+        #   - (effective_to IS NULL OR effective_to >= month)
         salary_components = contract.employee.salary_components.filter(
-            is_active=True,
-            effective_from__lte=payroll.month
+            is_active=True
+        ).filter(
+            Q(effective_from__isnull=True) | Q(effective_from__lte=payroll.month)
         ).filter(
             Q(effective_to__isnull=True) | Q(effective_to__gte=payroll.month)
         )
@@ -139,7 +148,8 @@ class IntegratedPayrollService:
         order = 10
         for component in salary_components:
             if component.is_basic:
-                continue  # تخطي الراتب الأساسي لأنه مضاف بالفعل
+                # الراتب الأساسي تم إضافته كسطر مستقل بالأعلى
+                continue
             
             PayrollLine.objects.create(
                 payroll=payroll,

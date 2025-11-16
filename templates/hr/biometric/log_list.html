@@ -88,5 +88,71 @@ $('.btn-export-excel').on('click', function() {
     const filename = $(this).data('filename');
     exportTableToExcel(tableId, filename);
 });
+
+function runBiometricBulkLink() {
+    const btn = document.getElementById('btn-biometric-refresh-linking');
+    if (!btn) {
+        notify('لا يمكن العثور على زر التحديث', 'error');
+        return;
+    }
+
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري التحديث...';
+
+    // قراءة الماكينة المختارة من الفلاتر
+    const deviceSelect = document.querySelector('select[name="device"]');
+    const deviceId = deviceSelect ? deviceSelect.value : '';
+
+    // CSRF Token من الميتا
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.getAttribute('content') : '';
+
+    const payload = {
+        unlinked_only: true,
+        limit: 500
+    };
+    if (deviceId) {
+        payload.device_id = deviceId;
+    }
+
+    fetch('/hr/api/biometric/logs/bulk-link/', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.success) {
+            const stats = data.stats || {};
+            const linked = stats.linked || stats.updated || 0;
+            const created = stats.created || 0;
+            notify('تم تحديث الربط بنجاح. سجلات جديدة: ' + created + '، تم ربط/تحديث: ' + linked + '.', 'success');
+            // تأخير إعادة تحميل الصفحة لإتاحة وقت لعرض التوستر
+            setTimeout(function() {
+                window.location.reload();
+            }, 1500);
+        } else {
+            notify('حدث خطأ أثناء تحديث الربط: ' + (data.error || 'غير معروف'), 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Biometric bulk link error:', error);
+        notify('حدث خطأ في الاتصال أثناء تحديث الربط', 'error');
+    })
+    .finally(() => {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    });
+}
 </script>
 {% endblock %}

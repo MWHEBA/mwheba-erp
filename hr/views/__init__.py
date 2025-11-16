@@ -190,7 +190,6 @@ from .contract_form_views import (
 # معالجة الرواتب المتكاملة
 from .integrated_payroll_views import (
     integrated_payroll_dashboard,
-    payroll_detail_integrated,
     calculate_attendance_summaries,
     process_monthly_payrolls,
     calculate_single_payroll,
@@ -338,7 +337,6 @@ __all__ = [
     'contract_components_unified',
     # معالجة الرواتب المتكاملة
     'integrated_payroll_dashboard',
-    'payroll_detail_integrated',
     'calculate_attendance_summaries',
     'process_monthly_payrolls',
     'calculate_single_payroll',
