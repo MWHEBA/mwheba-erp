@@ -218,13 +218,13 @@ label {
 /* Badge العداد */
 .notification-badge {
     position: absolute;
-    top: -5px;
-    left: -5px;
+    top: -7px;
+    left: -7px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 20px;
-    height: 20px;
+    width: 23px;
+    height: 23px;
     border-radius: 50%;
     background-color: var(--danger-color);
     color: white;
