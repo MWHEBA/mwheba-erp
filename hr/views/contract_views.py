@@ -1,33 +1,69 @@
 """
-Views إدارة العقود (الجزء الأول - الدوال الأساسية)
+Views إدارة العقود - النظام الموحد
+دمج: contract_views.py + contract_form_views.py + contract_unified_views.py
 """
 from .base_imports import *
-from ..models import Contract, Employee, Department
+from ..models import Contract, Employee, Department, SalaryComponent, ContractSalaryComponent
 from ..models.contract import ContractDocument, ContractAmendment, ContractIncrease
 from ..decorators import can_manage_contracts, hr_manager_required
-from ..services.contract_activation_service import ContractActivationService
-from ..services.contract_component_service import ContractComponentService
+from ..services.unified_contract_service import UnifiedContractService
+from ..services.unified_salary_component_service import UnifiedSalaryComponentService
+from ..services.smart_contract_analyzer import SmartContractAnalyzer
+from ..forms.contract_forms import ContractForm
 from core.models import SystemSetting
+from core.utils import get_default_currency
 from django.core.paginator import Paginator
 from datetime import date, timedelta
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.http import JsonResponse
-from ..models import SalaryComponent, SalaryComponentTemplate, BiometricUserMapping, ContractIncrease
-from ..forms.contract_forms import ContractForm
+from ..models import SalaryComponentTemplate, BiometricUserMapping
+from django.views import View
+from django.utils.decorators import method_decorator
+from django.db import transaction
+from decimal import Decimal
+import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 __all__ = [
+    # CRUD Operations
     'contract_list',
     'contract_detail',
+    'contract_form',
+    
+    # Activation & Preview
     'contract_activate',
-    'contract_suspend',
-    'contract_reactivate',
+    'contract_activation_preview',
+    'contract_activate_with_components',
+    'contract_smart_activate',
+    
+    # Component Management
+    'contract_preview_components',
+    'contract_apply_component_selection',
+    'contract_optimize_components',
+    'contract_components_unified',
+    'sync_component',
+    'sync_contract_components',
+    
+    # Lifecycle Management
+    'contract_renew',
+    'contract_terminate',
+    'contract_expiring',
+    
+    # Documents & Amendments
     'contract_document_upload',
     'contract_document_delete',
     'contract_amendment_create',
-    'sync_component',
-    'sync_contract_components',
-    'contract_activation_preview',
-    'contract_activate_with_components',
+    
+    # Scheduled Increases
+    'contract_create_increase_schedule',
+    'contract_increase_action',
+    'contract_increase_apply',
+    'contract_increase_cancel',
+    
+    # API Helpers
+    'get_salary_component_templates',
 ]
 
 
@@ -677,7 +713,7 @@ def contract_activate(request, pk):
     """
     تفعيل العقد ونسخ البنود تلقائياً
     
-    يستخدم ContractActivationService لـ:
+    يستخدم UnifiedContractService لـ:
     - تعطيل العقد القديم (إن وجد)
     - تفعيل العقد الجديد
     - نسخ جميع البنود من ContractSalaryComponent إلى SalaryComponent
@@ -693,17 +729,19 @@ def contract_activate(request, pk):
     
     if request.method == 'POST':
         try:
-            # استخدام ContractActivationService
-            success, message = ContractActivationService.activate_contract(
+            # استخدام UnifiedContractService
+            unified_service = UnifiedContractService()
+            result = unified_service.smart_activate_contract(
                 contract=contract,
-                activated_by=request.user
+                user_selections=None,
+                user=request.user
             )
             
-            if success:
-                messages.success(request, message)
+            if result['success']:
+                messages.success(request, result['summary']['message'])
                 return redirect('hr:contract_detail', pk=pk)
             else:
-                messages.error(request, message)
+                messages.error(request, 'فشل في تفعيل العقد')
         except Exception as e:
             messages.error(request, f'حدث خطأ أثناء تفعيل العقد: {str(e)}')
     
@@ -732,7 +770,7 @@ def contract_activate(request, pk):
 @login_required
 @hr_manager_required
 def contract_activation_preview(request, pk):
-    """معاينة تأثير تفعيل العقد على بنود الموظف"""
+    """معاينة تأثير تفعيل العقد على بنود الموظف - محدثة"""
     contract = get_object_or_404(Contract, pk=pk)
     
     if contract.status != 'draft':
@@ -742,15 +780,27 @@ def contract_activation_preview(request, pk):
         })
     
     try:
-        # الحصول على معاينة التفعيل
-        preview = ContractActivationService.get_activation_preview(contract)
+        # استخدام UnifiedContractService للمعاينة
+        unified_service = UnifiedContractService()
+        preview = unified_service.preview_contract_activation(contract, user_selections=None)
+        
+        # تسلسل البيانات للـ JSON
+        from .admin_maintenance_views import _serialize_analysis_data
+        
+        serialized_preview = {
+            'total_components': preview['transfer_preview']['total_components'],
+            'auto_transfer_count': preview['transfer_preview']['auto_transfer_count'],
+            'manual_review_count': preview['transfer_preview']['manual_review_count'],
+            'estimated_impact': _serialize_analysis_data(preview['estimated_impact'])
+        }
         
         return JsonResponse({
             'success': True,
-            'preview': preview
+            'preview': serialized_preview
         })
         
     except Exception as e:
+        logger.error(f"خطأ في معاينة تفعيل العقد: {str(e)}")
         return JsonResponse({
             'success': False,
             'message': f'حدث خطأ في تحليل العقد: {str(e)}'
@@ -805,3 +855,588 @@ def contract_activate_with_components(request, pk):
             'success': False,
             'message': f'حدث خطأ أثناء تفعيل العقد: {str(e)}'
         })
+
+
+
+# ==================== Contract Form (Unified) ====================
+
+@login_required
+def contract_form(request, pk=None):
+    """نموذج موحد لإضافة/تعديل عقد - مبسط باستخدام UnifiedContractService"""
+    contract = get_object_or_404(Contract, pk=pk) if pk else None
+    unified_service = UnifiedContractService()
+    
+    if request.method == 'POST':
+        form = ContractForm(request.POST, instance=contract)
+        if form.is_valid():
+            contract_obj = form.save(commit=False)
+            
+            # توليد رقم العقد تلقائياً إذا لم يتم إدخاله (للإضافة فقط)
+            if not pk and not contract_obj.contract_number:
+                contract_obj.contract_number = ContractForm.generate_contract_number()
+            
+            # تعيين المستخدم الذي أنشأ السجل (للإضافة فقط)
+            if not pk:
+                contract_obj.created_by = request.user
+                if not contract_obj.contract_type:
+                    contract_obj.contract_type = 'contract'
+            
+            # تحديد الإجراء: حفظ كمسودة أو حفظ وتفعيل
+            action = request.POST.get('action', 'save_draft')
+            
+            # إذا كان عقد جديد، تحديد الحالة حسب الإجراء
+            if not pk:
+                if action == 'save_activate':
+                    contract_obj.status = 'active'
+                else:
+                    contract_obj.status = 'draft'
+            elif action == 'save_activate':
+                contract_obj.status = 'active'
+            
+            contract_obj.save()
+            
+            # إضافة بند الراتب الأساسي تلقائياً (للعقود الجديدة فقط)
+            if not pk and contract_obj.basic_salary and contract_obj.basic_salary > 0:
+                basic_exists = ContractSalaryComponent.objects.filter(
+                    contract=contract_obj,
+                    is_basic=True
+                ).exists()
+                
+                if not basic_exists:
+                    basic_component = ContractSalaryComponent.objects.create(
+                        contract=contract_obj,
+                        component_type='earning',
+                        code='BASIC_SALARY',
+                        name='الراتب الأساسي',
+                        calculation_method='fixed',
+                        amount=contract_obj.basic_salary,
+                        is_basic=True,
+                        is_taxable=True,
+                        is_fixed=True,
+                        affects_overtime=True,
+                        order=0,
+                        show_in_payslip=True,
+                        notes='تم إضافته تلقائياً من العقد'
+                    )
+                    logger.info(f"تم إضافة بند الراتب الأساسي تلقائياً: {contract_obj.basic_salary} ج.م")
+                    
+                    # إذا تم التفعيل مباشرة، انسخ للموظف
+                    if action == 'save_activate':
+                        emp_comp = basic_component.copy_to_employee_component(contract_obj.employee)
+                        logger.info(f"  → تم نسخ الراتب الأساسي إلى SalaryComponent - ID={emp_comp.id}")
+            
+            # حفظ مكونات الراتب
+            _save_contract_components(request, contract_obj, pk, action)
+            
+            if pk:
+                messages.success(request, 'تم تحديث العقد بنجاح')
+            else:
+                messages.success(request, f'تم إضافة العقد بنجاح - الرقم: {contract_obj.contract_number}')
+            return redirect('hr:contract_list')
+        else:
+            messages.error(request, 'يرجى تصحيح الأخطاء في النموذج')
+    else:
+        form = ContractForm(instance=contract)
+    
+    # توليد رقم العقد المقترح (للإضافة فقط)
+    next_contract_number = ContractForm.generate_contract_number() if not pk else None
+    
+    # جلب مكونات الراتب الموجودة (للتعديل)
+    earnings = []
+    deductions = []
+    if contract:
+        earnings = contract.salary_components.filter(component_type='earning', is_basic=False)
+        deductions = contract.salary_components.filter(component_type='deduction')
+    
+    # جلب إعدادات النظام
+    try:
+        currency_symbol = get_default_currency()
+        system_settings = {'currency_symbol': currency_symbol}
+    except:
+        system_settings = {'currency_symbol': 'ج.م'}
+    
+    context = {
+        'form': form,
+        'contract': contract,
+        'next_contract_number': next_contract_number,
+        'earnings': earnings,
+        'deductions': deductions,
+        'system_settings': system_settings,
+        'page_title': f'تعديل عقد: {contract.contract_number}' if contract else 'إضافة عقد جديد',
+        'page_subtitle': 'تعديل بيانات العقد' if contract else 'إضافة عقد موظف جديد',
+        'page_icon': 'fas fa-file-contract',
+        'header_buttons': [
+            {
+                'url': '/hr/contracts/',
+                'icon': 'fa-arrow-right',
+                'text': 'رجوع',
+                'class': 'btn-secondary',
+            },
+        ],
+        'breadcrumb_items': [
+            {'title': 'الرئيسية', 'url': '/dashboard/', 'icon': 'fas fa-home'},
+            {'title': 'الموارد البشرية', 'url': '/hr/', 'icon': 'fas fa-users'},
+            {'title': 'العقود', 'url': '/hr/contracts/', 'icon': 'fas fa-file-contract'},
+            {'title': 'تعديل عقد' if contract else 'إضافة عقد', 'active': True},
+        ],
+    }
+    return render(request, 'hr/contract/form.html', context)
+
+
+def _save_contract_components(request, contract_obj, pk, action):
+    """دالة مساعدة لحفظ بنود العقد"""
+    # جمع المستحقات
+    new_earnings = []
+    earning_counters = sorted([
+        key.split('_')[-1] for key in request.POST.keys() 
+        if key.startswith('earning_name_')
+    ], key=lambda x: int(x) if x.isdigit() else 0)
+    
+    for counter in earning_counters:
+        name = request.POST.get(f'earning_name_{counter}')
+        formula = request.POST.get(f'earning_formula_{counter}', '')
+        amount = request.POST.get(f'earning_amount_{counter}')
+        order = request.POST.get(f'earning_order_{counter}', 0)
+        component_id = request.POST.get(f'earning_id_{counter}', '')
+        
+        if name and amount:
+            clean_id = None
+            if component_id and component_id.strip():
+                try:
+                    clean_id = int(component_id)
+                except (ValueError, TypeError):
+                    clean_id = None
+            
+            new_earnings.append({
+                'id': clean_id,
+                'name': name,
+                'formula': formula,
+                'amount': Decimal(amount),
+                'order': int(order) if order else 0
+            })
+    
+    # جمع الاستقطاعات
+    new_deductions = []
+    deduction_counters = sorted([
+        key.split('_')[-1] for key in request.POST.keys() 
+        if key.startswith('deduction_name_')
+    ], key=lambda x: int(x) if x.isdigit() else 0)
+    
+    for counter in deduction_counters:
+        name = request.POST.get(f'deduction_name_{counter}')
+        formula = request.POST.get(f'deduction_formula_{counter}', '')
+        amount = request.POST.get(f'deduction_amount_{counter}')
+        order = request.POST.get(f'deduction_order_{counter}', 0)
+        component_id = request.POST.get(f'deduction_id_{counter}', '')
+        
+        if name and amount:
+            clean_id = None
+            if component_id and component_id.strip():
+                try:
+                    clean_id = int(component_id)
+                except (ValueError, TypeError):
+                    clean_id = None
+            
+            new_deductions.append({
+                'id': clean_id,
+                'name': name,
+                'formula': formula,
+                'amount': Decimal(amount),
+                'order': int(order) if order else 0
+            })
+    
+    # حفظ البنود
+    if pk:
+        # للتعديل: تحديث ContractSalaryComponent
+        _update_contract_components(contract_obj, new_earnings, new_deductions, action)
+    else:
+        # للإضافة: إنشاء في ContractSalaryComponent
+        _create_contract_components(contract_obj, new_earnings, new_deductions, action)
+
+
+def _update_contract_components(contract_obj, new_earnings, new_deductions, action):
+    """تحديث بنود العقد الموجود"""
+    # معالجة المستحقات
+    existing_earning_ids = []
+    for item in new_earnings:
+        if item['id']:
+            existing_earning_ids.append(item['id'])
+            try:
+                obj = ContractSalaryComponent.objects.get(
+                    id=item['id'],
+                    contract=contract_obj,
+                    component_type='earning'
+                )
+                obj.name = item['name']
+                obj.formula = item['formula']
+                obj.amount = item['amount']
+                obj.order = item['order']
+                obj.save()
+                
+                # إذا العقد active، حدث SalaryComponent المنسوخة
+                if contract_obj.status == 'active':
+                    try:
+                        emp_comp = SalaryComponent.objects.get(
+                            employee=contract_obj.employee,
+                            source_contract_component=obj,
+                            is_from_contract=True
+                        )
+                        emp_comp.name = item['name']
+                        emp_comp.formula = item['formula']
+                        emp_comp.amount = item['amount']
+                        emp_comp.order = item['order']
+                        emp_comp.save()
+                    except SalaryComponent.DoesNotExist:
+                        pass
+            except ContractSalaryComponent.DoesNotExist:
+                pass
+        else:
+            # إنشاء بند جديد
+            code = item['name'].upper().replace(' ', '_')[:50]
+            new_obj, created = ContractSalaryComponent.objects.get_or_create(
+                contract=contract_obj,
+                code=code,
+                defaults={
+                    'component_type': 'earning',
+                    'name': item['name'],
+                    'formula': item['formula'],
+                    'amount': item['amount'],
+                    'order': item['order'],
+                    'calculation_method': 'formula' if item['formula'] else 'fixed'
+                }
+            )
+            if not created:
+                new_obj.name = item['name']
+                new_obj.formula = item['formula']
+                new_obj.amount = item['amount']
+                new_obj.order = item['order']
+                new_obj.calculation_method = 'formula' if item['formula'] else 'fixed'
+                new_obj.save()
+            
+            existing_earning_ids.append(new_obj.id)
+            
+            if contract_obj.status == 'active':
+                new_obj.copy_to_employee_component(contract_obj.employee)
+    
+    # حذف المستحقات المحذوفة
+    deleted_earnings = contract_obj.salary_components.filter(
+        component_type='earning',
+        is_basic=False
+    ).exclude(id__in=existing_earning_ids)
+    if deleted_earnings.exists():
+        for item in deleted_earnings:
+            if contract_obj.status == 'active':
+                SalaryComponent.objects.filter(
+                    source_contract_component=item,
+                    is_from_contract=True
+                ).delete()
+        deleted_earnings.delete()
+    
+    # معالجة الاستقطاعات (نفس المنطق)
+    existing_deduction_ids = []
+    for item in new_deductions:
+        if item['id']:
+            existing_deduction_ids.append(item['id'])
+            try:
+                obj = ContractSalaryComponent.objects.get(
+                    id=item['id'],
+                    contract=contract_obj,
+                    component_type='deduction'
+                )
+                obj.name = item['name']
+                obj.formula = item['formula']
+                obj.amount = item['amount']
+                obj.order = item['order']
+                obj.save()
+                
+                if contract_obj.status == 'active':
+                    try:
+                        emp_comp = SalaryComponent.objects.get(
+                            employee=contract_obj.employee,
+                            source_contract_component=obj,
+                            is_from_contract=True
+                        )
+                        emp_comp.name = item['name']
+                        emp_comp.formula = item['formula']
+                        emp_comp.amount = item['amount']
+                        emp_comp.order = item['order']
+                        emp_comp.save()
+                    except SalaryComponent.DoesNotExist:
+                        pass
+            except ContractSalaryComponent.DoesNotExist:
+                pass
+        else:
+            code = item['name'].upper().replace(' ', '_')[:50]
+            new_obj, created = ContractSalaryComponent.objects.get_or_create(
+                contract=contract_obj,
+                code=code,
+                defaults={
+                    'component_type': 'deduction',
+                    'name': item['name'],
+                    'formula': item['formula'],
+                    'amount': item['amount'],
+                    'order': item['order'],
+                    'calculation_method': 'formula' if item['formula'] else 'fixed'
+                }
+            )
+            if not created:
+                new_obj.name = item['name']
+                new_obj.formula = item['formula']
+                new_obj.amount = item['amount']
+                new_obj.order = item['order']
+                new_obj.calculation_method = 'formula' if item['formula'] else 'fixed'
+                new_obj.save()
+            
+            existing_deduction_ids.append(new_obj.id)
+            
+            if contract_obj.status == 'active':
+                new_obj.copy_to_employee_component(contract_obj.employee)
+    
+    # حذف الاستقطاعات المحذوفة
+    deleted_deductions = contract_obj.salary_components.filter(
+        component_type='deduction'
+    ).exclude(id__in=existing_deduction_ids)
+    if deleted_deductions.exists():
+        for item in deleted_deductions:
+            if contract_obj.status == 'active':
+                SalaryComponent.objects.filter(
+                    source_contract_component=item,
+                    is_from_contract=True
+                ).delete()
+        deleted_deductions.delete()
+
+
+def _create_contract_components(contract_obj, new_earnings, new_deductions, action):
+    """إنشاء بنود العقد الجديد"""
+    for data in new_earnings:
+        data.pop('id', None)
+        code = data['name'].upper().replace(' ', '_')[:50]
+        
+        new_obj, created = ContractSalaryComponent.objects.get_or_create(
+            contract=contract_obj,
+            code=code,
+            defaults={
+                'component_type': 'earning',
+                'calculation_method': 'formula' if data['formula'] else 'fixed',
+                **data
+            }
+        )
+        
+        if not created:
+            for key, value in data.items():
+                setattr(new_obj, key, value)
+            new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+            new_obj.save()
+        
+        # إذا تم التفعيل مباشرة، انسخ للموظف
+        if action == 'save_activate':
+            new_obj.copy_to_employee_component(contract_obj.employee)
+    
+    for data in new_deductions:
+        data.pop('id', None)
+        code = data['name'].upper().replace(' ', '_')[:50]
+        
+        new_obj, created = ContractSalaryComponent.objects.get_or_create(
+            contract=contract_obj,
+            code=code,
+            defaults={
+                'component_type': 'deduction',
+                'calculation_method': 'formula' if data['formula'] else 'fixed',
+                **data
+            }
+        )
+        
+        if not created:
+            for key, value in data.items():
+                setattr(new_obj, key, value)
+            new_obj.calculation_method = 'formula' if data['formula'] else 'fixed'
+            new_obj.save()
+        
+        if action == 'save_activate':
+            new_obj.copy_to_employee_component(contract_obj.employee)
+
+
+
+# ==================== Smart Activation & Preview (من contract_unified_views) ====================
+
+@login_required
+@hr_manager_required
+@require_http_methods(["POST"])
+def contract_smart_activate(request, contract_id):
+    """تفعيل ذكي للعقد (من SmartContractActivationView)"""
+    
+    try:
+        contract = get_object_or_404(Contract, id=contract_id)
+        
+        # التحقق من حالة العقد
+        if contract.status != 'draft':
+            return JsonResponse({
+                'success': False,
+                'message': 'يمكن تفعيل العقود المسودة فقط'
+            }, status=400)
+        
+        # جلب اختيارات المستخدم (إن وجدت)
+        user_selections = None
+        if request.content_type == 'application/json':
+            data = json.loads(request.body)
+            user_selections = data.get('user_selections')
+        
+        # تفعيل العقد
+        unified_service = UnifiedContractService()
+        result = unified_service.smart_activate_contract(
+            contract, user_selections, request.user
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'contract': {
+                'id': contract.id,
+                'status': contract.status,
+                'activation_date': contract.activation_date.isoformat() if contract.activation_date else None
+            },
+            'summary': result['summary']['message'],
+            'transfer_results': {
+                'transferred_count': len(result['transfer_results']['transferred']),
+                'archived_count': len(result['transfer_results']['archived']),
+                'errors_count': len(result['transfer_results']['errors'])
+            },
+            'redirect_url': reverse('hr:contract_detail', args=[contract.id])
+        })
+        
+    except Exception as e:
+        logger.error(f"خطأ في تفعيل العقد {contract_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+@hr_manager_required
+def contract_preview_components(request, contract_id):
+    """معاينة بنود العقد للنسخ (من contract_unified_views)"""
+    
+    contract = get_object_or_404(Contract, pk=contract_id)
+    
+    if request.method == 'GET':
+        try:
+            # استخدام الخدمة الموحدة الجديدة
+            salary_service = UnifiedSalaryComponentService()
+            
+            # الحصول على معاينة البنود
+            preview_data = salary_service.preview_contract_components(contract)
+            
+            return JsonResponse({
+                'success': True,
+                'preview': preview_data
+            })
+            
+        except Exception as e:
+            logger.error(f"خطأ في معاينة بنود العقد: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'حدث خطأ في المعاينة: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'طريقة طلب غير مدعومة'
+    }, status=405)
+
+
+@login_required
+@hr_manager_required
+def contract_apply_component_selection(request, contract_id):
+    """تطبيق اختيار البنود من المعاينة (من contract_unified_views)"""
+    
+    contract = get_object_or_404(Contract, pk=contract_id)
+    
+    if request.method == 'POST':
+        try:
+            # جلب البنود المحددة
+            selected_components = request.POST.get('selected_components', '[]')
+            selected_ids = json.loads(selected_components)
+            
+            # استخدام الخدمة الموحدة
+            salary_service = UnifiedSalaryComponentService()
+            
+            # تطبيق الاختيار
+            copied_components = salary_service.apply_preview_selection(
+                contract=contract,
+                selected_component_ids=selected_ids
+            )
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'تم نسخ {len(copied_components)} بند بنجاح',
+                'copied_count': len(copied_components)
+            })
+            
+        except Exception as e:
+            logger.error(f"خطأ في تطبيق اختيار البنود: {str(e)}")
+            return JsonResponse({
+                'success': False,
+                'message': f'حدث خطأ في التطبيق: {str(e)}'
+            }, status=500)
+    
+    return JsonResponse({
+        'success': False,
+        'message': 'طريقة طلب غير مدعومة'
+    }, status=405)
+
+
+@login_required
+@require_http_methods(["POST"])
+def contract_optimize_components(request, employee_id):
+    """تحسين بنود الموظف تلقائياً (من contract_unified_views)"""
+    
+    try:
+        employee = get_object_or_404(Employee, id=employee_id)
+        unified_service = UnifiedContractService()
+        
+        # تحسين البنود
+        result = unified_service.optimize_employee_components(
+            employee, 
+            optimization_options={'execute': True}
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'results': {
+                'cleaned_count': len(result['results']['cleaned']),
+                'reclassified_count': len(result['results']['reclassified']),
+                'errors_count': len(result['results']['errors'])
+            },
+            'message': 'تم تحسين البنود بنجاح'
+        })
+        
+    except Exception as e:
+        logger.error(f"خطأ في تحسين بنود الموظف {employee_id}: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'message': str(e)
+        }, status=500)
+
+
+@login_required
+def contract_components_unified(request, employee_id):
+    """صفحة بنود الراتب الموحدة (من contract_unified_views)"""
+    
+    employee = get_object_or_404(Employee, id=employee_id)
+    unified_service = UnifiedContractService()
+    
+    # تحليل شامل للموظف
+    analysis = unified_service.get_employee_component_analysis(employee)
+    
+    context = {
+        'employee': employee,
+        'analysis': analysis,
+        'basic_analysis': analysis['basic_analysis'],
+        'pattern_analysis': analysis['pattern_analysis'],
+        'renewal_analysis': analysis['renewal_analysis'],
+        'health_assessment': analysis['overall_health'],
+        'title': f'بنود راتب {employee.name}',
+        'page_title': f'بنود راتب {employee.name}',
+    }
+    
+    return render(request, 'hr/employee/salary_components_enhanced.html', context)

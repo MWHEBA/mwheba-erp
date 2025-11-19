@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 
 from hr.models import (
-    Employee, Department, JobTitle, Salary, Payroll,
+    Employee, Department, JobTitle, Payroll,
     Advance, AdvanceInstallment
 )
 from hr.services.payroll_service import PayrollService

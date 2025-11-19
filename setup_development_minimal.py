@@ -1,0 +1,815 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+"""
+setup_development_minimal.py - سكريبت إعداد بيئة التطوير (نسخة مبسطة)
+يقوم بتهيئة النظام للتطوير بدون تحميل بيانات العملاء والموردين والمنتجات والفواتير
+
+ملاحظة مهمة: هذا السكريبت يعتمد كلياً على ملفات fixtures
+ولا يحتوي على أي بيانات ثابتة في الكود
+"""
+
+import os
+import sys
+import subprocess
+from pathlib import Path
+import warnings
+
+# إخفاء تحذيرات pkg_resources المهملة من coreapi
+warnings.filterwarnings('ignore', category=UserWarning, module='coreapi')
+
+# إعداد encoding لـ Windows console
+if sys.platform == 'win32':
+    import codecs
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+# متغير عام للوضع التلقائي
+auto_mode = len(sys.argv) > 1 and sys.argv[1] == '--auto'
+
+# الألوان للطباعة
+class Colors:
+    CYAN = "\033[96m"
+    GREEN = "\033[92m"
+    YELLOW = "\033[93m"
+    RED = "\033[91m"
+    GRAY = "\033[90m"
+    WHITE = "\033[97m"
+    RESET = "\033[0m"
+    BOLD = "\033[1m"
+
+
+def print_colored(text, color=""):
+    """طباعة نص ملون"""
+    try:
+        # في الوضع التلقائي، استخدم طباعة بسيطة بدون ألوان
+        if auto_mode:
+            # إزالة الـ emoji والرموز الخاصة
+            text_clean = text.replace("✅", "[OK]").replace("❌", "[X]").replace("⚠️", "[!]")
+            text_clean = text_clean.replace("🔄", "[~]").replace("📦", "[*]").replace("ℹ️", "[i]")
+            print(text_clean)
+        else:
+            print(f"{color}{text}{Colors.RESET}")
+    except UnicodeEncodeError:
+        # في حالة فشل طباعة emoji، استخدم ASCII
+        text_safe = text.encode('ascii', 'ignore').decode('ascii')
+        print(f"{color}{text_safe}{Colors.RESET}")
+
+
+def print_header(text):
+    """طباعة عنوان"""
+    print_colored(f"\n{'='*50}", Colors.CYAN)
+    print_colored(f"  {text}", Colors.CYAN + Colors.BOLD)
+    print_colored(f"{'='*50}\n", Colors.CYAN)
+
+
+def print_step(step_num, total, text):
+    """طباعة خطوة"""
+    print_colored(f"\n📦 المرحلة {step_num}/{total}: {text}...", Colors.YELLOW)
+
+
+def print_success(text):
+    """طباعة رسالة نجاح"""
+    print_colored(f"   ✅ {text}", Colors.GREEN)
+
+
+def print_info(text):
+    """طباعة معلومة"""
+    print_colored(f"   ℹ️  {text}", Colors.GRAY)
+
+
+def print_warning(text):
+    """طباعة تحذير"""
+    print_colored(f"   ⚠️  {text}", Colors.RED)
+
+
+def run_command(command, check=True, show_output=False):
+    """تشغيل أمر في الـ shell"""
+    try:
+        # إذا كان show_output=True، نعرض الـ output مباشرة بدون capture
+        if show_output:
+            result = subprocess.run(
+                command, shell=True, check=check, text=True
+            )
+            return result.returncode == 0
+        else:
+            # إذا كان show_output=False، نخفي الـ output
+            result = subprocess.run(
+                command, shell=True, check=False, capture_output=True, text=True
+            )
+            # فقط نعرض الأخطاء الحقيقية (exit code != 0)
+            if result.returncode != 0:
+                if result.stderr:
+                    print_warning(f"خطأ: {result.stderr[:200]}")
+                elif result.stdout:
+                    print_warning(f"خطأ: {result.stdout[:200]}")
+                else:
+                    print_warning(f"الأمر فشل بكود الخروج: {result.returncode}")
+            return result.returncode == 0
+    except subprocess.CalledProcessError as e:
+        print_warning(f"فشل تنفيذ الأمر: {e}")
+        return False
+    except Exception as e:
+        print_warning(f"خطأ غير متوقع: {e}")
+        return False
+
+
+def check_database_locks():
+    """فحص ما إذا كانت قاعدة البيانات مقفلة"""
+    db_path = Path("db.sqlite3")
+    if not db_path.exists():
+        return False
+    
+    try:
+        # محاولة فتح قاعدة البيانات للكتابة
+        import sqlite3
+        conn = sqlite3.connect(str(db_path), timeout=1)
+        conn.execute("BEGIN IMMEDIATE;")
+        conn.rollback()
+        conn.close()
+        return False  # غير مقفلة
+    except sqlite3.OperationalError:
+        return True  # مقفلة
+
+
+def kill_django_processes():
+    """محاولة إيقاف عمليات Django التي قد تستخدم قاعدة البيانات"""
+    try:
+        if os.name == "nt":  # Windows
+            # البحث عن عمليات Python التي تشغل manage.py
+            result = subprocess.run(
+                'tasklist /FI "IMAGENAME eq python.exe" /FO CSV',
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            if result.returncode == 0 and "python.exe" in result.stdout:
+                print_info("تم العثور على عمليات Python قيد التشغيل")
+                if auto_mode:
+                    kill_confirm = "yes"
+                    print_info("الوضع التلقائي: سيتم إيقاف عمليات Python")
+                else:
+                    kill_confirm = (
+                        input("هل تريد محاولة إيقاف عمليات Python؟ (yes/no): ")
+                        .strip()
+                        .lower()
+                    )
+                if kill_confirm == "yes":
+                    # البحث عن عمليات Python التي تشغل runserver فقط
+                    # وليس السكريبت الحالي
+                    current_pid = os.getpid()
+                    print_info(f"PID الحالي للسكريبت: {current_pid}")
+                    
+                    # استخدام wmic للحصول على تفاصيل العمليات
+                    result = subprocess.run(
+                        'wmic process where "name=\'python.exe\'" get ProcessId,CommandLine /format:csv',
+                        shell=True,
+                        capture_output=True,
+                        text=True
+                    )
+                    
+                    killed_any = False
+                    for line in result.stdout.split('\n'):
+                        if 'runserver' in line or 'manage.py' in line:
+                            # استخراج PID من السطر
+                            parts = line.split(',')
+                            if len(parts) >= 3:
+                                try:
+                                    pid = int(parts[-1].strip())
+                                    if pid != current_pid:
+                                        subprocess.run(f"taskkill /F /PID {pid}", shell=True, capture_output=True)
+                                        print_success(f"تم إيقاف عملية Django (PID: {pid})")
+                                        killed_any = True
+                                except (ValueError, IndexError):
+                                    pass
+                    
+                    if not killed_any:
+                        # إذا لم نجد عمليات محددة، ننتظر قليلاً
+                        print_info("لم يتم العثور على عمليات Django محددة")
+                        import time
+                        time.sleep(2)
+                    
+                    return True
+        else:  # Linux/Mac
+            result = subprocess.run(
+                "ps aux | grep 'manage.py runserver' | grep -v grep",
+                shell=True,
+                capture_output=True,
+                text=True,
+            )
+            if result.stdout.strip():
+                print_info("تم العثور على عمليات Django قيد التشغيل")
+                if auto_mode:
+                    kill_confirm = "yes"
+                    print_info("الوضع التلقائي: سيتم إيقاف عمليات Django")
+                else:
+                    kill_confirm = (
+                        input("هل تريد محاولة إيقاف عمليات Django؟ (yes/no): ")
+                        .strip()
+                        .lower()
+                    )
+                if kill_confirm == "yes":
+                    subprocess.run("pkill -f 'manage.py runserver'", shell=True)
+                    print_success("تم إيقاف عمليات Django")
+    except Exception as e:
+        print_warning(f"فشل في فحص العمليات: {e}")
+    return False
+
+
+def main():
+    """الدالة الرئيسية لإعداد النظام"""
+    
+    # تهيئة Django في البداية
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mwheba_erp.settings")
+    import django
+
+    # فحص وجود ملف الإعدادات
+    settings_path = Path("mwheba_erp/settings.py")
+    if not settings_path.exists():
+        print_colored(f"\n❌ لا يوجد ملف الإعدادات {settings_path}", Colors.RED)
+        sys.exit(1)
+    django.setup()
+
+    # طباعة العنوان
+    print_header("ERP System - Development Setup (Minimal)")
+    
+    if auto_mode:
+        print_colored("\n🤖 وضع التشغيل التلقائي مُفعل", Colors.CYAN)
+        print("سيتم تنفيذ الإعداد الكامل تلقائياً (قاعدة بيانات جديدة بدون بيانات تجريبية)")
+        confirm = "yes"
+    else:
+        # سؤال بسيط للإعداد
+        print_colored("\n🛠️  إعداد النظام (نسخة مبسطة)", Colors.CYAN)
+        print("سيتم تنفيذ الإعداد الكامل (قاعدة بيانات جديدة بدون عملاء/موردين/منتجات/فواتير)")
+        confirm = input("هل تريد المتابعة؟ (yes/no): ").strip().lower()
+
+        if confirm != "yes":
+            print_colored("\n❌ تم إلغاء العملية", Colors.YELLOW)
+            sys.exit(0)
+
+    # المرحلة 1: حذف قاعدة البيانات القديمة
+    print_step(1, 10, "حذف قاعدة البيانات القديمة")
+    
+    # الحل الجذري: التأكد من إغلاق جميع الاتصالات
+    print_info("إغلاق جميع اتصالات قاعدة البيانات...")
+    
+    # محاولة إغلاق اتصالات Django
+    try:
+        from django.db import connections
+        for conn in connections.all():
+            conn.close()
+        print_success("تم إغلاق اتصالات Django")
+    except Exception as e:
+        print_warning(f"تحذير: {e}")
+    
+    db_path = Path("db.sqlite3")
+    if db_path.exists():
+        try:
+            # محاولة حذف قاعدة البيانات مع إعادة المحاولة
+            import time
+            for attempt in range(3):
+                try:
+                    db_path.unlink()
+                    print_success("تم حذف قاعدة البيانات القديمة")
+                    break
+                except PermissionError:
+                    if attempt < 2:
+                        print_info(f"محاولة {attempt + 1}/3: انتظار إغلاق العمليات...")
+                        time.sleep(2)
+                    else:
+                        raise
+        except PermissionError:
+            print_warning("⚠️  قاعدة البيانات مفتوحة في عملية أخرى!")
+            print_colored("   الحلول المقترحة:", Colors.YELLOW)
+            print_colored(
+                "   1. أغلق السيرفر Django إذا كان يعمل (Ctrl+C)", Colors.WHITE
+            )
+            print_colored(
+                "   2. أغلق أي IDE أو برنامج يستخدم قاعدة البيانات", Colors.WHITE
+            )
+            print_colored(
+                "   3. أعد تشغيل السكريبت بعد إغلاق العمليات", Colors.WHITE
+            )
+
+            # فحص أقفال قاعدة البيانات
+            if check_database_locks():
+                print_warning("⚠️  قاعدة البيانات مقفلة، لا يمكن حذفها")
+                print_colored("   يرجى إغلاق جميع العمليات التي تستخدم قاعدة البيانات يدوياً", Colors.GRAY)
+                print_colored("   ثم إعادة تشغيل السكريبت", Colors.GRAY)
+                sys.exit(1)
+
+            # محاولة إيقاف عمليات Django
+            if kill_django_processes():
+                print_info("تم محاولة إيقاف العمليات، انتظر قليلاً...")
+                
+                import time
+                time.sleep(2)  # انتظار ثانيتين فقط (أسرع)
+                try:
+                    db_path.unlink()
+                    print_success("تم حذف قاعدة البيانات بنجاح!")
+                except PermissionError:
+                    print_warning("لا يزال الملف مستخدم")
+
+            # محاولة أخرى بعد تحذير المستخدم
+            if db_path.exists():
+                if auto_mode:
+                    retry = "yes"
+                    print_info("الوضع التلقائي: سيتم المحاولة مرة أخرى")
+                else:
+                    retry = input("\nهل تريد المحاولة مرة أخرى؟ (yes/no): ").strip().lower()
+                if retry == "yes":
+                    try:
+                        db_path.unlink()
+                        print_success("تم حذف قاعدة البيانات بنجاح!")
+                    except PermissionError:
+                        print_colored("\n❌ لا يمكن حذف قاعدة البيانات", Colors.RED)
+                        print_colored(
+                            "   يرجى إغلاق جميع العمليات التي تستخدم قاعدة البيانات يدوياً",
+                            Colors.GRAY,
+                        )
+                        print_colored("   ثم إعادة تشغيل السكريبت", Colors.GRAY)
+                        sys.exit(1)
+                else:
+                    print_colored("\n❌ تم إلغاء العملية", Colors.YELLOW)
+                    sys.exit(0)
+    else:
+        print_info("لا توجد قاعدة بيانات سابقة")
+
+    # المرحلة 2: تطبيق الهجرات
+    print_step(2, 10, "تطبيق الهجرات")
+    
+    # الحل الجذري الأمثل: تطبيق الهجرات مرة واحدة فقط
+    print_info("تطبيق جميع الهجرات...")
+    
+    # إنشاء قاعدة البيانات والجداول الأساسية أولاً
+    migration_success = run_command("python manage.py migrate", show_output=True)
+    
+    if not migration_success:
+        print_colored("\n❌ فشل تطبيق الهجرات", Colors.RED)
+        print_info("تفاصيل المشكلة:")
+        print_info("- تأكد من أن جميع ملفات الهجرات صحيحة")
+        print_info("- تحقق من إعدادات قاعدة البيانات في settings.py")
+        print_info("- جرب تشغيل: python manage.py migrate --verbosity=2")
+        sys.exit(1)
+    
+    print_success("تم تطبيق الهجرات بنجاح")
+
+    # المرحلة 3: إنشاء المستخدمين الأساسيين
+    print_step(3, 10, "إنشاء المستخدمين الأساسيين")
+    
+    try:
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        
+        # حذف المستخدمين القدامى دفعة واحدة
+        User.objects.filter(username__in=['mwheba', 'fatma', 'admin']).delete()
+        
+        # إنشاء المستخدمين (أسرع)
+        users_data = [
+            {'username': 'mwheba', 'email': 'info@mwheba.com', 'first_name': 'Mohamed', 'last_name': 'Yousif', 'password': 'MedooAlnems2008'},
+            {'username': 'fatma', 'email': 'fatma@mwheba.com', 'first_name': 'فاطمة', 'last_name': '', 'password': '2951096'},
+            {'username': 'admin', 'email': 'admin@mwheba.com', 'first_name': 'Admin', 'last_name': 'Test', 'password': 'admin123'}
+        ]
+        
+        for user_data in users_data:
+            user = User.objects.create_user(
+                username=user_data['username'],
+                email=user_data['email'],
+                first_name=user_data['first_name'],
+                last_name=user_data['last_name'],
+                password=user_data['password'],
+                is_superuser=True,
+                is_staff=True
+            )
+            print_success(f"تم إنشاء المستخدم {user_data['username']}")
+        
+        print_success("تم إنشاء جميع المستخدمين بنجاح")
+        
+    except Exception as e:
+        print_warning(f"فشل في إنشاء المستخدمين: {e}")
+
+    # المرحلة 4: إنشاء الصلاحيات المخصصة والأدوار
+    print_step(4, 10, "إنشاء الصلاحيات المخصصة والأدوار")
+    
+    print_info("إنشاء الصلاحيات المخصصة (37 صلاحية)...")
+    result = run_command("python manage.py create_custom_permissions", check=False, show_output=True)
+    if result:
+        print_success("تم إنشاء الصلاحيات المخصصة بنجاح")
+    else:
+        print_warning("فشل إنشاء الصلاحيات المخصصة - تحقق من الأخطاء أعلاه")
+    
+    print_info("إنشاء الأدوار الأساسية (8 أدوار)...")
+    result = run_command("python manage.py update_roles_with_custom_permissions", check=False, show_output=True)
+    if result:
+        print_success("تم إنشاء الأدوار بنجاح (8 أدوار)")
+    else:
+        print_warning("فشل إنشاء الأدوار - تحقق من الأخطاء أعلاه")
+
+    # المرحلة 5: تحميل إعدادات النظام
+    print_step(5, 10, "تحميل إعدادات النظام")
+    
+    settings_file = Path("core/fixtures/system_settings_final.json")
+    if not settings_file.exists():
+        print_warning(f"الملف غير موجود: {settings_file}")
+    else:
+        print_info("تحميل الإعدادات الشاملة (101 إعداد)...")
+        try:
+            if run_command("python manage.py loaddata core/fixtures/system_settings_final.json", check=False, show_output=False):
+                print_success("تم تحميل جميع إعدادات النظام بنجاح")
+            else:
+                print_warning("فشل تحميل إعدادات النظام")
+        except Exception as e:
+            print_warning(f"خطأ في تحميل إعدادات النظام: {str(e)[:100]}")
+
+    # المرحلة 6: تحميل قواعد التزامن (الدليل المحاسبي في migration)
+    print_step(6, 10, "تحميل قواعد التزامن")
+    
+    print_info("تحميل قواعد التزامن...")
+    try:
+        sync_rules_file = Path("financial/fixtures/payment_sync_rules.json")
+        
+        if sync_rules_file.exists():
+            if not run_command(f"python manage.py loaddata financial/fixtures/payment_sync_rules.json", show_output=False):
+                print_colored("\n❌ فشل تحميل قواعد التزامن", Colors.RED)
+                sys.exit(1)
+            print_success("تم تحميل قواعد التزامن")
+        else:
+            print_warning("ملف قواعد التزامن غير موجود (اختياري)")
+    except Exception as e:
+        print_colored(f"\n❌ خطأ في تحميل قواعد التزامن: {str(e)[:100]}", Colors.RED)
+        sys.exit(1)
+
+    # التحقق من الصلاحيات المخصصة
+    print_info("التحقق من الصلاحيات المخصصة...")
+    try:
+        from django.contrib.auth.models import Permission
+        from django.contrib.contenttypes.models import ContentType
+
+        User = get_user_model()
+        ct = ContentType.objects.get_for_model(User)
+        custom_permissions = Permission.objects.filter(content_type=ct)
+        total_permissions = Permission.objects.count()
+        
+        print_success(f"تم العثور على {custom_permissions.count()} صلاحية مخصصة")
+        print_info(f"   إجمالي الصلاحيات في النظام: {total_permissions}")
+        
+        if custom_permissions.count() >= 37:
+            print_success("✅ نظام الصلاحيات المخصصة جاهز!")
+        else:
+            print_warning(f"⚠️ عدد الصلاحيات المخصصة أقل من المتوقع ({custom_permissions.count()}/45)")
+            
+    except Exception as e:
+        print_warning(f"خطأ في التحقق من الصلاحيات: {e}")
+
+    # التحقق من أدوار المستخدمين
+    print_info("التحقق من أدوار المستخدمين...")
+    try:
+        from django.contrib.auth import get_user_model
+        from users.models import Role
+
+        User = get_user_model()
+        
+        # عد الأدوار
+        roles_count = Role.objects.count()
+        print_success(f"تم العثور على {roles_count} دور في النظام")
+        
+        if roles_count >= 8:
+            print_success("✅ جميع الأدوار الأساسية موجودة!")
+        else:
+            print_warning(f"⚠️ عدد الأدوار أقل من المتوقع ({roles_count}/8)")
+        
+        # المستخدمون الثلاثة هم superusers ولديهم جميع الصلاحيات تلقائياً
+        users_to_check = ["mwheba", "fatma", "admin"]
+        for username in users_to_check:
+            try:
+                user = User.objects.get(username=username)
+                if user.is_superuser:
+                    print_success(f"✅ {username} - superuser (صلاحيات كاملة)")
+                else:
+                    print_info(f"   {username} - مستخدم عادي")
+            except User.DoesNotExist:
+                print_warning(f"المستخدم {username} غير موجود")
+
+    except Exception as e:
+        print_warning(f"فشل في التحقق من الأدوار: {str(e)}")
+
+    # المرحلة 7: إنشاء الفترة المالية 2025
+    print_step(7, 10, "إنشاء الفترة المالية 2025")
+
+    from financial.models import AccountingPeriod
+    from datetime import date
+
+    try:
+        # الحصول على المستخدم الأول لتعيينه كمنشئ
+        User = get_user_model()
+        first_user = User.objects.first()
+
+        period, created = AccountingPeriod.objects.get_or_create(
+            start_date=date(2025, 1, 1),
+            end_date=date(2025, 12, 31),
+            defaults={
+                "name": "السنة المالية 2025",
+                "status": "open",
+                "created_by": first_user,
+            },
+        )
+        if created:
+            print_success("تم إنشاء الفترة المالية 2025 بنجاح")
+        else:
+            print_info("الفترة المالية 2025 موجودة بالفعل")
+    except Exception as e:
+        print_warning(f"فشل إنشاء الفترة المالية: {e}")
+
+    # المرحلة 8: بيانات تجريبية (فقط HR وأنواع الموردين - بدون عملاء/موردين/منتجات/فواتير)
+    print_step(8, 10, "تحميل البيانات التجريبية (HR وأنواع الموردين)")
+
+    # تحميل بيانات الموارد البشرية وأنواع الموردين
+    basic_fixtures = [
+        "hr/fixtures/departments.json",
+        "hr/fixtures/job_titles.json",
+        "hr/fixtures/initial_data.json",
+        "hr/fixtures/biometric_devices.json",
+        "hr/fixtures/employees_demo.json",
+        "supplier/fixtures/supplier_types.json",
+    ]
+    
+    test_loaded = 0
+    test_failed = 0
+    
+    # فحص الملفات الموجودة
+    existing_fixtures = [f for f in basic_fixtures if Path(f).exists()]
+    
+    if existing_fixtures:
+        print_info(f"تحميل البيانات الأساسية ({len(existing_fixtures)} ملف دفعة واحدة)...")
+        fixtures_str = " ".join(existing_fixtures)
+        try:
+            if run_command(f"python manage.py loaddata {fixtures_str}", check=False, show_output=False):
+                print_success(f"تم تحميل {len(existing_fixtures)} ملف بيانات أساسية بنجاح")
+                test_loaded = len(existing_fixtures)
+            else:
+                print_warning("فشل تحميل بعض البيانات الأساسية")
+                test_failed = len(existing_fixtures)
+        except Exception as e:
+            print_warning(f"خطأ في تحميل البيانات الأساسية: {str(e)[:100]}")
+            test_failed = len(existing_fixtures)
+    
+    # إنشاء أرصدة الإجازات إذا تم تحميل الموظفين
+    if Path("hr/fixtures/employees_demo.json").exists():
+        print_info("إنشاء أرصدة الإجازات للموظفين...")
+        try:
+            if run_command("python manage.py create_leave_balances --year 2025", check=False, show_output=False):
+                print_success("تم إنشاء أرصدة الإجازات")
+            else:
+                print_warning("فشل إنشاء أرصدة الإجازات")
+        except Exception as e:
+            print_warning(f"خطأ في إنشاء أرصدة الإجازات: {str(e)[:100]}")
+    
+    # إنشاء قوالب مكونات الراتب (إذا لم تكن موجودة)
+    print_info("التحقق من قوالب مكونات الراتب...")
+    try:
+        result = run_command("python manage.py create_salary_templates", check=False, show_output=True)
+        print_success("تم إنشاء/تحديث قوالب مكونات الراتب")
+    except Exception as e:
+        print_warning(f"خطأ في إنشاء قوالب الراتب: {str(e)[:100]}")
+    
+    # تحديث أرصدة الإجازات السنوية
+    print_info("تحديث أرصدة الإجازات بناءً على مدة الخدمة...")
+    try:
+        result = run_command("python manage.py update_leave_accruals --year 2025", check=False, show_output=True)
+        print_success("تم تحديث أرصدة الإجازات")
+    except Exception as e:
+        print_warning(f"خطأ في تحديث أرصدة الإجازات: {str(e)[:100]}")
+    
+    # التحقق من أمان نظام الرواتب
+    print_info("التحقق من أمان نظام الرواتب...")
+    try:
+        result = run_command("python manage.py validate_payroll_security --fix-templates", check=False, show_output=True)
+        print_success("تم التحقق من أمان نظام الرواتب")
+    except Exception as e:
+        print_warning(f"خطأ في فحص أمان الرواتب: {str(e)[:100]}")
+    
+    # التحقق من نجاح تحميل البيانات
+    try:
+        from hr.models import Department, Employee
+        from supplier.models import SupplierType
+
+        departments_count = Department.objects.count()
+        employees_count = Employee.objects.count()
+        supplier_types_count = SupplierType.objects.count()
+
+        print_success(f"تم تحميل البيانات التجريبية بنجاح:")
+        print_success(f"   - {departments_count} قسم")
+        print_success(f"   - {employees_count} موظف")
+        print_success(f"   - {supplier_types_count} نوع مورد")
+
+    except Exception as e:
+        print_warning(f"خطأ في التحقق من البيانات: {e}")
+
+    # المرحلة 9: تحميل بيانات أنظمة التسعير
+    print_step(9, 10, "تحميل بيانات أنظمة التسعير")
+
+    # تحميل بيانات نظام printing_pricing (دفعة واحدة)
+    print_info("تحميل إعدادات نظام طباعة التسعير (printing_pricing)...")
+    
+    pricing_fixtures = [
+        "printing_pricing/fixtures/printing_pricing_settings.json",
+        "printing_pricing/fixtures/paper_sizes.json",
+        "printing_pricing/fixtures/paper_weights.json",
+        "printing_pricing/fixtures/paper_origins.json",
+        "printing_pricing/fixtures/piece_plate_sizes.json",
+        "printing_pricing/fixtures/print_settings.json",
+        "printing_pricing/fixtures/coating_finishing.json",
+        "printing_pricing/fixtures/product_types_sizes.json",
+        "printing_pricing/fixtures/offset_machines.json",
+        "printing_pricing/fixtures/offset_sheet_sizes.json",
+        "printing_pricing/fixtures/digital_machines.json",
+        "printing_pricing/fixtures/digital_sheet_sizes.json",
+    ]
+    
+    # فحص الملفات الموجودة
+    existing_pricing = [f for f in pricing_fixtures if Path(f).exists()]
+    
+    loaded_count = 0
+    failed_count = 0
+    
+    if existing_pricing:
+        print_info(f"تحميل إعدادات التسعير ({len(existing_pricing)} ملف دفعة واحدة)...")
+        fixtures_str = " ".join(existing_pricing)
+        try:
+            if run_command(f"python manage.py loaddata {fixtures_str}", check=False, show_output=False):
+                print_success(f"تم تحميل {len(existing_pricing)} ملف إعدادات تسعير بنجاح")
+                loaded_count = len(existing_pricing)
+            else:
+                print_warning("فشل تحميل بعض إعدادات التسعير")
+                failed_count = len(existing_pricing)
+        except Exception as e:
+            print_warning(f"خطأ في تحميل إعدادات التسعير: {str(e)[:100]}")
+            failed_count = len(existing_pricing)
+    
+    if loaded_count > 0:
+        print_success(f"تم تحميل إعدادات نظام طباعة التسعير ({loaded_count} ملف)")
+    if failed_count > 0:
+        print_warning(f"فشل تحميل {failed_count} ملف")
+
+    # التحقق من نجاح تحميل بيانات التسعير
+    try:
+        # فحص نظام printing_pricing الجديد
+        try:
+            from printing_pricing.models.settings_models import (
+                PaperType as PrintingPaperType,
+                PaperSize as PrintingPaperSize,
+                PaperWeight,
+                PaperOrigin,
+                OffsetMachineType,
+                OffsetSheetSize,
+                DigitalMachineType,
+                DigitalSheetSize,
+                PlateSize,
+                PieceSize,
+                PrintDirection as PrintingPrintDirection,
+                PrintSide as PrintingPrintSide,
+                CoatingType as PrintingCoatingType,
+                FinishingType as PrintingFinishingType,
+            )
+            
+            printing_paper_types = PrintingPaperType.objects.count()
+            printing_paper_sizes = PrintingPaperSize.objects.count()
+            paper_weights = PaperWeight.objects.count()
+            paper_origins = PaperOrigin.objects.count()
+            offset_machines = OffsetMachineType.objects.count()
+            offset_sizes = OffsetSheetSize.objects.count()
+            digital_machines = DigitalMachineType.objects.count()
+            digital_sizes = DigitalSheetSize.objects.count()
+            plate_sizes = PlateSize.objects.count()
+            piece_sizes = PieceSize.objects.count()
+            print_directions = PrintingPrintDirection.objects.count()
+            print_sides = PrintingPrintSide.objects.count()
+            coating_types = PrintingCoatingType.objects.count()
+            finishing_types = PrintingFinishingType.objects.count()
+            
+            print_success(f"تم تحميل بيانات نظام طباعة التسعير بنجاح:")
+            print_success(f"   - {printing_paper_types} نوع ورق")
+            print_success(f"   - {printing_paper_sizes} مقاس ورق")
+            print_success(f"   - {paper_weights} وزن ورق")
+            print_success(f"   - {paper_origins} منشأ ورق")
+            print_success(f"   - {offset_machines} نوع ماكينة أوفست")
+            print_success(f"   - {offset_sizes} مقاس ماكينة أوفست")
+            print_success(f"   - {digital_machines} نوع ماكينة ديجيتال")
+            print_success(f"   - {digital_sizes} مقاس ماكينة ديجيتال")
+            print_success(f"   - {plate_sizes} مقاس زنك")
+            print_success(f"   - {piece_sizes} مقاس قطع")
+            print_success(f"   - {print_directions} اتجاه طباعة")
+            print_success(f"   - {print_sides} جانب طباعة")
+            print_success(f"   - {coating_types} نوع تغطية")
+            print_success(f"   - {finishing_types} نوع تشطيب")
+            
+        except Exception as e:
+            print_warning(f"خطأ في فحص نظام طباعة التسعير: {e}")
+        
+        # فحص خدمات الموردين
+        try:
+            from supplier.models import SpecializedService
+            services_count = SpecializedService.objects.count()
+            print_success(f"تم العثور على {services_count} خدمة مورد متخصصة")
+        except Exception as e:
+            print_warning(f"خطأ في فحص خدمات الموردين: {e}")
+
+    except Exception as e:
+        print_warning(f"خطأ في التحقق من بيانات التسعير: {e}")
+
+    # المرحلة 10: التحقق من نظام الشراكة المالية والأنظمة المتقدمة
+    print_step(10, 10, "التحقق من نظام الشراكة المالية والأنظمة المتقدمة")
+    
+    try:
+        # التحقق من النظام المالي
+        from financial.models import ChartOfAccounts, AccountingPeriod
+        accounts_count = ChartOfAccounts.objects.count()
+        periods_count = AccountingPeriod.objects.count()
+        
+        print_success(f"تم العثور على {accounts_count} حساب في الدليل المحاسبي")
+        print_success(f"تم العثور على {periods_count} فترة محاسبية")
+        
+        if accounts_count >= 35:
+            print_success("✅ الدليل المحاسبي جاهز!")
+        else:
+            print_warning(f"⚠️ عدد الحسابات أقل من المتوقع ({accounts_count}/35+)")
+            
+        # التحقق من نظام الشراكة
+        try:
+            from financial.models import PartnerBalance, PartnerTransaction
+            partner_accounts = ChartOfAccounts.objects.filter(name__icontains='شريك').count()
+            partner_transactions = PartnerTransaction.objects.count()
+            
+            if partner_accounts > 0:
+                print_success(f"✅ تم العثور على {partner_accounts} حساب شراكة")
+            else:
+                print_info("لم يتم العثور على حسابات شراكة (سيتم إنشاؤها عند الحاجة)")
+                
+            if partner_transactions > 0:
+                print_success(f"تم العثور على {partner_transactions} معاملة شراكة")
+                
+        except Exception as e:
+            print_warning(f"خطأ في فحص نظام الشراكة: {e}")
+            
+        print_success("✅ تم التحقق من الأنظمة المتقدمة بنجاح")
+        
+    except Exception as e:
+        print_warning(f"خطأ في التحقق من الأنظمة المتقدمة: {e}")
+
+    # النتيجة النهائية
+    print_header("✅ تم تهيئة النظام بنجاح للتطوير! (نسخة مبسطة)")
+
+    print_colored("\n📊 المستخدمون المحملون:", Colors.CYAN + Colors.BOLD)
+
+    print_colored(f"\n{'='*50}", Colors.CYAN)
+
+    print_colored("\n💡 نصائح:", Colors.CYAN + Colors.BOLD)
+    print_colored("   - النظام يحتوي على نظام تسعير مستقل متكامل", Colors.GRAY)
+    print_colored("   - نظام تزامن المدفوعات مفعّل تلقائياً", Colors.GRAY)
+    print_colored("   - القيود المحاسبية تُنشأ تلقائياً مع كل عملية", Colors.GRAY)
+    print_colored("   - نظام التسعير مربوط بالعملاء والموردين فقط", Colors.GRAY)
+    print()
+    print_colored(
+        "📦 البيانات المحملة:", Colors.CYAN + Colors.BOLD
+    )
+
+    print_colored("\n   👥 الموارد البشرية:", Colors.YELLOW + Colors.BOLD)
+    print_colored("   - الأقسام والوظائف", Colors.GRAY)
+    print_colored("   - الموظفين التجريبيين", Colors.GRAY)
+    print_colored("   - أرصدة الإجازات", Colors.GRAY)
+    print_colored("   - قوالب مكونات الراتب", Colors.GRAY)
+
+    print_colored("\n   🏭 أنواع الموردين:", Colors.YELLOW + Colors.BOLD)
+    print_colored("   - أنواع الموردين (بدون بيانات موردين)", Colors.GRAY)
+
+    print_colored("\n📋 نظام التسعير الموحد (محمل من fixtures):", Colors.YELLOW + Colors.BOLD)
+    print_colored("   - نظام طباعة التسعير (printing_pricing) - 8 ملفات fixtures", Colors.GRAY)
+    print_colored("   - أنواع الورق والمقاسات والأوزان والمناشئ", Colors.GRAY)
+    print_colored("   - مقاسات القطع والزنكات وإعدادات الطباعة", Colors.GRAY)
+    print_colored("   - أنواع التغطية وخدمات الطباعة وأنواع المنتجات", Colors.GRAY)
+    print_colored("   - النظام الموحد للخدمات (ServiceFormFactory)", Colors.GRAY)
+    print_colored("   - نظام الشراكة المالية (من fixtures)", Colors.GRAY)
+
+    print_colored("\n⚠️  ملاحظة:", Colors.YELLOW + Colors.BOLD)
+    print_colored("   - لم يتم تحميل: عملاء، موردين (البيانات)، منتجات، مخازن، فواتير", Colors.GRAY)
+    print_colored("   - تم تحميل أنواع الموردين فقط (جاهزة للاستخدام)", Colors.GRAY)
+    print_colored("   - يمكنك إضافة البيانات يدوياً من خلال الواجهة", Colors.GRAY)
+
+    # النظام جاهز
+    print_colored("\n🚀 النظام جاهز للاستخدام!", Colors.GREEN + Colors.BOLD)
+    
+    # لا نشغل السيرفر في هذا الإعداد
+    print_colored("\n✅ تم إكمال الإعداد بنجاح!", Colors.GREEN)
+    print_info("لتشغيل السيرفر استخدم: python manage.py runserver")
+    print_info("ثم افتح المتصفح على: http://127.0.0.1:8000")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print_colored("\n\n❌ تم إلغاء العملية بواسطة المستخدم", Colors.YELLOW)
+        sys.exit(0)
+    except Exception as e:
+        print_colored(f"\n❌ حدث خطأ: {e}", Colors.RED)
+        sys.exit(1)

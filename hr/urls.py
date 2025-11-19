@@ -19,12 +19,10 @@ urlpatterns = [
     # Contract Analysis API
     path('api/employees/<int:employee_id>/components-analysis/', 
          views.employee_components_analysis, name='employee_components_analysis'),
-    path('api/contracts/<int:contract_id>/preview-activation/', 
-         views.ContractActivationPreviewView.as_view(), name='contract_preview_activation'),
-    path('api/contracts/preview-activation/', 
-         views.ContractActivationPreviewView.as_view(), name='contract_preview_activation_new'),
+    path('api/contracts/<int:pk>/preview-activation/', 
+         views.contract_activation_preview, name='contract_preview_activation'),
     path('api/contracts/<int:contract_id>/smart-activate/', 
-         views.SmartContractActivationView.as_view(), name='contract_smart_activate'),
+         views.contract_smart_activate, name='contract_smart_activate'),
     path('api/employees/<int:employee_id>/optimize-components/', 
          views.contract_optimize_components, name='employee_optimize_components'),
     
@@ -161,9 +159,7 @@ urlpatterns = [
     path('contracts/form/', views.contract_form, name='contract_form'),
     path('contracts/<int:pk>/form/', views.contract_form, name='contract_form_edit'),
     
-    # النظام الموحد للعقود
-    path('contracts/unified/create/', views.contract_create_unified, name='contract_create_unified'),
-    path('contracts/unified/<int:pk>/edit/', views.contract_edit_unified, name='contract_edit_unified'),
+    # النظام الموحد للعقود (تم الدمج في contract_views)
     path('employees/<int:employee_id>/components/unified/', views.contract_components_unified, name='contract_components_unified'),
     # تفعيل العقد
     path('contracts/<int:pk>/activate/', views.contract_activate, name='contract_activate_confirm'),

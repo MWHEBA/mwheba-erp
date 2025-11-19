@@ -19,15 +19,24 @@ class PayrollService:
     @transaction.atomic
     def calculate_payroll(employee, month, processed_by):
         """
-        حساب راتب موظف لشهر معين
+        Calculate payroll for an employee for a specific month.
+        
+        This is the main entry point for payroll calculation. It delegates to
+        the new system implementation (_calculate_payroll_new_system) which uses
+        SalaryComponent and PayrollLine models for flexible salary calculations.
         
         Args:
-            employee: الموظف
-            month: الشهر (datetime.date)
-            processed_by: المستخدم الذي عالج الراتب
+            employee (Employee): The employee to calculate payroll for
+            month (date): The payroll month as a date object
+            processed_by (User): The user processing the payroll
         
         Returns:
-            Payroll: قسيمة الراتب
+            Payroll: The calculated payroll record with status 'calculated'
+            
+        Raises:
+            ValueError: If employee has no active contract, no salary components,
+                       or if payroll already exists for this month
+            Exception: For unexpected errors during calculation
         """
         try:
             logger.info(f"بدء حساب راتب {employee.get_full_name_ar()} لشهر {month.strftime('%Y-%m')}")
@@ -44,7 +53,29 @@ class PayrollService:
     @staticmethod
     @transaction.atomic
     def _calculate_payroll_new_system(employee, month, processed_by):
-        """حساب الراتب بالنظام الجديد (SalaryComponent + PayrollLine)"""
+        """
+        Calculate payroll using the new system (SalaryComponent + PayrollLine).
+        
+        This method handles the complete payroll calculation including:
+        - Retrieving active contract and salary components
+        - Calculating attendance and worked days
+        - Creating payroll record with all components
+        - Calculating advance deductions
+        - Computing final totals
+        
+        Args:
+            employee (Employee): The employee to calculate payroll for
+            month (date): The payroll month as a date object
+            processed_by (User): The user processing the payroll
+            
+        Returns:
+            Payroll: The calculated payroll record with status 'calculated'
+            
+        Raises:
+            ValueError: If employee has no active contract, no salary components,
+                       or if payroll already exists for this month
+            Exception: For unexpected errors during calculation
+        """
         from ..models import PayrollLine
         from django.db.models import Q
         
@@ -226,14 +257,20 @@ class PayrollService:
     @staticmethod
     def _calculate_advance_deduction(employee, month):
         """
-        خصم السلف - استخدام AdvanceService
+        Calculate advance payment deductions using AdvanceService.
+        
+        This method delegates to AdvanceService to calculate the total
+        advance deduction amount for an employee in a specific month.
         
         Args:
-            employee: الموظف
-            month: الشهر (datetime.date)
+            employee (Employee): The employee to calculate deductions for
+            month (date): The payroll month as a date object
         
         Returns:
-            Decimal: إجمالي خصم السلف لهذا الشهر
+            Decimal: Total advance deduction amount for this month
+            
+        Raises:
+            Exception: If AdvanceService encounters an error
         """
         # استخدام AdvanceService لحساب الخصم
         total_deduction, advances_list = AdvanceService.calculate_advance_deduction(
@@ -252,15 +289,29 @@ class PayrollService:
     @transaction.atomic
     def process_monthly_payroll(month, processed_by, employees=None):
         """
-        معالجة رواتب الموظفين لشهر معين
+        Process payroll for multiple employees for a specific month.
+        
+        This method processes payroll for all active employees (or a specific
+        list of employees) and returns detailed results for each employee.
+        Employees who already have payroll for the month are automatically excluded.
         
         Args:
-            month: الشهر (datetime.date)
-            processed_by: المستخدم الذي عالج الرواتب
-            employees: قائمة الموظفين المراد معالجة رواتبهم (اختياري)
+            month (date): The payroll month as a date object
+            processed_by (User): The user processing the payroll
+            employees (QuerySet, optional): Specific employees to process.
+                                           If None, processes all active employees
+                                           without existing payroll for the month.
         
         Returns:
-            list: نتائج المعالجة
+            list: List of dictionaries containing:
+                - employee: Employee instance
+                - payroll: Payroll instance (if successful)
+                - error: Error message (if failed)
+                - success: Boolean indicating success/failure
+                
+        Raises:
+            Exception: Critical errors are logged but not raised to allow
+                      processing of remaining employees
         """
         logger.info(f"بدء معالجة رواتب شهر {month.strftime('%Y-%m')} بواسطة {processed_by.username}")
         
@@ -306,14 +357,21 @@ class PayrollService:
     @transaction.atomic
     def approve_payroll(payroll, approved_by):
         """
-        اعتماد قسيمة راتب (بدون إنشاء قيد محاسبي)
+        Approve a calculated payroll record (without creating journal entry).
+        
+        This method changes the payroll status from 'calculated' to 'approved'
+        and records the approver and approval timestamp. Journal entries are
+        created separately during the payment process.
         
         Args:
-            payroll: قسيمة الراتب
-            approved_by: المعتمد
+            payroll (Payroll): The payroll record to approve
+            approved_by (User): The user approving the payroll
         
         Returns:
-            Payroll: قسيمة الراتب المعتمدة
+            Payroll: The approved payroll record with updated status
+            
+        Raises:
+            ValueError: If payroll status is not 'calculated'
         """
         from django.utils import timezone
         import logging
@@ -337,13 +395,19 @@ class PayrollService:
     @staticmethod
     def _create_journal_entry(payroll):
         """
-        إنشاء قيد محاسبي للراتب
+        Create a journal entry for a payroll record (legacy method).
+        
+        Note: This is a legacy method. New implementations should use
+        _create_individual_journal_entry instead.
         
         Args:
-            payroll: قسيمة الراتب
+            payroll (Payroll): The payroll record to create entry for
         
         Returns:
-            JournalEntry: القيد المحاسبي
+            JournalEntry: The created journal entry
+            
+        Raises:
+            ValueError: If required accounts are not found in chart of accounts
         """
         from financial.models import JournalEntry, JournalEntryLine, ChartOfAccounts
         
@@ -378,14 +442,23 @@ class PayrollService:
     @staticmethod
     def _create_individual_journal_entry(payroll, created_by):
         """
-        إنشاء قيد محاسبي للراتب الفردي (محسن للدفعة الفردية)
+        Create an individual journal entry for a single payroll payment.
+        
+        This method creates a complete journal entry with:
+        - Debit to salary expense accounts (basic + dynamic earnings)
+        - Credit to payment account (net salary)
+        - Credit to liability accounts (all deductions)
         
         Args:
-            payroll: قسيمة الراتب
-            created_by: منشئ القيد
+            payroll (Payroll): The payroll record to create entry for
+            created_by (User): The user creating the journal entry
         
         Returns:
-            JournalEntry: القيد المحاسبي
+            JournalEntry: The created journal entry
+            
+        Raises:
+            ValueError: If salary expense account (52020) is not found
+            Exception: If account lookup or entry creation fails
         """
         from financial.models import JournalEntry, JournalEntryLine, ChartOfAccounts
         from decimal import Decimal
@@ -434,11 +507,22 @@ class PayrollService:
     @staticmethod
     def _process_payroll_deductions(journal_entry, payroll):
         """
-        معالجة جميع أنواع الخصومات وتوجيهها للحسابات المحاسبية الصحيحة
+        Process all deduction types and route them to correct accounting accounts.
+        
+        This method handles various deduction types including:
+        - Social insurance (account 2103)
+        - Income tax (account 2104)
+        - Absence deductions (account 21020)
+        - Late deductions (account 21020)
+        - Advance deductions (account 21030)
+        - Other deductions (account 21020)
         
         Args:
-            journal_entry: القيد المحاسبي
-            payroll: قسيمة الراتب
+            journal_entry (JournalEntry): The journal entry to add lines to
+            payroll (Payroll): The payroll record containing deduction amounts
+            
+        Raises:
+            Exception: If account lookup fails (logged but not raised)
         """
         from financial.models import JournalEntryLine, ChartOfAccounts
         from decimal import Decimal
@@ -499,13 +583,20 @@ class PayrollService:
     @staticmethod
     def _get_safe_account_only(account_code):
         """
-        البحث عن حساب موجود فقط - لا ينشئ حسابات جديدة (نظام آمن)
+        Safely retrieve an existing account without creating new ones.
+        
+        This method implements a security measure by only returning accounts
+        that are explicitly allowed for payroll operations and already exist
+        in the chart of accounts. It will not create new accounts automatically.
         
         Args:
-            account_code: رمز الحساب
+            account_code (str): The account code to look up
             
         Returns:
-            ChartOfAccounts: الحساب المحاسبي أو None
+            ChartOfAccounts: The account if found and allowed, None otherwise
+            
+        Raises:
+            None: Errors are logged but not raised
         """
         from financial.models import ChartOfAccounts
         from .secure_payroll_service import SecurePayrollService
@@ -533,11 +624,18 @@ class PayrollService:
     @staticmethod
     def _process_dynamic_earnings(journal_entry, payroll):
         """
-        معالجة المستحقات الديناميكية من PayrollLine بناءً على SalaryComponent
+        Process dynamic earnings from PayrollLine based on SalaryComponent.
+        
+        This method creates journal entry lines for all earning-type components
+        in the payroll, routing each to its appropriate expense account based
+        on the component's configuration.
         
         Args:
-            journal_entry: القيد المحاسبي
-            payroll: قسيمة الراتب
+            journal_entry (JournalEntry): The journal entry to add lines to
+            payroll (Payroll): The payroll record containing earning lines
+            
+        Raises:
+            Exception: If account determination fails (logged but not raised)
         """
         from financial.models import JournalEntryLine, ChartOfAccounts
         from decimal import Decimal
@@ -568,11 +666,18 @@ class PayrollService:
     @staticmethod
     def _process_dynamic_deductions(journal_entry, payroll):
         """
-        معالجة الخصومات الديناميكية من PayrollLine بناءً على SalaryComponent
+        Process dynamic deductions from PayrollLine based on SalaryComponent.
+        
+        This method creates journal entry lines for all deduction-type components
+        in the payroll, routing each to its appropriate liability account based
+        on the component's configuration.
         
         Args:
-            journal_entry: القيد المحاسبي
-            payroll: قسيمة الراتب
+            journal_entry (JournalEntry): The journal entry to add lines to
+            payroll (Payroll): The payroll record containing deduction lines
+            
+        Raises:
+            Exception: If account determination fails (logged but not raised)
         """
         from financial.models import JournalEntryLine, ChartOfAccounts
         from decimal import Decimal
@@ -603,13 +708,21 @@ class PayrollService:
     @staticmethod
     def _determine_account_for_component(payroll_line):
         """
-        تحديد الحساب المحاسبي المناسب لمكون الراتب
+        Determine the appropriate accounting account for a salary component.
+        
+        This method uses a three-tier approach to find the correct account:
+        1. Check if SalaryComponent has an explicit account_code
+        2. Use smart pattern matching on component code
+        3. Fall back to default payroll liability account (21020)
         
         Args:
-            payroll_line: سطر قسيمة الراتب
+            payroll_line (PayrollLine): The payroll line to determine account for
             
         Returns:
-            ChartOfAccounts: الحساب المحاسبي أو None
+            ChartOfAccounts: The determined account, or None if not found
+            
+        Raises:
+            Exception: If account lookup fails (logged but not raised)
         """
         from financial.models import ChartOfAccounts
         import logging
@@ -642,10 +755,16 @@ class PayrollService:
     @staticmethod
     def _get_smart_account_mapping():
         """
-        خريطة ذكية لربط أكواد المكونات بالحسابات المحاسبية
+        Get smart mapping of component codes to accounting accounts.
+        
+        This method returns a dictionary that maps component code patterns
+        (in both English and Arabic) to their corresponding accounting accounts.
+        Used for intelligent account determination when explicit mapping is not available.
         
         Returns:
-            dict: خريطة الربط الذكي
+            dict: Mapping of code patterns to account information containing:
+                - account_code: The chart of accounts code
+                - account_name: The account name
         """
         return {
             # التأمينات
@@ -740,13 +859,24 @@ class PayrollService:
     @staticmethod
     def _calculate_monthly_totals(paid_payrolls):
         """
-        حساب إجماليات جميع أنواع الخصومات للرواتب الشهرية
+        Calculate totals for all deduction types across monthly payrolls.
+        
+        This method aggregates all salary and deduction amounts from a set
+        of paid payroll records to prepare for consolidated journal entry creation.
         
         Args:
-            paid_payrolls: QuerySet من الرواتب المدفوعة
+            paid_payrolls (QuerySet): QuerySet of paid Payroll records
             
         Returns:
-            dict: قاموس يحتوي على جميع الإجماليات
+            dict: Dictionary containing totals for:
+                - total_gross: Total gross salary
+                - total_net: Total net salary
+                - total_social_insurance: Total social insurance deductions
+                - total_tax: Total tax deductions
+                - total_absence_deduction: Total absence deductions
+                - total_late_deduction: Total late deductions
+                - total_advance_deduction: Total advance deductions
+                - total_other_deductions: Total other deductions
         """
         from decimal import Decimal
         
@@ -776,11 +906,18 @@ class PayrollService:
     @staticmethod
     def _process_monthly_deductions(journal_entry, totals):
         """
-        معالجة جميع أنواع الخصومات للقيد الشهري
+        Process all deduction types for monthly consolidated journal entry.
+        
+        This method creates journal entry lines for aggregated deductions
+        from multiple payroll records, routing each deduction type to its
+        appropriate liability account.
         
         Args:
-            journal_entry: القيد المحاسبي
-            totals: قاموس الإجماليات
+            journal_entry (JournalEntry): The journal entry to add lines to
+            totals (dict): Dictionary of aggregated totals from _calculate_monthly_totals
+            
+        Raises:
+            Exception: If account lookup fails (logged but not raised)
         """
         from financial.models import JournalEntryLine
         from decimal import Decimal
@@ -841,16 +978,26 @@ class PayrollService:
     @transaction.atomic
     def pay_payroll(payroll, paid_by, payment_account, payment_reference=None):
         """
-        دفع قسيمة راتب (مع تسجيل معلومات الدفع وإنشاء قيد محاسبي)
+        Process payment for an approved payroll record.
+        
+        This method:
+        1. Validates payroll status and payment account
+        2. Updates payroll status to 'paid' with payment details
+        3. Creates individual journal entry for the payment
+        4. Automatically posts the journal entry
         
         Args:
-            payroll: قسيمة الراتب
-            paid_by: من دفع
-            payment_account: الحساب المدفوع منه (صندوق/بنك)
-            payment_reference: مرجع الدفع (اختياري)
+            payroll (Payroll): The payroll record to pay
+            paid_by (User): The user processing the payment
+            payment_account (ChartOfAccounts): The account to pay from (cash/bank)
+            payment_reference (str, optional): Payment reference number
         
         Returns:
-            Payroll: قسيمة الراتب المدفوعة
+            Payroll: The paid payroll record with updated status and journal entry
+            
+        Raises:
+            ValueError: If payroll is not approved or payment account is missing
+            Exception: Journal entry creation errors are logged but not raised
         """
         from django.utils import timezone
         import logging
@@ -906,15 +1053,25 @@ class PayrollService:
     @transaction.atomic
     def create_monthly_payroll_journal_entry(month, paid_payrolls, created_by):
         """
-        إنشاء قيد محاسبي عام لجميع رواتب الشهر المدفوعة
+        Create a consolidated journal entry for all paid payrolls in a month.
+        
+        This method creates a single journal entry that consolidates all
+        individual payroll payments for a month, including:
+        - Total salary expenses (debit)
+        - Total net payments (credit to payment account)
+        - All deduction types (credit to liability accounts)
         
         Args:
-            month: الشهر (datetime.date)
-            paid_payrolls: QuerySet من الرواتب المدفوعة
-            created_by: منشئ القيد
+            month (date): The payroll month as a date object
+            paid_payrolls (QuerySet): QuerySet of paid Payroll records
+            created_by (User): The user creating the journal entry
         
         Returns:
-            JournalEntry: القيد المحاسبي
+            JournalEntry: The created and posted journal entry
+            
+        Raises:
+            ValueError: If no paid payrolls exist or salary account (52020) not found
+            Exception: Journal posting errors are logged but not raised
         """
         from financial.models import JournalEntry, JournalEntryLine, ChartOfAccounts
         from decimal import Decimal

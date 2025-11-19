@@ -735,6 +735,25 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
     try:
         from .models.contract import ContractAmendment
         
+        # Check if contract exists before accessing it
+        contract = None
+        if hasattr(instance, 'contract') and instance.contract:
+            contract = instance.contract
+        else:
+            # Fallback: try to get active contract from employee
+            if hasattr(instance, 'employee') and instance.employee:
+                contract = instance.employee.contracts.filter(status='active').first()
+        
+        # If no contract found, log with employee number and return
+        if not contract:
+            component_type_display = instance.get_component_type_display()
+            employee_number = instance.employee.employee_number if hasattr(instance, 'employee') and instance.employee else 'Unknown'
+            if created:
+                logger.info(f"تم إضافة {component_type_display}: {instance.name} للموظف {employee_number} (بدون عقد نشط)")
+            else:
+                logger.info(f"تم تعديل {component_type_display}: {instance.name} للموظف {employee_number} (بدون عقد نشط)")
+            return
+        
         # للإضافة الجديدة فقط
         if created:
             # الحصول على المستخدم الحالي
@@ -743,18 +762,19 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
                 from core.middleware.current_user import get_current_user
                 user = get_current_user()
             except:
-                user = instance.contract.created_by
+                if hasattr(contract, 'created_by') and contract.created_by:
+                    user = contract.created_by
             
             # توليد رقم تعديل
             last_amendment = ContractAmendment.objects.filter(
-                contract=instance.contract
+                contract=contract
             ).order_by('-amendment_number').first()
             
             if last_amendment and '-AMD-' in last_amendment.amendment_number:
                 last_num = int(last_amendment.amendment_number.split('-AMD-')[-1])
-                amendment_number = f"{instance.contract.contract_number}-AMD-{last_num + 1:03d}"
+                amendment_number = f"{contract.contract_number}-AMD-{last_num + 1:03d}"
             else:
-                amendment_number = f"{instance.contract.contract_number}-AMD-001"
+                amendment_number = f"{contract.contract_number}-AMD-001"
             
             # تحديد نوع المكون
             component_type_display = instance.get_component_type_display()
@@ -770,7 +790,7 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
             # إنشاء التعديل (فقط إذا كان هناك مستخدم)
             if user:
                 ContractAmendment.objects.create(
-                    contract=instance.contract,
+                    contract=contract,
                     amendment_number=amendment_number,
                     amendment_type=amendment_type,
                     effective_date=date.today(),
@@ -782,7 +802,7 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
                     created_by=user
                 )
             
-            logger.info(f"تم تسجيل إضافة {component_type_display}: {instance.name} للعقد {instance.contract.contract_number}")
+            logger.info(f"تم تسجيل إضافة {component_type_display}: {instance.name} للعقد {contract.contract_number}")
         
         # للتعديل - تم التحقق من التغيير في البداية
         else:
@@ -795,18 +815,19 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
                 from core.middleware.current_user import get_current_user
                 user = get_current_user()
             except:
-                user = instance.contract.created_by
+                if hasattr(contract, 'created_by') and contract.created_by:
+                    user = contract.created_by
             
             # توليد رقم تعديل
             last_amendment = ContractAmendment.objects.filter(
-                contract=instance.contract
+                contract=contract
             ).order_by('-amendment_number').first()
             
             if last_amendment and '-AMD-' in last_amendment.amendment_number:
                 last_num = int(last_amendment.amendment_number.split('-AMD-')[-1])
-                amendment_number = f"{instance.contract.contract_number}-AMD-{last_num + 1:03d}"
+                amendment_number = f"{contract.contract_number}-AMD-{last_num + 1:03d}"
             else:
-                amendment_number = f"{instance.contract.contract_number}-AMD-001"
+                amendment_number = f"{contract.contract_number}-AMD-001"
             
             # تحديد نوع المكون
             component_type_display = instance.get_component_type_display()
@@ -822,7 +843,7 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
             # إنشاء التعديل (فقط إذا كان هناك مستخدم)
             if user:
                 ContractAmendment.objects.create(
-                    contract=instance.contract,
+                    contract=contract,
                     amendment_number=amendment_number,
                     amendment_type=amendment_type,
                     effective_date=date.today(),
@@ -834,7 +855,7 @@ def track_salary_component_changes(sender, instance, created, **kwargs):
                     created_by=user
                 )
             
-            logger.info(f"تم تسجيل تعديل {component_type_display}: {instance.name} للعقد {instance.contract.contract_number}")
+            logger.info(f"تم تسجيل تعديل {component_type_display}: {instance.name} للعقد {contract.contract_number}")
     
     except Exception as e:
         logger.error(f"خطأ في تتبع تغييرات مكونات الراتب: {str(e)}")
@@ -846,43 +867,61 @@ def track_salary_component_deletion(sender, instance, **kwargs):
     try:
         from .models.contract import ContractAmendment
         
+        # Check if contract exists before accessing it
+        contract = None
+        if hasattr(instance, 'contract') and instance.contract:
+            contract = instance.contract
+        else:
+            # Fallback: try to get active contract from employee
+            if hasattr(instance, 'employee') and instance.employee:
+                contract = instance.employee.contracts.filter(status='active').first()
+        
+        # If no contract found, log with employee number and return
+        if not contract:
+            component_type_display = instance.get_component_type_display()
+            employee_number = instance.employee.employee_number if hasattr(instance, 'employee') and instance.employee else 'Unknown'
+            logger.info(f"تم حذف {component_type_display}: {instance.name} للموظف {employee_number} (بدون عقد نشط)")
+            return
+        
         # الحصول على المستخدم الحالي
         user = None
         try:
             from core.middleware.current_user import get_current_user
             user = get_current_user()
         except:
-            user = instance.contract.created_by
+            if hasattr(contract, 'created_by') and contract.created_by:
+                user = contract.created_by
         
         # توليد رقم تعديل
         last_amendment = ContractAmendment.objects.filter(
-            contract=instance.contract
+            contract=contract
         ).order_by('-amendment_number').first()
         
         if last_amendment and '-AMD-' in last_amendment.amendment_number:
             last_num = int(last_amendment.amendment_number.split('-AMD-')[-1])
-            amendment_number = f"{instance.contract.contract_number}-AMD-{last_num + 1:03d}"
+            amendment_number = f"{contract.contract_number}-AMD-{last_num + 1:03d}"
         else:
-            amendment_number = f"{instance.contract.contract_number}-AMD-001"
+            amendment_number = f"{contract.contract_number}-AMD-001"
         
         # تحديد نوع المكون
         component_type_display = instance.get_component_type_display()
         
         # إنشاء التعديل
-        ContractAmendment.objects.create(
-            contract=instance.contract,
-            amendment_number=amendment_number,
-            amendment_type='other',
-            effective_date=date.today(),
-            description=f"حذف {component_type_display}: {instance.name}",
-            field_name=f"salary_component_{instance.component_type}",
-            old_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
-            new_value="تم الحذف",
-            is_automatic=True,
-            created_by=user
-        )
+        if user:
+            ContractAmendment.objects.create(
+                contract=contract,
+                amendment_number=amendment_number,
+                amendment_type='other',
+                effective_date=date.today(),
+                description=f"حذف {component_type_display}: {instance.name}",
+                field_name=f"salary_component_{instance.component_type}",
+                old_value=f"{instance.name} - {float(instance.amount):,.2f} ج.م",
+                new_value="تم الحذف",
+                is_automatic=True,
+                created_by=user
+            )
         
-        logger.info(f"تم تسجيل حذف {component_type_display}: {instance.name} من العقد {instance.contract.contract_number}")
+        logger.info(f"تم تسجيل حذف {component_type_display}: {instance.name} من العقد {contract.contract_number}")
     
     except Exception as e:
         logger.error(f"خطأ في تتبع حذف مكونات الراتب: {str(e)}")

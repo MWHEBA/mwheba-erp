@@ -26,20 +26,23 @@ class AdvanceService:
         حساب خصم السلف للموظف في شهر معين
         
         Args:
-            employee: كائن الموظف
-            payroll_month: تاريخ شهر الراتب
+            employee (Employee): كائن الموظف
+            payroll_month (date): تاريخ شهر الراتب
             
         Returns:
             tuple: (total_deduction, advances_list)
-                - total_deduction: إجمالي المبلغ المخصوم
-                - advances_list: قائمة السلف التي تم الخصم منها
+                - total_deduction (Decimal): إجمالي المبلغ المخصوم
+                - advances_list (list): قائمة السلف التي تم الخصم منها
+                
+        Raises:
+            ValueError: إذا كانت البيانات المدخلة غير صحيحة
         """
         from ..models import Advance
         
-        # الحصول على السلف المعتمدة أو قيد الخصم للموظف
+        # الحصول على السلف المدفوعة أو قيد الخصم للموظف
         advances = Advance.objects.filter(
             employee=employee,
-            status__in=['approved', 'in_progress'],
+            status__in=['paid', 'in_progress'],
             deduction_start_month__lte=payroll_month,
             remaining_amount__gt=0
         ).order_by('deduction_start_month')
@@ -76,8 +79,8 @@ class AdvanceService:
         """
         from ..models import AdvanceInstallment
         
-        # تحديث حالة السلفة إلى "قيد الخصم" إذا كانت معتمدة
-        if advance.status == 'approved':
+        # تحديث حالة السلفة إلى "قيد الخصم" إذا كانت مدفوعة
+        if advance.status == 'paid':
             advance.status = 'in_progress'
             advance.save(update_fields=['status'])
         
@@ -142,7 +145,7 @@ class AdvanceService:
         
         return Advance.objects.filter(
             employee=employee,
-            status__in=['approved', 'in_progress'],
+            status__in=['paid', 'in_progress'],
             remaining_amount__gt=0
         )
     

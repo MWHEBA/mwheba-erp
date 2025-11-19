@@ -67,16 +67,29 @@ from .leave_balance_views import (
     leave_balance_accrual_status,
 )
 from .contract_views import (
+    # CRUD
     contract_list,
     contract_detail,
+    contract_form,
+    
+    # Activation & Preview
     contract_activate,
+    contract_activation_preview,
+    contract_activate_with_components,
+    contract_smart_activate,
+    
+    # Component Management
+    contract_preview_components,
+    contract_apply_component_selection,
+    contract_optimize_components,
+    contract_components_unified,
     sync_component,
     sync_contract_components,
+    
+    # Documents & Amendments
     contract_document_upload,
     contract_document_delete,
     contract_amendment_create,
-    contract_activation_preview,
-    contract_activate_with_components,
 )
 from .payroll_advance_views import (
     payroll_list,
@@ -157,19 +170,7 @@ from .admin_maintenance_views import (
     test_connection_internal,
 )
 
-# النظام الموحد للعقود
-from .contract_unified_views import (
-    contract_create_unified,
-    contract_edit_unified,
-    SmartContractActivationView,
-    ContractActivationPreviewView,
-    contract_optimize_components,
-    contract_components_unified,
-    contract_preview_components,
-    contract_apply_component_selection,
-)
-
-# إضافة دوال العقود الإضافية
+# إضافة دوال العقود الإضافية (من contract_views الموحد)
 from .contract_views import (
     get_salary_component_templates,
     contract_renew,
@@ -179,9 +180,6 @@ from .contract_views import (
     contract_increase_apply,
     contract_increase_cancel,
     contract_expiring,
-)
-from .contract_form_views import (
-    contract_form,
 )
 # ملاحظة: تم حذف contract_views_new.py ودمج contract_activate في contract_views.py
 # contract_create_with_components و contract_update_with_components تم استبدالهم بـ contract_form
@@ -241,16 +239,29 @@ __all__ = [
     'leave_balance_update',
     'leave_balance_rollover',
     'leave_balance_accrual_status',
+    # Contract CRUD
     'contract_list',
     'contract_detail',
+    'contract_form',
+    
+    # Contract Activation
     'contract_activate',
-    'contract_suspend',
-    'contract_reactivate',
+    'contract_activation_preview',
+    'contract_activate_with_components',
+    'contract_smart_activate',
+    
+    # Contract Components
+    'contract_preview_components',
+    'contract_apply_component_selection',
+    'contract_optimize_components',
+    'contract_components_unified',
+    'sync_component',
+    'sync_contract_components',
+    
+    # Contract Documents & Amendments
     'contract_document_upload',
     'contract_document_delete',
     'contract_amendment_create',
-    'contract_activation_preview',
-    'contract_activate_with_components',
     'payroll_list',
     'payroll_detail',
     'payroll_edit_lines',
@@ -289,7 +300,7 @@ __all__ = [
     'get_template_details',
     'get_form_preview',
     'validate_component_name',
-    # دوال العقود الإضافية
+    # Contract Lifecycle & Increases
     'get_salary_component_templates',
     'contract_renew',
     'contract_terminate',
@@ -298,7 +309,6 @@ __all__ = [
     'contract_increase_apply',
     'contract_increase_cancel',
     'contract_expiring',
-    'contract_form',
     # دوال التقارير
     'reports_home',
     'attendance_report',
@@ -328,13 +338,7 @@ __all__ = [
     'maintenance_auto_renewals',
     'employee_components_analysis',
     'test_connection_internal',
-    # النظام الموحد للعقود
-    'contract_create_unified',
-    'contract_edit_unified',
-    'SmartContractActivationView',
-    'ContractActivationPreviewView',
-    'contract_optimize_components',
-    'contract_components_unified',
+
     # معالجة الرواتب المتكاملة
     'integrated_payroll_dashboard',
     'calculate_attendance_summaries',

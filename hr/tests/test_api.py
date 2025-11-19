@@ -12,7 +12,7 @@ from decimal import Decimal
 
 from hr.models import (
     Employee, Department, JobTitle, Shift, Attendance,
-    LeaveType, LeaveBalance, Leave, Salary, Payroll, Advance
+    LeaveType, LeaveBalance, Leave, Payroll, Advance
 )
 
 User = get_user_model()

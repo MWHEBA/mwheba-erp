@@ -9,10 +9,12 @@ from datetime import date
 from decimal import Decimal
 
 from hr.models import Department, JobTitle, Employee
+from hr.forms.employee_forms import EmployeeForm
 from hr.forms import (
-    EmployeeForm, DepartmentForm, JobTitleForm,
-    AttendanceForm, LeaveForm, SalaryForm
+    DepartmentForm, JobTitleForm,
+    AttendanceForm
 )
+# Note: LeaveForm and SalaryForm may need to be imported from their specific modules
 
 User = get_user_model()
 
