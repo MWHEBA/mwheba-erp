@@ -1,0 +1,6 @@
+{% load governance_tags %}
+
+<span class="badge badge-{{ status|governance_status_class }}" title="{{ message }}">
+    <i class="{% governance_health_icon status %}"></i>
+    {{ status|title }}
+</span>

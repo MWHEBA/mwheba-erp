@@ -1,0 +1,131 @@
+[
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 1,
+  "fields": {
+    "name": "صيني",
+    "code": "CN",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 2,
+  "fields": {
+    "name": "مصري",
+    "code": "EG",
+    "description": "ورق منشؤه مصر",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 3,
+  "fields": {
+    "name": "ألماني",
+    "code": "DE",
+    "description": "ورق منشؤه ألمانيا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 4,
+  "fields": {
+    "name": "فنلندي",
+    "code": "FI",
+    "description": "ورق منشؤه فنلندا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 5,
+  "fields": {
+    "name": "سويدي",
+    "code": "SE",
+    "description": "ورق منشؤه السويد",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 6,
+  "fields": {
+    "name": "نمساوي",
+    "code": "AT",
+    "description": "ورق منشؤه النمسا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 7,
+  "fields": {
+    "name": "إيطالي",
+    "code": "IT",
+    "description": "ورق منشؤه إيطاليا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 8,
+  "fields": {
+    "name": "فرنسي",
+    "code": "FR",
+    "description": "ورق منشؤه فرنسا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 9,
+  "fields": {
+    "name": "تركي",
+    "code": "TR",
+    "description": "ورق منشؤه تركيا",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+},
+{
+  "model": "printing_pricing.paperorigin",
+  "pk": 10,
+  "fields": {
+    "name": "هندي",
+    "code": "IN",
+    "description": "ورق منشؤه الهند",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z",
+    "updated_at": "2025-10-20T15:15:07.376Z"
+  }
+}]

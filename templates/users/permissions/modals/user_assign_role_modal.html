@@ -1,0 +1,46 @@
+<!-- Modal تعيين دور للمستخدم -->
+<div class="modal fade" id="assignRoleModal" tabindex="-1" aria-labelledby="assignRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignRoleModalLabel">
+                    <i class="fas fa-user-tag me-2"></i>تعيين دور للمستخدم
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <form id="assignRoleForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">المستخدم:</label>
+                        <p class="fw-bold" id="assignUserName">اسم المستخدم</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="assignRoleSelect" class="form-label">الدور الجديد</label>
+                        <select class="form-select" id="assignRoleSelect" name="role_id">
+                            <option value="">بدون دور</option>
+                            {% for role in available_roles %}
+                            <option value="{{ role.id }}">{{ role.display_name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text">اختر دور جديد للمستخدم أو اتركه فارغاً لإزالة الدور</div>
+                    </div>
+                    
+                    <!-- Hidden field for user ID -->
+                    <input type="hidden" id="assignUserId" name="user_id" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" id="assignRoleBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-save me-1"></i>تعيين الدور
+                        </span>
+                        <span class="btn-loading d-none">
+                            <i class="fas fa-spinner fa-spin me-1"></i>جاري التعيين...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,257 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load app_tags %}
+
+{% block title %}{{ page_title|default:"فواتير المبيعات" }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في components.css -->
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+  }
+
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + .75rem + 2px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="customer" class="form-label">{% trans "العميل" %}</label>
+          <select class="form-select select2-filter" id="customer" name="customer">
+            <option value="">{% trans "جميع العملاء" %}</option>
+            {% for customer in customers %}
+            <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"i" %}selected{% endif %}>
+              {{ customer.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
+          <select class="form-select select2-filter" id="warehouse" name="warehouse">
+            <option value="">{% trans "جميع المخازن" %}</option>
+            {% for warehouse in warehouses %}
+            <option value="{{ warehouse.id }}" {% if request.GET.warehouse == warehouse.id|stringformat:"i" %}selected{% endif %}>
+              {{ warehouse.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="payment_status" class="form-label">{% trans "حالة الدفع" %}</label>
+          <select class="form-select" id="payment_status" name="payment_status">
+            <option value="">{% trans "الكل" %}</option>
+            <option value="paid" {% if request.GET.payment_status == 'paid' %}selected{% endif %}>{% trans "مدفوعة" %}</option>
+            <option value="partially_paid" {% if request.GET.payment_status == 'partially_paid' %}selected{% endif %}>{% trans "مدفوعة جزئياً" %}</option>
+            <option value="unpaid" {% if request.GET.payment_status == 'unpaid' %}selected{% endif %}>{% trans "غير مدفوعة" %}</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+        </div>
+        <div class="col-md-2">
+          <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
+        </div>
+        <div class="col-md-1 d-flex gap-2 align-items-end">
+          <button type="submit" class="btn btn-primary w-100 px-0">
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+      </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة فواتير المبيعات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة فواتير المبيعات" %}</h5>
+      </div>
+      <div class="card-body">
+        {% if sales %}
+        <div id="sales-table-container">
+        <!-- استخدام قالب الجدول الموحد -->
+          {% with table_id="sales-table" %}
+            {% with headers=sale_headers %}
+              {% with data=sales %}
+                {% with empty_message="لا توجد فواتير مبيعات متاحة" %}
+                  {% with table_class="hover" %}
+                    {% with primary_key="id" %}
+                      {% with clickable_rows=True row_click_url="/sales/0/" %}
+                        {% with show_currency=True %}
+                          {% with disable_pagination=True show_search=False show_length_menu=False sortable=False %}
+                            {% include "components/data_table.html" %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+        
+        <!-- إضافة زر تصدير البيانات -->
+        <div class="d-flex justify-content-end mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="sales-table" data-filename="sales.csv">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="sales-table" data-filename="sales.xlsx">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+        
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد فواتير مبيعات متاحة" icon="shopping-bag" %}
+        {% endif %}
+
+        <!-- Django Pagination -->
+        <div id="pagination-wrapper">
+        {% if paginator and paginator.num_pages > 1 %}
+        <div class="card-footer mt-3">
+          {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+        </div>
+        {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  function initTableEvents() {
+    // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
+    $('#sales-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      var itemId = $(this).data('id');
+      if (itemId && itemId !== '0') window.location.href = '/sales/' + itemId + '/';
+    }).css('cursor', 'pointer');
+  }
+
+  $(document).ready(function() {
+    $('.select2-filter').select2({ width: '100%', language: "ar", dir: "rtl" });
+    initTableEvents();
+    
+    // تم استبدال حقول التاريخ بالنظام الموحد
+    
+    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
+    function adjustTableSize() {
+      $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
+      $('#sales-table').css('width', '100%');
+    }
+    
+    adjustTableSize();
+    $(window).resize(adjustTableSize);
+    
+    // Ajax search with debounce
+    let debounceTimer;
+    function doSearch() {
+      const params = new URLSearchParams({
+        customer: $('#customer').val(),
+        warehouse: $('#warehouse').val(),
+        payment_status: $('#payment_status').val(),
+        date_from: $('#date_from').val(),
+        date_to: $('#date_to').val(),
+        page: 1
+      });
+
+      $.ajax({
+        url: '?' + params.toString(),
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          $('#sales-table-container').html(data.table_html);
+          $('#pagination-wrapper').html(
+            data.pagination_html ? '<div class="card-footer mt-3">' + data.pagination_html + '</div>' : ''
+          );
+          history.replaceState(null, '', '?' + params.toString());
+          initTableEvents();
+        }
+      });
+    }
+
+    $('form').on('submit', function(e) {
+      e.preventDefault();
+      doSearch();
+    });
+
+    $('#customer, #warehouse, #payment_status').on('change', function() {
+      doSearch();
+    });
+    
+    $('#date_from, #date_to').on('change', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(doSearch, 400);
+    });
+  });
+  
+  // تصدير الجدول إلى CSV
+  $('.btn-export-table').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToCSV(tableId, filename);
+  });
+  
+  // تصدير الجدول إلى Excel
+  $('.btn-export-excel').on('click', function() {
+    const tableId = $(this).data('table');
+    const filename = $(this).data('filename');
+    exportTableToExcel(tableId, filename);
+  });
+
+  // دالة تأكيد حذف فاتورة مبيعات
+  function confirmDelete(saleId) {
+    if (confirm('هل أنت متأكد من حذف هذه الفاتورة؟ سيتم التراجع عن جميع العمليات المحاسبية والمخزنية المرتبطة بها.')) {
+      const form = document.createElement('form');
+      form.method = 'POST';
+      form.action = `/sales/${saleId}/delete/`;
+
+      const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+      if (csrfToken) {
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken.value;
+        form.appendChild(csrfInput);
+      }
+
+      document.body.appendChild(form);
+      form.submit();
+    }
+  }
+</script>
+{% endblock %} 

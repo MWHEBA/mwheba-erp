@@ -1,0 +1,265 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <!-- الفلاتر -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية الحركات</h5>
+        <form method="get" id="filter-form" class="row g-3">
+            <div class="col-md-2">
+                <label for="search" class="form-label">بحث</label>
+                <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="رقم الحركة أو المنتج">
+            </div>
+            <div class="col-md-2">
+                <label for="warehouse" class="form-label">المخزن</label>
+                <select class="form-select" id="warehouse" name="warehouse">
+                    <option value="">جميع المخازن</option>
+                    {% for wh in warehouses %}
+                    <option value="{{ wh.id }}" {% if request.GET.warehouse|add:"0" == wh.id %}selected{% endif %}>{{ wh.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="product" class="form-label">المنتج</label>
+                <select class="form-select" id="product" name="product">
+                    <option value="">جميع المنتجات</option>
+                    {% for prod in products %}
+                    <option value="{{ prod.id }}" {% if request.GET.product|add:"0" == prod.id %}selected{% endif %}>{{ prod.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="voucher_type" class="form-label">نوع الإذن</label>
+                <select class="form-select" id="voucher_type" name="voucher_type">
+                    <option value="">الكل</option>
+                    <option value="none" {% if request.GET.voucher_type == 'none' %}selected{% endif %}>مشتريات/مبيعات</option>
+                    <option value="receipt" {% if request.GET.voucher_type == 'receipt' %}selected{% endif %}>إذن استلام</option>
+                    <option value="issue" {% if request.GET.voucher_type == 'issue' %}selected{% endif %}>إذن صرف</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">من تاريخ</label>
+                <input type="date" class="form-control" id="date_from" name="date_from" value="{{ request.GET.date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">إلى تاريخ</label>
+                <input type="date" class="form-control" id="date_to" name="date_to" value="{{ request.GET.date_to }}">
+            </div>
+            <div class="col-12">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-filter me-2"></i>تصفية
+                </button>
+                <a href="{% url 'product:stock_movement_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-broom me-2"></i>إعادة تعيين
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- جدول الحركات -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-list me-2"></i>قائمة الحركات المخزنية</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="movements-table">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width: 120px;">رقم الحركة</th>
+                        <th class="text-center" style="width: 150px;">التاريخ</th>
+                        <th class="text-center">المنتج</th>
+                        <th class="text-center" style="width: 120px;">المخزن</th>
+                        <th class="text-center" style="width: 100px;">نوع الحركة</th>
+                        <th class="text-center" style="width: 100px;">نوع الإذن</th>
+                        <th class="text-center" style="width: 100px;">الكمية</th>
+                        <th class="text-center" style="width: 100px;">الرصيد بعد</th>
+                        <th class="text-center" style="width: 120px;">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if movements %}
+                        {% for movement in movements %}
+                        <tr>
+                            <td class="text-center">
+                                {% if movement.source_type == 'inventory_movement' %}
+                                    <code class="bg-light px-2 py-1 rounded">{{ movement.movement_number }}</code>
+                                {% else %}
+                                    {% if movement.reference_number %}
+                                        <code class="bg-light px-2 py-1 rounded">{{ movement.reference_number }}</code>
+                                    {% else %}
+                                        <span class="text-muted">#{{ movement.id }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movement.source_type == 'inventory_movement' %}
+                                    {{ movement.movement_date|date:"d/m/Y" }}<br>
+                                    <small class="text-muted">{{ movement.movement_date|date:"h:i A" }}</small>
+                                {% else %}
+                                    {{ movement.timestamp|date:"d/m/Y" }}<br>
+                                    <small class="text-muted">{{ movement.timestamp|date:"h:i A" }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center"><span class="fw-bold fs-6">{{ movement.product.name }}</span></td>
+                            <td class="text-center">{{ movement.warehouse.name }}</td>
+                            <td class="text-center">
+                                {% if movement.movement_type == 'in' or movement.movement_type == 'transfer_in' or movement.movement_type == 'adjustment_in' or movement.movement_type == 'return_in' or movement.movement_type == 'found' %}
+                                    <span class="badge bg-success">إضافة</span>
+                                {% elif movement.movement_type == 'out' or movement.movement_type == 'transfer_out' or movement.movement_type == 'adjustment_out' or movement.movement_type == 'return_out' or movement.movement_type == 'damaged' or movement.movement_type == 'expired' or movement.movement_type == 'lost' %}
+                                    <span class="badge bg-danger">خصم</span>
+                                {% elif movement.movement_type == 'transfer' %}
+                                    <span class="badge bg-info">تحويل</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ movement.get_movement_type_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movement.source_type == 'inventory_movement' %}
+                                    {% if movement.batch_voucher %}
+                                        {# حركة من إذن جماعي #}
+                                        {% if movement.batch_voucher.voucher_type == 'receipt' %}
+                                            <span class="badge bg-info">استلام جماعي</span>
+                                        {% elif movement.batch_voucher.voucher_type == 'issue' %}
+                                            <span class="badge bg-warning">صرف جماعي</span>
+                                        {% elif movement.batch_voucher.voucher_type == 'transfer' %}
+                                            <span class="badge bg-primary">تحويل جماعي</span>
+                                        {% endif %}
+                                    {% elif movement.voucher_type == 'receipt' %}
+                                        <span class="badge bg-info">استلام</span>
+                                    {% elif movement.voucher_type == 'issue' %}
+                                        <span class="badge bg-warning">صرف</span>
+                                    {% elif movement.movement_type == 'transfer_out' or movement.movement_type == 'transfer_in' %}
+                                        <span class="badge bg-primary">تحويل</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">-</span>
+                                    {% endif %}
+                                {% else %}
+                                    {% if movement.document_type == 'purchase' %}
+                                        <span class="badge bg-success">شراء</span>
+                                    {% elif movement.document_type == 'sale' %}
+                                        <span class="badge bg-danger">بيع</span>
+                                    {% elif movement.document_type == 'purchase_return' %}
+                                        <span class="badge bg-warning">مرتجع شراء</span>
+                                    {% elif movement.document_type == 'sale_return' %}
+                                        <span class="badge bg-info">مرتجع بيع</span>
+                                    {% elif movement.document_type == 'transfer' %}
+                                        <span class="badge bg-primary">تحويل</span>
+                                    {% elif movement.document_type == 'adjustment' %}
+                                        <span class="badge bg-secondary">جرد</span>
+                                    {% elif movement.document_type == 'opening' %}
+                                        <span class="badge bg-dark">رصيد افتتاحي</span>
+                                    {% elif movement.document_type == 'other' %}
+                                        <span class="badge bg-secondary">أخرى</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ movement.get_document_type_display }}</span>
+                                    {% endif %}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movement.movement_type == 'in' or movement.movement_type == 'transfer_in' or movement.movement_type == 'adjustment_in' or movement.movement_type == 'return_in' or movement.movement_type == 'found' %}
+                                    <span style="color: var(--bs-success); font-weight: bold;">+{{ movement.quantity|smart_float }}</span>
+                                {% elif movement.movement_type == 'out' or movement.movement_type == 'transfer_out' or movement.movement_type == 'adjustment_out' or movement.movement_type == 'return_out' or movement.movement_type == 'damaged' or movement.movement_type == 'expired' or movement.movement_type == 'lost' %}
+                                    <span style="color: var(--bs-danger); font-weight: bold;">-{{ movement.quantity|smart_float }}</span>
+                                {% elif movement.movement_type == 'adjustment' and movement.adjustment_diff %}
+                                    {% if movement.adjustment_diff > 0 %}
+                                        <span style="color: var(--bs-success); font-weight: bold;">+{{ movement.adjustment_diff|smart_float }}</span>
+                                    {% elif movement.adjustment_diff < 0 %}
+                                        <span style="color: var(--bs-danger); font-weight: bold;">{{ movement.adjustment_diff|smart_float }}</span>
+                                    {% else %}
+                                        <span class="text-muted">0</span>
+                                    {% endif %}
+                                {% else %}
+                                    {{ movement.quantity|smart_float }}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movement.quantity_after %}
+                                    {{ movement.quantity_after|smart_float }}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if movement.source_type == 'inventory_movement' %}
+                                    {% if movement.voucher_type == 'receipt' %}
+                                        <a href="{% url 'product:receipt_voucher_detail' movement.pk %}" class="btn btn-outline-info btn-sm" title="عرض التفاصيل">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% elif movement.voucher_type == 'issue' %}
+                                        <a href="{% url 'product:issue_voucher_detail' movement.pk %}" class="btn btn-outline-info btn-sm" title="عرض التفاصيل">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <a href="{% url 'product:stock_movement_detail' movement.pk %}" class="btn btn-outline-info btn-sm" title="عرض التفاصيل">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                                لا توجد حركات مخزنية
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if movements.has_other_pages %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if movements.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.warehouse %}&warehouse={{ request.GET.warehouse }}{% endif %}{% if request.GET.product %}&product={{ request.GET.product }}{% endif %}{% if request.GET.voucher_type %}&voucher_type={{ request.GET.voucher_type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">الأولى</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ movements.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.warehouse %}&warehouse={{ request.GET.warehouse }}{% endif %}{% if request.GET.product %}&product={{ request.GET.product }}{% endif %}{% if request.GET.voucher_type %}&voucher_type={{ request.GET.voucher_type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">السابقة</a>
+                </li>
+                {% endif %}
+
+                <li class="page-item active">
+                    <span class="page-link">{{ movements.number }} من {{ movements.paginator.num_pages }}</span>
+                </li>
+
+                {% if movements.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ movements.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.warehouse %}&warehouse={{ request.GET.warehouse }}{% endif %}{% if request.GET.product %}&product={{ request.GET.product }}{% endif %}{% if request.GET.voucher_type %}&voucher_type={{ request.GET.voucher_type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">التالية</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ movements.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.warehouse %}&warehouse={{ request.GET.warehouse }}{% endif %}{% if request.GET.product %}&product={{ request.GET.product }}{% endif %}{% if request.GET.voucher_type %}&voucher_type={{ request.GET.voucher_type }}{% endif %}{% if request.GET.date_from %}&date_from={{ request.GET.date_from }}{% endif %}{% if request.GET.date_to %}&date_to={{ request.GET.date_to }}{% endif %}">الأخيرة</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تفعيل tooltips
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

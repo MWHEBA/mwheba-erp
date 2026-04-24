@@ -1,0 +1,48 @@
+/* Biometric Dashboard Styles */
+
+/* Progress Ring */
+.progress-ring {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+}
+
+/* Chart Container */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-top: 20px;
+}
+
+/* Device Status Indicator */
+.device-status {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-left: 5px;
+}
+
+.device-status.online {
+    background-color: var(--success);
+    box-shadow: 0 0 5px var(--success);
+}
+
+.device-status.offline {
+    background-color: var(--danger);
+}
+
+/* Log Items */
+.log-item {
+    padding: 10px;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color 0.2s;
+}
+
+.log-item:hover {
+    background-color: var(--bg-secondary);
+}
+
+.log-item:last-child {
+    border-bottom: none;
+}

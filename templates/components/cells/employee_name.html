@@ -1,0 +1,13 @@
+{% comment %}
+خلية عرض اسم الموظف مع رقم الموظف
+الاستخدام: يتم استخدامها في الجداول الموحدة
+المعلمات:
+- object: كائن Payroll
+- value: قيمة الحقل (اسم الموظف)
+{% endcomment %}
+
+<div>
+    <strong>{{ object.employee.get_full_name_ar }}</strong>
+    <br>
+    <small class="text-muted">{{ object.employee.employee_number }}</small>
+</div>

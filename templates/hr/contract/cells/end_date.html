@@ -1,0 +1,18 @@
+{% load custom_filters %}
+{% if value %}
+    {% with days_left=value|days_until %}
+        {% if days_left is not None %}
+            {% if days_left <= 30 %}
+                <span class="badge bg-danger">{{ value|date:"Y-m-d" }}</span>
+            {% elif days_left <= 60 %}
+                <span class="badge bg-warning text-dark">{{ value|date:"Y-m-d" }}</span>
+            {% else %}
+                <span class="text-muted">{{ value|date:"Y-m-d" }}</span>
+            {% endif %}
+        {% else %}
+            <span class="text-muted">{{ value|date:"Y-m-d" }}</span>
+        {% endif %}
+    {% endwith %}
+{% else %}
+    <span class="badge bg-secondary">غير محدد</span>
+{% endif %}

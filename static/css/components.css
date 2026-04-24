@@ -1,0 +1,1411 @@
+/**
+ * ========================================
+ * General Components Styles for Corporate ERP
+ * ========================================
+ * 
+ * يحتوي على ستايلات المكونات العامة والمساعدة
+ * 
+ * المكونات العامة:
+ * 1. Select2 RTL Fixes (إصلاحات Select2 للعربية)
+ * 2. Table Styles (أنماط الجداول العامة)
+ * 3. Pagination (الترقيم)
+ * 4. Dropdown Menus (القوائم المنسدلة)
+ * 5. Status Indicators (مؤشرات الحالة)
+ * 6. Progress Bars (أشرطة التقدم)
+ * 7. Filter Components (مكونات الفلترة)
+ * 8. Data Table Components (مكونات جداول البيانات)
+ * 9. Form Components (مكونات النماذج)
+ * 10. File Upload Components (مكونات رفع الملفات)
+ * 11. DatePicker Components (مكونات التقويم)
+ * 12. Chart Components (مكونات الرسوم البيانية)
+ * 13. Rich Text Editor (محرر النصوص المنسق)
+ * 14. Utility Classes (فئات مساعدة)
+ * 
+ * ملاحظة: المكونات المشتركة موجودة في shared-components.css
+ * ========================================
+ */
+
+/* ========================================
+   1. SELECT2 RTL FIXES (إصلاحات Select2 للعربية)
+   ======================================== */
+
+/* ========================================
+   UTILITY CLASSES - System Primary Color Override
+   ======================================== */
+
+/* Override Bootstrap's text-primary with system primary color */
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+/* ========================================
+   SECTION CONTAINERS & TITLES (حاويات الأقسام والعناوين)
+   ======================================== */
+
+.section-container {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+}
+
+.section-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding-bottom: var(--spacing-2);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.section-title i {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+/* Collapsible Section Styles (أنماط الأقسام القابلة للطي) */
+.section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+}
+
+.section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* تحسين الانتقال السلس للمحتوى القابل للطي */
+.collapse {
+    transition: height 0.3s ease;
+}
+
+/* ========================================
+   STATS CARDS SPECIFIC STYLES (كروت الإحصائيات المحددة)
+   ======================================== */
+
+/* ملاحظة: كروت الإحصائيات الأساسية موجودة في shared-components.css
+   هنا فقط التحسينات والتخصيصات الإضافية */
+
+/* تحسينات إضافية لكروت الإحصائيات */
+.stats-card {
+    transition: var(--transition-all);
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+}
+
+/* تحسين موضع الأيقونة */
+.stats-card-icon {
+    left: var(--spacing-4);
+    top: var(--spacing-4);
+}
+
+/* تحسين العنوان */
+.stats-card-title {
+    padding-left: 55px;
+    line-height: 1.3;
+}
+
+/* تحسين القيمة */
+.stats-card-value {
+    margin-top: var(--spacing-2);
+    margin-bottom: var(--spacing-2);
+}
+
+/* ========================================
+   2. TABLE STYLES (أنماط الجداول العامة)
+   ======================================== */
+
+.table {
+    margin-bottom: var(--spacing-3);
+    color: var(--text-color);
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.table-hover tbody tr:hover {
+    background-color: var(--table-hover-bg);
+    transition: var(--transition-colors);
+}
+
+.table th {
+    border-top: none;
+    background-color: var(--table-header-bg);
+    color: var(--text-dark);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--table-cell-padding);
+    border-bottom: 2px solid var(--border-color);
+    text-align: right;
+    white-space: nowrap;
+}
+
+.table td {
+    padding: var(--table-cell-padding);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.table-responsive {
+    margin-bottom: var(--spacing-3);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+/* تحسينات خاصة بجداول الموردين */
+.suppliers-table {
+    font-size: 0.9rem;
+}
+
+.suppliers-table .col-actions {
+    width: 120px;
+    text-align: center;
+}
+
+.suppliers-table .col-name {
+    min-width: 180px;
+    font-weight: var(--font-weight-medium);
+}
+
+.suppliers-table .col-code {
+    width: 100px;
+    font-size: 0.85rem;
+}
+
+.suppliers-table .col-supplier_types_display {
+    max-width: 200px;
+    min-width: 150px;
+}
+
+.suppliers-table .col-phone {
+    width: 120px;
+}
+
+.suppliers-table .col-city {
+    width: 100px;
+}
+
+.suppliers-table .col-is_preferred {
+    width: 80px;
+    text-align: center;
+}
+
+.suppliers-table .col-actual_balance {
+    width: 140px;
+    text-align: left;
+    font-weight: var(--font-weight-semibold);
+
+}
+
+/* تحسين عرض الصفوف القابلة للنقر */
+.table tbody tr.clickable-row {
+    cursor: pointer;
+    transition: var(--transition-colors);
+}
+
+.table tbody tr.clickable-row:hover {
+    background-color: var(--primary-soft-2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* ========================================
+   3. PAGINATION (الترقيم)
+   ======================================== */
+
+.pagination-wrapper {
+    background-color: var(--white);
+    border-top: 1px solid var(--border-color);
+    padding: var(--spacing-3);
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+}
+
+.pagination {
+    margin-bottom: 0;
+    gap: 0.125rem;
+}
+
+.pagination .page-item .page-link {
+    color: var(--primary-color);
+    background-color: var(--white);
+    border-color: var(--border-color);
+    padding: 0.5rem 0.75rem;
+    margin: 0 2px;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    min-width: 32px;
+    text-align: center;
+    transition: var(--transition-colors);
+}
+
+.pagination .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+    font-weight: var(--font-weight-semibold);
+}
+
+.pagination .page-item .page-link:hover {
+    background-color: var(--primary-soft);
+    color: var(--primary-dark);
+    border-color: var(--primary-color);
+}
+
+.pagination .page-item.disabled .page-link {
+    color: rgb(153, 153, 153);
+    background-color: var(--gray-100);
+    cursor: not-allowed;
+    border-color: var(--border-color);
+}
+
+.pagination-info {
+    color: var(--text-color);
+    font-size: var(--font-size-sm);
+    padding: 0.375rem 0;
+    display: inline-block;
+}
+
+.pagination-size .btn-group .btn {
+    border-radius: var(--border-radius-sm);
+    margin: 0 2px;
+    padding: 0.25rem 0.5rem;
+    font-size: var(--font-size-sm);
+}
+
+/* RTL specifics for pagination */
+@media (max-width: 576px) {
+    .pagination-wrapper {
+        flex-direction: column;
+    }
+
+    .pagination-info {
+        margin-bottom: var(--spacing-2);
+    }
+
+    .pagination .page-item .page-link {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* ========================================
+   4. DROPDOWN MENUS (القوائم المنسدلة)
+   ======================================== */
+
+.dropdown-menu {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    padding: var(--spacing-1) 0;
+    position: absolute !important;
+    margin-top: 0.5rem !important;
+    transform: none !important;
+    top: 100% !important;
+    background-color: var(--white);
+}
+
+.dropdown-item {
+    padding: var(--spacing-1) var(--spacing-3);
+    font-size: var(--font-size-base);
+    color: var(--text-color);
+    transition: var(--transition-colors);
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+    background-color: var(--primary-soft);
+    color: var(--primary-color);
+}
+
+.dropdown-item.active {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.dropdown-divider {
+    margin: var(--spacing-1) 0;
+    border-color: var(--border-color);
+}
+
+.dropdown-header {
+    padding: var(--spacing-1) var(--spacing-3);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* ========================================
+   5. STATUS INDICATORS (مؤشرات الحالة)
+   ======================================== */
+
+.status-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: var(--spacing-1);
+}
+
+.status-indicator.success {
+    background-color: var(--success-color);
+}
+
+.status-indicator.warning {
+    background-color: var(--warning-color);
+}
+
+.status-indicator.danger {
+    background-color: var(--danger-color);
+}
+
+.status-indicator.info {
+    background-color: var(--info-color);
+}
+
+.status-indicator.inactive {
+    background-color: var(--gray-400);
+}
+
+/* Status badges */
+.status-badge {
+    padding: 0.35rem 0.65rem;
+    border-radius: var(--border-radius-full);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.status-badge.active {
+    background-color: var(--success-soft);
+    color: var(--success-dark);
+}
+
+.status-badge.inactive {
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
+}
+
+.status-badge.pending {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+}
+
+.status-badge.draft {
+    background-color: var(--gray-200);
+    color: var(--gray-700);
+}
+
+/* ========================================
+   6. PROGRESS BARS (أشرطة التقدم)
+   ======================================== */
+
+.progress {
+    height: 0.6rem;
+    border-radius: var(--border-radius-sm);
+    background-color: var(--gray-200);
+    margin-bottom: var(--spacing-3);
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: var(--border-radius-sm);
+    transition: width 0.6s ease;
+}
+
+.progress-bar-striped {
+    background-image: linear-gradient(45deg, rgba(255, 255, 255, 0.15) 25%, transparent 25%, transparent 50%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0.15) 75%, transparent 75%, transparent);
+    background-size: 1rem 1rem;
+}
+
+.progress-bar-animated {
+    animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+    0% {
+        background-position-x: 1rem;
+    }
+}
+
+/* ========================================
+   7. FILTER COMPONENTS (مكونات الفلترة)
+   ======================================== */
+
+.filter-container {
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+    border: 1px solid var(--border-color);
+}
+
+.filter-section {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-sm);
+}
+
+.filter-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-4);
+    display: flex;
+    align-items: center;
+    color: var(--text-dark);
+}
+
+.filter-title .filter-icon {
+    margin-left: var(--spacing-2);
+    color: var(--primary-color);
+}
+
+.filter-form {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+    align-items: flex-end;
+}
+
+.filter-form-group {
+    flex: 1 1 200px;
+    min-width: 200px;
+}
+
+.filter-actions {
+    margin-top: var(--spacing-4);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-2);
+}
+
+.filter-toggle {
+    cursor: pointer;
+    margin-bottom: var(--spacing-2);
+    display: inline-flex;
+    align-items: center;
+    font-weight: var(--font-weight-medium);
+    color: var(--primary-color);
+    transition: var(--transition-colors);
+}
+
+.filter-toggle:hover {
+    color: var(--primary-dark);
+}
+
+.filter-toggle .icon {
+    margin-left: var(--spacing-1);
+    transition: var(--transition-transform);
+}
+
+.filter-toggle.collapsed .icon {
+    transform: rotate(180deg);
+}
+
+/* Filter box */
+.filter-box {
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+    border: 1px solid var(--border-color);
+}
+
+.filter-box .form-group {
+    margin-bottom: 0;
+}
+
+/* فلاتر أنواع الموردين السريعة */
+.supplier-type-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+}
+
+.supplier-type-filter {
+    transition: all 0.2s ease;
+    border-width: 1px;
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    background-color: var(--white);
+    color: var(--text-color);
+}
+
+.supplier-type-filter:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: var(--text-dark);
+}
+
+.supplier-type-filter:disabled {
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.supplier-type-filter.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.supplier-type-filter.btn-outline-primary {
+    background-color: var(--white);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.supplier-type-filter.btn-outline-primary:hover {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    color: var(--primary-dark);
+}
+
+.supplier-type-filter .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* تحسين تنسيق النماذج داخل قسم التصفية */
+.filter-section .row {
+    margin: 0;
+}
+
+.filter-section .col-md-2,
+.filter-section .col-md-3 {
+    padding-left: var(--spacing-2);
+    padding-right: var(--spacing-2);
+}
+
+.filter-section .form-label {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-1);
+}
+
+.filter-section .form-select,
+.filter-section .form-control {
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    padding: 0.5rem 0.75rem;
+    font-size: var(--font-size-sm);
+    transition: var(--transition-colors);
+}
+
+.filter-section .form-select:focus,
+.filter-section .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.filter-section .btn {
+    padding: 0.5rem 1.5rem;
+    font-size: var(--font-size-sm);
+    border-radius: var(--border-radius);
+    font-weight: var(--font-weight-medium);
+    transition: var(--transition-all);
+}
+
+.filter-section .btn:hover {
+    transform: translateY(-1px);
+}
+
+
+/* فلاتر أنواع الموردين السريعة */
+.supplier-type-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-3);
+}
+
+.supplier-type-filter {
+    transition: all 0.2s ease;
+    border-width: 1px;
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.supplier-type-filter:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-decoration: none;
+}
+
+.supplier-type-filter:disabled {
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.supplier-type-filter .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* تنسيق badges أنواع الموردين */
+.supplier-type-badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    margin: 0.125rem;
+    border-radius: var(--border-radius-sm);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+    color: var(--white);
+    text-decoration: none;
+    transition: var(--transition-all);
+}
+
+.supplier-type-badge:hover {
+    opacity: 0.8;
+    color: var(--white);
+    text-decoration: none;
+}
+
+/* تحسين عرض أنواع الموردين في الجدول */
+.col-supplier_types_display {
+    max-width: 200px;
+    min-width: 150px;
+}
+
+.col-supplier_types_display .badge {
+    white-space: nowrap;
+    margin: 1px;
+    font-size: 0.7rem;
+}
+
+/* تحسين عرض الجدول */
+#suppliers-table td {
+    vertical-align: middle;
+}
+
+#suppliers-table tbody tr {
+    transition: var(--transition-colors);
+}
+
+#suppliers-table tbody tr:hover {
+    background-color: var(--primary-soft-2);
+}
+
+/* تنسيق فلاتر الأنواع - من الملف المرجعي */
+.supplier-type-filter {
+    transition: all 0.2s ease;
+    border-width: 1px;
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    pointer-events: auto;
+    padding: 0.5rem 1rem;
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+    white-space: nowrap;
+    border: 1px solid var(--border-color);
+    background-color: var(--white);
+    color: var(--text-color);
+}
+
+.supplier-type-filter:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    text-decoration: none;
+    color: var(--text-dark);
+}
+
+.supplier-type-filter:disabled {
+    opacity: 0.7;
+    transform: none;
+    box-shadow: none;
+    pointer-events: none;
+}
+
+.supplier-type-filter.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.supplier-type-filter.btn-outline-primary {
+    background-color: var(--white);
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.supplier-type-filter.btn-outline-primary:hover {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    color: var(--primary-dark);
+}
+
+.supplier-type-filter .fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* تنسيقات خاصة بصفحة الموردين */
+.supplier-page .section-container {
+    margin-bottom: var(--spacing-6);
+}
+
+.supplier-page .stats-card-title {
+    font-size: 0.9rem;
+}
+
+.supplier-page .filter-section {
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+}
+
+.supplier-page .supplier-type-filters {
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--border-color);
+}
+
+
+/* تحسين مظهر أزرار التصدير */
+.dt-buttons {
+    margin-bottom: 1rem;
+}
+
+.dt-buttons .btn {
+    margin-left: 0.5rem;
+    font-size: 0.875rem;
+}
+
+.dt-buttons .btn i {
+    margin-left: 0.25rem;
+}
+
+/* تحسين مظهر البحث في الجدول */
+.dataTables_filter {
+    margin-bottom: 1rem;
+}
+
+.dataTables_filter input {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+
+/* ========================================
+   8. DATA TABLE COMPONENTS (مكونات جداول البيانات)
+   ======================================== */
+
+.datatable-container {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    overflow: hidden;
+    margin-bottom: 2rem;
+}
+
+.datatable-header {
+    padding: var(--spacing-4);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+}
+
+.datatable-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin: 0;
+    color: var(--text-dark);
+}
+
+.datatable-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.datatable {
+    width: 100%;
+    margin-bottom: 0;
+    border-collapse: collapse;
+}
+
+.datatable th {
+    background-color: var(--table-header-bg);
+    color: var(--text-dark);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--table-cell-padding);
+    border-bottom: 2px solid var(--border-color);
+    text-align: right;
+}
+
+.datatable tbody tr {
+    border-bottom: 1px solid var(--border-color);
+    transition: var(--transition-colors);
+}
+
+.datatable tbody tr:hover {
+    background-color: var(--table-hover-bg);
+}
+
+.datatable td {
+    padding: var(--table-cell-padding);
+    vertical-align: middle;
+}
+
+.datatable-footer {
+    padding: var(--spacing-4);
+    background-color: var(--bg-light);
+    border-top: 1px solid var(--border-color);
+}
+
+.datatable-empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-light);
+}
+
+.datatable-empty-icon {
+    font-size: 2rem;
+    color: var(--border-color);
+    margin-bottom: 1rem;
+}
+
+/* Table controls */
+.table-controls {
+    background-color: var(--bg-light);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-3);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-4);
+}
+
+.table-length-control {
+    min-width: 180px;
+}
+
+.table-length-control select.table-length {
+    width: 80px;
+    margin: 0 var(--spacing-2);
+}
+
+.table-length-control .length-label {
+    color: var(--text-color);
+    font-size: var(--font-size-sm);
+}
+
+.table-search-control {
+    width: 250px;
+}
+
+.table-search-control .input-group {
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.table-search-control .input-group:focus-within {
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.table-search-control .search-icon {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+}
+
+.table-search-control .table-search {
+    border-start-end-radius: 0;
+    border-end-end-radius: 0;
+}
+
+.table-info-section {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+}
+
+/* ========================================
+   9. FORM COMPONENTS (مكونات النماذج)
+   ======================================== */
+
+.custom-form-group {
+    margin-bottom: 1.25rem;
+}
+
+.custom-form-label {
+    display: block;
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-color);
+}
+
+.custom-form-label .required {
+    color: var(--danger-color);
+    margin-right: 0.25rem;
+}
+
+.custom-form-control {
+    display: block;
+    width: 100%;
+    padding: var(--form-input-padding);
+    font-size: var(--font-size-base);
+    line-height: 1.5;
+    color: var(--text-color);
+    background-color: var(--form-input-bg);
+    background-clip: padding-box;
+    border: var(--form-input-border);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+}
+
+.custom-form-control:focus {
+    color: var(--text-color);
+    background-color: var(--form-input-bg);
+    border-color: var(--primary-color);
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.custom-form-control:disabled {
+    background-color: var(--form-input-bg-disabled);
+    opacity: 1;
+}
+
+.custom-form-text {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+}
+
+/* ========================================
+   10. FILE UPLOAD COMPONENTS (مكونات رفع الملفات)
+   ======================================== */
+
+.custom-file-upload {
+    margin-bottom: var(--spacing-4);
+}
+
+.file-preview {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    background-color: var(--bg-light);
+    margin-top: var(--spacing-2);
+}
+
+.preview-title {
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-2);
+}
+
+.preview-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.preview-item {
+    position: relative;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 8px;
+    background-color: var(--white);
+    display: flex;
+    align-items: center;
+    max-width: 250px;
+}
+
+.preview-image {
+    width: 50px;
+    height: 50px;
+    object-fit: cover;
+    margin-left: 10px;
+    border-radius: var(--border-radius-sm);
+}
+
+.preview-info {
+    flex: 1;
+    overflow: hidden;
+}
+
+.preview-name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preview-size {
+    font-size: 0.75rem;
+    color: var(--text-light);
+}
+
+.preview-remove {
+    margin-right: 5px;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.75rem;
+}
+
+/* ========================================
+   11. DATEPICKER COMPONENTS (مكونات التقويم)
+   ======================================== */
+
+.datepicker-group {
+    position: relative;
+}
+
+.flatpickr-calendar {
+    direction: rtl;
+    font-family: var(--font-family-sans);
+}
+
+.flatpickr-current-month {
+    font-weight: var(--font-weight-semibold);
+}
+
+.flatpickr-day.selected {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.flatpickr-day:hover {
+    background-color: var(--bg-hover);
+}
+
+/* ========================================
+   12. CHART COMPONENTS (مكونات الرسوم البيانية)
+   ======================================== */
+
+.chart-wrapper {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    padding: 1.25rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.chart-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.75rem;
+    color: var(--text-dark);
+}
+
+.chart-description {
+    margin-bottom: var(--spacing-4);
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+}
+
+.chart-container {
+    position: relative;
+}
+
+/* ========================================
+   13. RICH TEXT EDITOR (محرر النصوص المنسق)
+   ======================================== */
+
+.tox-tinymce {
+    border-color: var(--border-color) !important;
+    border-radius: var(--border-radius) !important;
+}
+
+.tox-statusbar {
+    border-top: 1px solid var(--border-color) !important;
+}
+
+.tox-edit-area__iframe {
+    background-color: var(--white) !important;
+}
+
+.tox .tox-collection--list .tox-collection__item--active {
+    background-color: var(--primary-color) !important;
+}
+
+.tox .tox-tbtn--enabled,
+.tox .tox-tbtn:hover {
+    background-color: var(--bg-hover) !important;
+}
+
+/* ========================================
+   15. UTILITY CLASSES (فئات مساعدة)
+   ======================================== */
+
+/* Button Styles */
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-1);
+}
+
+/* Enhanced button transitions */
+.btn {
+    transition: var(--transition-all);
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+/* Navbar Components */
+.navbar .user-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    margin-left: var(--spacing-1);
+}
+
+/* Empty state */
+.empty-state {
+    padding: 3rem 1.5rem;
+    text-align: center;
+    color: var(--text-light);
+}
+
+.empty-state .icon {
+    font-size: 3.5rem;
+    color: var(--gray-300);
+    margin-bottom: 1.25rem;
+}
+
+.empty-state h4 {
+    margin-bottom: var(--spacing-4);
+    color: var(--text-color);
+}
+
+.empty-state p {
+    color: var(--text-light);
+    max-width: 500px;
+    margin: 0 auto 1.5rem;
+}
+
+/* Enhanced card hover effects */
+.card {
+    transition: var(--transition-all);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* Form enhancements */
+.form-control:focus {
+    transform: translateY(-1px);
+}
+
+.form-control.is-valid {
+    border-color: var(--success-color);
+    background-image: none;
+}
+
+.form-control.is-invalid {
+    border-color: var(--danger-color);
+    background-image: none;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .filter-form {
+        gap: var(--spacing-2);
+    }
+
+    .filter-form-group {
+        flex: 1 1 100%;
+        min-width: auto;
+    }
+
+    .preview-item {
+        max-width: 100%;
+    }
+
+    .datatable-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-2);
+    }
+
+    .datatable-actions {
+        margin-top: var(--spacing-2);
+    }
+
+    .table-controls {
+        padding: var(--spacing-2);
+    }
+    
+    .table-controls .d-flex {
+        flex-direction: column;
+        gap: var(--spacing-3);
+    }
+    
+    .table-search-control,
+    .table-length-control {
+        width: 100%;
+    }
+    
+    .table-info-section .d-flex {
+        flex-direction: column;
+        gap: var(--spacing-3);
+    }
+
+    /* تحسينات كروت الإحصائيات للشاشات الصغيرة */
+    .stats-card-icon {
+        width: 40px;
+        height: 40px;
+        font-size: var(--font-size-lg);
+    }
+    
+    .stats-card-title {
+        padding-left: 50px;
+        font-size: var(--font-size-sm);
+    }
+    
+    .stats-card-value {
+        font-size: var(--font-size-xl);
+    }
+
+    /* تحسينات قسم التصفية للشاشات الصغيرة */
+    .filter-section {
+        padding: var(--spacing-3);
+    }
+    
+    .filter-section .row {
+        flex-direction: column;
+    }
+    
+    .filter-section .col-md-2,
+    .filter-section .col-md-3 {
+        width: 100%;
+        margin-bottom: var(--spacing-3);
+        padding: 0;
+    }
+    
+    .supplier-type-filters {
+        gap: var(--spacing-1);
+    }
+    
+    .supplier-type-filter {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.8rem;
+    }
+
+    /* تحسينات الأقسام للشاشات الصغيرة */
+    .section-container {
+        padding: var(--spacing-3);
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .section-title {
+        font-size: var(--font-size-base);
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-1);
+    }
+
+    /* تحسينات خاصة بصفحة الموردين */
+    .supplier-page .section-container {
+        margin-bottom: var(--spacing-4);
+    }
+    
+    .supplier-page .stats-card-title {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 576px) {
+    /* تحسينات إضافية للشاشات الصغيرة جداً */
+    .stats-card-body {
+        padding: var(--spacing-3);
+    }
+    
+    .stats-card-icon {
+        width: 35px;
+        height: 35px;
+        font-size: var(--font-size-base);
+        left: var(--spacing-3);
+        top: var(--spacing-3);
+    }
+    
+    .stats-card-title {
+        padding-left: 45px;
+        font-size: 0.8rem;
+    }
+    
+    .stats-card-value {
+        font-size: var(--font-size-lg);
+    }
+    
+    .filter-section .d-flex {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .supplier-type-filter {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+    }
+
+    /* تحسينات خاصة بصفحة الموردين للشاشات الصغيرة جداً */
+    .supplier-page .section-title {
+        font-size: 0.9rem;
+    }
+    
+    .supplier-page .stats-card {
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .supplier-page .filter-section {
+        padding: var(--spacing-2);
+    }
+}

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        {% if settings %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="ramadan-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">السنة الهجرية</th>
+                        <th class="text-center">تاريخ البداية</th>
+                        <th class="text-center">تاريخ النهاية</th>
+                        <th class="text-center">عدد الأيام</th>
+                        <th class="text-center">الأذونات (عدد / ساعات)</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in settings %}
+                    <tr>
+                        <td class="text-center fw-bold">{{ s.hijri_year }} هـ</td>
+                        <td class="text-center">{{ s.start_date|date:"Y-m-d" }}</td>
+                        <td class="text-center">{{ s.end_date|date:"Y-m-d" }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ s.duration_days }} يوم</span>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ s.permission_max_count }} / {{ s.permission_max_hours }}</span>
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'hr:ramadan_settings_update' s.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="deleteRamadan({{ s.pk }}, '{{ s.hijri_year }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <form id="delete-ramadan-{{ s.pk }}" method="post"
+                                  action="{% url 'hr:ramadan_settings_delete' s.pk %}" style="display:none;">
+                                {% csrf_token %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-moon fa-3x mb-3"></i>
+            <p>لا توجد إعدادات رمضان مضافة بعد</p>
+            <a href="{% url 'hr:ramadan_settings_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>إضافة سنة جديدة
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteRamadan(pk, year) {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: 'سيتم حذف إعدادات رمضان ' + year + ' هـ',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger-color)',
+        cancelButtonColor: 'var(--secondary-color)',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('delete-ramadan-' + pk).submit();
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,23 @@
+{% if value == 'permanent' %}
+    <span class="badge bg-primary">
+        <i class="fas fa-infinity me-1"></i>دائم
+    </span>
+{% elif value == 'temporary' %}
+    <span class="badge bg-warning text-dark">
+        <i class="fas fa-clock me-1"></i>مؤقت
+    </span>
+{% elif value == 'contract' %}
+    <span class="badge bg-info">
+        <i class="fas fa-file-contract me-1"></i>عقد محدد المدة
+    </span>
+{% elif value == 'internship' %}
+    <span class="badge bg-secondary">
+        <i class="fas fa-graduation-cap me-1"></i>تدريب
+    </span>
+{% elif value == 'part_time' %}
+    <span class="badge bg-purple">
+        <i class="fas fa-business-time me-1"></i>دوام جزئي
+    </span>
+{% else %}
+    <span class="text-muted">{{ object.get_contract_type_display }}</span>
+{% endif %}

@@ -1,0 +1,35 @@
+{% load i18n %}
+
+<div class="modal-header">
+    <h5 class="modal-title text-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>{% translate "تأكيد الحذف" %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form id="deleteVatForm" method="post" action="{{ action_url }}">
+    <div class="modal-body">
+        {% csrf_token %}
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "هذا الإجراء لا يمكن التراجع عنه!" %}
+        </div>
+        <p>{% translate "هل أنت متأكد من حذف إعداد الضريبة؟" %}</p>
+        <div class="card">
+            <div class="card-body">
+                <strong>{{ object.percentage }}%</strong>
+                {% if object.description %}<p class="text-muted mb-0">{{ object.description }}</p>{% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>{% translate "إلغاء" %}
+        </button>
+        <button type="submit" class="btn btn-danger" id="deleteVatBtn">
+            <i class="fas fa-trash me-1"></i>{% translate "حذف نهائي" %}
+        </button>
+    </div>
+</form>
+
+

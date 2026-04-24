@@ -1,0 +1,6 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+{% include "components/data_table.html" with table_id="products-table" data=table_data headers=product_headers action_buttons=action_buttons primary_key="id" table_class="hover" empty_message="لا توجد منتجات متاحة" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_field="row_click_url" %}

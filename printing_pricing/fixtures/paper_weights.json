@@ -1,0 +1,144 @@
+[
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 1,
+  "fields": {
+    "name": "80 جرام",
+    "gsm": 80,
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 2,
+  "fields": {
+    "name": "100 جرام",
+    "gsm": 100,
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 3,
+  "fields": {
+    "name": "ورق خفيف",
+    "gsm": 70,
+    "description": "ورق بوزن 70 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 4,
+  "fields": {
+    "name": "ورق متوسط",
+    "gsm": 90,
+    "description": "ورق بوزن 90 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 5,
+  "fields": {
+    "name": "ورق سميك",
+    "gsm": 120,
+    "description": "ورق بوزن 120 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 6,
+  "fields": {
+    "name": "كارتون خفيف",
+    "gsm": 160,
+    "description": "ورق بوزن 160 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 7,
+  "fields": {
+    "name": "كارتون متوسط",
+    "gsm": 200,
+    "description": "ورق بوزن 200 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 8,
+  "fields": {
+    "name": "كارتون سميك",
+    "gsm": 250,
+    "description": "ورق بوزن 250 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 9,
+  "fields": {
+    "name": "كارتون ثقيل",
+    "gsm": 300,
+    "description": "ورق بوزن 300 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 10,
+  "fields": {
+    "name": "كارتون فاخر",
+    "gsm": 350,
+    "description": "ورق بوزن 350 جرام للمتر المربع",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.401Z"
+  }
+},
+{
+  "model": "printing_pricing.paperweight",
+  "pk": 12,
+  "fields": {
+    "name": "تست",
+    "gsm": 150,
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-20T15:21:37.119Z",
+    "updated_at": "2025-10-20T15:21:37.119Z"
+  }
+}]

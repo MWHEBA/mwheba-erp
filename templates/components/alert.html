@@ -1,0 +1,37 @@
+{% comment %}
+مكون تنبيه مخصص للاستخدام في مختلف الصفحات
+
+الاستخدام:
+{% include "components/alert.html" with type="success" message="تمت العملية بنجاح" dismissible=True %}
+
+المعلمات:
+- type: نوع التنبيه (success, info, warning, danger, primary, secondary)
+- message: نص الرسالة
+- dismissible: قابل للإغلاق (True/False)
+- icon: أيقونة من Font Awesome (اختياري)
+- alert_class: تصنيفات CSS إضافية (اختياري)
+{% endcomment %}
+
+<div class="alert alert-{{ type|default:'info' }} {% if dismissible %}alert-dismissible fade show{% endif %} {{ alert_class }}" role="alert">
+    {% if not icon %}
+        {% if type == 'success' %}
+            <i class="fas fa-check-circle me-2"></i>
+        {% elif type == 'info' %}
+            <i class="fas fa-info-circle me-2"></i>
+        {% elif type == 'warning' %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+        {% elif type == 'danger' or type == 'error' %}
+            <i class="fas fa-times-circle me-2"></i>
+        {% else %}
+            <i class="fas fa-circle me-2"></i>
+        {% endif %}
+    {% else %}
+        <i class="{{ icon }} me-2"></i>
+    {% endif %}
+    
+    {{ message }}
+    
+    {% if dismissible %}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="إغلاق"></button>
+    {% endif %}
+</div> 

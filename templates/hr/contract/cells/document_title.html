@@ -1,0 +1,4 @@
+<strong>{{ object.title }}</strong>
+{% if object.description %}
+<br><small class="text-muted">{{ object.description|truncatewords:10 }}</small>
+{% endif %}

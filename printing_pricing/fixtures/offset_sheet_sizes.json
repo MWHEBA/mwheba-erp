@@ -1,0 +1,44 @@
+[
+  {
+    "model": "printing_pricing.offsetsheetsize",
+    "pk": 1,
+    "fields": {
+      "name": "ربع فرخ",
+      "code": "quarter_sheet",
+      "width_cm": 35.0,
+      "height_cm": 50.0,
+      "description": "مقاس ربع فرخ للأعمال الصغيرة",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.offsetsheetsize",
+    "pk": 2,
+    "fields": {
+      "name": "نصف فرخ",
+      "code": "half_sheet",
+      "width_cm": 50.0,
+      "height_cm": 70.0,
+      "description": "مقاس نصف فرخ للأعمال المتوسطة",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.offsetsheetsize",
+    "pk": 3,
+    "fields": {
+      "name": "فرخ كامل",
+      "code": "full_sheet",
+      "width_cm": 70.0,
+      "height_cm": 100.0,
+      "description": "مقاس فرخ كامل للأعمال الكبيرة",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

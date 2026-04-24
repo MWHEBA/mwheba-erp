@@ -1,0 +1,355 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load pricing_filters %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+.line-row {
+    background: white;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    transition: box-shadow 0.2s;
+}
+.line-row:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+.line-row.is-manual { border-right: 3px solid var(--info-color); }
+.line-row.is-modified { border-right: 3px solid var(--warning-color); }
+.line-input {
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 7px 10px;
+    width: 100%;
+    font-size: 0.9rem;
+}
+.line-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.15rem rgba(13,110,253,0.2);
+}
+.btn-delete-line {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85rem;
+}
+.btn-delete-line:hover { opacity: 0.85; }
+.summary-box {
+    background: var(--gray-50);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 20px;
+}
+.summary-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.summary-item:last-child {
+    border-bottom: none;
+    font-weight: bold;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+.badge-manual {
+    background: var(--info-color);
+    color: white;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.badge-modified {
+    background: var(--warning-color);
+    color: #333;
+    font-size: 0.65rem;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <form method="post" id="editLinesForm">
+    {% csrf_token %}
+    <input type="hidden" name="lines_data" id="linesData">
+
+    <div class="row">
+      <!-- المستحقات -->
+      <div class="col-md-6">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-plus-circle me-2 text-success"></i>المستحقات
+            </h5>
+            <button type="button" class="btn btn-sm btn-success" onclick="addLine('earning')">
+              <i class="fas fa-plus me-1"></i>إضافة بند
+            </button>
+          </div>
+
+          <!-- الأجر الأساسي (ثابت - غير قابل للتعديل) -->
+          <div class="line-row" style="background: var(--gray-50);">
+            <div class="row align-items-center">
+              <div class="col-md-7">
+                <strong>الأجر الأساسي</strong>
+                <span class="badge bg-primary ms-2" style="font-size:0.65rem;">أساسي</span>
+              </div>
+              <div class="col-md-5 text-end">
+                <strong>{{ payroll.basic_salary|remove_trailing_zeros }} {% currency_symbol %}</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- بنود المستحقات -->
+          <div id="earningsContainer">
+            {% for line in earnings %}
+            <div class="line-row{% if line.is_manual %} is-manual{% elif line.is_modified %} is-modified{% endif %}"
+                 data-type="earning"
+                 data-code="{{ line.code }}"
+                 data-order="{{ line.order }}"
+                 data-source="{{ line.source }}"
+                 data-original-amount="{{ line.amount }}"
+                 data-is-manual="{{ line.is_manual|yesno:'true,false' }}"
+                 data-is-modified="{{ line.is_modified|yesno:'true,false' }}">
+              <div class="row align-items-center">
+                <div class="col-md-5">
+                  <input type="text" class="line-input line-name" value="{{ line.name }}" placeholder="اسم البند">
+                  {% if line.is_manual %}
+                    <span class="badge-manual mt-1 d-inline-block">يدوي</span>
+                  {% elif line.is_modified %}
+                    <span class="badge-modified mt-1 d-inline-block">معدّل يدوياً</span>
+                  {% endif %}
+                </div>
+                <div class="col-md-4">
+                  <input type="number" step="0.01" class="line-input line-amount"
+                         value="{{ line.amount|remove_trailing_zeros }}"
+                         placeholder="المبلغ" onchange="onAmountChange(this)">
+                </div>
+                <div class="col-md-3 text-end">
+                  <button type="button" class="btn-delete-line" onclick="deleteLine(this)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- الاستقطاعات -->
+      <div class="col-md-6">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-minus-circle me-2 text-danger"></i>الاستقطاعات
+            </h5>
+            <button type="button" class="btn btn-sm btn-danger" onclick="addLine('deduction')">
+              <i class="fas fa-plus me-1"></i>إضافة بند
+            </button>
+          </div>
+
+          <div id="deductionsContainer">
+            {% for line in deductions %}
+            <div class="line-row{% if line.is_manual %} is-manual{% elif line.is_modified %} is-modified{% endif %}"
+                 data-type="deduction"
+                 data-code="{{ line.code }}"
+                 data-order="{{ line.order }}"
+                 data-source="{{ line.source }}"
+                 data-original-amount="{{ line.amount }}"
+                 data-is-manual="{{ line.is_manual|yesno:'true,false' }}"
+                 data-is-modified="{{ line.is_modified|yesno:'true,false' }}">
+              <div class="row align-items-center">
+                <div class="col-md-5">
+                  <input type="text" class="line-input line-name" value="{{ line.name }}" placeholder="اسم البند">
+                  {% if line.is_manual %}
+                    <span class="badge-manual mt-1 d-inline-block">يدوي</span>
+                  {% elif line.is_modified %}
+                    <span class="badge-modified mt-1 d-inline-block">معدّل يدوياً</span>
+                  {% endif %}
+                </div>
+                <div class="col-md-4">
+                  <input type="number" step="0.01" class="line-input line-amount"
+                         value="{{ line.amount|remove_trailing_zeros }}"
+                         placeholder="المبلغ" onchange="onAmountChange(this)">
+                </div>
+                <div class="col-md-3 text-end">
+                  <button type="button" class="btn-delete-line" onclick="deleteLine(this)">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الملخص -->
+    <div class="row">
+      <div class="col-md-6 mx-auto">
+        <div class="summary-box">
+          <h5 class="text-center mb-3">
+            <i class="fas fa-calculator me-2"></i>ملخص القسيمة
+          </h5>
+          <div class="summary-item">
+            <span>إجمالي المستحقات:</span>
+            <span id="totalEarnings">0 {% currency_symbol %}</span>
+          </div>
+          <div class="summary-item">
+            <span>إجمالي الاستقطاعات:</span>
+            <span id="totalDeductions">0 {% currency_symbol %}</span>
+          </div>
+          <div class="summary-item">
+            <span>صافي الراتب:</span>
+            <span id="netSalary">0 {% currency_symbol %}</span>
+          </div>
+        </div>
+
+        <div class="text-center mt-4">
+          <button type="submit" class="btn btn-primary btn-lg">
+            <i class="fas fa-save me-2"></i>حفظ التعديلات
+          </button>
+          <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-secondary btn-lg ms-2">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </a>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var basicSalary = parseFloat('{{ payroll.basic_salary }}') || 0;
+var lineCounter = 1000;
+
+function onAmountChange(input) {
+    var row = input.closest('.line-row');
+    var originalAmount = parseFloat(row.dataset.originalAmount);
+    var newAmount = parseFloat(input.value) || 0;
+    var isManual = row.dataset.isManual === 'true';
+
+    if (!isManual && !isNaN(originalAmount) && newAmount !== originalAmount) {
+        row.dataset.isModified = 'true';
+        var nameCol = row.querySelector('.col-md-5');
+        if (!nameCol.querySelector('.badge-modified') && !nameCol.querySelector('.badge-manual')) {
+            var badge = document.createElement('span');
+            badge.className = 'badge-modified mt-1 d-inline-block';
+            badge.textContent = 'معدّل يدوياً';
+            nameCol.appendChild(badge);
+        }
+        row.classList.remove('is-manual');
+        row.classList.add('is-modified');
+    }
+    calculateTotals();
+}
+
+function calculateTotals() {
+    var totalEarnings = basicSalary;
+    var totalDeductions = 0;
+
+    document.querySelectorAll('#earningsContainer .line-row').forEach(function(row) {
+        totalEarnings += parseFloat(row.querySelector('.line-amount').value) || 0;
+    });
+    document.querySelectorAll('#deductionsContainer .line-row').forEach(function(row) {
+        totalDeductions += parseFloat(row.querySelector('.line-amount').value) || 0;
+    });
+
+    var sym = '{% currency_symbol %}';
+    document.getElementById('totalEarnings').textContent = totalEarnings.toFixed(2) + ' ' + sym;
+    document.getElementById('totalDeductions').textContent = totalDeductions.toFixed(2) + ' ' + sym;
+    document.getElementById('netSalary').textContent = (totalEarnings - totalDeductions).toFixed(2) + ' ' + sym;
+}
+
+function addLine(type) {
+    var container = type === 'earning' ? 'earningsContainer' : 'deductionsContainer';
+    var code = 'NEW_' + type.toUpperCase() + '_' + lineCounter++;
+    var html = '<div class="line-row is-manual"'
+        + ' data-type="' + type + '"'
+        + ' data-code="' + code + '"'
+        + ' data-order="' + lineCounter + '"'
+        + ' data-source="adjustment"'
+        + ' data-original-amount=""'
+        + ' data-is-manual="true"'
+        + ' data-is-modified="false">'
+        + '<div class="row align-items-center">'
+        + '<div class="col-md-5">'
+        + '<input type="text" class="line-input line-name" placeholder="اسم البند">'
+        + '<span class="badge-manual mt-1 d-inline-block">يدوي</span>'
+        + '</div>'
+        + '<div class="col-md-4">'
+        + '<input type="number" step="0.01" class="line-input line-amount" value="0"'
+        + ' placeholder="المبلغ" onchange="calculateTotals()">'
+        + '</div>'
+        + '<div class="col-md-3 text-end">'
+        + '<button type="button" class="btn-delete-line" onclick="deleteLine(this)">'
+        + '<i class="fas fa-trash"></i></button>'
+        + '</div></div></div>';
+    document.getElementById(container).insertAdjacentHTML('beforeend', html);
+    calculateTotals();
+}
+
+function deleteLine(btn) {
+    Swal.fire({
+        title: 'حذف البند؟',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d'
+    }).then(function(result) {
+        if (result.isConfirmed) {
+            btn.closest('.line-row').remove();
+            calculateTotals();
+        }
+    });
+}
+
+document.getElementById('editLinesForm').addEventListener('submit', function(e) {
+    var lines = [];
+    document.querySelectorAll('.line-row').forEach(function(row, index) {
+        var nameInput = row.querySelector('.line-name');
+        var amountInput = row.querySelector('.line-amount');
+        if (!nameInput || !amountInput) return;
+        var name = nameInput.value.trim();
+        var amount = parseFloat(amountInput.value);
+        if (!name || isNaN(amount)) return;
+        lines.push({
+            code: row.dataset.code,
+            name: name,
+            type: row.dataset.type,
+            amount: amount,
+            order: index + 1,
+            source: row.dataset.source || 'adjustment',
+            is_manual: row.dataset.isManual === 'true',
+            is_modified: row.dataset.isModified === 'true'
+        });
+    });
+
+    if (lines.length === 0) {
+        e.preventDefault();
+        Swal.fire('تنبيه', 'لا توجد بنود للحفظ', 'warning');
+        return;
+    }
+    document.getElementById('linesData').value = JSON.stringify(lines);
+});
+
+calculateTotals();
+</script>
+{% endblock %}

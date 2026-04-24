@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0"><i class="fas fa-filter me-2"></i>تصفية</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="get" id="filter-form">
+                            <div class="mb-3">
+                                <label for="warehouse" class="form-label">المخزن</label>
+                                <select class="form-select" id="warehouse" name="warehouse">
+                                    <option value="">جميع المخازن</option>
+                                    {% for wh in warehouses %}
+                                    <option value="{{ wh.id }}" {% if request.GET.warehouse|add:"0" == wh.id %}selected{% endif %}>{{ wh.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="status" class="form-label">الحالة</label>
+                                <select class="form-select" id="status" name="status">
+                                    <option value="">الكل</option>
+                                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>معلق</option>
+                                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+                                </select>
+                            </div>
+                            
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="fas fa-filter me-2"></i>تصفية
+                                </button>
+                                <a href="{% url 'product:receipt_voucher_list' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-broom me-2"></i>إعادة تعيين
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-9">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0"><i class="fas fa-file-import me-2"></i>قائمة أذون الاستلام</h5>
+                    </div>
+                    <div class="card-body">
+                        {% include "components/data_table.html" with table_id="receipt-vouchers-table" headers=table_headers data=table_data empty_message="لا توجد أذون استلام" %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal إنشاء إذن استلام -->
+<div class="modal fade" id="receiptVoucherModal" tabindex="-1" aria-labelledby="receiptVoucherModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="receiptVoucherModalLabel">
+                    <i class="fas fa-file-import me-2"></i>إذن استلام جديد
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="modal-form-container">
+                <!-- سيتم تحميل النموذج هنا -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tableElement = document.getElementById('receipt-vouchers-table');
+    if (tableElement && typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+
+function openReceiptVoucherModal() {
+    loadFormInModal('{% url "product:receipt_voucher_create" %}');
+}
+
+function loadFormInModal(url) {
+    const modal = new bootstrap.Modal(document.getElementById('receiptVoucherModal'));
+    const container = document.getElementById('modal-form-container');
+    
+    container.innerHTML = '<div class="text-center"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+    modal.show();
+    
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        container.innerHTML = html;
+        initializeModalForm();
+    })
+    .catch(error => {
+        container.innerHTML = '<div class="alert alert-danger">حدث خطأ في تحميل النموذج</div>';
+    });
+}
+
+function initializeModalForm() {
+    const form = document.querySelector('#modal-form-container form');
+    if (!form) return;
+    
+    // تفعيل Select2 لحقل المنتج
+    const productSelect = form.querySelector('[name="product"]');
+    const warehouseSelect = form.querySelector('[name="warehouse"]');
+    
+    if (productSelect && typeof $ !== 'undefined' && $.fn.select2) {
+        $(productSelect).select2({
+            placeholder: 'اختر المنتج',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#receiptVoucherModal'),
+            theme: 'bootstrap-5',
+            language: {
+                noResults: function() {
+                    return "لا توجد نتائج";
+                },
+                searching: function() {
+                    return "جاري البحث...";
+                }
+            }
+        });
+    }
+    
+    // اختيار المخزن تلقائياً عند اختيار المنتج
+    if (productSelect && warehouseSelect) {
+        $(productSelect).on('change', function() {
+            const productId = this.value;
+            if (!productId) return;
+            
+            // جلب المخازن المتاحة للمنتج
+            fetch(`{% url 'product:get_product_warehouses' %}?product_id=${productId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.warehouses && data.warehouses.length > 0) {
+                        // اختيار أول مخزن فيه كمية متاحة
+                        const warehouseWithStock = data.warehouses.find(w => w.quantity > 0);
+                        if (warehouseWithStock) {
+                            warehouseSelect.value = warehouseWithStock.id;
+                        } else if (data.warehouses.length > 0) {
+                            // لو مفيش كمية في أي مخزن، اختار أول مخزن
+                            warehouseSelect.value = data.warehouses[0].id;
+                        }
+                    }
+                })
+                .catch(error => console.error('Error fetching warehouses:', error));
+        });
+    }
+    
+    // حساب التكلفة الإجمالية
+    const quantityInput = form.querySelector('[name="quantity"]');
+    const unitCostInput = form.querySelector('[name="unit_cost"]');
+    
+    if (quantityInput && unitCostInput) {
+        const calculateTotal = () => {
+            const quantity = parseFloat(quantityInput.value) || 0;
+            const unitCost = parseFloat(unitCostInput.value) || 0;
+            const total = quantity * unitCost;
+            
+            let totalDisplay = form.querySelector('#total_cost_display');
+            if (!totalDisplay) {
+                totalDisplay = document.createElement('div');
+                totalDisplay.id = 'total_cost_display';
+                totalDisplay.className = 'alert alert-info mt-3';
+                unitCostInput.parentElement.parentElement.appendChild(totalDisplay);
+            }
+            totalDisplay.innerHTML = `<strong>التكلفة الإجمالية:</strong> ${total.toFixed(2)} ج.م`;
+        };
+        
+        quantityInput.addEventListener('input', calculateTotal);
+        unitCostInput.addEventListener('input', calculateTotal);
+    }
+    
+    // معالجة إرسال النموذج
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(form);
+        const submitBtn = form.querySelector('[type="submit"]');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                bootstrap.Modal.getInstance(document.getElementById('receiptVoucherModal')).hide();
+                window.location.href = data.redirect_url;
+            } else {
+                alert(data.message || 'حدث خطأ');
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
+            }
+        })
+        .catch(error => {
+            alert('حدث خطأ في الحفظ');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fas fa-save me-2"></i>حفظ';
+        });
+    });
+}
+</script>
+{% endblock %}

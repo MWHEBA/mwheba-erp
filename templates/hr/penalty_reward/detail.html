@@ -1,0 +1,225 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}تفاصيل {{ pr.get_category_display }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <!-- المعلومات الأساسية -->
+    <div class="col-md-8">
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h5>
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label text-muted">الموظف</label>
+            <div>
+              <strong>{{ pr.employee.get_full_name_ar }}</strong>
+              <br><small class="text-muted">{{ pr.employee.employee_number }} | {{ pr.employee.department.name }}</small>
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label text-muted">النوع</label>
+            <div>
+              {% if pr.category == 'penalty' %}
+                <span class="badge bg-danger fs-6"><i class="fas fa-gavel me-1"></i>جزاء</span>
+              {% else %}
+                <span class="badge bg-success fs-6"><i class="fas fa-gift me-1"></i>مكافأة</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label text-muted">التاريخ</label>
+            <div><strong>{{ pr.date|date:"Y-m-d" }}</strong></div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label text-muted">شهر التطبيق</label>
+            <div><strong>{{ pr.month|date:"Y-m" }}</strong></div>
+          </div>
+          <div class="col-md-12 mb-3">
+            <label class="form-label text-muted">السبب/التفاصيل</label>
+            <div class="p-3 bg-light rounded">{{ pr.reason }}</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- التفاصيل المالية -->
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-calculator me-2"></i>التفاصيل المالية</h5>
+        <div class="row">
+          <div class="col-md-4 mb-3">
+            <label class="form-label text-muted">طريقة الحساب</label>
+            <div>
+              {% if pr.calculation_method == 'fixed' %}
+                <span class="badge bg-secondary">قيمة ثابتة</span>
+              {% elif pr.calculation_method == 'days' %}
+                <span class="badge bg-info">بالأيام</span>
+              {% else %}
+                <span class="badge bg-info">بالساعات</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label text-muted">
+              {% if pr.calculation_method == 'fixed' %}المبلغ{% elif pr.calculation_method == 'days' %}عدد الأيام{% else %}عدد الساعات{% endif %}
+            </label>
+            <div><strong>{{ pr.value|smart_float }}</strong></div>
+          </div>
+          <div class="col-md-4 mb-3">
+            <label class="form-label text-muted">المبلغ المحسوب</label>
+            <div>
+              <strong class="fs-5 {% if pr.category == 'penalty' %}text-danger{% else %}text-success{% endif %}">
+                {{ pr.calculated_amount|smart_float }} ج.م
+              </strong>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- الحالة وسير العمل -->
+    <div class="col-md-4">
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-tasks me-2"></i>الحالة وسير العمل</h5>
+
+        <div class="mb-3 text-center">
+          {% if pr.status == 'pending' %}
+            <span class="badge bg-warning text-dark fs-6 p-2">قيد الانتظار</span>
+          {% elif pr.status == 'approved' %}
+            <span class="badge bg-success fs-6 p-2">معتمد</span>
+          {% elif pr.status == 'rejected' %}
+            <span class="badge bg-danger fs-6 p-2">مرفوض</span>
+          {% elif pr.status == 'applied' %}
+            <span class="badge bg-primary fs-6 p-2">مطبق على الراتب</span>
+          {% endif %}
+        </div>
+
+        <hr>
+
+        <div class="mb-2">
+          <small class="text-muted">أنشئ بواسطة</small>
+          <div>{{ pr.created_by.get_full_name|default:pr.created_by.username }}</div>
+          <small class="text-muted">{{ pr.created_at|date:"Y-m-d H:i" }}</small>
+        </div>
+
+        {% if pr.approved_by %}
+        <div class="mb-2">
+          <small class="text-muted">{% if pr.status == 'rejected' %}رُفض{% else %}اعتمد{% endif %} بواسطة</small>
+          <div>{{ pr.approved_by.get_full_name|default:pr.approved_by.username }}</div>
+          <small class="text-muted">{{ pr.approved_at|date:"Y-m-d H:i" }}</small>
+        </div>
+        {% endif %}
+
+        {% if pr.review_notes %}
+        <div class="mb-2">
+          <small class="text-muted">ملاحظات المراجعة</small>
+          <div class="p-2 bg-light rounded small">{{ pr.review_notes }}</div>
+        </div>
+        {% endif %}
+
+        {% if pr.payroll %}
+        <hr>
+        <div class="mb-2">
+          <small class="text-muted">قسيمة الراتب</small>
+          <div>
+            <a href="{% url 'hr:payroll_detail' pr.payroll.pk %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-file-invoice me-1"></i>عرض القسيمة
+            </a>
+          </div>
+          <small class="text-muted">{{ pr.applied_at|date:"Y-m-d H:i" }}</small>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- الإجراءات -->
+      {% if pr.status == 'pending' %}
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-cogs me-2"></i>الإجراءات</h5>
+        <div class="d-grid gap-2">
+          <button class="btn btn-success" onclick="approvePR('{{ pr.pk }}')">
+            <i class="fas fa-check me-1"></i>اعتماد
+          </button>
+          <button class="btn btn-danger" onclick="rejectPR('{{ pr.pk }}')">
+            <i class="fas fa-times me-1"></i>رفض
+          </button>
+          <a href="{% url 'hr:penalty_reward_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-1"></i>رجوع
+          </a>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+function approvePR(pk) {
+  Swal.fire({
+    title: 'اعتماد الطلب',
+    icon: 'question',
+    input: 'textarea',
+    inputPlaceholder: 'ملاحظات (اختياري)...',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، اعتمد',
+    cancelButtonText: 'إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: (notes) => {
+      return fetch(`/hr/penalties-rewards/${pk}/approve/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN},
+        body: new URLSearchParams({'review_notes': notes || ''})
+      }).then(r => r.json());
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then(result => {
+    if (result.isConfirmed && result.value.success) {
+      Swal.fire({icon: 'success', title: 'تم الاعتماد', timer: 1500, showConfirmButton: false})
+        .then(() => location.reload());
+    } else if (result.isConfirmed) {
+      Swal.fire('خطأ', result.value.message, 'error');
+    }
+  });
+}
+
+function rejectPR(pk) {
+  Swal.fire({
+    title: 'رفض الطلب',
+    icon: 'warning',
+    input: 'textarea',
+    inputPlaceholder: 'سبب الرفض...',
+    inputValidator: v => !v ? 'يجب إدخال سبب الرفض' : null,
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، ارفض',
+    cancelButtonText: 'إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: (notes) => {
+      return fetch(`/hr/penalties-rewards/${pk}/reject/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN},
+        body: new URLSearchParams({'review_notes': notes})
+      }).then(r => r.json());
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then(result => {
+    if (result.isConfirmed && result.value.success) {
+      Swal.fire({icon: 'success', title: 'تم الرفض', timer: 1500, showConfirmButton: false})
+        .then(() => location.reload());
+    } else if (result.isConfirmed) {
+      Swal.fire('خطأ', result.value.message, 'error');
+    }
+  });
+}
+</script>
+{% endblock %}

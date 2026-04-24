@@ -1,0 +1,2075 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+{% block title %}{% if contract %}تعديل عقد{% else %}إضافة عقد{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css">
+<link rel="stylesheet" href="{% static 'css/hr/salary-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <form method="post" id="contractForm">
+        {% csrf_token %}
+        
+        <!-- رسالة التجديد -->
+        {% if is_renewal %}
+        <div class="alert alert-info alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading">
+                <i class="fas fa-redo me-2"></i>تجديد العقد: {{ old_contract.contract_number }}
+            </h5>
+            <p class="mb-2">
+                <strong>الموظف:</strong> {{ old_contract.employee.get_full_name_ar }}<br>
+                <strong>العقد القديم:</strong> من {{ old_contract.start_date|date:"Y-m-d" }} 
+                {% if old_contract.end_date %}إلى {{ old_contract.end_date|date:"Y-m-d" }}{% else %}(مفتوح){% endif %}
+            </p>
+            <hr>
+            <p class="mb-0">
+                <i class="fas fa-info-circle me-1"></i>
+                يمكنك تعديل جميع بنود العقد الجديد حسب الحاجة (الراتب، الوظيفة، التواريخ، الشروط، إلخ)
+            </p>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        <!-- عرض الأخطاء العامة -->
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>تنبيه</h5>
+            {% for error in form.non_field_errors %}
+                <p class="mb-0">{{ error }}</p>
+            {% endfor %}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        <!-- عرض أخطاء الحقول -->
+        {% if form.errors %}
+        <div class="alert alert-warning alert-dismissible fade show" role="alert">
+            <h5 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>يوجد أخطاء في النموذج</h5>
+            <ul class="mb-0">
+                {% for field, errors in form.errors.items %}
+                    {% if field != '__all__' %}
+                        {% for error in errors %}
+                            <li><strong>{{ field }}:</strong> {{ error|safe }}</li>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+            </ul>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endif %}
+        
+        <h5 class="mb-3">معلومات العقد الأساسية</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">رقم العقد <span class="text-danger">*</span></label>
+                    {{ form.contract_number }}
+                    {% if not contract %}
+                        <small class="form-text text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            سيتم توليد الرقم تلقائياً: {{ next_contract_number }}
+                        </small>
+                    {% endif %}
+                    {% if form.contract_number.errors %}
+                        <div class="text-danger">{{ form.contract_number.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">الموظف <span class="text-danger">*</span></label>
+                    {{ form.employee }}
+                    {% if form.employee.errors %}
+                        <div class="text-danger">{{ form.employee.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">نوع العقد <span class="text-danger">*</span></label>
+                    {{ form.contract_type }}
+                    {% if form.contract_type.errors %}
+                        <div class="text-danger">{{ form.contract_type.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        {# حقل الحالة مخفي دائماً - يتم التحكم فيه من خلال الأزرار #}
+        {{ form.status }}
+
+        <!-- تم نقل زر تحليل البنود بجانب عنوان "تفاصيل الراتب" -->
+
+        <!-- تم نقل قسم تحليل البنود إلى مودال -->
+
+        <h5 class="mb-3 mt-4">بيانات الوظيفة</h5>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">المسمى الوظيفي <span class="text-danger">*</span></label>
+                    {{ form.job_title }}
+                    {% if form.job_title.help_text %}
+                        <small class="form-text text-muted">{{ form.job_title.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.job_title.errors %}
+                        <div class="text-danger">{{ form.job_title.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">القسم <span class="text-danger">*</span></label>
+                    {{ form.department }}
+                    {% if form.department.help_text %}
+                        <small class="form-text text-muted">{{ form.department.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.department.errors %}
+                        <div class="text-danger">{{ form.department.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="mb-3">
+                    <label class="form-label">رقم البصمة</label>
+                    {{ form.biometric_user_id }}
+                    {% if form.biometric_user_id.help_text %}
+                        <small class="form-text text-muted">{{ form.biometric_user_id.help_text|safe }}</small>
+                    {% endif %}
+                    {% if form.biometric_user_id.errors %}
+                        <div class="text-danger">{{ form.biometric_user_id.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <h5 class="mb-3 mt-4">التواريخ والمدة</h5>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        تاريخ البداية <span class="text-danger">*</span>
+                    </label>
+                    {{ form.start_date }}
+                    {% if form.start_date.errors %}
+                        <div class="text-danger">{{ form.start_date.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">مدة العقد <span class="text-danger">*</span></label>
+                    {{ form.contract_duration }}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        سيتم حساب تاريخ النهاية تلقائياً
+                    </small>
+                    {% if form.contract_duration.errors %}
+                        <div class="text-danger">{{ form.contract_duration.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">
+                        <i class="fas fa-calendar-check me-1"></i>
+                        تاريخ النهاية <span class="text-danger">*</span>
+                    </label>
+                    {{ form.end_date }}
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        إجباري - سيتم حسابه تلقائياً عند اختيار المدة
+                    </small>
+                    {% if form.end_date.errors %}
+                        <div class="text-danger">{{ form.end_date.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="mb-3">
+                    <label class="form-label">فترة التجربة (بالأشهر)</label>
+                    {{ form.probation_period_months }}
+                    {% if form.probation_period_months.errors %}
+                        <div class="text-danger">{{ form.probation_period_months.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <div class="form-check">
+                        {{ form.auto_renew }}
+                        <label class="form-check-label" for="id_auto_renew">
+                            <i class="fas fa-sync-alt me-1"></i>
+                            تجديد العقد تلقائياً عند انتهاء المدة
+                        </label>
+                    </div>
+                    <small class="text-muted d-block mt-1">
+                        <i class="fas fa-info-circle me-1"></i>
+                        عند التفعيل، سيتم تجديد العقد تلقائياً بنفس الشروط
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- الزيادة السنوية -->
+        <h5 class="mb-3 mt-4">الزيادة السنوية</h5>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <div class="form-check">
+                                {{ form.has_annual_increase }}
+                                <label class="form-check-label" for="id_has_annual_increase">
+                                    <i class="fas fa-chart-line me-1"></i>
+                                    يوجد زيادة سنوية للأجر الأساسي
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                <i class="fas fa-info-circle me-1"></i>
+                                عند التفعيل، سيتم تطبيق زيادة سنوية على الأجر الأساسي
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="annual-increase-fields" style="display: none;">
+                    <!-- نوع الزيادة -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="mb-3">
+                                <label class="form-label">نوع الزيادة <span class="text-danger">*</span></label>
+                                {{ form.increase_type }}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    اختر نسبة مئوية من الأجر الأساسي أو قيمة ثابتة
+                                </small>
+                                {% if form.increase_type.errors %}
+                                    <div class="text-danger">{{ form.increase_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <!-- نسبة الزيادة (يظهر عند اختيار percentage) -->
+                        <div class="col-md-4" id="percentage-field">
+                            <div class="mb-3">
+                                <label class="form-label">نسبة الزيادة السنوية الإجمالية (%) <span class="text-danger">*</span></label>
+                                {{ form.annual_increase_percentage }}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    مثال: 10 تعني 10% في السنة (يتم تقسيمها حسب التكرار)
+                                </small>
+                                {% if form.annual_increase_percentage.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_percentage.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- قيمة الزيادة الثابتة (يظهر عند اختيار fixed) -->
+                        <div class="col-md-4" id="amount-field" style="display: none;">
+                            <div class="mb-3">
+                                <label class="form-label">قيمة الزيادة الثابتة (جنيه) <span class="text-danger">*</span></label>
+                                {{ form.annual_increase_amount }}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    مثال: 500 تعني زيادة 500 جنيه في السنة (يتم تقسيمها حسب التكرار)
+                                </small>
+                                {% if form.annual_increase_amount.errors %}
+                                    <div class="text-danger">{{ form.annual_increase_amount.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">عدد مرات التطبيق في السنة <span class="text-danger">*</span></label>
+                                {{ form.increase_frequency }}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    <strong>نصف سنوي</strong> = مرتين (10% ÷ 2 = 5% كل 6 شهور)
+                                </small>
+                                {% if form.increase_frequency.errors %}
+                                    <div class="text-danger">{{ form.increase_frequency.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">بداية احتساب الزيادة <span class="text-danger">*</span></label>
+                                {{ form.increase_start_reference }}
+                                <small class="text-muted d-block">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    من متى تبدأ الزيادة؟ (بداية السنة المالية تُحسب ديناميكياً)
+                                </small>
+                                {% if form.increase_start_reference.errors %}
+                                    <div class="text-danger">{{ form.increase_start_reference.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- معاينة الزيادة -->
+                    <div class="alert alert-info" id="percentage-example">
+                        <h6 class="alert-heading"><i class="fas fa-calculator me-2"></i>مثال توضيحي (نسبة مئوية)</h6>
+                        <div class="row small">
+                            <div class="col-md-6">
+                                <strong>الإعدادات:</strong>
+                                <ul class="mb-2">
+                                    <li>الأجر الأساسي: 10,000 جنيه</li>
+                                    <li>نسبة الزيادة السنوية: <strong>10%</strong></li>
+                                    <li>التكرار: <strong>نصف سنوي</strong> (مرتين)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>النتيجة:</strong>
+                                <ul class="mb-2">
+                                    <li>المرة الأولى: <strong>5%</strong> = 500 جنيه</li>
+                                    <li>المرة الثانية: <strong>5%</strong> = 525 جنيه</li>
+                                    <li>الإجمالي بعد سنة: 11,025 جنيه</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <small class="text-muted">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            <strong>ملاحظة:</strong> النسبة السنوية (10%) تُقسم على عدد المرات، والزيادة تراكمية (تُحسب من الإجمالي).
+                        </small>
+                    </div>
+                    
+                    <div class="alert alert-success" id="amount-example" style="display: none;">
+                        <h6 class="alert-heading"><i class="fas fa-calculator me-2"></i>مثال توضيحي (قيمة ثابتة)</h6>
+                        <div class="row small">
+                            <div class="col-md-6">
+                                <strong>الإعدادات:</strong>
+                                <ul class="mb-2">
+                                    <li>الأجر الأساسي: 10,000 جنيه</li>
+                                    <li>قيمة الزيادة السنوية: <strong>1,000 جنيه</strong></li>
+                                    <li>التكرار: <strong>نصف سنوي</strong> (مرتين)</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>النتيجة:</strong>
+                                <ul class="mb-2">
+                                    <li>المرة الأولى: 500 جنيه</li>
+                                    <li>المرة الثانية: 500 جنيه</li>
+                                    <li>الإجمالي بعد سنة: 11,000 جنيه</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <hr class="my-2">
+                        <small class="text-muted">
+                            <i class="fas fa-lightbulb me-1"></i>
+                            <strong>ملاحظة:</strong> القيمة الثابتة (1,000 جنيه) تُقسم على عدد المرات بالتساوي.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التأمينات الاجتماعية -->
+        <h5 class="mb-3 mt-4">التأمينات الاجتماعية</h5>
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="section-container mb-0">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.is_social_insurance_enrolled }}
+                                <label class="form-check-label fw-semibold" for="id_is_social_insurance_enrolled">
+                                    <i class="fas fa-shield-alt me-1 text-primary"></i>
+                                    مسجل في التأمينات الاجتماعية
+                                </label>
+                                {% if form.is_social_insurance_enrolled.errors %}
+                                    <div class="text-danger small mt-1">{{ form.is_social_insurance_enrolled.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6" id="social_insurance_number_row"
+                             style="display: {% if form.instance.is_social_insurance_enrolled %}block{% else %}none{% endif %};">
+                            <label class="form-label">الرقم التأميني</label>
+                            {{ form.social_insurance_number }}
+                            {% if form.social_insurance_number.errors %}
+                                <div class="text-danger small mt-1">{{ form.social_insurance_number.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- مكونات الراتب -->
+        <div class="d-flex justify-content-between align-items-center mb-3 mt-4">
+            <h5 class="mb-0">تفاصيل الراتب</h5>
+            {% if not contract %}
+            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#employeeAnalysisModal" disabled>
+                <i class="fas fa-chart-line me-2"></i>تحليل بنود الموظف
+            </button>
+            {% endif %}
+        </div>
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2"></i>مكونات الراتب</h6>
+            </div>
+            
+            <!-- المستحقات -->
+            <div class="card-body">
+                <h6 class="text-success mb-3"><i class="fas fa-plus-circle me-2"></i>مستحق</h6>
+                
+                <div class="table-responsive">
+                    <table id="earnings-table" class="table table-bordered salary-components-table">
+                        <thead>
+                            <tr>
+                                <th width="50" class="text-center"><i class="fas fa-grip-vertical"></i></th>
+                                <th>بند الراتب</th>
+                                <th>الصيغة الحسابية</th>
+                                <th width="150">المبلغ</th>
+                                <th width="80" class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="earnings-body">
+                            <!-- الأجر الأساسي (مقفول) -->
+                            <tr class="basic-row">
+                                <td class="text-center text-muted">
+                                    <i class="fas fa-lock"></i>
+                                </td>
+                                <td>
+                                    <strong>الأجر الأساسي</strong>
+                                </td>
+                                <td class="bg-light"></td>
+                                <td>
+                                    {{ form.basic_salary }}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">رئيسي</span>
+                                </td>
+                            </tr>
+                            {% for earning in earnings %}
+                            {% if earning.code == 'INSURABLE_SALARY' %}
+                            <tr data-id="{{ earning.id }}" data-type="earning" data-insurance="true" class="insurable-row">
+                                <td class="text-center text-muted"><i class="fas fa-lock"></i></td>
+                                <td>
+                                    <strong>الأجر التأميني</strong>
+                                    <input type="hidden" name="earning_name_{{ earning.id }}" value="{{ earning.name }}">
+                                    <input type="hidden" name="earning_id_{{ earning.id }}" value="{{ earning.id }}">
+                                    <input type="hidden" name="earning_code_{{ earning.id }}" value="{{ earning.code }}">
+                                    <input type="hidden" name="earning_order_{{ earning.id }}" value="{{ earning.order }}" class="order-input">
+                                </td>
+                                <td class="bg-light"></td>
+                                <td>
+                                    <input type="number" id="insurable_salary_input"
+                                           class="form-control form-control component-amount"
+                                           name="earning_amount_{{ earning.id }}"
+                                           value="{{ earning.amount }}" required step="1" min="0">
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-primary">تأميني</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr data-id="{{ earning.id }}" data-type="earning">
+                                <td class="text-center drag-handle" style="cursor: move;">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="earning_name_{{ earning.id }}" 
+                                           value="{{ earning.name }}" required>
+                                    <input type="hidden" name="earning_id_{{ earning.id }}" value="{{ earning.id }}">
+                                    <input type="hidden" name="earning_code_{{ earning.id }}" value="{{ earning.code }}">
+                                    <input type="hidden" name="earning_type_{{ earning.id }}" value="earning">
+                                    <input type="hidden" name="earning_order_{{ earning.id }}" 
+                                           value="{{ earning.order }}" class="order-input">
+                                </td>
+                                <td>
+                                    <div class="formula-input-wrapper">
+                                        <button type="button" class="formula-variables-btn" title="إضافة متغير">
+                                            <i class="fas fa-tag"></i>
+                                        </button>
+                                        <input type="text" class="form-control form-control-sm component-formula" 
+                                               name="earning_formula_{{ earning.id }}" 
+                                               value="{{ earning.formula }}"
+                                               placeholder="مثال: basic * 0.25"
+                                               data-counter="{{ earning.id }}" data-type="earning">
+                                        {% include 'hr/contract/_variables_dropdown.html' %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control component-amount smart-float" 
+                                           name="earning_amount_{{ earning.id }}" 
+                                           value="{{ earning.amount }}" required>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger remove-component-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="btn-group add-component-btn">
+                    <button type="button" class="btn btn-sm btn-success" id="add-earning">
+                        <i class="fas fa-plus me-1"></i>إضافة مستحق
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-success" 
+                            data-bs-toggle="modal" data-bs-target="#earningTemplatesModal">
+                        <i class="fas fa-list me-1"></i>اختيار من القوالب
+                    </button>
+                </div>
+            </div>
+            
+            <hr class="my-0">
+            
+            <!-- الاستقطاعات -->
+            <div class="card-body">
+                <h6 class="text-danger mb-3"><i class="fas fa-minus-circle me-2"></i>مستقطع</h6>
+                
+                <div class="table-responsive">
+                    <table id="deductions-table" class="table table-bordered salary-components-table">
+                        <thead>
+                            <tr>
+                                <th width="50" class="text-center"><i class="fas fa-grip-vertical"></i></th>
+                                <th>بند الراتب</th>
+                                <th>الصيغة الحسابية</th>
+                                <th width="150">المبلغ</th>
+                                <th width="80" class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody id="deductions-body">
+                            {% for deduction in deductions %}
+                            {% if deduction.code == 'SOCIAL_INSURANCE_EMP' %}
+                            <tr data-id="{{ deduction.id }}" data-type="deduction" data-insurance="true">
+                                <td class="text-center text-muted"><i class="fas fa-lock"></i></td>
+                                <td>
+                                    <strong>التأمينات الاجتماعية (حصة الموظف)</strong>
+                                    <input type="hidden" name="deduction_name_{{ deduction.id }}" value="{{ deduction.name }}">
+                                    <input type="hidden" name="deduction_id_{{ deduction.id }}" value="{{ deduction.id }}">
+                                    <input type="hidden" name="deduction_code_{{ deduction.id }}" value="{{ deduction.code }}">
+                                    <input type="hidden" name="deduction_order_{{ deduction.id }}" value="{{ deduction.order }}" class="order-input">
+                                </td>
+                                <td class="bg-light"></td>
+                                <td>
+                                    <input type="number" id="social_insurance_emp_input"
+                                           class="form-control form-control component-amount"
+                                           name="deduction_amount_{{ deduction.id }}"
+                                           value="{{ deduction.amount }}" required readonly step="1" min="0"
+                                           style="background-color: var(--bs-light);">
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger">تأميني</span>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr data-id="{{ deduction.id }}" data-type="deduction">
+                                <td class="text-center drag-handle" style="cursor: move;">
+                                    <i class="fas fa-grip-vertical text-muted"></i>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control-sm" 
+                                           name="deduction_name_{{ deduction.id }}" 
+                                           value="{{ deduction.name }}" required>
+                                    <input type="hidden" name="deduction_id_{{ deduction.id }}" value="{{ deduction.id }}">
+                                    <input type="hidden" name="deduction_code_{{ deduction.id }}" value="{{ deduction.code }}">
+                                    <input type="hidden" name="deduction_type_{{ deduction.id }}" value="deduction">
+                                    <input type="hidden" name="deduction_order_{{ deduction.id }}" 
+                                           value="{{ deduction.order }}" class="order-input">
+                                </td>
+                                <td>
+                                    <div class="formula-input-wrapper">
+                                        <button type="button" class="formula-variables-btn" title="إضافة متغير">
+                                            <i class="fas fa-tag"></i>
+                                        </button>
+                                        <input type="text" class="form-control form-control-sm component-formula" 
+                                               name="deduction_formula_{{ deduction.id }}" 
+                                               value="{{ deduction.formula }}"
+                                               placeholder="مثال: basic * 0.25"
+                                               data-counter="{{ deduction.id }}" data-type="deduction">
+                                        {% include 'hr/contract/_variables_dropdown.html' %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control form-control component-amount smart-float" 
+                                           name="deduction_amount_{{ deduction.id }}" 
+                                           value="{{ deduction.amount }}" required>
+                                </td>
+                                <td class="text-center">
+                                    <button type="button" class="btn btn-sm btn-danger remove-component-row">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="btn-group add-component-btn">
+                    <button type="button" class="btn btn-sm btn-danger" id="add-deduction">
+                        <i class="fas fa-plus me-1"></i>إضافة استقطاع
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" 
+                            data-bs-toggle="modal" data-bs-target="#deductionTemplatesModal">
+                        <i class="fas fa-list me-1"></i>اختيار من القوالب
+                    </button>
+                </div>
+            </div>
+            
+            <!-- الإجماليات -->
+            <div class="card-footer">
+                <div class="salary-totals">
+                    <div class="total-row">
+                        <span class="total-label">إجمالي المستحقات:</span>
+                        <span class="total-value text-success"><span id="total-earnings">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">إجمالي الاستقطاعات:</span>
+                        <span class="total-value text-danger"><span id="total-deductions">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">صافي الراتب:</span>
+                        <span class="total-value text-primary"><span id="net-salary">0.00</span> <span class="currency-symbol">{% currency_symbol %}</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
+                    <label class="form-label">ملاحظات</label>
+                    {{ form.notes }}
+                    {% if form.notes.errors %}
+                        <div class="text-danger">{{ form.notes.errors }}</div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- رسالة توضيحية للمسودات -->
+        {% if not contract or contract.status == 'draft' %}
+        <div class="alert alert-info" id="draft-notice">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ملاحظة:</strong> 
+            {% if not contract %}
+            يمكنك حفظ العقد كمسودة أولاً، ثم تفعيله لاحقاً. عند التفعيل، سيتم نسخ جميع البنود تلقائياً للموظف.
+            {% else %}
+            هذا العقد في حالة مسودة. البنود لن تُنسخ للموظف إلا عند التفعيل.
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <div class="mt-4">
+            {% if is_renewal %}
+                <!-- تجديد عقد: زر واحد فقط للتفعيل المباشر -->
+                <button type="submit" name="action" value="save_activate" class="btn btn-success">
+                    <i class="fas fa-redo me-2"></i>
+                    تجديد وتفعيل العقد
+                </button>
+                <small class="text-muted d-block mt-2">
+                    <i class="fas fa-info-circle me-1"></i>
+                    سيتم تحويل العقد القديم لحالة "مجدد" وتفعيل العقد الجديد مباشرة
+                </small>
+            {% elif not contract %}
+                <!-- عقد جديد: زرين -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-secondary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ كمسودة
+                </button>
+                <button type="submit" name="action" value="save_activate" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    حفظ وتفعيل
+                </button>
+            {% elif contract.status == 'draft' %}
+                <!-- تعديل مسودة: زرين -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-secondary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ التعديلات
+                </button>
+                <button type="button" class="btn btn-info me-2" onclick="window.contractActivationPreview.show({{ contract.pk }})">
+                    <i class="fas fa-eye me-2"></i>
+                    معاينة التفعيل
+                </button>
+                <button type="button" class="btn btn-warning me-2" onclick="previewAndFillTables({{ contract.pk }})">
+                    <i class="fas fa-fill-drip me-2"></i>
+                    ملء الجداول من العقد
+                </button>
+                <button type="submit" name="action" value="save_activate" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>
+                    حفظ وتفعيل
+                </button>
+            {% else %}
+                <!-- تعديل عقد ساري: زر واحد -->
+                <button type="submit" name="action" value="save_draft" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>
+                    حفظ التعديلات
+                </button>
+            {% endif %}
+            
+            <button type="button" onclick="window.history.back()" class="btn btn-secondary">
+                <i class="fas fa-arrow-right me-2"></i>
+                رجوع
+            </button>
+        </div>
+    </form>
+  </div>
+</div>
+
+<!-- Modal قوالب المستحقات -->
+<div class="modal fade" id="earningTemplatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title text-success">
+                    <i class="fas fa-plus-circle me-2"></i>المستحقات
+                </h5>
+                <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group" id="earning-templates-list">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-success" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal قوالب الاستقطاعات -->
+<div class="modal fade" id="deductionTemplatesModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title text-danger">
+                    <i class="fas fa-minus-circle me-2"></i>الاستقطاعات
+                </h5>
+                <button type="button" class="btn-close text-dark" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group" id="deduction-templates-list">
+                    <div class="text-center py-3">
+                        <div class="spinner-border text-danger" role="status">
+                            <span class="visually-hidden">جاري التحميل...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
+<script src="{% static 'js/number_formatter.js' %}"></script>
+<script src="{% static 'js/hr/salary-components.js' %}"></script>
+<script>
+// تفعيل تنسيق الأرقام على الحقول (باستخدام event delegation)
+let numberFormattingInitialized = false;
+function initNumberFormatting() {
+    // تجنب إضافة event listeners مكررة
+    if (numberFormattingInitialized) return;
+    numberFormattingInitialized = true;
+    
+    // استخدام event delegation على document للحقول الديناميكية
+    $(document).on('blur', '.smart-float', function() {
+        let value = $(this).val().replace(/,/g, '');
+        if (value && !isNaN(value)) {
+            let num = parseFloat(value);
+            // إذا كان الرقم صحيح، بدون علامة عشرية
+            if (num === Math.floor(num)) {
+                $(this).val(num.toLocaleString('en-US'));
+            } else {
+                // إذا كان فيه كسور، نعرض رقمين عشريين
+                $(this).val(num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            }
+        }
+    }).on('focus', '.smart-float', function() {
+        let value = $(this).val().replace(/,/g, '');
+        $(this).val(value);
+    });
+}
+
+// دالة لتنسيق جميع الحقول
+function formatAllSmartFloats() {
+    $('.smart-float').each(function() {
+        let value = $(this).val().replace(/,/g, '');
+        if (value && !isNaN(value)) {
+            let num = parseFloat(value);
+            if (num === Math.floor(num)) {
+                $(this).val(num.toLocaleString('en-US'));
+            } else {
+                $(this).val(num.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}));
+            }
+        }
+    });
+}
+
+$(document).ready(function() {
+    // تفعيل تنسيق الأرقام
+    initNumberFormatting();
+    
+    // تنسيق الحقول الموجودة من قبل بعد تحميل كامل
+    setTimeout(formatAllSmartFloats, 100);
+    
+    // منطق ربط حقل المبلغ بالصيغة الحسابية
+    $(document).on('input', '.component-amount', function() {
+        const $amountField = $(this);
+        const row = $amountField.closest('tr');
+        const $formulaField = row.find('.component-formula');
+        
+        const amountValue = $amountField.val().replace(/,/g, '').trim();
+        
+        if (amountValue && amountValue !== '') {
+            // إذا كتب المستخدم في المبلغ، قفل الصيغة وأخف placeholder
+            $formulaField.prop('readonly', true)
+                .css('background-color', '#e9ecef')
+                .attr('placeholder', '');
+        } else {
+            // إذا مسح المبلغ، افتح الصيغة وأرجع placeholder
+            $formulaField.prop('readonly', false)
+                .css('background-color', '')
+                .attr('placeholder', 'مثال: basic * 0.25');
+        }
+    });
+    
+    // تطبيق المنطق على الحقول الموجودة عند التحميل
+    setTimeout(function() {
+        $('.component-amount').each(function() {
+            const $amountField = $(this);
+            const row = $amountField.closest('tr');
+            const $formulaField = row.find('.component-formula');
+            
+            const amountValue = $amountField.val().replace(/,/g, '').trim();
+            
+            if (amountValue && amountValue !== '') {
+                $formulaField.prop('readonly', true)
+                    .css('background-color', '#e9ecef')
+                    .attr('placeholder', '');
+            }
+        });
+    }, 200);
+    
+    // تهيئة date pickers باستخدام النظام الموحد
+    const startDatePicker = MWHEBADatePicker.init("#id_start_date", {
+        {% if not contract %}
+        defaultDate: new Date(), // ✅ تاريخ اليوم للعقود الجديدة
+        {% endif %}
+        onChange: function(selectedDates, dateStr, instance) {
+            // إعادة حساب تاريخ النهاية عند تغيير تاريخ البداية
+            const duration = $('#id_contract_duration').val();
+            if (duration && duration !== 'custom' && duration !== '') {
+                $('#id_contract_duration').trigger('change');
+            }
+        }
+    });
+    
+    // تعيين تاريخ اليوم للعقود الجديدة
+    {% if not contract %}
+    if (!$('#id_start_date').val()) {
+        startDatePicker.setDate(new Date(), true);
+    }
+    {% endif %}
+    
+    // حساب آخر يوم في الشهر الحالي
+    const today = new Date();
+    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    // Flags لمنع loop بين الحقلين
+    let isUpdatingFromDuration = false;
+    let isUpdatingFromEndDate = false;
+    
+    const endDatePicker = MWHEBADatePicker.init("#id_end_date", {
+        minDate: lastDayOfMonth,  // على الأقل آخر يوم في الشهر الحالي
+        onChange: function(selectedDates, dateStr, instance) {
+            // منع التأثير المتبادل: إذا التغيير جاي من duration، متعملش حاجة
+            if (isUpdatingFromDuration) {
+                return;
+            }
+            
+            // عند تغيير تاريخ النهاية يدوياً، تغيير المدة لـ "مدة مخصصة"
+            const currentDuration = $('#id_contract_duration').val();
+            
+            // إذا كانت المدة ليست "custom" بالفعل، غيرها
+            if (currentDuration !== 'custom' && dateStr) {
+                isUpdatingFromEndDate = true; // ✅ رفع الـ flag
+                $('#id_contract_duration').val('custom').trigger('change');
+                
+                // تأثير بصري لتوضيح التغيير
+                $('#id_contract_duration').addClass('bg-warning bg-opacity-25');
+                setTimeout(() => {
+                    $('#id_contract_duration').removeClass('bg-warning bg-opacity-25');
+                    isUpdatingFromEndDate = false; // ✅ خفض الـ flag
+                }, 1500);
+            }
+        }
+    });
+    
+    // تعيين نوع العقد افتراضياً على "دائم" للعقود الجديدة
+    {% if not contract %}
+    if (!$('#id_contract_type').val()) {
+        // البحث عن option "دائم" (permanent)
+        $('#id_contract_type option').each(function() {
+            if ($(this).text().includes('دائم') || $(this).val() === 'permanent') {
+                $('#id_contract_type').val($(this).val()).trigger('change');
+                return false; // break
+            }
+        });
+    }
+    {% endif %}
+    
+    // تفعيل Select2 لحقل الموظف
+    $('#id_employee').select2({
+        theme: 'bootstrap-5',
+        language: 'ar',
+        dir: 'rtl',
+        placeholder: 'اختر الموظف',
+        allowClear: true,
+        width: '100%',
+        templateResult: formatEmployee,
+        templateSelection: formatEmployeeSelection
+    });
+    
+    // اختيار الموظف تلقائياً من URL parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const employeeParam = urlParams.get('employee');
+    if (employeeParam) {
+        // تعيين القيمة وتفعيل التغيير (Select2 يحتاج trigger خاص)
+        $('#id_employee').val(employeeParam).trigger('change.select2');
+        // تفعيل الـ change event العادي كمان عشان يجيب بيانات الموظف
+        setTimeout(function() {
+            $('#id_employee').trigger('change');
+        }, 100);
+    }
+
+    // تنسيق عرض الموظف في القائمة
+    function formatEmployee(employee) {
+        if (!employee.id) {
+            return employee.text;
+        }
+        
+        var $employee = $(
+            '<div class="d-flex align-items-center">' +
+                '<i class="fas fa-user-tie me-2 text-primary"></i>' +
+                '<span>' + employee.text + '</span>' +
+            '</div>'
+        );
+        return $employee;
+    }
+
+    // تنسيق عرض الموظف المختار
+    function formatEmployeeSelection(employee) {
+        return employee.text;
+    }
+
+    // Cache لبيانات الموظفين (تجنب AJAX requests مكررة)
+    const employeeDataCache = {};
+    
+    // ملء بيانات الوظيفة تلقائياً عند اختيار الموظف
+    $('#id_employee').on('change', function() {
+        const employeeId = $(this).val();
+        
+        if (!employeeId) {
+            return;
+        }
+        
+        // التحقق من الـ cache أولاً
+        if (employeeDataCache[employeeId]) {
+            fillEmployeeData(employeeDataCache[employeeId]);
+            return;
+        }
+        
+        // جلب بيانات الموظف
+        $.ajax({
+            url: '/hr/api/employees/' + employeeId + '/',
+            method: 'GET',
+            cache: true, // تفعيل browser cache
+            success: function(data) {
+                // حفظ في الـ cache
+                employeeDataCache[employeeId] = data;
+                fillEmployeeData(data);
+            },
+            error: function(xhr, status, error) {
+                console.error('خطأ في جلب بيانات الموظف:', error);
+            }
+        });
+    });
+    
+    // دالة مشتركة لملء بيانات الموظف
+    function fillEmployeeData(data) {
+                // ملء الوظيفة
+                if (data.job_title && !$('#id_job_title').prop('disabled')) {
+                    $('#id_job_title').val(data.job_title).trigger('change');
+                }
+                
+                // ملء القسم
+                if (data.department && !$('#id_department').prop('disabled')) {
+                    $('#id_department').val(data.department).trigger('change');
+                }
+                
+                // ملء رقم البصمة (يستبدل القيمة الموجودة أو يحذفها)
+                if (!$('#id_biometric_user_id').prop('disabled')) {
+                    if (data.biometric_user_id) {
+                        // الموظف لديه بصمة - ملء الحقل
+                        $('#id_biometric_user_id').val(data.biometric_user_id);
+                        
+                        // تأثير بصري لتوضيح التعبئة التلقائية
+                        $('#id_biometric_user_id').addClass('bg-warning bg-opacity-25');
+                        setTimeout(() => {
+                            $('#id_biometric_user_id').removeClass('bg-warning bg-opacity-25');
+                        }, 1500);
+                    } else {
+                        // الموظف ليس لديه بصمة - حذف القيمة
+                        $('#id_biometric_user_id').val('');
+                        
+                        // تأثير بصري لتوضيح الحذف
+                        $('#id_biometric_user_id').addClass('bg-danger bg-opacity-10');
+                        setTimeout(() => {
+                            $('#id_biometric_user_id').removeClass('bg-danger bg-opacity-10');
+                        }, 1500);
+                    }
+                }
+    }
+
+    // حساب تاريخ النهاية تلقائياً عند اختيار مدة العقد
+    $('#id_contract_duration').on('change', function() {
+        // منع التأثير المتبادل: إذا التغيير جاي من end_date، متعملش حاجة
+        if (isUpdatingFromEndDate) {
+            return;
+        }
+        
+        const duration = $(this).val();
+        // جلب تاريخ البداية: من Flatpickr أو من قيمة الـ input مباشرة (يعمل حتى لو الحقل disabled)
+        const startDateSelected = startDatePicker.selectedDates[0];
+        const startDate = startDateSelected
+            ? startDatePicker.formatDate(startDateSelected, 'Y-m-d')
+            : ($('#id_start_date').val() || $('input[name="start_date"]').val() || '{{ contract.start_date|date:"Y-m-d"|default:"" }}');
+        
+        // إذا لم يتم اختيار مدة، فتح الحقل للإدخال اليدوي
+        if (!duration || duration === '') {
+            endDatePicker.set('disabled', false);
+            endDatePicker.clear();
+            return;
+        }
+        
+        if (!startDate) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'تاريخ البداية مطلوب',
+                text: 'يرجى اختيار تاريخ البداية أولاً',
+                confirmButtonText: 'حسناً'
+            });
+            $(this).val('');
+            return;
+        }
+        
+        if (duration !== 'custom') {
+            // مدة محددة - حساب تلقائي وقفل الحقل
+            const start = new Date(startDate);
+            const months = parseInt(duration);
+            
+            // إضافة الأشهر
+            const endDate = new Date(start);
+            endDate.setMonth(endDate.getMonth() + months);
+            
+            // تعيين آخر يوم في الشهر
+            endDate.setDate(0);
+            
+            // رفع الـ flag قبل تعيين التاريخ
+            isUpdatingFromDuration = true; // ✅ رفع الـ flag
+            
+            // تعيين القيمة في Flatpickr وقفل الحقل
+            endDatePicker.setDate(endDate, true);
+            endDatePicker.set('disabled', true);
+            
+            // خفض الـ flag بعد التعيين
+            setTimeout(() => {
+                isUpdatingFromDuration = false; // ✅ خفض الـ flag
+            }, 100);
+            
+            // إضافة تأثير بصري
+            $('#id_end_date').next('.flatpickr-input').addClass('bg-warning bg-opacity-25');
+            setTimeout(() => {
+                $('#id_end_date').next('.flatpickr-input').removeClass('bg-warning bg-opacity-25');
+            }, 1500);
+        } else {
+            // مدة مخصصة - فتح الحقل للإدخال اليدوي
+            endDatePicker.clear();
+            endDatePicker.set('disabled', false);
+            endDatePicker.open();
+        }
+    });
+
+    // حفظ قيمة action عند الضغط على أي زر submit
+    let clickedAction = 'save_draft'; // القيمة الافتراضية
+    $('button[type="submit"][name="action"]').on('click', function() {
+        clickedAction = $(this).val();
+    });
+    
+    // Cache للـ overlap validation (تجنب requests مكررة)
+    const overlapValidationCache = {};
+    
+    // التحقق من التداخل قبل الإرسال
+    $('#contractForm').on('submit', function(e) {
+        const employeeId = $('#id_employee').val();
+        const startDate = $('#id_start_date').val();
+        const endDate = $('#id_end_date').val() || '';
+        const contractId = '{{ contract.pk|default:"" }}';
+        
+        // التحقق من الحقول الأساسية
+        if (!employeeId || !startDate) {
+            return true; // دع Django يتعامل مع الأخطاء الأساسية
+        }
+        
+        // التحقق من تاريخ النهاية (إجباري)
+        if (!endDate) {
+            e.preventDefault();
+            Swal.fire({
+                icon: 'error',
+                title: 'تاريخ النهاية مطلوب',
+                text: 'يجب تحديد تاريخ نهاية للعقد. لا يمكن إنشاء عقود مفتوحة.',
+                confirmButtonText: 'حسناً',
+                confirmButtonColor: '#dc3545'
+            });
+            // تركيز على حقل تاريخ النهاية
+            $('#id_end_date').focus();
+            return false;
+        }
+        
+        // منع الإرسال المتكرر
+        if ($(this).data('submitting')) {
+            e.preventDefault();
+            return false;
+        }
+        
+        // مفتاح الـ cache
+        const cacheKey = `${employeeId}_${startDate}_${endDate}_${contractId}`;
+        
+        // التحقق من الـ cache أولاً
+        if (overlapValidationCache[cacheKey] !== undefined) {
+            if (overlapValidationCache[cacheKey].has_overlap) {
+                e.preventDefault();
+                Swal.fire({
+                    icon: 'error',
+                    title: 'تداخل في العقود',
+                    html: overlapValidationCache[cacheKey].message,
+                    confirmButtonText: 'حسناً',
+                    confirmButtonColor: '#dc3545'
+                });
+                return false;
+            } else {
+                // لا يوجد تداخل - إرسال النموذج
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'action',
+                    value: clickedAction
+                }).appendTo('#contractForm');
+                $('#contractForm').off('submit').submit();
+                return;
+            }
+        }
+        
+        // التحقق من التداخل عبر AJAX
+        e.preventDefault();
+        $(this).data('submitting', true);
+        
+        const submitBtn = $('button[type="submit"][name="action"][value="' + clickedAction + '"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التحقق...');
+        
+        $.ajax({
+            url: '{% url "hr:contract_check_overlap" %}',
+            method: 'POST',
+            data: {
+                'employee_id': employeeId,
+                'start_date': startDate,
+                'end_date': endDate,
+                'contract_id': contractId,
+                'old_contract_id': '{{ old_contract.pk|default:"" }}',  // للتجديد
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            timeout: 10000, // 10 ثواني timeout
+            success: function(response) {
+                // حفظ النتيجة في الـ cache
+                overlapValidationCache[cacheKey] = response;
+                if (response.has_overlap) {
+                    // عرض رسالة التداخل
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'تداخل في العقود',
+                        html: response.message,
+                        confirmButtonText: 'حسناً',
+                        confirmButtonColor: '#dc3545'
+                    });
+                    submitBtn.prop('disabled', false).html(originalText);
+                    $('#contractForm').data('submitting', false);
+                } else {
+                    // لا يوجد تداخل - إضافة hidden input بقيمة action وإرسال النموذج
+                    $('<input>').attr({
+                        type: 'hidden',
+                        name: 'action',
+                        value: clickedAction
+                    }).appendTo('#contractForm');
+                    
+                    $('#contractForm').off('submit').submit();
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('خطأ في التحقق من التداخل:', error);
+                submitBtn.prop('disabled', false).html(originalText);
+                $('#contractForm').data('submitting', false);
+                
+                // عرض رسالة خطأ للمستخدم
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'تعذر التحقق من التداخل',
+                    text: 'هل تريد المتابعة بدون التحقق؟',
+                    showCancelButton: true,
+                    confirmButtonText: 'نعم، متابعة',
+                    cancelButtonText: 'إلغاء',
+                    confirmButtonColor: '#28a745',
+                    cancelButtonColor: '#6c757d'
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        // المستخدم وافق على المتابعة
+                        $('<input>').attr({
+                            type: 'hidden',
+                            name: 'action',
+                            value: clickedAction
+                        }).appendTo('#contractForm');
+                        $('#contractForm').off('submit').submit();
+                    }
+                });
+            }
+        });
+    });
+
+    // معالجة الزيادة السنوية
+    const hasAnnualIncrease = $('#id_has_annual_increase');
+    const annualIncreaseFields = $('#annual-increase-fields');
+    const increaseType = $('#id_increase_type');
+    const percentageField = $('#percentage-field');
+    const amountField = $('#amount-field');
+    const percentageExample = $('#percentage-example');
+    const amountExample = $('#amount-example');
+    
+    // إظهار/إخفاء حقول الزيادة السنوية
+    hasAnnualIncrease.on('change', function() {
+        if ($(this).is(':checked')) {
+            annualIncreaseFields.slideDown();
+            toggleIncreaseTypeFields(); // تحديث الحقول حسب النوع
+        } else {
+            annualIncreaseFields.slideUp();
+        }
+    });
+    
+    // إظهار/إخفاء حقول النسبة أو المبلغ حسب نوع الزيادة
+    function toggleIncreaseTypeFields() {
+        const selectedType = increaseType.val();
+        
+        if (selectedType === 'percentage') {
+            percentageField.show();
+            amountField.hide();
+            percentageExample.show();
+            amountExample.hide();
+            // مسح قيمة المبلغ
+            $('#id_annual_increase_amount').val('');
+        } else if (selectedType === 'fixed') {
+            percentageField.hide();
+            amountField.show();
+            percentageExample.hide();
+            amountExample.show();
+            // مسح قيمة النسبة
+            $('#id_annual_increase_percentage').val('');
+        }
+    }
+    
+    // عند تغيير نوع الزيادة
+    increaseType.on('change', toggleIncreaseTypeFields);
+    
+    // التحقق من الحالة الأولية
+    if (hasAnnualIncrease.is(':checked')) {
+        annualIncreaseFields.show();
+        toggleIncreaseTypeFields();
+    }
+
+
+    // دالة تحليل بنود الموظف
+    window.refreshEmployeeAnalysis = function() {
+        const employeeId = $('#id_employee').val();
+        if (!employeeId) return;
+        
+        // إزالة محتوى التحليل السابق
+        
+        $.ajax({
+            url: '/hr/api/employees/' + employeeId + '/components-analysis/',
+            method: 'GET',
+            success: function(data) {
+                if (data.success) {
+                    renderEmployeeAnalysis(data.analysis);
+                } else {
+                    console.error('فشل في تحليل بنود الموظف:', data.message);
+                }
+            },
+            error: function() {
+                console.error('حدث خطأ في تحميل بيانات التحليل');
+            }
+        });
+    };
+
+    // دالة عرض تحليل بنود الموظف
+    function renderEmployeeAnalysis(analysis) {
+        const basicAnalysis = analysis.basic_analysis || {};
+        
+        // تم حذف كروت الملخص السريع
+        
+        // الملخص يظهر تلقائياً الآن
+        
+        // عرض التوصيات
+        if (analysis.recommendations && analysis.recommendations.length > 0) {
+            let recommendationsHtml = '';
+            analysis.recommendations.slice(0, 3).forEach(rec => {
+                const priorityClass = rec.priority === 'high' ? 'danger' : 
+                                   rec.priority === 'medium' ? 'warning' : 'info';
+                recommendationsHtml += `
+                    <div class="alert alert-${priorityClass} alert-dismissible fade show py-2 mb-2">
+                        <small><strong>${rec.title || rec.message}</strong></small>
+                        <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>
+                    </div>
+                `;
+            });
+            $('#recommendationsList').html(recommendationsHtml);
+            // التوصيات تظهر تلقائياً الآن
+        }
+        
+        // الأزرار تظهر تلقائياً الآن
+        
+        // حفظ بيانات التحليل للاستخدام في النسخ
+        window.currentEmployeeAnalysis = analysis;
+        
+        // عرض البنود مع checkboxes
+        displayComponentsWithCheckboxes(analysis);
+    }
+
+    // دالة تنسيق الأرقام
+    function formatNumber(number) {
+        return new Intl.NumberFormat('ar-EG').format(number || 0);
+    }
+
+    // دالة ترجمة مصادر البنود
+    function translateSource(source) {
+        const sourceTranslations = {
+            'contract': 'من العقد',
+            'personal': 'شخصية',
+            'temporary': 'مؤقتة',
+            'exceptional': 'استثنائية',
+            'adjustment': 'من البنود'
+        };
+        return sourceTranslations[source] || source || 'غير محدد';
+    }
+
+    // تحديث حالة الزر عند اختيار الموظف
+    $('#id_employee').on('change', function() {
+        const employeeId = $(this).val();
+        const analysisButton = $('button[data-bs-target="#employeeAnalysisModal"]');
+        
+        if (employeeId && !$('#contractForm input[name="pk"]').val()) {
+            analysisButton.prop('disabled', false);
+            // تحديث البيانات تلقائياً
+            refreshEmployeeAnalysis();
+        } else {
+            analysisButton.prop('disabled', true);
+        }
+    });
+
+    // تم دمج هذا الكود مع الكود أعلاه
+
+    // التحكم في عرض المودال
+    $('#employeeAnalysisModal').on('show.bs.modal', function () {
+        // إخفاء قائمة البنود وإظهار رسالة التحميل
+        $('#componentsList').hide();
+        $('#loadingMessage').show();
+        
+        // تحديث البيانات عند فتح المودال
+        const employeeId = $('#id_employee').val();
+        if (employeeId) {
+            refreshEmployeeAnalysis();
+        }
+    });
+
+    // دالة التفعيل الذكي
+    window.smartActivateContract = function() {
+        const form = document.getElementById('contractForm');
+        const formData = new FormData(form);
+        
+        // التحقق من صحة النموذج
+        if (!form.checkValidity()) {
+            form.reportValidity();
+            return;
+        }
+
+        Swal.fire({
+            title: 'تفعيل العقد بذكاء',
+            text: 'سيتم حفظ العقد وتفعيله مع معالجة تلقائية لبنود الراتب',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، فعل العقد',
+            cancelButtonText: 'إلغاء',
+            showLoaderOnConfirm: true,
+            preConfirm: () => {
+                return fetch(form.action, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || 'حدث خطأ في التفعيل');
+                    }
+                    return data;
+                })
+                .catch(error => {
+                    Swal.showValidationMessage(`خطأ: ${error.message}`);
+                });
+            },
+            allowOutsideClick: () => !Swal.isLoading()
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.fire({
+                    title: 'تم بنجاح!',
+                    text: result.value.summary || 'تم تفعيل العقد بنجاح',
+                    icon: 'success',
+                    timer: 1500,
+                    showConfirmButton: false
+                }).then(() => {
+                    if (result.value.redirect_url) {
+                        window.location.href = result.value.redirect_url;
+                    } else {
+                        window.location.reload();
+                    }
+                });
+            }
+        });
+    };
+
+    // تم حذف وظائف معاينة التفعيل
+
+    // تم حذف دوال التحكم في تحديد البنود (كانت للمودال)
+    
+    // تم حذف دالة الحصول على البنود المحددة (كانت للمودال)
+
+    // النهج الجديد للمعاينة - ملء الجداول
+    window.previewAndFillTables = function(contractId) {
+        
+        // عرض مؤشر التحميل
+        Swal.fire({
+            title: 'جاري تحميل المعاينة...',
+            text: 'يرجى الانتظار',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // طلب معاينة البنود
+        fetch(`/hr/api/contracts/${contractId}/preview-components/`, {
+            method: 'GET',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            Swal.close();
+            
+            if (data.success) {
+                
+                // ملء جداول العقد بالبنود
+                fillContractTablesWithPreview(data.preview);
+                
+                // عرض رسالة نجاح
+                Swal.fire({
+                    title: 'تم تحميل المعاينة!',
+                    html: `
+                        <p>تم تحميل <strong>${data.preview.total_components}</strong> بند من العقد</p>
+                        <p><strong>${data.preview.new_components}</strong> بند جديد</p>
+                        <p><strong>${data.preview.replacement_components}</strong> بند سيتم استبداله</p>
+                        <hr>
+                        <p class="text-info">يمكنك الآن تعديل البنود في الجداول أدناه قبل الحفظ</p>
+                    `,
+                    icon: 'success',
+                    confirmButtonText: 'موافق'
+                });
+                
+            } else {
+                Swal.fire('خطأ', data.message || 'حدث خطأ في المعاينة', 'error');
+            }
+        })
+        .catch(error => {
+            Swal.close();
+            console.error('❌ خطأ في المعاينة:', error);
+            Swal.fire('خطأ', 'حدث خطأ في الاتصال بالخادم', 'error');
+        });
+    };
+
+    // ملء جداول العقد بالبنود المعاينة
+    function fillContractTablesWithPreview(previewData) {
+        
+        // جداول المستحقات والاستقطاعات
+        const earningsTable = document.querySelector('#earnings-body');
+        const deductionsTable = document.querySelector('#deductions-body');
+        
+        if (!earningsTable || !deductionsTable) {
+            console.warn('⚠️ لم يتم العثور على جداول البنود');
+            return;
+        }
+        
+        // مسح الجداول الحالية
+        earningsTable.innerHTML = '';
+        deductionsTable.innerHTML = '';
+        
+        // إضافة البنود للجداول
+        previewData.components.forEach((component, index) => {
+            const row = createComponentRow(component, index);
+            
+            if (component.component_type === 'earning') {
+                earningsTable.appendChild(row);
+            } else {
+                deductionsTable.appendChild(row);
+            }
+        });
+        
+    }
+
+    // إنشاء صف بند في الجدول
+    function createComponentRow(component, index) {
+        const row = document.createElement('tr');
+        row.className = 'component-row';
+        row.dataset.componentId = component.id;
+        row.dataset.isFromPreview = 'true';
+        
+        // إضافة علامة "منسوخ" للبنود المنسوخة
+        const copyBadge = component.source === 'contract' ? 
+            '<span class="badge bg-info ms-2">منسوخ</span>' : '';
+        
+        row.innerHTML = `
+            <td>
+                <input type="text" class="form-control form-control-sm" 
+                       name="components[${index}][name]" 
+                       value="${component.name}" required>
+                ${copyBadge}
+            </td>
+            <td>
+                <select class="form-select form-select-sm" 
+                        name="components[${index}][calculation_method]">
+                    <option value="fixed" ${component.calculation_method === 'fixed' ? 'selected' : ''}>ثابت</option>
+                    <option value="percentage" ${component.calculation_method === 'percentage' ? 'selected' : ''}>نسبة</option>
+                    <option value="formula" ${component.calculation_method === 'formula' ? 'selected' : ''}>صيغة</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" class="form-control form-control-sm" 
+                       name="components[${index}][amount]" 
+                       value="${component.amount}" 
+                       step="0.01" min="0">
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary btn-sm" 
+                            onclick="editComponent(${index})" title="تعديل">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-danger btn-sm" 
+                            onclick="removeComponent(${index})" title="حذف">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+            <input type="hidden" name="components[${index}][id]" value="${component.id}">
+            <input type="hidden" name="components[${index}][code]" value="${component.code}">
+            <input type="hidden" name="components[${index}][component_type]" value="${component.component_type}">
+            <input type="hidden" name="components[${index}][source]" value="${component.source}">
+        `;
+        
+        return row;
+    }
+
+    // دوال التحكم في البنود
+    window.editComponent = function(index) {
+        // يمكن إضافة مودال تعديل متقدم هنا
+    };
+
+    window.removeComponent = function(index) {
+        const row = document.querySelector(`tr[data-component-id] input[name="components[${index}][id]"]`).closest('tr');
+        if (row) {
+            row.remove();
+        }
+    };
+
+    // تم حذف كود التعامل مع مودال المعاينة
+
+    // دالة إدارة البنود
+    window.openComponentsManager = function() {
+        const employeeId = $('#id_employee').val();
+        if (!employeeId) {
+            Swal.fire('تنبيه', 'يجب اختيار موظف أولاً', 'warning');
+            return;
+        }
+        
+        // فتح صفحة إدارة البنود
+        window.open(`/hr/employees/${employeeId}/salary-components/`, '_blank');
+    };
+
+    // ========== وظائف نسخ البنود الجديدة ==========
+    
+    // تحديث وظيفة التحليل الموجودة لعرض البنود مع checkboxes
+    window.displayComponentsWithCheckboxes = function(analysisData) {
+        const componentsList = $('#componentsList');
+        const earningsList = $('#earningsList');
+        const deductionsList = $('#deductionsList');
+        
+        
+        // جمع جميع البنود من كل المصادر
+        let allComponents = [];
+        
+        // البيانات موجودة في basic_analysis.classified_components
+        const classifiedComponents = analysisData.basic_analysis?.classified_components || analysisData.classified_components;
+        
+        if (classifiedComponents) {
+            
+            // البيانات مصنفة حسب المصدر (contract, personal, temporary, etc.)
+            Object.keys(classifiedComponents).forEach(source => {
+                const components = classifiedComponents[source];
+                if (Array.isArray(components)) {
+                    components.forEach(comp => {
+                        allComponents.push({
+                            ...comp,
+                            source: source
+                        });
+                    });
+                }
+            });
+        }
+        
+        
+        // فصل المستحقات والاستقطاعات
+        const earnings = allComponents.filter(comp => comp.component_type === 'earning');
+        const deductions = allComponents.filter(comp => comp.component_type === 'deduction');
+        
+        
+        // عرض المستحقات
+        let earningsHtml = '';
+        earnings.forEach(comp => {
+            earningsHtml += `
+                <div class="form-check mb-2">
+                    <input class="form-check-input component-checkbox" 
+                           type="checkbox" value="${comp.id}" 
+                           id="comp_${comp.id}" data-type="earning">
+                    <label class="form-check-label d-flex justify-content-between w-100" 
+                           for="comp_${comp.id}">
+                        <span>
+                            <strong>${comp.name}</strong>
+                            <small class="text-muted ms-2">(${translateSource(comp.source)})</small>
+                        </span>
+                        <span class="text-success fw-bold">${comp.amount || 0} ج.م</span>
+                    </label>
+                </div>
+            `;
+        });
+        earningsList.html(earningsHtml || '<p class="text-muted">لا توجد مستحقات</p>');
+        
+        // عرض الاستقطاعات
+        let deductionsHtml = '';
+        deductions.forEach(comp => {
+            deductionsHtml += `
+                <div class="form-check mb-2">
+                    <input class="form-check-input component-checkbox" 
+                           type="checkbox" value="${comp.id}" 
+                           id="comp_${comp.id}" data-type="deduction">
+                    <label class="form-check-label d-flex justify-content-between w-100" 
+                           for="comp_${comp.id}">
+                        <span>
+                            <strong>${comp.name}</strong>
+                            <small class="text-muted ms-2">(${translateSource(comp.source)})</small>
+                        </span>
+                        <span class="text-danger fw-bold">${comp.amount || 0} ج.م</span>
+                    </label>
+                </div>
+            `;
+        });
+        deductionsList.html(deductionsHtml || '<p class="text-muted">لا توجد استقطاعات</p>');
+        
+        // إخفاء رسالة التحميل وإظهار البيانات
+        $('#loadingMessage').hide();
+        componentsList.show();
+        
+        // تحديث حالة checkboxes للبنود المنسوخة مسبقاً
+        updateCheckboxesState();
+    };
+
+    function updateCheckboxesState() {
+        // الحصول على البنود المنسوخة مسبقاً
+        const alreadyCopiedIds = getAlreadyCopiedComponentIds();
+        
+        // تعطيل checkboxes للبنود المنسوخة
+        alreadyCopiedIds.forEach(id => {
+            const checkbox = $(`#comp_${id}`);
+            if (checkbox.length > 0) {
+                checkbox.prop('disabled', true);
+                checkbox.prop('checked', false);
+                checkbox.closest('.form-check').addClass('text-muted');
+                
+                // إضافة علامة "تم النسخ" إذا لم تكن موجودة
+                const label = checkbox.next('label');
+                if (!label.text().includes('(تم النسخ)')) {
+                    label.append(' <small class="text-success">(تم النسخ)</small>');
+                }
+            }
+        });
+    }
+
+    // وظيفة النسخ الجديدة
+    window.copySelectedComponents = function() {
+        const selectedComponents = $('.component-checkbox:checked');
+        
+        if (selectedComponents.length === 0) {
+            alert('يرجى اختيار بنود للنسخ');
+            return;
+        }
+        
+        const componentIds = [];
+        selectedComponents.each(function() {
+            componentIds.push($(this).val());
+        });
+        
+        // التحقق من البنود المنسوخة مسبقاً
+        const alreadyCopiedIds = getAlreadyCopiedComponentIds();
+        const newComponentIds = componentIds.filter(id => !alreadyCopiedIds.includes(id));
+        
+        if (newComponentIds.length === 0) {
+            showAlert('جميع البنود المحددة منسوخة بالفعل', 'warning');
+            return;
+        }
+        
+        if (newComponentIds.length < componentIds.length) {
+            const skippedCount = componentIds.length - newComponentIds.length;
+            if (typeof toastr !== 'undefined') { toastr.info(`تم تجاهل ${skippedCount} بند منسوخ مسبقاً`); };
+        }
+        
+        // نسخ البنود الجديدة فقط
+        copyComponentsToForm(newComponentIds);
+        
+        // تعطيل checkboxes للبنود المنسوخة
+        newComponentIds.forEach(id => {
+            const checkbox = $(`#comp_${id}`);
+            checkbox.prop('disabled', true);
+            checkbox.closest('.form-check').addClass('text-muted');
+            checkbox.next('label').append(' <small class="text-success">(تم النسخ)</small>');
+        });
+        
+        if (typeof toastr !== 'undefined') { toastr.success(`تم نسخ ${newComponentIds.length} بند جديد بنجاح`); };
+        
+        // تحديث الإجماليات بعد النسخ
+        if (typeof window.salaryManager !== 'undefined') {
+            window.salaryManager.calculateTotals();
+        }
+        
+        // إغلاق المودال بعد النسخ
+        const modal = bootstrap.Modal.getInstance(document.getElementById('employeeAnalysisModal'));
+        if (modal) {
+            modal.hide();
+        }
+    };
+
+    function getAlreadyCopiedComponentIds() {
+        // البحث في البنود الموجودة في النموذج عن البنود المنسوخة
+        const copiedIds = [];
+        
+        // البحث في المستحقات (باستخدام data attribute بدلاً من النص)
+        $('#earnings-body tr[data-copied-from-id]').each(function() {
+            const copiedId = $(this).data('copied-from-id');
+            if (copiedId) {
+                copiedIds.push(copiedId.toString());
+            }
+        });
+        
+        // البحث في الاستقطاعات (باستخدام data attribute بدلاً من النص)
+        $('#deductions-body tr[data-copied-from-id]').each(function() {
+            const copiedId = $(this).data('copied-from-id');
+            if (copiedId) {
+                copiedIds.push(copiedId.toString());
+            }
+        });
+        
+        return copiedIds;
+    }
+
+    function copyComponentsToForm(componentIds) {
+        // استخدام البيانات المحفوظة من التحليل
+        const analysisData = window.currentEmployeeAnalysis;
+        
+        if (!analysisData) {
+            alert('خطأ: لا توجد بيانات تحليل محفوظة');
+            return;
+        }
+        
+        componentIds.forEach(id => {
+            const component = findComponentById(analysisData, id);
+            if (component) {
+                addComponentToContractForm(component);
+            }
+        });
+    }
+
+    function findComponentById(analysisData, id) {
+        // البحث في جميع المصادر
+        const classifiedComponents = analysisData.basic_analysis?.classified_components || analysisData.classified_components;
+        
+        if (classifiedComponents) {
+            for (const source in classifiedComponents) {
+                const components = classifiedComponents[source];
+                if (Array.isArray(components)) {
+                    const found = components.find(c => c.id == id);
+                    if (found) {
+                        return {
+                            ...found,
+                            source: source
+                        };
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+
+    function addComponentToContractForm(component) {
+        // إضافة البند إلى قسم البنود في النموذج
+        // هنستخدم الوظائف الموجودة في salary-components.js
+        
+        const componentType = component.component_type;
+        
+        // التأكد من وجود SalaryComponentManager
+        if (typeof window.salaryManager !== 'undefined') {
+            // إضافة صف جديد باستخدام SalaryComponentManager
+            window.salaryManager.addRow(componentType);
+            
+            // ملء البيانات في الصف الجديد
+            const counter = componentType === 'earning' ? window.salaryManager.earningsCounter : window.salaryManager.deductionsCounter;
+            const prefix = componentType === 'earning' ? 'earning' : 'deduction';
+            const tbody = componentType === 'earning' ? '#earnings-body' : '#deductions-body';
+            
+            // الحصول على الصف الجديد
+            const newRow = $(`${tbody} tr[data-id="${counter}"]`);
+            
+            // حفظ ID الأصلي في data attribute
+            newRow.attr('data-copied-from-id', component.id);
+            
+            // ملء الحقول
+            $(`input[name="${prefix}_name_${counter}"]`).val(component.name);
+            $(`input[name="${prefix}_amount_${counter}"]`).val(component.amount || 0);
+            
+            // إضافة علامة بصرية للبند المنسوخ (بدون تعديل الاسم)
+            const nameField = $(`input[name="${prefix}_name_${counter}"]`);
+            nameField.val(component.name); // الاسم كما هو
+            
+            // إضافة wrapper وأيقونة داخل الحقل (على غرار formula-variables-btn)
+            nameField.wrap('<div class="copy-input-wrapper position-relative"></div>');
+            const copyIcon = '<i class="fas fa-copy copy-indicator-btn text-info" title="بند منسوخ من الموظف"></i>';
+            nameField.before(copyIcon);
+            nameField.addClass('has-copy-icon');
+            
+        } else {
+            console.error('SalaryComponentManager غير متاح');
+            alert('خطأ: لا يمكن إضافة البند. يرجى إعادة تحميل الصفحة.');
+        }
+    }
+
+    window.toggleAllComponents = function(type) {
+        const checkboxes = $(`.component-checkbox[data-type="${type}"]`);
+        const allChecked = checkboxes.filter(':checked').length === checkboxes.length;
+        
+        checkboxes.prop('checked', !allChecked);
+    };
+
+    function showAlert(message, type = 'info') {
+        if (typeof toastr !== 'undefined') {
+            if (type === 'success') {
+                toastr.success(message);
+            } else if (type === 'error' || type === 'danger') {
+                toastr.error(message);
+            } else if (type === 'warning') {
+                toastr.warning(message);
+            } else {
+                toastr.info(message);
+            }
+        }
+    }
+
+    // إنشاء SalaryComponentManager
+    $(document).ready(function() {
+        if (typeof SalaryComponentManager !== 'undefined') {
+            window.salaryManager = new SalaryComponentManager();
+
+            // تهيئة حالة التأمينات عند التعديل (لو الموظف مسجل بالفعل)
+            if ($('#id_is_social_insurance_enrolled').is(':checked')) {
+                $('#social_insurance_number_row').show();
+                const hasInsurableRow = $('[data-insurance="true"]').length > 0;
+                if (!hasInsurableRow) {
+                    window.salaryManager.addInsurableRow();
+                    window.salaryManager.addSocialInsuranceRow();
+                }
+            }
+        } else {
+            console.error('SalaryComponentManager class not found');
+        }
+    });
+});
+</script>
+
+        <!-- أزرار الحفظ -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between">
+                    <a href="{% url 'hr:contract_list' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>العودة للقائمة
+                    </a>
+                    
+                    <div class="btn-group">
+                        {% if not contract %}
+                        <!-- للعقود الجديدة -->
+                        <button type="submit" name="action" value="save_draft" class="btn btn-outline-primary">
+                            <i class="fas fa-save me-2"></i>حفظ كمسودة
+                        </button>
+                        <button type="button" id="smartActivateBtn" class="btn btn-success" onclick="smartActivateContract()" style="display: none;">
+                            <i class="fas fa-rocket me-2"></i>حفظ وتفعيل بذكاء
+                        </button>
+                        <button type="submit" name="action" value="save_activate" id="normalActivateBtn" class="btn btn-success">
+                            <i class="fas fa-check-circle me-2"></i>حفظ وتفعيل
+                        </button>
+                        {% else %}
+                        <!-- للعقود الموجودة -->
+                        <button type="submit" name="action" value="save_draft" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>حفظ التعديلات
+                        </button>
+                        {% if contract.status == 'draft' %}
+                        <button type="button" class="btn btn-info me-2" onclick="window.contractActivationPreview.show({{ contract.pk }})">
+                            <i class="fas fa-eye me-2"></i>معاينة التفعيل
+                        </button>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+  </div>
+</div>
+
+<!-- مودال تحليل بنود الموظف -->
+<div class="modal fade" id="employeeAnalysisModal" tabindex="-1" aria-labelledby="employeeAnalysisModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-white border-bottom">
+                <h5 class="modal-title text-primary">
+                    <i class="fas fa-chart-line me-2"></i>تحليل بنود الموظف الحالية
+                </h5>
+                <button type="button" class="btn-close text-primary" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+
+                <!-- قسم البنود مع Checkboxes -->
+                <div id="componentsList" style="display: none;">
+                    <!-- المستحقات -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-success mb-0">
+                                <i class="fas fa-plus-circle me-1"></i>المستحقات
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-success" 
+                                    onclick="toggleAllComponents('earning')">
+                                <i class="fas fa-check-square me-1"></i>تحديد الكل
+                            </button>
+                        </div>
+                        <div id="earningsList" class="border rounded p-3 bg-light"></div>
+                    </div>
+                    
+                    <!-- الاستقطاعات -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="text-danger mb-0">
+                                <i class="fas fa-minus-circle me-1"></i>الاستقطاعات
+                            </h6>
+                            <button type="button" class="btn btn-sm btn-outline-danger" 
+                                    onclick="toggleAllComponents('deduction')">
+                                <i class="fas fa-check-square me-1"></i>تحديد الكل
+                            </button>
+                        </div>
+                        <div id="deductionsList" class="border rounded p-3 bg-light"></div>
+                    </div>
+                </div>
+
+                <!-- رسالة التحميل -->
+                <div id="loadingMessage" class="text-center py-5">
+                    <div class="spinner-border text-info mb-3" role="status">
+                        <span class="visually-hidden">جاري التحميل...</span>
+                    </div>
+                    <h6 class="text-muted">جاري تحميل بنود الموظف...</h6>
+                    <p class="text-muted small">يرجى الانتظار</p>
+                </div>
+            </div>
+            <div class="modal-footer d-flex justify-content-between">
+                <!-- أزرار اليمين -->
+                <div>
+                    <button type="button" class="btn btn-secondary me-2" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i>إغلاق
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="refreshEmployeeAnalysis()">
+                        <i class="fas fa-sync-alt me-1"></i>تحديث
+                    </button>
+                </div>
+                
+                <!-- أزرار اليسار -->
+                <div>
+                    <button type="button" class="btn btn-outline-info me-2" onclick="openComponentsManager()">
+                        <i class="fas fa-cogs me-1"></i>إدارة البنود
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="copySelectedComponents()">
+                        <i class="fas fa-copy me-1"></i>نسخ البنود المحددة
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

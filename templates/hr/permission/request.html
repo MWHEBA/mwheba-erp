@@ -1,0 +1,706 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}تسجيل إذن جديد{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.rtl.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <div class="col-md-8">
+        <div class="section-container">
+            <h5 class="mb-3"><i class="fas fa-edit me-2"></i>بيانات الإذن</h5>
+            
+            <form method="post" id="permissionRequestForm">
+                {% csrf_token %}
+                
+                {% if form.non_field_errors %}
+                <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+                {% endif %}
+                
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">الموظف *</label>
+                        {{ form.employee }}
+                        {% if form.employee.errors %}
+                        <div class="text-danger small">{{ form.employee.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">نوع الإذن *</label>
+                        {{ form.permission_type }}
+                        {% if form.permission_type.errors %}
+                        <div class="text-danger small">{{ form.permission_type.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">التاريخ *</label>
+                        {{ form.date }}
+                        {% if form.date.errors %}
+                        <div class="text-danger small">{{ form.date.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- حقل مدة الإذن (يظهر لأذونات التأخير والانصراف المبكر) -->
+                <div class="row mb-3" id="durationSelectDiv" style="display:none;">
+                    <div class="col-md-12">
+                        <label class="form-label">مدة الإذن *</label>
+                        <select id="permissionDurationSelect" class="form-select">
+                            <option value="">اختر المدة</option>
+                            <option value="0.5">نصف ساعة (30 دقيقة)</option>
+                            <option value="1">ساعة واحدة</option>
+                            <option value="1.5">ساعة ونصف</option>
+                            <option value="2">ساعتان</option>
+                            <option value="2.5">ساعتان ونصف</option>
+                            <option value="3">3 ساعات</option>
+                            <option value="3.5">3 ساعات ونصف</option>
+                            <option value="12">12 ساعة</option>
+                        </select>
+                        <div class="form-text text-muted" id="durationHint"></div>
+                    </div>
+                </div>
+
+                <!-- حقل وقت البداية (يظهر لأذونات خلال اليوم) -->
+                <div class="row mb-3" id="startTimeOnlyDiv" style="display:none;">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت الخروج *</label>
+                        <input type="time" id="startTimeOnlyInput" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">مدة الإذن *</label>
+                        <select id="duringDayDurationSelect" class="form-select">
+                            <option value="">اختر المدة</option>
+                            <option value="0.5">نصف ساعة (30 دقيقة)</option>
+                            <option value="1">ساعة واحدة</option>
+                            <option value="1.5">ساعة ونصف</option>
+                            <option value="2">ساعتان</option>
+                            <option value="2.5">ساعتان ونصف</option>
+                            <option value="3">3 ساعات</option>
+                            <option value="3.5">3 ساعات ونصف</option>
+                            <option value="12">12 ساعة</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- حقول الوقت الكاملة (الوضع الافتراضي وللأذونات الأخرى) -->
+                <!-- حقل start_time مخفي دائماً - يتم ملؤه برمجياً -->
+                <div style="display:none;">
+                    {{ form.start_time }}
+                    {{ form.end_time }}
+                </div>
+
+                <div class="row mb-3" id="fullTimeDiv">
+                    <div class="col-md-6">
+                        <label class="form-label">وقت البداية *</label>
+                        <input type="time" id="fullStartTimeInput" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">وقت النهاية *</label>
+                        <input type="time" id="fullEndTimeInput" class="form-control">
+                    </div>
+                </div>
+
+                <!-- عرض الأوقات المحسوبة تلقائياً -->
+                <div class="row mb-3" id="calculatedTimesDiv" style="display:none;">
+                    <div class="col-md-12">
+                        <div class="alert alert-success">
+                            <i class="fas fa-clock me-2"></i>
+                            <strong>الأوقات المحسوبة:</strong>
+                            من <strong id="calcFromTime">--:--</strong>
+                            إلى <strong id="calcToTime">--:--</strong>
+                            <span class="text-muted ms-2">(مدة: <span id="calcDuration">-</span>)</span>
+                        </div>
+                    </div>
+                </div>
+                <span id="durationValue" style="display:none;">0</span>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <label class="form-label">السبب *</label>
+                        {{ form.reason }}
+                        {% if form.reason.errors %}
+                        <div class="text-danger small">{{ form.reason.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-12">
+                        <div class="form-check">
+                            {{ form.is_extra }}
+                            <label class="form-check-label" for="{{ form.is_extra.id_for_label }}">
+                                إذن إضافي (سيتم خصمه من الراتب)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-3" id="deductionHoursDiv" style="display:none;">
+                    <div class="col-md-6">
+                        <label class="form-label">ساعات الخصم *</label>
+                        <div class="input-group">
+                            {{ form.deduction_hours }}
+                            <button type="button" class="btn btn-outline-secondary" id="fillShiftHoursBtn" title="ملء بنص يوم">
+                                <i class="fas fa-clock"></i> نص يوم
+                            </button>
+                        </div>
+                        <div class="form-text">سيتم خصم هذه الساعات من الراتب</div>
+                        {% if form.deduction_hours.errors %}
+                        <div class="text-danger small">{{ form.deduction_hours.errors }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-check mt-4">
+                            {{ form.is_deduction_exempt }}
+                            <label class="form-check-label" for="{{ form.is_deduction_exempt.id_for_label }}">
+                                <i class="fas fa-shield-alt text-success me-1"></i>معفي من الخصم
+                            </label>
+                            <div class="form-text">تسجيل الإذن بدون خصم مالي (ضع ساعات الخصم = 0)</div>
+                        </div>
+                        {% if form.is_deduction_exempt.errors %}
+                        <div class="text-danger small">{{ form.is_deduction_exempt.errors }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <div class="row">
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>تسجيل الإذن
+                        </button>
+                        <a href="{% url 'hr:permission_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <!-- معلومات الشيفت -->
+        <div class="section-container" id="shiftInfoCard" style="display:none;">
+            <h5 class="mb-3"><i class="fas fa-business-time me-2"></i>وقت الشيفت</h5>
+            <div class="alert alert-light border">
+                <div class="d-flex justify-content-between mb-2">
+                    <span class="text-muted">الوردية:</span>
+                    <strong id="shiftNameDisplay">-</strong>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted">الحضور:</span>
+                    <strong id="shiftStartDisplay">--:--</strong>
+                </div>
+                <div class="d-flex justify-content-between mt-1">
+                    <span class="text-muted">الانصراف:</span>
+                    <strong id="shiftEndDisplay">--:--</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-container">
+            <h5 class="mb-3"><i class="fas fa-info-circle me-2"></i>معلومات الحصة الشهرية</h5>
+            <div id="quotaInfo" style="display:none;">
+                <div class="alert alert-info" id="quotaAlert">
+                    <p class="mb-2"><strong>حالة الاستهلاك:</strong></p>
+                    <ul class="mb-0">
+                        <li>الأذونات: <span id="usedCount">0</span> / <span id="maxCount">0</span> مرات</li>
+                        <li>الساعات: <span id="usedHours">0</span> / <span id="maxHours">0</span> ساعة</li>
+                    </ul>
+                </div>
+            </div>
+            <div id="quotaLoading" class="text-center text-muted py-3" style="display:none;">
+                <i class="fas fa-spinner fa-spin me-2"></i>جاري جلب المعلومات...
+            </div>
+            <div id="quotaEmpty" class="text-center text-muted py-3">
+                يرجى اختيار الموظف والتاريخ لعرض معلومات الحصة
+            </div>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<div id="permissionTypeCodesData" data-codes="{{ permission_type_codes_json }}" style="display:none;"></div>
+<script>
+// أكواد أنواع الأذونات
+const LATE_ARRIVAL_CODE = 'LATE_ARRIVAL';
+const EARLY_LEAVE_CODE = 'EARLY_LEAVE';
+
+// بيانات الشيفت الحالية
+let currentShift = null;
+
+// أكواد أنواع الأذونات المتاحة (تُحمَّل من الـ data attribute)
+const permissionTypeCodes = JSON.parse(document.getElementById('permissionTypeCodesData').dataset.codes || '{}');
+
+$(document).ready(function() {
+    // تفعيل Select2
+    $('.select2-employee').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'اختر الموظف',
+        allowClear: true,
+        dir: 'rtl',
+        language: { noResults: () => "لا توجد نتائج", searching: () => "جاري البحث..." }
+    });
+
+    $('.select2-permission-type').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'اختر نوع الإذن',
+        allowClear: true,
+        dir: 'rtl',
+        language: { noResults: () => "لا توجد نتائج", searching: () => "جاري البحث..." }
+    });
+
+    // عند تغيير الموظف - جلب بيانات الشيفت
+    $('#id_employee').on('change', function() {
+        const employeeId = $(this).val();
+        if (employeeId) {
+            fetchEmployeeShift(employeeId);
+        } else {
+            currentShift = null;
+            $('#shiftInfoCard').hide();
+        }
+        fetchQuotaInfo();
+        updateFormLayout();
+    });
+
+    // عند تغيير نوع الإذن
+    $('#id_permission_type').on('change', function() {
+        updateFormLayout();
+    });
+
+    // عند تغيير وقت البداية (لأذونات خلال اليوم)
+    $('#startTimeOnlyInput').on('change', function() {
+        $('#id_start_time').val($(this).val());
+        if (isDuringDayPermission()) {
+            calculateEndTimeFromDuration();
+        }
+    });
+
+    // عند تغيير وقت البداية في الوضع العادي
+    $('#fullStartTimeInput').on('change', function() {
+        $('#id_start_time').val($(this).val());
+        calculateDurationFromTimes();
+    });
+
+    // عند تغيير وقت النهاية في الوضع العادي
+    $('#fullEndTimeInput').on('change', function() {
+        $('#id_end_time').val($(this).val());
+        calculateDurationFromTimes();
+    });
+
+    // عند تغيير مدة إذن التأخير/الانصراف المبكر
+    $('#permissionDurationSelect').on('change', function() {
+        calculateTimesFromDuration();
+    });
+
+    // عند تغيير مدة إذن خلال اليوم
+    $('#duringDayDurationSelect').on('change', function() {
+        calculateEndTimeFromDuration();
+    });
+
+    // إظهار/إخفاء ساعات الخصم
+    $('#id_is_extra').on('change', function() {
+        toggleDeductionHours();
+    });
+    
+    // عند تغيير حالة "معفي من الخصم"
+    $('#id_is_deduction_exempt').on('change', function() {
+        handleDeductionExemptChange();
+    });
+    
+    toggleDeductionHours();
+
+    // جلب الحصة عند تغيير التاريخ
+    $('#id_date').on('change', function() {
+        fetchQuotaInfo();
+        // إعادة جلب الشيفت لأن تاريخ الإذن قد يكون في رمضان أو لا
+        const employeeId = $('#id_employee').val();
+        if (employeeId) {
+            fetchEmployeeShift(employeeId);
+        }
+    });
+
+    // استدعاء أولي
+    if ($('#id_employee').val() && $('#id_date').val()) {
+        fetchQuotaInfo();
+    }
+    if ($('#id_employee').val()) {
+        fetchEmployeeShift($('#id_employee').val());
+    }
+    updateFormLayout();
+});
+
+function getSelectedPermissionCode() {
+    const selectedVal = $('#id_permission_type').val();
+    if (!selectedVal) return '';
+    return permissionTypeCodes[selectedVal] || '';
+}
+
+function isLateOrEarlyPermission() {
+    const code = getSelectedPermissionCode();
+    return code === LATE_ARRIVAL_CODE || code === EARLY_LEAVE_CODE;
+}
+
+function isDuringDayPermission() {
+    const code = getSelectedPermissionCode();
+    return code !== '' && code !== LATE_ARRIVAL_CODE && code !== EARLY_LEAVE_CODE;
+}
+
+function updateFormLayout() {
+    const code = getSelectedPermissionCode();
+
+    if (code === LATE_ARRIVAL_CODE) {
+        // إذن تأخير: نعرض select المدة فقط، نخفي حقول الوقت
+        $('#fullTimeDiv').hide();
+        $('#startTimeOnlyDiv').hide();
+        $('#durationSelectDiv').show();
+        const hint = currentShift
+            ? `سيتم حساب الوقت من بداية الشيفت (${formatTime12(currentShift.start_time)}) تلقائياً`
+            : 'يرجى اختيار الموظف لحساب الوقت تلقائياً';
+        $('#durationHint').text(hint);
+        calculateTimesFromDuration();
+
+    } else if (code === EARLY_LEAVE_CODE) {
+        // إذن انصراف مبكر: نعرض select المدة فقط
+        $('#fullTimeDiv').hide();
+        $('#startTimeOnlyDiv').hide();
+        $('#durationSelectDiv').show();
+        const hint = currentShift
+            ? `سيتم حساب الوقت من نهاية الشيفت (${formatTime12(currentShift.end_time)}) تلقائياً`
+            : 'يرجى اختيار الموظف لحساب الوقت تلقائياً';
+        $('#durationHint').text(hint);
+        calculateTimesFromDuration();
+
+    } else if (code !== '') {
+        // إذن خلال اليوم: نعرض حقل "من" + select المدة، ونخفي حقل "إلى"
+        $('#fullTimeDiv').hide();
+        $('#durationSelectDiv').hide();
+        $('#startTimeOnlyDiv').show();
+        // نخفي حقل end_time من fullTimeDiv (مخفي أصلاً)
+        calculateEndTimeFromDuration();
+
+    } else {
+        // لم يُختر نوع بعد: نعرض الحقول الكاملة
+        $('#durationSelectDiv').hide();
+        $('#startTimeOnlyDiv').hide();
+        $('#fullTimeDiv').show();
+        $('#calculatedTimesDiv').hide();
+    }
+}
+
+function fetchEmployeeShift(employeeId) {
+    const permDate = $('#id_date').val() || new Date().toISOString().split('T')[0];
+    $.ajax({
+        url: `/hr/api/employees/${employeeId}/shift/?perm_date=${permDate}`,
+        success: function(data) {
+            console.log('Employee shift response:', data);
+            if (data.shift) {
+                currentShift = data.shift;
+                $('#shiftNameDisplay').text(data.shift.name);
+                $('#shiftStartDisplay').text(formatTime12(data.shift.start_time));
+                $('#shiftEndDisplay').text(formatTime12(data.shift.end_time));
+                $('#shiftInfoCard').show();
+            } else {
+                console.warn('No shift in response. Full data:', JSON.stringify(data));
+                currentShift = null;
+                $('#shiftInfoCard').hide();
+            }
+            updateFormLayout();
+            if ($('#permissionDurationSelect').val()) {
+                calculateTimesFromDuration();
+            }
+            if ($('#duringDayDurationSelect').val() && $('#startTimeOnlyInput').val()) {
+                calculateEndTimeFromDuration();
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('fetchEmployeeShift failed:', xhr.status, xhr.responseText);
+            currentShift = null;
+            $('#shiftInfoCard').hide();
+        }
+    });
+}
+
+function addMinutesToTime(timeStr, minutes) {
+    const [h, m] = timeStr.split(':').map(Number);
+    const totalMinutes = h * 60 + m + minutes;
+    const newH = Math.floor(totalMinutes / 60) % 24;
+    const newM = totalMinutes % 60;
+    return String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
+}
+
+function subtractMinutesFromTime(timeStr, minutes) {
+    const [h, m] = timeStr.split(':').map(Number);
+    let totalMinutes = h * 60 + m - minutes;
+    if (totalMinutes < 0) totalMinutes += 24 * 60;
+    const newH = Math.floor(totalMinutes / 60) % 24;
+    const newM = totalMinutes % 60;
+    return String(newH).padStart(2, '0') + ':' + String(newM).padStart(2, '0');
+}
+
+function formatTime12(timeStr) {
+    if (!timeStr) return timeStr;
+    const [h, m] = timeStr.split(':').map(Number);
+    const period = h >= 12 ? 'م' : 'ص';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+function formatDuration(hours) {
+    if (hours === 0.5) return 'نصف ساعة';
+    if (hours === 1) return 'ساعة واحدة';
+    if (hours === 1.5) return 'ساعة ونصف';
+    if (hours === 2) return 'ساعتان';
+    if (hours === 2.5) return 'ساعتان ونصف';
+    if (hours === 3) return '3 ساعات';
+    if (hours === 3.5) return '3 ساعات ونصف';
+    if (hours === 12) return '12 ساعة';
+    return hours + ' ساعة';
+}
+
+function calculateTimesFromDuration() {
+    // لأذونات التأخير والانصراف المبكر
+    const durationVal = parseFloat($('#permissionDurationSelect').val());
+    const code = getSelectedPermissionCode();
+
+    if (!durationVal) {
+        $('#calculatedTimesDiv').hide();
+        $('#id_start_time').val('');
+        $('#id_end_time').val('');
+        return;
+    }
+
+    if (!currentShift) {
+        // مش عنده شيفت - نعرض رسالة تحذير بدل ما نخفي كل حاجة
+        $('#calculatedTimesDiv').hide();
+        $('#durationHint').html('<span class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>لم يتم تحديد وردية للموظف - يرجى إدخال الأوقات يدوياً</span>');
+        // نعرض حقول الوقت اليدوية كـ fallback
+        $('#fullTimeDiv').show();
+        return;
+    }
+
+    const durationMinutes = Math.round(durationVal * 60);
+    let fromTime, toTime;
+
+    if (code === LATE_ARRIVAL_CODE) {
+        fromTime = currentShift.start_time;
+        toTime = addMinutesToTime(currentShift.start_time, durationMinutes);
+    } else if (code === EARLY_LEAVE_CODE) {
+        fromTime = subtractMinutesFromTime(currentShift.end_time, durationMinutes);
+        toTime = currentShift.end_time;
+    } else {
+        return;
+    }
+
+    // تعيين القيم في الحقول المخفية
+    $('#id_start_time').val(fromTime);
+    $('#id_end_time').val(toTime);
+
+    // عرض الأوقات المحسوبة
+    $('#calcFromTime').text(formatTime12(fromTime));
+    $('#calcToTime').text(formatTime12(toTime));
+    $('#calcDuration').text(formatDuration(durationVal));
+    $('#calculatedTimesDiv').show();
+
+    // تحديث عرض المدة
+    $('#durationValue').text(durationVal);
+}
+
+function calculateEndTimeFromDuration() {
+    const startTime = $('#startTimeOnlyInput').val();
+    const durationVal = parseFloat($('#duringDayDurationSelect').val());
+
+    if (!startTime || !durationVal) {
+        $('#calculatedTimesDiv').hide();
+        $('#id_end_time').val('');
+        return;
+    }
+
+    const durationMinutes = Math.round(durationVal * 60);
+    const endTime = addMinutesToTime(startTime, durationMinutes);
+
+    $('#id_start_time').val(startTime);
+    $('#id_end_time').val(endTime);
+
+    $('#calcFromTime').text(formatTime12(startTime));
+    $('#calcToTime').text(formatTime12(endTime));
+    $('#calcDuration').text(formatDuration(durationVal));
+    $('#calculatedTimesDiv').show();
+
+    $('#durationValue').text(durationVal);
+}
+
+function calculateDurationFromTimes() {
+    const startTime = $('#fullStartTimeInput').val();
+    const endTime = $('#fullEndTimeInput').val();
+
+    $('#id_start_time').val(startTime);
+    $('#id_end_time').val(endTime);
+
+    if (startTime && endTime) {
+        const start = new Date('2000-01-01 ' + startTime);
+        const end = new Date('2000-01-01 ' + endTime);
+        const diff = (end - start) / (1000 * 60 * 60);
+        if (diff > 0) {
+            $('#durationValue').text(diff.toFixed(2));
+        }
+    }
+}
+
+function toggleDeductionHours() {
+    if ($('#id_is_extra').is(':checked')) {
+        $('#deductionHoursDiv').slideDown();
+        const duration = $('#durationValue').text();
+        if (duration && parseFloat(duration) > 0 && !$('#id_is_deduction_exempt').is(':checked')) {
+            $('#id_deduction_hours').val(duration);
+        }
+    } else {
+        $('#deductionHoursDiv').slideUp();
+        $('#id_deduction_hours').val('');
+        $('#id_is_deduction_exempt').prop('checked', false);
+    }
+}
+
+// زر "يوم كامل" - ملء ساعات الخصم بساعات وردية الموظف
+$('#fillShiftHoursBtn').on('click', function() {
+    const employeeId = $('#id_employee').val();
+    if (!employeeId) {
+        toastr.warning('يرجى اختيار الموظف أولاً');
+        return;
+    }
+
+    if (currentShift) {
+        fillShiftHours(currentShift);
+        return;
+    }
+
+    // جلب بيانات الشيفت إذا لم تكن محملة
+    const permDate = $('#id_date').val() || new Date().toISOString().split('T')[0];
+    $.ajax({
+        url: `/hr/api/employees/${employeeId}/shift/?perm_date=${permDate}`,
+        success: function(data) {
+            if (data.shift) {
+                currentShift = data.shift;
+                fillShiftHours(data.shift);
+            } else {
+                toastr.warning('لا توجد وردية محددة لهذا الموظف');
+            }
+        },
+        error: function() {
+            toastr.error('حدث خطأ أثناء جلب بيانات الوردية');
+        }
+    });
+});
+
+function fillShiftHours(shift) {
+    // حساب ساعات اليوم من وقت البداية والنهاية
+    const [sh, sm] = shift.start_time.split(':').map(Number);
+    const [eh, em] = shift.end_time.split(':').map(Number);
+    let totalMinutes = (eh * 60 + em) - (sh * 60 + sm);
+    if (totalMinutes < 0) totalMinutes += 24 * 60;
+    const shiftHours = (totalMinutes / 60 / 2).toFixed(2);
+
+    if ($('#id_is_deduction_exempt').is(':checked')) {
+        toastr.warning('الموظف معفي من الخصم - أزل الإعفاء أولاً لتعديل ساعات الخصم');
+        return;
+    }
+
+    $('#id_deduction_hours').val(shiftHours);
+    toastr.success(`تم تعيين ساعات الخصم: ${shiftHours} ساعة - نص يوم (${shift.name})`);
+}
+
+function handleDeductionExemptChange() {
+    if ($('#id_is_deduction_exempt').is(':checked')) {
+        // لو معفي من الخصم، نحط ساعات الخصم = 0 ونعطل الحقل
+        $('#id_deduction_hours').val('0').prop('readonly', true).addClass('bg-light');
+    } else {
+        // لو مش معفي، نرجع المدة الأصلية ونفعل الحقل
+        $('#id_deduction_hours').prop('readonly', false).removeClass('bg-light');
+        const duration = $('#durationValue').text();
+        if (duration && parseFloat(duration) > 0) {
+            $('#id_deduction_hours').val(duration);
+        }
+    }
+}
+
+function fetchQuotaInfo() {
+    const employeeId = $('#id_employee').val();
+    const date = $('#id_date').val();
+
+    if (employeeId && date) {
+        $('#quotaEmpty').hide();
+        $('#quotaInfo').hide();
+        $('#quotaLoading').show();
+
+        $.ajax({
+            url: '{% url "hr:permission_quota_ajax" %}',
+            data: { 'employee_id': employeeId, 'date': date },
+            success: function(response) {
+                $('#quotaLoading').hide();
+                if (response.success) {
+                    $('#usedCount').text(response.quota.used_count);
+                    $('#maxCount').text(response.quota.max_count);
+                    $('#usedHours').text(response.quota.used_hours);
+                    $('#maxHours').text(response.quota.max_hours);
+
+                    const alertBox = $('#quotaAlert');
+                    alertBox.removeClass('alert-info alert-warning alert-danger');
+
+                    if (response.quota.used_count >= response.quota.max_count ||
+                        response.quota.used_hours >= response.quota.max_hours) {
+                        alertBox.addClass('alert-danger');
+                        if (!$('#id_is_extra').is(':checked')) {
+                            $('#id_is_extra').prop('checked', true).trigger('change');
+                        }
+                    } else if (response.quota.used_count == response.quota.max_count - 1 ||
+                               response.quota.used_hours >= response.quota.max_hours - 1) {
+                        alertBox.addClass('alert-warning');
+                    } else {
+                        alertBox.addClass('alert-info');
+                    }
+
+                    if (response.quota.used_count >= response.quota.max_count) {
+                        $('#usedCount').addClass('text-danger fw-bold');
+                    } else {
+                        $('#usedCount').removeClass('text-danger fw-bold');
+                    }
+
+                    if (response.quota.used_hours >= response.quota.max_hours) {
+                        $('#usedHours').addClass('text-danger fw-bold');
+                    } else {
+                        $('#usedHours').removeClass('text-danger fw-bold');
+                    }
+
+                    $('#quotaInfo').slideDown();
+                }
+            },
+            error: function() {
+                $('#quotaLoading').hide();
+                $('#quotaEmpty').text('حدث خطأ أثناء جلب البيانات').show();
+            }
+        });
+    } else {
+        $('#quotaInfo').hide();
+        $('#quotaLoading').hide();
+        $('#quotaEmpty').show();
+    }
+}
+</script>
+{% endblock %}

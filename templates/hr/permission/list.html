@@ -1,0 +1,330 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}قائمة الأذونات{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="employee" class="form-label">الموظف</label>
+            <select name="employee" id="employee" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"i" %}selected{% endif %}>
+                    {{ emp.get_full_name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">جميع الحالات</option>
+                <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+                <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+                <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>مرفوض</option>
+                <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>ملغي</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="permission_type" class="form-label">نوع الإذن</label>
+            <select name="permission_type" id="permission_type" class="form-select">
+                <option value="">جميع الأنواع</option>
+                {% for type in permission_types %}
+                <option value="{{ type.id }}" {% if request.GET.permission_type == type.id|stringformat:"i" %}selected{% endif %}>
+                    {{ type.name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="is_extra" class="form-label">نوع الطلب</label>
+            <select name="is_extra" id="is_extra" class="form-select">
+                <option value="">الكل</option>
+                <option value="0" {% if request.GET.is_extra == '0' %}selected{% endif %}>عادي</option>
+                <option value="1" {% if request.GET.is_extra == '1' %}selected{% endif %}>إضافي (يُخصم)</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="month" class="form-label">الشهر</label>
+            <select name="month" id="month" class="form-select">
+                <option value="">كل الشهور</option>
+                {% for choice in month_choices %}
+                <option value="{{ choice.value }}" {% if month_filter == choice.value %}selected{% endif %}>
+                    {{ choice.label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة الأذونات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الأذونات</h5>
+        <div class="actions-container">
+          <a href="{% url 'hr:permission_request' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>تسجيل إذن جديد
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if permissions %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="permissions-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">الموظف</th>
+                        <th class="text-center">نوع الإذن</th>
+                        <th class="text-center">نوع الطلب</th>
+                        <th class="text-center">التاريخ</th>
+                        <th class="text-center">من</th>
+                        <th class="text-center">إلى</th>
+                        <th class="text-center">المدة</th>
+                        <th class="text-center">تاريخ الطلب</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for permission in permissions %}
+                    <tr style="cursor: pointer;">
+                        <td class="text-center">
+                            <strong>{{ permission.employee.get_full_name_ar }}</strong>
+                            <br>
+                            <small class="text-muted">{{ permission.employee.employee_number }}</small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ permission.permission_type.name_ar }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if permission.is_extra %}
+                                <span class="badge bg-warning text-dark">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>إضافي
+                                </span>
+                                {% if permission.is_deduction_exempt %}
+                                    <br><span class="badge bg-success mt-1">
+                                        <i class="fas fa-shield-alt me-1"></i>معفي
+                                    </span>
+                                {% elif permission.deduction_hours %}
+                                    <br><small class="text-muted">خصم: {{ permission.deduction_hours }} س</small>
+                                {% endif %}
+                            {% else %}
+                                <span class="badge bg-light text-dark border">عادي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ permission.date|date:"Y-m-d" }}</td>
+                        <td class="text-center">{{ permission.start_time|time:"h:i A" }}</td>
+                        <td class="text-center">{{ permission.end_time|time:"h:i A" }}</td>
+                        <td class="text-center">
+                            <strong>{{ permission.duration_hours }}</strong> ساعة
+                        </td>
+                        <td class="text-center">{{ permission.requested_at|date:"Y-m-d H:i" }}</td>
+                        <td class="text-center">
+                            {% if permission.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                            {% elif permission.status == 'approved' %}
+                                <span class="badge bg-success">معتمد</span>
+                            {% elif permission.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوض</span>
+                            {% elif permission.status == 'cancelled' %}
+                                <span class="badge bg-secondary">ملغي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:permission_detail' permission.pk %}" class="btn btn-info action-view" title="عرض">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if permission.status == 'pending' %}
+                                <button type="button" class="btn btn-success" title="اعتماد"
+                                    onclick="approvePermission('{{ permission.pk }}')">
+                                    <i class="fas fa-check"></i>
+                                </button>
+                                <button type="button" class="btn btn-danger" title="رفض"
+                                    onclick="rejectPermission('{{ permission.pk }}')">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد طلبات أذونات" icon="clock" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // التحقق من وجود الجدول قبل التهيئة
+    const tableElement = document.getElementById('permissions-table');
+    if (tableElement && typeof initGlobalTable === 'function') {
+        initGlobalTable('permissions-table', {
+            ordering: true,
+            order: [[6, 'desc']],
+            responsive: true,
+            columnDefs: [
+                { targets: [8, 9], orderable: false, className: 'text-center' }
+            ]
+        });
+        
+        // جعل الصف قابل للنقر
+        $('#permissions-table tbody').on('click', 'tr', function(e) {
+            if ($(e.target).closest('.col-actions').length > 0) {
+                return;
+            }
+            var viewButton = $(this).find('.action-view');
+            if (viewButton.length > 0) {
+                window.location.href = viewButton.attr('href');
+            }
+        });
+    }
+});
+
+function approvePermission(permissionId) {
+    Swal.fire({
+        title: 'اعتماد الطلب',
+        text: 'هل أنت متأكد من اعتماد هذا الإذن؟',
+        icon: 'question',
+        input: 'textarea',
+        inputPlaceholder: 'ملاحظات المراجعة (اختياري)...',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، اعتمد',
+        cancelButtonText: 'إلغاء',
+        showLoaderOnConfirm: true,
+        preConfirm: (notes) => {
+            return fetch(`/hr/permissions/${permissionId}/approve/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'review_notes': notes || ''
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(response.statusText)
+                }
+                return response.json()
+            })
+            .catch(error => {
+                Swal.showValidationMessage(`فشل الطلب: ${error}`)
+            })
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (result.value.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم الاعتماد',
+                    text: result.value.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire('خطأ', result.value.message, 'error');
+            }
+        }
+    });
+}
+
+function rejectPermission(permissionId) {
+    Swal.fire({
+        title: 'رفض الطلب',
+        text: 'الرجاء إدخال سبب الرفض:',
+        icon: 'warning',
+        input: 'textarea',
+        inputPlaceholder: 'سبب الرفض...',
+        inputAttributes: {
+            'required': 'true'
+        },
+        inputValidator: (value) => {
+            if (!value) {
+                return 'يجب إدخال سبب الرفض'
+            }
+        },
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، ارفض',
+        cancelButtonText: 'إلغاء',
+        showLoaderOnConfirm: true,
+        preConfirm: (notes) => {
+            return fetch(`/hr/permissions/${permissionId}/reject/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: new URLSearchParams({
+                    'review_notes': notes
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(response.statusText)
+                }
+                return response.json()
+            })
+            .catch(error => {
+                Swal.showValidationMessage(`فشل الطلب: ${error}`)
+            })
+        },
+        allowOutsideClick: () => !Swal.isLoading()
+    }).then((result) => {
+        if (result.isConfirmed) {
+            if (result.value.success) {
+                Swal.fire({
+                    icon: 'success',
+                    title: 'تم الرفض',
+                    text: result.value.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
+                    window.location.reload();
+                });
+            } else {
+                Swal.fire('خطأ', result.value.message, 'error');
+            }
+        }
+    });
+}
+</script>
+{% endblock %}

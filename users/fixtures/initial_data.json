@@ -1,0 +1,168 @@
+[{
+        "model": "users.user",
+        "pk": 1,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$QllrVjf1CpAoeOZ8jETSjT$6810kIp2bis0R1dT01d07CxVZgcJDUfTMI3Mk7wNCkM=",
+            "last_login": "2025-01-01T00:00:00Z",
+            "is_superuser": true,
+            "username": "admin",
+            "first_name": "مدير",
+            "last_name": "النظام",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "admin@system.local",
+            "phone": "+201000000000",
+            "user_type": "admin",
+            "status": "active",
+            "address": "عنوان المدير",
+            "role": 1
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 2,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$vo5Q8MJlteZ9lCzM9c3Tdn$ErLFiCwuZrInxaDQgZQ8cToFJYQDLbMTpYoSVYEOL9U=",
+            "last_login": "2025-01-01T00:00:00Z",
+            "is_superuser": true,
+            "username": "baraka",
+            "first_name": "مدير",
+            "last_name": "العمليات",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "baraka@system.local",
+            "phone": "+201000000001",
+            "user_type": "manager",
+            "status": "active",
+            "address": "عنوان مدير العمليات",
+            "role": 2
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 3,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$abc123def456ghi789jkl012mno345$pqr678stu901vwx234yzA567BCD890EFG123HIJ456KLM=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "accountant",
+            "first_name": "أحمد",
+            "last_name": "المحاسب",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "accountant@system.local",
+            "phone": "+201000000002",
+            "user_type": "accountant",
+            "status": "active",
+            "address": "عنوان المحاسب",
+            "role": 3
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 4,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$def456ghi789jkl012mno345pqr678$stu901vwx234yzA567BCD890EFG123HIJ456KLM789NOP=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "inventory_manager",
+            "first_name": "محمد",
+            "last_name": "أمين المخزن",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "inventory@system.local",
+            "phone": "+201000000003",
+            "user_type": "inventory_manager",
+            "status": "active",
+            "address": "عنوان أمين المخزن",
+            "role": 6
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 5,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$ghi789jkl012mno345pqr678stu901$vwx234yzA567BCD890EFG123HIJ456KLM789NOP012QRS=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "activities_coordinator",
+            "first_name": "فاطمة",
+            "last_name": "منسقة الأنشطة",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "activities@system.local",
+            "phone": "+201000000004",
+            "user_type": "coordinator",
+            "status": "active",
+            "address": "عنوان منسقة الأنشطة",
+            "role": 7
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 6,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$jkl012mno345pqr678stu901vwx234$yzA567BCD890EFG123HIJ456KLM789NOP012QRS345TUV=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "reception",
+            "first_name": "سارة",
+            "last_name": "موظفة الاستقبال",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "reception@system.local",
+            "phone": "+201000000005",
+            "user_type": "reception",
+            "status": "active",
+            "address": "عنوان موظفة الاستقبال",
+            "role": 9
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 7,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$mno345pqr678stu901vwx234yzA567$BCD890EFG123HIJ456KLM789NOP012QRS345TUV678WXY=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "hr_manager",
+            "first_name": "خالد",
+            "last_name": "مدير الموارد البشرية",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "hr@system.local",
+            "phone": "+201000000006",
+            "user_type": "manager",
+            "status": "active",
+            "address": "عنوان مدير الموارد البشرية",
+            "role": 5
+        }
+    },
+    {
+        "model": "users.user",
+        "pk": 8,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$pqr678stu901vwx234yzA567BCD890$EFG123HIJ456KLM789NOP012QRS345TUV678WXY901ZAB=",
+            "last_login": null,
+            "is_superuser": false,
+            "username": "viewer",
+            "first_name": "عمر",
+            "last_name": "مراجع",
+            "is_staff": false,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "viewer@system.local",
+            "phone": "+201000000007",
+            "user_type": "viewer",
+            "status": "active",
+            "address": "عنوان المراجع",
+            "role": 10
+        }
+    }]

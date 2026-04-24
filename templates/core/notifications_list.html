@@ -1,0 +1,417 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load notification_tags %}
+
+{% block title %}{{ page_title }} | {{ SITE_NAME }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- نموذج تعليم جميع الإشعارات كمقروءة -->
+    <form id="mark_all_read_form" method="post" style="display: none;">
+        {% csrf_token %}
+        <input type="hidden" name="mark_all_read" value="1">
+    </form>
+    
+    <!-- Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الإشعارات</div>
+                    <div class="stats-card-value">{{ total_count|default:0 }}</div>
+                    <div class="stats-card-unit">إشعار</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="stats-card-title">غير مقروء</div>
+                    <div class="stats-card-value">{{ unread_count|default:0 }}</div>
+                    <div class="stats-card-unit">إشعار</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-xl-4 col-md-6 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-title">مقروء</div>
+                    <div class="stats-card-value">{{ read_count|default:0 }}</div>
+                    <div class="stats-card-unit">إشعار</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- فلاتر الإشعارات -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <div class="row g-3">
+                <!-- فلتر الحالة -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold mb-2">
+                        <i class="fas fa-filter me-1"></i>
+                        فلترة حسب الحالة
+                    </label>
+                    <div class="btn-group w-100" role="group">
+                        <a href="?filter=unread{% if notification_type != 'all' %}&type={{ notification_type }}{% endif %}" 
+                           class="btn {% if filter_type == 'unread' %}btn-danger{% else %}btn-outline-danger{% endif %}">
+                            <i class="fas fa-exclamation-circle me-1"></i>
+                            غير مقروء <span class="badge bg-light text-dark ms-1">{{ unread_count }}</span>
+                        </a>
+                        <a href="?filter=read{% if notification_type != 'all' %}&type={{ notification_type }}{% endif %}" 
+                           class="btn {% if filter_type == 'read' %}btn-success{% else %}btn-outline-success{% endif %}">
+                            <i class="fas fa-check-circle me-1"></i>
+                            مقروء <span class="badge bg-light text-dark ms-1">{{ read_count }}</span>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- فلتر النوع -->
+                <div class="col-md-6">
+                    <label class="form-label fw-bold mb-2">
+                        <i class="fas fa-tag me-1"></i>
+                        فلترة حسب النوع
+                    </label>
+                    <select class="form-select" id="notification-type-filter">
+                        <option value="all" {% if notification_type == 'all' %}selected{% endif %}>
+                            جميع الأنواع
+                        </option>
+                        {% if type_counts.info > 0 %}
+                        <option value="info" {% if notification_type == 'info' %}selected{% endif %}>
+                            معلومات ({{ type_counts.info }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.success > 0 %}
+                        <option value="success" {% if notification_type == 'success' %}selected{% endif %}>
+                            نجاح ({{ type_counts.success }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.warning > 0 %}
+                        <option value="warning" {% if notification_type == 'warning' %}selected{% endif %}>
+                            تحذير ({{ type_counts.warning }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.danger > 0 %}
+                        <option value="danger" {% if notification_type == 'danger' %}selected{% endif %}>
+                            خطر ({{ type_counts.danger }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.inventory_alert > 0 %}
+                        <option value="inventory_alert" {% if notification_type == 'inventory_alert' %}selected{% endif %}>
+                            تنبيه مخزون ({{ type_counts.inventory_alert }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.payment_received > 0 %}
+                        <option value="payment_received" {% if notification_type == 'payment_received' %}selected{% endif %}>
+                            دفعة مستلمة ({{ type_counts.payment_received }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.new_invoice > 0 %}
+                        <option value="new_invoice" {% if notification_type == 'new_invoice' %}selected{% endif %}>
+                            فاتورة جديدة ({{ type_counts.new_invoice }})
+                        </option>
+                        {% endif %}
+                        {% if type_counts.return_request > 0 %}
+                        <option value="return_request" {% if notification_type == 'return_request' %}selected{% endif %}>
+                            طلب إرجاع ({{ type_counts.return_request }})
+                        </option>
+                        {% endif %}
+                    </select>
+                </div>
+            </div>
+            
+            <!-- عرض الفلتر النشط -->
+            {% if filter_type != 'all' or notification_type != 'all' %}
+            <div class="mt-3 pt-3 border-top">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        عرض <strong>{{ filtered_count }}</strong> من أصل <strong>{{ total_count }}</strong> إشعار
+                    </small>
+                    <a href="?" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>
+                        إلغاء الفلتر
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- قائمة الإشعارات -->
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            {% if filtered_count > 0 %}
+                
+                <!-- الإشعارات غير المقروءة -->
+                {% if unread_notifications %}
+                <div class="notifications-section">
+                    <h6 class="notifications-section-title">
+                        <i class="fas fa-exclamation-circle text-danger"></i>
+                        <span>إشعارات غير مقروءة</span>
+                        <span class="badge bg-danger rounded-pill">{{ unread_notifications|length }}</span>
+                    </h6>
+                    
+                    {% for notification in unread_notifications %}
+                    <div class="card notification-card unread">
+                        <div class="card-header">
+                            <div class="notification-icon bg-{{ notification.type }}">
+                                <i class="fas {% notification_icon notification.type %}"></i>
+                            </div>
+                            <h6 class="notification-title">{{ notification.title }}</h6>
+                            <span class="notification-time">
+                                <i class="far fa-clock me-1"></i>
+                                {{ notification.created_at|arabic_timesince }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-start gap-3">
+                                <p class="mb-0 flex-grow-1" style="white-space: pre-line;">{{ notification.message }}</p>
+                                <div class="notification-actions d-flex gap-2">
+                                    {% if notification.get_link_url %}
+                                    <a href="{{ notification.get_link_url }}" class="btn btn-sm btn-primary" target="_blank" title="فتح">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-success btn-mark-read" 
+                                            data-id="{{ notification.id }}" 
+                                            data-url="{% url 'core:mark_notification_read' notification.id %}"
+                                            title="تعليم كمقروء">
+                                        <i class="fas fa-check"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- الإشعارات المقروءة -->
+                {% if read_notifications %}
+                <div class="notifications-section">
+                    <h6 class="notifications-section-title">
+                        <i class="fas fa-history text-secondary"></i>
+                        <span>إشعارات سابقة</span>
+                        <span class="badge bg-secondary rounded-pill">{{ read_notifications|length }}</span>
+                    </h6>
+                    
+                    {% for notification in read_notifications %}
+                    <div class="card notification-card">
+                        <div class="card-header">
+                            <div class="notification-icon bg-light" style="color: #6c757d;">
+                                <i class="fas {% notification_icon notification.type %}"></i>
+                            </div>
+                            <h6 class="notification-title">{{ notification.title }}</h6>
+                            <span class="notification-time">
+                                <i class="far fa-clock me-1"></i>
+                                {{ notification.created_at|arabic_timesince }}
+                            </span>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex align-items-start gap-3">
+                                <p class="mb-0 flex-grow-1" style="white-space: pre-line;">{{ notification.message }}</p>
+                                <div class="notification-actions d-flex gap-2">
+                                    {% if notification.get_link_url %}
+                                    <a href="{{ notification.get_link_url }}" class="btn btn-sm btn-outline-primary" target="_blank" title="فتح">
+                                        <i class="fas fa-external-link-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-mark-unread" 
+                                            data-id="{{ notification.id }}" 
+                                            data-url="{% url 'core:mark_notification_read' notification.id %}"
+                                            title="تعليم كغير مقروء">
+                                        <i class="fas fa-undo"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="d-flex justify-content-between align-items-center mt-4 pt-3 border-top">
+                    <div class="text-muted">
+                        عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من أصل {{ filtered_count }} إشعار
+                    </div>
+                    
+                    <nav aria-label="التنقل بين الصفحات">
+                        <ul class="pagination mb-0">
+                            {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if notification_type != 'all' %}&type={{ notification_type }}{% endif %}" aria-label="السابق">
+                                    <span aria-hidden="true">&raquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&raquo;</span>
+                            </li>
+                            {% endif %}
+                            
+                            {% for num in page_obj.paginator.page_range %}
+                                {% if page_obj.number == num %}
+                                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                <li class="page-item"><a class="page-link" href="?page={{ num }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if notification_type != 'all' %}&type={{ notification_type }}{% endif %}">{{ num }}</a></li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filter_type != 'all' %}&filter={{ filter_type }}{% endif %}{% if notification_type != 'all' %}&type={{ notification_type }}{% endif %}" aria-label="التالي">
+                                    <span aria-hidden="true">&laquo;</span>
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">&laquo;</span>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+                
+            {% else %}
+                <!-- لا توجد إشعارات -->
+                <div class="notification-empty">
+                    <i class="far fa-bell-slash"></i>
+                    <h5>لا توجد إشعارات</h5>
+                    <p class="text-muted">
+                        {% if filter_type != 'all' or notification_type != 'all' %}
+                            لا توجد إشعارات تطابق الفلتر المحدد
+                        {% else %}
+                            لم يتم العثور على أي إشعارات في حسابك
+                        {% endif %}
+                    </p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تعليم إشعار واحد كمقروء
+    $('.btn-mark-read').on('click', function(e) {
+        e.preventDefault();
+        
+        const $button = $(this);
+        const $notification = $button.closest('.notification-card');
+        const url = $button.data('url');
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // إعادة تحميل الصفحة لتحديث العدادات
+                    location.reload();
+                }
+            },
+            error: function() {
+                alert('حدث خطأ أثناء تحديث الإشعار');
+            }
+        });
+    });
+    
+    // تعليم إشعار كغير مقروء
+    $('.btn-mark-unread').on('click', function(e) {
+        e.preventDefault();
+        
+        const $button = $(this);
+        const url = $button.data('url').replace('/mark-read/', '/mark-unread/');
+        
+        $.ajax({
+            url: url,
+            type: 'POST',
+            data: {
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                if (response.success) {
+                    // إعادة تحميل الصفحة لتحديث العدادات
+                    location.reload();
+                }
+            },
+            error: function() {
+                alert('حدث خطأ أثناء تحديث الإشعار');
+            }
+        });
+    });
+    
+    // معالج تغيير فلتر النوع
+    $('#notification-type-filter').on('change', function() {
+        const selectedType = $(this).val();
+        const urlParams = new URLSearchParams(window.location.search);
+        const currentFilter = urlParams.get('filter') || 'all';
+        
+        let newUrl = '?filter=' + currentFilter;
+        if (selectedType !== 'all') {
+            newUrl += '&type=' + selectedType;
+        }
+        
+        window.location.href = newUrl;
+    });
+});
+
+// دالة حذف الإشعارات المقروءة القديمة
+function deleteOldReadNotifications() {
+    if (!confirm('هل أنت متأكد من حذف جميع الإشعارات المقروءة الأقدم من أسبوع؟')) {
+        return;
+    }
+    
+    $.ajax({
+        url: '{% url "core:delete_old_read_notifications" %}',
+        type: 'POST',
+        data: {
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        },
+        success: function(response) {
+            if (response.success) {
+                alert(response.message);
+                location.reload();
+            } else {
+                alert(response.message || 'حدث خطأ أثناء حذف الإشعارات');
+            }
+        },
+        error: function() {
+            alert('حدث خطأ أثناء حذف الإشعارات');
+        }
+    });
+}
+</script>
+{% endblock %}

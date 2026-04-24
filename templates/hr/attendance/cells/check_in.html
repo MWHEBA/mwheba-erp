@@ -1,0 +1,7 @@
+{% if object.status == 'absent' or object.status == 'on_leave' %}
+    <span class="text-muted">-</span>
+{% elif object.check_in %}
+    <span class="badge bg-success">{{ object.check_in|date:"g:i A" }}</span>
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

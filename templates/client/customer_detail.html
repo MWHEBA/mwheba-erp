@@ -1,0 +1,540 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ customer.name }} - {% trans "تفاصيل العميل" %}{% endblock %}
+
+<!-- CSRF Token مخفي للاستخدام في JavaScript -->
+{% csrf_token %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Overview Cards -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}</h5>
+    <div class="row">
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المدفوعات" %}</div>
+            <div class="stats-card-value">{{ total_payments|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المبيعات" %}</div>
+            <div class="stats-card-value">{{ total_sales|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-box"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
+            <div class="stats-card-value">{{ total_products|default:"0" }}</div>
+            <div class="stats-card-unit" style="font-weight: 600;">{% trans "منتج" %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+            <div class="stats-card-value">{{ invoices_count|default:"0" }}</div>
+            <div class="stats-card-unit" style="font-weight: 600;">{% trans "فاتورة" %}</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+                </div>
+
+  <!-- نظام التابات -->
+  <div class="customer-tabs">
+    <ul class="nav nav-tabs" id="customerTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-tab-pane" type="button" role="tab" aria-controls="info-tab-pane" aria-selected="true">
+          <i class="fas fa-info-circle me-2"></i>{% trans "معلومات العميل" %}
+        </button>
+                        </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="invoices-tab" data-bs-toggle="tab" data-bs-target="#invoices-tab-pane" type="button" role="tab" aria-controls="invoices-tab-pane" aria-selected="false">
+          <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "فواتير البيع" %}
+          <span class="badge bg-info rounded-pill">{{ invoices_count|default:"0" }}</span>
+        </button>
+                        </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane" aria-selected="false">
+          <i class="fas fa-money-bill-wave me-2"></i>{% trans "المدفوعات" %}
+          <span class="badge bg-primary rounded-pill">{{ payments|length|default:"0" }}</span>
+        </button>
+                        </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
+          <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
+        </button>
+                        </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
+          <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
+        </button>
+                        </li>
+                    </ul>
+                    
+    <div class="tab-content" id="customerTabsContent">
+      <!-- تاب معلومات العميل -->
+      <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+        <div class="section-container">
+          <div class="p-0">
+            <div class="info-list-item">
+              <div class="icon-wrapper phone">
+                <i class="fas fa-phone"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "رقم الهاتف" %}</div>
+                <div class="info-value">{{ customer.phone|format_phone }}</div>
+              </div>
+            </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper email">
+                <i class="fas fa-envelope"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "البريد الإلكتروني" %}</div>
+                <div class="info-value">{{ customer.email|default:"لا يوجد" }}</div>
+              </div>
+            </div>
+            
+            <div class="info-list-item">
+              <div class="icon-wrapper address">
+                <i class="fas fa-map-marker-alt"></i>
+              </div>
+              <div class="info-content">
+                <div class="info-label">{% trans "العنوان" %}</div>
+                <div class="info-value">{{ customer.address|default:"لا يوجد" }}</div>
+              </div>
+            </div>
+            
+            {% if customer.notes %}
+            <div class="notes-section">
+              <div class="notes-title">
+                <i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات" %}
+              </div>
+              <div class="notes-content">
+                {{ customer.notes }}
+              </div>
+            </div>
+            {% endif %}
+          </div>
+                    </div>
+                </div>
+      
+      <!-- تاب فواتير البيع -->
+      <div class="tab-pane fade" id="invoices-tab-pane" role="tabpanel" aria-labelledby="invoices-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            <a href="{% url 'sale:sale_create_for_customer' customer_id=customer.pk %}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة فاتورة جديدة" %}
+            </a>
+          </div>
+          
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="customer-invoices-table" %}
+            {% with headers=invoices_headers %}
+              {% with data=invoices %}
+                {% with action_buttons=invoices_action_buttons %}
+                  {% with empty_message="لا توجد فواتير متاحة" %}
+                    {% with clickable_rows=invoices_clickable row_click_url="/sales/0/" %}
+                      {% with show_export=True export_filename="customer_invoices" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+          {% if not invoices %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد فواتير مبيعات مسجلة لهذا العميل." %}
+              <a href="{% url 'sale:sale_create_for_customer' customer_id=customer.pk %}" class="alert-link">
+                {% trans "إضافة فاتورة جديدة" %}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+            </div>
+        </div>
+        
+      <!-- تاب المدفوعات -->
+      <div class="tab-pane fade" id="payments-tab-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
+              <i class="fas fa-money-bill-wave me-2"></i>
+              <span>{% trans "الإجمالي:" %} {{ total_payments|currency }}</span>
+            </div>
+                    </div>
+          
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="customer-payments-table" %}
+            {% with headers=payments_headers %}
+              {% with data=payments %}
+                {% with empty_message="لا توجد مدفوعات مسجلة" %}
+                  {% with clickable_rows=payments_clickable row_click_url="/sales/payments/0/" %}
+                    {% with show_export=True export_filename="customer_payments" %}
+                      {% include "components/data_table.html" %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+      </div>
+      
+      <!-- تاب القيود المحاسبية -->
+      <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية المرتبطة" %}</h5>
+            {% if financial_account %}
+            <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
+            </a>
+            {% endif %}
+          </div>
+          
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="customer-journal-table" %}
+            {% with headers=journal_headers %}
+              {% with data=journal_entries %}
+                {% with action_buttons=journal_action_buttons %}
+                  {% with empty_message="لا توجد قيود محاسبية مرتبطة" %}
+                    {% with clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" %}
+                      {% with show_export=True export_filename="customer_journal_entries" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+      </div>
+      
+      <!-- تاب كشف الحساب -->
+      <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="mb-0"><i class="fas fa-file-alt me-2"></i>{% trans "كشف حساب العميل" %}</h5>
+            <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
+              <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
+            </button>
+          </div>
+          
+          <!-- استخدام النظام المحسن للجداول -->
+          {% with table_id="customer-statement-table" %}
+            {% with headers=statement_headers %}
+              {% with data=transactions %}
+                {% with empty_message="لا توجد معاملات مالية مسجلة" %}
+                  {% with show_export=True export_filename="customer_statement" %}
+                    {% include "components/data_table.html" %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        </div>
+      </div>
+        </div>
+    </div>
+</div>
+
+<!-- Actions Modal -->
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionsModalLabel">
+          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- قسم المعلومات المالية -->
+        <div class="p-3" style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-chart-line me-2"></i>المعلومات المالية
+          </h6>
+          <div class="row g-3">
+            <div class="col-6">
+              <div class="p-3 rounded" style="background: white; border: 1px solid #e9ecef; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background: rgba(255, 193, 7, 0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-wallet" style="color: #ffc107; font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #6c757d; font-weight: 600;">الرصيد المتاح</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: #ffc107;">{{ available_credit|smart_float }}</div>
+                <div style="font-size: 0.7rem; color: #adb5bd;">{{ currency_symbol }}</div>
+              </div>
+            </div>
+            <div class="col-6">
+              <div class="p-3 rounded" style="background: white; border: 1px solid #e9ecef; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+                <div class="d-flex align-items-center mb-2">
+                  <div class="me-2" style="width: 32px; height: 32px; background: rgba(108, 117, 125, 0.1); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-credit-card" style="color: #6c757d; font-size: 14px;"></i>
+                  </div>
+                  <div style="font-size: 0.75rem; color: #6c757d; font-weight: 600;">حد الائتمان</div>
+                </div>
+                <div class="h4 mb-0 fw-bold" style="color: #6c757d;">{{ customer.credit_limit|smart_float|default:"0" }}</div>
+                <div style="font-size: 0.7rem; color: #adb5bd;">{{ currency_symbol }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- قسم الإجراءات -->
+        <div class="p-3">
+          <h6 class="mb-3 text-muted" style="font-size: 0.85rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">
+            <i class="fas fa-cog me-2"></i>الإجراءات
+          </h6>
+          <div class="list-group list-group-flush">
+            <a href="{% url 'client:customer_edit' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded mb-2 d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(255, 193, 7, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-edit" style="color: #ffc107;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">{% trans "تعديل بيانات العميل" %}</div>
+                <small class="text-muted" style="font-size: 0.8rem;">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+            
+            <a href="{% url 'client:customer_change_account' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded mb-2 d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(13, 110, 253, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-exchange-alt" style="color: #0d6efd;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">تغيير الحساب المحاسبي</div>
+                <small class="text-muted" style="font-size: 0.8rem;">ربط العميل بحساب آخر في دليل الحسابات</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+            
+            <a href="{% url 'client:customer_delete' customer.pk %}" class="list-group-item list-group-item-action border-0 rounded d-flex align-items-center" style="transition: all 0.2s; padding: 12px;">
+              <div class="me-3" style="width: 40px; height: 40px; background: rgba(220, 53, 69, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+                <i class="fas fa-trash" style="color: #dc3545;"></i>
+              </div>
+              <div class="flex-grow-1">
+                <div class="fw-bold" style="font-size: 0.95rem;">{% trans "حذف العميل" %}</div>
+                <small class="text-muted" style="font-size: 0.8rem;">{% trans "حذف العميل نهائياً من النظام" %}</small>
+              </div>
+              <i class="fas fa-chevron-left text-muted" style="font-size: 0.8rem;"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+
+// دالة إظهار الإشعارات الموحدة
+function showNotification(message, type = 'info') {
+    const alertClass = type === 'success' ? 'alert-success' : 
+                      type === 'error' ? 'alert-danger' : 'alert-info';
+    
+    // حساب موضع الإشعار بناءً على الإشعارات الموجودة
+    const existingNotifications = document.querySelectorAll('.js-notification, .django-message');
+    const topPosition = 20 + (existingNotifications.length * 80);
+    
+    const notification = $(`
+        <div class="alert ${alertClass} alert-dismissible fade show position-fixed js-notification" 
+             style="top: ${topPosition}px; right: 20px; z-index: ${9999 + existingNotifications.length}; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+        // إعادة ترتيب الإشعارات المتبقية
+        setTimeout(() => {
+            repositionAllNotifications();
+        }, 300);
+    }, 5000);
+}
+
+// دالة إعادة ترتيب جميع الإشعارات
+function repositionAllNotifications() {
+    const allNotifications = document.querySelectorAll('.js-notification, .django-message');
+    allNotifications.forEach(function(notification, index) {
+        notification.style.top = (20 + (index * 80)) + 'px';
+        notification.style.zIndex = 9999 + index;
+    });
+}
+
+// فتح مودال إنشاء حساب محاسبي
+function openCreateAccountModal(customerId) {
+    const createAccountUrl = `{% url 'client:customer_create_account' 0 %}`.replace('/0/', `/${customerId}/`);
+    fetch(createAccountUrl, {
+        method: 'GET',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.html) {
+            // إنشاء المودال إذا لم يكن موجوداً
+            let modal = document.getElementById('createAccountModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.id = 'createAccountModal';
+                modal.setAttribute('tabindex', '-1');
+                modal.innerHTML = `
+                    <div class="modal-dialog">
+                        <div class="modal-content" id="createAccountModalContent">
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(modal);
+            }
+            
+            document.getElementById('createAccountModalContent').innerHTML = data.html;
+            new bootstrap.Modal(document.getElementById('createAccountModal')).show();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('حدث خطأ في تحميل المودال', 'error');
+    });
+}
+
+// دالة للحصول على CSRF token بطريقة آمنة
+function getCsrfToken() {
+    // البحث في المودال أولاً
+    let csrfInput = document.querySelector('#createAccountModal [name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // البحث في الصفحة الرئيسية
+    csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) {
+        return csrfInput.value;
+    }
+    
+    // البحث في الـ meta tag
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta && csrfMeta.content) {
+        return csrfMeta.content;
+    }
+    
+    // البحث في الـ cookies
+    const csrfCookie = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('csrftoken='));
+    if (csrfCookie) {
+        return csrfCookie.split('=')[1];
+    }
+    
+    return null;
+}
+
+// إنشاء حساب محاسبي للعميل
+function createCustomerAccount(customerId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    
+    // الحصول على CSRF token بطريقة آمنة
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        showNotification('خطأ: لم يتم العثور على رمز الأمان', 'error');
+        return;
+    }
+    
+    const createAccountUrl = `{% url 'client:customer_create_account' 0 %}`.replace('/0/', `/${customerId}/`);
+    fetch(createAccountUrl, {
+        method: 'POST',
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            showNotification(data.message, 'success');
+            
+            // إعادة تحميل الصفحة بعد ثانيتين
+            setTimeout(() => {
+                location.reload();
+            }, 2000);
+        } else {
+            showNotification(data.message, 'error');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showNotification('حدث خطأ أثناء إنشاء الحساب', 'error');
+    });
+}
+</script>
+{% endblock %} 

@@ -1,0 +1,171 @@
+{% comment %}
+مكون الرسم البياني المخصص
+
+الاستخدام:
+{% include "components/chart.html" with id="my-chart" type="bar" data=chart_data %}
+
+المعلمات:
+- id: معرف الرسم البياني (مطلوب)
+- type: نوع الرسم البياني (bar, line, pie, doughnut، الخ) (مطلوب)
+- data: بيانات الرسم البياني (مطلوب)
+- options: خيارات إضافية للرسم البياني (اختياري)
+- width: عرض الرسم البياني (اختياري، افتراضي "100%")
+- height: ارتفاع الرسم البياني (اختياري، افتراضي "300px")
+- class: تصنيفات CSS إضافية (اختياري)
+- title: عنوان الرسم البياني (اختياري)
+- description: وصف الرسم البياني (اختياري)
+- legend: إظهار وسيلة الإيضاح (اختياري، افتراضي True)
+- responsive: هل الرسم البياني متجاوب (اختياري، افتراضي True)
+{% endcomment %}
+
+<div class="chart-wrapper mb-4 {{ class }}">
+    {% if title %}
+        <h5 class="chart-title">{{ title }}</h5>
+    {% endif %}
+    
+    {% if description %}
+        <p class="chart-description text-muted">{{ description }}</p>
+    {% endif %}
+    
+    <div class="chart-container" style="position: relative; width: {{ width|default:'100%' }}; height: {{ height|default:'300px' }};">
+        <canvas id="{{ id }}"></canvas>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إذا تم تحميل Chart.js بالفعل
+        if (typeof Chart !== 'undefined') {
+            initChart();
+        } else {
+            // تحميل Chart.js إذا لم يكن محملاً
+            if (!document.getElementById('chart-js')) {
+                const script = document.createElement('script');
+                script.id = 'chart-js';
+                script.src = 'https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js';
+                script.onload = initChart;
+                document.head.appendChild(script);
+            }
+        }
+        
+        function initChart() {
+            // تكوين الرسم البياني بالاعتبارات العربية
+            Chart.defaults.font.family = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+            Chart.defaults.font.size = 14;
+            Chart.defaults.color = '#666';
+            
+            // الحصول على سياق الرسم البياني
+            const ctx = document.getElementById('{{ id }}').getContext('2d');
+            
+            // بيانات الرسم البياني
+            const chartData = {{ data|safe }};
+            
+            // خيارات الرسم البياني الأساسية
+            const defaultOptions = {
+                responsive: {{ responsive|default:True|lower }},
+                maintainAspectRatio: false,
+                locale: 'en-US',
+                plugins: {
+                    legend: {
+                        display: {{ legend|default:True|lower }},
+                        position: 'top',
+                        rtl: true,
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        rtl: true,
+                        titleAlign: 'right',
+                        bodyAlign: 'right',
+                        footerAlign: 'right',
+                        callbacks: {
+                            // تنسيق الأرقام في التوولتيب
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                
+                                if (context.parsed.y !== null) {
+                                    // تنسيق الأرقام باستخدام دالة formatNumber
+                                    const num = context.parsed.y;
+                                    if (typeof formatNumber === 'function') {
+                                        label += formatNumber(num);
+                                    } else {
+                                        // الاحتفاظ بالطريقة الاحتياطية
+                                        if (num >= 1000000) {
+                                            label += (num / 1000000).toFixed(1) + ' مليون';
+                                        } else if (num >= 1000) {
+                                            label += (num / 1000).toFixed(1) + ' ألف';
+                                        } else {
+                                            label += num.toLocaleString('en-US');
+                                        }
+                                    }
+                                }
+                                
+                                return label;
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                }
+            };
+            
+            // دمج الخيارات المخصصة
+            const chartOptions = {{ options|default:"{}" }};
+            const finalOptions = Object.assign({}, defaultOptions, chartOptions);
+            
+            // تحسين تصميم أنواع معينة من الرسوم البيانية
+            if ("{{ type }}" === "bar") {
+                if (!finalOptions.scales) {
+                    finalOptions.scales = {};
+                }
+                
+                if (!finalOptions.scales.y) {
+                    finalOptions.scales.y = {
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                // استخدام دالة formatNumber لتنسيق أرقام المحور
+                                if (typeof formatNumber === 'function' && value !== 0) {
+                                    return formatNumber(value);
+                                }
+                                // الطريقة الاحتياطية
+                                if (value >= 1000000) {
+                                    return (value / 1000000).toFixed(1) + 'م';
+                                } else if (value >= 1000) {
+                                    return (value / 1000).toFixed(1) + 'ك';
+                                }
+                                return value;
+                            }
+                        }
+                    };
+                }
+            } else if (["pie", "doughnut"].includes("{{ type }}")) {
+                // تحسين الألوان الافتراضية للرسوم الدائرية
+                if (!chartData.datasets || !chartData.datasets[0].backgroundColor) {
+                    const defaultColors = [
+                        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b',
+                        '#5a5c69', '#6f42c1', '#fd7e14', '#20c9a6', '#858796'
+                    ];
+                    
+                    if (chartData.datasets && chartData.datasets[0]) {
+                        chartData.datasets[0].backgroundColor = defaultColors;
+                    }
+                }
+            }
+            
+            // إنشاء الرسم البياني
+            new Chart(ctx, {
+                type: "{{ type }}",
+                data: chartData,
+                options: finalOptions
+            });
+        }
+    });
+</script> 

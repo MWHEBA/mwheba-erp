@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}خطأ في الأمان{% endblock %}
+
+{% block extra_css %}
+<style>
+.error-container {
+    min-height: 60vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.error-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    padding: 3rem;
+    text-align: center;
+    max-width: 500px;
+    margin: 2rem;
+}
+
+.error-icon {
+    font-size: 4rem;
+    color: #dc3545;
+    margin-bottom: 1rem;
+}
+
+.error-title {
+    color: #2c3e50;
+    font-size: 1.8rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+}
+
+.error-message {
+    color: #6c757d;
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+.error-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.btn-refresh {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-refresh:hover {
+    background: #0056b3;
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+}
+
+.btn-home {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.btn-home:hover {
+    background: #545b62;
+    transform: translateY(-2px);
+    color: white;
+    text-decoration: none;
+}
+
+.security-info {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 2rem;
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <div class="error-card">
+        <div class="error-icon">
+            <i class="fas fa-shield-alt"></i>
+        </div>
+        
+        <h1 class="error-title">{{ title|default:"خطأ في الأمان" }}</h1>
+        
+        <p class="error-message">
+            {{ message|default:"انتهت صلاحية الجلسة أو هناك مشكلة في الأمان. يرجى تحديث الصفحة والمحاولة مرة أخرى." }}
+        </p>
+        
+        <div class="error-actions">
+            <a href="{{ refresh_url|default:request.path }}" class="btn-refresh">
+                <i class="fas fa-sync-alt"></i>
+                تحديث الصفحة
+            </a>
+            
+            <a href="{% url 'core:dashboard' %}" class="btn-home">
+                <i class="fas fa-home"></i>
+                العودة للرئيسية
+            </a>
+        </div>
+        
+        <div class="security-info">
+            <i class="fas fa-info-circle"></i>
+            <strong>معلومة أمنية:</strong>
+            هذا الخطأ يحدث لحمايتك من الهجمات الأمنية. إذا استمر الخطأ، يرجى الاتصال بالدعم الفني.
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تحديث تلقائي للصفحة بعد 30 ثانية
+setTimeout(function() {
+    if (confirm('هل تريد تحديث الصفحة تلقائياً؟')) {
+        window.location.reload();
+    }
+}, 30000);
+
+// إضافة keyboard shortcut للتحديث
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F5' || (e.ctrlKey && e.key === 'r')) {
+        e.preventDefault();
+        window.location.reload();
+    }
+});
+</script>
+{% endblock %}

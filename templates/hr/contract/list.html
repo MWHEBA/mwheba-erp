@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}العقود{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-3">
+            <label for="employee" class="form-label">الموظف</label>
+            <select name="employee" id="employee" class="form-select">
+                <option value="">جميع الموظفين</option>
+                {% for emp in employees %}
+                <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"i" %}selected{% endif %}>
+                    {{ emp.get_full_name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">الكل</option>
+                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>ساري</option>
+                <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>مسودة</option>
+                <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>منتهي</option>
+                <option value="renewed" {% if request.GET.status == 'renewed' %}selected{% endif %}>تم التجديد</option>
+                <option value="terminated" {% if request.GET.status == 'terminated' %}selected{% endif %}>منهي</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="contract_type" class="form-label">نوع العقد</label>
+            <select name="contract_type" id="contract_type" class="form-select">
+                <option value="">الكل</option>
+                <option value="full_time" {% if request.GET.contract_type == 'full_time' %}selected{% endif %}>دوام كامل</option>
+                <option value="part_time" {% if request.GET.contract_type == 'part_time' %}selected{% endif %}>دوام جزئي</option>
+                <option value="temporary" {% if request.GET.contract_type == 'temporary' %}selected{% endif %}>مؤقت</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="from_date" class="form-label">من تاريخ</label>
+            <input type="text" name="from_date" id="from_date" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ request.GET.from_date }}">
+        </div>
+        <div class="col-md-2">
+            <label for="to_date" class="form-label">إلى تاريخ</label>
+            <input type="text" name="to_date" id="to_date" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.to_date }}">
+        </div>
+        <div class="col-md-1 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i>
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة العقود -->
+  <div class="section-container">
+    {% include 'components/data_table.html' %}
+
+    {% if page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-3">
+      <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">
+            <i class="fas fa-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+
+        {% for num in page_obj.paginator.page_range %}
+          {% if page_obj.number == num %}
+            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+          {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+            <li class="page-item">
+              <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ num }}">{{ num }}</a>
+            </li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?{% for k,v in request.GET.items %}{% if k != 'page' %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">
+            <i class="fas fa-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+      <p class="text-center text-muted small">
+        صفحة {{ page_obj.number }} من {{ page_obj.paginator.num_pages }}
+        ({{ page_obj.paginator.count }} عقد)
+      </p>
+    </nav>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

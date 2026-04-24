@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% if shift %}تعديل وردية{% else %}إضافة وردية{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/hr-shifts.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <div class="col-lg-8">
+        <div class="section-container">
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">اسم الوردية *</label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="text-danger">{{ form.name.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">نوع الوردية *</label>
+                                {{ form.shift_type }}
+                                {% if form.shift_type.errors %}
+                                    <div class="text-danger">{{ form.shift_type.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">وقت البداية *</label>
+                                {{ form.start_time }}
+                                {% if form.start_time.errors %}
+                                    <div class="text-danger">{{ form.start_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">وقت النهاية *</label>
+                                {{ form.end_time }}
+                                {% if form.end_time.errors %}
+                                    <div class="text-danger">{{ form.end_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3 work-hours-container">
+                                <label class="form-label">ساعات العمل</label>
+                                <input type="number" id="id_work_hours" name="work_hours"
+                                       class="form-control" step="0.01" min="0"
+                                       placeholder="يُحسب تلقائياً" readonly>
+                                <small class="text-muted d-block">يُحسب تلقائياً من وقت البداية والنهاية</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- معاينة الحساب -->
+                    <div class="time-calculation-preview" id="calculation-preview" style="display: none;">
+                        <h6><i class="fas fa-calculator me-2"></i>معاينة الحساب</h6>
+                        <div class="calculated-hours" id="preview-hours">0.00</div>
+                        <small class="text-muted">ساعة عمل</small>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">فترة السماح للحضور (دقائق)</label>
+                                {{ form.grace_period_in }}
+                                {% if form.grace_period_in.errors %}
+                                    <div class="text-danger">{{ form.grace_period_in.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">فترة السماح للانصراف (دقائق)</label>
+                                {{ form.grace_period_out }}
+                                {% if form.grace_period_out.errors %}
+                                    <div class="text-danger">{{ form.grace_period_out.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check mb-3">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    نشط
+                                </label>
+                                {% if form.is_active.errors %}
+                                    <div class="text-danger">{{ form.is_active.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- أوقات رمضان -->
+                    <hr>
+                    <h6 class="mb-3 text-muted">
+                        <i class="fas fa-moon me-2"></i>أوقات رمضان
+                        <small class="d-block fw-normal mt-1">اتركهما فارغين لاستخدام الأوقات العادية في رمضان</small>
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.ramadan_start_time.label }}</label>
+                                {{ form.ramadan_start_time }}
+                                <small class="text-muted d-block">{{ form.ramadan_start_time.help_text }}</small>
+                                {% if form.ramadan_start_time.errors %}
+                                    <div class="text-danger">{{ form.ramadan_start_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.ramadan_end_time.label }}</label>
+                                {{ form.ramadan_end_time }}
+                                <small class="text-muted d-block">{{ form.ramadan_end_time.help_text }}</small>
+                                {% if form.ramadan_end_time.errors %}
+                                    <div class="text-danger">{{ form.ramadan_end_time.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            {% if shift %}تحديث الوردية{% else %}إضافة الوردية{% endif %}
+                        </button>
+                        <a href="{% url 'hr:shift_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-arrow-right me-2"></i>
+                            إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/hr-shift-calculator.js' %}"></script>
+{% endblock %}

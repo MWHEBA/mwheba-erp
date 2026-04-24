@@ -1,0 +1,142 @@
+/* Chart Components Styles */
+
+.chart-container {
+    position: relative;
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.chart-container canvas {
+    max-height: 400px;
+}
+
+/* تحسين مظهر الأقسام القابلة للطي */
+.section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+}
+
+.section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* تحسين الانتقال السلس */
+.collapse {
+    transition: height 0.3s ease;
+}
+
+/* تحسين مظهر الجداول في الأقسام المطوية */
+.collapse .table-responsive {
+    margin-top: 15px;
+}
+
+.collapse .table {
+    margin-bottom: 0;
+}
+
+/* تحسين ألوان النصوص حسب القيم */
+.text-profit {
+    color: var(--bs-success) !important;
+    font-weight: 600;
+}
+
+.text-loss {
+    color: var(--bs-danger) !important;
+    font-weight: 600;
+}
+
+.text-neutral {
+    color: var(--bs-secondary) !important;
+}
+
+/* تحسين مظهر البطاقات الإحصائية في التقارير */
+.stats-card .stats-card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+}
+
+.stats-card .stats-card-unit {
+    font-size: 0.9rem;
+    opacity: 0.8;
+}
+
+/* تحسين مظهر الفلاتر */
+.section-container form .row {
+    align-items: end;
+}
+
+.section-container form .form-label {
+    font-weight: 500;
+    color: var(--text-color);
+    margin-bottom: 5px;
+}
+
+.section-container form .btn {
+    height: fit-content;
+}
+
+/* تحسين مظهر الجداول */
+.table th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    border: none;
+    padding: 12px 8px;
+}
+
+.table td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+
+.table-light td {
+    background-color: rgba(0, 0, 0, 0.02);
+    font-size: 0.9rem;
+}
+
+/* تحسين الاستجابة للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .stats-card .stats-card-value {
+        font-size: 1.5rem;
+    }
+    
+    .chart-container {
+        padding: 15px;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+    }
+    
+    .table-responsive {
+        font-size: 0.85rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-card {
+        margin-bottom: 15px;
+    }
+    
+    .section-container form .col-md-3,
+    .section-container form .col-md-2 {
+        margin-bottom: 15px;
+    }
+    
+    .chart-container canvas {
+        max-height: 250px;
+    }
+}

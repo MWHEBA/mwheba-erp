@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="تفعيل أو استبدال الحساب المحاسبي" icon="fas fa-toggle-on" breadcrumb_items=breadcrumb_items %}
+    
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Entity Info -->
+            <div class="card mb-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        معلومات الكيان
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>نوع الكيان:</strong> {{ entity_type }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>اسم الكيان:</strong> {{ entity }}</p>
+                        </div>
+                    </div>
+                    
+                    {% if current_account %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-ban me-2"></i>
+                        <strong>المشكلة:</strong> الحساب المحاسبي الحالي غير مفعّل
+                        <br>
+                        <strong>الحساب الحالي:</strong> {{ current_account.code }} - {{ current_account.name }}
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>المشكلة:</strong> لا يوجد حساب محاسبي مرتبط بهذا الكيان
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Fix Options -->
+            <div class="row">
+                {% if current_account %}
+                <!-- Option 1: Activate Current Account -->
+                <div class="col-md-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-toggle-on me-2"></i>
+                                الخيار 1: تفعيل الحساب الحالي
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p>تفعيل الحساب المحاسبي الحالي:</p>
+                            <p class="text-muted">
+                                <strong>{{ current_account.code }}</strong><br>
+                                {{ current_account.name }}
+                            </p>
+                            
+                            <form method="post" class="mt-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="activate">
+                                <button type="submit" class="btn btn-success w-100">
+                                    <i class="fas fa-check me-2"></i>
+                                    تفعيل الحساب
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+                
+                <!-- Option 2: Replace Account -->
+                <div class="col-md-{% if current_account %}6{% else %}12{% endif %} mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">
+                                <i class="fas fa-exchange-alt me-2"></i>
+                                {% if current_account %}الخيار 2: استبدال الحساب{% else %}ربط حساب جديد{% endif %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <p>{% if current_account %}استبدال الحساب الحالي بحساب آخر مفعّل{% else %}ربط حساب محاسبي جديد بهذا الكيان{% endif %}</p>
+                            
+                            <form method="post" class="mt-3">
+                                {% csrf_token %}
+                                <input type="hidden" name="action" value="replace">
+                                
+                                <div class="mb-3">
+                                    <label for="new_account_id" class="form-label">
+                                        الحساب الجديد <span class="text-danger">*</span>
+                                    </label>
+                                    <select name="new_account_id" id="new_account_id" class="form-select" required>
+                                        <option value="">-- اختر حساب محاسبي --</option>
+                                        {% for account in alternative_accounts %}
+                                        <option value="{{ account.id }}">
+                                            {{ account.code }} - {{ account.name }}
+                                            {% if account.parent %}({{ account.parent.name }}){% endif %}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-exchange-alt me-2"></i>
+                                    {% if current_account %}استبدال الحساب{% else %}ربط الحساب{% endif %}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back Button -->
+            <div class="text-center mt-3">
+                <a href="{% url 'financial:validation_fix_dashboard' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-right me-2"></i>
+                    العودة لصفحة الإصلاح
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تحسين select box
+    $('#new_account_id').select2({
+        placeholder: '-- اختر حساب محاسبي --',
+        allowClear: true,
+        dir: 'rtl'
+    });
+});
+</script>
+{% endblock %}

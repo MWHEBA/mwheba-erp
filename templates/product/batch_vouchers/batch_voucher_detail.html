@@ -1,0 +1,283 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/print-voucher.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Print Header (يظهر عند الطباعة فقط) -->
+    <div class="print-header d-none d-print-block">
+        <h2>{{ voucher.get_voucher_type_display }}</h2>
+        <p><strong>رقم الإذن:</strong> {{ voucher.voucher_number }}</p>
+        <p><strong>التاريخ:</strong> {{ voucher.voucher_date|date:"Y-m-d" }}</p>
+        <p><strong>المخزن:</strong> {{ voucher.warehouse.name }}</p>
+        {% if voucher.target_warehouse %}
+        <p><strong>المخزن الهدف:</strong> {{ voucher.target_warehouse.name }}</p>
+        {% endif %}
+    </div>
+    
+    {% include "shared/page_header.html" with title=title header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- معلومات الإذن -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات الإذن</h5>
+        <div class="row g-3">
+            <div class="col-md-3">
+                <strong>رقم الإذن:</strong>
+                <p>{{ voucher.voucher_number }}</p>
+            </div>
+            <div class="col-md-3">
+                <strong>النوع:</strong>
+                <p>
+                    {% if voucher.voucher_type == 'receipt' %}
+                        <span class="badge bg-success">إذن استلام جماعي</span>
+                    {% elif voucher.voucher_type == 'issue' %}
+                        <span class="badge bg-warning">إذن صرف جماعي</span>
+                    {% else %}
+                        <span class="badge bg-info">إذن تحويل جماعي</span>
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-3">
+                <strong>التاريخ:</strong>
+                <p>{{ voucher.voucher_date|date:"Y-m-d h:i A" }}</p>
+            </div>
+            <div class="col-md-3">
+                <strong>الحالة:</strong>
+                <p>
+                    {% if voucher.status == 'draft' %}
+                        <span class="badge bg-secondary">مسودة</span>
+                    {% elif voucher.status == 'pending' %}
+                        <span class="badge bg-warning">معلق</span>
+                    {% else %}
+                        <span class="badge bg-success">معتمد</span>
+                    {% endif %}
+                </p>
+            </div>
+            
+            <div class="col-md-4">
+                <strong>المخزن:</strong>
+                <p>{{ voucher.warehouse.name }}</p>
+            </div>
+            
+            {% if voucher.target_warehouse %}
+            <div class="col-md-4">
+                <strong>المخزن الهدف:</strong>
+                <p>{{ voucher.target_warehouse.name }}</p>
+            </div>
+            {% endif %}
+            
+            {% if voucher.purpose_type %}
+            <div class="col-md-4">
+                <strong>الغرض:</strong>
+                <p>{{ voucher.get_purpose_type_display }}</p>
+            </div>
+            {% endif %}
+            
+            {% if voucher.notes %}
+            <div class="col-12">
+                <strong>ملاحظات:</strong>
+                <p>{{ voucher.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- المنتجات -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-boxes me-2"></i>المنتجات</h5>
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="text-center">#</th>
+                        <th class="text-center">المنتج</th>
+                        <th class="text-center">الكمية</th>
+                        <th class="text-center">تكلفة الوحدة</th>
+                        <th class="text-center">الإجمالي</th>
+                        <th class="text-center">حركة المخزون</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in voucher.items.all %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter }}</td>
+                        <td class="text-center">
+                            <a href="{% url 'product:product_detail' item.product.pk %}">
+                                {{ item.product.name }}
+                            </a>
+                        </td>
+                        <td class="text-center">{{ item.quantity|smart_float }}</td>
+                        <td class="text-center">{{ item.unit_cost|smart_float }} {{ currency_symbol }}</td>
+                        <td class="text-center">{{ item.total_cost|smart_float }} {{ currency_symbol }}</td>
+                        <td class="text-center">
+                            {% if item.inventory_movement %}
+                                <span class="badge bg-success">
+                                    <i class="fas fa-check"></i> {{ item.inventory_movement.movement_number }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary">لم يُنشأ بعد</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="table-active">
+                        <th colspan="2" class="text-center">الإجمالي</th>
+                        <th class="text-center">{{ voucher.total_quantity|smart_float }}</th>
+                        <th class="text-center">-</th>
+                        <th class="text-center">{{ voucher.total_value|smart_float }} {{ currency_symbol }}</th>
+                        <th class="text-center">-</th>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- القيد المحاسبي -->
+    {% if voucher.journal_entry %}
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-file-invoice me-2"></i>القيد المحاسبي</h5>
+        <p><strong>رقم القيد:</strong> {{ voucher.journal_entry.entry_number }}</p>
+        <p><strong>التاريخ:</strong> {{ voucher.journal_entry.date|date:"Y-m-d" }}</p>
+        <div class="table-responsive">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th class="text-center">الحساب</th>
+                        <th class="text-center">مدين</th>
+                        <th class="text-center">دائن</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in voucher.journal_entry.lines.all %}
+                    <tr>
+                        <td class="text-center">{{ line.account.name }}</td>
+                        <td class="text-center">{{ line.debit|smart_float }}</td>
+                        <td class="text-center">{{ line.credit|smart_float }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- حركات المخزون الفردية (للمراجعة والتتبع) -->
+    {% if inventory_movements %}
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#inventoryMovementsSection" aria-expanded="false">
+            <i class="fas fa-exchange-alt me-2"></i>حركات المخزون الفردية ({{ inventory_movements.count }})
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse" id="inventoryMovementsSection">
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                هذه الحركات تم إنشاؤها تلقائياً من الإذن الجماعي للتتبع والمراجعة التفصيلية
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover">
+                    <thead>
+                        <tr>
+                            <th class="text-center">رقم الحركة</th>
+                            <th class="text-center">المنتج</th>
+                            <th class="text-center">المخزن</th>
+                            <th class="text-center">النوع</th>
+                            <th class="text-center">الكمية</th>
+                            <th class="text-center">التكلفة</th>
+                            <th class="text-center">الحالة</th>
+                            <th class="text-center">التاريخ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movement in inventory_movements %}
+                        <tr>
+                            <td class="text-center">
+                                <code class="bg-light px-2 py-1 rounded">{{ movement.movement_number }}</code>
+                            </td>
+                            <td class="text-center">{{ movement.product.name }}</td>
+                            <td class="text-center">{{ movement.warehouse.name }}</td>
+                            <td class="text-center">
+                                {% if movement.movement_type == 'in' %}
+                                    <span class="badge bg-success">وارد</span>
+                                {% elif movement.movement_type == 'out' %}
+                                    <span class="badge bg-warning">صادر</span>
+                                {% elif movement.movement_type == 'transfer_out' %}
+                                    <span class="badge bg-info">تحويل صادر</span>
+                                {% elif movement.movement_type == 'transfer_in' %}
+                                    <span class="badge bg-primary">تحويل وارد</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ movement.quantity }}</td>
+                            <td class="text-center">{{ movement.total_cost|smart_float }} ج.م</td>
+                            <td class="text-center">
+                                {% if movement.is_approved %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i> معتمد</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">غير معتمد</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ movement.movement_date|date:"Y-m-d" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- معلومات التدقيق -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-history me-2"></i>معلومات التدقيق</h5>
+        <div class="row g-3">
+            <div class="col-md-4">
+                <strong>أنشأه:</strong>
+                <p>{{ voucher.created_by.get_full_name }} - {{ voucher.created_at|date:"Y-m-d h:i A" }}</p>
+            </div>
+            {% if voucher.updated_by %}
+            <div class="col-md-4">
+                <strong>عدله:</strong>
+                <p>{{ voucher.updated_by.get_full_name }} - {{ voucher.updated_at|date:"Y-m-d h:i A" }}</p>
+            </div>
+            {% endif %}
+            {% if voucher.approved_by %}
+            <div class="col-md-4">
+                <strong>اعتمده:</strong>
+                <p>{{ voucher.approved_by.get_full_name }} - {{ voucher.approval_date|date:"Y-m-d h:i A" }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Print Footer (يظهر عند الطباعة فقط) -->
+    <div class="print-footer d-none d-print-block">
+        <div class="signature-section">
+            <div class="signature-box">
+                <p class="signature-label">المُعد</p>
+                <p>{{ voucher.created_by.get_full_name }}</p>
+            </div>
+            <div class="signature-box">
+                <p class="signature-label">المُعتمد</p>
+                <p>{{ voucher.approved_by.get_full_name|default:"___________" }}</p>
+            </div>
+            <div class="signature-box">
+                <p class="signature-label">المُستلم</p>
+                <p>___________</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/batch-voucher.js' %}"></script>
+{% endblock %}

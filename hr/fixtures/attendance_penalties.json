@@ -1,0 +1,79 @@
+[
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 1,
+    "fields": {
+      "name": "تأخير خفيف",
+      "max_minutes": 30,
+      "penalty_days": "0.50",
+      "is_active": true,
+      "order": 1
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 2,
+    "fields": {
+      "name": "تأخير متوسط",
+      "max_minutes": 60,
+      "penalty_days": "1.00",
+      "is_active": true,
+      "order": 2
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 3,
+    "fields": {
+      "name": "تأخير ساعة ونصف",
+      "max_minutes": 90,
+      "penalty_days": "1.50",
+      "is_active": true,
+      "order": 3
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 4,
+    "fields": {
+      "name": "تأخير ساعتين",
+      "max_minutes": 120,
+      "penalty_days": "2.00",
+      "is_active": true,
+      "order": 4
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 5,
+    "fields": {
+      "name": "تأخير ساعتين ونصف",
+      "max_minutes": 150,
+      "penalty_days": "2.50",
+      "is_active": true,
+      "order": 5
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 6,
+    "fields": {
+      "name": "تأخير ثلاث ساعات",
+      "max_minutes": 180,
+      "penalty_days": "3.00",
+      "is_active": true,
+      "order": 6
+    }
+  },
+  {
+    "model": "hr.attendancepenalty",
+    "pk": 7,
+    "fields": {
+      "name": "تأخير شديد",
+      "max_minutes": 0,
+      "penalty_days": "4.00",
+      "is_active": true,
+      "order": 7
+    }
+  }
+]

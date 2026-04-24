@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/bundle-analytics.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title subtitle="تحليلات وإحصائيات المنتجات المجمعة" icon="fas fa-chart-bar" header_buttons=header_buttons %}
+    
+    {% if error %}
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {{ error }}
+        </div>
+    {% else %}
+        <!-- بطاقات الإحصائيات السريعة -->
+        <div class="section-container">
+            <h5 class="section-title">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                الإحصائيات السريعة
+            </h5>
+            <div class="row">
+                {% for card in stats_cards %}
+                <div class="col-md-3 mb-3">
+                    <div class="stats-card stats-card-{{ card.color }}">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="{{ card.icon }}"></i>
+                            </div>
+                            <div class="stats-card-title">{{ card.title }}</div>
+                            <div class="stats-card-value">{{ card.value|smart_float }}</div>
+                            <div class="stats-card-unit">{{ card.unit }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- الرسوم البيانية -->
+        <div class="section-container">
+            <h5 class="section-title">
+                <i class="fas fa-chart-pie me-2"></i>
+                التوزيع والاتجاهات
+            </h5>
+            <div class="row">
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-donut me-2"></i>
+                                توزيع المنتجات المجمعة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="bundleDistributionChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                اتجاه إنشاء المنتجات المجمعة
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <canvas id="bundleCreationTrendChart" height="300"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- تحليلات المخزون -->
+        {% if stock_analytics %}
+        <div class="section-container">
+            <h5 class="section-title">
+                <i class="fas fa-warehouse me-2"></i>
+                تحليلات المخزون
+            </h5>
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <div class="stats-card stats-card-info">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-boxes"></i>
+                            </div>
+                            <div class="stats-card-title">منتجات بمخزون كافي</div>
+                            <div class="stats-card-value">{{ stock_analytics.bundles_with_stock|smart_float }}</div>
+                            <div class="stats-card-unit">منتج</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="stats-card stats-card-warning">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="stats-card-title">منتجات بمخزون منخفض</div>
+                            <div class="stats-card-value">{{ stock_analytics.low_stock_bundles|smart_float }}</div>
+                            <div class="stats-card-unit">منتج</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="stats-card stats-card-danger">
+                        <div class="stats-card-header"></div>
+                        <div class="stats-card-body">
+                            <div class="stats-card-icon">
+                                <i class="fas fa-times-circle"></i>
+                            </div>
+                            <div class="stats-card-title">منتجات نفد مخزونها</div>
+                            <div class="stats-card-value">{{ stock_analytics.out_of_stock_bundles|smart_float }}</div>
+                            <div class="stats-card-unit">منتج</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- صحة النظام -->
+        {% if system_health %}
+        <div class="section-container">
+            <h5 class="section-title">
+                <i class="fas fa-heartbeat me-2"></i>
+                صحة النظام
+            </h5>
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="text-center">
+                                        <div class="health-score-circle">
+                                            <span class="health-score">{{ system_health.health_score|smart_float }}%</span>
+                                        </div>
+                                        <p class="mt-2 mb-0">نقاط صحة النظام</p>
+                                    </div>
+                                </div>
+                                <div class="col-md-9">
+                                    <div class="health-metrics">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="health-metric">
+                                                    <span class="metric-label">سرعة حساب المخزون:</span>
+                                                    <span class="metric-value">{{ system_health.stock_calculation_speed|smart_float }}ms</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="health-metric">
+                                                    <span class="metric-label">معدل نجاح المعاملات:</span>
+                                                    <span class="metric-value">{{ system_health.transaction_success_rate|smart_float }}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/chart.min.js' %}"></script>
+<script src="{% static 'js/bundle-analytics.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الرسوم البيانية
+    if (typeof BundleAnalytics !== 'undefined') {
+        BundleAnalytics.initializeCharts();
+    }
+});
+
+// تحديث التحليلات
+function refreshAnalytics() {
+    location.reload();
+}
+
+// تصدير التقرير
+function exportAnalyticsReport() {
+    window.open('{% url "product:bundle_analytics_report_api" %}?details=true', '_blank');
+}
+</script>
+{% endblock %}

@@ -1,0 +1,2628 @@
+﻿/**
+ * ========================================
+ * Unified UI Components Library
+ * مكتبة المكونات الموحدة لواجهة المستخدم
+ * ========================================
+ * 
+ * مكتبة شاملة للمكونات الموحدة في نظام إدارة الشركة
+ * تتضمن جميع المكونات الأساسية مع تصميم موحد ومتسق
+ * 
+ * الأقسام:
+ * 1. Form Components (مكونات النماذج)
+ * 2. Table Components (مكونات الجداول)
+ * 3. Card Components (مكونات البطاقات)
+ * 4. Button Components (مكونات الأزرار)
+ * 5. Input Components (مكونات الإدخال)
+ * 6. Modal Components (مكونات النوافذ المنبثقة)
+ * 7. Navigation Components (مكونات التنقل)
+ * 8. Status Components (مكونات الحالة)
+ * 9. Layout Components (مكونات التخطيط)
+ * 10. Utility Components (مكونات مساعدة)
+ * ========================================
+ */
+
+/* ========================================
+   1. FORM COMPONENTS (مكونات النماذج)
+   ======================================== */
+
+/* Unified Form Container */
+.unified-form {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-form-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-6);
+    padding-bottom: var(--spacing-4);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.unified-form-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-form-title .icon {
+    color: var(--primary-color);
+    font-size: 1.2em;
+}
+
+.unified-form-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+/* Form Groups */
+.unified-form-group {
+    margin-bottom: var(--spacing-5);
+    position: relative;
+}
+
+.unified-form-group.required .unified-form-label::after {
+    content: " *";
+    color: var(--danger-color);
+    font-weight: var(--font-weight-bold);
+}
+
+.unified-form-label {
+    display: block;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-normal);
+}
+
+.unified-form-control {
+    width: 100%;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-size-base);
+    line-height: var(--line-height-normal);
+    color: var(--text-color);
+    background-color: var(--form-input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+    font-family: var(--font-family-sans);
+}
+
+.unified-form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-focus);
+    background-color: var(--white);
+}
+
+.unified-form-control:disabled {
+    background-color: var(--form-input-bg-disabled);
+    color: var(--text-light);
+    cursor: not-allowed;
+    opacity: 0.7;
+}
+
+.unified-form-control.is-invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 3px var(--danger-soft);
+}
+
+.unified-form-control.is-valid {
+    border-color: var(--success-color);
+    box-shadow: 0 0 0 3px var(--success-soft);
+}
+
+/* Form Help Text */
+.unified-form-help {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+    margin-top: var(--spacing-1);
+    line-height: var(--line-height-normal);
+}
+
+/* Form Error Messages */
+.unified-form-error {
+    font-size: var(--font-size-sm);
+    color: var(--danger-color);
+    margin-top: var(--spacing-1);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.unified-form-error .icon {
+    font-size: 0.9em;
+}
+
+/* Form Success Messages */
+.unified-form-success {
+    font-size: var(--font-size-sm);
+    color: var(--success-color);
+    margin-top: var(--spacing-1);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.unified-form-success .icon {
+    font-size: 0.9em;
+}
+
+/* Form Row Layout */
+.unified-form-row {
+    display: flex;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+}
+
+.unified-form-col {
+    flex: 1;
+}
+
+.unified-form-col-auto {
+    flex: 0 0 auto;
+}
+
+/* Form Footer */
+.unified-form-footer {
+    margin-top: var(--spacing-6);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+}
+
+/* ========================================
+   2. TABLE COMPONENTS (مكونات الجداول)
+   ======================================== */
+
+/* Unified Table Container */
+.unified-table-container {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-table-header {
+    background-color: var(--bg-light);
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-table-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-table-title .icon {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.unified-table-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+/* Table Wrapper */
+.unified-table-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.unified-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+    background-color: var(--white);
+}
+
+.unified-table th {
+    background-color: var(--table-header-bg);
+    color: var(--text-dark);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--spacing-3) var(--spacing-4);
+    text-align: right;
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.unified-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-colors);
+}
+
+.unified-table th.sortable:hover {
+    background-color: var(--bg-hover);
+}
+
+.unified-table th.sortable::after {
+    content: "";
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-right: var(--spacing-1);
+    vertical-align: middle;
+    opacity: 0.5;
+}
+
+.unified-table th.sortable.asc::after {
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid var(--text-color);
+    opacity: 1;
+}
+
+.unified-table th.sortable.desc::after {
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 4px solid var(--text-color);
+    opacity: 1;
+}
+
+.unified-table td {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+    color: var(--text-color);
+}
+
+.unified-table tbody tr {
+    transition: var(--transition-colors);
+}
+
+.unified-table tbody tr:hover {
+    background-color: var(--table-hover-bg);
+}
+
+.unified-table tbody tr.selected {
+    background-color: var(--primary-soft);
+}
+
+.unified-table tbody tr.clickable {
+    cursor: pointer;
+}
+
+.unified-table tbody tr.clickable:hover {
+    background-color: var(--primary-soft-2);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Table Footer */
+.unified-table-footer {
+    background-color: var(--bg-light);
+    padding: var(--spacing-4);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: between;
+    gap: var(--spacing-4);
+}
+
+.unified-table-info {
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+}
+
+.unified-table-pagination {
+    margin-left: auto;
+}
+
+/* Empty State */
+.unified-table-empty {
+    padding: var(--spacing-8) var(--spacing-4);
+    text-align: center;
+    color: var(--text-light);
+}
+
+.unified-table-empty .icon {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-table-empty h4 {
+    color: var(--text-color);
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-table-empty p {
+    margin-bottom: var(--spacing-4);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ========================================
+   3. CARD COMPONENTS (مكونات البطاقات)
+   ======================================== */
+
+/* Unified Card */
+.unified-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    transition: var(--transition-all);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.unified-card-header {
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-card-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-card-title .icon {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.unified-card-actions {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.unified-card-body {
+    padding: var(--spacing-5);
+}
+
+.unified-card-footer {
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--bg-light);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Stats Card */
+.unified-stats-card {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-5);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition-all);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.unified-stats-card-icon {
+    position: absolute;
+    top: var(--spacing-4);
+    left: var(--spacing-4);
+    width: 48px;
+    height: 48px;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xl);
+    color: var(--white);
+}
+
+.unified-stats-card-icon.primary {
+    background-color: var(--primary-color);
+}
+
+.unified-stats-card-icon.success {
+    background-color: var(--success-color);
+}
+
+.unified-stats-card-icon.warning {
+    background-color: var(--warning-color);
+}
+
+.unified-stats-card-icon.danger {
+    background-color: var(--danger-color);
+}
+
+.unified-stats-card-icon.info {
+    background-color: var(--info-color);
+}
+
+.unified-stats-card-content {
+    padding-right: 60px;
+    text-align: right;
+}
+
+.unified-stats-card-title {
+    font-size: var(--font-size-sm);
+    color: var(--text-light);
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-stats-card-value {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-1);
+    line-height: 1.2;
+}
+
+.unified-stats-card-change {
+    font-size: var(--font-size-sm);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-1);
+}
+
+.unified-stats-card-change.positive {
+    color: var(--success-color);
+}
+
+.unified-stats-card-change.negative {
+    color: var(--danger-color);
+}
+
+.unified-stats-card-change.neutral {
+    color: var(--text-light);
+}
+
+
+/* Stats Card Color Variants */
+.stats-card-primary .stats-card-header {
+    background: var(--primary-color);
+}
+
+.stats-card-primary .stats-card-icon {
+    color: var(--primary-color);
+}
+
+.stats-card-primary .stats-card-value {
+    color: var(--primary-color);
+}
+
+.stats-card-success .stats-card-header {
+    background: var(--success-color);
+}
+
+.stats-card-success .stats-card-icon {
+    color: var(--success-color);
+}
+
+.stats-card-success .stats-card-value {
+    color: var(--success-color);
+}
+
+.stats-card-info .stats-card-header {
+    background: var(--info-color);
+}
+
+.stats-card-info .stats-card-icon {
+    color: var(--info-color);
+}
+
+.stats-card-info .stats-card-value {
+    color: var(--info-color);
+}
+
+.stats-card-warning .stats-card-header {
+    background: var(--warning-color);
+}
+
+.stats-card-warning .stats-card-icon {
+    color: var(--warning-color);
+}
+
+.stats-card-warning .stats-card-value {
+    color: var(--warning-color);
+}
+
+.stats-card-danger .stats-card-header {
+    background: var(--danger-color);
+}
+
+.stats-card-danger .stats-card-icon {
+    color: var(--danger-color);
+}
+
+.stats-card-danger .stats-card-value {
+    color: var(--danger-color);
+}
+
+.stats-card-secondary .stats-card-header {
+    background: var(--secondary-color);
+}
+
+.stats-card-secondary .stats-card-icon {
+    color: var(--secondary-color);
+}
+
+.stats-card-secondary .stats-card-value {
+    color: var(--secondary-color);
+}
+
+/* Responsive Design for Stats Cards */
+@media (max-width: 768px) {
+    .stats-card-body {
+        padding: 1.25rem;
+    }
+    
+    .stats-card-icon {
+        font-size: 2rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.75rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-card-body {
+        padding: 1rem;
+    }
+    
+    .stats-card-icon {
+        font-size: 1.75rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.5rem;
+    }
+    
+    .stats-card-title {
+        font-size: 0.8rem;
+    }
+}
+
+/* ========================================
+   4. BUTTON COMPONENTS (مكونات الأزرار)
+   ======================================== */
+
+/* Unified Button Base */
+.unified-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    text-align: center;
+    text-decoration: none;
+    vertical-align: middle;
+    cursor: pointer;
+    user-select: none;
+    border: 1px solid transparent;
+    border-radius: var(--border-radius);
+    transition: var(--transition-all);
+    font-family: var(--font-family-sans);
+    white-space: nowrap;
+}
+
+.unified-btn:hover {
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.unified-btn:focus {
+    outline: none;
+    box-shadow: 0 0 0 3px var(--primary-focus);
+}
+
+.unified-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Button Sizes */
+.unified-btn-sm {
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-xs);
+}
+
+.unified-btn-lg {
+    padding: var(--spacing-4) var(--spacing-6);
+    font-size: var(--font-size-base);
+}
+
+/* Button Variants */
+.unified-btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.unified-btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--white);
+}
+
+.unified-btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: var(--white);
+}
+
+.unified-btn-secondary:hover {
+    background-color: var(--secondary-hover);
+    border-color: var(--secondary-hover);
+    color: var(--white);
+}
+
+.unified-btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+    color: var(--white);
+}
+
+.unified-btn-success:hover {
+    background-color: var(--success-hover);
+    border-color: var(--success-hover);
+    color: var(--white);
+}
+
+.unified-btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+    color: var(--white);
+}
+
+.unified-btn-danger:hover {
+    background-color: var(--danger-hover);
+    border-color: var(--danger-hover);
+    color: var(--white);
+}
+
+.unified-btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+    color: var(--white);
+}
+
+.unified-btn-warning:hover {
+    background-color: var(--warning-hover);
+    border-color: var(--warning-hover);
+    color: var(--white);
+}
+
+.unified-btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+    color: var(--white);
+}
+
+.unified-btn-info:hover {
+    background-color: var(--info-hover);
+    border-color: var(--info-hover);
+    color: var(--white);
+}
+
+/* Outline Buttons */
+.unified-btn-outline-primary {
+    background-color: transparent;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.unified-btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.unified-btn-outline-secondary {
+    background-color: transparent;
+    border-color: var(--secondary-color);
+    color: var(--secondary-color);
+}
+
+.unified-btn-outline-secondary:hover {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+    color: var(--white);
+}
+
+/* Ghost Buttons */
+.unified-btn-ghost {
+    background-color: transparent;
+    border-color: transparent;
+    color: var(--text-color);
+}
+
+.unified-btn-ghost:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-dark);
+}
+
+/* Icon Only Buttons */
+.unified-btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: var(--border-radius);
+}
+
+.unified-btn-icon-sm {
+    width: 32px;
+    height: 32px;
+}
+
+.unified-btn-icon-lg {
+    width: 48px;
+    height: 48px;
+}
+
+/* Button Groups */
+.unified-btn-group {
+    display: inline-flex;
+    vertical-align: middle;
+}
+
+.unified-btn-group .unified-btn {
+    border-radius: 0;
+    margin-right: -1px;
+}
+
+.unified-btn-group .unified-btn:first-child {
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
+
+.unified-btn-group .unified-btn:last-child {
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+}
+
+.unified-btn-group .unified-btn:hover {
+    z-index: 1;
+}
+
+/* ========================================
+   5. INPUT COMPONENTS (مكونات الإدخال)
+   ======================================== */
+
+/* Input Group */
+.unified-input-group {
+    position: relative;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    width: 100%;
+}
+
+.unified-input-group .unified-form-control {
+    position: relative;
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
+}
+
+.unified-input-group-prepend,
+.unified-input-group-append {
+    display: flex;
+}
+
+.unified-input-group-text {
+    display: flex;
+    align-items: center;
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.5;
+    color: var(--text-color);
+    text-align: center;
+    white-space: nowrap;
+    background-color: var(--bg-light);
+    border: 1px solid var(--border-color);
+}
+
+.unified-input-group-prepend .unified-input-group-text {
+    border-left: 0;
+    border-top-right-radius: var(--border-radius);
+    border-bottom-right-radius: var(--border-radius);
+}
+
+.unified-input-group-append .unified-input-group-text {
+    border-right: 0;
+    border-top-left-radius: var(--border-radius);
+    border-bottom-left-radius: var(--border-radius);
+}
+
+.unified-input-group-prepend .unified-form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.unified-input-group-append .unified-form-control {
+    border-top-left-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+/* Search Input */
+.unified-search-input {
+    position: relative;
+}
+
+.unified-search-input .unified-form-control {
+    padding-right: 40px;
+}
+
+.unified-search-input .search-icon {
+    position: absolute;
+    left: var(--spacing-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-light);
+    pointer-events: none;
+}
+
+/* Select Component */
+.unified-select {
+    position: relative;
+}
+
+.unified-select select.unified-form-control {
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: left 0.75rem center;
+    background-repeat: no-repeat;
+    background-size: 16px 12px;
+    padding-left: 2.5rem;
+}
+
+/* Checkbox and Radio */
+.unified-checkbox,
+.unified-radio {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
+}
+
+.unified-checkbox input[type="checkbox"],
+.unified-radio input[type="radio"] {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    accent-color: var(--primary-color);
+}
+
+.unified-checkbox label,
+.unified-radio label {
+    margin: 0;
+    font-weight: var(--font-weight-normal);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+/* Switch */
+.unified-switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.unified-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.unified-switch-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--gray-300);
+    transition: var(--transition-all);
+    border-radius: 24px;
+}
+
+.unified-switch-slider:before {
+    position: absolute;
+    content: "";
+    height: 18px;
+    width: 18px;
+    right: 3px;
+    bottom: 3px;
+    background-color: var(--white);
+    transition: var(--transition-all);
+    border-radius: 50%;
+}
+
+.unified-switch input:checked + .unified-switch-slider {
+    background-color: var(--primary-color);
+}
+
+.unified-switch input:checked + .unified-switch-slider:before {
+    transform: translateX(-26px);
+}
+
+/* ========================================
+   6. MODAL COMPONENTS (مكونات النوافذ المنبثقة)
+   ======================================== */
+
+/* Modal Overlay */
+.unified-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--overlay-dark);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1050;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-all);
+}
+
+.unified-modal-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Modal Container */
+.unified-modal {
+    background-color: var(--bg-card);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow: hidden;
+    transform: scale(0.9);
+    transition: var(--transition-all);
+}
+
+.unified-modal-overlay.show .unified-modal {
+    transform: scale(1);
+}
+
+.unified-modal-header {
+    padding: var(--spacing-5) var(--spacing-6);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-modal-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-modal-title .icon {
+    color: var(--primary-color);
+    font-size: 1.2em;
+}
+
+.unified-modal-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-xl);
+    color: var(--text-light);
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+}
+
+.unified-modal-close:hover {
+    color: var(--text-dark);
+    background-color: var(--bg-hover);
+}
+
+.unified-modal-body {
+    padding: var(--spacing-6);
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.unified-modal-footer {
+    padding: var(--spacing-5) var(--spacing-6);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--spacing-3);
+    background-color: var(--bg-light);
+}
+
+/* Modal Sizes */
+.unified-modal-sm {
+    width: 400px;
+}
+
+.unified-modal-md {
+    width: 600px;
+}
+
+.unified-modal-lg {
+    width: 800px;
+}
+
+.unified-modal-xl {
+    width: 1000px;
+}
+
+/* ========================================
+   7. NAVIGATION COMPONENTS (مكونات التنقل)
+   ======================================== */
+
+/* Breadcrumb */
+.unified-breadcrumb {
+    display: flex;
+    flex-wrap: wrap;
+    padding: var(--spacing-3) 0;
+    margin-bottom: var(--spacing-4);
+    list-style: none;
+    background-color: transparent;
+}
+
+.unified-breadcrumb-item {
+    display: flex;
+    align-items: center;
+}
+
+.unified-breadcrumb-item + .unified-breadcrumb-item::before {
+    content: "/";
+    color: var(--text-light);
+    margin: 0 var(--spacing-2);
+}
+
+.unified-breadcrumb-item a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: var(--transition-colors);
+}
+
+.unified-breadcrumb-item a:hover {
+    color: var(--primary-hover);
+    text-decoration: underline;
+}
+
+.unified-breadcrumb-item.active {
+    color: var(--text-light);
+}
+
+/* Tabs */
+.unified-tabs {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-tabs-nav {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    gap: var(--spacing-1);
+}
+
+.unified-tabs-item {
+    margin-bottom: -1px;
+}
+
+.unified-tabs-link {
+    display: block;
+    padding: var(--spacing-3) var(--spacing-4);
+    color: var(--text-color);
+    text-decoration: none;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: var(--border-radius) var(--border-radius) 0 0;
+    transition: var(--transition-colors);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-tabs-link:hover {
+    color: var(--primary-color);
+    background-color: var(--bg-hover);
+}
+
+.unified-tabs-link.active {
+    color: var(--primary-color);
+    background-color: var(--bg-card);
+    border-color: var(--border-color);
+    border-bottom-color: var(--bg-card);
+}
+
+.unified-tabs-content {
+    padding: var(--spacing-4) 0;
+}
+
+.unified-tabs-pane {
+    display: none;
+}
+
+.unified-tabs-pane.active {
+    display: block;
+}
+
+/* Pagination */
+.unified-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: var(--spacing-1);
+    margin: var(--spacing-4) 0;
+}
+
+.unified-pagination-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 40px;
+    height: 40px;
+    padding: var(--spacing-2) var(--spacing-3);
+    color: var(--text-color);
+    text-decoration: none;
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-pagination-item:hover {
+    color: var(--primary-color);
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    text-decoration: none;
+}
+
+.unified-pagination-item.active {
+    color: var(--white);
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.unified-pagination-item.disabled {
+    color: var(--text-light);
+    background-color: var(--bg-light);
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* ========================================
+   8. STATUS COMPONENTS (مكونات الحالة)
+   ======================================== */
+
+/* Status Badge */
+.unified-status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-radius: var(--border-radius-full);
+    white-space: nowrap;
+}
+
+.unified-status-badge.success {
+    background-color: var(--success-soft);
+    color: var(--success-dark);
+}
+
+.unified-status-badge.warning {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+}
+
+.unified-status-badge.danger {
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
+}
+
+.unified-status-badge.info {
+    background-color: var(--info-soft);
+    color: var(--info-dark);
+}
+
+.unified-status-badge.primary {
+    background-color: var(--primary-soft);
+    color: var(--primary-dark);
+}
+
+.unified-status-badge.secondary {
+    background-color: var(--secondary-soft);
+    color: var(--secondary-dark);
+}
+
+/* Status Indicator */
+.unified-status-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-status-indicator::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.unified-status-indicator.success::before {
+    background-color: var(--success-color);
+}
+
+.unified-status-indicator.warning::before {
+    background-color: var(--warning-color);
+}
+
+.unified-status-indicator.danger::before {
+    background-color: var(--danger-color);
+}
+
+.unified-status-indicator.info::before {
+    background-color: var(--info-color);
+}
+
+.unified-status-indicator.primary::before {
+    background-color: var(--primary-color);
+}
+
+.unified-status-indicator.inactive::before {
+    background-color: var(--gray-400);
+}
+
+/* Progress Bar */
+.unified-progress {
+    width: 100%;
+    height: 8px;
+    background-color: var(--gray-200);
+    border-radius: var(--border-radius-full);
+    overflow: hidden;
+    margin-bottom: var(--spacing-2);
+}
+
+.unified-progress-bar {
+    height: 100%;
+    background-color: var(--primary-color);
+    border-radius: var(--border-radius-full);
+    transition: width 0.6s ease;
+    position: relative;
+}
+
+.unified-progress-bar.success {
+    background-color: var(--success-color);
+}
+
+.unified-progress-bar.warning {
+    background-color: var(--warning-color);
+}
+
+.unified-progress-bar.danger {
+    background-color: var(--danger-color);
+}
+
+/* Animated progress bar without gradient (compliance with no-gradient rule) */
+.unified-progress-bar.animated {
+    position: relative;
+    overflow: hidden;
+}
+
+.unified-progress-bar.animated::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background-color: var(--white);
+    opacity: 0.2;
+    animation: progress-bar-shimmer 2s linear infinite;
+}
+
+@keyframes progress-bar-shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+/* ========================================
+   9. LAYOUT COMPONENTS (مكونات التخطيط)
+   ======================================== */
+
+/* Container */
+.unified-container {
+    width: 100%;
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-4);
+}
+
+.unified-container-fluid {
+    width: 100%;
+    padding: 0 var(--spacing-4);
+}
+
+/* Grid System */
+.unified-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 0 calc(-1 * var(--spacing-2));
+}
+
+.unified-col {
+    flex: 1 0 0%;
+    padding: 0 var(--spacing-2);
+}
+
+.unified-col-auto {
+    flex: 0 0 auto;
+    width: auto;
+}
+
+/* Responsive Columns */
+.unified-col-1 { flex: 0 0 8.333333%; max-width: 8.333333%; }
+.unified-col-2 { flex: 0 0 16.666667%; max-width: 16.666667%; }
+.unified-col-3 { flex: 0 0 25%; max-width: 25%; }
+.unified-col-4 { flex: 0 0 33.333333%; max-width: 33.333333%; }
+.unified-col-5 { flex: 0 0 41.666667%; max-width: 41.666667%; }
+.unified-col-6 { flex: 0 0 50%; max-width: 50%; }
+.unified-col-7 { flex: 0 0 58.333333%; max-width: 58.333333%; }
+.unified-col-8 { flex: 0 0 66.666667%; max-width: 66.666667%; }
+.unified-col-9 { flex: 0 0 75%; max-width: 75%; }
+.unified-col-10 { flex: 0 0 83.333333%; max-width: 83.333333%; }
+.unified-col-11 { flex: 0 0 91.666667%; max-width: 91.666667%; }
+.unified-col-12 { flex: 0 0 100%; max-width: 100%; }
+
+/* Section */
+.unified-section {
+    margin-bottom: var(--spacing-8);
+}
+
+.unified-section-header {
+    margin-bottom: var(--spacing-6);
+    text-align: center;
+}
+
+.unified-section-title {
+    font-size: var(--font-size-3xl);
+    font-weight: var(--font-weight-bold);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-section-subtitle {
+    font-size: var(--font-size-lg);
+    color: var(--text-light);
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+/* Divider */
+.unified-divider {
+    height: 1px;
+    background-color: var(--border-color);
+    margin: var(--spacing-6) 0;
+    border: none;
+}
+
+.unified-divider-text {
+    position: relative;
+    text-align: center;
+    margin: var(--spacing-6) 0;
+}
+
+.unified-divider-text::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background-color: var(--border-color);
+}
+
+.unified-divider-text span {
+    background-color: var(--bg-body);
+    padding: 0 var(--spacing-4);
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+/* ========================================
+   10. UTILITY COMPONENTS (مكونات مساعدة)
+   ======================================== */
+
+/* Loading Spinner */
+.unified-spinner {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--gray-200);
+    border-radius: 50%;
+    border-top-color: var(--primary-color);
+    animation: spin 1s ease-in-out infinite;
+}
+
+.unified-spinner-sm {
+    width: 16px;
+    height: 16px;
+    border-width: 1.5px;
+}
+
+.unified-spinner-lg {
+    width: 32px;
+    height: 32px;
+    border-width: 3px;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Loading Overlay */
+.unified-loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--overlay-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+/* Tooltip */
+.unified-tooltip {
+    position: relative;
+    display: inline-block;
+}
+
+.unified-tooltip-text {
+    visibility: hidden;
+    width: max-content;
+    max-width: 200px;
+    background-color: var(--gray-900);
+    color: var(--white);
+    text-align: center;
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2) var(--spacing-3);
+    position: absolute;
+    z-index: 1000;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: var(--font-size-sm);
+    line-height: 1.4;
+}
+
+.unified-tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--gray-900) transparent transparent transparent;
+}
+
+.unified-tooltip:hover .unified-tooltip-text {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Alert */
+.unified-alert {
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    border: 1px solid transparent;
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+}
+
+.unified-alert-icon {
+    flex-shrink: 0;
+    font-size: var(--font-size-lg);
+}
+
+.unified-alert-content {
+    flex: 1;
+}
+
+.unified-alert-title {
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--spacing-1);
+}
+
+.unified-alert-message {
+    margin: 0;
+}
+
+.unified-alert-close {
+    background: none;
+    border: none;
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+    padding: 0;
+    color: inherit;
+    opacity: 0.7;
+    transition: opacity 0.2s;
+}
+
+.unified-alert-close:hover {
+    opacity: 1;
+}
+
+.unified-alert.success {
+    background-color: var(--success-soft);
+    border-color: var(--success-color);
+    color: var(--success-dark);
+}
+
+.unified-alert.warning {
+    background-color: var(--warning-soft);
+    border-color: var(--warning-color);
+    color: var(--warning-dark);
+}
+
+.unified-alert.danger {
+    background-color: var(--danger-soft);
+    border-color: var(--danger-color);
+    color: var(--danger-dark);
+}
+
+.unified-alert.info {
+    background-color: var(--info-soft);
+    border-color: var(--info-color);
+    color: var(--info-dark);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .unified-form-row {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .unified-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-3);
+    }
+    
+    .unified-table-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .unified-stats-card-content {
+        padding-right: 0;
+        text-align: center;
+    }
+    
+    .unified-stats-card-icon {
+        position: static;
+        margin: 0 auto var(--spacing-3);
+    }
+    
+    .unified-modal {
+        margin: var(--spacing-4);
+        max-width: calc(100vw - 2rem);
+    }
+    
+    .unified-tabs-nav {
+        flex-wrap: wrap;
+    }
+    
+    .unified-pagination {
+        flex-wrap: wrap;
+        gap: var(--spacing-2);
+    }
+    
+    .unified-row {
+        margin: 0;
+    }
+    
+    .unified-col,
+    .unified-col-1,
+    .unified-col-2,
+    .unified-col-3,
+    .unified-col-4,
+    .unified-col-5,
+    .unified-col-6,
+    .unified-col-7,
+    .unified-col-8,
+    .unified-col-9,
+    .unified-col-10,
+    .unified-col-11,
+    .unified-col-12 {
+        flex: 0 0 100%;
+        max-width: 100%;
+        padding: var(--spacing-2) 0;
+    }
+}
+
+@media (max-width: 576px) {
+    .unified-container {
+        padding: 0 var(--spacing-3);
+    }
+    
+    .unified-form,
+    .unified-card {
+        padding: var(--spacing-4);
+    }
+    
+    .unified-form-header,
+    .unified-card-header {
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .unified-form-footer,
+    .unified-card-footer {
+        padding: var(--spacing-3) var(--spacing-4);
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .unified-btn-group {
+        flex-direction: column;
+    }
+    
+    .unified-btn-group .unified-btn {
+        border-radius: var(--border-radius);
+        margin-right: 0;
+        margin-bottom: var(--spacing-1);
+    }
+    
+    .unified-btn-group .unified-btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* ========================================
+   11. UNIFIED PAGE HEADER COMPONENT (مكون هيدر الصفحة الموحد)
+   ======================================== */
+
+/* Page Header Container */
+.unified-page-header {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-5) var(--spacing-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-6);
+}
+
+.unified-page-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+}
+
+.unified-page-header-left {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-4);
+    flex: 1;
+    min-width: 0;
+}
+
+/* Header Icon */
+.unified-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    color: var(--primary-color);
+    background-color: var(--primary-soft);
+    border-radius: var(--radius-lg);
+    font-size: 1.75rem;
+    flex-shrink: 0;
+    transition: var(--transition-all);
+}
+
+.unified-header-icon:hover {
+    transform: scale(1.05);
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+/* Header Text */
+.unified-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.unified-header-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--text-dark);
+    line-height: 1.2;
+    word-wrap: break-word;
+}
+
+.unified-header-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary);
+    margin: var(--spacing-1) 0 0 0;
+    line-height: 1.4;
+}
+
+/* Header Actions */
+.unified-page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+/* Header Buttons Group */
+.unified-header-buttons {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+/* Responsive Header */
+@media (max-width: 768px) {
+    .unified-page-header {
+        padding: var(--spacing-4);
+    }
+    
+    .unified-page-header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .unified-page-header-left {
+        flex-direction: column;
+        gap: var(--spacing-3);
+    }
+    
+    .unified-header-icon {
+        width: 48px;
+        height: 48px;
+        font-size: 1.5rem;
+    }
+    
+    .unified-header-title {
+        font-size: 1.5rem;
+    }
+    
+    .unified-page-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* ========================================
+   12. UNIFIED STATS CARDS (كروت الإحصائيات الموحدة)
+   ======================================== */
+
+/* Stats Card Container */
+.unified-stats-card-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-6);
+}
+
+/* Enhanced Stats Card */
+.unified-stats-card-enhanced {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-5);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    transition: var(--transition-all);
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-3);
+}
+
+.unified-stats-card-enhanced:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Stats Card Header with Color Bar */
+.unified-stats-card-enhanced::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+}
+
+.unified-stats-card-enhanced.primary::before {
+    background-color: var(--primary-color);
+}
+
+.unified-stats-card-enhanced.success::before {
+    background-color: var(--success-color);
+}
+
+.unified-stats-card-enhanced.info::before {
+    background-color: var(--info-color);
+}
+
+.unified-stats-card-enhanced.warning::before {
+    background-color: var(--warning-color);
+}
+
+.unified-stats-card-enhanced.danger::before {
+    background-color: var(--danger-color);
+}
+
+.unified-stats-card-enhanced.secondary::before {
+    background-color: var(--secondary-color);
+}
+
+/* Stats Card Icon and Title Row */
+.unified-stats-card-header-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-stats-card-icon-wrapper {
+    width: 48px;
+    height: 48px;
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    transition: var(--transition-all);
+}
+
+.unified-stats-card-enhanced.primary .unified-stats-card-icon-wrapper {
+    background-color: var(--primary-soft);
+    color: var(--primary-color);
+}
+
+.unified-stats-card-enhanced.success .unified-stats-card-icon-wrapper {
+    background-color: var(--success-soft);
+    color: var(--success-color);
+}
+
+.unified-stats-card-enhanced.info .unified-stats-card-icon-wrapper {
+    background-color: var(--info-soft);
+    color: var(--info-color);
+}
+
+.unified-stats-card-enhanced.warning .unified-stats-card-icon-wrapper {
+    background-color: var(--warning-soft);
+    color: var(--warning-color);
+}
+
+.unified-stats-card-enhanced.danger .unified-stats-card-icon-wrapper {
+    background-color: var(--danger-soft);
+    color: var(--danger-color);
+}
+
+.unified-stats-card-enhanced.secondary .unified-stats-card-icon-wrapper {
+    background-color: var(--secondary-soft);
+    color: var(--secondary-color);
+}
+
+/* Stats Card Title */
+.unified-stats-card-title-text {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* Stats Card Value */
+.unified-stats-card-value-text {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--text-dark);
+    margin: 0;
+    line-height: 1.2;
+}
+
+/* Stats Card Unit */
+.unified-stats-card-unit-text {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-top: var(--spacing-1);
+}
+
+/* Stats Card Footer */
+.unified-stats-card-footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--spacing-3);
+    border-top: 1px solid var(--border-light);
+    font-size: 0.8125rem;
+}
+
+.unified-stats-card-trend {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    font-weight: 500;
+}
+
+.unified-stats-card-trend.up {
+    color: var(--success-color);
+}
+
+.unified-stats-card-trend.down {
+    color: var(--danger-color);
+}
+
+.unified-stats-card-trend.neutral {
+    color: var(--text-secondary);
+}
+
+/* Responsive Stats Cards */
+@media (max-width: 768px) {
+    .unified-stats-card-container {
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: var(--spacing-3);
+    }
+    
+    .unified-stats-card-enhanced {
+        padding: var(--spacing-4);
+    }
+    
+    .unified-stats-card-value-text {
+        font-size: 1.5rem;
+    }
+}
+
+/* ========================================
+   13. UNIFIED DATA TABLE (جدول البيانات الموحد)
+   ======================================== */
+
+/* Enhanced Table Container */
+.unified-data-table-container {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+    margin-bottom: var(--spacing-6);
+}
+
+/* Table Header Section */
+.unified-data-table-header {
+    background-color: var(--bg-secondary);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.unified-data-table-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-data-table-title i {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.unified-data-table-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+/* Table Wrapper with Scroll */
+.unified-data-table-wrapper {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+/* Enhanced Table Styles */
+.unified-data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    background-color: var(--white);
+}
+
+.unified-data-table thead {
+    background-color: var(--table-header-bg);
+}
+
+.unified-data-table th {
+    color: var(--text-dark);
+    font-weight: 600;
+    padding: var(--spacing-3) var(--spacing-4);
+    text-align: right;
+    border-bottom: 2px solid var(--border-color);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: var(--table-header-bg);
+}
+
+.unified-data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-colors);
+}
+
+.unified-data-table th.sortable:hover {
+    background-color: var(--bg-hover);
+}
+
+.unified-data-table th.text-center {
+    text-align: center;
+}
+
+.unified-data-table th.text-left {
+    text-align: left;
+}
+
+.unified-data-table td {
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--border-light);
+    vertical-align: middle;
+    color: var(--text-primary);
+}
+
+.unified-data-table td.text-center {
+    text-align: center;
+}
+
+.unified-data-table td.text-left {
+    text-align: left;
+}
+
+.unified-data-table tbody tr {
+    transition: var(--transition-colors);
+}
+
+.unified-data-table tbody tr:hover {
+    background-color: var(--table-hover-bg);
+}
+
+.unified-data-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+/* Table Action Buttons */
+.unified-table-actions-cell {
+    display: flex;
+    gap: var(--spacing-1);
+    justify-content: center;
+    align-items: center;
+}
+
+.unified-table-action-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-1);
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: 0.8125rem;
+    border-radius: var(--radius-sm);
+    transition: var(--transition-all);
+    text-decoration: none;
+    border: 1px solid transparent;
+}
+
+.unified-table-action-btn:hover {
+    transform: translateY(-1px);
+    text-decoration: none;
+}
+
+/* Table Empty State */
+.unified-data-table-empty {
+    padding: var(--spacing-8) var(--spacing-4);
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+.unified-data-table-empty i {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-data-table-empty h4 {
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-2);
+    font-weight: 600;
+}
+
+.unified-data-table-empty p {
+    margin-bottom: var(--spacing-4);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Table Footer */
+.unified-data-table-footer {
+    background-color: var(--bg-secondary);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.unified-data-table-info {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+/* Responsive Table */
+@media (max-width: 768px) {
+    .unified-data-table-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .unified-data-table-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .unified-data-table th,
+    .unified-data-table td {
+        padding: var(--spacing-2) var(--spacing-3);
+        font-size: 0.8125rem;
+    }
+    
+    .unified-data-table-footer {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}
+
+/* ========================================
+   14. COLLAPSIBLE SECTION (القسم القابل للطي)
+   ======================================== */
+
+/* Section Container */
+.unified-section-container {
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-4);
+    overflow: hidden;
+}
+
+/* Section Title (Clickable Header) */
+.unified-section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--bg-secondary);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+    user-select: none;
+    transition: var(--transition-colors);
+}
+
+.unified-section-title:hover {
+    background-color: var(--bg-hover);
+}
+
+.unified-section-title-text {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-section-title-text i {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+/* Chevron Icon with Animation */
+.unified-section-chevron {
+    transition: transform var(--transition-normal);
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
+.unified-section-title[aria-expanded="true"] .unified-section-chevron {
+    transform: rotate(180deg);
+}
+
+/* Collapsible Content */
+.unified-section-content {
+    padding: var(--spacing-5);
+    transition: var(--transition-normal);
+}
+
+.unified-section-content.collapse:not(.show) {
+    display: none;
+}
+
+.unified-section-content.collapsing {
+    height: 0;
+    overflow: hidden;
+    transition: height var(--transition-normal);
+}
+
+/* Section without Border (Alternative Style) */
+.unified-section-container.borderless {
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+}
+
+.unified-section-container.borderless .unified-section-title {
+    background-color: transparent;
+    border-bottom: 2px solid var(--border-color);
+    padding: var(--spacing-3) 0;
+}
+
+.unified-section-container.borderless .unified-section-content {
+    padding: var(--spacing-4) 0;
+}
+
+/* Responsive Collapsible Section */
+@media (max-width: 768px) {
+    .unified-section-title {
+        padding: var(--spacing-3) var(--spacing-4);
+        font-size: 1rem;
+    }
+    
+    .unified-section-content {
+        padding: var(--spacing-4);
+    }
+}
+
+/* ========================================
+   15. ACCESSIBILITY IMPROVEMENTS (تحسينات إمكانية الوصول)
+   ======================================== */
+
+/* Focus Visible Styles */
+.unified-page-header-actions button:focus-visible,
+.unified-header-buttons button:focus-visible,
+.unified-table-action-btn:focus-visible,
+.unified-section-title:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .unified-header-icon,
+    .unified-stats-card-enhanced,
+    .unified-section-chevron,
+    .unified-table-action-btn {
+        transition: none;
+    }
+    
+    .unified-section-title[aria-expanded="true"] .unified-section-chevron {
+        transform: none;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .unified-page-header,
+    .unified-stats-card-enhanced,
+    .unified-data-table-container,
+    .unified-section-container {
+        border-width: 2px;
+    }
+    
+    .unified-data-table th,
+    .unified-data-table td {
+        border-width: 2px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .unified-page-header-actions,
+    .unified-header-buttons,
+    .unified-data-table-actions,
+    .unified-table-actions-cell,
+    .unified-section-chevron {
+        display: none;
+    }
+    
+    .unified-section-content.collapse:not(.show) {
+        display: block !important;
+    }
+    
+    .unified-page-header,
+    .unified-stats-card-enhanced,
+    .unified-data-table-container,
+    .unified-section-container {
+        box-shadow: none;
+        border: 1px solid var(--border-color);
+    }
+}
+
+/* ========================================
+   SECTION CONTAINER STYLES (أنماط حاويات الأقسام)
+   ======================================== */
+
+.section-container {
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.section-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+/* ========================================
+   INFO ROW STYLES (أنماط صفوف المعلومات)
+   ======================================== */
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 110px;
+}
+
+.info-value {
+    color: var(--text-primary);
+    text-align: left;
+    flex: 1;
+}
+
+/* ========================================
+   RESUBMISSION ALERT STYLES (أنماط تنبيه الإعادة)
+   ======================================== */
+
+.resubmission-alert {
+    background: var(--warning-light);
+    border: 2px solid var(--warning);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.resubmission-icon {
+    font-size: 2rem;
+    color: var(--danger);
+    margin-left: 1rem;
+}
+
+/* ========================================
+   PHOTO STYLES (أنماط الصورة)
+   ======================================== */
+
+.profile-photo {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: var(--border-radius);
+    border: 3px solid var(--border-color);
+}
+
+.no-photo {
+    width: 150px;
+    height: 150px;
+    background: var(--gray-light);
+    border-radius: var(--border-radius);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+    font-size: 3rem;
+}
+
+/* ========================================
+   CLICKABLE CARD STYLES (أنماط البطاقات القابلة للنقر)
+   ======================================== */
+
+/* تحسين مظهر الكروت القابلة للنقر */
+.clickable-card {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+    position: relative;
+}
+
+.clickable-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.clickable-card:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+/* إضافة مؤشر بصري للكروت القابلة للنقر */
+.clickable-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255,255,255,0.1);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    border-radius: inherit;
+}
+
+.clickable-card:hover::after {
+    opacity: 1;
+}
+
+/* مؤشر للكارت النشط (المفلتر حالياً) */
+.clickable-card.active-filter {
+    border: 2px solid var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+.clickable-card.active-filter .stats-card-title {
+    font-weight: bold;
+    color: var(--bs-primary);
+}
+
+/* ========================================
+   ARABIC TOOLTIPS SUPPORT
+   دعم tooltips للنصوص العربية
+   ======================================== */
+
+.tooltip.arabic-tooltip {
+    font-family: var(--font-family-arabic, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif);
+    direction: rtl;
+    text-align: right;
+}
+
+.tooltip.arabic-tooltip .tooltip-inner {
+    background-color: var(--bg-dark);
+    color: var(--text-light);
+    border-radius: var(--border-radius-sm);
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-sm);
+    max-width: 200px;
+    word-wrap: break-word;
+    white-space: normal;
+}
+
+.tooltip.arabic-tooltip .tooltip-arrow::before {
+    border-top-color: var(--bg-dark);
+}
+
+/* منع أخطاء Bootstrap مع النصوص العربية */
+[data-bs-toggle="tooltip"][title*="عرض"],
+[data-bs-toggle="tooltip"][title*="تعديل"],
+[data-bs-toggle="tooltip"][title*="حذف"],
+[data-bs-toggle="tooltip"][title*="إضافة"],
+[data-bs-toggle="tooltip"][title*="صلاح"] {
+    position: relative;
+}
+
+/* تحسين عرض tooltips على الأزرار الصغيرة */
+.btn-sm[data-bs-toggle="tooltip"],
+.btn-xs[data-bs-toggle="tooltip"] {
+    position: relative;
+    overflow: visible;
+}

@@ -1,0 +1,598 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+/* ستايلات خاصة بنموذج الموردين */
+
+.supplier-types-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+@media (max-width: 1200px) {
+    .supplier-types-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .supplier-types-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .supplier-types-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.supplier-type-card {
+    position: relative;
+    padding: 1.5rem;
+    border: 2px solid #d1d3e2;
+    border-radius: 0.75rem;
+    background: #f8f9fc;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    text-align: center;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.supplier-type-card:hover {
+    background-color: #f8f9fc;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.supplier-type-card.selected {
+    background-color: white;
+    box-shadow: 0 4px 12px rgba(78, 115, 223, 0.25);
+}
+
+.supplier-type-card input[type="checkbox"] {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.supplier-type-icon {
+    font-size: 2.5rem;
+    color: #858796;
+    margin-bottom: 0.75rem;
+    transition: color 0.3s ease;
+}
+
+.supplier-type-card.selected .supplier-type-icon {
+    /* اللون سيتم تحديده من JavaScript */
+}
+
+.supplier-type-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #858796;
+    margin: 0;
+    transition: color 0.3s ease;
+}
+
+.supplier-type-card.selected .supplier-type-title {
+    /* اللون سيتم تحديده من JavaScript */
+}
+
+.help-text {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+
+                
+                <form method="post" id="supplierForm">
+                    {% csrf_token %}
+                    
+                    <!-- Basic Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-user"></i>
+                            المعلومات الأساسية
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">اسم المورد *</label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                        <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.code.id_for_label }}" class="form-label">كود المورد</label>
+                                    <input type="text" class="form-control bg-light" id="{{ form.code.id_for_label }}" 
+                                           value="{% if supplier %}{{ supplier.code }}{% else %}سيتم التوليد التلقائي عند الحفظ (SUP001, SUP002, SUP003, ...){% endif %}" 
+                                           readonly disabled>
+                                    <div class="help-text">يتم إنشاء الكود تلقائياً عند الحفظ</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.contact_person.id_for_label }}" class="form-label">الشخص المسؤول</label>
+                                    {{ form.contact_person }}
+                                    {% if form.contact_person.errors %}
+                                        <div class="text-danger small">{{ form.contact_person.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Contact Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-phone"></i>
+                            معلومات التواصل
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.phone.id_for_label }}" class="form-label">رقم الهاتف الأساسي *</label>
+                                    {{ form.phone }}
+                                    {% if form.phone.errors %}
+                                        <div class="text-danger small">{{ form.phone.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.whatsapp.id_for_label }}" class="form-label">واتساب</label>
+                                    {{ form.whatsapp }}
+                                    {% if form.whatsapp.errors %}
+                                        <div class="text-danger small">{{ form.whatsapp.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.website.id_for_label }}" class="form-label">الموقع الإلكتروني</label>
+                                    {{ form.website }}
+                                    {% if form.website.errors %}
+                                        <div class="text-danger small">{{ form.website.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Location Information -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-map-marker-alt"></i>
+                            معلومات الموقع
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="mb-3">
+                                    <label for="{{ form.address.id_for_label }}" class="form-label">العنوان التفصيلي</label>
+                                    {{ form.address }}
+                                    {% if form.address.errors %}
+                                        <div class="text-danger small">{{ form.address.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.tax_number.id_for_label }}" class="form-label">الرقم الضريبي</label>
+                                    {{ form.tax_number }}
+                                    {% if form.tax_number.errors %}
+                                        <div class="text-danger small">{{ form.tax_number.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.working_hours.id_for_label }}" class="form-label">ساعات العمل</label>
+                                    {{ form.working_hours }}
+                                    {% if form.working_hours.errors %}
+                                        <div class="text-danger small">{{ form.working_hours.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Supplier Classification -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-tags"></i>
+                            تصنيف المورد
+                        </h5>
+
+                        <div class="mb-3">
+                            <label class="form-label">نوع المورد *</label>
+                            {% if supplier %}
+                            <div class="alert alert-info mb-3">
+                                <i class="fas fa-info-circle"></i>
+                                لا يمكن تعديل نوع المورد بعد الإنشاء لتجنب حدوث مشاكل في البيانات المرتبطة
+                            </div>
+                            {% endif %}
+                            <div class="supplier-types-grid {% if supplier %}disabled-grid{% endif %}">
+                                {% for type in form.fields.primary_type.queryset %}
+                                    <div class="supplier-type-card {% if form.instance.primary_type.id == type.id %}active{% endif %}" 
+                                         onclick="{% if not supplier %}selectSupplierType(this, {{ type.id }}){% endif %}"
+                                         data-type-id="{{ type.id }}"
+                                         data-icon="{{ type.settings.icon|default:type.icon }}"
+                                         data-color="{{ type.settings.color|default:type.color }}"
+                                         {% if supplier %}style="cursor: not-allowed; opacity: 0.7;"{% endif %}>
+                                        <input type="radio" 
+                                               name="primary_type" 
+                                               value="{{ type.id }}" 
+                                               id="type_{{ type.id }}"
+                                               {% if form.instance.primary_type.id == type.id %}checked{% endif %}
+                                               {% if supplier %}disabled{% endif %}
+                                               style="display: none;">
+                                        <div class="supplier-type-icon" data-color="{{ type.settings.color|default:type.color }}">
+                                            <i class="{{ type.settings.icon|default:type.icon }}"></i>
+                                        </div>
+                                        <h6 class="supplier-type-title">{{ type.settings.name|default:type.name }}</h6>
+                                        <small class="text-muted">{{ type.settings.description|default:type.description|truncatechars:50 }}</small>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            {% if form.primary_type.errors %}
+                                <div class="text-danger small mt-2">{{ form.primary_type.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+
+                    </div>
+
+<script>
+function selectSupplierType(card, typeId) {
+    // إزالة active من جميع البطاقات
+    document.querySelectorAll('.supplier-type-card').forEach(c => {
+        c.classList.remove('active');
+        // إرجاع الأيقونة للون الرصاصي
+        const icon = c.querySelector('.supplier-type-icon');
+        icon.style.backgroundColor = '#6c757d';
+        icon.style.color = 'white';
+    });
+    
+    // إضافة active للبطاقة المختارة
+    card.classList.add('active');
+    
+    // تلوين الأيقونة باللون الأصلي
+    const icon = card.querySelector('.supplier-type-icon');
+    const color = icon.getAttribute('data-color');
+    icon.style.backgroundColor = color;
+    icon.style.color = 'white';
+    
+    // تحديد الـ radio button
+    document.getElementById('type_' + typeId).checked = true;
+}
+
+// تطبيق الألوان عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.supplier-type-card').forEach(card => {
+        const icon = card.querySelector('.supplier-type-icon');
+        if (card.classList.contains('active')) {
+            const color = icon.getAttribute('data-color');
+            icon.style.backgroundColor = color;
+            icon.style.color = 'white';
+        } else {
+            icon.style.backgroundColor = '#6c757d';
+            icon.style.color = 'white';
+        }
+    });
+});
+</script>
+
+<style>
+.supplier-types-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.supplier-type-card {
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.supplier-type-card:hover {
+    border-color: var(--bs-primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-2px);
+}
+
+.supplier-type-card.active {
+    border-color: var(--bs-primary);
+    background: rgba(var(--bs-primary-rgb), 0.08);
+    box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.2);
+}
+
+.disabled-grid .supplier-type-card {
+    pointer-events: none;
+}
+
+.disabled-grid .supplier-type-card:not(.active) {
+    opacity: 0.4;
+}
+
+.supplier-type-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+    transition: all 0.3s ease;
+    background-color: #6c757d;
+    color: white;
+}
+
+.supplier-type-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.supplier-type-card small {
+    display: block;
+    font-size: 0.85rem;
+    color: #666;
+}
+</style>
+                    
+
+                    
+                    <!-- Notes and Status -->
+                    <div class="form-section">
+                        <h5 class="section-title">
+                            <i class="fas fa-sticky-note"></i>
+                            ملاحظات وحالة المورد
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-8">
+                                <div class="form-check form-switch">
+                                    {{ form.is_preferred }}
+                                    <label class="form-check-label" for="{{ form.is_preferred.id_for_label }}">
+                                        <i class="fas fa-star text-warning"></i> مورد مفضل
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="mb-3">
+                                    <div class="form-check form-switch">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            مورد نشط ومتاح
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Form Actions -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'supplier:supplier_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times"></i> إلغاء
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save"></i> 
+                            {% if supplier %}
+                                حفظ التغييرات
+                            {% else %}
+                                إضافة المورد
+                            {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function toggleSupplierType(card, checkboxId) {
+    const checkbox = document.getElementById(checkboxId);
+    if (checkbox) {
+        checkbox.checked = !checkbox.checked;
+        updateCardState(card, checkbox.checked);
+    }
+}
+
+function updateCardState(card, isChecked) {
+    const typeColor = card.getAttribute('data-type-color') || '#4e73df';
+    const icon = card.querySelector('[data-icon-placeholder]');
+    const title = card.querySelector('.supplier-type-title');
+    
+    if (isChecked) {
+        card.classList.add('selected');
+        card.style.borderColor = typeColor;
+        if (icon) icon.style.color = typeColor;
+        if (title) title.style.color = typeColor;
+    } else {
+        card.classList.remove('selected');
+        card.style.borderColor = '#d1d3e2';
+        if (icon) icon.style.color = '#858796';
+        if (title) title.style.color = '#858796';
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    /* تحميل الأيقونات والألوان للأنواع */
+    loadSupplierTypeStyles();
+    
+    /* Form validation - التحقق من اختيار نوع المورد */
+    const supplierForm = document.getElementById('supplierForm');
+    if (supplierForm) {
+        supplierForm.addEventListener('submit', function(e) {
+            const selectedType = document.querySelector('input[name="primary_type"]:checked');
+            if (!selectedType) {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // إظهار رسالة خطأ
+                const errorDiv = document.querySelector('.supplier-types-grid').parentElement.querySelector('.text-danger');
+                if (!errorDiv) {
+                    const newErrorDiv = document.createElement('div');
+                    newErrorDiv.className = 'text-danger small mt-2';
+                    newErrorDiv.innerHTML = '<i class="fas fa-exclamation-circle"></i> يجب اختيار نوع المورد';
+                    document.querySelector('.supplier-types-grid').parentElement.appendChild(newErrorDiv);
+                }
+                
+                // إضافة border أحمر للـ grid
+                const grid = document.querySelector('.supplier-types-grid');
+                grid.style.border = '2px solid #dc3545';
+                grid.style.borderRadius = '8px';
+                grid.style.padding = '10px';
+                
+                // التمرير إلى قسم تصنيف المورد
+                grid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                
+                // إزالة الـ border بعد اختيار نوع
+                setTimeout(() => {
+                    document.querySelectorAll('.supplier-type-card').forEach(card => {
+                        card.addEventListener('click', function() {
+                            grid.style.border = 'none';
+                            const errorDiv = grid.parentElement.querySelector('.text-danger');
+                            if (errorDiv) errorDiv.remove();
+                        }, { once: true });
+                    });
+                }, 100);
+                
+                return false;
+            }
+        });
+    }
+    
+    /* تلقائية إنشاء كود للمورد إذا كانت الصفحة إضافة مورد جديد */
+    {% if not supplier %}
+        const nameField = document.getElementById('{{ form.name.id_for_label }}');
+        const codeField = document.getElementById('{{ form.code.id_for_label }}');
+        
+        if (nameField && codeField) {
+            nameField.addEventListener('blur', function() {
+                if (!codeField.value.trim()) {
+                    const name = this.value.trim();
+                    if (name) {
+                        /* أخذ أول 3 أحرف من الاسم وإضافة تاريخ */
+                        let code = name.substring(0, 3).toUpperCase();
+                        const date = new Date();
+                        const dateStr = date.getFullYear().toString().substr(-2) + 
+                                       (date.getMonth() + 1).toString().padStart(2, '0') +
+                                       date.getDate().toString().padStart(2, '0');
+                        code += dateStr;
+                        codeField.value = code;
+                    }
+                }
+            });
+        }
+    {% endif %}
+    
+    /* تحديد حالة الكروت المحددة مسبقاً */
+    document.querySelectorAll('.supplier-type-card').forEach(function(card) {
+        const checkbox = card.querySelector('input[type="checkbox"]');
+        if (checkbox && checkbox.checked) {
+            card.classList.add('selected');
+        }
+        
+        /* إضافة مستمع للتغيير المباشر على checkbox */
+        if (checkbox) {
+            checkbox.addEventListener('change', function() {
+                updateCardState(card, this.checked);
+            });
+        }
+    });
+});
+
+/* دالة تحميل الأيقونات والألوان */
+function loadSupplierTypeStyles() {
+    fetch('/supplier/api/supplier-types-styles/')
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                data.types.forEach(function(type) {
+                    const card = document.querySelector(`[data-supplier-type-id="${type.id}"]`);
+                    if (card) {
+                        const isSelected = card.classList.contains('selected');
+                        
+                        /* تحديث الأيقونة */
+                        const icon = card.querySelector('[data-icon-placeholder]');
+                        if (icon) {
+                            icon.className = type.icon;
+                            icon.style.color = isSelected ? type.color : '#858796';
+                        }
+                        
+                        /* تحديث لون الحدود والعنوان للكروت المحددة */
+                        if (isSelected) {
+                            card.style.borderColor = type.color;
+                            const title = card.querySelector('.supplier-type-title');
+                            if (title) {
+                                title.style.color = type.color;
+                            }
+                        }
+                        
+                        /* حفظ اللون في data attribute للاستخدام عند التحديد */
+                        card.setAttribute('data-type-color', type.color);
+                        
+                        /* تحديث الوصف */
+                        const description = card.querySelector('[data-description-placeholder]');
+                        if (description && type.description) {
+                            description.textContent = type.description;
+                            description.style.display = 'block';
+                        }
+                    }
+                });
+            }
+        })
+        .catch(error => {
+            console.warn('فشل في تحميل أنماط أنواع الموردين:', error);
+        });
+}
+</script>
+{% endblock %}

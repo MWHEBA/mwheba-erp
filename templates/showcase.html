@@ -1,0 +1,572 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}عرض المكونات - Corporate ERP{% endblock %}
+
+{% block extra_css %}
+<style>
+.showcase-section {
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: #fff;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.showcase-title {
+    color: #495057;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.code-example {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-top: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    overflow-x: auto;
+}
+
+.example-output {
+    border: 2px dashed #dee2e6;
+    padding: 1.5rem;
+    margin: 1rem 0;
+    background: #fdfdfe;
+    border-radius: 0.375rem;
+}
+
+.component-demo {
+    margin-bottom: 2rem;
+}
+
+.demo-title {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with 
+        title="عرض المكونات المشتركة" 
+        subtitle="دليل تفاعلي لجميع المكونات المتاحة"
+        icon="fa-puzzle-piece"
+        description="هذه الصفحة تعرض جميع المكونات المشتركة المتاحة في النظام مع أمثلة حية وأكواد الاستخدام"
+    %}
+
+    <!-- Page Header Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-header me-2"></i>
+            مكون رأس الصفحة (Page Header)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. رأس صفحة بسيط</h4>
+            <div class="example-output">
+                {% include "shared/page_header.html" with title="مثال على رأس الصفحة" %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "shared/page_header.html" with title="مثال على رأس الصفحة" %}{% endverbatim %}
+            </div>
+        </div>
+
+        <div class="component-demo">
+            <h4 class="demo-title">2. رأس صفحة مع أيقونة ووصف</h4>
+            <div class="example-output">
+                {% include "shared/page_header.html" with 
+                    title="إدارة العملاء" 
+                    subtitle="نظام إدارة بيانات العملاء"
+                    icon="fa-users"
+                    description="يمكنك من خلال هذه الصفحة إدارة جميع بيانات العملاء وإضافة عملاء جدد"
+                %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "shared/page_header.html" with 
+    title="إدارة العملاء" 
+    subtitle="نظام إدارة بيانات العملاء"
+    icon="fa-users"
+    description="يمكنك من خلال هذه الصفحة إدارة جميع بيانات العملاء وإضافة عملاء جدد"
+%}{% endverbatim %}
+            </div>
+        </div>
+
+        <div class="component-demo">
+            <h4 class="demo-title">3. رأس صفحة مع أزرار</h4>
+            <div class="example-output">
+                {% with buttons=[
+                    {'url': '#', 'icon': 'fa-plus', 'text': 'إضافة جديد', 'class': 'btn-primary'},
+                    {'onclick': 'alert("تصدير البيانات")', 'icon': 'fa-download', 'text': 'تصدير', 'class': 'btn-success'}
+                ] %}
+                {% include "shared/page_header.html" with 
+                    title="قائمة المنتجات" 
+                    icon="fa-box"
+                    header_buttons=buttons
+                %}
+                {% endwith %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% with buttons=[
+    {'url': '#', 'icon': 'fa-plus', 'text': 'إضافة جديد', 'class': 'btn-primary'},
+    {'onclick': 'alert("تصدير البيانات")', 'icon': 'fa-download', 'text': 'تصدير', 'class': 'btn-success'}
+] %}
+{% include "shared/page_header.html" with 
+    title="قائمة المنتجات" 
+    icon="fa-box"
+    header_buttons=buttons
+%}
+{% endwith %}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Cards Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            كروت الإحصائيات (Stats Cards)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. كروت إحصائيات أساسية</h4>
+            <div class="example-output">
+                <div class="row">
+                    {% include "shared/stats_card.html" with 
+                        title="إجمالي العملاء" 
+                        value=150 
+                        unit="عميل" 
+                        icon="fa-users" 
+                        color="primary" 
+                    %}
+                    
+                    {% include "shared/stats_card.html" with 
+                        title="المبيعات اليوم" 
+                        value=25000 
+                        unit="جنيه" 
+                        icon="fa-chart-line" 
+                        color="success" 
+                    %}
+                    
+                    {% include "shared/stats_card.html" with 
+                        title="الطلبات المعلقة" 
+                        value=12 
+                        unit="طلب" 
+                        icon="fa-clock" 
+                        color="warning" 
+                    %}
+                    
+                    {% include "shared/stats_card.html" with 
+                        title="المنتجات" 
+                        value=89 
+                        unit="منتج" 
+                        icon="fa-box" 
+                        color="info" 
+                    %}
+                </div>
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "shared/stats_card.html" with 
+    title="إجمالي العملاء" 
+    value=150 
+    unit="عميل" 
+    icon="fa-users" 
+    color="primary" 
+%}{% endverbatim %}
+            </div>
+        </div>
+
+        <div class="component-demo">
+            <h4 class="demo-title">2. كروت مع اتجاهات</h4>
+            <div class="example-output">
+                <div class="row">
+                    {% include "shared/stats_card.html" with 
+                        title="المبيعات الشهرية" 
+                        value=75000 
+                        unit="جنيه" 
+                        icon="fa-chart-line" 
+                        color="success"
+                        trend="up"
+                        trend_value=12.5
+                        trend_period="عن الشهر الماضي"
+                    %}
+                    
+                    {% include "shared/stats_card.html" with 
+                        title="المصروفات" 
+                        value=35000 
+                        unit="جنيه" 
+                        icon="fa-money-bill" 
+                        color="danger"
+                        trend="down"
+                        trend_value=8.2
+                        trend_period="عن الأسبوع الماضي"
+                    %}
+                </div>
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "shared/stats_card.html" with 
+    title="المبيعات الشهرية" 
+    value=75000 
+    unit="جنيه" 
+    icon="fa-chart-line" 
+    color="success"
+    trend="up"
+    trend_value=12.5
+    trend_period="عن الشهر الماضي"
+%}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Breadcrumb Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-map-signs me-2"></i>
+            مسار التنقل (Breadcrumb)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. مسار تنقل بسيط</h4>
+            <div class="example-output">
+                {% with breadcrumb_items=[
+                    {"title": "الرئيسية", "url": "/", "icon": "fa-home"},
+                    {"title": "العملاء", "url": "#", "icon": "fa-users"},
+                    {"title": "قائمة العملاء", "active": True}
+                ] %}
+                {% include "shared/breadcrumb.html" with items=breadcrumb_items %}
+                {% endwith %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% with breadcrumb_items=[
+    {"title": "الرئيسية", "url": "/", "icon": "fa-home"},
+    {"title": "العملاء", "url": "#", "icon": "fa-users"},
+    {"title": "قائمة العملاء", "active": True}
+] %}
+{% include "shared/breadcrumb.html" with items=breadcrumb_items %}
+{% endwith %}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-window-restore me-2"></i>
+            النوافذ المنبثقة (Modals)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. نافذة بسيطة</h4>
+            <div class="example-output">
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#simpleModal">
+                    <i class="fas fa-eye me-1"></i>عرض النافذة البسيطة
+                </button>
+                
+                {% include "components/modal.html" with 
+                    id="simpleModal"
+                    title="نافذة بسيطة"
+                    content="هذا مثال على نافذة منبثقة بسيطة مع محتوى نصي."
+                %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "components/modal.html" with 
+    id="simpleModal"
+    title="نافذة بسيطة"
+    content="هذا مثال على نافذة منبثقة بسيطة مع محتوى نصي."
+%}{% endverbatim %}
+            </div>
+        </div>
+
+        <div class="component-demo">
+            <h4 class="demo-title">2. نافذة نموذج</h4>
+            <div class="example-output">
+                <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#formModal">
+                    <i class="fas fa-plus me-1"></i>عرض نافذة النموذج
+                </button>
+                
+                {% include "components/modal.html" with 
+                    id="formModal"
+                    title="إضافة عنصر جديد"
+                    size="lg"
+                    style="success"
+                    form_modal=True
+                    form_action="#"
+                    content="<div class='mb-3'><label class='form-label'>الاسم</label><input type='text' class='form-control' placeholder='أدخل الاسم'></div><div class='mb-3'><label class='form-label'>البريد الإلكتروني</label><input type='email' class='form-control' placeholder='أدخل البريد الإلكتروني'></div>"
+                %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "components/modal.html" with 
+    id="formModal"
+    title="إضافة عنصر جديد"
+    size="lg"
+    style="success"
+    form_modal=True
+    form_action="#"
+%}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Status Badge Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-tags me-2"></i>
+            شارات الحالة (Status Badges)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. شارات الحالة المختلفة</h4>
+            <div class="example-output">
+                <div class="d-flex flex-wrap gap-2">
+                    {% include "components/status_badge.html" with status="active" %}
+                    {% include "components/status_badge.html" with status="inactive" %}
+                    {% include "components/status_badge.html" with status="pending" %}
+                    {% include "components/status_badge.html" with status="completed" %}
+                    {% include "components/status_badge.html" with status="cancelled" %}
+                    {% include "components/status_badge.html" with status="paid" %}
+                    {% include "components/status_badge.html" with status="unpaid" %}
+                </div>
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "components/status_badge.html" with status="active" %}
+{% include "components/status_badge.html" with status="pending" %}
+{% include "components/status_badge.html" with status="completed" %}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            التنبيهات (Alerts)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. أنواع التنبيهات المختلفة</h4>
+            <div class="example-output">
+                {% include "components/alert.html" with 
+                    type="success" 
+                    message="تمت العملية بنجاح! تم حفظ البيانات." 
+                    dismissible=True 
+                %}
+                
+                {% include "components/alert.html" with 
+                    type="info" 
+                    message="معلومة مهمة: يرجى مراجعة البيانات قبل الحفظ." 
+                %}
+                
+                {% include "components/alert.html" with 
+                    type="warning" 
+                    message="تحذير: هناك بعض البيانات المفقودة." 
+                %}
+                
+                {% include "components/alert.html" with 
+                    type="danger" 
+                    message="خطأ: فشل في حفظ البيانات. يرجى المحاولة مرة أخرى." 
+                %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "components/alert.html" with 
+    type="success" 
+    message="تمت العملية بنجاح!" 
+    dismissible=True 
+%}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Table Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-table me-2"></i>
+            جدول البيانات (Data Table)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. جدول بيانات بسيط</h4>
+            <div class="example-output">
+                {% with 
+                    sample_headers=[
+                        {'key': 'name', 'label': 'الاسم', 'sortable': True},
+                        {'key': 'email', 'label': 'البريد الإلكتروني', 'sortable': True},
+                        {'key': 'status', 'label': 'الحالة', 'format': 'status'},
+                        {'key': 'created_at', 'label': 'تاريخ الإنشاء', 'format': 'date'}
+                    ]
+                    sample_data=[
+                        {'name': 'أحمد محمد', 'email': 'ahmed@example.com', 'status': 'active', 'created_at': '2024-01-15'},
+                        {'name': 'فاطمة علي', 'email': 'fatima@example.com', 'status': 'inactive', 'created_at': '2024-01-10'},
+                        {'name': 'محمد حسن', 'email': 'mohamed@example.com', 'status': 'pending', 'created_at': '2024-01-12'}
+                    ]
+                %}
+                {% include "components/data_table.html" with 
+                    table_id="sample-table"
+                    headers=sample_headers
+                    data=sample_data
+                    show_search=True
+                    show_length_menu=True
+                %}
+                {% endwith %}
+            </div>
+            <div class="code-example">
+{% verbatim %}{% include "components/data_table.html" with 
+    table_id="sample-table"
+    headers=headers
+    data=data
+    show_search=True
+    show_length_menu=True
+%}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Form Field Component -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-edit me-2"></i>
+            حقول النماذج (Form Fields)
+        </h2>
+        
+        <div class="component-demo">
+            <h4 class="demo-title">1. أنواع حقول مختلفة</h4>
+            <div class="example-output">
+                <form>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">حقل نص عادي</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                    <input type="text" class="form-control" placeholder="أدخل الاسم">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">بريد إلكتروني</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <input type="email" class="form-control" placeholder="أدخل البريد الإلكتروني">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">كلمة المرور</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <input type="password" class="form-control" placeholder="أدخل كلمة المرور">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group mb-3">
+                                <label class="form-label">تاريخ</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-calendar"></i></span>
+                                    <input type="date" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-group mb-3">
+                                <label class="form-label">منطقة نص</label>
+                                <textarea class="form-control" rows="3" placeholder="أدخل الملاحظات"></textarea>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="code-example">
+{% verbatim %}<!-- مثال على استخدام مكون form_field -->
+{% include "components/form_field.html" with 
+    field=form.name 
+    prepend_icon="fa-user"
+    help_text="أدخل الاسم الكامل"
+%}{% endverbatim %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Usage Guidelines -->
+    <div class="showcase-section">
+        <h2 class="showcase-title">
+            <i class="fas fa-lightbulb me-2"></i>
+            إرشادات الاستخدام
+        </h2>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <h4 class="demo-title">أفضل الممارسات</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        استخدم المكونات المشتركة دائماً
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        مرر المعاملات المطلوبة فقط
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        اختبر على أحجام شاشات مختلفة
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-check text-success me-2"></i>
+                        استخدم أسماء معاملات واضحة
+                    </li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h4 class="demo-title">تجنب هذه الأخطاء</h4>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item">
+                        <i class="fas fa-times text-danger me-2"></i>
+                        إنشاء HTML مخصص بدلاً من المكونات
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-times text-danger me-2"></i>
+                        تمرير بيانات كبيرة كمعاملات
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-times text-danger me-2"></i>
+                        تجاهل إمكانية الوصول
+                    </li>
+                    <li class="list-group-item">
+                        <i class="fas fa-times text-danger me-2"></i>
+                        عدم اختبار التوافق مع المتصفحات
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+$(document).ready(function() {
+    // تفعيل tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // تحسين عرض الأكواد
+    $('.code-example').each(function() {
+        var code = $(this).html();
+        // تنسيق الكود لعرض أفضل
+        code = code.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        $(this).html('<pre><code>' + code + '</code></pre>');
+    });
+});
+</script>
+{% endblock %}

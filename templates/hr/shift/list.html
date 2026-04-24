@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}الورديات{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link rel="stylesheet" href="{% static 'css/hr-tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- ورديات السنة المالية -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-calendar-alt me-2"></i>ورديات السنة المالية
+      <span class="badge bg-info ms-2">{{ stats.academic_year_shifts }}</span>
+    </h5>
+    {% if academic_shifts %}
+    <div class="table-responsive">
+      <table class="table table-hover" id="academicTable">
+        <thead class="table-light">
+          <tr>
+            <th class="text-center">اسم الوردية</th>
+            <th class="text-center">وقت البداية</th>
+            <th class="text-center">وقت النهاية</th>
+            <th class="text-center">ساعات العمل</th>
+            <th class="text-center">عدد الموظفين</th>
+            <th class="text-center">الحالة</th>
+            <th class="text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for shift in academic_shifts %}
+          {% include "hr/shift/_shift_row.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include 'partials/empty_state.html' with message="لا توجد ورديات للسنة المالية" icon="calendar-alt" %}
+    {% endif %}
+  </div>
+
+  <!-- ورديات النشاط الصيفي -->
+  <div class="section-container mb-4">
+    <h5 class="section-title">
+      <i class="fas fa-sun me-2"></i>ورديات النشاط الصيفي
+      <span class="badge bg-warning text-dark ms-2">{{ stats.summer_shifts }}</span>
+    </h5>
+    {% if summer_shifts %}
+    <div class="table-responsive">
+      <table class="table table-hover" id="summerTable">
+        <thead class="table-light">
+          <tr>
+            <th class="text-center">اسم الوردية</th>
+            <th class="text-center">وقت البداية</th>
+            <th class="text-center">وقت النهاية</th>
+            <th class="text-center">ساعات العمل</th>
+            <th class="text-center">عدد الموظفين</th>
+            <th class="text-center">الحالة</th>
+            <th class="text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for shift in summer_shifts %}
+          {% include "hr/shift/_shift_row.html" %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    {% include 'partials/empty_state.html' with message="لا توجد ورديات للنشاط الصيفي" icon="sun" %}
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    ['academicTable', 'summerTable'].forEach(function(id) {
+        if ($('#' + id).length) {
+            initGlobalTable(id, {
+                ordering: true,
+                order: [[0, 'asc']],
+                responsive: true,
+                columnDefs: [
+                    { targets: '_all', className: 'text-center' },
+                    { targets: [4, 5, 6], orderable: false }
+                ]
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

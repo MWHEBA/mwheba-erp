@@ -1,0 +1,135 @@
+[
+{
+  "model": "core.systemmodule",
+  "pk": 1,
+  "fields": {
+    "code": "core",
+    "name_ar": "النظام الأساسي",
+    "name_en": "Core System",
+    "description": "النواة الأساسية للنظام - لا يمكن تعطيله",
+    "icon": "fas fa-cog",
+    "module_type": "core",
+    "is_enabled": true,
+    "url_namespace": "core",
+    "menu_id": "",
+    "order": 1,
+    "created_at": "2026-02-28T01:16:15.610Z",
+    "updated_at": "2026-04-10T16:34:11.260Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 2,
+  "fields": {
+    "code": "financial",
+    "name_ar": "الإدارة المالية",
+    "name_en": "Financial Management",
+    "description": "المحاسبة والتقارير المالية - شغال افتراضياً",
+    "icon": "fas fa-money-bill-wave",
+    "module_type": "core",
+    "is_enabled": true,
+    "url_namespace": "financial",
+    "menu_id": "financialManagementMenu",
+    "order": 2,
+    "created_at": "2026-02-28T01:16:15.621Z",
+    "updated_at": "2026-04-10T16:34:11.266Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 3,
+  "fields": {
+    "code": "customers_sales",
+    "name_ar": "إدارة العملاء والمبيعات",
+    "name_en": "Customers & Sales Management",
+    "description": "إدارة العملاء وفواتير المبيعات والمرتجعات",
+    "icon": "fas fa-users",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "client,sale",
+    "menu_id": "customerMenu,salesMenu",
+    "order": 10,
+    "created_at": "2026-02-28T01:16:15.626Z",
+    "updated_at": "2026-04-10T16:34:11.270Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 4,
+  "fields": {
+    "code": "suppliers_purchases",
+    "name_ar": "إدارة الموردين والمشتريات",
+    "name_en": "Suppliers & Purchases Management",
+    "description": "إدارة الموردين وفواتير المشتريات والمرتجعات",
+    "icon": "fas fa-people-carry",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "supplier,purchase",
+    "menu_id": "supplierMenu,purchaseMenu",
+    "order": 20,
+    "created_at": "2026-02-28T01:16:15.630Z",
+    "updated_at": "2026-04-10T16:34:11.271Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 5,
+  "fields": {
+    "code": "warehouses",
+    "name_ar": "إدارة المخازن",
+    "name_en": "Warehouse Management",
+    "description": "إدارة المنتجات والخدمات والمخازن والمخزون",
+    "icon": "fas fa-warehouse",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "product",
+    "menu_id": "productsMenu,warehousesMenu",
+    "order": 30,
+    "created_at": "2026-02-28T01:16:15.635Z",
+    "updated_at": "2026-04-10T16:34:11.276Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 6,
+  "fields": {
+    "code": "hr",
+    "name_ar": "إدارة الموارد البشرية",
+    "name_en": "Human Resources Management",
+    "description": "إدارة الموظفين والحضور والرواتب والعقود",
+    "icon": "fas fa-users-cog",
+    "module_type": "optional",
+    "is_enabled": true,
+    "url_namespace": "hr",
+    "menu_id": "hrMenu",
+    "order": 40,
+    "created_at": "2026-02-28T01:16:15.638Z",
+    "updated_at": "2026-04-10T16:34:11.281Z",
+    "required_modules": []
+  }
+},
+{
+  "model": "core.systemmodule",
+  "pk": 7,
+  "fields": {
+    "code": "printing_pricing",
+    "name_ar": "نظام تسعير المطبوعات",
+    "name_en": "Printing Pricing System",
+    "description": "إدارة طلبات تسعير المطبوعات وحساب التكاليف",
+    "icon": "fas fa-print",
+    "module_type": "optional",
+    "is_enabled": false,
+    "url_namespace": "printing_pricing",
+    "menu_id": "printingPricingMenu",
+    "order": 50,
+    "created_at": "2026-04-10T16:34:11.284Z",
+    "updated_at": "2026-04-11T23:27:05.237Z",
+    "required_modules": []
+  }
+}
+]

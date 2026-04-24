@@ -1,0 +1,313 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  
+  <!-- Page Header -->
+  {% include "shared/page_header.html" %}
+
+  <!-- نموذج إضافة قيد يدوي -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header bg-warning text-dark">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-exclamation-triangle me-2"></i>تنبيه: قيد يدوي
+        </h5>
+      </div>
+      <div class="card-body">
+
+        <form method="post" action="{% url 'financial:manual_journal_entry_create' %}" id="manualEntryForm">
+          {% csrf_token %}
+          
+          <div class="row">
+            <!-- التاريخ -->
+            <div class="col-12 col-md-6 mb-3">
+              <label for="entry_date" class="form-label">
+                <i class="fas fa-calendar me-1"></i>تاريخ القيد <span class="text-danger">*</span>
+              </label>
+              <input type="date" 
+                     class="form-control" 
+                     id="entry_date" 
+                     name="entry_date" 
+                     value="{{ today|date:'Y-m-d' }}"
+                     max="{{ today|date:'Y-m-d' }}"
+                     required>
+              <small class="form-text text-muted">يجب أن يكون التاريخ ضمن فترة محاسبية مفتوحة</small>
+            </div>
+
+            <!-- المبلغ -->
+            <div class="col-12 col-md-6 mb-3">
+              <label for="amount" class="form-label">
+                <i class="fas fa-money-bill-wave me-1"></i>المبلغ <span class="text-danger">*</span>
+              </label>
+              <input type="number" 
+                     class="form-control" 
+                     id="amount" 
+                     name="amount" 
+                     step="0.01" 
+                     min="0.01"
+                     placeholder="0.00"
+                     required>
+              <small class="form-text text-muted">المبلغ بالجنيه المصري</small>
+            </div>
+          </div>
+
+          <div class="row">
+            <!-- الحساب المدين -->
+            <div class="col-12 col-md-6 mb-3">
+              <label for="debit_account" class="form-label">
+                <i class="fas fa-arrow-up me-1 text-success"></i>الحساب المدين <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" 
+                      id="debit_account" 
+                      name="debit_account" 
+                      required>
+                <option value="">-- اختر الحساب المدين --</option>
+                {% for type_name, type_accounts in accounts_by_type.items %}
+                  <optgroup label="{{ type_name }}">
+                    {% for account in type_accounts %}
+                      <option value="{{ account.id }}" 
+                              data-code="{{ account.code }}"
+                              data-name="{{ account.name }}">
+                        {{ account.code }} - {{ account.name }}
+                      </option>
+                    {% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
+              <small class="form-text text-muted">الحساب الذي سيزيد رصيده (من)</small>
+            </div>
+
+            <!-- الحساب الدائن -->
+            <div class="col-12 col-md-6 mb-3">
+              <label for="credit_account" class="form-label">
+                <i class="fas fa-arrow-down me-1 text-danger"></i>الحساب الدائن <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" 
+                      id="credit_account" 
+                      name="credit_account" 
+                      required>
+                <option value="">-- اختر الحساب الدائن --</option>
+                {% for type_name, type_accounts in accounts_by_type.items %}
+                  <optgroup label="{{ type_name }}">
+                    {% for account in type_accounts %}
+                      <option value="{{ account.id }}"
+                              data-code="{{ account.code }}"
+                              data-name="{{ account.name }}">
+                        {{ account.code }} - {{ account.name }}
+                      </option>
+                    {% endfor %}
+                  </optgroup>
+                {% endfor %}
+              </select>
+              <small class="form-text text-muted">الحساب الذي سينقص رصيده (إلى)</small>
+            </div>
+          </div>
+
+          <!-- الوصف -->
+          <div class="mb-3">
+            <label for="description" class="form-label">
+              <i class="fas fa-align-left me-1"></i>وصف القيد <span class="text-danger">*</span>
+            </label>
+            <textarea class="form-control" 
+                      id="description" 
+                      name="description" 
+                      rows="3" 
+                      placeholder="اكتب وصفاً واضحاً للقيد اليدوي..."
+                      required></textarea>
+            <small class="form-text text-muted">وصف تفصيلي لسبب إنشاء هذا القيد اليدوي</small>
+          </div>
+
+          <!-- معاينة القيد -->
+          <div class="card bg-light mb-3" id="entryPreview" style="display: none;">
+            <div class="card-header">
+              <h6 class="mb-0"><i class="fas fa-eye me-2"></i>معاينة القيد</h6>
+            </div>
+            <div class="card-body">
+              <table class="table table-sm table-bordered mb-0">
+                <thead>
+                  <tr class="text-center">
+                    <th>الحساب</th>
+                    <th>مدين</th>
+                    <th>دائن</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td id="preview_debit_account">-</td>
+                    <td class="text-center" id="preview_debit_amount">-</td>
+                    <td class="text-center">-</td>
+                  </tr>
+                  <tr>
+                    <td id="preview_credit_account">-</td>
+                    <td class="text-center">-</td>
+                    <td class="text-center" id="preview_credit_amount">-</td>
+                  </tr>
+                  <tr class="table-secondary">
+                    <td class="text-center"><strong>الإجمالي</strong></td>
+                    <td class="text-center"><strong id="preview_total_debit">-</strong></td>
+                    <td class="text-center"><strong id="preview_total_credit">-</strong></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- الأزرار -->
+          <div class="d-flex justify-content-between">
+            <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-arrow-right me-1"></i>إلغاء
+            </a>
+            <button type="submit" class="btn btn-primary" id="submitBtn">
+              <i class="fas fa-save me-1"></i>حفظ وترحيل القيد
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة Select2 للحسابات
+    $('#debit_account').select2({
+        placeholder: '-- اختر الحساب المدين --',
+        allowClear: true,
+        dir: 'rtl',
+        language: {
+            noResults: function() {
+                return 'لا توجد نتائج';
+            },
+            searching: function() {
+                return 'جاري البحث...';
+            }
+        }
+    });
+    
+    $('#credit_account').select2({
+        placeholder: '-- اختر الحساب الدائن --',
+        allowClear: true,
+        dir: 'rtl',
+        language: {
+            noResults: function() {
+                return 'لا توجد نتائج';
+            },
+            searching: function() {
+                return 'جاري البحث...';
+            }
+        }
+    });
+    
+    const form = document.getElementById('manualEntryForm');
+    const amountInput = document.getElementById('amount');
+    const debitAccountSelect = document.getElementById('debit_account');
+    const creditAccountSelect = document.getElementById('credit_account');
+    const entryPreview = document.getElementById('entryPreview');
+    
+    // تحديث المعاينة عند تغيير أي حقل
+    function updatePreview() {
+        const amount = parseFloat(amountInput.value) || 0;
+        const debitAccount = debitAccountSelect.options[debitAccountSelect.selectedIndex];
+        const creditAccount = creditAccountSelect.options[creditAccountSelect.selectedIndex];
+        
+        if (amount > 0 && debitAccount.value && creditAccount.value) {
+            // عرض المعاينة
+            entryPreview.style.display = 'block';
+            
+            // تحديث البيانات
+            const formattedAmount = amount.toLocaleString('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            document.getElementById('preview_debit_account').textContent = 
+                debitAccount.getAttribute('data-code') + ' - ' + debitAccount.getAttribute('data-name');
+            document.getElementById('preview_credit_account').textContent = 
+                creditAccount.getAttribute('data-code') + ' - ' + creditAccount.getAttribute('data-name');
+            document.getElementById('preview_debit_amount').textContent = formattedAmount + ' ج.م';
+            document.getElementById('preview_credit_amount').textContent = formattedAmount + ' ج.م';
+            document.getElementById('preview_total_debit').textContent = formattedAmount + ' ج.م';
+            document.getElementById('preview_total_credit').textContent = formattedAmount + ' ج.م';
+        } else {
+            entryPreview.style.display = 'none';
+        }
+    }
+    
+    // ربط الأحداث
+    amountInput.addEventListener('input', updatePreview);
+    $('#debit_account').on('change', updatePreview);
+    $('#credit_account').on('change', updatePreview);
+    
+    // التحقق من الفورم قبل الإرسال
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const amount = parseFloat(amountInput.value) || 0;
+        const debitAccount = debitAccountSelect.value;
+        const creditAccount = creditAccountSelect.value;
+        const description = document.getElementById('description').value.trim();
+        
+        // التحقق من البيانات
+        if (amount <= 0) {
+            toastr.error('المبلغ يجب أن يكون أكبر من صفر');
+            return;
+        }
+        
+        if (!debitAccount || !creditAccount) {
+            toastr.error('يجب اختيار الحساب المدين والدائن');
+            return;
+        }
+        
+        if (debitAccount === creditAccount) {
+            toastr.error('لا يمكن أن يكون الحساب المدين والدائن نفس الحساب');
+            return;
+        }
+        
+        if (!description) {
+            toastr.error('يجب إدخال وصف للقيد');
+            return;
+        }
+        
+        // تأكيد الإرسال
+        Swal.fire({
+            title: 'تأكيد إنشاء القيد',
+            html: `
+                <div class="text-start">
+                    <p><strong>المبلغ:</strong> ${amount.toLocaleString('en-US', {minimumFractionDigits: 2})} ج.م</p>
+                    <p><strong>من (مدين):</strong> ${debitAccountSelect.options[debitAccountSelect.selectedIndex].text}</p>
+                    <p><strong>إلى (دائن):</strong> ${creditAccountSelect.options[creditAccountSelect.selectedIndex].text}</p>
+                    <p><strong>الوصف:</strong> ${description}</p>
+                    <hr>
+                    <p class="text-warning"><i class="fas fa-exclamation-triangle me-2"></i>سيتم ترحيل القيد تلقائياً</p>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'نعم، أنشئ القيد',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // إرسال الفورم
+                form.submit();
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

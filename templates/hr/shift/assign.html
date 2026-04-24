@@ -1,0 +1,167 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}تعيين موظفين للوردية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+  <!-- معلومات الوردية -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-clock me-2"></i>معلومات الوردية</h5>
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>الوقت:</strong> {{ shift.start_time|arabic_time }} - {{ shift.end_time|arabic_time }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>ساعات العمل:</strong> {{ shift.work_hours }} ساعة
+                        </div>
+                        <div class="col-md-3">
+                            <strong>النوع:</strong> {{ shift.get_shift_type_display }}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>الموظفين المعينين حالياً:</strong> 
+                            <span class="badge bg-primary">{{ assigned_employee_ids|length }}</span>
+                        </div>
+                    </div>
+  </div>
+
+  <!-- قائمة الموظفين -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-users me-2"></i>اختيار الموظفين</h5>
+                    
+                    <!-- فلترة حسب القسم -->
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label class="form-label">فلترة حسب القسم</label>
+                            <select class="form-select" id="departmentFilter" onchange="filterByDepartment()">
+                                <option value="">جميع الأقسام</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}" {% if selected_department == dept.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ dept.name_ar }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="alert alert-info d-flex justify-content-between align-items-center">
+                            <div>
+                                <i class="fas fa-info-circle me-2"></i>
+                                اختر الموظفين الذين تريد تعيينهم لهذه الوردية. سيتم إلغاء تعيين أي موظفين غير محددين.
+                            </div>
+                            <div>
+                                <span class="badge bg-primary" id="selectedCount">0</span>
+                                <small class="text-muted ms-1">موظف محدد</small>
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th width="50" class="text-center">
+                                            <input type="checkbox" id="selectAll">
+                                        </th>
+                                        <th class="text-center">رقم الموظف</th>
+                                        <th class="text-center">الاسم</th>
+                                        <th class="text-center">القسم</th>
+                                        <th class="text-center">الوظيفة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for employee in employees %}
+                                    <tr>
+                                        <td class="text-center">
+                                            <input type="checkbox" name="employees" value="{{ employee.pk }}" 
+                                                   class="employee-checkbox"
+                                                   {% if employee.pk in assigned_employee_ids %}checked{% endif %}>
+                                        </td>
+                                        <td class="text-center">{{ employee.employee_number }}</td>
+                                        <td class="text-center">{{ employee.get_full_name_ar }}</td>
+                                        <td class="text-center">{{ employee.department.name_ar }}</td>
+                                        <td class="text-center">{{ employee.job_title.title_ar }}</td>
+                                    </tr>
+                                    {% empty %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            لا يوجد موظفين في هذا القسم
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                حفظ التعيينات
+                            </button>
+                            <a href="{% url 'hr:shift_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تحديد/إلغاء تحديد الكل
+    $('#selectAll').click(function() {
+        $('.employee-checkbox').prop('checked', this.checked);
+        updateSelectedCount();
+    });
+    
+    // تحديث العداد عند تغيير أي checkbox
+    $('.employee-checkbox').change(function() {
+        updateSelectedCount();
+    });
+    
+    // دالة تحديث عدد الموظفين المختارين
+    function updateSelectedCount() {
+        const selectedCount = $('.employee-checkbox:checked').length;
+        const totalCount = $('.employee-checkbox').length;
+        
+        // تحديث العداد في الصفحة
+        $('#selectedCount').text(selectedCount);
+        
+        // تحديث حالة selectAll
+        $('#selectAll').prop('checked', selectedCount === totalCount);
+    }
+    
+    // تهيئة العداد عند تحميل الصفحة
+    updateSelectedCount();
+});
+
+// دالة الفلترة حسب القسم
+function filterByDepartment() {
+    const departmentId = document.getElementById('departmentFilter').value;
+    const currentUrl = new URL(window.location.href);
+    
+    if (departmentId) {
+        currentUrl.searchParams.set('department', departmentId);
+    } else {
+        currentUrl.searchParams.delete('department');
+    }
+    
+    window.location.href = currentUrl.toString();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}رفض إذن{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="section-container">
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                هل أنت متأكد من رفض هذا الإذن؟
+            </div>
+            
+            <table class="table table-bordered mb-4">
+                <tr>
+                    <th class="text-center" width="30%">الموظف</th>
+                    <td class="text-center">{{ permission.employee.get_full_name_ar }}</td>
+                </tr>
+                <tr>
+                    <th class="text-center">نوع الإذن</th>
+                    <td class="text-center">{{ permission.permission_type.name_ar }}</td>
+                </tr>
+                <tr>
+                    <th class="text-center">التاريخ</th>
+                    <td class="text-center">{{ permission.date|date:"Y-m-d" }}</td>
+                </tr>
+                <tr>
+                    <th class="text-center">المدة</th>
+                    <td class="text-center">{{ permission.start_time|time:"H:i" }} - {{ permission.end_time|time:"H:i" }} ({{ permission.duration_hours }} ساعة)</td>
+                </tr>
+            </table>
+            
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">سبب الرفض *</label>
+                    <textarea name="review_notes" class="form-control" rows="3" placeholder="يجب إدخال سبب الرفض..." required></textarea>
+                </div>
+                
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-times me-2"></i>رفض الإذن
+                    </button>
+                    <a href="{% url 'hr:permission_detail' permission.pk %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-right me-2"></i>إلغاء
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

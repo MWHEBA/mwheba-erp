@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load dict_tags %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  <!-- Page Header الموحد -->
+  {% include "shared/page_header.html" %}
+
+  <!-- قسم الفلاتر -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+      <i class="fas fa-filter me-2"></i>الفلاتر<i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <form method="get" action="{% url 'financial:journal_entries_list' %}" class="row g-3 mt-2">
+        <div class="col-md-3">
+          <label for="status" class="form-label">الحالة</label>
+          <select name="status" id="status" class="form-select">
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if filter_form.status == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="col-md-3">
+          <label for="category" class="form-label">التصنيف المالي</label>
+          <select name="category" id="category" class="form-select">
+            <option value="">الكل</option>
+            {% for cat in categories %}
+              <option value="{{ cat.id }}" {% if filter_form.category|stringformat:"s" == cat.id|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        
+        <div class="col-md-3">
+          <label for="date_from" class="form-label">من تاريخ</label>
+          <input type="date" name="date_from" id="date_from" class="form-control" value="{{ filter_form.date_from }}">
+        </div>
+        
+        <div class="col-md-3">
+          <label for="date_to" class="form-label">إلى تاريخ</label>
+          <input type="date" name="date_to" id="date_to" class="form-control" value="{{ filter_form.date_to }}">
+        </div>
+        
+        <div class="col-md-6">
+          <label for="search" class="form-label">البحث</label>
+          <input type="text" name="search" id="search" class="form-control" placeholder="ابحث في رقم القيد أو الوصف..." value="{{ filter_form.search }}">
+        </div>
+        
+        <div class="col-md-6 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2">
+            <i class="fas fa-search me-1"></i>بحث
+          </button>
+          <a href="{% url 'financial:journal_entries_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-redo me-1"></i>إعادة تعيين
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- قائمة القيود المحاسبية -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0">
+          <i class="fas fa-list me-2"></i>{% trans "قائمة القيود المحاسبية" %}
+          {% if paginator %}
+            <small class="text-muted">({{ paginator.count }} قيد)</small>
+          {% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        {% if journal_entries %}
+        <!-- استخدام الجدول الموحد بدون pagination داخلي -->
+          {% include "components/data_table.html" with table_id="journal-entries-table" headers=table_headers data=table_data primary_key="id" empty_message="لا توجد قيود محاسبية متاحة" clickable_rows=True row_click_url="/financial/journal-entries/0/" show_export=True export_filename="journal_entries" disable_pagination=True %}
+        
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد قيود محاسبية متاحة" icon="book" %}
+        {% endif %}
+      </div>
+      
+      <!-- Django Pagination -->
+      {% if paginator and paginator.num_pages > 1 %}
+      <div class="card-footer">
+        <nav aria-label="Page navigation">
+          <ul class="pagination justify-content-center mb-0">
+            {% if page_obj.has_previous %}
+              <li class="page-item">
+                <a class="page-link" href="?page=1{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">الأول</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">السابق</a>
+              </li>
+            {% endif %}
+            
+            {% for num in page_obj.paginator.page_range %}
+              {% if page_obj.number == num %}
+                <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+              {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ num }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">{{ num }}</a>
+                </li>
+              {% endif %}
+            {% endfor %}
+            
+            {% if page_obj.has_next %}
+              <li class="page-item">
+                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">التالي</a>
+              </li>
+              <li class="page-item">
+                <a class="page-link" href="?page={{ paginator.num_pages }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">الأخير</a>
+              </li>
+            {% endif %}
+          </ul>
+        </nav>
+        <div class="text-center mt-2">
+          <small class="text-muted">
+            عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من {{ paginator.count }} قيد
+          </small>
+        </div>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/financial-enhanced.js' %}"></script>
+<script>
+// تحسينات إضافية خاصة بالقيود المحاسبية
+document.addEventListener('DOMContentLoaded', function() {
+    // التحقق من وجود الجدول قبل التهيئة
+    const tableElement = document.getElementById('journal-entries-table');
+    
+    // تهيئة الجدول بدون pagination (Django pagination فقط)
+    if (tableElement && typeof GlobalTableManager !== 'undefined') {
+        GlobalTableManager.initializeTable('journal-entries-table', {
+            paging: false, // تعطيل pagination من DataTables
+            lengthChange: false, // إخفاء قائمة تغيير عدد العناصر
+            order: [[1, 'desc']], // ترتيب حسب التاريخ (العمود الثاني)
+            columnDefs: [
+                { targets: 0, width: '120px', className: 'text-center' }, // رقم القيد
+                { targets: 1, width: '120px', className: 'text-center' }, // التاريخ
+                { targets: 2, width: '130px', className: 'text-center' }, // النوع
+                { targets: 3, width: '150px', className: 'text-center' }, // التصنيف المالي
+                { targets: 4, className: 'text-right' }, // الوصف
+                { targets: 5, width: '120px', className: 'text-center' }, // المبلغ
+                { targets: 6, width: '100px', className: 'text-center' }, // الحالة
+                { targets: 7, width: '120px', className: 'text-center' }, // المستخدم
+                { targets: -1, orderable: false, searchable: false } // الإجراءات
+            ],
+            language: {
+                "search": "البحث:",
+                "info": "عرض _START_ إلى _END_ من _TOTAL_ قيد",
+                "emptyTable": "لا توجد قيود محاسبية متاحة",
+                "zeroRecords": "لم يتم العثور على قيود مطابقة"
+            }
+        });
+        
+        // تحسين عرض الصفوف القابلة للنقر - تأكد من أن هذا يعمل بعد تهيئة DataTables
+        setTimeout(function() {
+            const tableRows = document.querySelectorAll('#journal-entries-table tbody tr');
+            
+            tableRows.forEach((row, index) => {
+                // تجاهل الصفوف الفارغة
+                if (row.getAttribute('data-empty') === 'true') return;
+                
+                const entryId = row.getAttribute('data-id');
+                
+                if (entryId && entryId !== '0') {
+                    row.style.cursor = 'pointer';
+                    row.title = `انقر لعرض تفاصيل القيد رقم ${entryId}`;
+                    
+                    row.addEventListener('click', function(e) {
+                        // تجاهل النقر على الأزرار والروابط
+                        if (e.target.closest('.btn, a, .col-actions')) {
+                            return;
+                        }
+                        
+                        window.location.href = `/financial/journal-entries/${entryId}/`;
+                    });
+                    
+                    // تحسين hover effect
+                    row.addEventListener('mouseenter', function() {
+                        this.style.backgroundColor = 'var(--bs-light)';
+                    });
+                    
+                    row.addEventListener('mouseleave', function() {
+                        this.style.backgroundColor = '';
+                    });
+                }
+            });
+        }, 500); // انتظار نصف ثانية للتأكد من تهيئة DataTables
+    }
+});
+</script>
+{% endblock %}
+

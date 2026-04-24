@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .avatar-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 1.1rem;
+  }
+  
+  .section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  
+  .section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+  }
+  
+  .section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+  }
+  
+  .section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+      <i class="fas fa-filter me-2"></i>تصفية وبحث
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="get" class="row g-3">
+          <div class="col-md-4">
+            <label for="search" class="form-label">البحث</label>
+            <input type="text" id="search" name="search" class="form-control" placeholder="ابحث عن موظف أو معرف بصمة..." value="{{ request.GET.search }}">
+          </div>
+          <div class="col-md-3">
+            <label for="device" class="form-label">الماكينة</label>
+            <select id="device" name="device" class="form-select">
+              <option value="">جميع الماكينات</option>
+              {% for device in devices %}
+              <option value="{{ device.id }}" {% if request.GET.device == device.id|stringformat:"s" %}selected{% endif %}>
+                {{ device.device_name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="is_active" class="form-label">الحالة</label>
+            <select id="is_active" name="is_active" class="form-select">
+              <option value="">الكل</option>
+              <option value="true" {% if request.GET.is_active == 'true' %}selected{% endif %}>نشط</option>
+              <option value="false" {% if request.GET.is_active == 'false' %}selected{% endif %}>غير نشط</option>
+            </select>
+          </div>
+          <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search me-2"></i>بحث
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- قائمة ربط معرفات البصمة -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة ربط معرفات البصمة</h5>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th width="25%"><i class="fas fa-user me-2"></i>الموظف</th>
+                <th width="15%"><i class="fas fa-fingerprint me-2"></i>معرف البصمة</th>
+                <th width="20%"><i class="fas fa-desktop me-2"></i>الماكينة</th>
+                <th width="10%" class="text-center"><i class="fas fa-toggle-on me-2"></i>الحالة</th>
+                <th width="15%"><i class="fas fa-calendar me-2"></i>تاريخ الإنشاء</th>
+                <th width="15%" class="text-center"><i class="fas fa-cogs me-2"></i>الإجراءات</th>
+              </tr>
+            </thead>
+              <tbody>
+                  {% for mapping in mappings %}
+                  <tr>
+                      <td>
+                          <div class="d-flex align-items-center">
+                              <div class="avatar-circle bg-primary text-white me-2">
+                                  {{ mapping.employee.name|first }}
+                              </div>
+                              <div>
+                                  <div class="fw-bold">{{ mapping.employee.get_full_name_ar }}</div>
+                                  <small class="text-muted">{{ mapping.employee.employee_number }}</small>
+                              </div>
+                          </div>
+                      </td>
+                      <td>
+                          <span class="badge bg-info">{{ mapping.biometric_user_id }}</span>
+                      </td>
+                      <td>
+                          {% if mapping.device %}
+                              <i class="fas fa-desktop text-primary me-2"></i>{{ mapping.device.device_name }}
+                          {% else %}
+                              <span class="text-muted"><i class="fas fa-globe me-2"></i>عام (جميع الماكينات)</span>
+                          {% endif %}
+                      </td>
+                      <td class="text-center">
+                          {% if mapping.is_active %}
+                              <span class="badge bg-success"><i class="fas fa-check me-1"></i>نشط</span>
+                          {% else %}
+                              <span class="badge bg-secondary"><i class="fas fa-times me-1"></i>غير نشط</span>
+                          {% endif %}
+                      </td>
+                      <td>
+                          <small>{{ mapping.created_at|date:"Y-m-d H:i" }}</small>
+                      </td>
+                      <td class="text-center">
+                          <div class="btn-group" role="group">
+                              <a href="{% url 'hr:biometric_mapping_update' mapping.pk %}" 
+                                 class="btn btn-sm btn-warning" 
+                                 title="تعديل">
+                                  <i class="fas fa-edit"></i>
+                              </a>
+                              <a href="{% url 'hr:biometric_mapping_delete' mapping.pk %}" 
+                                 class="btn btn-sm btn-danger" 
+                                 title="حذف">
+                                  <i class="fas fa-trash"></i>
+                              </a>
+                          </div>
+                      </td>
+                  </tr>
+                  {% empty %}
+                  <tr>
+                      <td colspan="6" class="text-center py-5">
+                          <i class="fas fa-link fa-3x text-muted mb-3"></i>
+                          <p class="text-muted">لا توجد عمليات ربط</p>
+                          <a href="{% url 'hr:biometric_mapping_create' %}" class="btn btn-primary">
+                              <i class="fas fa-plus me-2"></i>إضافة ربط جديد
+                          </a>
+                      </td>
+                  </tr>
+                  {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,75 @@
+/* أنماط خاصة بنماذج الورديات */
+
+.calculation-info {
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(-5px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.work-hours-container {
+    position: relative;
+}
+
+.work-hours-container .form-control:focus {
+    border-color: var(--bs-success);
+    box-shadow: 0 0 0 0.2rem rgba(25, 135, 84, 0.25);
+}
+
+.calculation-info i {
+    color: var(--bs-success);
+}
+
+#recalculate-btn {
+    transition: all 0.3s ease;
+}
+
+#recalculate-btn:hover {
+    transform: translateY(-1px);
+}
+
+.shift-time-inputs {
+    background: var(--bs-light);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.shift-time-inputs .form-label {
+    font-weight: 600;
+    color: var(--bs-dark);
+}
+
+.time-calculation-preview {
+    background: linear-gradient(135deg, var(--bs-info-bg-subtle) 0%, var(--bs-primary-bg-subtle) 100%);
+    border: 1px solid var(--bs-info-border-subtle);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+    text-align: center;
+}
+
+.time-calculation-preview h6 {
+    color: var(--bs-info);
+    margin-bottom: 0.5rem;
+}
+
+.calculated-hours {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--bs-primary);
+}
+
+.shift-preview {
+    background: var(--bs-light);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 1rem;
+}
+
+.shift-preview .badge {
+    font-size: 0.9rem;
+    padding: 0.5rem 1rem;
+}

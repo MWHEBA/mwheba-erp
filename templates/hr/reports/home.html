@@ -1,0 +1,124 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  /* ستايلات خاصة بكروت التقارير */
+  .report-card {
+    background: var(--white);
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    text-align: center;
+    height: 100%;
+  }
+  
+  .report-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  }
+  
+  .report-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    font-size: 1.5rem;
+    color: var(--white);
+  }
+  
+  .report-card h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+  
+  .report-card p {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-file-alt me-2"></i>التقارير المتاحة</h5>
+      <div class="row">
+        <!-- تقرير الحضور -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="report-card">
+                <div class="report-icon bg-primary">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <h5>تقرير الحضور</h5>
+                <p>تقرير شامل للحضور والانصراف الشهري</p>
+                <a href="{% url 'hr:attendance_report' %}" class="btn btn-primary btn-sm">
+                    <i class="fas fa-eye me-2"></i>
+                    عرض التقرير
+                </a>
+            </div>
+        </div>
+
+        <!-- تقرير الإجازات -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="report-card">
+                <div class="report-icon bg-success">
+                    <i class="fas fa-calendar-alt"></i>
+                </div>
+                <h5>تقرير الإجازات</h5>
+                <p>تقرير الإجازات الاعتيادية والمرضية</p>
+                <a href="{% url 'hr:leave_report' %}" class="btn btn-success btn-sm">
+                    <i class="fas fa-eye me-2"></i>
+                    عرض التقرير
+                </a>
+            </div>
+        </div>
+
+        <!-- تقرير الرواتب -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="report-card">
+                <div class="report-icon bg-warning">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h5>تقرير الرواتب</h5>
+                <p>تقرير قسائم الرواتب الشهرية</p>
+                <a href="{% url 'hr:payroll_report' %}" class="btn btn-warning btn-sm">
+                    <i class="fas fa-eye me-2"></i>
+                    عرض التقرير
+                </a>
+            </div>
+        </div>
+
+        <!-- تقرير الموظفين -->
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="report-card">
+                <div class="report-icon bg-info">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h5>تقرير الموظفين</h5>
+                <p>تقرير شامل لبيانات الموظفين</p>
+                <a href="{% url 'hr:employee_report' %}" class="btn btn-info btn-sm">
+                    <i class="fas fa-eye me-2"></i>
+                    عرض التقرير
+                </a>
+            </div>
+        </div>
+      </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,93 @@
+/* تنسيقات لوحة تحليلات المنتجات المجمعة */
+
+.health-score-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary-color), var(--info-color));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    position: relative;
+}
+
+.health-score {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: white;
+}
+
+.health-metrics {
+    padding: 1rem;
+}
+
+.health-metric {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.health-metric:last-child {
+    border-bottom: none;
+}
+
+.metric-label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.metric-value {
+    font-weight: bold;
+    color: var(--primary-color);
+}
+
+/* تحسينات للرسوم البيانية */
+.chart-container {
+    position: relative;
+    height: 300px;
+    width: 100%;
+}
+
+/* تحسينات للبطاقات الإحصائية */
+.stats-card-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 0.5rem 0;
+}
+
+.stats-card-unit {
+    font-size: 0.875rem;
+    opacity: 0.8;
+}
+
+/* ألوان إضافية للبطاقات */
+.stats-card-info .stats-card-header {
+    background: var(--info-color);
+}
+
+.stats-card-warning .stats-card-header {
+    background: var(--warning-color);
+}
+
+.stats-card-danger .stats-card-header {
+    background: var(--danger-color);
+}
+
+/* تحسينات responsive */
+@media (max-width: 768px) {
+    .health-score-circle {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .health-score {
+        font-size: 1.25rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.5rem;
+    }
+}

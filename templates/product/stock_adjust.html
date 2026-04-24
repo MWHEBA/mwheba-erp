@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{% trans "تسوية المخزون" %} - {{ stock.product.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/forms.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Page Header الموحد -->
+    {% include "shared/page_header.html" %}
+
+    <div class="row">
+        <div class="col-md-5">
+            <!-- معلومات المخزون الحالي -->
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات المخزون الحالي</h5>
+                
+                <div class="text-center mb-4 p-4" style="background: var(--bg-light); border-radius: var(--border-radius);">
+                    <h6 class="text-muted mb-2">الكمية الحالية</h6>
+                    <div class="display-4 fw-bold mb-3" style="color: var(--text-dark);">{{ stock.quantity|smart_float }}</div>
+                    {% if stock.quantity <= 0 %}
+                    <span class="badge bg-danger">نفذ من المخزون</span>
+                    {% elif stock.quantity < stock.product.min_stock %}
+                    <span class="badge bg-warning">مخزون منخفض</span>
+                    {% else %}
+                    <span class="badge bg-success">مخزون جيد</span>
+                    {% endif %}
+                </div>
+                
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">المنتج</dt>
+                    <dd class="col-sm-7">
+                        <a href="{% url 'product:product_detail' stock.product.pk %}">
+                            {{ stock.product.name }}
+                        </a>
+                    </dd>
+                    
+                    <dt class="col-sm-5">كود المنتج</dt>
+                    <dd class="col-sm-7"><code class="bg-light px-2 py-1 rounded">{{ stock.product.sku }}</code></dd>
+                    
+                    <dt class="col-sm-5">المخزن</dt>
+                    <dd class="col-sm-7">
+                        <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}">
+                            {{ stock.warehouse.name }}
+                        </a>
+                    </dd>
+                    
+                    <dt class="col-sm-5">الحد الأدنى</dt>
+                    <dd class="col-sm-7">{{ stock.product.min_stock|smart_float }}</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="col-md-7">
+            <!-- نموذج تسوية المخزون -->
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-balance-scale me-2"></i>تسوية المخزون</h5>
+                
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        ستؤدي عملية التسوية إلى تعديل المخزون الحالي. يرجى التأكد من صحة البيانات المدخلة.
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="quantity" class="form-label">الكمية الجديدة</label>
+                        <input type="number" class="form-control form-control-lg" id="quantity" name="quantity" min="0" step="1" 
+                               value="{{ stock.quantity }}" required>
+                        <div class="form-text">أدخل الكمية الجديدة بعد الجرد</div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label for="notes" class="form-label">ملاحظات</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="4" placeholder="سبب التسوية..."></textarea>
+                    </div>
+                    
+                    <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-check-circle me-2"></i>تسوية المخزون
+                        </button>
+                        <a href="{% url 'product:stock_detail' stock.pk %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // تحقق من الكمية عند الإدخال
+        $('#quantity').change(function() {
+            const value = parseInt($(this).val()) || 0;
+            if (value < 0) {
+                $(this).val(0);
+                alert('{% trans "لا يمكن إدخال كمية سالبة" %}');
+            }
+        });
+    });
+</script>
+{% endblock %} 

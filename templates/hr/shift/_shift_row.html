@@ -1,0 +1,31 @@
+{% load custom_filters %}{% load utils_extras %}
+<tr>
+  <td class="text-center"><strong>{{ shift.name }}</strong></td>
+  <td class="text-center"><span class="badge bg-success">{{ shift.start_time|arabic_time }}</span></td>
+  <td class="text-center"><span class="badge bg-danger">{{ shift.end_time|arabic_time }}</span></td>
+  <td class="text-center"><strong>{{ shift.calculate_work_hours|smart_float }}</strong> ساعة</td>
+  <td class="text-center">
+    <span class="badge bg-primary">{{ shift.employees.count }}</span>
+    <small class="text-muted">موظف</small>
+  </td>
+  <td class="text-center">
+    {% if shift.is_active %}
+      <span class="badge bg-success">نشط</span>
+    {% else %}
+      <span class="badge bg-danger">غير نشط</span>
+    {% endif %}
+  </td>
+  <td class="text-center col-actions">
+    <div class="btn-group btn-group-sm" role="group">
+      <a href="{% url 'hr:shift_form_edit' shift.pk %}" class="btn btn-warning" title="تعديل">
+        <i class="fas fa-edit"></i>
+      </a>
+      <a href="{% url 'hr:shift_assign_employees' shift.pk %}" class="btn btn-info" title="تعيين موظفين">
+        <i class="fas fa-users"></i>
+      </a>
+      <a href="{% url 'hr:shift_delete' shift.pk %}" class="btn btn-danger" title="حذف">
+        <i class="fas fa-trash"></i>
+      </a>
+    </div>
+  </td>
+</tr>

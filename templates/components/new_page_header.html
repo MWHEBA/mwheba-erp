@@ -1,0 +1,76 @@
+{% comment %}
+مكون عنوان الصفحة مع شريط التنقل (Breadcrumb)
+
+الاستخدام:
+{% include "components/new_page_header.html" with title="عنوان الصفحة" subtitle="وصف فرعي" %}
+
+خيارات:
+- title: عنوان الصفحة (مطلوب)
+- subtitle: نص فرعي للشرح (اختياري)
+- icon: أيقونة لعنوان الصفحة (اختياري)
+- action_buttons: أزرار الإجراءات مثل الإضافة أو التعديل (اختياري)
+{% endcomment %}
+
+<div class="page-header-container mb-4">
+    <!-- Breadcrumbs Section -->
+    <div class="page-breadcrumb mb-2">
+        {% if breadcrumb_items %}
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb mb-0">
+                {% for item in breadcrumb_items %}
+                    {% if forloop.last or item.active %}
+                        <li class="breadcrumb-item active" aria-current="page">
+                            {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                            {{ item.title }}
+                        </li>
+                    {% else %}
+                        <li class="breadcrumb-item">
+                            <a href="{{ item.url }}">
+                                {% if item.icon %}<i class="{{ item.icon }} me-1"></i>{% endif %}
+                                {{ item.title }}
+                            </a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+            </ol>
+        </nav>
+        {% endif %}
+    </div>
+    
+    <!-- Main Header Section -->
+    <div class="page-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                {% if icon or page_icon %}
+                    <div class="me-3">
+                        <i class="{{ icon|default:page_icon }} fa-2x text-primary"></i>
+                    </div>
+                {% endif %}
+                <div>
+                    <h1 class="h3 mb-1">{{ title|default:page_title }}</h1>
+                    {% if subtitle %}
+                        <p class="text-muted mb-0">{{ subtitle }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if action_buttons %}
+                <div>
+                    {% for button in action_buttons %}
+                        {% if button.form_id %}
+                            <button type="submit" form="{{ button.form_id }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                {{ button.text }}
+                            </button>
+                        {% else %}
+                            <a href="{{ button.url|default:'#' }}" class="btn {{ button.class|default:'btn-primary' }}">
+                                {% if button.icon %}<i class="fas {{ button.icon }} me-1"></i>{% endif %}
+                                {{ button.text }}
+                            </a>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div> 

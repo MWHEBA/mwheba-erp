@@ -1,0 +1,336 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}تقرير تفصيلي - {{ report.category.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title breadcrumb_items=breadcrumb_items header_buttons=header_buttons %}
+    
+    {% if report.success %}
+    <!-- معلومات التصنيف -->
+    <div class="section-container mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h4 class="mb-2">{{ report.category.name }}</h4>
+                <p class="text-muted mb-0">
+                    <span class="badge bg-secondary me-2">{{ report.category.code }}</span>
+                    {% if report.period.from and report.period.to %}
+                        الفترة: من {{ report.period.from|date:"d/m/Y" }} إلى {{ report.period.to|date:"d/m/Y" }}
+                    {% elif report.period.from %}
+                        من {{ report.period.from|date:"d/m/Y" }}
+                    {% elif report.period.to %}
+                        حتى {{ report.period.to|date:"d/m/Y" }}
+                    {% else %}
+                        جميع الفترات
+                    {% endif %}
+                </p>
+            </div>
+            <div class="col-md-4 text-end">
+                <form method="get" class="d-inline">
+                    <div class="input-group input-group-sm">
+                        <input type="date" name="date_from" class="form-control" value="{{ date_from|date:'Y-m-d' }}" placeholder="من">
+                        <input type="date" name="date_to" class="form-control" value="{{ date_to|date:'Y-m-d' }}" placeholder="إلى">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- الملخص -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الملخص المالي</h5>
+        <div class="row">
+            <div class="col-md-2 mb-3">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-arrow-up"></i></div>
+                        <div class="stats-card-title">إجمالي الإيرادات</div>
+                        <div class="stats-card-value">{{ report.summary.gross_revenues|smart_float }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-undo"></i></div>
+                        <div class="stats-card-title">الاستردادات</div>
+                        <div class="stats-card-value">{{ report.summary.refunds|smart_float }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-coins"></i></div>
+                        <div class="stats-card-title">صافي الإيرادات</div>
+                        <div class="stats-card-value">{{ report.summary.revenues|smart_float }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-arrow-down"></i></div>
+                        <div class="stats-card-title">المصروفات</div>
+                        <div class="stats-card-value">{{ report.summary.expenses|smart_float }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="stats-card {% if report.summary.profit >= 0 %}stats-card-primary{% else %}stats-card-warning{% endif %}">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-chart-line"></i></div>
+                        <div class="stats-card-title">الربح/الخسارة</div>
+                        <div class="stats-card-value">{{ report.summary.profit|smart_float }}</div>
+                        <div class="stats-card-unit">ج.م</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-2 mb-3">
+                <div class="stats-card stats-card-secondary">
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon"><i class="fas fa-percentage"></i></div>
+                        <div class="stats-card-title">هامش الربح</div>
+                        <div class="stats-card-value">{{ report.summary.margin|smart_float }}</div>
+                        <div class="stats-card-unit">%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- قائمة الإيرادات -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#revenuesSection" aria-expanded="true">
+            <i class="fas fa-arrow-up me-2 text-success"></i>الإيرادات ({{ report.revenue_entries|length }})
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse show" id="revenuesSection">
+            {% if report.revenue_entries %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="revenues-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">التاريخ</th>
+                            <th class="text-center">رقم القيد</th>
+                            <th class="text-center">البيان</th>
+                            <th class="text-center">المرجع</th>
+                            <th class="text-center">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in report.revenue_entries %}
+                        <tr>
+                            <td class="text-center">{{ entry.date|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'financial:journal_entries_detail' entry.id %}" class="text-decoration-none">
+                                    {{ entry.number }}
+                                </a>
+                            </td>
+                            <td class="text-center">{{ entry.description|truncatewords:10 }}</td>
+                            <td class="text-center">{{ entry.reference }}</td>
+                            <td class="text-center text-success fw-bold">{{ entry.amount|smart_float }} ج.م</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4" class="text-end">الإجمالي:</td>
+                            <td class="text-end text-success">{{ report.summary.gross_revenues|smart_float }} ج.م</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center mb-0">
+                <i class="fas fa-info-circle me-2"></i>لا توجد إيرادات في الفترة المحددة
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- قائمة الاستردادات -->
+    {% if report.refund_entries %}
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#refundsSection" aria-expanded="true">
+            <i class="fas fa-undo me-2 text-warning"></i>الاستردادات ({{ report.refund_entries|length }})
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse show" id="refundsSection">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="refunds-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">التاريخ</th>
+                            <th class="text-center">رقم القيد</th>
+                            <th class="text-center">البيان</th>
+                            <th class="text-center">المرجع</th>
+                            <th class="text-center">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in report.refund_entries %}
+                        <tr>
+                            <td class="text-center">{{ entry.date|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'financial:journal_entries_detail' entry.id %}" class="text-decoration-none">
+                                    {{ entry.number }}
+                                </a>
+                            </td>
+                            <td class="text-center">{{ entry.description|truncatewords:10 }}</td>
+                            <td class="text-center">{{ entry.reference }}</td>
+                            <td class="text-center text-warning fw-bold">{{ entry.amount|smart_float }} ج.م</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4" class="text-end">الإجمالي:</td>
+                            <td class="text-end text-warning">{{ report.summary.refunds|smart_float }} ج.م</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- قائمة المصروفات -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#expensesSection" aria-expanded="true">
+            <i class="fas fa-arrow-down me-2 text-danger"></i>المصروفات ({{ report.expense_entries|length }})
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse show" id="expensesSection">
+            {% if report.expense_entries %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle" id="expenses-table">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">التاريخ</th>
+                            <th class="text-center">رقم القيد</th>
+                            <th class="text-center">البيان</th>
+                            <th class="text-center">المرجع</th>
+                            <th class="text-center">المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in report.expense_entries %}
+                        <tr>
+                            <td class="text-center">{{ entry.date|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <a href="{% url 'financial:journal_entries_detail' entry.id %}" class="text-decoration-none">
+                                    {{ entry.number }}
+                                </a>
+                            </td>
+                            <td class="text-center">{{ entry.description|truncatewords:10 }}</td>
+                            <td class="text-center">{{ entry.reference }}</td>
+                            <td class="text-center text-danger fw-bold">{{ entry.amount|smart_float }} ج.م</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-light fw-bold">
+                        <tr>
+                            <td colspan="4" class="text-end">الإجمالي:</td>
+                            <td class="text-end text-danger">{{ report.summary.expenses|smart_float }} ج.م</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info text-center mb-0">
+                <i class="fas fa-info-circle me-2"></i>لا توجد مصروفات في الفترة المحددة
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    {% else %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle me-2"></i>{{ report.error }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة جدول الإيرادات
+    if (typeof GlobalTableManager !== 'undefined' && $('#revenues-table').length) {
+        GlobalTableManager.initializeTable('revenues-table', {
+            order: [[0, 'desc']],
+            language: {
+                "search": "البحث:",
+                "lengthMenu": "عرض _MENU_ عنصر"
+            }
+        });
+    }
+    
+    // تهيئة جدول الاستردادات
+    if (typeof GlobalTableManager !== 'undefined' && $('#refunds-table').length) {
+        GlobalTableManager.initializeTable('refunds-table', {
+            order: [[0, 'desc']],
+            language: {
+                "search": "البحث:",
+                "lengthMenu": "عرض _MENU_ عنصر"
+            }
+        });
+    }
+    
+    // تهيئة جدول المصروفات
+    if (typeof GlobalTableManager !== 'undefined' && $('#expenses-table').length) {
+        GlobalTableManager.initializeTable('expenses-table', {
+            order: [[0, 'desc']],
+            language: {
+                "search": "البحث:",
+                "lengthMenu": "عرض _MENU_ عنصر"
+            }
+        });
+    }
+    
+    // تحريك السهم عند الطي/الفتح
+    $('.section-title[data-bs-toggle="collapse"]').on('click', function() {
+        $(this).find('.fa-chevron-down').toggleClass('rotate-180');
+    });
+});
+</script>
+
+<style>
+.section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+}
+
+.section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+</style>
+{% endblock %}

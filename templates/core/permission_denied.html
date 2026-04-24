@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-lg border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ title }}
+                    </h5>
+                </div>
+                <div class="card-body text-center p-5">
+                    <div class="mb-4">
+                        <img src="{% static 'img/lock.png' %}" alt="غير مصرح" class="img-fluid" style="max-width: 150px;">
+                    </div>
+                    
+                    <h3 class="text-danger mb-4">خطأ في الصلاحيات</h3>
+                    
+                    <p class="lead mb-4">
+                        {{ message|default:"ليس لديك الصلاحيات الكافية للوصول إلى هذه الصفحة" }}
+                    </p>
+                    
+                    <div class="alert alert-warning">
+                        <i class="fas fa-info-circle me-2"></i>
+                        إذا كنت تعتقد أن هذا خطأ، يرجى التواصل مع مدير النظام.
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'core:dashboard' %}" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>
+                            العودة إلى لوحة التحكم
+                        </a>
+                    </div>
+                </div>
+                <div class="card-footer bg-light text-center">
+                    <small class="text-muted">
+                        لا تقلق، لا يزال يمكنك الوصول إلى الصفحات المصرح بها لك.
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

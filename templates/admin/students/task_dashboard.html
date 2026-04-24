@@ -1,0 +1,289 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+    {{ block.super }}
+    <link rel="stylesheet" type="text/css" href="{% static 'admin/css/task_admin.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:app_list' app_label=opts.app_label %}">{{ opts.app_config.verbose_name }}</a>
+    &rsaquo; {{ title }}
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="task-dashboard">
+    <!-- عناصر التحكم -->
+    <div class="task-controls">
+        <div class="control-group">
+            <h1>{{ title }}</h1>
+            <div class="auto-refresh-control">
+                <label for="auto-refresh-toggle">التحديث التلقائي:</label>
+                <input type="checkbox" id="auto-refresh-toggle" class="auto-refresh-toggle" checked>
+            </div>
+        </div>
+        <div class="control-group">
+            <button id="refresh-stats-btn" class="btn btn-task primary">تحديث الإحصائيات</button>
+            <span id="last-updated">آخر تحديث: {{ statistics.last_updated|default:"غير محدد" }}</span>
+        </div>
+    </div>
+
+    <!-- حالة الصحة -->
+    <div class="health-status-container">
+        <div id="health-status-indicator" class="status-{{ health_check.overall_status }}"></div>
+        <span id="health-status-text">{{ health_check.overall_status|title }}</span>
+        <span class="health-timestamp">{{ health_check.timestamp }}</span>
+    </div>
+
+    <!-- الإحصائيات الرئيسية -->
+    <div class="task-stats-grid">
+        <div class="task-stat-card workers">
+            <div class="stat-number" id="workers-count">{{ statistics.workers.total|default:0 }}</div>
+            <div class="stat-label">العمال النشطين</div>
+            <div class="stat-change">
+                <span id="active-workers-count">{{ statistics.workers.active|default:0 }}</span> متصل
+            </div>
+        </div>
+
+        <div class="task-stat-card active-tasks">
+            <div class="stat-number" id="active-tasks-count">{{ statistics.tasks.active|default:0 }}</div>
+            <div class="stat-label">المهام النشطة</div>
+            <div class="stat-change">
+                قيد التنفيذ الآن
+            </div>
+        </div>
+
+        <div class="task-stat-card failed-tasks">
+            <div class="stat-number" id="failed-tasks-count">{{ statistics.tasks.failed_recent|default:0 }}</div>
+            <div class="stat-label">المهام الفاشلة</div>
+            <div class="stat-change negative">
+                في الأسبوع الماضي
+            </div>
+        </div>
+
+        <div class="task-stat-card queues">
+            <div class="stat-number">{{ statistics.queues|length|default:0 }}</div>
+            <div class="stat-label">الطوابير النشطة</div>
+            <div class="stat-change">
+                <span id="processed-tasks-count">{{ statistics.tasks.processed_total|default:0 }}</span> معالج
+            </div>
+        </div>
+    </div>
+
+    <!-- فحوصات الصحة -->
+    {% if health_check.checks %}
+    <div class="health-checks-container">
+        <h3>فحوصات الصحة</h3>
+        <div class="health-checks-list" id="health-checks-list">
+            {% for check_name, check_data in health_check.checks.items %}
+            <div class="health-check-item status-{{ check_data.status }}">
+                <span class="check-icon">
+                    {% if check_data.status == 'healthy' %}✅
+                    {% elif check_data.status == 'warning' %}⚠️
+                    {% else %}❌{% endif %}
+                </span>
+                <span class="check-name">
+                    {% if check_name == 'celery_connection' %}اتصال Celery
+                    {% elif check_name == 'queue_health' %}صحة الطوابير
+                    {% elif check_name == 'failure_rate' %}معدل الفشل
+                    {% else %}{{ check_name }}{% endif %}
+                </span>
+                <span class="check-message">{{ check_data.message }}</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- المهام النشطة -->
+    {% if active_tasks %}
+    <div class="section-container">
+        <h3>المهام النشطة (أحدث 10)</h3>
+        <div class="table-responsive">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">معرف المهمة</th>
+                        <th class="text-center">اسم المهمة</th>
+                        <th class="text-center">العامل</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">وقت البدء</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in active_tasks %}
+                    <tr>
+                        <td class="text-center"><code>{{ task.task_id|truncatechars:12 }}</code></td>
+                        <td class="text-center">{{ task.name|default:"غير محدد" }}</td>
+                        <td class="text-center">{{ task.worker|default:"غير محدد" }}</td>
+                        <td class="text-center"><span class="task-status {{ task.status|lower }}">{{ task.status }}</span></td>
+                        <td class="text-center">{{ task.time_start|default:"غير محدد" }}</td>
+                        <td class="text-center">
+                            <div class="task-actions">
+                                <button class="task-action-btn revoke" 
+                                        data-task-id="{{ task.task_id }}"
+                                        title="إلغاء المهمة">
+                                    إلغاء
+                                </button>
+                                <button class="task-action-btn details" 
+                                        onclick="showTaskDetails('{{ task.task_id }}')"
+                                        title="عرض التفاصيل">
+                                    تفاصيل
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="section-actions">
+            <a href="{% url 'admin:active_tasks' %}" class="btn btn-task primary">عرض جميع المهام النشطة</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- المهام الفاشلة -->
+    {% if failed_tasks %}
+    <div class="section-container">
+        <h3>المهام الفاشلة الأخيرة</h3>
+        <div class="table-responsive">
+            <table class="task-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">رقم التسوية</th>
+                        <th class="text-center">نوع العملية</th>
+                        <th class="text-center">وقت الفشل</th>
+                        <th class="text-center">تفاصيل الخطأ</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for task in failed_tasks %}
+                    <tr>
+                        <td class="text-center">{{ task.reference_number|default:"غير محدد" }}</td>
+                        <td class="text-center">{{ task.action_type }}</td>
+                        <td class="text-center">{{ task.timestamp }}</td>
+                        <td class="text-center">{{ task.error_details.error|default:"غير محدد"|truncatechars:50 }}</td>
+                        <td class="text-center">
+                            <div class="task-actions">
+                                {% if task.refund_id %}
+                                <button class="task-action-btn retry" 
+                                        onclick="retryFailedTask('{{ task.refund_id }}')"
+                                        title="إعادة المحاولة">
+                                    إعادة
+                                </button>
+                                {% endif %}
+                                <button class="task-action-btn details" 
+                                        onclick="showFailedTaskDetails({{ task.log_id }})"
+                                        title="عرض التفاصيل">
+                                    تفاصيل
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="section-actions">
+            <a href="{% url 'admin:failed_tasks' %}" class="btn btn-task warning">عرض جميع المهام الفاشلة</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- معلومات العمال -->
+    {% if worker_status.workers %}
+    <div class="section-container">
+        <h3>حالة العمال</h3>
+        <div class="workers-grid">
+            {% for worker_name, worker_info in worker_status.workers.items %}
+            <div class="worker-card">
+                <div class="worker-name">{{ worker_name }}</div>
+                <div class="worker-status {% if worker_info.online %}online{% else %}offline{% endif %}">
+                    {% if worker_info.online %}متصل{% else %}غير متصل{% endif %}
+                </div>
+                <div class="worker-queues">
+                    <strong>الطوابير:</strong>
+                    {% for queue in worker_info.queues %}
+                        <span class="worker-queue-tag">{{ queue }}</span>
+                    {% empty %}
+                        <span class="worker-queue-tag">لا توجد طوابير</span>
+                    {% endfor %}
+                </div>
+                <div class="worker-stats">
+                    <small>إجمالي المهام: {{ worker_info.total_tasks.total|default:0 }}</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="section-actions">
+            <a href="{% url 'admin:workers_status' %}" class="btn btn-task primary">عرض تفاصيل العمال</a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- الطوابير -->
+    {% if statistics.queues %}
+    <div class="queues-container">
+        <h3>الطوابير النشطة</h3>
+        <div id="queues-list">
+            {% for queue_name, queue_info in statistics.queues.items %}
+            <div class="queue-item">
+                <strong>{{ queue_name }}</strong>
+                <span class="queue-workers">{{ queue_info.workers }} عامل</span>
+                <button class="purge-queue-btn" data-queue-name="{{ queue_name }}">
+                    تنظيف
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- روابط سريعة -->
+    <div class="quick-links">
+        <h3>روابط سريعة</h3>
+        <div class="links-grid">
+            <a href="{% url 'admin:task_statistics' %}" class="btn btn-task primary">الإحصائيات التفصيلية</a>
+            <a href="{% url 'admin:health_check' %}" class="btn btn-task success">فحص الصحة الكامل</a>
+            <a href="{% url 'admin:client_customerrefund_changelist' %}" class="btn btn-task secondary">إدارة التسويات</a>
+            <a href="{% url 'admin:client_settlementauditlog_changelist' %}" class="btn btn-task secondary">سجلات التدقيق</a>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token للاستخدام في JavaScript -->
+{% csrf_token %}
+{% endblock %}
+
+{% block extrajs %}
+    {{ block.super }}
+    <script src="{% static 'admin/js/task_admin.js' %}"></script>
+    <script>
+        // دوال مخصصة للصفحة
+        function showTaskDetails(taskId) {
+            // يمكن تطوير هذه الدالة لعرض تفاصيل المهمة
+            alert('عرض تفاصيل المهمة: ' + taskId);
+        }
+        
+        function showFailedTaskDetails(logId) {
+            // يمكن تطوير هذه الدالة لعرض تفاصيل المهمة الفاشلة
+            alert('عرض تفاصيل المهمة الفاشلة: ' + logId);
+        }
+        
+        function retryFailedTask(refundId) {
+            if (confirm('هل تريد إعادة محاولة معالجة هذه التسوية؟')) {
+                // يمكن إضافة AJAX call هنا لإعادة المحاولة
+                alert('سيتم إعادة محاولة معالجة التسوية: ' + refundId);
+            }
+        }
+    </script>
+{% endblock %}

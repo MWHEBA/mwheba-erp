@@ -1,0 +1,275 @@
+/* تحسينات نظام الاستيراد المجمع */
+
+/* تحسين مظهر رسائل الخطأ */
+.error-message {
+    background: var(--danger-color);
+    color: var(--white);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: none;
+    box-shadow: var(--shadow-md);
+    animation: slideInDown 0.3s ease-out;
+}
+
+.error-message .alert-heading {
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.error-message i {
+    margin-left: 8px;
+    font-size: 1.1em;
+}
+
+/* تحسين مظهر رسائل النجاح */
+.success-message {
+    background: var(--success-color);
+    color: var(--white);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: none;
+    box-shadow: var(--shadow-md);
+    animation: slideInDown 0.3s ease-out;
+}
+
+/* تحسين مظهر رسائل التحميل */
+.loading-message {
+    background: var(--primary-color);
+    color: var(--white);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: none;
+    box-shadow: var(--shadow-md);
+    animation: slideInDown 0.3s ease-out;
+}
+
+.loading-message .spinner-border {
+    width: 1.2rem;
+    height: 1.2rem;
+    margin-left: 10px;
+}
+
+/* تحسين مظهر البطاقات المحددة */
+.parent-result-card.selected {
+    border: 2px solid var(--success-color) !important;
+    background-color: var(--success-soft);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+    transition: all 0.3s ease;
+}
+
+.parent-result-card {
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.parent-result-card:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* تحسين أزرار الاختيار */
+.select-unified-parent-btn {
+    transition: all 0.3s ease;
+    border-radius: 6px;
+    font-weight: 500;
+}
+
+.select-unified-parent-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* تحسين مظهر الـ modals */
+.modal-content {
+    border: none;
+    border-radius: 12px;
+    box-shadow: var(--shadow-lg);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+    background: var(--gray-50);
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color);
+    border-radius: 0 0 12px 12px;
+    background: var(--gray-50);
+}
+
+/* تحسين مظهر الإحصائيات */
+.stats-card {
+    border-radius: 10px;
+    border: none;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.stats-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* تحسين مظهر شريط التقدم */
+.progress {
+    height: 8px;
+    border-radius: 10px;
+    background-color: var(--gray-200);
+    overflow: hidden;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+/* تحسين رسائل المتابعة */
+#continue-processing-message {
+    background: var(--info-color);
+    color: var(--white);
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin: 15px 0;
+    border: none;
+    box-shadow: var(--shadow-md);
+    animation: slideInUp 0.3s ease-out;
+}
+
+/* الحركات */
+@keyframes slideInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* تحسين مظهر البحث */
+.search-section {
+    background: var(--gray-50);
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.search-section .form-control {
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.search-section .form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-soft);
+}
+
+/* تحسين مظهر النتائج */
+.search-results {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 8px;
+}
+
+.search-results::-webkit-scrollbar {
+    width: 6px;
+}
+
+.search-results::-webkit-scrollbar-track {
+    background: var(--gray-100);
+    border-radius: 3px;
+}
+
+.search-results::-webkit-scrollbar-thumb {
+    background: var(--gray-400);
+    border-radius: 3px;
+}
+
+.search-results::-webkit-scrollbar-thumb:hover {
+    background: var(--gray-500);
+}
+
+/* تحسين مظهر الأزرار */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+/* تحسين مظهر البطاقات */
+.card {
+    border: none;
+    border-radius: 10px;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+/* تحسين مظهر الجداول */
+.table {
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+}
+
+.table thead th {
+    background: var(--gray-50);
+    border: none;
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+.table tbody tr {
+    transition: all 0.3s ease;
+}
+
+.table tbody tr:hover {
+    background-color: var(--primary-soft);
+    transform: translateX(2px);
+}
+
+/* تحسين الاستجابة للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .modal-dialog {
+        margin: 10px;
+    }
+    
+    .stats-card {
+        margin-bottom: 15px;
+    }
+    
+    .search-section {
+        padding: 15px;
+    }
+    
+    .parent-result-card {
+        margin-bottom: 15px;
+    }
+}

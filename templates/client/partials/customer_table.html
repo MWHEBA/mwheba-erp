@@ -1,0 +1,6 @@
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+{% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True %}

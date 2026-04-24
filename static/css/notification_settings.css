@@ -1,0 +1,324 @@
+/* ===========================
+ * Notification Settings Page Styles
+ * ===========================
+ * ملف CSS مخصص لصفحة إعدادات الإشعارات
+ */
+
+/* البطاقات */
+.card {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.card-header {
+    background-color: var(--light);
+    border-bottom: 1px solid var(--border-color);
+    padding: 1rem 1.25rem;
+}
+
+.card-header h5,
+.card-header h6 {
+    margin: 0;
+    color: var(--text-color);
+    font-weight: var(--font-weight-bold);
+}
+
+.card-body {
+    padding: 1.5rem;
+}
+
+/* Form Switches */
+.form-check-input {
+    width: 3rem;
+    height: 1.5rem;
+    cursor: pointer;
+    border: 2px solid var(--border-color);
+    background-color: var(--light);
+    transition: all 0.3s ease;
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+}
+
+.form-check-label {
+    margin-right: 0.75rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.form-check-label strong {
+    display: block;
+    margin-bottom: 0.25rem;
+    color: var(--text-color);
+}
+
+.form-check-label small {
+    display: block;
+    line-height: 1.4;
+}
+
+/* Form Controls */
+.form-control,
+.form-select {
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 0.75rem;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.15);
+}
+
+.form-label {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-color);
+    margin-bottom: 0.5rem;
+}
+
+/* Conditional Fields */
+.email-field,
+.sms-field,
+.daily-summary-field,
+.dnd-fields,
+.auto-delete-field,
+.auto-archive-field {
+    padding: 1rem;
+    background-color: var(--light);
+    border-radius: var(--border-radius);
+    border-right: 3px solid var(--primary-color);
+    margin-top: 0.75rem;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Statistics */
+.stat-item {
+    padding: 0.75rem;
+    background-color: var(--light);
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+}
+
+.stat-item:hover {
+    background-color: rgba(var(--primary-rgb), 0.05);
+}
+
+.progress {
+    background-color: rgba(0, 0, 0, 0.05);
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    transition: width 0.6s ease;
+}
+
+/* Buttons */
+.btn {
+    padding: 0.5rem 1.25rem;
+    border-radius: var(--border-radius);
+    font-weight: var(--font-weight-medium);
+    transition: all 0.2s ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(var(--primary-rgb), 0.3);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.btn-outline-secondary {
+    color: var(--gray-600);
+    border-color: var(--border-color);
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--gray-600);
+    border-color: var(--gray-600);
+    color: white;
+}
+
+/* Icons */
+.card-header i,
+.form-check-label i {
+    display: inline-block;
+}
+
+/* Badges */
+.badge {
+    padding: 0.35rem 0.65rem;
+    font-weight: var(--font-weight-medium);
+    border-radius: 20px;
+}
+
+/* Tips Card */
+.border-primary {
+    border: 2px solid var(--primary-color) !important;
+}
+
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .form-check-input {
+        width: 2.5rem;
+        height: 1.25rem;
+    }
+    
+    .btn {
+        padding: 0.4rem 1rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Validation */
+.invalid-feedback {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--danger-color);
+}
+
+.form-control.is-invalid,
+.form-select.is-invalid {
+    border-color: var(--danger-color);
+}
+
+/* Loading State */
+.btn.loading {
+    position: relative;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.btn.loading::after {
+    content: '';
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    top: 50%;
+    right: 10px;
+    margin-top: -8px;
+    border: 2px solid currentColor;
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spinner 0.6s linear infinite;
+}
+
+@keyframes spinner {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Dividers */
+hr {
+    border-top: 1px solid var(--border-color);
+    margin: 1.5rem 0;
+}
+
+/* Text Colors */
+.text-muted {
+    color: var(--gray-600) !important;
+}
+
+.text-success {
+    color: var(--success-color) !important;
+}
+
+.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.text-info {
+    color: var(--info-color) !important;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.text-secondary {
+    color: var(--gray-600) !important;
+}
+
+.text-dark {
+    color: var(--text-color) !important;
+}
+
+/* Background Colors */
+.bg-light {
+    background-color: var(--light) !important;
+}
+
+.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.bg-info {
+    background-color: var(--info-color) !important;
+}
+
+.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.bg-secondary {
+    background-color: var(--gray-600) !important;
+}

@@ -1,0 +1,291 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load dict_tags %}
+
+{% block title %}تحليل ABC للمخزون{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+.abc-category {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 40px;
+}
+.abc-a { background-color: #28a745; }
+.abc-b { background-color: #ffc107; color: #000; }
+.abc-c { background-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- Filters -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">من تاريخ</label>
+                    <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+                    <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to|date:'Y-m-d' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">التصنيف</label>
+                    <select name="category" class="form-select">
+                        <option value="">جميع التصنيفات</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+                                {{ cat.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-1"></i> تطبيق
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" onclick="window.location.reload()">
+                        <i class="fas fa-undo me-1"></i> إعادة تعيين
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- رسالة عدم وجود بيانات -->
+    {% if summary.total_products == 0 %}
+    <div class="alert alert-info text-center" role="alert">
+        <i class="fas fa-info-circle fa-3x mb-3"></i>
+        <h4 class="alert-heading">لا توجد بيانات مبيعات</h4>
+        <p class="mb-0">
+            لا توجد مبيعات مسجلة في الفترة المحددة (آخر {{ filters.period_months|default:12 }} شهر).
+            <br>
+            تحليل ABC يعتمد على بيانات المبيعات الفعلية.
+        </p>
+        <hr>
+        <p class="mb-0 text-muted">
+            <small>💡 قم بإضافة فواتير مبيعات أولاً لرؤية التحليل</small>
+        </p>
+    </div>
+    {% else %}
+    <!-- Summary Cards -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>إحصائيات التصنيف</h5>
+        <div class="row">
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-star"></i>
+                        </div>
+                        <div class="stats-card-title">فئة A - عالية القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_a_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_a_percentage|smart_float }}%)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-circle"></i>
+                        </div>
+                        <div class="stats-card-title">فئة B - متوسطة القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_b_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_b_percentage|smart_float }}%)</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-4 mb-4">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-dot-circle"></i>
+                        </div>
+                        <div class="stats-card-title">فئة C - منخفضة القيمة</div>
+                        <div class="stats-card-value">{{ summary.category_c_count }}</div>
+                        <div class="stats-card-unit">منتج ({{ summary.category_c_percentage|smart_float }}%)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Chart -->
+    {% if summary.total_products > 0 %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-chart-pie me-2"></i>
+                توزيع المنتجات حسب فئات ABC
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="chart-container">
+                <canvas id="abcChart" width="400" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Products Table -->
+    <div class="card">
+    {% else %}
+    <!-- جدول فارغ مع رسالة -->
+    <div class="card">
+        <div class="card-header">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-table me-2"></i>
+                تفاصيل المنتجات
+            </h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">التصنيف</th>
+                            <th class="text-center">كود المنتج</th>
+                            <th class="text-center">اسم المنتج</th>
+                            <th class="text-center">الكمية المباعة</th>
+                            <th class="text-center">قيمة المبيعات</th>
+                            <th class="text-center">النسبة التراكمية</th>
+                            <th class="text-center">الأهمية</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in analysis_data %}
+                        <tr>
+                            <td class="text-center">
+                                <span class="abc-category abc-{{ item.category|lower }}">
+                                    {{ item.category }}
+                                </span>
+                            </td>
+                            <td class="text-center">{{ item.product.code }}</td>
+                            <td class="text-center">
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.category %}
+                                    <br><small class="text-muted">{{ item.product.category.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ item.quantity_sold|smart_float }}</td>
+                            <td class="text-center">{{ item.sales_value|smart_float }}</td>
+                            <td class="text-center">{{ item.cumulative_percentage|smart_float }}%</td>
+                            <td class="text-center">
+                                {% if item.category == 'A' %}
+                                    <span class="badge bg-success">عالية</span>
+                                {% elif item.category == 'B' %}
+                                    <span class="badge bg-warning">متوسطة</span>
+                                {% else %}
+                                    <span class="badge bg-danger">منخفضة</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i>
+                                <br>لا توجد بيانات متاحة للفترة المحددة
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ABC Analysis Chart
+{% if summary.total_products > 0 %}
+const ctx = document.getElementById('abcChart');
+if (ctx) {
+    const abcChart = new Chart(ctx.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+            labels: ['فئة A (عالية)', 'فئة B (متوسطة)', 'فئة C (منخفضة)'],
+            datasets: [{
+                data: [
+                    {{ summary.category_a_count|default:0 }},
+                    {{ summary.category_b_count|default:0 }},
+                    {{ summary.category_c_count|default:0 }}
+                ],
+                backgroundColor: [
+                    '#28a745',
+                    '#ffc107', 
+                    '#dc3545'
+                ],
+                borderWidth: 2,
+                borderColor: '#ffffff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            if (total === 0) return context.label + ': 0 منتج';
+                            const percentage = ((context.parsed / total) * 100).toFixed(1);
+                            return context.label + ': ' + context.parsed + ' منتج (' + percentage + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+{% endif %}
+
+// DataTable initialization
+$(document).ready(function() {
+    const table = $('#dataTable');
+    // تحقق من وجود بيانات في الجدول
+    if (table.find('tbody tr').length > 0 && !table.find('tbody tr td[colspan]').length) {
+        table.DataTable({
+            language: {
+                url: '{% static "js/datatables/ar.json" %}'
+            },
+            order: [[4, 'desc']], // Sort by sales value descending
+            columnDefs: [
+                {
+                    targets: [3, 4, 5], // Numeric columns
+                    className: 'text-end'
+                }
+            ],
+            responsive: true
+        });
+    }
+});
+</script>
+{% endblock %}

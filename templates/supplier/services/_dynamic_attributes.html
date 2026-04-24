@@ -1,0 +1,60 @@
+{% comment %}
+Partial: عرض حقول الخصائص الديناميكية لخدمة مورد (server-side).
+المتغيرات:
+  schema        — dict تعريف الحقول
+  values        — dict القيم الحالية
+  schema_sources — dict خيارات حقول source (مجلوبة من الـ view)
+{% endcomment %}
+{% load dict_tags %}
+{% if schema %}
+<div class="row">
+  {% for key, def in schema.items %}
+  {% with val=values|get_item:key %}
+  <div class="col-md-6 mb-3">
+    <label class="form-label">
+      {{ def.label|default:key }}
+      {% if def.required %}<span class="text-danger">*</span>{% endif %}
+    </label>
+
+    {% if def.type == "select" %}
+      <select name="attr_{{ key }}" class="form-select" {% if def.required %}required{% endif %}>
+        <option value="">اختر...</option>
+        {% if def.options %}
+          {% for opt in def.options %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+        {% elif def.source %}
+          {% with src_opts=schema_sources|get_item:def.source %}
+          {% for opt in src_opts %}
+          <option value="{{ opt }}" {% if val == opt %}selected{% endif %}>{{ opt }}</option>
+          {% endfor %}
+          {% endwith %}
+        {% endif %}
+      </select>
+
+    {% elif def.type == "integer" %}
+      <input type="number" name="attr_{{ key }}" class="form-control"
+             {% if def.min is not None %}min="{{ def.min }}"{% endif %}
+             {% if def.max is not None %}max="{{ def.max }}"{% endif %}
+             {% if def.required %}required{% endif %}
+             value="{{ val|default:'' }}">
+
+    {% elif def.type == "decimal" %}
+      <input type="number" name="attr_{{ key }}" class="form-control"
+             step="0.01" min="0"
+             {% if def.required %}required{% endif %}
+             value="{{ val|default:'' }}">
+
+    {% else %}
+      <input type="text" name="attr_{{ key }}" class="form-control"
+             {% if def.required %}required{% endif %}
+             value="{{ val|default:'' }}">
+    {% endif %}
+
+  </div>
+  {% endwith %}
+  {% endfor %}
+</div>
+{% else %}
+<p class="text-muted">لا توجد خصائص إضافية لهذا النوع</p>
+{% endif %}

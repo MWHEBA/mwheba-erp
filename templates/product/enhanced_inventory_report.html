@@ -1,0 +1,233 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/inventory-report.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title subtitle="تقرير شامل للمخزون مع دعم المنتجات المجمعة" icon="fas fa-warehouse" header_buttons=header_buttons %}
+    
+    <!-- إحصائيات سريعة -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            إحصائيات المخزون
+        </h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المنتجات</div>
+                        <div class="stats-card-value">{{ stats.total_products|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-layer-group"></i>
+                        </div>
+                        <div class="stats-card-title">منتجات مجمعة</div>
+                        <div class="stats-card-value">{{ stats.bundle_products|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stats-card-title">مخزون منخفض</div>
+                        <div class="stats-card-value">{{ stats.low_stock|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-times-circle"></i>
+                        </div>
+                        <div class="stats-card-title">نفد المخزون</div>
+                        <div class="stats-card-value">{{ stats.out_of_stock|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلاتر التقرير -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-filter me-2"></i>
+            فلاتر التقرير
+        </h5>
+        <div class="row">
+            <div class="col-md-12">
+                <div class="btn-group" role="group">
+                    <a href="?type=all" class="btn {% if current_type == 'all' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        جميع المنتجات
+                    </a>
+                    <a href="?type=bundles" class="btn {% if current_type == 'bundles' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        المنتجات المجمعة
+                    </a>
+                    <a href="?type=components" class="btn {% if current_type == 'components' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        المكونات
+                    </a>
+                    <a href="?type=regular" class="btn {% if current_type == 'regular' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                        المنتجات العادية
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- جدول المخزون -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-table me-2"></i>
+            تفاصيل المخزون
+        </h5>
+        <div class="table-responsive">
+            <table class="table table-striped table-hover" id="inventoryTable">
+                <thead>
+                    <tr>
+                        <th class="text-center">المنتج</th>
+                        <th class="text-center">النوع</th>
+                        <th class="text-center">المخزون الفعلي</th>
+                        <th class="text-center">المخزون المحسوب</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">معلومات إضافية</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory_data %}
+                    <tr class="{% if item.stock_status == 'out' %}table-danger{% elif item.stock_status == 'low' %}table-warning{% endif %}">
+                        <td class="text-center">
+                            <div class="product-info">
+                                <strong>{{ item.product.name }}</strong>
+                                <br>
+                                <small class="text-muted">{{ item.product.sku }}</small>
+                            </div>
+                        </td>
+                        <td class="text-center">
+                            {% if item.product.is_bundle %}
+                                <span class="badge bg-primary">منتج مجمع</span>
+                            {% elif item.component_info %}
+                                <span class="badge bg-info">مكون</span>
+                            {% else %}
+                                <span class="badge bg-secondary">عادي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="stock-value">{{ item.total_stock|smart_float }}</span>
+                        </td>
+                        <td class="text-center">
+                            {% if item.product.is_bundle %}
+                                <span class="calculated-stock">{{ item.bundle_info.calculated_stock|smart_float }}</span>
+                                {% if item.bundle_info.stock_difference != 0 %}
+                                    <small class="text-muted d-block">
+                                        (فرق: {{ item.bundle_info.stock_difference|smart_float }})
+                                    </small>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.stock_status == 'out' %}
+                                <span class="badge bg-danger">نفد</span>
+                            {% elif item.stock_status == 'low' %}
+                                <span class="badge bg-warning">منخفض</span>
+                            {% else %}
+                                <span class="badge bg-success">جيد</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if item.bundle_info %}
+                                <small class="text-muted">
+                                    {{ item.bundle_info.components_count }} مكون
+                                </small>
+                            {% elif item.component_info %}
+                                <small class="text-muted">
+                                    مستخدم في {{ item.component_info.used_in_bundles_count }} منتج مجمع
+                                    {% if item.component_info.bundles_list %}
+                                        <br>
+                                        {% for bundle in item.component_info.bundles_list %}
+                                            <span class="badge bg-light text-dark me-1">{{ bundle }}</span>
+                                        {% endfor %}
+                                    {% endif %}
+                                </small>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <br>
+                            لا توجد منتجات للعرض
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#inventoryTable').length && typeof initGlobalTable === 'function') {
+        initGlobalTable('inventoryTable', {
+            ordering: true,
+            order: [[0, 'asc']],
+            columnDefs: [
+                { targets: [2, 3], className: 'text-center' },
+                { targets: [4], className: 'text-center', orderable: false }
+            ],
+            language: {
+                "search": "البحث:",
+                "lengthMenu": "عرض _MENU_ منتج",
+                "info": "عرض _START_ إلى _END_ من _TOTAL_ منتج",
+                "emptyTable": "لا توجد منتجات للعرض"
+            }
+        });
+    }
+});
+
+// تصدير التقرير
+function exportInventoryReport() {
+    // يمكن إضافة وظيفة التصدير هنا لاحقاً
+    alert('سيتم إضافة وظيفة التصدير قريباً');
+}
+</script>
+{% endblock %}

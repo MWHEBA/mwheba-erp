@@ -1,0 +1,219 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+<link rel="stylesheet" href="{% static 'css/select2-enhancements.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <!-- نموذج طلب السلفة -->
+    <div class="col-lg-8">
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-hand-holding-usd me-2"></i>طلب سلفة جديدة</h5>
+            <div class="card">
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+
+                        <div class="alert alert-info mb-4">
+                            <i class="fas fa-info-circle me-2"></i>
+                            سيتم خصم السلفة على أقساط شهرية تبدأ من شهر الخصم المحدد، وفقاً لعدد الأقساط.
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">الموظف *</label>
+                                    <select class="form-select" name="employee" required>
+                                        <option value="">اختر الموظف...</option>
+                                        {% for emp in employees %}
+                                        <option value="{{ emp.pk }}">{{ emp.get_full_name_ar }} - {{ emp.employee_number }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">المبلغ المطلوب *</label>
+                                    <input type="number" class="form-control" name="amount" step="0.01" required>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">شهر بدء الخصم *</label>
+                                    <input type="month"
+                                           class="form-control"
+                                           name="deduction_start_month"
+                                           id="startMonthInput"
+                                           required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">عدد الأقساط *</label>
+                                    <input type="number"
+                                           class="form-control"
+                                           name="installments_count"
+                                           id="installmentsInput"
+                                           min="1"
+                                           max="5"
+                                           value="1"
+                                           required>
+                    <small class="text-muted">1-5 أقساط</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if default_category %}
+                        <input type="hidden" name="financial_category" value="{{ default_category.pk }}">
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label class="form-label">السبب *</label>
+                            <textarea class="form-control" name="reason" rows="2" required></textarea>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-2"></i>
+                                إرسال الطلب
+                            </button>
+                            <a href="{% url 'hr:advance_list' %}" class="btn btn-secondary ms-1">
+                                <i class="fas fa-times me-2"></i>
+                                إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- المعاينة والإرشادات -->
+    <div class="col-lg-4">
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-calculator me-2"></i>معاينة الأقساط</h5>
+            <div class="card">
+                <div class="card-body" id="installmentPreview" style="display: none;">
+                    <div class="mb-3">
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">المبلغ الإجمالي</small>
+                                <div><strong id="previewTotalAmount">-</strong></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">عدد الأقساط</small>
+                                <div><strong id="previewInstallments">-</strong></div>
+                            </div>
+                        </div>
+                        <div class="row mb-2">
+                            <div class="col-6">
+                                <small class="text-muted">قيمة القسط الشهري</small>
+                                <div><strong class="text-primary" id="previewMonthlyAmount">-</strong></div>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">شهر بدء الخصم</small>
+                                <div><strong id="previewStartMonth">-</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section-container">
+            <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>إرشادات السلف</h5>
+            <div class="card">
+                <div class="card-body">
+                    <ul class="mb-0 text-muted" style="font-size: 0.9rem;">
+                        <li>الحد الأقصى للمبلغ: 10,000 جنيه.</li>
+                        <li>عدد الأقساط من 1 إلى 5 أقساط.</li>
+                        <li>يُفضّل أن يكون السبب واضحاً ومختصراً.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ar.js"></script>
+<script>
+    $(document).ready(function () {
+        // تهيئة Select2 لحقل الموظف
+        $('select[name="employee"]').select2({
+            theme: 'bootstrap-5',
+            language: 'ar',
+            dir: 'rtl',
+            placeholder: 'اختر الموظف...',
+            allowClear: true,
+            width: '100%'
+        });
+
+        var $amountInput = $('input[name="amount"]');
+        var $installmentsInput = $('#installmentsInput');
+        var $startMonthInput = $('#startMonthInput');
+        var $preview = $('#installmentPreview');
+        var $previewTotal = $('#previewTotalAmount');
+        var $previewInstallments = $('#previewInstallments');
+        var $previewMonthly = $('#previewMonthlyAmount');
+        var $previewStart = $('#previewStartMonth');
+
+        // تعيين الشهر الافتراضي (الشهر القادم)
+        var today = new Date();
+        var nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+        var monthString = nextMonth.toISOString().slice(0, 7);
+        $startMonthInput.val(monthString);
+
+        function formatCurrency(value) {
+            if (!value || isNaN(value)) {
+                return '-';
+            }
+            return parseFloat(value).toFixed(2) + ' جنيه';
+        }
+
+        function updatePreview() {
+            var amount = parseFloat($amountInput.val()) || 0;
+            var installments = parseInt($installmentsInput.val(), 10) || 0;
+            var startMonth = $startMonthInput.val();
+
+            if (amount > 0 && installments > 0 && startMonth) {
+                var monthlyAmount = amount / installments;
+
+                $previewTotal.text(formatCurrency(amount));
+                $previewInstallments.text(installments + ' شهر');
+                $previewMonthly.text(formatCurrency(monthlyAmount));
+                $previewStart.text(startMonth);
+
+                $preview.slideDown();
+            } else {
+                $preview.slideUp();
+            }
+        }
+
+        $amountInput.on('input', updatePreview);
+        $installmentsInput.on('input change', updatePreview);
+        $startMonthInput.on('change', updatePreview);
+
+        updatePreview();
+    });
+</script>
+{% endblock %}

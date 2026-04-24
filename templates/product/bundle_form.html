@@ -1,0 +1,1384 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title|default:"إنشاء منتج مجمع جديد" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+    .component-row {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 15px;
+        background-color: #f8f9fa;
+        transition: all 0.3s ease;
+    }
+    
+    .component-row:hover {
+        border-color: var(--bs-primary);
+        box-shadow: 0 2px 8px rgba(0,123,255,0.15);
+    }
+    
+    .component-row.to-delete {
+        opacity: 0.5;
+        background-color: #f8d7da;
+        border-color: #dc3545;
+    }
+    
+    .component-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .component-number {
+        background: var(--bs-primary);
+        color: white;
+        border-radius: 50%;
+        width: 30px;
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.875rem;
+    }
+    
+    .delete-component {
+        background: none;
+        border: none;
+        color: #dc3545;
+        font-size: 1.2rem;
+        cursor: pointer;
+        padding: 5px;
+        border-radius: 4px;
+        transition: all 0.2s ease;
+    }
+    
+    .delete-component:hover {
+        background-color: #dc3545;
+        color: white;
+    }
+    
+    .add-component-btn {
+        border: 2px dashed var(--bs-primary);
+        background: transparent;
+        color: var(--bs-primary);
+        padding: 15px;
+        border-radius: 8px;
+        width: 100%;
+        transition: all 0.3s ease;
+    }
+    
+    .add-component-btn:hover {
+        background-color: var(--bs-primary);
+        color: white;
+        border-style: solid;
+    }
+    
+    .product-info {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 6px;
+        padding: 10px;
+        margin-top: 10px;
+        font-size: 0.875rem;
+    }
+    
+    .stock-indicator {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    
+    .stock-available {
+        background-color: #d4edda;
+        color: #155724;
+    }
+    
+    .stock-low {
+        background-color: #fff3cd;
+        color: #856404;
+    }
+    
+    .stock-out {
+        background-color: #f8d7da;
+        color: #721c24;
+    }
+    
+    .form-actions {
+        background: #f8f9fa;
+        border-top: 1px solid #dee2e6;
+        padding: 20px;
+        margin: 0 -20px -20px -20px;
+        border-radius: 0 0 8px 8px;
+    }
+    
+    .bundle-summary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .bundle-summary h6 {
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .summary-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+    }
+    
+    .summary-item:last-child {
+        margin-bottom: 0;
+        padding-top: 8px;
+        border-top: 1px solid rgba(255,255,255,0.2);
+        font-weight: bold;
+    }
+    
+    /* تحذيرات التغييرات المدمرة */
+    .destructive-warning {
+        background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        color: white;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 2px solid #ff4757;
+    }
+    
+    .destructive-warning h6 {
+        color: white;
+        margin-bottom: 15px;
+    }
+    
+    .warning-item {
+        background: rgba(255,255,255,0.1);
+        border-radius: 6px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    
+    .warning-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .changes-summary {
+        background: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 8px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .change-item {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .change-item:last-child {
+        margin-bottom: 0;
+    }
+    
+    .change-icon {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-left: 10px;
+        font-size: 0.75rem;
+    }
+    
+    .change-icon.added {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .change-icon.removed {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .change-icon.modified {
+        background: #fff3cd;
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- تحذير التغييرات المدمرة -->
+    {% if requires_confirmation %}
+    <div class="destructive-warning">
+        <h6><i class="fas fa-exclamation-triangle me-2"></i>تحذير: تغييرات مدمرة مكتشفة</h6>
+        
+        {% if usage_info.warning_message %}
+        <div class="warning-item">
+            <strong>تأثير على الطلبات الموجودة:</strong><br>
+            {{ usage_info.warning_message }}
+        </div>
+        {% endif %}
+        
+        {% if changes_analysis.change_summary %}
+        <div class="warning-item">
+            <strong>التغييرات المطلوبة:</strong><br>
+            {{ changes_analysis.change_summary|join:", " }}
+        </div>
+        {% endif %}
+        
+        <div class="warning-item">
+            <strong>المخاطر المحتملة:</strong>
+            <ul class="mb-0 mt-2">
+                {% if 'existing_sales' in usage_info.destructive_changes %}
+                <li>قد يؤثر على دقة تتبع المخزون للمبيعات السابقة</li>
+                <li>قد يؤثر على التقارير المالية والمحاسبية</li>
+                {% endif %}
+                {% if 'pending_orders' in usage_info.destructive_changes %}
+                <li>قد يؤثر على الطلبات المعلقة وتوفر المكونات</li>
+                <li>قد يتطلب إعادة تقييم الطلبات المعلقة</li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- ملخص التغييرات -->
+    {% if changes_analysis.has_changes %}
+    <div class="changes-summary">
+        <h6 class="text-warning mb-3">
+            <i class="fas fa-info-circle me-2"></i>
+            ملخص التغييرات المطلوبة
+        </h6>
+        
+        {% for component in changes_analysis.added_components %}
+        <div class="change-item">
+            <div class="change-icon added">
+                <i class="fas fa-plus"></i>
+            </div>
+            <span>إضافة مكون: <strong>{{ component.product_name }}</strong> ({{ component.required_quantity|smart_float }} وحدة)</span>
+        </div>
+        {% endfor %}
+        
+        {% for component in changes_analysis.removed_components %}
+        <div class="change-item">
+            <div class="change-icon removed">
+                <i class="fas fa-minus"></i>
+            </div>
+            <span>حذف مكون: <strong>{{ component.product_name }}</strong> ({{ component.required_quantity|smart_float }} وحدة)</span>
+        </div>
+        {% endfor %}
+        
+        {% for component in changes_analysis.modified_components %}
+        <div class="change-item">
+            <div class="change-icon modified">
+                <i class="fas fa-edit"></i>
+            </div>
+            <span>تعديل كمية: <strong>{{ component.product_name }}</strong> من {{ component.old_quantity|smart_float }} إلى {{ component.new_quantity|smart_float }} وحدة</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post" id="bundle-form" novalidate>
+        {% csrf_token %}
+        
+        <!-- حقل مخفي لتأكيد التغييرات المدمرة -->
+        {% if requires_confirmation %}
+        <input type="hidden" name="confirm_destructive_changes" value="1">
+        {% endif %}
+        
+        <div class="row">
+            <!-- العمود الرئيسي - معلومات المنتج والمكونات -->
+            <div class="col-lg-8">
+                <!-- معلومات المنتج المجمع الأساسية -->
+                <div class="section-container">
+                    <h5 class="section-title">
+                        <i class="fas fa-info-circle me-2"></i>
+                        معلومات العنصر المجمع
+                    </h5>
+                    
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    {{ form.name|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.sku|as_crispy_field }}
+                                </div>
+                                <div class="col-12 mb-3">
+                                    {{ form.description|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.category|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.unit|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.barcode|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.cost_price|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.selling_price|as_crispy_field }}
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    {{ form.min_stock|as_crispy_field }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- مكونات المنتج المجمع -->
+                <div class="section-container">
+                    <h5 class="section-title">
+                        <i class="fas fa-cubes me-2"></i>
+                        مكونات العنصر المجمع
+                        <small class="text-muted">(يجب إضافة مكون واحد على الأقل)</small>
+                    </h5>
+                    
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <!-- Formset Management Form -->
+                            {{ formset.management_form }}
+                            
+                            <!-- Container for component forms -->
+                            <div id="components-container">
+                                {% for form in formset %}
+                                    <div class="component-row" data-form-index="{{ forloop.counter0 }}">
+                                        <div class="component-header">
+                                            <div class="component-number">{{ forloop.counter }}</div>
+                                            <button type="button" class="delete-component" title="حذف المكون">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- Hidden fields for formset -->
+                                        {% for hidden in form.hidden_fields %}
+                                            {{ hidden }}
+                                        {% endfor %}
+                                        
+                                        <div class="row">
+                                            <div class="col-md-8 mb-3">
+                                                <label class="form-label">المنتج المكون</label>
+                                                {{ form.component_product }}
+                                                {% if form.component_product.errors %}
+                                                    <div class="invalid-feedback d-block">
+                                                        {{ form.component_product.errors }}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-4 mb-3">
+                                                <label class="form-label">الكمية المطلوبة</label>
+                                                {{ form.required_quantity }}
+                                                {% if form.required_quantity.errors %}
+                                                    <div class="invalid-feedback d-block">
+                                                        {{ form.required_quantity.errors }}
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- معلومات المنتج المحدد -->
+                                        <div class="product-info" style="display: none;">
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <strong>التصنيف:</strong> <span class="product-category">-</span>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <strong>المخزون الحالي:</strong> 
+                                                    <span class="product-stock">-</span>
+                                                    <span class="product-unit">-</span>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <strong>الحالة:</strong> 
+                                                    <span class="stock-indicator">-</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- البدائل المتاحة (إذا كان النظام مفعل) -->
+                                        <div class="alternatives-section mt-3" style="display: none;">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <small class="text-muted fw-bold">
+                                                    <i class="fas fa-exchange-alt me-1"></i>البدائل المتاحة:
+                                                </small>
+                                                <button class="btn btn-sm btn-outline-primary manage-alternatives-btn" type="button">
+                                                    <i class="fas fa-cog me-1"></i>إدارة البدائل
+                                                </button>
+                                            </div>
+                                            <div class="alternatives-list">
+                                                <small class="text-muted">لا توجد بدائل محددة</small>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Delete checkbox (hidden) -->
+                                        {% if form.DELETE %}
+                                            <div style="display: none;">
+                                                {{ form.DELETE }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endfor %}
+                            </div>
+                            
+                            <!-- زر إضافة مكون جديد -->
+                            <button type="button" class="add-component-btn" id="add-component">
+                                <i class="fas fa-plus me-2"></i>
+                                إضافة مكون جديد
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- العمود الجانبي - الخيارات والملخص -->
+            <div class="col-lg-4">
+                <!-- تحذير استخدام المنتج -->
+                {% if usage_info and not usage_info.can_modify_safely %}
+                <div class="section-container">
+                    <div class="card border-warning shadow-sm">
+                        <div class="card-header bg-warning text-dark">
+                            <h6 class="mb-0">
+                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                تحذير: منتج مستخدم
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% if usage_info.has_sales %}
+                            <div class="mb-3">
+                                <strong>المبيعات:</strong><br>
+                                <small class="text-muted">
+                                    {{ usage_info.sales_count }} عملية بيع<br>
+                                    {{ usage_info.total_sold_quantity|smart_float }} وحدة مباعة<br>
+                                    {% if usage_info.last_sale_date %}
+                                    آخر بيع: {{ usage_info.last_sale_date|date:"Y/m/d" }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if usage_info.has_pending_orders %}
+                            <div class="mb-3">
+                                <strong>الطلبات المعلقة:</strong><br>
+                                <small class="text-muted">
+                                    {{ usage_info.pending_orders_count }} طلب معلق
+                                </small>
+                            </div>
+                            {% endif %}
+                            
+                            <div class="alert alert-warning mb-0">
+                                <small>
+                                    تعديل المكونات قد يؤثر على دقة التقارير والمخزون.
+                                    تأكد من مراجعة التغييرات بعناية.
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- خيارات المنتج -->
+                <div class="section-container">
+                    <h5 class="section-title">
+                        <i class="fas fa-cog me-2"></i>
+                        خيارات العنصر
+                    </h5>
+                    
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="form-check form-switch mb-3">
+                                {{ form.is_active }}
+                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                    منتج نشط
+                                </label>
+                            </div>
+                            <div class="form-check form-switch mb-3">
+                                {{ form.is_featured }}
+                                <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
+                                    منتج مميز
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ملخص المنتج المجمع -->
+                <div class="section-container">
+                    <div class="bundle-summary">
+                        <h6><i class="fas fa-chart-pie me-2"></i>ملخص العنصر المجمع</h6>
+                        <div class="summary-item">
+                            <span>عدد المكونات:</span>
+                            <span id="components-count">{{ components_count|default:0 }}</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>إجمالي تكلفة المكونات:</span>
+                            <span id="total-cost">0.00 ج.م</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>سعر البيع المحدد:</span>
+                            <span id="selling-price">{{ bundle.selling_price|smart_float|default:"0.00" }} ج.م</span>
+                        </div>
+                        <div class="summary-item">
+                            <span>هامش الربح المتوقع:</span>
+                            <span id="profit-margin">0%</span>
+                        </div>
+                        {% if calculated_stock is not None %}
+                        <div class="summary-item">
+                            <span>المخزون المحسوب:</span>
+                            <span>{{ calculated_stock|smart_float }} وحدة</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- إحصائيات مساعدة -->
+                {% if total_products %}
+                <div class="section-container">
+                    <h5 class="section-title">
+                        <i class="fas fa-info me-2"></i>
+                        معلومات مساعدة
+                    </h5>
+                    
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="stats-card-value">{{ total_products|smart_float }}</div>
+                                    <div class="stats-card-unit">عنصر متاح</div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="stats-card-value">{{ total_categories|smart_float }}</div>
+                                    <div class="stats-card-unit">تصنيف</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- أزرار الحفظ -->
+        <div class="section-container">
+            <div class="form-actions">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        {% if requires_confirmation %}
+                        <button type="submit" name="save" class="btn btn-warning me-2">
+                            <i class="fas fa-exclamation-triangle me-2"></i>تأكيد التغييرات والحفظ
+                        </button>
+                        <button type="submit" name="save_and_view" class="btn btn-outline-warning me-2">
+                            <i class="fas fa-eye me-2"></i>تأكيد وعرض التفاصيل
+                        </button>
+                        {% else %}
+                        <button type="submit" name="save" class="btn btn-primary me-2">
+                            <i class="fas fa-save me-2"></i>حفظ والعودة للقائمة
+                        </button>
+                        <button type="submit" name="save_and_view" class="btn btn-success me-2">
+                            <i class="fas fa-eye me-2"></i>حفظ وعرض التفاصيل
+                        </button>
+                        <button type="submit" name="save_and_continue" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-2"></i>حفظ وإضافة آخر
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <a href="{% url 'product:bundle_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- Template for new component row -->
+<template id="component-row-template">
+    <div class="component-row" data-form-index="__prefix__">
+        <div class="component-header">
+            <div class="component-number">__number__</div>
+            <button type="button" class="delete-component" title="حذف المكون">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-8 mb-3">
+                <label class="form-label">المنتج المكون</label>
+                <select name="components-__prefix__-component_product" class="form-control component-select" data-placeholder="اختر المنتج المكون">
+                    <option value="">اختر المنتج المكون</option>
+                </select>
+            </div>
+            <div class="col-md-4 mb-3">
+                <label class="form-label">الكمية المطلوبة</label>
+                <input type="number" name="components-__prefix__-required_quantity" class="form-control quantity-input" min="1" placeholder="الكمية المطلوبة">
+            </div>
+        </div>
+        
+        <div class="product-info" style="display: none;">
+            <div class="row">
+                <div class="col-md-4">
+                    <strong>التصنيف:</strong> <span class="product-category">-</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>المخزون الحالي:</strong> 
+                    <span class="product-stock">-</span>
+                    <span class="product-unit">-</span>
+                </div>
+                <div class="col-md-4">
+                    <strong>الحالة:</strong> 
+                    <span class="stock-indicator">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <input type="hidden" name="components-__prefix__-DELETE" value="false">
+    </div>
+</template>
+
+<!-- Modal إدارة البدائل -->
+<div class="modal fade" id="alternativesModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">
+                    <i class="fas fa-exchange-alt me-2"></i>
+                    إدارة البدائل للمكون: <span id="modal-component-name"></span>
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    البدائل تسمح للعملاء باختيار منتجات بديلة عند طلب المنتج المجمع
+                </div>
+                
+                <div id="alternatives-container">
+                    <!-- سيتم ملؤها ديناميكياً -->
+                </div>
+                
+                <button type="button" class="btn btn-outline-primary btn-sm mt-3" id="add-alternative-btn">
+                    <i class="fas fa-plus me-1"></i>إضافة بديل جديد
+                </button>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                <button type="button" class="btn btn-primary" id="save-alternatives-btn">
+                    <i class="fas fa-save me-1"></i>حفظ البدائل
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
+<script>
+$(document).ready(function() {
+    let formIndex = {{ formset.total_form_count }};
+    const maxForms = {{ formset.max_num|default:1000 }};
+        
+    // تهيئة Select2 للحقول الموجودة
+    initializeSelect2();
+    
+    // تهيئة أحداث الحقول الموجودة
+    initializeFormEvents();
+    
+    // تحديث الملخص عند التحميل
+    updateBundleSummary();
+    
+    // معالجة تأكيد التغييرات المدمرة
+    {% if requires_confirmation %}
+    // عرض تحذير عند تحميل الصفحة للتغييرات المدمرة
+    Swal.fire({
+        title: 'تحذير: تغييرات مدمرة',
+        html: `
+            <div class="text-start">
+                <p class="mb-3">{{ usage_info.warning_message|escapejs }}</p>
+                <div class="alert alert-warning">
+                    <strong>المخاطر المحتملة:</strong>
+                    <ul class="mb-0 mt-2">
+                        {% if 'existing_sales' in usage_info.destructive_changes %}
+                        <li>قد يؤثر على دقة تتبع المخزون للمبيعات السابقة</li>
+                        <li>قد يؤثر على التقارير المالية والمحاسبية</li>
+                        {% endif %}
+                        {% if 'pending_orders' in usage_info.destructive_changes %}
+                        <li>قد يؤثر على الطلبات المعلقة وتوفر المكونات</li>
+                        <li>قد يتطلب إعادة تقييم الطلبات المعلقة</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        `,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'متابعة التعديل',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#f39c12',
+        cancelButtonColor: '#6c757d',
+        reverseButtons: true
+    }).then((result) => {
+        if (!result.isConfirmed) {
+            // إذا ألغى المستخدم، العودة للقائمة
+            window.location.href = '{% url "product:bundle_list" %}';
+        }
+    });
+    {% endif %}
+    
+    // معالجة إرسال النموذج مع تأكيد إضافي للتغييرات المدمرة
+    $('#bundle-form').on('submit', function(e) {
+        
+        // إضافة بيانات البدائل قبل الإرسال
+        const alternativesInput = $('<input>').attr({
+            type: 'hidden',
+            name: 'component_alternatives',
+            value: JSON.stringify(componentAlternatives)
+        });
+        $(this).append(alternativesInput);
+        
+        // التحقق من وجود مكونات صالحة قبل الإرسال
+        let validComponents = 0;
+        $('.component-row:not(.to-delete)').each(function() {
+            const productSelect = $(this).find('.component-select');
+            const quantityInput = $(this).find('.quantity-input');
+            
+            if (productSelect.val() && quantityInput.val() && quantityInput.val() > 0) {
+                validComponents++;
+            }
+        });
+        
+        
+        // إذا لم توجد مكونات صالحة، اسأل المستخدم
+        if (validComponents === 0) {
+            e.preventDefault();
+            
+            Swal.fire({
+                title: 'تحذير',
+                text: 'لم يتم إضافة أي مكونات للمنتج المجمع. هل تريد المتابعة؟',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'نعم، احفظ بدون مكونات',
+                cancelButtonText: 'إلغاء',
+                confirmButtonColor: '#f39c12',
+                cancelButtonColor: '#6c757d',
+                reverseButtons: true
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // إرسال النموذج بدون منع الحدث
+                    $(this)[0].submit();
+                }
+            });
+            return false;
+        }
+        
+        {% if requires_confirmation %}
+        // إذا كانت هناك تغييرات مدمرة، اطلب تأكيد إضافي
+        e.preventDefault();
+        
+        Swal.fire({
+            title: 'تأكيد نهائي',
+            text: 'هل أنت متأكد من تطبيق هذه التغييرات؟ لا يمكن التراجع عنها.',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، تأكيد التغييرات',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                // إرسال النموذج بدون منع الحدث
+                $(this)[0].submit();
+            }
+        });
+        {% else %}
+        {% endif %}
+    });
+    
+    // إضافة مكون جديد
+    $('#add-component').click(function() {
+        if (formIndex < maxForms) {
+            addNewComponent();
+        } else {
+            Swal.fire({
+                title: 'تحذير',
+                text: 'تم الوصول للحد الأقصى من المكونات',
+                icon: 'warning',
+                confirmButtonText: 'موافق'
+            });
+        }
+    });
+    
+    // حذف مكون مع تأكيد
+    $(document).on('click', '.delete-component', function() {
+        const componentRow = $(this).closest('.component-row');
+        const deleteInput = componentRow.find('input[name$="-DELETE"]');
+        const productName = componentRow.find('.component-select option:selected').text() || 'المكون';
+        
+        // تحذير إضافي إذا كان المنتج مستخدم في طلبات
+        {% if usage_info and not usage_info.can_modify_safely %}
+        Swal.fire({
+            title: 'تحذير: حذف مكون',
+            html: `
+                <div class="text-start">
+                    <p>هل تريد حذف المكون: <strong>${productName}</strong>؟</p>
+                    <div class="alert alert-warning">
+                        <strong>تحذير:</strong> هذا المنتج المجمع مستخدم في طلبات موجودة. 
+                        حذف المكونات قد يؤثر على دقة التقارير والمخزون.
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، احذف المكون',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deleteComponent(componentRow, deleteInput);
+            }
+        });
+        {% else %}
+        Swal.fire({
+            title: 'تأكيد الحذف',
+            text: `هل تريد حذف المكون: ${productName}؟`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء',
+            confirmButtonColor: '#dc3545',
+            cancelButtonColor: '#6c757d',
+            reverseButtons: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                deleteComponent(componentRow, deleteInput);
+            }
+        });
+        {% endif %}
+    });
+    
+    // تحديث الملخص عند تغيير الأسعار
+    $('#id_cost_price, #id_selling_price').on('input', function() {
+        updateBundleSummary();
+    });
+    
+    function deleteComponent(componentRow, deleteInput) {
+        if (deleteInput.length) {
+            // إذا كان المكون موجود في قاعدة البيانات، قم بوضع علامة للحذف
+            deleteInput.val('true');
+            componentRow.addClass('to-delete');
+            componentRow.find('select, input').prop('disabled', true);
+        } else {
+            // إذا كان مكون جديد، احذفه مباشرة
+            componentRow.remove();
+            updateFormNumbers();
+        }
+        
+        updateBundleSummary();
+    }
+    
+    function addNewComponent() {
+        const template = $('#component-row-template').html();
+        const newForm = template.replace(/__prefix__/g, formIndex)
+                               .replace(/__number__/g, formIndex + 1);
+        
+        $('#components-container').append(newForm);
+        
+        // تحديث عدد النماذج
+        $('#id_components-TOTAL_FORMS').val(formIndex + 1);
+        formIndex++;
+        
+        // تهيئة Select2 للحقل الجديد
+        const newRow = $('.component-row').last();
+        initializeSelect2(newRow);
+        initializeFormEvents(newRow);
+        
+        // تحديث أرقام المكونات
+        updateFormNumbers();
+        updateBundleSummary();
+    }
+    
+    function initializeSelect2(container = null) {
+        const selector = container ? container.find('.component-select') : $('.component-select');
+        
+        selector.each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'اختر المنتج المكون',
+                    allowClear: true,
+                    ajax: {
+                        url: '{% url "product:get_available_products_ajax" %}',
+                        dataType: 'json',
+                        delay: 250,
+                        data: function(params) {
+                            // جمع المنتجات المختارة في المكونات الأخرى
+                            const selectedProducts = [];
+                            $('.component-row:not(.to-delete)').each(function() {
+                                const selectedId = $(this).find('.component-select').val();
+                                if (selectedId) {
+                                    selectedProducts.push(selectedId);
+                                }
+                            });
+                            
+                            return {
+                                term: params.term,
+                                bundle_id: '{{ bundle.id|default:"" }}',
+                                exclude_ids: selectedProducts.join(',')
+                            };
+                        },
+                        processResults: function(data) {
+                            return {
+                                results: data.results.map(function(item) {
+                                    return {
+                                        id: item.id,
+                                        text: item.text,
+                                        category: item.category,
+                                        current_stock: item.current_stock,
+                                        unit: item.unit
+                                    };
+                                })
+                            };
+                        },
+                        cache: false  // تعطيل الـ cache عشان يجيب القائمة المحدثة
+                    },
+                    templateResult: function(product) {
+                        if (product.loading) return product.text;
+                        
+                        const stockClass = product.current_stock > 0 ? 'text-success' : 'text-danger';
+                        return $(`
+                            <div>
+                                <div>${product.text}</div>
+                                <small class="text-muted">
+                                    ${product.category} | 
+                                    <span class="${stockClass}">المخزون: ${product.current_stock} ${product.unit}</span>
+                                </small>
+                            </div>
+                        `);
+                    }
+                }).on('select2:select', function(e) {
+                    // عند اختيار منتج، تحديث معلومات المنتج
+                    const productId = e.params.data.id;
+                    const componentRow = $(this).closest('.component-row');
+                    loadProductInfo(productId, componentRow);
+                }).on('select2:clear', function(e) {
+                    // عند مسح الاختيار، إخفاء معلومات المنتج
+                    const componentRow = $(this).closest('.component-row');
+                    componentRow.find('.product-info').hide();
+                });
+            }
+        });
+    }
+    
+    function initializeFormEvents(container = null) {
+        const selector = container ? container : $(document);
+        
+        // عند اختيار منتج مكون
+        selector.find('.component-select').off('change.bundleform').on('change.bundleform', function() {
+            const productId = $(this).val();
+            const componentRow = $(this).closest('.component-row');
+            
+            if (productId) {
+                loadProductInfo(productId, componentRow);
+            } else {
+                componentRow.find('.product-info').hide();
+                componentRow.find('.alternatives-section').hide();
+            }
+            
+            updateBundleSummary();
+        });
+        
+        // عند تغيير الكمية
+        selector.find('.quantity-input').off('input.bundleform').on('input.bundleform', function() {
+            updateBundleSummary();
+        });
+        
+        // إظهار section البدائل للمكونات الموجودة
+        selector.find('.component-row').each(function() {
+            const componentRow = $(this);
+            const productSelect = componentRow.find('.component-select');
+            if (productSelect.val()) {
+                componentRow.find('.alternatives-section').show();
+            }
+        });
+    }
+    
+    function loadProductInfo(productId, componentRow) {
+        $.ajax({
+            url: `{% url "product:get_product_info_ajax" 0 %}`.replace('0', productId),
+            method: 'GET',
+            success: function(data) {
+                if (data.success) {
+                    const product = data.product;
+                    const productInfo = componentRow.find('.product-info');
+                    
+                    productInfo.find('.product-category').text(product.category);
+                    productInfo.find('.product-stock').text(product.current_stock);
+                    productInfo.find('.product-unit').text(product.unit);
+                    
+                    // حفظ السعر في data attribute
+                    const productSelect = componentRow.find('.component-select');
+                    productSelect.find('option:selected').attr('data-price', product.selling_price);
+                    
+                    // تحديد حالة المخزون
+                    const stockIndicator = productInfo.find('.stock-indicator');
+                    if (product.current_stock > 0) {
+                        stockIndicator.removeClass('stock-out stock-low').addClass('stock-available').text('متوفر');
+                    } else {
+                        stockIndicator.removeClass('stock-available stock-low').addClass('stock-out').text('نفد');
+                    }
+                    
+                    productInfo.show();
+                    
+                    // إظهار section البدائل
+                    componentRow.find('.alternatives-section').show();
+                } else {
+                    console.error('خطأ في تحميل معلومات المنتج:', data.error);
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('خطأ في تحميل معلومات المنتج:', error);
+                // إخفاء معلومات المنتج في حالة الخطأ
+                componentRow.find('.product-info').hide();
+                componentRow.find('.alternatives-section').hide();
+            }
+        });
+    }
+    
+    function updateFormNumbers() {
+        $('.component-row:not(.to-delete)').each(function(index) {
+            $(this).find('.component-number').text(index + 1);
+            $(this).attr('data-form-index', index);
+        });
+    }
+    
+    // إدارة البدائل
+    let currentComponentRow = null;
+    let componentAlternatives = {}; // تخزين البدائل لكل مكون
+    
+    // فتح modal البدائل
+    $(document).on('click', '.manage-alternatives-btn', function(e) {
+        e.preventDefault();
+        currentComponentRow = $(this).closest('.component-row');
+        const componentSelect = currentComponentRow.find('.component-select');
+        const selectedProductId = componentSelect.val();
+        const selectedProductName = componentSelect.find('option:selected').text();
+        const componentIndex = currentComponentRow.attr('data-form-index');
+        
+        if (!selectedProductId) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'تنبيه',
+                text: 'يرجى اختيار المنتج المكون أولاً'
+            });
+            return;
+        }
+        
+        // استخدام product_id كـ key بدلاً من index
+        currentComponentRow.attr('data-component-key', selectedProductId);
+        
+        $('#modal-component-name').text(selectedProductName);
+        loadComponentAlternatives(selectedProductId, selectedProductId);
+        new bootstrap.Modal(document.getElementById('alternativesModal')).show();
+    });
+    
+    // تحميل البدائل الموجودة
+    function loadComponentAlternatives(componentIndex, productId) {
+        const alternatives = componentAlternatives[componentIndex] || [];
+        const container = $('#alternatives-container');
+        container.empty();
+        
+        if (alternatives.length === 0) {
+            container.html('<p class="text-muted text-center py-3">لا توجد بدائل محددة</p>');
+        } else {
+            alternatives.forEach((alt, index) => {
+                const row = $(createAlternativeRow(alt, index));
+                container.append(row);
+                const selectElement = row.find('.alt-product-select');
+                loadAvailableProducts(selectElement);
+                
+                // تحديد المنتج المحفوظ بعد تهيئة Select2
+                if (alt.product_id && alt.product_name) {
+                    setTimeout(() => {
+                        const option = new Option(alt.product_name, alt.product_id, true, true);
+                        selectElement.append(option).trigger('change');
+                        row.find('.product-price-display').val((alt.product_price || 0).toFixed(2) + ' ج.م');
+                    }, 100);
+                }
+            });
+        }
+    }
+    
+    // إنشاء صف بديل
+    function createAlternativeRow(alternative, index) {
+        return `
+            <div class="card mb-2 alternative-row" data-alt-index="${index}">
+                <div class="card-body p-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-6">
+                            <label class="form-label small mb-1">المنتج البديل</label>
+                            <select class="form-select form-select-sm alt-product-select" data-field="product_id">
+                                <option value="">اختر منتج...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1">سعر المنتج</label>
+                            <input type="text" class="form-control form-control-sm product-price-display" 
+                                   readonly style="background-color: #f8f9fa;">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1">الترتيب</label>
+                            <input type="number" class="form-control form-control-sm" 
+                                   data-field="display_order" 
+                                   value="${alternative.display_order || 0}">
+                        </div>
+                        <div class="col-md-1 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger remove-alternative-btn mt-4">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    // إضافة بديل جديد
+    $('#add-alternative-btn').click(function() {
+        const container = $('#alternatives-container');
+        if (container.find('.alternative-row').length === 0) {
+            container.empty();
+        }
+        const newIndex = container.find('.alternative-row').length;
+        const newRow = $(createAlternativeRow({}, newIndex));
+        container.append(newRow);
+        loadAvailableProducts(newRow.find('.alt-product-select'));
+    });
+    
+    // عند تغيير المنتج البديل - عرض السعر (تم نقله لـ Select2 event)
+    
+    // حذف بديل
+    $(document).on('click', '.remove-alternative-btn', function() {
+        $(this).closest('.alternative-row').remove();
+        if ($('#alternatives-container .alternative-row').length === 0) {
+            $('#alternatives-container').html('<p class="text-muted text-center py-3">لا توجد بدائل محددة</p>');
+        }
+    });
+    
+    // حفظ البدائل
+    $('#save-alternatives-btn').click(function() {
+        const componentKey = currentComponentRow.attr('data-component-key');
+        const alternatives = [];
+        
+        // الحصول على سعر المنتج الأساسي
+        const mainProductSelect = currentComponentRow.find('.component-select');
+        const mainProductPrice = parseFloat(mainProductSelect.find('option:selected').data('price')) || 0;
+        
+        $('#alternatives-container .alternative-row').each(function() {
+            const row = $(this);
+            const productSelect = row.find('.alt-product-select');
+            const productId = productSelect.val();
+            
+            if (productId) {
+                const selectedData = productSelect.select2('data')[0];
+                const alternativePrice = parseFloat(selectedData.price) || 0;
+                const priceAdjustment = alternativePrice - mainProductPrice;
+                
+                const alt = {
+                    product_id: productId,
+                    product_name: selectedData.text,
+                    product_price: alternativePrice,
+                    price_adjustment: priceAdjustment,
+                    display_order: parseInt(row.find('[data-field="display_order"]').val()) || 0,
+                    is_default: false
+                };
+                
+                alternatives.push(alt);
+            }
+        });
+        
+        componentAlternatives[componentKey] = alternatives;
+        updateAlternativesDisplay(currentComponentRow, alternatives);
+        bootstrap.Modal.getInstance(document.getElementById('alternativesModal')).hide();
+        
+        Swal.fire({
+            icon: 'success',
+            title: 'تم الحفظ',
+            text: `تم حفظ ${alternatives.length} بديل`,
+            timer: 1500,
+            showConfirmButton: false
+        });
+    });
+    
+    // تحديث عرض البدائل في الصف
+    function updateAlternativesDisplay(componentRow, alternatives) {
+        const alternativesSection = componentRow.find('.alternatives-section');
+        const alternativesList = alternativesSection.find('.alternatives-list');
+        
+        if (alternatives.length > 0) {
+            alternativesSection.show();
+            alternativesList.html(`
+                <span class="badge bg-info">${alternatives.length} بديل محدد</span>
+            `);
+        } else {
+            alternativesSection.hide();
+        }
+    }
+    
+    // تحميل المنتجات المتاحة للبدائل
+    function loadAvailableProducts(selectElement) {
+        // تهيئة Select2 للبحث
+        selectElement.select2({
+            placeholder: 'ابحث عن منتج...',
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#alternativesModal'),  // فتح الـ dropdown داخل الـ Modal
+            language: {
+                noResults: function() {
+                    return "لا توجد نتائج";
+                },
+                searching: function() {
+                    return "جاري البحث...";
+                }
+            },
+            ajax: {
+                url: '{% url "product:get_available_products_ajax" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    // جمع المنتجات المختارة في البدائل الأخرى
+                    const selectedAlternatives = [];
+                    $('#alternatives-container .alt-product-select').each(function() {
+                        const selectedId = $(this).val();
+                        if (selectedId) {
+                            selectedAlternatives.push(selectedId);
+                        }
+                    });
+                    
+                    // إضافة المنتج الأساسي للمكون
+                    const mainProductId = currentComponentRow.find('.component-select').val();
+                    if (mainProductId) {
+                        selectedAlternatives.push(mainProductId);
+                    }
+                    
+                    return {
+                        term: params.term || '',
+                        page: params.page || 1,
+                        exclude_ids: selectedAlternatives.join(',')
+                    };
+                },
+                processResults: function(data) {
+                    if (data.success && data.products) {
+                        return {
+                            results: data.products.map(function(product) {
+                                return {
+                                    id: product.id,
+                                    text: `${product.name} (${product.sku}) - ${product.selling_price} ج.م - ${product.current_stock} متوفر`,
+                                    price: product.selling_price,
+                                    stock: product.current_stock,
+                                    name: product.name,
+                                    sku: product.sku
+                                };
+                            })
+                        };
+                    }
+                    return { results: [] };
+                },
+                cache: false  // تعطيل الـ cache
+            }
+        });
+        
+        // عند اختيار منتج - عرض السعر
+        selectElement.on('select2:select', function(e) {
+            const data = e.params.data;
+            const row = $(this).closest('.alternative-row');
+            row.find('.product-price-display').val((data.price || 0).toFixed(2) + ' ج.م');
+        });
+    }
+    
+    function updateFormNumbers() {
+        $('.component-row:not(.to-delete)').each(function(index) {
+            $(this).find('.component-number').text(index + 1);
+            $(this).attr('data-form-index', index);
+        });
+    }
+    
+    function updateBundleSummary() {
+        let componentsCount = 0;
+        let totalCost = 0;
+        
+        $('.component-row:not(.to-delete)').each(function() {
+            const productSelect = $(this).find('.component-select');
+            const quantityInput = $(this).find('.quantity-input');
+            
+            if (productSelect.val() && quantityInput.val()) {
+                componentsCount++;
+                // يمكن إضافة حساب التكلفة هنا إذا كانت متاحة
+            }
+        });
+        
+        const sellingPrice = parseFloat($('#id_selling_price').val()) || 0;
+        const costPrice = parseFloat($('#id_cost_price').val()) || 0;
+        const profitMargin = sellingPrice > 0 ? ((sellingPrice - costPrice) / sellingPrice * 100) : 0;
+        
+        $('#components-count').text(componentsCount);
+        $('#total-cost').text(costPrice.toFixed(2) + ' ج.م');
+        $('#selling-price').text(sellingPrice.toFixed(2) + ' ج.م');
+        $('#profit-margin').text(profitMargin.toFixed(1) + '%');
+    }
+    
+    // تهيئة Select2 للحقول الأساسية
+    $('#id_category, #id_unit').select2({
+        theme: 'bootstrap-5',
+        allowClear: true
+    });
+    
+    // تحميل البدائل الموجودة (عند تعديل bundle موجود)
+    {% if existing_alternatives %}
+    const existingAlternatives = {{ existing_alternatives|safe }};
+    if (existingAlternatives && Object.keys(existingAlternatives).length > 0) {
+        componentAlternatives = existingAlternatives;
+        
+        // تحديث عرض البدائل في كل صف
+        $('.component-row').each(function() {
+            const componentRow = $(this);
+            const componentSelect = componentRow.find('.component-select');
+            const productId = componentSelect.val();
+            
+            if (productId && componentAlternatives[productId]) {
+                updateAlternativesDisplay(componentRow, componentAlternatives[productId]);
+            }
+        });
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- Year Selector -->
+  <div class="mb-3">
+      <select class="form-select" style="width:150px;" onchange="window.location.href='?year='+this.value">
+          {% for y in years %}<option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>{% endfor %}
+      </select>
+  </div>
+
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>أرصدة الموظفين ({{ stats.total_employees }} موظف)</h5>
+        <div>
+          <button class="btn btn-sm btn-outline-primary" onclick="$('.accordion-collapse').collapse('show')">
+            <i class="fas fa-expand me-1"></i>فتح الكل
+          </button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="$('.accordion-collapse').collapse('hide')">
+            <i class="fas fa-compress me-1"></i>إغلاق الكل
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if grouped_balances %}
+        <div class="accordion" id="employeeBalancesAccordion">
+            {% for item in grouped_balances %}
+            <div class="accordion-item mb-2">
+                <h2 class="accordion-header" id="heading{{ forloop.counter }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ forloop.counter }}">
+                        <div class="d-flex justify-content-between align-items-center w-100 me-3">
+                            <div>
+                                <i class="fas fa-user me-2 text-primary"></i>
+                                <strong>{{ item.employee.get_full_name_ar }}</strong>
+                                <span class="badge bg-secondary ms-2">{{ item.employee.employee_number }}</span>
+                                <small class="text-muted ms-2">{{ item.employee.department.name_ar|default:"-" }}</small>
+                            </div>
+                            <div>
+                                <span class="badge bg-success me-2">متبقي: {{ item.total_remaining }} يوم</span>
+                                <span class="badge bg-warning">مستخدم: {{ item.total_used }} يوم</span>
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse{{ forloop.counter }}" class="accordion-collapse collapse" data-bs-parent="#employeeBalancesAccordion">
+                    <div class="accordion-body">
+
+                        {% if item.quota_balances %}
+                        <p class="text-muted small mb-1 fw-semibold">إجازات برصيد</p>
+                        <div class="table-responsive mb-3">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center">نوع الإجازة</th>
+                                        <th class="text-center">الإجمالي</th>
+                                        <th class="text-center">المستحق</th>
+                                        <th class="text-center">المستخدم</th>
+                                        <th class="text-center">المتبقي</th>
+                                        <th class="text-center">النسبة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for balance in item.quota_balances %}
+                                    <tr>
+                                        <td class="text-center">
+                                            {% with cat=balance.leave_type.category %}
+                                            <span class="badge {% if cat == 'annual' %}bg-primary{% elif cat == 'emergency' %}bg-warning text-dark{% elif cat == 'sick' %}bg-danger{% elif cat == 'exceptional' %}bg-info{% else %}bg-secondary{% endif %}">{{ balance.leave_type.name_ar }}</span>
+                                            {% endwith %}
+                                            {% if balance.is_manually_adjusted %}
+                                                <span class="badge bg-warning ms-1" title="معدل يدوياً — محمي من التحديث التلقائي"><i class="fas fa-lock me-1"></i>يدوي</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center"><strong>{{ balance.total_days }}</strong> يوم</td>
+                                        <td class="text-center"><strong class="text-success">{{ balance.accrued_days }}</strong> يوم</td>
+                                        <td class="text-center">{{ balance.used_days }} يوم</td>
+                                        <td class="text-center"><strong class="text-primary">{{ balance.remaining_days }}</strong> يوم</td>
+                                        <td class="text-center">
+                                            {% if balance.accrued_days > 0 %}
+                                                {% widthratio balance.remaining_days balance.accrued_days 100 as percentage %}
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar {% if percentage < 25 %}bg-danger{% elif percentage < 50 %}bg-warning{% else %}bg-success{% endif %}" style="width: {{ percentage }}%">{{ percentage }}%</div>
+                                                </div>
+                                            {% else %}
+                                                <span class="badge bg-secondary">لم يستحق بعد</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+
+                        {% if item.no_quota_balances %}
+                        <p class="text-muted small mb-1 fw-semibold">إجازات بدون رصيد (استهلاك فقط)</p>
+                        <div class="table-responsive">
+                            <table class="table table-sm table-bordered">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="text-center">نوع الإجازة</th>
+                                        <th class="text-center">الأيام المستخدمة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for balance in item.no_quota_balances %}
+                                    <tr>
+                                        <td class="text-center"><span class="badge bg-secondary">{{ balance.leave_type.name_ar }}</span></td>
+                                        <td class="text-center">{{ balance.used_days }} يوم</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% endif %}
+
+                        
+                        <div class="text-end mt-2">
+                            <a href="{% url 'hr:leave_balance_employee' item.employee.pk %}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-eye me-1"></i>عرض التفاصيل
+                            </a>
+                            <a href="{% url 'hr:leave_balance_accrual_status' item.employee.pk %}" class="btn btn-sm btn-info">
+                                <i class="fas fa-chart-line me-1"></i>حالة الاستحقاق
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد أرصدة للسنة المحددة" icon="chart-pie" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function updateAllBalances() {
+    Swal.fire({
+        title: 'تحديث أرصدة الإجازات',
+        html: 'هل أنت متأكد من تحديث أرصدة جميع الموظفين؟<br><br>' +
+              '<small class="text-muted">سيتم إنشاء أرصدة جديدة للموظفين الذين ليس لديهم أرصدة، وتحديث الأرصدة الموجودة حسب الحد الأقصى المحدد لكل نوع إجازة.</small><br>' +
+              '<small class="text-warning"><i class="fas fa-lock me-1"></i>الأرصدة المعدلة يدوياً (علامة يدوي) لن تتأثر بالتحديث.</small>',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-sync me-1"></i> تحديث الأرصدة',
+        cancelButtonText: '<i class="fas fa-times me-1"></i> إلغاء',
+        reverseButtons: true
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "hr:leave_balance_update_all" %}';
+            
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrfToken) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrfToken.value;
+                form.appendChild(csrfInput);
+            }
+            
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+{% endblock %}

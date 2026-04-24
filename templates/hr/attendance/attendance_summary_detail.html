@@ -1,0 +1,782 @@
+{% extends 'base.html' %}
+{% load static core_tags custom_filters pricing_filters dict_tags utils_extras %}
+
+{% block title %}{{ page_title|default:"تفاصيل ملخص الحضور" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.stats-card-value-group {
+    margin-bottom: 0 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+
+{% include 'shared/page_header.html' with title=page_title subtitle=page_subtitle icon=page_icon breadcrumb_items=breadcrumb_items header_buttons=header_buttons %}
+
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Hidden form for recalculate POST -->
+    <form id="recalculate-form" method="post" action="{% url 'hr:recalculate_attendance_summary' summary.pk %}" style="display:none;">
+        {% csrf_token %}
+    </form>
+    
+    <!-- Auto-recalculation notification -->
+    {% if recalculated %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>تم تحديث البيانات!</strong> تم إعادة حساب الملخص تلقائياً لعرض أحدث البيانات.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endif %}
+    
+    <!-- JS data for SweetAlert2 notifications -->
+    <script>
+        window._pageNotifications = {
+            isApproved: {% if summary.is_approved %}true{% else %}false{% endif %},
+            approvedBy: "{% if summary.is_approved %}{{ summary.approved_by.get_full_name }}{% endif %}",
+            approvedAt: "{% if summary.is_approved %}{{ summary.approved_at|date:"Y-m-d H:i" }}{% endif %}",
+            hasPayroll: {% if month_payroll %}true{% else %}false{% endif %},
+            payrollUrl: "{% if month_payroll %}{% url 'hr:payroll_detail' month_payroll.id %}{% endif %}",
+            attendanceExempt: {% if summary.employee.attendance_exempt %}true{% else %}false{% endif %}
+        };
+    </script>
+
+    <!-- No active contract — passed to JS -->
+    {% if not daily_salary and not summary.employee.attendance_exempt %}
+    <script>window._noActiveContract = true;</script>
+    {% endif %}
+
+    <!-- البطاقات الإحصائية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>الإحصائيات الشهرية
+            <small class="text-muted fw-normal ms-3" style="font-size: 0.85rem;">
+                <i class="fas fa-calendar-alt me-1"></i>
+                فترة الدورة: {{ period_start|date:"Y-m-d" }} → {{ period_end|date:"Y-m-d" }}
+            </small>
+        </h5>        <div class="row">
+            {% include 'shared/stats_card.html' with title='أيام الحضور' value=stats.present_days|default:0 unit='يوم' subtitle=stats.present_subtitle icon='fa-calendar-check' color='success' %}
+            {% if not summary.employee.attendance_exempt %}
+            {% include 'shared/stats_card.html' with title='أيام الغياب' value=stats.absent_days|default:0 unit='يوم' subtitle=stats.absent_subtitle icon='fa-calendar-times' color='danger' %}
+            {% endif %}
+            {% if stats.paid_leave_days or stats.unpaid_leave_days or summary.employee.attendance_exempt %}
+            {% include 'shared/stats_card.html' with title='أيام الإجازة' value=stats.paid_leave_days|default:0 unit='مدفوعة' subtitle=stats.unpaid_leave_days|stringformat:"s"|add:" غير مدفوعة" icon='fa-umbrella-beach' color='info' %}
+            {% endif %}
+            {% if not summary.employee.attendance_exempt %}
+            {% include 'shared/stats_card.html' with title='دقائق التأخير' value=stats.net_penalizable_minutes|default:0 unit='دقيقة' subtitle=stats.late_minutes_description icon='fa-history' color='warning' %}
+            {% endif %}
+            {% include 'shared/stats_card.html' with title='الأذونات المستخدمة' value=stats.permissions_count|default:0 unit='إذن' subtitle=stats.extra_permissions_subtitle icon='fa-file-signature' color='info' %}
+        </div>
+    </div>
+
+    <!-- الأسطر المؤثرة على الراتب -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-money-bill-wave me-2"></i>الأسطر المؤثرة على الراتب
+        </h5>
+        <div class="row">
+            <div class="col-12">
+                <table class="table table-hover">
+                    <thead>
+                        <tr class="text-center">
+                            <th>نوع السطر</th>
+                            <th>البند</th>
+                            <th>التفاصيل</th>
+                            <th>المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- ملاحظة للمعفيين من البصمة -->
+                        {% if summary.employee.attendance_exempt %}
+                        <tr>
+                            <td colspan="4" class="text-center">
+                                <span class="badge bg-info me-1"><i class="fas fa-user-shield me-1"></i>معفى من البصمة</span>
+                                <small class="text-muted">الخصومات تقتصر على الإجازات غير المدفوعة والأذونات الإضافية فقط</small>
+                            </td>
+                        </tr>
+                        {% endif %}
+
+                        <!-- خصم الغياب — للموظفين غير المعفيين فقط -->
+                        {% if summary.absent_days > 0 and not summary.employee.attendance_exempt %}
+                        <tr class="text-center">
+                            <td><span class="badge bg-danger">خصم</span></td>
+                            <td>خصم غياب ({{ summary.absent_days }} يوم)</td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if daily_salary %}
+                                        {% if absence_breakdown %}
+                                            {% for multiplier, count in absence_breakdown.items %}
+                                                {% if forloop.first %}{% else %} + {% endif %}
+                                                ({{ count }} يوم × {{ daily_salary|smart_float }} × {{ multiplier|floatformat:0 }})
+                                            {% endfor %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            لا يوجد عقد نشط - سيتم الحساب عند معالجة الراتب
+                                        </span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if summary.absence_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                {% if summary.absence_deduction_amount > 0 %}
+                                    {{ summary.absence_deduction_amount|smart_float }} ج.م
+                                {% else %}
+                                    <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
+                                        <i class="fas fa-clock"></i> قيد الانتظار
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+
+
+                        
+                        <!-- خصم الإجازات غير المدفوعة (من LeaveSummary) -->
+                        {% if leave_summary and leave_summary.total_unpaid_days > 0 %}
+                        <tr class="text-center">
+                            <td><span class="badge bg-danger">خصم</span></td>
+                            <td>
+                                خصم إجازات غير مدفوعة
+                                ({{ leave_summary.total_unpaid_days }} يوم)
+                            </td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if leave_summary.details and daily_salary %}
+                                        {% for detail in leave_summary.details %}
+                                            {% if not detail.is_paid %}
+                                                {{ detail.leave_type }} — {{ detail.days_in_month }} يوم
+                                                × {{ daily_salary|smart_float }}
+                                                {% if detail.deduction_multiplier != "1.0" and detail.deduction_multiplier != "1" %} × {{ detail.deduction_multiplier }}{% endif %}
+                                                <br>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            لا يوجد عقد نشط - سيتم الحساب عند معالجة الراتب
+                                        </span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if leave_summary.deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                {% if leave_summary.deduction_amount > 0 %}
+                                    {{ leave_summary.deduction_amount|smart_float }} ج.م
+                                {% else %}
+                                    <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
+                                        <i class="fas fa-clock"></i> قيد الانتظار
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+
+                        <!-- خصم التأخير — للموظفين غير المعفيين فقط -->
+                        {% if summary.net_penalizable_minutes > 0 and not summary.employee.attendance_exempt %}
+                        <tr class="text-center">
+                            <td><span class="badge bg-warning">خصم</span></td>
+                            <td>خصم تأخير ({{ summary.net_penalizable_minutes }} دقيقة)</td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if penalty_details %}
+                                        جزاء: {{ penalty_details.name }}
+                                        {% if daily_salary %}
+                                            <br>{{ penalty_details.penalty_days|smart_float }} يوم × {{ daily_salary|smart_float }} ج.م
+                                        {% else %}
+                                            ({{ penalty_details.penalty_days|smart_float }} يوم)
+                                            <br><span class="text-warning">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                لا يوجد عقد نشط - سيتم الحساب عند معالجة الراتب
+                                            </span>
+                                        {% endif %}
+                                    {% else %}
+                                        حسب جدول الجزاءات
+                                        {% if not daily_salary %}
+                                            <br><span class="text-warning">
+                                                <i class="fas fa-exclamation-triangle me-1"></i>
+                                                لا يوجد عقد نشط - سيتم الحساب عند معالجة الراتب
+                                            </span>
+                                        {% endif %}
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if summary.late_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                {% if summary.late_deduction_amount > 0 %}
+                                    {{ summary.late_deduction_amount|smart_float }} ج.م
+                                {% else %}
+                                    <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
+                                        <i class="fas fa-clock"></i> قيد الانتظار
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        <!-- خصم الأذونات الإضافية -->
+                        {% if live_extra_permissions_hours > 0 %}
+                        <tr class="text-center">
+                            <td><span class="badge bg-warning">خصم</span></td>
+                            <td>خصم أذونات إضافية ({{ live_extra_permissions_hours|smart_float }} ساعة)</td>
+                            <td>
+                                <small class="text-muted">
+                                    {% if hourly_rate %}
+                                        {{ live_extra_permissions_hours|smart_float }} ساعة × {{ hourly_rate|smart_float }} ج.م
+                                    {% else %}
+                                        <span class="text-warning">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>
+                                            لا يوجد عقد نشط - سيتم الحساب عند معالجة الراتب
+                                        </span>
+                                    {% endif %}
+                                </small>
+                            </td>
+                            <td class="{% if live_extra_permissions_deduction_amount > 0 %}text-danger{% else %}text-muted{% endif %}">
+                                {% if live_extra_permissions_deduction_amount > 0 %}
+                                    {{ live_extra_permissions_deduction_amount|smart_float }} ج.م
+                                {% else %}
+                                    <span class="text-warning" title="سيتم الحساب عند وجود عقد نشط">
+                                        <i class="fas fa-clock"></i> قيد الانتظار
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                        
+                        <!-- إجمالي الخصومات -->
+                        {% if total_deductions_full > 0 %}
+                        <tr class="table-active text-center fw-bold">
+                            <td colspan="3">إجمالي الخصومات</td>
+                            <td class="text-danger">{{ total_deductions_full|smart_float }} ج.م</td>
+                        </tr>
+                        {% endif %}
+                        
+                        <!-- رسالة في حالة عدم وجود خصومات -->
+                        {% if summary.total_deductions == 0 and not leave_summary.deduction_amount %}
+                        <tr>
+                            <td colspan="4" class="text-center text-muted">
+                                {% if not daily_salary and summary.absent_days > 0 or summary.net_penalizable_minutes > 0 or live_extra_permissions_hours > 0 %}
+                                    <i class="fas fa-info-circle text-warning me-2"></i>
+                                    لا يوجد عقد نشط للموظف - سيتم حساب الخصومات تلقائياً عند معالجة الراتب
+                                {% else %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    لا توجد خصومات على هذا الملخص
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- إجازات الشهر -->
+    {% if month_leaves or summary.employee.attendance_exempt %}
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-umbrella-beach me-2"></i>إجازات الشهر
+            {% if summary.employee.attendance_exempt %}
+                <span class="badge bg-info ms-2" style="font-size:0.75rem;">
+                    <i class="fas fa-user-shield me-1"></i>المصدر الرئيسي للخصومات
+                </span>
+            {% endif %}
+        </h5>
+        {% if month_leaves %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="text-center">نوع الإجازة</th>
+                        <th class="text-center">من</th>
+                        <th class="text-center">إلى</th>
+                        <th class="text-center">الأيام في هذا الشهر</th>
+                        <th class="text-center">مدفوعة</th>
+                        <th class="text-center">الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for leave in month_leaves %}
+                    <tr {% if not leave.leave_type.is_paid %}class="table-danger"{% endif %}>
+                        <td class="text-center">
+                            <span class="badge {% if leave.leave_type.is_paid %}bg-info{% else %}bg-danger{% endif %}">{{ leave.leave_type.name_ar }}</span>
+                        </td>
+                        <td class="text-center">{{ leave.start_date|date:"Y-m-d" }}</td>
+                        <td class="text-center">{{ leave.end_date|date:"Y-m-d" }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-secondary">{{ leave.days_count }} يوم</span>
+                        </td>
+                        <td class="text-center">
+                            {% if leave.leave_type.is_paid %}
+                                <span class="badge bg-success">مدفوعة</span>
+                            {% else %}
+                                <span class="badge bg-danger">غير مدفوعة</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success"><i class="fas fa-check me-1"></i>معتمدة</span>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="alert alert-secondary mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            لا توجد إجازات معتمدة لهذا الموظف في هذا الشهر.
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- السجل اليومي المفصل -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-list-ul me-2"></i>السجل اليومي المفصل
+            {% if summary.employee.attendance_exempt %}
+                <span class="badge bg-info ms-2" style="font-size:0.75rem;">
+                    <i class="fas fa-user-shield me-1"></i>معفى من البصمة — الإجازات فقط
+                </span>
+            {% endif %}
+        </h5>
+
+        {% if summary.employee.attendance_exempt and not daily_records %}
+        <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            لا توجد سجلات حضور يومية لهذا الموظف — الإجازات المعتمدة تظهر في قسم "إجازات الشهر" أعلاه.
+        </div>
+        {% else %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th class="text-center">التاريخ</th>
+                        <th class="text-center">اليوم</th>
+                        {% if not summary.employee.attendance_exempt %}
+                        <th class="text-center">الحضور</th>
+                        <th class="text-center">الانصراف</th>
+                        <th class="text-center">التأخير (دقيقة)</th>
+                        <th class="text-center">انصراف مبكر (دقيقة)</th>
+                        {% endif %}
+                        <th class="text-center">الحالة</th>
+                        {% if not summary.employee.attendance_exempt %}
+                        <th class="text-center">معامل الغياب</th>
+                        {% endif %}
+                        <th class="text-center">الإجازات والأذونات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in daily_records %}
+                        <tr>
+                            <td class="text-center">{{ record.date|date:"Y-m-d" }}</td>
+                            <td class="text-center">{{ record.date|arabic_day_name }}</td>
+                            {% if not summary.employee.attendance_exempt %}
+                            <td class="text-center">{{ record.check_in|date:"g:i A"|default:"-" }}</td>
+                            <td class="text-center">{{ record.check_out|date:"g:i A"|default:"-" }}</td>
+                            <td class="text-center">
+                                {% with adjusted_late=record.get_adjusted_late_minutes %}
+                                {% if adjusted_late > 0 %}
+                                    <span class="badge bg-warning">{{ adjusted_late|remove_trailing_zeros }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            <td class="text-center">
+                                {% with adjusted_early=record.get_adjusted_early_leave_minutes %}
+                                {% if adjusted_early > 0 %}
+                                    <span class="badge bg-secondary">{{ adjusted_early|remove_trailing_zeros }}</span>
+                                {% else %}
+                                    <span class="text-muted">0</span>
+                                {% endif %}
+                                {% endwith %}
+                            </td>
+                            {% endif %}
+                            <td class="text-center">
+                                {% if record.status == 'on_leave' %}
+                                    <span class="badge bg-info">في إجازة</span>
+                                {% elif summary.employee.attendance_exempt %}
+                                    <span class="text-muted">—</span>
+                                {% else %}
+                                    {% with adjusted_late=record.get_adjusted_late_minutes adjusted_early=record.get_adjusted_early_leave_minutes %}
+                                        {% if record.status == 'late' and adjusted_late > 5 %}
+                                            {% display_attendance_status 'late' %}
+                                        {% endif %}
+                                        {% if adjusted_early > 5 %}
+                                            <span class="badge bg-secondary">انصراف مبكر</span>
+                                        {% endif %}
+                                        {% if adjusted_late <= 5 and adjusted_early <= 5 %}
+                                            {% display_attendance_status record.status %}
+                                        {% endif %}
+                                    {% endwith %}
+                                {% endif %}
+                            </td>
+                            {% if not summary.employee.attendance_exempt %}
+                            <td class="text-center">
+                                {% if record.status == 'absent' %}
+                                    <select class="form-select form-select-sm absence-multiplier-select" 
+                                            data-attendance-id="{{ record.id }}"
+                                            style="width: 80px; display: inline-block;"
+                                            {% if summary.is_approved %}disabled{% endif %}>
+                                        <option value="1.0" {% if record.absence_multiplier == 1.0 %}selected{% endif %}>×1</option>
+                                        <option value="2.0" {% if record.absence_multiplier == 2.0 %}selected{% endif %}>×2</option>
+                                        <option value="3.0" {% if record.absence_multiplier == 3.0 %}selected{% endif %}>×3</option>
+                                    </select>
+                                    {% if summary.is_approved %}
+                                        <br><small class="text-muted">معتمد</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            {% endif %}
+                            <td class="text-center">
+                                {% with day_perms=permissions_by_date|get_item:record.date %}
+                                {% with day_leaves=leaves_by_date|get_item:record.date %}
+                                {% if day_leaves %}
+                                    {% for lv in day_leaves %}
+                                        <span class="badge {% if lv.leave_type.is_paid %}bg-info{% else %}bg-danger{% endif %}">
+                                            <i class="fas fa-umbrella-beach me-1"></i>{{ lv.leave_type.name_ar }}
+                                        </span>
+                                        {% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                    {% if day_perms %}<br>{% endif %}
+                                {% endif %}
+                                {% if day_perms %}
+                                    {% for perm in day_perms %}
+                                        <span class="badge bg-primary">{{ perm.permission_type.name_ar }} - {{ perm.duration_hours }}س</span>
+                                        {% if perm.is_extra %}
+                                            <span class="badge bg-warning text-dark"><i class="fas fa-exclamation-triangle"></i> إضافي</span>
+                                        {% endif %}
+                                        {% if not forloop.last %}<br>{% endif %}
+                                    {% endfor %}
+                                {% endif %}
+                                {% if not day_leaves and not day_perms %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                                {% endwith %}
+                                {% endwith %}
+                            </td>
+                        </tr>
+                    {% empty %}
+                        <tr>
+                            <td colspan="{% if summary.employee.attendance_exempt %}4{% else %}9{% endif %}" class="text-center p-4 text-muted">
+                                <i class="fas fa-info-circle me-2"></i> لا توجد سجلات حضور لهذا الشهر
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+    <!-- زر الاعتماد في نهاية الصفحة -->
+    {% if not summary.is_approved and perms.hr.change_attendancesummary %}
+    <div class="section-container mt-4">
+        <div class="d-flex justify-content-center">
+            <button type="button" class="btn btn-success btn-lg" onclick="openApproveModal()">
+                <i class="fas fa-check-circle me-2"></i>اعتماد ملخص الحضور
+            </button>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- مودال اعتماد الملخص -->
+    <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approveModalLabel">
+                        <i class="fas fa-check-circle me-2"></i>اعتماد ملخص الحضور
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        هل أنت متأكد من اعتماد ملخص الحضور لـ <strong>{{ summary.employee.get_full_name_ar }}</strong> عن شهر <strong>{{ summary.month|date:"Y-m" }}</strong>؟
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-4">
+                            <small class="text-muted">أيام الحضور</small>
+                            <div class="fw-bold text-success">{{ summary.present_days }} يوم</div>
+                        </div>
+                        {% if not summary.employee.attendance_exempt %}
+                        <div class="col-4">
+                            <small class="text-muted">أيام الغياب</small>
+                            <div class="fw-bold text-danger">{{ summary.absent_days }} يوم</div>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">دقائق التأخير</small>
+                            <div class="fw-bold text-warning">{{ summary.net_penalizable_minutes }} دقيقة</div>
+                        </div>
+                        {% else %}
+                        <div class="col-4">
+                            <small class="text-muted">إجازات مدفوعة</small>
+                            <div class="fw-bold text-info">{{ summary.paid_leave_days }} يوم</div>
+                        </div>
+                        <div class="col-4">
+                            <small class="text-muted">إجازات غير مدفوعة</small>
+                            <div class="fw-bold text-danger">{{ summary.unpaid_leave_days }} يوم</div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- الأسطر المؤثرة على الراتب -->
+                    {% if total_deductions_full > 0 or leave_summary.deduction_amount or live_extra_permissions_hours > 0 or not summary.employee.attendance_exempt and summary.absent_days > 0 or not summary.employee.attendance_exempt and summary.net_penalizable_minutes > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr class="text-center">
+                                    <th>البند</th>
+                                    <th>التفاصيل</th>
+                                    <th>المبلغ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- خصم الغياب — للموظفين غير المعفيين فقط -->
+                                {% if summary.absent_days > 0 and not summary.employee.attendance_exempt %}
+                                <tr class="text-center">
+                                    <td><span class="badge bg-danger">خصم</span></td>
+                                    <td class="text-start">خصم غياب ({{ summary.absent_days }} يوم)</td>
+                                    <td class="{% if summary.absence_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                        {% if summary.absence_deduction_amount > 0 %}
+                                            {{ summary.absence_deduction_amount|smart_float }} ج.م
+                                        {% else %}
+                                            <small class="text-warning">قيد الانتظار</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+
+                                <!-- خصم الإجازات غير المدفوعة -->
+                                {% if leave_summary and leave_summary.deduction_amount > 0 %}
+                                <tr class="text-center">
+                                    <td><span class="badge bg-danger">خصم</span></td>
+                                    <td class="text-start">خصم إجازات غير مدفوعة ({{ leave_summary.total_unpaid_days }} يوم)</td>
+                                    <td class="text-danger fw-bold">{{ leave_summary.deduction_amount|smart_float }} ج.م</td>
+                                </tr>
+                                {% endif %}
+                                
+                                <!-- خصم التأخير — للموظفين غير المعفيين فقط -->
+                                {% if summary.net_penalizable_minutes > 0 and not summary.employee.attendance_exempt %}
+                                <tr class="text-center">
+                                    <td><span class="badge bg-warning">خصم</span></td>
+                                    <td class="text-start">خصم تأخير ({{ summary.net_penalizable_minutes }} دقيقة)</td>
+                                    <td class="{% if summary.late_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                        {% if summary.late_deduction_amount > 0 %}
+                                            {{ summary.late_deduction_amount|smart_float }} ج.م
+                                        {% else %}
+                                            <small class="text-warning">قيد الانتظار</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                
+                                <!-- خصم الأذونات الإضافية -->
+                                {% if live_extra_permissions_hours > 0 %}
+                                <tr class="text-center">
+                                    <td><span class="badge bg-warning">خصم</span></td>
+                                    <td class="text-start">خصم أذونات إضافية ({{ live_extra_permissions_hours|smart_float }} ساعة)</td>
+                                    <td class="{% if live_extra_permissions_deduction_amount > 0 %}text-danger fw-bold{% else %}text-muted{% endif %}">
+                                        {% if live_extra_permissions_deduction_amount > 0 %}
+                                            {{ live_extra_permissions_deduction_amount|smart_float }} ج.م
+                                        {% else %}
+                                            <small class="text-warning">قيد الانتظار</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                
+                                <!-- إجمالي الخصومات -->
+                                {% if total_deductions_full > 0 %}
+                                <tr class="table-active text-center fw-bold">
+                                    <td colspan="2">إجمالي الخصومات</td>
+                                    <td class="text-danger">{{ total_deductions_full|smart_float }} ج.م</td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted">
+                                        <small>
+                                            <i class="fas fa-info-circle text-warning me-1"></i>
+                                            سيتم حساب الخصومات عند معالجة الراتب
+                                        </small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-check-circle me-2"></i>
+                        لا توجد خصومات على هذا الملخص
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="button" class="btn btn-success" id="confirmApproveBtn">
+                        <i class="fas fa-check me-2"></i>تأكيد الاعتماد
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // عرض إشعار واحد فقط حسب الأولوية
+    const notif = window._pageNotifications || {};
+
+    if (notif.hasPayroll) {
+        // الأعلى أولوية — يغني عن كل حاجة
+        Swal.fire({
+            icon: 'warning',
+            title: 'الراتب محسوب لهذا الشهر',
+            html: `لا يمكن تعديل أو إعادة حساب ملخص الحضور بعد حساب الراتب.<br><br><a href="${notif.payrollUrl}" class="btn btn-sm btn-outline-primary">عرض قسيمة الراتب</a>`,
+            confirmButtonText: 'حسناً'
+        });
+    } else if (notif.isApproved) {
+        // معتمد — يغني عن "معفى من البصمة"
+        Swal.fire({
+            icon: 'success',
+            title: 'معتمد',
+            text: `تم اعتماد هذا الملخص بواسطة ${notif.approvedBy} في ${notif.approvedAt}`,
+            confirmButtonText: 'حسناً'
+        });
+    } else if (notif.attendanceExempt) {
+        // يظهر فقط لو مفيش اعتماد ولا راتب محسوب
+        Swal.fire({
+            icon: 'info',
+            title: 'موظف معفى من البصمة',
+            text: 'يتم اعتماد الملخص يدوياً، والخصومات تُدخل مباشرة على قسيمة الراتب.',
+            confirmButtonText: 'حسناً'
+        });
+    } else if (window._noActiveContract) {
+        Swal.fire({
+            icon: 'warning',
+            title: 'لا يوجد عقد نشط',
+            text: 'قيم الخصومات المالية ستُحسب تلقائياً عند معالجة الراتب بناءً على العقد المتاح في ذلك الوقت.',
+            confirmButtonText: 'حسناً'
+        });
+    }
+
+    // معالجة تغيير معامل الغياب
+    $('.absence-multiplier-select').on('change', function() {
+        const select = $(this);
+        const attendanceId = select.data('attendance-id');
+        const newMultiplier = select.val();
+        const originalValue = select.find('option:selected').data('original') || select.val();
+        
+        // تعطيل الـ select أثناء الحفظ
+        select.prop('disabled', true);
+        
+        // إرسال الطلب
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch(`/hr/attendance/${attendanceId}/update-absence-multiplier/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: JSON.stringify({
+                absence_multiplier: newMultiplier
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                toastr.success('تم تحديث معامل الغياب بنجاح');
+                
+                // إعادة تحميل الصفحة بعد ثانية لتحديث الخصومات
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                toastr.error(data.message || 'حدث خطأ أثناء التحديث');
+                select.val(originalValue);
+                select.prop('disabled', false);
+            }
+        })
+        .catch(error => {
+            toastr.error('حدث خطأ أثناء الاتصال بالخادم');
+            select.val(originalValue);
+            select.prop('disabled', false);
+        });
+    });
+    
+    // دالة فتح مودال الاعتماد
+    window.openApproveModal = function() {
+        const modalEl = document.getElementById('approveModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        } else {
+            console.error('Modal element not found');
+        }
+    };
+    
+    // معالجة اعتماد الملخص
+    document.getElementById('confirmApproveBtn')?.addEventListener('click', function() {
+        const btn = this;
+        const originalHtml = btn.innerHTML;
+        
+        // تعطيل الزر وإظهار loader
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاعتماد...';
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        
+        fetch('{% url "hr:approve_attendance_summary" summary.pk %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // إخفاء المودال
+                const modal = bootstrap.Modal.getInstance(document.getElementById('approveModal'));
+                if (modal) modal.hide();
+                
+                // إظهار رسالة نجاح
+                toastr.success(data.message || 'تم اعتماد ملخص الحضور بنجاح');
+                
+                // إعادة تحميل الصفحة بعد ثانية
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                toastr.error(data.message || 'حدث خطأ أثناء الاعتماد');
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            toastr.error('حدث خطأ أثناء الاعتماد');
+            btn.disabled = false;
+            btn.innerHTML = originalHtml;
+        });
+    });
+});
+</script>
+{% endblock %}

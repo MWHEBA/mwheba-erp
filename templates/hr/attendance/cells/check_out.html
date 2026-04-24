@@ -1,0 +1,7 @@
+{% if object.status == 'absent' or object.status == 'on_leave' %}
+    <span class="text-muted">-</span>
+{% elif object.check_out %}
+    <span class="badge bg-info">{{ object.check_out|date:"g:i A" }}</span>
+{% else %}
+    <span class="badge bg-warning text-dark">لم ينصرف</span>
+{% endif %}

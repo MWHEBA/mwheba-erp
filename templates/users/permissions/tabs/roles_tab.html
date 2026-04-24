@@ -1,0 +1,164 @@
+<!-- Roles Management Tab -->
+{% if user_can_manage_roles %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">إدارة الأدوار</h5>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+        <i class="fas fa-plus me-2"></i>إضافة دور جديد
+    </button>
+</div>
+
+<!-- Roles List -->
+<div id="rolesList">
+    {% if roles %}
+        {% for role in roles %}
+        <div class="role-card" data-role-id="{{ role.id }}">
+            <div class="role-header">
+                <div>
+                    <h6 class="role-title">{{ role.display_name }}</h6>
+                    <span class="role-name">{{ role.name }}</span>
+                    {% if role.is_system_role %}
+                        <span class="badge bg-info ms-2">دور نظام</span>
+                    {% endif %}
+                    {% if not role.is_active %}
+                        <span class="badge bg-secondary ms-2">غير نشط</span>
+                    {% endif %}
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary edit-role-btn" 
+                            data-role-id="{{ role.id }}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    {% if not role.is_system_role %}
+                    <button type="button" class="btn btn-outline-danger delete-role-btn" 
+                            data-role-id="{{ role.id }}" data-role-name="{{ role.display_name }}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="role-stats">
+                <div class="role-stat">
+                    <i class="fas fa-users text-primary"></i>
+                    <span>{{ role.user_count }} مستخدم</span>
+                </div>
+                <div class="role-stat">
+                    <i class="fas fa-key text-success"></i>
+                    {% if role.name == 'admin' %}
+                        <span>صلاحيات كاملة (superuser)</span>
+                    {% else %}
+                        <span>{{ role.permissions.count }} صلاحية</span>
+                    {% endif %}
+                </div>
+                <div class="role-stat">
+                    <i class="fas fa-calendar text-info"></i>
+                    <span>{{ role.created_at|date:"Y-m-d" }}</span>
+                </div>
+            </div>
+            
+            {% if role.description %}
+            <p class="text-muted mb-0">{{ role.description|truncatechars:100 }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+        
+        <!-- Pagination -->
+        {% if roles.has_other_pages %}
+        <nav aria-label="صفحات الأدوار">
+            <ul class="pagination justify-content-center">
+                {% if roles.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=roles&page={{ roles.previous_page_number }}{% if search %}&search={{ search }}{% endif %}">السابق</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in roles.paginator.page_range %}
+                    {% if roles.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > roles.number|add:'-3' and num < roles.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=roles&page={{ num }}{% if search %}&search={{ search }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if roles.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=roles&page={{ roles.next_page_number }}{% if search %}&search={{ search }}{% endif %}">التالي</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-user-tag fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">لا توجد أدوار</h5>
+            <p class="text-muted">ابدأ بإنشاء دور جديد لتنظيم صلاحيات المستخدمين</p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRoleModal">
+                <i class="fas fa-plus me-2"></i>إضافة دور جديد
+            </button>
+        </div>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- Access Denied Message for Non-Admin Users -->
+<div class="alert alert-warning">
+    <div class="row">
+        <div class="col-md-8">
+            <h5 class="alert-heading">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                صلاحيات غير كافية
+            </h5>
+            <p class="mb-2">
+                <strong>ليس لديك صلاحية لإدارة الأدوار.</strong><br>
+                هذا القسم يتطلب صلاحيات المدير أو المدير العام.
+            </p>
+            <hr>
+            <div class="mb-0">
+                <h6>معلومات حسابك:</h6>
+                <ul class="list-unstyled mb-0">
+                    <li><i class="fas fa-user me-2"></i><strong>نوع المستخدم:</strong> {{ user_permissions_info.user_type|default:"غير محدد" }}</li>
+                    <li><i class="fas fa-shield-alt me-2"></i><strong>مدير عام:</strong> {% if user_permissions_info.is_superuser %}نعم{% else %}لا{% endif %}</li>
+                    <li><i class="fas fa-user-cog me-2"></i><strong>مدير:</strong> {% if user_permissions_info.is_admin %}نعم{% else %}لا{% endif %}</li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-4 text-center">
+            <i class="fas fa-user-lock fa-4x text-warning mb-3"></i>
+            <div>
+                <small class="text-muted">للحصول على صلاحيات إضافية، تواصل مع المدير</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Show read-only roles list if user can view permissions -->
+{% if user_can_view_permissions and roles %}
+<div class="mt-4">
+    <h6 class="text-muted">الأدوار المتاحة (للعرض فقط)</h6>
+    <div class="row">
+        {% for role in roles %}
+        <div class="col-md-6 mb-3">
+            <div class="card">
+                <div class="card-body">
+                    <h6 class="card-title">{{ role.display_name }}</h6>
+                    <p class="card-text">
+                        <small class="text-muted">{{ role.name }}</small><br>
+                        {% if role.description %}{{ role.description|truncatechars:80 }}{% endif %}
+                    </p>
+                    <div class="d-flex justify-content-between text-muted">
+                        <small><i class="fas fa-users me-1"></i>{{ role.user_count }} مستخدم</small>
+                        <small><i class="fas fa-key me-1"></i>{{ role.permissions.count }} صلاحية</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endif %}

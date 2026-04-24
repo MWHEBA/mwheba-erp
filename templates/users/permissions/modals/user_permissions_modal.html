@@ -1,0 +1,98 @@
+<!-- Modal عرض وتعديل صلاحيات المستخدم -->
+<div class="modal fade" id="userPermissionsModal" tabindex="-1" aria-labelledby="userPermissionsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="userPermissionsModalLabel">
+                    <i class="fas fa-key me-2"></i>صلاحيات المستخدم المخصصة
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <div class="modal-body">
+                <!-- User Info -->
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <strong>المستخدم:</strong> <span class="user-name">اسم المستخدم</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>الدور:</strong> <span class="user-role">الدور</span>
+                    </div>
+                    <div class="col-md-4">
+                        <strong>الحالة:</strong> <span class="user-status">نشط</span>
+                    </div>
+                </div>
+                
+                <!-- Info Alert -->
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    يتم عرض الصلاحيات المخصصة فقط (42 صلاحية). صلاحيات Django الأساسية مخفية لتبسيط الواجهة.
+                </div>
+                
+                <!-- Statistics -->
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="stats-card stats-card-primary">
+                            <div class="stats-card-body text-center">
+                                <div class="stats-card-value total-custom-permissions">0</div>
+                                <div class="stats-card-title">إجمالي الصلاحيات المخصصة</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card stats-card-info">
+                            <div class="stats-card-body text-center">
+                                <div class="stats-card-value role-permissions">0</div>
+                                <div class="stats-card-title">من الدور</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card stats-card-success">
+                            <div class="stats-card-body text-center">
+                                <div class="stats-card-value direct-permissions">0</div>
+                                <div class="stats-card-title">مباشرة</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="stats-card stats-card-warning">
+                            <div class="stats-card-body text-center">
+                                <div class="stats-card-value completion-percentage">0%</div>
+                                <div class="stats-card-title">نسبة الإكمال</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Search and Actions -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <input type="text" class="form-control" id="permissionSearchModal" 
+                               placeholder="البحث في الصلاحيات...">
+                    </div>
+                    <div class="col-md-6">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="selectAllPermissions">
+                                <i class="fas fa-check-double me-1"></i>تحديد الكل
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="clearAllPermissions">
+                                <i class="fas fa-times me-1"></i>إلغاء الكل
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Permissions Categories -->
+                <div class="permissions-categories" style="max-height: 500px; overflow-y: auto;">
+                    <!-- سيتم ملء الفئات هنا بواسطة JavaScript -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="saveUserPermissions">
+                    <i class="fas fa-save me-2"></i>حفظ التغييرات
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+            </div>
+        </div>
+    </div>
+</div>

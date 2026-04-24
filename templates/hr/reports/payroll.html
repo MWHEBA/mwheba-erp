@@ -1,0 +1,147 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-filter me-2"></i>الفلاتر</h5>
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">الشهر</label>
+                            <input type="text" name="month" class="form-control" data-month-picker value="{{ month_str }}" placeholder="فلتر حسب الشهر...">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">القسم</label>
+                            <select name="department" class="form-select">
+                                <option value="">جميع الأقسام</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">&nbsp;</label>
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>
+                                بحث
+                            </button>
+                        </div>
+                    </form>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>الإحصائيات</h5>
+      <div class="row">
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <div class="stats-card-title">عدد الموظفين</div>
+                    <div class="stats-card-value">{{ stats.total_employees|default:0 }}</div>
+                    <div class="stats-card-unit">موظف</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-money-bill-wave"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الرواتب</div>
+                    <div class="stats-card-value">{{ stats.total_gross|smart_float }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-minus-circle"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الخصومات</div>
+                    <div class="stats-card-value">{{ stats.total_deductions|smart_float }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6 mb-4">
+            <div class="stats-card stats-card-info">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-hand-holding-usd"></i>
+                    </div>
+                    <div class="stats-card-title">صافي الرواتب</div>
+                    <div class="stats-card-value">{{ stats.total_net|smart_float }}</div>
+                    <div class="stats-card-unit">{% currency_symbol %}</div>
+                </div>
+            </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-table me-2"></i>جدول الرواتب</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">الموظف</th>
+                                    <th class="text-center">الأساسي</th>
+                                    <th class="text-center">البدلات</th>
+                                    <th class="text-center">الإضافات</th>
+                                    <th class="text-center">الخصومات</th>
+                                    <th class="text-center">الإجمالي</th>
+                                    <th class="text-center">الصافي</th>
+                                    <th class="text-center">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for payroll in payrolls %}
+                                <tr>
+                                    <td class="text-center">{{ payroll.employee.get_full_name_ar }}</td>
+                                    <td class="text-center">{{ payroll.basic_salary }}</td>
+                                    <td class="text-center">{{ payroll.allowances }}</td>
+                                    <td class="text-center">{{ payroll.total_additions }}</td>
+                                    <td class="text-center">{{ payroll.total_deductions }}</td>
+                                    <td class="text-center">{{ payroll.correct_gross_salary }}</td>
+                                    <td class="text-center"><strong>{{ payroll.correct_net_salary }}</strong></td>
+                                    <td class="text-center">
+                                        {% if payroll.status == 'draft' %}
+                                            <span class="badge bg-secondary">مسودة</span>
+                                        {% elif payroll.status == 'calculated' %}
+                                            <span class="badge bg-info">محسوب</span>
+                                        {% elif payroll.status == 'approved' %}
+                                            <span class="badge bg-success">معتمد</span>
+                                        {% elif payroll.status == 'paid' %}
+                                            <span class="badge bg-primary">مدفوع</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="8" class="text-center">لا توجد كشوف رواتب</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+{% endblock %}

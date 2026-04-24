@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}إعدادات الموردين{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.type-icon { width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-size:.875rem;margin-left:.5rem; }
+.sortable-handle { cursor:move;color:#6c757d; }
+.sortable-handle:hover { color:var(--primary-color); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+  {% csrf_token %}
+
+  <!-- Tabs Navigation -->
+  <div class="section-container p-0">
+    <ul class="nav nav-tabs px-3 pt-3" id="settingsTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="supplier-types-tab"
+                data-bs-toggle="tab" data-bs-target="#supplier-types-pane"
+                type="button" role="tab">
+          <i class="fas fa-truck me-2"></i>أنواع الموردين
+          <span class="badge bg-secondary rounded-pill ms-1">{{ stats.supplier_types_total }}</span>
+        </button>
+      </li>
+      {% if enabled_modules.printing_pricing %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="service-types-tab"
+                data-bs-toggle="tab" data-bs-target="#service-types-pane"
+                type="button" role="tab">
+          <i class="fas fa-tags me-2"></i>أنواع خدمات التسعير
+          <span class="badge bg-secondary rounded-pill ms-1">{{ stats.service_types_total }}</span>
+        </button>
+      </li>
+      {% endif %}
+    </ul>
+
+    <div class="tab-content p-3" id="settingsTabsContent">
+
+      <!-- ══ تاب أنواع الموردين ══════════════════════════════════ -->
+      <div class="tab-pane fade show active" id="supplier-types-pane" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="badge bg-success me-2">{{ stats.supplier_types_active }} نشط</span>
+            <span class="badge bg-secondary">{{ stats.supplier_types_system }} نظام</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+            <i class="fas fa-plus me-1"></i>إضافة نوع مورد
+          </button>
+        </div>
+
+        {% if supplier_types %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th class="text-center" style="width:50px"><i class="fas fa-grip-vertical text-muted"></i></th>
+                <th>النوع</th>
+                <th class="text-center">الرمز</th>
+                <th class="text-center">الموردين</th>
+                <th class="text-center">نوع المورد</th>
+                <th class="text-center">الحالة</th>
+                <th class="text-center">النوع</th>
+                <th class="text-center">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody id="sortableTypes">
+              {% for st in supplier_types %}
+              <tr data-id="{{ st.id }}">
+                <td class="text-center"><i class="fas fa-grip-vertical sortable-handle"></i></td>
+                <td>
+                  <div class="d-flex align-items-center">
+                    <div class="type-icon" style="background-color:{{ st.color }}"><i class="{{ st.icon }}"></i></div>
+                    <strong>{{ st.name }}</strong>
+                  </div>
+                </td>
+                <td class="text-center"><code class="text-primary">{{ st.code }}</code></td>
+                <td class="text-center">
+                  <span class="badge bg-{% if st.suppliers_count > 0 %}primary{% else %}secondary{% endif %}">{{ st.suppliers_count }}</span>
+                </td>
+                <td class="text-center">
+                  {% if st.is_service_provider %}
+                    <span class="badge bg-success"><i class="fas fa-concierge-bell"></i> خدمات</span>
+                  {% else %}
+                    <span class="badge bg-info"><i class="fas fa-boxes"></i> منتجات</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <div class="form-check form-switch d-flex justify-content-center">
+                    <input class="form-check-input" type="checkbox"
+                           {% if st.is_active %}checked{% endif %}
+                           onchange="toggleStatus({{ st.id }}, this.checked)">
+                  </div>
+                </td>
+                <td class="text-center">
+                  {% if st.is_system %}
+                    <span class="badge bg-info"><i class="fas fa-shield-alt"></i> نظام</span>
+                  {% else %}
+                    <span class="badge bg-secondary">مخصص</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  <button class="btn btn-sm btn-outline-primary me-1" onclick="editType({{ st.id }})" title="تعديل">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  {% if not st.is_system and st.suppliers_count == 0 %}
+                  <button class="btn btn-sm btn-outline-danger" onclick="deleteType({{ st.id }})" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-truck fa-3x text-muted mb-3"></i>
+          <p class="text-muted">لا توجد أنواع موردين — اضغط "إضافة نوع مورد"</p>
+        </div>
+        {% endif %}
+      </div>
+
+      <!-- ══ تاب أنواع خدمات التسعير ════════════════════════════ -->
+      {% if enabled_modules.printing_pricing %}
+      <div class="tab-pane fade" id="service-types-pane" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <div>
+            <span class="badge bg-success me-2">{{ stats.service_types_active }} نشط</span>
+            <span class="badge bg-primary me-2">{{ stats.service_types_printing }} طباعة</span>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openServiceTypeModal()">
+            <i class="fas fa-plus me-1"></i>إضافة نوع خدمة
+          </button>
+        </div>
+
+        {% if service_types %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th class="text-center">الترتيب</th>
+                <th class="text-center">الأيقونة</th>
+                <th>الاسم</th>
+                <th class="text-center">الرمز</th>
+                <th class="text-center">الفئة</th>
+                <th class="text-center">الحقول</th>
+                <th class="text-center">الخدمات</th>
+                <th class="text-center">الحالة</th>
+                <th class="text-center">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for st in service_types %}
+              {% with svc_count=st.supplier_services.count fields_count=st.attribute_schema|length %}
+              <tr>
+                <td class="text-center">{{ st.order }}</td>
+                <td class="text-center"><i class="{{ st.icon }} fa-lg"></i></td>
+                <td><strong>{{ st.name }}</strong>{% if st.description %}<br><small class="text-muted">{{ st.description|truncatechars:50 }}</small>{% endif %}</td>
+                <td class="text-center"><code class="bg-light px-2 py-1 rounded">{{ st.code }}</code></td>
+                <td class="text-center">
+                  {% if st.category == 'printing' %}<span class="badge bg-primary">طباعة</span>
+                  {% elif st.category == 'logistics' %}<span class="badge bg-info">لوجستيات</span>
+                  {% elif st.category == 'manufacturing' %}<span class="badge bg-warning text-dark">تصنيع</span>
+                  {% else %}<span class="badge bg-secondary">عام</span>{% endif %}
+                </td>
+                <td class="text-center"><span class="badge bg-info">{{ fields_count }}</span></td>
+                <td class="text-center">
+                  <span class="badge bg-{% if svc_count > 0 %}success{% else %}secondary{% endif %}">{{ svc_count }}</span>
+                </td>
+                <td class="text-center">
+                  <span class="badge bg-{% if st.is_active %}success{% else %}secondary{% endif %}">
+                    {% if st.is_active %}نشط{% else %}معطل{% endif %}
+                  </span>
+                </td>
+                <td class="text-center">
+                  <a href="{% url 'supplier:service_type_edit' st.pk %}" class="btn btn-sm btn-outline-primary me-1" title="تعديل"
+                     onclick="event.preventDefault(); openServiceTypeModal({{ st.pk }})">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <a href="{% url 'supplier:service_type_schema' st.pk %}" class="btn btn-sm btn-outline-info me-1" title="تعديل الحقول">
+                    <i class="fas fa-sliders-h"></i>
+                  </a>
+                  {% if svc_count == 0 %}
+                  <button onclick="deleteServiceType({{ st.pk }}, '{{ st.name }}')"
+                          class="btn btn-sm btn-outline-danger" title="حذف">
+                    <i class="fas fa-trash"></i>
+                  </button>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endwith %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-tags fa-3x text-muted mb-3"></i>
+          <p class="text-muted">لا توجد أنواع خدمات — اضغط "إضافة نوع خدمة"</p>
+          <a href="{% url 'supplier:service_type_create' %}" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>إضافة أول نوع خدمة
+          </a>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+    </div><!-- end tab-content -->
+  </div><!-- end section-container -->
+</div>
+
+<!-- Modal لأنواع الموردين -->
+<div class="modal fade" id="typeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" id="modalContent"></div>
+  </div>
+</div>
+
+<!-- Modal لأنواع خدمات التسعير -->
+<div class="modal fade" id="serviceTypeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" id="serviceTypeModalContent"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script src="{% static 'js/supplier-types-settings.js' %}"></script>
+<script>
+// ── Tab hash navigation ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const TABS = {
+        '#supplier-types-pane': 'supplier-types-tab',
+        '#service-types-pane':  'service-types-tab',
+    };
+
+    // فتح التاب حسب الـ hash الحالي
+    function activateFromHash() {
+        const hash = window.location.hash;
+        const tabId = TABS[hash];
+        if (tabId) {
+            const btn = document.getElementById(tabId);
+            if (btn) bootstrap.Tab.getOrCreateInstance(btn).show();
+        }
+    }
+
+    activateFromHash();
+
+    // تحديث الـ hash عند تغيير التاب
+    document.querySelectorAll('#settingsTabs .nav-link').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', function() {
+            const target = this.getAttribute('data-bs-target');
+            history.replaceState(null, '', target);
+        });
+    });
+
+    // الاستجابة لتغيير الـ hash من الخارج (back/forward)
+    window.addEventListener('hashchange', activateFromHash);
+});
+
+// حذف نوع خدمة التسعير
+function deleteServiceType(id, name) {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: `سيتم حذف نوع الخدمة "${name}" نهائياً`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        fetch(`/supplier/settings/service-types/${id}/delete/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrf },
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                toastr.success(data.message);
+                setTimeout(() => location.reload(), 800);
+            } else {
+                toastr.error(data.message);
+            }
+        });
+    });
+}
+
+// فتح مودال إضافة/تعديل نوع خدمة
+function openServiceTypeModal(pk) {
+    const url = pk
+        ? `/supplier/settings/service-types/${pk}/edit/`
+        : `/supplier/settings/service-types/create/`;
+
+    fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+        .then(r => r.json())
+        .then(data => {
+            const modalContent = document.getElementById('serviceTypeModalContent');
+            modalContent.innerHTML = data.html;
+            
+            // تنفيذ الـ scripts المضمنة في المحتوى
+            modalContent.querySelectorAll('script').forEach(oldScript => {
+                const newScript = document.createElement('script');
+                newScript.textContent = oldScript.textContent;
+                document.head.appendChild(newScript);
+                document.head.removeChild(newScript);
+            });
+            
+            bootstrap.Modal.getOrCreateInstance(document.getElementById('serviceTypeModal')).show();
+        })
+        .catch(() => toastr.error('حدث خطأ في تحميل النموذج'));
+}
+</script>
+{% endblock %}

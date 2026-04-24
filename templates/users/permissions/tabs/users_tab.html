@@ -1,0 +1,193 @@
+<!-- Users Management Tab -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">إدارة المستخدمين</h5>
+    <a href="{% url 'users:user_create' %}" class="btn btn-primary">
+        <i class="fas fa-user-plus me-2"></i>إضافة مستخدم جديد
+    </a>
+</div>
+
+<!-- Search and Filters -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="search-box">
+            <input type="text" class="form-control" id="userSearch" 
+                   placeholder="البحث في المستخدمين..." value="{{ search }}">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="userRoleFilter">
+            <option value="">جميع الأدوار</option>
+            <option value="no_role" {% if role_filter == 'no_role' %}selected{% endif %}>بدون دور</option>
+            {% for role in available_roles %}
+            <option value="{{ role.id }}" {% if role_filter == role.id|stringformat:"s" %}selected{% endif %}>
+                {{ role.display_name }}
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" id="userPermissionsFilter">
+            <option value="">جميع المستخدمين</option>
+            <option value="true" {% if has_permissions_filter == 'true' %}selected{% endif %}>لديهم صلاحيات مخصصة</option>
+            <option value="false" {% if has_permissions_filter == 'false' %}selected{% endif %}>بدون صلاحيات مخصصة</option>
+        </select>
+    </div>
+</div>
+
+<!-- Users List -->
+<div id="usersList">
+    {% if users %}
+        {% for user_data in users %}
+        {% with user=user_data.user %}
+        <div class="user-row" data-user-id="{{ user.id }}">
+            <div class="user-info">
+                <h6>
+                    {{ user.get_full_name|default:user.username }}
+                    {% if user.is_superuser %}
+                        <i class="fas fa-crown text-warning ms-1" title="مدير عام"></i>
+                    {% endif %}
+                    {% if not user.is_active %}
+                        <span class="badge bg-secondary ms-2">غير نشط</span>
+                    {% endif %}
+                </h6>
+                <small class="text-muted">
+                    {{ user.email }} • 
+                    آخر دخول: {% if user.last_login %}{{ user.last_login|timesince }} مضت{% else %}لم يدخل بعد{% endif %}
+                </small>
+            </div>
+            
+            <div class="user-actions d-flex align-items-center gap-3">
+                <!-- Role Badge -->
+                <div>
+                    {% if user.is_superuser %}
+                        <span class="badge bg-danger px-3 py-2">
+                            <i class="fas fa-crown me-1"></i>مدير عام
+                        </span>
+                    {% elif user.role %}
+                        {% if user.role.name == 'admin' %}
+                            <span class="badge bg-danger px-3 py-2">
+                                <i class="fas fa-crown me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'manager' %}
+                            <span class="badge bg-primary px-3 py-2">
+                                <i class="fas fa-user-tie me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'user' %}
+                            <span class="badge bg-success px-3 py-2">
+                                <i class="fas fa-user me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'employee' %}
+                            <span class="badge bg-info px-3 py-2">
+                                <i class="fas fa-user-clock me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% elif user.role.name == 'reception' %}
+                            <span class="badge bg-warning text-dark px-3 py-2">
+                                <i class="fas fa-concierge-bell me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% else %}
+                            <span class="badge bg-secondary px-3 py-2">
+                                <i class="fas fa-user me-1"></i>{{ user.role.display_name }}
+                            </span>
+                        {% endif %}
+                    {% else %}
+                        <span class="badge bg-secondary px-3 py-2">
+                            <i class="fas fa-user-slash me-1"></i>بدون دور
+                        </span>
+                    {% endif %}
+                </div>
+                
+                <!-- Custom Permissions Count -->
+                <div class="permissions-info">
+                    {% if user.is_superuser %}
+                        <span class="badge bg-warning text-dark" title="جميع الصلاحيات">
+                            <i class="fas fa-infinity me-1"></i>
+                            كل الصلاحيات
+                        </span>
+                    {% else %}
+                        {% with role_perms=user.role.permissions.count|default:0 custom_perms=user.user_permissions.count|default:0 %}
+                        <span class="badge bg-info" title="صلاحيات الدور + الصلاحيات المخصصة">
+                            <i class="fas fa-key me-1"></i>
+                            {% if user.role %}
+                                {{ role_perms }}{% if custom_perms > 0 %}+{{ custom_perms }}{% endif %}
+                            {% else %}
+                                {{ custom_perms }}
+                            {% endif %}
+                        </span>
+                        {% endwith %}
+                    {% endif %}
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="btn-group btn-group-sm">
+                    {% if not user.is_superuser %}
+                        <button type="button" class="btn btn-outline-primary assign-role-btn" 
+                                data-user-id="{{ user.id }}" 
+                                data-user-name="{{ user.get_full_name|default:user.username }}"
+                                data-current-role="{{ user.role.id|default:'' }}"
+                                data-bs-toggle="tooltip" 
+                                title="تعيين دور">
+                            <i class="fas fa-user-tag"></i>
+                        </button>
+                    {% else %}
+                        <button type="button" class="btn btn-outline-warning" disabled
+                                data-bs-toggle="tooltip" 
+                                title="لا يمكن تعديل دور المدير العام">
+                            <i class="fas fa-crown"></i>
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endwith %}
+        {% endfor %}
+        
+        <!-- Pagination -->
+        {% if users.has_other_pages %}
+        <nav aria-label="صفحات المستخدمين" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if users.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=users&page={{ users.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">السابق</a>
+                    </li>
+                {% endif %}
+                
+                {% for num in users.paginator.page_range %}
+                    {% if users.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > users.number|add:'-3' and num < users.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?tab=users&page={{ num }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if users.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?tab=users&page={{ users.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if role_filter %}&role={{ role_filter }}{% endif %}">التالي</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-users fa-4x text-muted mb-3"></i>
+            <h5 class="text-muted">لا توجد مستخدمين</h5>
+            <p class="text-muted">
+                {% if search or role_filter %}
+                    لا توجد نتائج تطابق معايير البحث المحددة
+                {% else %}
+                    ابدأ بإضافة مستخدمين جدد للنظام
+                {% endif %}
+            </p>
+            {% if not search and not role_filter %}
+            <a href="{% url 'users:user_create' %}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-2"></i>إضافة مستخدم جديد
+            </a>
+            {% endif %}
+        </div>
+    {% endif %}
+</div>

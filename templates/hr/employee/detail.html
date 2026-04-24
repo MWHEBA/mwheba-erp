@@ -1,0 +1,1097 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ employee.get_full_name_ar }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <!-- العمود الأيسر -->
+    <div class="col-md-4 mb-4">
+        <!-- الصورة والمعلومات الأساسية -->
+        <div class="section-container">
+            <div class="card-body text-center">
+                {% if employee.photo %}
+                    <img src="{{ employee.photo.url }}" class="rounded-circle mb-3" width="150" height="150" alt="صورة">
+                {% else %}
+                    <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center mb-3" style="width: 150px; height: 150px;">
+                        <i class="fas fa-user fa-4x text-white"></i>
+                    </div>
+                {% endif %}
+                <h4>{{ employee.get_full_name_ar }}</h4>
+                <p class="text-muted mb-2">{{ employee.job_title.title_ar }}</p>
+                <p class="text-muted mb-3"><small>{{ employee.department.name_ar }}</small></p>
+                {% if employee.status == 'active' %}
+                <span class="badge bg-success">
+                    {{ employee.get_status_display }}
+                </span>
+                {% else %}
+                <span class="badge bg-danger">
+                    {{ employee.get_status_display }}
+                </span>
+                {% endif %}
+                {% if employee.attendance_exempt %}
+                <span class="badge bg-secondary mt-1">
+                    <i class="fas fa-clock me-1"></i>معفى من البصمة
+                </span>
+                {% endif %}
+                {% if employee.is_insurance_only %}
+                <span class="badge bg-info mt-1">
+                    <i class="fas fa-shield-alt me-1"></i>تأمينات فقط
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- معلومات سريعة -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-id-card me-2"></i>معلومات سريعة</h6>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <small class="text-muted d-block">رقم الموظف</small>
+                    <strong>{{ employee.employee_number }}</strong>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">تاريخ التعيين</small>
+                    <strong>{{ employee.hire_date|date:"Y-m-d" }}</strong>
+                </div>
+                <div class="mb-3">
+                    <small class="text-muted d-block">مدة الخدمة</small>
+                    <strong>{{ employee.hire_date|arabic_timesince }}</strong>
+                </div>
+                <div>
+                    <small class="text-muted d-block">العمر</small>
+                    <strong>{{ employee.age }} سنة</strong>
+                </div>
+            </div>
+        </div>
+        
+        <!-- بند التأمين — يظهر فقط للموظفين الخارجيين -->
+        {% if employee.is_insurance_only %}
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-shield-alt me-2"></i>التأمين الاجتماعي</h6>
+            </div>
+            <div class="card-body">
+                {% if insurance_component %}
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>بند التأمين مضاف</strong>
+                    </div>
+                    <p class="mb-2"><strong>المبلغ الشهري:</strong> {{ insurance_component.amount|smart_float }} ج.م</p>
+                {% else %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>لم يتم إضافة بند التأمين بعد</strong>
+                    </div>
+                    <button type="button" class="btn btn-primary w-100"
+                            data-bs-toggle="modal" data-bs-target="#addInsuranceModal">
+                        <i class="fas fa-plus me-2"></i>إضافة بند التأمين
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if not employee.is_insurance_only %}
+        <!-- حالة الربط بالمستخدم -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-user-lock me-2"></i>حساب المستخدم</h6>
+            </div>
+            <div class="card-body">
+                {% if employee.user %}
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>مرتبط بحساب مستخدم</strong>
+                    </div>
+                    <p class="mb-2"><strong>اسم المستخدم:</strong> {{ employee.user.username }}</p>
+                    <p class="mb-2"><strong>البريد:</strong> {{ employee.user.email }}</p>
+                    <p class="mb-2">
+                        <strong>الحالة:</strong> 
+                        {% if employee.user.is_active %}
+                            <span class="badge bg-success">نشط</span>
+                        {% else %}
+                            <span class="badge bg-danger">معطل</span>
+                        {% endif %}
+                    </p>
+                    {% if employee.status != 'terminated' %}
+                    <hr>
+                    <a href="{% url 'hr:employee_unlink_user' employee.pk %}" class="btn btn-sm btn-warning w-100" onclick="return confirm('هل أنت متأكد من فك الربط؟')">
+                        <i class="fas fa-unlink me-2"></i>فك الربط
+                    </a>
+                    {% endif %}
+                {% else %}
+                    {% if employee.status != 'terminated' %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>غير مرتبط بحساب مستخدم</strong>
+                    </div>
+                    <p class="text-muted small mb-3">يمكنك إنشاء حساب مستخدم للموظف للسماح له بالدخول للنظام</p>
+                    <button type="button" class="btn btn-primary w-100 mb-2" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="fas fa-user-plus me-2"></i>إنشاء حساب مستخدم
+                    </button>
+                    <button type="button" class="btn btn-secondary w-100" data-bs-toggle="modal" data-bs-target="#linkUserModal">
+                        <i class="fas fa-link me-2"></i>ربط بمستخدم موجود
+                    </button>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- إحصائيات الراتب -->
+        {% if not is_hr_only %}
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-chart-bar me-2"></i>إحصائيات الراتب</h6>
+            </div>
+            <div class="card-body">
+                {% if payroll_slips %}
+                    {% with latest_payroll=payroll_slips.0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">آخر راتب ({{ latest_payroll.month|arabic_month_year }})</small>
+                        <strong class="text-success">{{ latest_payroll.correct_net_salary|remove_trailing_zeros }} ج.م</strong>
+                    </div>
+                    {% endwith %}
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">عدد القسائم</small>
+                        <strong>{{ total_payrolls }} قسيمة</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <small class="text-muted d-block">القسائم المدفوعة</small>
+                        <strong class="text-success">{{ paid_payrolls }} قسيمة</strong>
+                    </div>
+                    
+                    {% if approved_payrolls > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">القسائم المعتمدة</small>
+                        <strong class="text-info">{{ approved_payrolls }} قسيمة</strong>
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-money-check-alt me-2"></i>عرض جميع القسائم
+                    </a>
+                {% else %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>لا توجد قسائم راتب</strong>
+                    </div>
+                    <p class="text-muted small mb-3">لم يتم إنشاء أي قسائم راتب بعد</p>
+                    {% if employee.status != 'terminated' %}
+                    <a href="{% url 'hr:payroll_list' %}" class="btn btn-primary w-100">
+                        <i class="fas fa-cogs me-2"></i>معالجة الرواتب
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- حالة الربط بالوردية -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-clock me-2"></i>الوردية</h6>
+            </div>
+            <div class="card-body">
+                {% if employee.shift %}
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        <strong>مرتبط بوردية</strong>
+                    </div>
+                    <p class="mb-2"><strong>اسم الوردية:</strong> {{ employee.shift.name }}</p>
+                    <p class="mb-2"><strong>وقت البداية:</strong> <span class="badge bg-success">{{ employee.shift.start_time|date:"g:i A" }}</span></p>
+                    <p class="mb-2"><strong>وقت النهاية:</strong> <span class="badge bg-info">{{ employee.shift.end_time|date:"g:i A" }}</span></p>
+                    <p class="mb-2"><strong>ساعات العمل:</strong> {{ employee.shift.work_hours }} ساعة</p>
+                    {% if employee.status != 'terminated' %}
+                    <hr>
+                    <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-sm btn-warning w-100">
+                        <i class="fas fa-edit me-2"></i>تعديل الوردية
+                    </a>
+                    {% endif %}
+                {% else %}
+                    <div class="alert alert-warning mb-3">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>غير مرتبط بوردية</strong>
+                    </div>
+                    <p class="text-muted small mb-3">سيتم استخدام الأوقات الافتراضية (9 صباحاً - 5 مساءً)</p>
+                    {% if employee.status != 'terminated' %}
+                    <a href="{% url 'hr:employee_form_edit' employee.pk %}" class="btn btn-primary w-100">
+                        <i class="fas fa-clock me-2"></i>تعيين وردية
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- إحصائيات السلف -->
+        <div class="section-container">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>إحصائيات السلف</h6>
+            </div>
+            <div class="card-body">
+                {% if total_advances > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">إجمالي مبلغ السلف</small>
+                        <strong class="text-danger">{{ total_advances_amount|remove_trailing_zeros }} ج.م</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">عدد السلف</small>
+                        <strong>{{ total_advances }} سلفة</strong>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted d-block">السلف المدفوعة</small>
+                        <strong class="text-success">{{ paid_advances }} سلفة</strong>
+                    </div>
+                    {% if approved_advances_count > 0 %}
+                    <div class="mb-3">
+                        <small class="text-muted d-block">السلف المعتمدة</small>
+                        <strong class="text-info">{{ approved_advances_count }} سلفة</strong>
+                    </div>
+                    {% endif %}
+                    <hr>
+                    <a href="{% url 'hr:advance_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary w-100">
+                        <i class="fas fa-list me-2"></i>عرض جميع السلف
+                    </a>
+                {% else %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>لا توجد سلف</strong>
+                    </div>
+                    <p class="text-muted small mb-3">لم يتم تسجيل أي سلف للموظف.</p>
+                    {% if employee.status != 'terminated' %}
+                    <a href="{% url 'hr:advance_request' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
+                        <i class="fas fa-plus me-2"></i>طلب سلفة جديدة
+                    </a>
+                    {% endif %}
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- العمود الأيمن - التفاصيل -->
+    <div class="col-md-8">
+            <!-- المعلومات الوظيفية -->
+            <div class="section-container mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-briefcase me-2"></i>المعلومات الوظيفية</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">القسم</small>
+                            <strong>{{ employee.department.name_ar }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">المسمى الوظيفي</small>
+                            <strong>{{ employee.job_title.title_ar }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">نوع التوظيف</small>
+                            <strong>{{ employee.get_employment_type_display }}</strong>
+                        </div>
+                        {% if employee.direct_manager %}
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">المدير المباشر</small>
+                            <strong>{{ employee.direct_manager.get_full_name_ar }}</strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- المعلومات الشخصية -->
+            <div class="section-container mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-user me-2"></i>المعلومات الشخصية</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الرقم القومي</small>
+                            <strong>{{ employee.national_id }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">تاريخ الميلاد</small>
+                            <strong>{{ employee.birth_date|date:"Y-m-d" }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الجنس</small>
+                            <strong>{{ employee.get_gender_display }}</strong>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <small class="text-muted d-block">الحالة الاجتماعية</small>
+                            <strong>{{ employee.get_marital_status_display }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- معلومات الاتصال -->
+            <div class="section-container mb-3">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-phone me-2"></i>معلومات الاتصال</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">البريد الوظيفي</small>
+                            <strong><a href="mailto:{{ employee.work_email }}">{{ employee.work_email }}</a></strong>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">الهاتف المحمول</small>
+                            <strong><a href="tel:{{ employee.mobile_phone }}">{{ employee.mobile_phone }}</a></strong>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">المدينة</small>
+                            <strong>{{ employee.city }}</strong>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted d-block">العنوان</small>
+                            <strong>{{ employee.address }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if not employee.is_insurance_only %}
+            <!-- بنود الراتب -->
+            {% if not is_hr_only %}
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-puzzle-piece me-2"></i>بنود الراتب</h6>
+                    {% if employee.status != 'terminated' %}
+                    <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-cog me-1"></i>إدارة البنود
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if employee.salary_components.exists %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>{{ employee.salary_components.count }} بند راتب نشط</strong>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">البند</th>
+                                        <th class="text-center">النوع</th>
+                                        <th class="text-center">المبلغ</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for component in salary_components_preview %}
+                                    <tr>
+                                        <td class="text-center">
+                                            {{ component.name }}
+                                            {% if component.is_basic %}
+                                            <span class="badge bg-primary">أساسي</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if component.component_type == 'earning' %}
+                                                <span class="badge bg-success">مستحق</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">خصم</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if component.calculation_method == 'fixed' %}
+                                                {{ component.amount }} ج.م
+                                            {% elif component.calculation_method == 'percentage' %}
+                                                {{ component.percentage }}%
+                                            {% elif component.calculation_method == 'formula' %}
+                                                <small class="text-muted">{{ component.get_formula_display }}</small>
+                                            {% else %}
+                                                {{ component.amount }} ج.م
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if employee.salary_components.count > 5 %}
+                        <div class="text-center mt-2">
+                            <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-sm btn-outline-primary">
+                                عرض جميع البنود ({{ employee.salary_components.count }})
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد بنود راتب</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم إضافة أي بنود راتب لهذا الموظف. يجب إضافة بنود الراتب قبل معالجة الرواتب.</p>
+                        {% if employee.status != 'terminated' %}
+                        <a href="{% url 'hr:employee_salary_components' employee.id %}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>إضافة بنود الراتب
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- قسائم الراتب -->
+            {% if not is_hr_only %}
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-money-check-alt me-2"></i>قسائم الراتب</h6>
+                    <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-list me-1"></i>عرض الكل
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if payroll_slips %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>{{ total_payrolls }} قسيمة راتب مسجلة</strong>
+                        </div>
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">الشهر</th>
+                                        <th class="text-center">إجمالي الراتب</th>
+                                        <th class="text-center">الخصومات</th>
+                                        <th class="text-center">صافي الراتب</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for payroll in payroll_slips %}
+                                    <tr class="{% if payroll.status == 'paid' %}table-success{% elif payroll.status == 'approved' %}table-info{% endif %}">
+                                        <td class="text-center">
+                                            <strong>{{ payroll.month|arabic_month_year }}</strong>
+                                            <br><small class="text-muted">{{ payroll.month|date:"m/Y" }}</small>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="text-success">{{ payroll.correct_gross_salary|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="text-danger">{{ payroll.total_deductions|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td class="text-center">
+                                            <span class="text-primary fw-bold">{{ payroll.correct_net_salary|remove_trailing_zeros }} ج.م</span>
+                                        </td>
+                                        <td class="text-center">
+                                            {% if payroll.status == 'paid' %}
+                                                <span class="badge bg-success">مدفوع</span>
+                                            {% elif payroll.status == 'approved' %}
+                                                <span class="badge bg-info">معتمد</span>
+                                            {% elif payroll.status == 'calculated' %}
+                                                <span class="badge bg-warning">محسوب</span>
+                                            {% elif payroll.status == 'draft' %}
+                                                <span class="badge bg-secondary">مسودة</span>
+                                            {% elif payroll.status == 'cancelled' %}
+                                                <span class="badge bg-danger">ملغي</span>
+                                            {% else %}
+                                                <span class="badge bg-light text-dark">{{ payroll.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'hr:payroll_detail' payroll.pk %}" class="btn btn-outline-primary btn-sm" title="عرض التفاصيل">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        {% if total_payrolls > 6 %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'hr:payroll_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                                عرض جميع القسائم ({{ total_payrolls }})
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد قسائم راتب</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم إنشاء أي قسائم راتب لهذا الموظف بعد. يتم إنشاء قسائم الراتب تلقائياً عند معالجة الرواتب الشهرية.</p>
+                        {% if employee.status != 'terminated' %}
+                        <div class="row">
+                            <div class="col-6">
+                                <a href="{% url 'hr:payroll_list' %}" class="btn btn-primary w-100">
+                                    <i class="fas fa-cogs me-2"></i>معالجة الرواتب
+                                </a>
+                            </div>
+                            <div class="col-6">
+                                <a href="{% url 'hr:payroll_list' %}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-list me-2"></i>قائمة الرواتب
+                                </a>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- السلف -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-hand-holding-usd me-2"></i>السلف</h6>
+                    <a href="{% url 'hr:advance_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-list me-1"></i>عرض الكل
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if advances %}
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">تاريخ الطلب</th>
+                                        <th class="text-center">المبلغ</th>
+                                        <th class="text-center">الأقساط</th>
+                                        <th class="text-center">الحالة</th>
+                                        <th class="text-center">الإجراءات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for advance in advances %}
+                                    <tr>
+                                        <td class="text-center">{{ advance.requested_at|date:"Y-m-d" }}</td>
+                                        <td class="text-center"><span class="fw-bold">{{ advance.amount|remove_trailing_zeros }} ج.م</span></td>
+                                        <td class="text-center">{{ advance.installments_count }}</td>
+                                        <td class="text-center">
+                                            {% include 'hr/advance/partials/status_badge.html' with status=advance.status %}
+                                        </td>
+                                        <td class="text-center">
+                                            <a href="{% url 'hr:advance_detail' advance.pk %}" class="btn btn-outline-primary btn-sm" title="عرض التفاصيل">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% if total_advances > 6 %}
+                        <div class="text-center mt-3">
+                            <a href="{% url 'hr:advance_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-outline-primary">
+                                عرض جميع السلف ({{ total_advances }})
+                            </a>
+                        </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد سلف مسجلة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم تسجيل أي سلف لهذا الموظف.</p>
+                        {% if employee.status != 'terminated' %}
+                        <a href="{% url 'hr:advance_request' %}?employee_id={{ employee.id }}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>طلب سلفة جديدة
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- العقود -->
+            <div class="section-container mb-3">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-file-contract me-2"></i>العقود</h6>
+                    {% if employee.status != 'terminated' %}
+                    <a href="{% url 'hr:contract_form' %}?employee={{ employee.id }}" class="btn btn-sm btn-primary">
+                        <i class="fas fa-plus me-1"></i>إضافة عقد
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if contracts %}
+                        {% if active_contract %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>العقد النشط:</strong> {{ active_contract.contract_number }}
+                        </div>
+                        {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا يوجد عقد نشط حالياً</strong>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover">
+                                <thead>
+                                    <tr>
+                                        <th class="text-center">رقم العقد</th>
+                                        <th class="text-center">النوع</th>
+                                        <th class="text-center">تاريخ البدء</th>
+                                        <th class="text-center">تاريخ الانتهاء</th>
+                                        <th class="text-center">الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contract in contracts %}
+                                    <tr class="{% if contract.status == 'active' %}table-success{% endif %}">
+                                        <td class="text-center">
+                                            <a href="{% url 'hr:contract_detail' contract.pk %}">
+                                                {{ contract.contract_number }}
+                                            </a>
+                                        </td>
+                                        <td class="text-center">{{ contract.get_contract_type_display }}</td>
+                                        <td class="text-center">{{ contract.start_date|date:"Y-m-d" }}</td>
+                                        <td class="text-center">
+                                            {% if contract.end_date %}
+                                                {{ contract.end_date|date:"Y-m-d" }}
+                                            {% else %}
+                                                <span class="text-muted">غير محدد</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">
+                                            {% if contract.status == 'active' %}
+                                                <span class="badge bg-success">نشط</span>
+                                            {% elif contract.status == 'expired' %}
+                                                <span class="badge bg-danger">منتهي</span>
+                                            {% elif contract.status == 'terminated' %}
+                                                <span class="badge bg-secondary">ملغي</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">{{ contract.get_status_display }}</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد عقود مسجلة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم تسجيل أي عقود لهذا الموظف بعد.</p>
+                        {% if employee.status != 'terminated' %}
+                        <a href="{% url 'hr:contract_form' %}?employee={{ employee.id }}" class="btn btn-primary w-100">
+                            <i class="fas fa-plus me-2"></i>إضافة عقد جديد
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if not employee.is_insurance_only %}
+            <!-- نظام البصمة -->
+            <div class="section-container">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-fingerprint me-2"></i>نظام البصمة</h6>
+                </div>
+                <div class="card-body">
+                    {% if biometric_mappings %}
+                        <div class="alert alert-success mb-3">
+                            <i class="fas fa-check-circle me-2"></i>
+                            <strong>مرتبط بنظام البصمة</strong>
+                        </div>
+                        
+                        {% for mapping in biometric_mappings %}
+                        <div class="border rounded p-3 mb-3 bg-light">
+                            <div class="row align-items-center">
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mb-1">رقم الموظف في البصمة</small>
+                                    <h4 class="mb-0 text-primary">{{ mapping.biometric_user_id }}</h4>
+                                </div>
+                                {% if mapping.device %}
+                                <div class="col-md-6">
+                                    <small class="text-muted d-block mb-1">الجهاز</small>
+                                    <strong>{{ mapping.device.device_name }}</strong>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                        
+                        <a href="{% url 'hr:biometric_mapping_list' %}?search={{ employee.employee_number }}" class="btn btn-sm btn-outline-primary w-100">
+                            <i class="fas fa-cog me-2"></i>إدارة الربط
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لم يتم ربط الموظف بنظام البصمة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">يجب ربط رقم الموظف في جهاز البصمة لتتبع الحضور والانصراف.</p>
+                        {% if employee.status != 'terminated' %}
+                        <a href="{% url 'hr:biometric_mapping_list' %}?search={{ employee.employee_number }}" class="btn btn-primary w-100 mb-3">
+                            <i class="fas fa-link me-2"></i>ربط الموظف بالبصمة
+                        </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if biometric_logs_count > 0 %}
+                        <hr>
+                        <h6 class="mb-3"><i class="fas fa-chart-line me-2"></i>إحصائيات البصمة</h6>
+                        <div class="row text-center mb-3">
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <h4 class="text-primary mb-0">{{ biometric_logs_count }}</h4>
+                                    <small class="text-muted">إجمالي السجلات</small>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="border rounded p-2">
+                                    <h4 class="text-success mb-0">{{ biometric_logs_last_30_days }}</h4>
+                                    <small class="text-muted">آخر 30 يوم</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {% if recent_biometric_logs %}
+                        <hr>
+                        <p class="mb-2"><strong>آخر 5 بصمات:</strong></p>
+                        <ul class="list-group list-group-flush">
+                            {% for log in recent_biometric_logs %}
+                            <li class="list-group-item px-0 py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <i class="fas fa-fingerprint text-primary me-2"></i>
+                                        <small>{{ log.timestamp|date:"d/m/Y g:i A" }}</small>
+                                    </div>
+                                    <span class="badge bg-secondary">{{ log.device.device_name }}</span>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                        {% endif %}
+                        
+                        <hr>
+                        <a href="{% url 'hr:biometric_log_list' %}?employee={{ employee.id }}" class="btn btn-sm btn-info w-100">
+                            <i class="fas fa-list me-2"></i>عرض جميع السجلات
+                        </a>
+                    {% else %}
+                        <div class="alert alert-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>لا توجد سجلات بصمة</strong>
+                        </div>
+                        <p class="text-muted small mb-3">لم يتم تسجيل أي بصمات لهذا الموظف بعد. تأكد من ربط الموظف بجهاز البصمة.</p>
+                        <a href="{% url 'hr:biometric_device_list' %}" class="btn btn-primary w-100">
+                            <i class="fas fa-fingerprint me-2"></i>إدارة أجهزة البصمة
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- مودال إضافة بند التأمين -->
+{% if employee.is_insurance_only %}
+<div class="modal fade" id="addInsuranceModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:employee_add_insurance_component' employee.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-shield-alt me-2"></i>إضافة بند التأمين</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">الأجر التأميني <span class="text-danger">*</span></label>
+                        <input type="number" name="insurable_salary" id="insurableSalaryInput"
+                               class="form-control" step="1" min="1" required>
+                        <div class="form-text">
+                            نصيب الموظف {{ insurance_settings.employee_share }}% +
+                            نصيب الشركة {{ insurance_settings.employer_share }}%
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">فرق مبلغ (اختياري)</label>
+                        <input type="number" name="difference_amount" id="differenceAmountInput"
+                               class="form-control" step="0.01" value="0">
+                        <div class="form-text">
+                            يمكنك إضافة أو خصم فرق بسيط للمبلغ المحسوب تلقائياً (مثال: 5 أو -5)
+                        </div>
+                    </div>
+                    <div class="alert alert-info" id="insurancePreview" style="display:none">
+                        إجمالي التأمين الشهري: <strong id="insuranceAmount"></strong> ج.م
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i>إضافة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- مودال إنشاء حساب مستخدم -->
+<div class="modal fade" id="createUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:employee_create_user' employee.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-user-plus me-2"></i>إنشاء حساب مستخدم</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        سيتم إنشاء حساب مستخدم للموظف: <strong>{{ employee.get_full_name_ar }}</strong>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">اسم المستخدم *</label>
+                        <input type="text" name="username" class="form-control" value="{{ employee.employee_number }}" required>
+                        <small class="text-muted">الافتراضي: رقم الموظف</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">كلمة المرور *</label>
+                        <input type="text" name="password" class="form-control" id="generatedPassword" required>
+                        <small class="text-muted">
+                            <a href="#" onclick="generatePassword(); return false;">
+                                <i class="fas fa-random me-1"></i>توليد كلمة مرور عشوائية
+                            </a>
+                        </small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">البريد الإلكتروني</label>
+                        <input type="email" name="email" class="form-control" value="{{ employee.work_email }}" readonly>
+                    </div>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="send_email" id="sendEmail" checked>
+                        <label class="form-check-label" for="sendEmail">
+                            إرسال بيانات الدخول بالبريد الإلكتروني
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>إنشاء الحساب
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- مودال ربط بمستخدم موجود -->
+<div class="modal fade" id="linkUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:employee_link_user' employee.pk %}">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-link me-2"></i>ربط بمستخدم موجود</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        سيتم ربط الموظف <strong>{{ employee.get_full_name_ar }}</strong> بمستخدم موجود
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">اختر المستخدم *</label>
+                        <select name="user_id" class="form-select" required>
+                            <option value="">اختر مستخدم...</option>
+                            {% for user in unlinked_users %}
+                            <option value="{{ user.id }}">{{ user.username }} - {{ user.email }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">فقط المستخدمين غير المرتبطين بموظفين</small>
+                    </div>
+                    
+                    {% if not unlinked_users %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        لا توجد مستخدمين متاحين للربط. جميع المستخدمين مرتبطون بموظفين.
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-link me-2"></i>ربط
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- مودال إنهاء الخدمة -->
+{% if employee.status != 'terminated' %}
+<div class="modal fade" id="terminateEmployeeModal" tabindex="-1" aria-labelledby="terminateEmployeeModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="terminateEmployeeModalLabel">
+                    <i class="fas fa-user-times me-2"></i>إنهاء خدمة موظف
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    هل أنت متأكد من إنهاء خدمة الموظف التالي؟
+                </div>
+                <table class="table table-sm">
+                    <tr>
+                        <th class="text-center">الاسم</th>
+                        <td class="text-center">{{ employee.get_full_name_ar }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">رقم الموظف</th>
+                        <td class="text-center">{{ employee.employee_number }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">القسم</th>
+                        <td class="text-center">{{ employee.department.name_ar }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">الوظيفة</th>
+                        <td class="text-center">{{ employee.job_title.title_ar }}</td>
+                    </tr>
+                </table>
+                <div class="alert alert-danger mt-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    سيتم تغيير حالة الموظف إلى "منتهي الخدمة". يمكن إعادته للخدمة لاحقاً.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <form method="post" action="{% url 'hr:employee_delete' employee.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-user-times me-2"></i>تأكيد إنهاء الخدمة
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function generatePassword() {
+    const length = 12;
+    const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+    let password = "";
+    for (let i = 0; i < length; i++) {
+        password += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+    document.getElementById('generatedPassword').value = password;
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // توليد كلمة مرور عند فتح المودال
+    const createUserModal = document.getElementById('createUserModal');
+    if (createUserModal) {
+        createUserModal.addEventListener('shown.bs.modal', function () {
+            if (!document.getElementById('generatedPassword').value) {
+                generatePassword();
+            }
+        });
+    }
+});
+
+{% if employee.is_insurance_only %}
+const empShare = {{ insurance_settings.employee_share|default:0 }};
+const emplShare = {{ insurance_settings.employer_share|default:0 }};
+const salaryInput = document.getElementById('insurableSalaryInput');
+const differenceInput = document.getElementById('differenceAmountInput');
+
+function updateInsurancePreview() {
+    const salary = parseFloat(salaryInput.value) || 0;
+    const diff = parseFloat(differenceInput.value) || 0;
+    // حساب المبلغ بدون تقريب لأقرب رقم صحيح
+    let total = (salary * (empShare + emplShare) / 100);
+    
+    if (total > 0 || diff !== 0) {
+        total += diff;
+        // عرض الرقم مع منزلتين عشريتين إذا لزم الأمر
+        document.getElementById('insuranceAmount').textContent = total.toLocaleString('en-US', {
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 2
+        });
+        document.getElementById('insurancePreview').style.display = 'block';
+    } else {
+        document.getElementById('insurancePreview').style.display = 'none';
+    }
+}
+
+if (salaryInput) {
+    salaryInput.addEventListener('input', updateInsurancePreview);
+}
+if (differenceInput) {
+    differenceInput.addEventListener('input', updateInsurancePreview);
+}
+{% endif %}
+
+function reinstateEmployee(pk, name) {
+    Swal.fire({
+        title: 'إعادة للخدمة',
+        text: `هل تريد إعادة "${name}" للخدمة؟`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#198754',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، إعادة للخدمة',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = '{% url "hr:employee_reinstate" employee.pk %}';
+            const csrf = document.createElement('input');
+            csrf.type = 'hidden';
+            csrf.name = 'csrfmiddlewaretoken';
+            csrf.value = '{{ csrf_token }}';
+            form.appendChild(csrf);
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+{% endblock %}

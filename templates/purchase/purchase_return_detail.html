@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+    .status-badge {
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    .status-draft {
+        background-color: #ffeeba;
+        color: #856404;
+    }
+    .status-confirmed {
+        background-color: #c3e6cb;
+        color: #155724;
+    }
+    .status-cancelled {
+        background-color: #f5c6cb;
+        color: #721c24;
+    }
+    .table-info th {
+        width: 40%;
+        background-color: #f8f9fa;
+    }
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    {% if messages %}
+    <div class="row mb-3">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert {% if message.tags == 'error' %}alert-danger{% elif message.tags == 'success' %}alert-success{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <!-- معلومات المرتجع -->
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "رقم المرتجع" %}</th>
+                            <td>{{ purchase_return.number }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "التاريخ" %}</th>
+                            <td>{{ purchase_return.date }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الحالة" %}</th>
+                            <td>
+                                <span class="status-badge status-{{ purchase_return.status }}">
+                                    {{ purchase_return.get_status_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "تاريخ الإنشاء" %}</th>
+                            <td>{{ purchase_return.created_at }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "بواسطة" %}</th>
+                            <td>{{ purchase_return.created_by }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "معلومات الفاتورة الأصلية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "رقم الفاتورة" %}</th>
+                            <td>
+                                <a href="{% url 'purchase:purchase_detail' purchase_return.purchase.pk %}">
+                                    {{ purchase_return.purchase.number }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المورد" %}</th>
+                            <td>{{ purchase_return.purchase.supplier.name }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "المخزن" %}</th>
+                            <td>{{ purchase_return.warehouse.name }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملخص المالية" %}</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-info">
+                        <tr>
+                            <th>{% trans "المجموع الفرعي" %}</th>
+                            <td>{{ purchase_return.subtotal|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الخصم" %}</th>
+                            <td>{{ purchase_return.discount|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الضريبة" %}</th>
+                            <td>{{ purchase_return.tax|currency }}</td>
+                        </tr>
+                        <tr>
+                            <th>{% trans "الإجمالي" %}</th>
+                            <td class="font-weight-bold">{{ purchase_return.total|currency }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- بنود المرتجع -->
+        <div class="col-md-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "بنود المرتجع" %}</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">{% trans "المنتج" %}</th>
+                                    <th class="text-center">{% trans "الكمية" %}</th>
+                                    <th class="text-center">{% trans "سعر الوحدة" %}</th>
+                                    <th class="text-center">{% trans "الخصم" %}</th>
+                                    <th class="text-center">{% trans "الإجمالي" %}</th>
+                                    <th class="text-center">{% trans "سبب الإرجاع" %}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in purchase_return.items.all %}
+                                <tr>
+                                    <td class="text-center">{{ item.product.name }}</td>
+                                    <td class="text-center">{{ item.quantity|smart_float }}</td>
+                                    <td class="text-center">{{ item.unit_price|currency }}</td>
+                                    <td class="text-center">{{ item.discount|currency }}</td>
+                                    <td class="text-center">{{ item.total|currency }}</td>
+                                    <td class="text-center">{{ item.reason }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                            <tfoot>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "المجموع الفرعي" %}</th>
+                                    <th>{{ purchase_return.subtotal|currency }}</th>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "الضريبة" %}</th>
+                                    <th>{{ purchase_return.tax|currency }}</th>
+                                    <td></td>
+                                </tr>
+                                <tr>
+                                    <th colspan="4" class="text-end">{% trans "الإجمالي" %}</th>
+                                    <th>{{ purchase_return.total|currency }}</th>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            {% if purchase_return.notes %}
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0">{% trans "ملاحظات" %}</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ purchase_return.notes }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %} 

@@ -1,0 +1,54 @@
+[
+  {
+    "model": "printing_pricing.offsetmachinetype",
+    "pk": 1,
+    "fields": {
+      "name": "هايدلبرج SM52",
+      "code": "sm52",
+      "manufacturer": "Heidelberg",
+      "description": "ماكينة أوفست متوسطة الحجم مناسبة للأعمال التجارية",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.offsetmachinetype",
+    "pk": 2,
+    "fields": {
+      "name": "هايدلبرج SM74",
+      "code": "sm74",
+      "manufacturer": "Heidelberg",
+      "description": "ماكينة أوفست كبيرة الحجم للإنتاج الضخم",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.offsetmachinetype",
+    "pk": 3,
+    "fields": {
+      "name": "كوموري LS40",
+      "code": "ls40",
+      "manufacturer": "Komori",
+      "description": "ماكينة أوفست يابانية عالية الجودة",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.offsetmachinetype",
+    "pk": 4,
+    "fields": {
+      "name": "ريوبي 524",
+      "code": "ryobi_524",
+      "manufacturer": "Ryobi",
+      "description": "ماكينة أوفست اقتصادية للأعمال الصغيرة",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

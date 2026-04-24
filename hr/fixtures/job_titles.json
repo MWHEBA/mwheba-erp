@@ -1,0 +1,418 @@
+[
+  {
+    "model": "hr.jobtitle",
+    "pk": 1,
+    "fields": {
+      "code": "JOB-0001",
+      "title_ar": "مدير عام",
+      "title_en": "General Manager",
+      "description": "المدير العام للشركة",
+      "department": 1,
+      "responsibilities": "الإشراف العام على الشركة وإدارة جميع الأقسام والتخطيط الاستراتيجي",
+      "requirements": "خبرة لا تقل عن 5 سنوات في الإدارة ومؤهل إداري مناسب",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 2,
+    "fields": {
+      "code": "JOB-0002",
+      "title_ar": "سكرتير إداري",
+      "title_en": "Administrative Secretary",
+      "description": "سكرتير الإدارة العامة",
+      "department": 1,
+      "responsibilities": "الأعمال الإدارية والسكرتارية وتنسيق المواعيد والمراسلات الرسمية",
+      "requirements": "مهارات إدارية وتنظيمية ممتازة وإجادة استخدام الحاسوب",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 3,
+    "fields": {
+      "code": "JOB-0003",
+      "title_ar": "مسؤول عمليات",
+      "title_en": "Operations Officer",
+      "description": "مسؤول عمليات في قسم العمليات",
+      "department": 2,
+      "responsibilities": "إدارة العمليات اليومية والإشراف على سير العمل وتنسيق الأنشطة",
+      "requirements": "مؤهل مناسب وخبرة في إدارة العمليات لا تقل عن سنتين",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 4,
+    "fields": {
+      "code": "JOB-0004",
+      "title_ar": "مسؤول مبيعات",
+      "title_en": "Sales Officer",
+      "description": "مسؤول مبيعات في قسم تطوير الأعمال",
+      "department": 7,
+      "responsibilities": "تحقيق أهداف المبيعات وإدارة علاقات العملاء وتطوير فرص الأعمال الجديدة",
+      "requirements": "خبرة في المبيعات لا تقل عن سنتين ومهارات تواصل ممتازة",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 5,
+    "fields": {
+      "code": "JOB-0005",
+      "title_ar": "محاسب",
+      "title_en": "Accountant",
+      "description": "محاسب الشؤون المالية",
+      "department": 3,
+      "responsibilities": "إدارة الحسابات والشؤون المالية وإعداد التقارير المالية والميزانيات",
+      "requirements": "مؤهل محاسبي معتمد وخبرة في المحاسبة لا تقل عن 3 سنوات",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 6,
+    "fields": {
+      "code": "JOB-0006",
+      "title_ar": "مسؤول خدمات",
+      "title_en": "Services Officer",
+      "description": "مسؤول خدمات في قسم الخدمات المساندة",
+      "department": 4,
+      "responsibilities": "تقديم الخدمات المساندة والدعم اللازم للأنشطة اليومية",
+      "requirements": "خبرة في تقديم الخدمات لا تقل عن سنتين",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 8,
+    "fields": {
+      "code": "JOB-0008",
+      "title_ar": "مشرف عمليات",
+      "title_en": "Operations Supervisor",
+      "description": "مشرف عمليات في قسم الإشراف",
+      "department": 6,
+      "responsibilities": "الإشراف على العمليات والمتابعة وتقييم الأداء",
+      "requirements": "خبرة في الإشراف لا تقل عن 4 سنوات ومؤهل مناسب",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 9,
+    "fields": {
+      "code": "JOB-0009",
+      "title_ar": "مساعد إداري",
+      "title_en": "Administrative Assistant",
+      "description": "مساعد إداري في الإدارة العامة",
+      "department": 1,
+      "responsibilities": "مساعدة في الأعمال الإدارية وتنظيم الملفات والمتابعة الإدارية",
+      "requirements": "مهارات إدارية أساسية وإجادة استخدام الحاسوب",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 10,
+    "fields": {
+      "code": "JOB-0010",
+      "title_ar": "مساعد مالي",
+      "title_en": "Financial Assistant",
+      "description": "مساعد في الشؤون المالية",
+      "department": 3,
+      "responsibilities": "مساعدة المحاسب في الأعمال المالية وإدخال البيانات المحاسبية",
+      "requirements": "معرفة أساسية بالمحاسبة ومهارات استخدام البرامج المحاسبية",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 11,
+    "fields": {
+      "code": "JOB-0011",
+      "title_ar": "عامل نظافة",
+      "title_en": "Cleaning Staff",
+      "description": "عامل نظافة في قسم الخدمات المساندة",
+      "department": 4,
+      "responsibilities": "تنظيف المنشأة والحفاظ على النظافة العامة والصحة البيئية",
+      "requirements": "خبرة في أعمال النظافة والتعقيم",
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 12,
+    "fields": {
+      "code": "JOB-0012",
+      "title_ar": "مسؤول لغات",
+      "title_en": "Languages Officer",
+      "description": "",
+      "department": 2,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:13:05.052Z",
+      "updated_at": "2026-02-20T04:13:05.052Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 13,
+    "fields": {
+      "code": "JOB-0013",
+      "title_ar": "مسؤول تدريب",
+      "title_en": "Training Officer",
+      "description": "",
+      "department": 2,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:13:23.048Z",
+      "updated_at": "2026-02-20T04:13:23.048Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 14,
+    "fields": {
+      "code": "JOB-0014",
+      "title_ar": "مسؤول تصميم",
+      "title_en": "Design Officer",
+      "description": "",
+      "department": 2,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:14:10.419Z",
+      "updated_at": "2026-02-20T04:14:10.419Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 15,
+    "fields": {
+      "code": "JOB-0015",
+      "title_ar": "مسؤول محتوى",
+      "title_en": "Content Officer",
+      "description": "",
+      "department": 2,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:14:38.901Z",
+      "updated_at": "2026-02-20T04:14:38.901Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 16,
+    "fields": {
+      "code": "JOB-0016",
+      "title_ar": "مشرف أوتو",
+      "title_en": "Auto supervisor",
+      "description": "",
+      "department": 4,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:15:54.846Z",
+      "updated_at": "2026-02-20T04:15:54.846Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 17,
+    "fields": {
+      "code": "JOB-0017",
+      "title_ar": "مسؤول مشتريات",
+      "title_en": "Purchases Representative",
+      "description": "",
+      "department": 1,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:19:50.501Z",
+      "updated_at": "2026-02-20T04:19:50.501Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 18,
+    "fields": {
+      "code": "JOB-0018",
+      "title_ar": "كمبيوتر",
+      "title_en": "Computer",
+      "description": "",
+      "department": 1,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:22:50.103Z",
+      "updated_at": "2026-02-20T04:22:50.103Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 19,
+    "fields": {
+      "code": "JOB-0019",
+      "title_ar": "مسؤول خدمة عملاء",
+      "title_en": "Customer Service Officer",
+      "description": "",
+      "department": 7,
+      "responsibilities": "الرد على استفسارات العملاء وحل المشكلات وضمان رضا العملاء",
+      "requirements": "مهارات تواصل ممتازة وخبرة في خدمة العملاء",
+      "is_active": true,
+      "created_at": "2026-02-20T04:23:23.304Z",
+      "updated_at": "2026-02-20T04:43:21.887Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 20,
+    "fields": {
+      "code": "JOB-0020",
+      "title_ar": "صاحب منشأة",
+      "title_en": "Owner",
+      "description": "",
+      "department": 1,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:24:06.246Z",
+      "updated_at": "2026-02-20T04:24:06.246Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 21,
+    "fields": {
+      "code": "JOB-0021",
+      "title_ar": "فني صيانة",
+      "title_en": "Technical",
+      "description": "",
+      "department": 4,
+      "responsibilities": "",
+      "requirements": "",
+      "is_active": true,
+      "created_at": "2026-02-20T04:26:02.457Z",
+      "updated_at": "2026-02-20T04:26:02.457Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 22,
+    "fields": {
+      "code": "JOB-0022",
+      "title_ar": "مسؤول تطوير أعمال",
+      "title_en": "Business Development Officer",
+      "description": "",
+      "department": 7,
+      "responsibilities": "البحث عن فرص أعمال جديدة وتطوير الشراكات الاستراتيجية",
+      "requirements": "خبرة في تطوير الأعمال ومهارات تفاوض",
+      "is_active": true,
+      "created_at": "2026-02-20T04:27:36.688Z",
+      "updated_at": "2026-02-20T04:43:20.729Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 23,
+    "fields": {
+      "code": "JOB-0023",
+      "title_ar": "مندوب مبيعات",
+      "title_en": "Sales Representative",
+      "description": "",
+      "department": 7,
+      "responsibilities": "تسويق المنتجات والخدمات وإتمام صفقات البيع وبناء علاقات مع العملاء",
+      "requirements": "خبرة في المبيعات الميدانية ومهارات إقناع",
+      "is_active": true,
+      "created_at": "2026-02-20T04:27:54.383Z",
+      "updated_at": "2026-02-20T04:43:21.996Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 24,
+    "fields": {
+      "code": "JOB-0024",
+      "title_ar": "أخصائي تسويق",
+      "title_en": "Marketing Specialist",
+      "description": "",
+      "department": 7,
+      "responsibilities": "تخطيط وتنفيذ الحملات التسويقية وتحليل السوق والمنافسين",
+      "requirements": "مؤهل في التسويق وخبرة في التسويق الرقمي",
+      "is_active": true,
+      "created_at": "2026-02-20T04:28:44.991Z",
+      "updated_at": "2026-02-20T04:43:21.721Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 25,
+    "fields": {
+      "code": "JOB-0025",
+      "title_ar": "مسؤول علاقات عامة",
+      "title_en": "Public Relations Officer",
+      "description": "",
+      "department": 7,
+      "responsibilities": "إدارة العلاقات مع الشركاء والعملاء والجهات الخارجية وتعزيز صورة الشركة",
+      "requirements": "مهارات تواصل وعلاقات عامة ممتازة",
+      "is_active": true,
+      "created_at": "2026-02-20T04:29:37.950Z",
+      "updated_at": "2026-02-20T04:43:21.835Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 26,
+    "fields": {
+      "code": "JOB-0026",
+      "title_ar": "كاتب شؤون أفراد",
+      "title_en": "Personnel Affairs Clerk",
+      "description": "كاتب شؤون أفراد في قسم الإدارة العامة",
+      "department": 1,
+      "responsibilities": "إدارة ملفات الموظفين، متابعة الحضور والانصراف، إعداد التقارير الإدارية",
+      "requirements": "دبلوم تجاري أو مؤهل مناسب، خبرة في شؤون الموظفين",
+      "is_active": true,
+      "created_at": "2026-02-20T04:45:59.421Z",
+      "updated_at": "2026-02-20T04:45:59.421Z"
+    }
+  },
+  {
+    "model": "hr.jobtitle",
+    "pk": 27,
+    "fields": {
+      "code": "JOB-0027",
+      "title_ar": "مشرف",
+      "title_en": "Supervisor",
+      "description": "مشرف في قسم العمليات",
+      "department": 2,
+      "responsibilities": "الإشراف على العمليات، متابعة الأنشطة اليومية، التنسيق مع الفريق",
+      "requirements": "مؤهل مناسب، خبرة في الإشراف",
+      "is_active": true,
+      "created_at": "2026-02-20T04:45:59.655Z",
+      "updated_at": "2026-02-20T04:45:59.655Z"
+    }
+  }
+]

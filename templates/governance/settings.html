@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .settings-container {
+        padding: 0;
+    }
+    
+    .settings-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+    
+    .setting-card {
+        background: white;
+        border-radius: 8px;
+        padding: 1.25rem;
+        border: 1px solid #e5e7eb;
+        transition: border-color 0.2s;
+    }
+    
+    .setting-card:hover {
+        border-color: var(--primary-color);
+    }
+    
+    .setting-card-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 0.75rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+    
+    .setting-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+        margin-left: 0.75rem;
+        flex-shrink: 0;
+    }
+    
+    .setting-icon.primary {
+        background: #0d6efd;
+        color: white;
+    }
+    
+    .setting-icon.success {
+        background: #198754;
+        color: white;
+    }
+    
+    .setting-icon.warning {
+        background: #ffc107;
+        color: white;
+    }
+    
+    .setting-icon.info {
+        background: #0dcaf0;
+        color: #000;
+    }
+    
+    .setting-icon.danger {
+        background: #dc3545;
+        color: white;
+    }
+    
+    .setting-icon.purple {
+        background: #6f42c1;
+        color: white;
+    }
+    
+    .setting-title h3 {
+        margin: 0;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #1f2937;
+    }
+    
+    .setting-title p {
+        margin: 0.25rem 0 0 0;
+        font-size: 0.8rem;
+        color: #6b7280;
+    }
+    
+    .setting-stats {
+        display: flex;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+    
+    .stat-item {
+        flex: 1;
+        text-align: center;
+        padding: 0.5rem;
+        background: #f9fafb;
+        border-radius: 6px;
+    }
+    
+    .stat-value {
+        display: block;
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--primary-color);
+    }
+    
+    .stat-label {
+        display: block;
+        font-size: 0.7rem;
+        color: #6b7280;
+        margin-top: 0.15rem;
+    }
+    
+    .setting-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    
+    .setting-btn {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        text-align: center;
+        text-decoration: none;
+        transition: all 0.2s;
+        border: none;
+    }
+    
+    .setting-btn-primary {
+        background: var(--primary-color);
+        color: white;
+    }
+    
+    .setting-btn-primary:hover {
+        background: var(--primary-dark);
+        color: white;
+    }
+    
+    @media (max-width: 992px) {
+        .settings-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+    
+    @media (max-width: 768px) {
+        .settings-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+    
+    <div class="settings-container">
+        
+        <div class="settings-grid">
+            <!-- إدارة التدقيق والسجلات -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon primary">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>إدارة التدقيق والسجلات</h3>
+                        <p>تتبع جميع العمليات والتغييرات</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ today_audit_records }}</span>
+                        <span class="stat-label">اليوم</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_audit_records }}</span>
+                        <span class="stat-label">إجمالي</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:audit_management' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-clipboard-list me-1"></i>إدارة السجلات
+                    </a>
+                </div>
+            </div>
+            
+            <!-- صحة النظام والأداء -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon success">
+                        <i class="fas fa-heartbeat"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>صحة النظام والأداء</h3>
+                        <p>مراقبة حالة النظام ومؤشرات الأداء</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ active_quarantine }}</span>
+                        <span class="stat-label">تنبيهات نشطة</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ critical_exceptions }}</span>
+                        <span class="stat-label">مشاكل حرجة</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:system_health' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-heartbeat me-1"></i>صحة النظام
+                    </a>
+                </div>
+            </div>
+            
+            <!-- مركز الأمان والحوادث -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon danger">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>مركز الأمان والحوادث</h3>
+                        <p>مراقبة الانتهاكات الأمنية</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ active_incidents }}</span>
+                        <span class="stat-label">حوادث نشطة</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_incidents }}</span>
+                        <span class="stat-label">إجمالي</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:security_center' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-shield-alt me-1"></i>مركز الأمان
+                    </a>
+                </div>
+            </div>
+            
+            <!-- السياسات الأمنية والتشفير -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon warning">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>السياسات الأمنية والتشفير</h3>
+                        <p>إدارة السياسات وإعدادات التشفير</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ active_policies }}</span>
+                        <span class="stat-label">سياسة نشطة</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_policies }}</span>
+                        <span class="stat-label">إجمالي</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:security_policies' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-lock me-1"></i>السياسات الأمنية
+                    </a>
+                </div>
+            </div>
+            
+            <!-- إدارة الإشارات والأذونات -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon info">
+                        <i class="fas fa-broadcast-tower"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>إدارة الإشارات والأذونات</h3>
+                        <p>مراقبة العمليات التلقائية</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ active_signals }}</span>
+                        <span class="stat-label">إشارة نشطة</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_signals }}</span>
+                        <span class="stat-label">إجمالي</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:signals_management' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-broadcast-tower me-1"></i>إدارة الإشارات
+                    </a>
+                </div>
+            </div>
+            
+            <!-- مركز بناء التقارير -->
+            <div class="setting-card">
+                <div class="setting-card-header">
+                    <div class="setting-icon purple">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="setting-title">
+                        <h3>مركز بناء التقارير</h3>
+                        <p>إنشاء تقارير مخصصة وجدولة</p>
+                    </div>
+                </div>
+                <div class="setting-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ user_reports }}</span>
+                        <span class="stat-label">تقاريري</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ total_reports }}</span>
+                        <span class="stat-label">إجمالي</span>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <a href="{% url 'governance:reports_builder' %}" class="setting-btn setting-btn-primary">
+                        <i class="fas fa-chart-line me-1"></i>بناء التقارير
+                    </a>
+                </div>
+            </div>
+            
+        </div>
+    </div>
+</div>
+{% endblock %}

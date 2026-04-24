@@ -1,0 +1,966 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}تفاصيل العقد{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+/* ستايلات خاصة بصفحة تفاصيل العقد فقط */
+
+/* Tabs مُحسّنة */
+.custom-tabs {
+    border-bottom: 2px solid var(--border-color);
+    margin-bottom: 2rem;
+}
+
+.custom-tabs .nav-link {
+    border: none;
+    border-bottom: 3px solid transparent;
+    color: var(--text-muted);
+    padding: 1rem 1.5rem;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.custom-tabs .nav-link:hover {
+    color: var(--primary-color);
+    background: transparent;
+}
+
+.custom-tabs .nav-link.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+    background: transparent;
+}
+
+/* Timeline مُحسّن */
+.timeline-compact {
+    position: relative;
+    padding: 1rem 0;
+}
+
+.timeline-compact-item {
+    position: relative;
+    padding-right: 35px;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.timeline-compact-item:last-child {
+    border-bottom: none;
+}
+
+.timeline-compact-marker {
+    position: absolute;
+    right: 0;
+    top: 5px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+}
+
+.timeline-compact-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    gap: 1rem;
+}
+
+.timeline-compact-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    margin-bottom: 0.25rem;
+}
+
+.timeline-compact-desc {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.timeline-compact-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+
+/* Table محسّن */
+.salary-table {
+    margin-bottom: 0;
+}
+
+.salary-table th {
+    background: var(--bg-light);
+    font-weight: 600;
+    font-size: 0.85rem;
+    padding: 0.75rem;
+}
+
+.salary-table td {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    {% if contract.status == 'draft' %}
+    <div class="alert alert-warning d-flex justify-content-between align-items-center">
+        <div>
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>عقد في حالة مسودة</strong> - البنود لن تُنسخ للموظف إلا عند التفعيل
+        </div>
+        <a href="{% url 'hr:contract_activate_confirm' contract.pk %}" class="btn btn-success">
+            <i class="fas fa-check-circle me-2"></i>تفعيل العقد
+        </a>
+    </div>
+    {% endif %}
+    
+    {% if contract.status == 'renewed' and contract.renewed_to %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-1"></i>
+        <strong>تم تجديد هذا العقد</strong> - تم استبداله بالعقد رقم 
+        <a href="{% url 'hr:contract_detail' contract.renewed_to.pk %}" class="alert-link">
+            <strong>{{ contract.renewed_to.contract_number }}</strong>
+        </a>
+    </div>
+    {% endif %}
+
+    <!-- الإحصائيات -->
+    {% if not is_hr_only %}
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
+        <div class="row">
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-money-check"></i>
+                        </div>
+                        <div class="stats-card-title">الأجر الأساسي</div>
+                        <div class="stats-card-value">{{ contract.basic_salary|custom_number_format }}</div>
+                        <small class="text-muted">{% currency_symbol %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-plus-circle"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المستحقات</div>
+                        <div class="stats-card-value">{{ contract.total_earnings|custom_number_format }}</div>
+                        <small class="text-muted">{% currency_symbol %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-minus-circle"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي الاستقطاعات</div>
+                        <div class="stats-card-value">{{ contract.total_deductions|custom_number_format }}</div>
+                        <small class="text-muted">{% currency_symbol %}</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stats-card-title">صافي الراتب</div>
+                        <div class="stats-card-value">{{ contract.net_salary|custom_number_format }}</div>
+                        <small class="text-muted">{% currency_symbol %}</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabs للمحتوى -->
+    <ul class="nav nav-tabs custom-tabs" role="tablist">
+        <li class="nav-item">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#details-tab">
+                <i class="fas fa-info-circle me-1"></i>التفاصيل
+            </button>
+        </li>
+        {% if not is_hr_only %}
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#salary-tab">
+                <i class="fas fa-money-bill-wave me-1"></i>الراتب
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#increases-tab">
+                <i class="fas fa-chart-line me-1"></i>الزيادات
+                {% if scheduled_increases.count > 0 %}
+                <span class="badge bg-success ms-1">{{ scheduled_increases.count }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#documents-tab">
+                <i class="fas fa-paperclip me-1"></i>المرفقات
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#amendments-tab">
+                <i class="fas fa-history me-1"></i>التعديلات
+                {% if contract.amendments.count > 0 %}
+                <span class="badge bg-primary ms-1">{{ contract.amendments.count }}</span>
+                {% endif %}
+            </button>
+        </li>
+        <li class="nav-item">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#terms-tab">
+                <i class="fas fa-file-alt me-1"></i>الشروط
+            </button>
+        </li>
+        {% endif %}
+    </ul>
+
+    <!-- Tab Content -->
+    <div class="tab-content">
+        <!-- التفاصيل -->
+        <div class="tab-pane fade show active" id="details-tab">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="section-container">
+                        <h5 class="mb-3"><i class="fas fa-file-contract me-2"></i>معلومات العقد</h5>
+                        <table class="table table-bordered">
+                            <tr>
+                                <th width="30%">رقم العقد</th>
+                                <td><strong>{{ contract.contract_number }}</strong></td>
+                            </tr>
+                            <tr>
+                                <th>الموظف</th>
+                                <td>
+                                    <strong>{{ contract.employee.get_full_name_ar }}</strong><br>
+                                    <small class="text-muted">{{ contract.employee.employee_number }}</small>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>نوع العقد</th>
+                                <td>{% include 'hr/contract/cells/contract_type.html' with value=contract.contract_type object=contract %}</td>
+                            </tr>
+                            {% if contract.job_title %}
+                            <tr>
+                                <th>المسمى الوظيفي</th>
+                                <td>
+                                    <i class="fas fa-briefcase me-1 text-primary"></i>
+                                    <strong>{{ contract.job_title }}</strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% if contract.department %}
+                            <tr>
+                                <th>القسم</th>
+                                <td>
+                                    <i class="fas fa-building me-1 text-info"></i>
+                                    {{ contract.department }}
+                                </td>
+                            </tr>
+                            {% endif %}
+                            <tr>
+                                <th>تاريخ البداية</th>
+                                <td>{{ contract.start_date|date:"Y-m-d" }}</td>
+                            </tr>
+                            <tr>
+                                <th>تاريخ النهاية</th>
+                                <td>
+                                    {% if contract.end_date %}
+                                        {{ contract.end_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        <span class="badge bg-secondary">غير محدد</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% if contract.probation_period_months %}
+                            <tr>
+                                <th>فترة التجربة</th>
+                                <td>{{ contract.probation_period_months }} شهر</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+                <div class="col-lg-4">
+                    <div class="section-container">
+                        <h5 class="mb-3"><i class="fas fa-chart-line me-2"></i>إحصائيات</h5>
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">تاريخ الإنشاء</small>
+                            <strong>{{ contract.created_at|date:"Y-m-d" }}</strong>
+                        </div>
+                        {% if contract.created_by %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">أنشئ بواسطة</small>
+                            <strong>{{ contract.created_by.get_full_name }}</strong>
+                        </div>
+                        {% endif %}
+                        {% if contract.end_date %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">مدة العقد</small>
+                            <strong>{{ contract.duration_months|default:"غير محدد" }} شهر</strong>
+                        </div>
+                        {% endif %}
+                        {% if contract.days_until_expiry and contract.status == 'active' %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">الأيام المتبقية</small>
+                            <h4 class="mb-0 {% if contract.days_until_expiry < 30 %}text-warning{% else %}text-info{% endif %}">
+                                {{ contract.days_until_expiry }} يوم
+                            </h4>
+                        </div>
+                        {% endif %}
+                        {% if contract.employee.biometric_user_id %}
+                        <div class="mb-3">
+                            <small class="text-muted d-block mb-1">رقم البصمة</small>
+                            <strong>
+                                <i class="fas fa-fingerprint me-1 text-success"></i>
+                                {{ contract.employee.biometric_user_id }}
+                            </strong>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- الراتب -->
+        <div class="tab-pane fade" id="salary-tab">
+            <div class="section-container">
+            <h5 class="mb-3"><i class="fas fa-money-bill-wave me-2"></i>تفاصيل الراتب</h5>
+            <!-- الزيادة السنوية -->
+            {% if contract.has_annual_increase %}
+            <div class="mb-4">
+                <h6 class="text-info mb-2"><i class="fas fa-chart-line me-2"></i>الزيادة السنوية</h6>
+                <div class="card">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">نوع الزيادة</small>
+                                <strong>
+                                    {% if contract.increase_type == 'percentage' %}
+                                        <i class="fas fa-percentage me-1 text-primary"></i>نسبة مئوية
+                                    {% elif contract.increase_type == 'fixed' %}
+                                        <i class="fas fa-coins me-1 text-success"></i>مبلغ ثابت
+                                    {% endif %}
+                                </strong>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">قيمة الزيادة</small>
+                                <strong class="text-success">
+                                    {% if contract.increase_type == 'percentage' %}
+                                        {{ contract.annual_increase_percentage|custom_number_format }}%
+                                    {% elif contract.increase_type == 'fixed' %}
+                                        {{ contract.annual_increase_amount|custom_number_format }} {% currency_symbol %}
+                                    {% endif %}
+                                </strong>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">بداية احتساب الزيادة</small>
+                                <strong>
+                                    <i class="fas fa-calendar me-1 text-info"></i>
+                                    {{ contract.get_increase_start_reference_display }}
+                                </strong>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">تكرار الزيادة</small>
+                                <strong class="text-primary">
+                                    {{ contract.get_increase_frequency_display }}
+                                </strong>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">الراتب بعد الزيادة</small>
+                                <strong class="text-success h5 mb-0">
+                                    {{ contract.salary_after_increase|custom_number_format }} {% currency_symbol %}
+                                </strong>
+                            </div>
+                            {% if contract.next_increase_date %}
+                            <div class="col-md-6 mb-3">
+                                <small class="text-muted d-block">تاريخ الزيادة القادمة</small>
+                                <strong>
+                                    <i class="fas fa-calendar-check me-1 text-warning"></i>
+                                    {{ contract.next_increase_date|date:"Y-m-d" }}
+                                    {% if contract.days_until_next_increase %}
+                                        <span class="badge bg-warning text-dark ms-1">
+                                            بعد {{ contract.days_until_next_increase }} يوم
+                                        </span>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- بنود العقد الثابتة -->
+            <div class="mb-4">
+                <h6 class="text-primary mb-2">
+                    <i class="fas fa-file-contract me-2"></i>بنود العقد الثابتة
+                    {% if contract.status == 'draft' %}
+                    <span class="badge bg-warning text-dark">لم تُنسخ بعد</span>
+                    {% else %}
+                    <span class="badge bg-success">منسوخة للموظف</span>
+                    {% endif %}
+                </h6>
+                
+                {% with contract_components=contract.salary_components.all|dictsort:"order" %}
+                {% if contract_components %}
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>البند</th>
+                                <th>النوع</th>
+                                <th width="200">الصيغة الحسابية</th>
+                                <th width="150" class="text-center">المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component in contract_components %}
+                            {% if not component.is_basic %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-lock text-muted me-1" title="بند ثابت من العقد"></i>
+                                    {{ component.name }}
+                                </td>
+                                <td>
+                                    {% if component.component_type == 'earning' %}
+                                    <span class="badge bg-success">مستحق</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">مستقطع</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if component.formula %}
+                                        <code class="text-muted">{{ component.formula }}</code>
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ component.amount|custom_number_format }}</strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>
+                    لا توجد بنود مضافة للعقد بعد
+                </div>
+                {% endif %}
+                {% endwith %}
+            </div>
+
+            <!-- المستحقات الإضافية (غير منسوخة من العقد) -->
+            {% with additional_earnings=contract.employee.salary_components.filter|dictsort:"order" %}
+            {% if additional_earnings %}
+            <div class="mb-4">
+                <h6 class="text-success mb-2">
+                    <i class="fas fa-plus-circle me-2"></i>المستحقات الإضافية
+                    <span class="badge bg-success">مضافة للموظف مباشرة</span>
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>البند</th>
+                                <th width="200">الصيغة الحسابية</th>
+                                <th width="150" class="text-center">المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component in additional_earnings %}
+                            {% if component.component_type == 'earning' and not component.is_from_contract %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-user-plus text-muted me-1" title="بند مضاف للموظف مباشرة"></i>
+                                    {{ component.name }}
+                                </td>
+                                <td>
+                                    {% if component.formula %}
+                                        <code class="text-muted small">{{ component.formula|translate_formula }}</code>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ component.amount|custom_number_format }}</strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            <!-- الاستقطاعات الإضافية (غير منسوخة من العقد) -->
+            {% with additional_deductions=contract.employee.salary_components.filter|dictsort:"order" %}
+            {% if additional_deductions %}
+            <div class="mb-4">
+                <h6 class="text-danger mb-2">
+                    <i class="fas fa-minus-circle me-2"></i>الاستقطاعات الإضافية
+                    <span class="badge bg-danger">مضافة للموظف مباشرة</span>
+                </h6>
+                <div class="table-responsive">
+                    <table class="table table-sm table-bordered">
+                        <thead class="table-light">
+                            <tr>
+                                <th>البند</th>
+                                <th width="200">الصيغة الحسابية</th>
+                                <th width="150" class="text-center">المبلغ</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for component in additional_deductions %}
+                            {% if component.component_type == 'deduction' and not component.is_from_contract %}
+                            <tr>
+                                <td>
+                                    <i class="fas fa-user-minus text-muted me-1" title="بند مضاف للموظف مباشرة"></i>
+                                    {{ component.name }}
+                                </td>
+                                <td>
+                                    {% if component.formula %}
+                                        <code class="text-muted small">{{ component.formula|translate_formula }}</code>
+                                    {% else %}
+                                        <span class="text-muted small">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <strong>{{ component.amount|custom_number_format }}</strong>
+                                </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            {% endif %}
+            {% endwith %}
+
+            </div>
+        </div>
+
+        <!-- الزيادات السنوية -->
+        <div class="tab-pane fade" id="increases-tab">
+            <div class="section-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>الزيادات السنوية التلقائية</h5>
+                </div>
+                
+                {% if contract.has_annual_increase %}
+                    <!-- معلومات الزيادة السنوية -->
+                    <div class="alert alert-success">
+                        <h6 class="alert-heading"><i class="fas fa-check-circle me-2"></i>الزيادة السنوية مفعلة</h6>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">نوع الزيادة</small>
+                                <strong class="h6">{{ contract.get_increase_type_display }}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">قيمة الزيادة</small>
+                                <strong class="h5">
+                                    {% if contract.increase_type == 'percentage' %}
+                                        {{ contract.annual_increase_percentage }}%
+                                    {% else %}
+                                        {{ contract.annual_increase_amount|custom_number_format }} {% currency_symbol %}
+                                    {% endif %}
+                                </strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">التكرار</small>
+                                <strong>{{ contract.get_increase_frequency_display }}</strong>
+                            </div>
+                            <div class="col-md-3">
+                                <small class="text-muted d-block">بداية الاحتساب</small>
+                                <strong>{{ contract.get_increase_start_reference_display }}</strong>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-12">
+                                <small class="text-muted d-block">الزيادة القادمة</small>
+                                <strong class="text-primary">
+                                    {% if contract.next_increase_date %}
+                                        {{ contract.next_increase_date|date:"Y-m-d" }}
+                                    {% else %}
+                                        <span class="text-muted">-</span>
+                                    {% endif %}
+                                </strong>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- تاريخ الزيادات المطبقة -->
+                    <h6 class="mb-3"><i class="fas fa-history me-2"></i>تاريخ الزيادات المطبقة</h6>
+                    {% with annual_increases=contract.employee.salary_components.filter|dictsort:"created_at" %}
+                    {% if annual_increases %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>البند</th>
+                                    <th class="text-center">المبلغ</th>
+                                    <th class="text-center">تاريخ الإضافة</th>
+                                    <th>ملاحظات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for component in annual_increases %}
+                                {% if "زيادة سنوية" in component.name %}
+                                <tr>
+                                    <td>
+                                        <i class="fas fa-chart-line text-success me-2"></i>
+                                        <strong>{{ component.name }}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        <strong class="text-success">{{ component.amount|custom_number_format }} {% currency_symbol %}</strong>
+                                    </td>
+                                    <td class="text-center">
+                                        {{ component.created_at|date:"Y-m-d" }}
+                                    </td>
+                                    <td>
+                                        <small class="text-muted">{{ component.notes|default:"-" }}</small>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        لم يتم تطبيق أي زيادات بعد. سيتم التطبيق التلقائي في: <strong>{{ contract.next_increase_date|date:"Y-m-d" }}</strong>
+                    </div>
+                    {% endif %}
+                    {% endwith %}
+
+                {% else %}
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>الزيادة السنوية غير مفعلة</h6>
+                        <p class="mb-0">لتفعيل الزيادة السنوية التلقائية، قم بتعديل العقد وتفعيل خيار "يستحق زيادة سنوية".</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- المرفقات -->
+        <div class="tab-pane fade" id="documents-tab">
+            <div class="section-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="fas fa-paperclip me-2"></i>المرفقات والوثائق</h5>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#uploadDocumentModal">
+                        <i class="fas fa-upload me-1"></i>رفع مرفق
+                    </button>
+                </div>
+                
+                {% if contract.documents.all %}
+                {% include 'components/data_table.html' with headers=documents_headers data=contract.documents.all table_id='documents-table' empty_message='لا توجد مرفقات' show_search=True show_length_menu=True show_controls=True %}
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>لا توجد مرفقات لهذا العقد
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- التعديلات -->
+        <div class="tab-pane fade" id="amendments-tab">
+            <div class="section-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="mb-0"><i class="fas fa-history me-2"></i>سجل التعديلات</h5>
+                </div>
+                
+                {% if contract.amendments.all %}
+                <div class="timeline-compact">
+                    {% for amendment in contract.amendments.all|slice:":10" %}
+                    <div class="timeline-compact-item">
+                        <div class="timeline-compact-marker {% if amendment.is_automatic %}bg-success{% else %}bg-primary{% endif %}"></div>
+                        <div class="timeline-compact-content">
+                            <div>
+                                <div class="timeline-compact-title">
+                                    {{ amendment.get_amendment_type_display }}
+                                    {% if amendment.is_automatic %}
+                                    <span class="badge bg-success ms-1" style="font-size: 0.7rem;">تلقائي</span>
+                                    {% endif %}
+                                </div>
+                                <div class="timeline-compact-desc">{{ amendment.description }}</div>
+                                {% if amendment.old_value or amendment.new_value %}
+                                <div class="mt-1 small">
+                                    <span class="text-danger">{{ amendment.old_value|default:"-" }}</span>
+                                    <i class="fas fa-arrow-left mx-1"></i>
+                                    <span class="text-success">{{ amendment.new_value|default:"-" }}</span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="timeline-compact-time">
+                                {{ amendment.created_at|date:"Y-m-d H:i" }}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>لا توجد تعديلات لهذا العقد
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- الشروط -->
+        <div class="tab-pane fade" id="terms-tab">
+            <div class="section-container">
+                <h5 class="mb-3"><i class="fas fa-file-alt me-2"></i>البنود والشروط</h5>
+                {% if contract.terms_and_conditions %}
+                <div class="p-3 bg-light rounded">
+                    {{ contract.terms_and_conditions|linebreaks }}
+                </div>
+                {% else %}
+                <div class="alert alert-info">
+                    <i class="fas fa-info-circle me-2"></i>لا توجد بنود أو شروط مسجلة
+                </div>
+                {% endif %}
+                
+                {% if contract.notes %}
+                <h5 class="mb-3 mt-4"><i class="fas fa-sticky-note me-2"></i>ملاحظات</h5>
+                <div class="p-3 bg-light rounded">
+                    {{ contract.notes|linebreaks }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: رفع مرفق -->
+<div class="modal fade" id="uploadDocumentModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{% url 'hr:contract_document_upload' contract.pk %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="fas fa-upload me-2"></i>رفع مرفق جديد</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">نوع الوثيقة <span class="text-danger">*</span></label>
+                        <select name="document_type" class="form-select" required>
+                            <option value="">اختر النوع</option>
+                            <option value="signed_contract">العقد الموقع</option>
+                            <option value="id_copy">صورة الهوية</option>
+                            <option value="certificate">الشهادات</option>
+                            <option value="medical_report">التقرير الطبي</option>
+                            <option value="bank_account">بيانات الحساب البنكي</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">العنوان <span class="text-danger">*</span></label>
+                        <input type="text" name="title" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الوصف</label>
+                        <textarea name="description" class="form-control" rows="3"></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">الملف <span class="text-danger">*</span></label>
+                        <input type="file" name="file" class="form-control" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png" required>
+                        <small class="text-muted">الصيغ المدعومة: PDF, DOC, DOCX, JPG, PNG</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>رفع
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<!-- Lightbox CSS -->
+<link href="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/css/lightbox.min.css" rel="stylesheet">
+
+<style>
+.timeline {
+    position: relative;
+    padding: 20px 0;
+}
+.timeline-item {
+    position: relative;
+    padding-right: 40px;
+    margin-bottom: 20px;
+}
+.timeline-marker {
+    position: absolute;
+    right: 0;
+    top: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+.timeline-item:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    right: 5px;
+    top: 12px;
+    bottom: -20px;
+    width: 2px;
+    background: #dee2e6;
+}
+.timeline-content {
+    background: #f8f9fa;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+.timeline-content h6 {
+    font-size: 0.95rem;
+    margin-bottom: 0.25rem;
+}
+.timeline-content p {
+    font-size: 0.85rem;
+    margin-bottom: 0.5rem;
+}
+.timeline-content .small {
+    font-size: 0.8rem;
+}
+
+/* تخصيص Lightbox للعربية */
+.lb-data .lb-caption {
+    font-family: 'Tajawal', sans-serif;
+    direction: rtl;
+    text-align: right;
+}
+</style>
+
+<!-- Lightbox JS -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/js/lightbox.min.js"></script>
+
+<script>
+// إعدادات Lightbox
+lightbox.option({
+    'resizeDuration': 200,
+    'wrapAround': true,
+    'albumLabel': 'صورة %1 من %2',
+    'fadeDuration': 300,
+    'imageFadeDuration': 300
+});
+
+// تهيئة جدول المرفقات
+document.addEventListener('DOMContentLoaded', function() {
+    const documentsTable = document.getElementById('documents-table');
+    if (documentsTable && typeof initializeTable === 'function') {
+        initializeTable('documents-table', {
+            order: [[4, 'desc']], // ترتيب حسب تاريخ الرفع
+            searching: true,
+            lengthChange: true
+        });
+    }
+});
+
+function deleteDocument(docId) {
+    if (confirm('هل أنت متأكد من حذف هذا المرفق؟')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{% url 'hr:contract_document_delete' contract.pk 0 %}`.replace('0', docId);
+        
+        const csrf = document.createElement('input');
+        csrf.type = 'hidden';
+        csrf.name = 'csrfmiddlewaretoken';
+        csrf.value = '{{ csrf_token }}';
+        form.appendChild(csrf);
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// دوال الزيادات
+function applyIncrease(increaseId) {
+    if (confirm('هل أنت متأكد من تطبيق هذه الزيادة؟ سيتم تحديث الأجر الأساسي للعقد.')) {
+        fetch(`/hr/contracts/increases/${increaseId}/apply/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('خطأ: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('حدث خطأ في الاتصال');
+            console.error(error);
+        });
+    }
+}
+
+function cancelIncrease(increaseId) {
+    if (confirm('هل أنت متأكد من إلغاء هذه الزيادة؟')) {
+        fetch(`/hr/contracts/increases/${increaseId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert(data.message);
+                location.reload();
+            } else {
+                alert('خطأ: ' + data.message);
+            }
+        })
+        .catch(error => {
+            alert('حدث خطأ في الاتصال');
+            console.error(error);
+        });
+    }
+}
+</script>
+
+{% endblock %}

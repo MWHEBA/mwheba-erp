@@ -1,0 +1,201 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .audit-form-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 30px;
+        margin-bottom: 20px;
+    }
+    
+    .result-box {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 20px;
+        font-family: 'Courier New', monospace;
+        font-size: 0.9rem;
+        white-space: pre-wrap;
+        max-height: 600px;
+        overflow-y: auto;
+        direction: ltr;
+        text-align: left;
+    }
+    
+    .info-box {
+        background: #e7f3ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .warning-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="فحص وتدقيق المعاملات المالية الموجودة للتحقق من توافقها مع الشروط المحاسبية" icon="fas fa-tools" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- Info Box -->
+    <div class="info-box">
+        <h6 class="mb-2">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ما هي أداة التدقيق؟</strong>
+        </h6>
+        <p class="mb-0">
+            هذه الأداة تقوم بفحص جميع المعاملات المالية الموجودة في النظام والتحقق من:
+        </p>
+        <ul class="mb-0 mt-2">
+            <li>وجود حساب محاسبي صحيح لكل كيان</li>
+            <li>وجود فترة محاسبية مفتوحة لتاريخ كل معاملة</li>
+            <li>صحة الحساب المحاسبي (مفعّل، نهائي)</li>
+        </ul>
+    </div>
+    
+    <!-- Warning Box -->
+    <div class="warning-box">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>تنبيه:</strong> قد يستغرق التدقيق بعض الوقت حسب عدد المعاملات في النظام.
+    </div>
+    
+    <!-- Audit Form -->
+    <div class="audit-form-card">
+        <h5 class="mb-4">
+            <i class="fas fa-cog me-2"></i>
+            إعدادات التدقيق
+        </h5>
+        
+        <form method="post" id="auditForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-4 mb-3">
+                    <label for="module" class="form-label">
+                        <i class="fas fa-cubes me-1"></i>
+                        الوحدة المراد تدقيقها
+                    </label>
+                    <select name="module" id="module" class="form-select" required>
+                        {% for value, label in module_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">اختر الوحدة أو "جميع الوحدات" لفحص كل شيء</small>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="check_type" class="form-label">
+                        <i class="fas fa-check-circle me-1"></i>
+                        نوع التحقق
+                    </label>
+                    <select name="check_type" id="check_type" class="form-select" required>
+                        {% for value, label in check_type_choices %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="text-muted">اختر ما تريد التحقق منه</small>
+                </div>
+                
+                <div class="col-md-4 mb-3">
+                    <label for="limit" class="form-label">
+                        <i class="fas fa-hashtag me-1"></i>
+                        حد المعاملات (اختياري)
+                    </label>
+                    <input type="number" name="limit" id="limit" class="form-control" 
+                           placeholder="اتركه فارغاً لفحص الكل" min="1">
+                    <small class="text-muted">عدد المعاملات المراد فحصها (للاختبار)</small>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                    <i class="fas fa-play me-2"></i>
+                    بدء التدقيق
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Loading Indicator -->
+    <div id="loadingIndicator" class="text-center" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري التدقيق...</span>
+        </div>
+        <p class="mt-2">جاري تدقيق المعاملات... يرجى الانتظار</p>
+    </div>
+    
+    <!-- Error Message -->
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-circle me-2"></i>
+        <strong>خطأ:</strong> {{ error }}
+    </div>
+    {% endif %}
+    
+    <!-- Result -->
+    {% if result %}
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-file-alt me-2"></i>
+            نتيجة التدقيق
+        </h5>
+        
+        {% if result.success %}
+        <div class="alert alert-success mb-3">
+            <i class="fas fa-check-circle me-2"></i>
+            <strong>تم التدقيق بنجاح!</strong> راجع النتائج أدناه.
+        </div>
+        {% endif %}
+        
+        <div class="result-box">{{ result.output }}</div>
+        
+        <div class="mt-3 text-end">
+            <button class="btn btn-secondary" onclick="copyToClipboard()">
+                <i class="fas fa-copy me-2"></i>
+                نسخ النتيجة
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // عرض مؤشر التحميل عند إرسال النموذج
+    $('#auditForm').on('submit', function() {
+        $('#submitBtn').prop('disabled', true);
+        $('#loadingIndicator').show();
+    });
+});
+
+// نسخ النتيجة إلى الحافظة
+function copyToClipboard() {
+    const resultBox = document.querySelector('.result-box');
+    const text = resultBox.textContent;
+    
+    navigator.clipboard.writeText(text).then(function() {
+        alert('تم نسخ النتيجة إلى الحافظة!');
+    }, function(err) {
+        console.error('فشل النسخ:', err);
+    });
+}
+</script>
+{% endblock %}

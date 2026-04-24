@@ -1,0 +1,22 @@
+{% if object.status == 'present' %}
+    <span class="badge bg-success">حاضر</span>
+{% elif object.status == 'late' %}
+    <span class="badge bg-warning text-dark">متأخر</span>
+{% elif object.status == 'early_leave' %}
+    <span class="badge bg-danger">انصراف مبكر</span>
+{% elif object.status == 'absent' %}
+    <span class="badge bg-secondary">غائب</span>
+{% elif object.status == 'on_leave' %}
+    <span class="badge bg-info">في إجازة</span>
+{% elif object.status == 'permission' %}
+    <span class="badge bg-primary">في إذن</span>
+    {% if object.permission_info %}
+        <br>
+        <small class="text-muted d-block mt-1">{{ object.permission_info.type }}</small>
+        {% if object.permission_info.is_extra %}
+            <span class="badge bg-warning text-dark mt-1" style="font-size: 0.65em;">
+                <i class="fas fa-exclamation-triangle"></i> إضافي
+            </span>
+        {% endif %}
+    {% endif %}
+{% endif %}

@@ -1,0 +1,70 @@
+[
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 2,
+    "fields": {
+      "name": "مورد منتجات",
+      "code": "product_supplier",
+      "description": "موردي المنتجات والمواد الخام",
+      "icon": "fas fa-boxes",
+      "color": "#007bff",
+      "display_order": 1,
+      "is_active": true,
+      "is_system": true,
+      "is_service_provider": false,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertypesettings",
+    "pk": 3,
+    "fields": {
+      "name": "مقدم خدمات",
+      "code": "service_provider",
+      "description": "مقدمي خدمات الصيانة والتنظيف والأمن",
+      "icon": "fas fa-tools",
+      "color": "#ffc107",
+      "display_order": 2,
+      "is_active": true,
+      "is_system": true,
+      "is_service_provider": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "created_by": null,
+      "updated_by": null
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 2,
+    "fields": {
+      "name": "مورد منتجات",
+      "code": "product_supplier",
+      "slug": "product_supplier",
+      "description": "موردي المنتجات والمواد الخام",
+      "icon": "fas fa-boxes",
+      "color": "#007bff",
+      "is_active": true,
+      "display_order": 1,
+      "settings": 2
+    }
+  },
+  {
+    "model": "supplier.suppliertype",
+    "pk": 3,
+    "fields": {
+      "name": "مقدم خدمات",
+      "code": "service_provider",
+      "slug": "service_provider",
+      "description": "مقدمي خدمات الصيانة والتنظيف والأمن",
+      "icon": "fas fa-tools",
+      "color": "#ffc107",
+      "is_active": true,
+      "display_order": 2,
+      "settings": 3
+    }
+  }
+]

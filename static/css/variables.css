@@ -1,0 +1,427 @@
+/**
+ * ========================================
+ * CSS Variables for Corporate ERP
+ * ========================================
+ * 
+ * ملف مركزي موحد لجميع المتغيرات المستخدمة في النظام
+ * تم توحيد وتنظيم جميع المتغيرات وإزالة التكرار
+ * 
+ * الأقسام:
+ * 1. الألوان الأساسية (Primary Colors)
+ * 2. ألوان الرمادي (Gray Scale)
+ * 3. ألوان النص والخلفيات (Text & Background)
+ * 4. الحدود والظلال (Borders & Shadows)
+ * 5. المسافات والأبعاد (Spacing & Dimensions)
+ * 6. الخطوط والنصوص (Typography)
+ * 7. التحولات والحركات (Transitions)
+ * 8. متغيرات التخطيط (Layout Variables)
+ * 9. متغيرات المكونات (Component Variables)
+ * 10. ألوان خاصة (Special Colors)
+ * ========================================
+ */
+
+:root {
+    /* ========================================
+       1. الألوان الأساسية (Primary Colors)
+       ======================================== */
+    
+    /* اللون الأساسي - الأزرق الداكن */
+    --primary-color: #04578d;
+    --primary-dark: #033d64;
+    --primary-light: #0570b0;
+    --primary-hover: #0462a0;
+    --primary-active: #034e82;
+    --primary-focus: rgba(4, 87, 141, 0.25);
+    --primary-rgb: 4, 87, 141;
+    --primary-soft: rgba(4, 87, 141, 0.1);
+    --primary-soft-2: rgba(4, 87, 141, 0.05);
+
+    /* اللون الثانوي - الرمادي */
+    --secondary-color: #667788;
+    --secondary-dark: #4a5a68;
+    --secondary-light: #8295a8;
+    --secondary-hover: #5a6c7d;
+    --secondary-rgb: 102, 119, 136;
+    --secondary-soft: rgba(102, 119, 136, 0.1);
+
+    /* لون النجاح - الأخضر */
+    --success-color: #22c55e;
+    --success-dark: #059669;
+    --success-light: #34d399;
+    --success-hover: #16a34a;
+    --success-rgb: 34, 197, 94;
+    --success-soft: rgba(34, 197, 94, 0.1);
+    --success-focus: rgba(34, 197, 94, 0.25);
+
+    /* لون المعلومات - الأزرق الفاتح */
+    --info-color: #0ea5e9;
+    --info-dark: #0284c7;
+    --info-light: #38bdf8;
+    --info-hover: #0369a1;
+    --info-rgb: 14, 165, 233;
+    --info-soft: rgba(14, 165, 233, 0.1);
+
+    /* لون التحذير - الأصفر */
+    --warning-color: #f59e0b;
+    --warning-dark: #d97706;
+    --warning-light: #fbbf24;
+    --warning-hover: #ea580c;
+    --warning-rgb: 245, 158, 11;
+    --warning-soft: rgba(245, 158, 11, 0.1);
+
+    /* لون الخطر - الأحمر */
+    --danger-color: #ef4444;
+    --danger-dark: #dc2626;
+    --danger-light: #f87171;
+    --danger-hover: #dc2626;
+    --danger-rgb: 239, 68, 68;
+    --danger-soft: rgba(239, 68, 68, 0.1);
+
+    /* الألوان الأساسية */
+    --white: #ffffff;
+    --white-rgb: 255, 255, 255;
+    --black: #000000;
+    --black-rgb: 0, 0, 0;
+    --light: #f8f9fc;
+    --light-rgb: 248, 249, 252;
+    --dark: #454d55;
+    --dark-rgb: 69, 77, 85;
+
+    /* ========================================
+       2. ألوان الرمادي (Gray Scale)
+       ======================================== */
+    
+    --gray-50: #f9fafb;
+    --gray-100: #f3f4f6;
+    --gray-200: #e5e7eb;
+    --gray-300: #d1d5db;
+    --gray-400: #9ca3af;
+    --gray-500: #6b7280;
+    --gray-600: #4b5563;
+    --gray-700: #374151;
+    --gray-800: #1f2937;
+    --gray-900: #111827;
+    
+    /* RGB versions for transparency */
+    --gray-600-rgb: 75, 85, 99;
+    --gray-700-rgb: 55, 65, 81;
+    --gray-800-rgb: 31, 41, 55;
+    --gray-900-rgb: 17, 24, 39;
+
+    /* ========================================
+       3. ألوان النص والخلفيات (Text & Background)
+       ======================================== */
+    
+    /* ألوان النص */
+    --text-color: #374151;           /* النص الافتراضي */
+    --text-dark: #1f2937;            /* نص داكن */
+    --text-medium: #4b5563;          /* نص متوسط */
+    --text-light: #9ca3af;           /* نص خفيف */
+    --text-muted: #6c757d;           /* نص مكتوم */
+    --text-white: #ffffff;           /* نص أبيض */
+
+    /* ألوان الخلفية */
+    --bg-body: #f9fafb;              /* خلفية الصفحة */
+    --bg-card: #ffffff;              /* خلفية البطاقات */
+    --bg-light: #f3f4f6;             /* خلفية خفيفة */
+    --bg-dark: #1f2937;              /* خلفية داكنة */
+    --bg-hover: rgba(0, 0, 0, 0.05); /* خلفية عند التحويم */
+    --bg-active: rgba(0, 0, 0, 0.1); /* خلفية عند التفعيل */
+
+    /* خلفيات ناعمة للأيقونات */
+    --bg-soft-primary: #e1f0ff;
+    --bg-soft-secondary: #e9ecef;
+    --bg-soft-success: #dffcf0;
+    --bg-soft-info: #e0f7ff;
+    --bg-soft-warning: #fff8e0;
+    --bg-soft-danger: #ffebeb;
+    --bg-soft-light: #f8f9fa;
+    --bg-soft-dark: #eaeaea;
+
+    /* ========================================
+       4. الحدود والظلال (Borders & Shadows)
+       ======================================== */
+    
+    /* ألوان الحدود */
+    --border-color: #e5e7eb;         /* لون الحدود الافتراضي */
+    --border-light: #f3f4f6;         /* حدود خفيفة */
+    --border-dark: #d1d5db;          /* حدود داكنة */
+    --border-hover: #d1d5db;         /* حدود عند التحويم */
+    --border-focus: #bfdbfe;         /* حدود عند التركيز */
+
+    /* انحناء الحواف */
+    --border-radius: 8px;            /* الانحناء الافتراضي */
+    --border-radius-sm: 4px;         /* انحناء صغير */
+    --border-radius-md: 6px;         /* انحناء متوسط */
+    --border-radius-lg: 12px;        /* انحناء كبير */
+    --border-radius-xl: 16px;        /* انحناء كبير جداً */
+    --border-radius-full: 9999px;    /* انحناء دائري كامل */
+
+    /* الظلال */
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+    --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.06);
+    --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1), 0 4px 6px rgba(0, 0, 0, 0.05);
+    --shadow-xl: 0 20px 25px rgba(0, 0, 0, 0.1), 0 10px 10px rgba(0, 0, 0, 0.04);
+    
+    /* ظلال خاصة */
+    --box-shadow: 0 0.15rem 1.75rem 0 rgba(0, 0, 0, 0.15);
+    --box-shadow-sm: 0 0.125rem 0.25rem 0 rgba(0, 0, 0, 0.1);
+    --card-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+
+    /* ========================================
+       5. المسافات والأبعاد (Spacing & Dimensions)
+       ======================================== */
+    
+    /* المسافات الأساسية */
+    --spacing-0: 0;
+    --spacing-1: 0.25rem;            /* 4px */
+    --spacing-2: 0.5rem;             /* 8px */
+    --spacing-3: 0.75rem;            /* 12px */
+    --spacing-4: 1rem;               /* 16px */
+    --spacing-5: 1.25rem;            /* 20px */
+    --spacing-6: 1.5rem;             /* 24px */
+    --spacing-7: 1.75rem;            /* 28px */
+    --spacing-8: 2rem;               /* 32px */
+    --spacing-9: 2.25rem;            /* 36px */
+    --spacing-10: 2.5rem;            /* 40px */
+    --spacing-12: 3rem;              /* 48px */
+    --spacing-16: 4rem;              /* 64px */
+    --spacing-20: 5rem;              /* 80px */
+    --spacing-24: 6rem;              /* 96px */
+    --spacing-32: 8rem;              /* 128px */
+
+    /* المسافات بأسماء وصفية */
+    --spacing-xs: 0.25rem;           /* 4px */
+    --spacing-sm: 0.5rem;            /* 8px */
+    --spacing-md: 1rem;              /* 16px */
+    --spacing-lg: 1.5rem;            /* 24px */
+    --spacing-xl: 2rem;              /* 32px */
+    --spacing-2xl: 3rem;             /* 48px */
+
+    /* أبعاد التخطيط */
+    --header-height: 60px;
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 80px;
+    --footer-height: 50px;
+    --main-padding: 2rem;
+    --container-max-width: 1200px;
+
+    /* ========================================
+       6. الخطوط والنصوص (Typography)
+       ======================================== */
+    
+    /* أحجام الخطوط */
+    --font-size-xs: 0.75rem;         /* 12px */
+    --font-size-sm: 0.875rem;        /* 14px */
+    --font-size-base: 1rem;          /* 16px */
+    --font-size-lg: 1.125rem;        /* 18px */
+    --font-size-xl: 1.25rem;         /* 20px */
+    --font-size-2xl: 1.5rem;         /* 24px */
+    --font-size-3xl: 1.875rem;       /* 30px */
+    --font-size-4xl: 2.25rem;        /* 36px */
+
+    /* أوزان الخطوط */
+    --font-weight-light: 300;
+    --font-weight-normal: 400;
+    --font-weight-medium: 500;
+    --font-weight-semibold: 600;
+    --font-weight-bold: 700;
+    --font-weight-extrabold: 800;
+
+    /* ارتفاع الأسطر */
+    --line-height-tight: 1.25;
+    --line-height-normal: 1.5;
+    --line-height-relaxed: 1.75;
+
+    /* عائلة الخطوط */
+    --font-family-sans: 'Tajawal', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-family-mono: 'Fira Code', 'Monaco', 'Consolas', monospace;
+
+    /* ========================================
+       7. التحولات والحركات (Transitions)
+       ======================================== */
+    
+    /* سرعة التحولات */
+    --transition-speed-fast: 0.1s;
+    --transition-speed: 0.15s;
+    --transition-speed-slow: 0.3s;
+    --transition-speed-slower: 0.5s;
+
+    /* دوال التحول */
+    --transition-function: cubic-bezier(0.25, 0.1, 0.25, 1);
+    --transition-function-ease-in: cubic-bezier(0.4, 0, 1, 1);
+    --transition-function-ease-out: cubic-bezier(0, 0, 0.2, 1);
+    --transition-function-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* تحولات شائعة */
+    --transition-all: all var(--transition-speed) var(--transition-function);
+    --transition-colors: color var(--transition-speed) var(--transition-function), 
+                        background-color var(--transition-speed) var(--transition-function), 
+                        border-color var(--transition-speed) var(--transition-function);
+    --transition-transform: transform var(--transition-speed) var(--transition-function);
+
+    /* ========================================
+       8. متغيرات التخطيط (Layout Variables)
+       ======================================== */
+    
+    /* خلفيات العناصر الرئيسية */
+    --header-bg: #ffffff;
+    --content-bg: #f8f9fc;
+    --footer-bg: #ffffff;
+    --sidebar-bg: #ffffff;
+
+    /* ألوان القائمة الجانبية */
+    --sidebar-hover: #f5f7fa;
+    --sidebar-active: var(--primary-color);
+    --sidebar-text: var(--text-dark);
+    --sidebar-active-text: var(--primary-color);
+
+    /* ========================================
+       9. متغيرات المكونات (Component Variables)
+       ======================================== */
+    
+    /* متغيرات الإشعارات */
+    --notification-icon-size: 40px;
+    --notification-dropdown-width: 360px;
+    --notification-unread-bg: rgba(0, 102, 153, 0.05);
+    --notification-hover-bg: var(--gray-100);
+    --notification-text-color: var(--gray-700);
+    --notification-time-color: var(--gray-500);
+    --notification-badge-size: 20px;
+
+    /* متغيرات النماذج */
+    --form-input-height: 2.5rem;
+    --form-input-padding: 0.4rem 0.6rem;
+    --form-input-border: 1px solid var(--border-color);
+    --form-input-border-focus: 1px solid var(--primary-color);
+    --form-input-bg: var(--white);
+    --form-input-bg-disabled: var(--gray-100);
+
+    /* متغيرات الأزرار */
+    --btn-padding-sm: 0.25rem 0.5rem;
+    --btn-padding-md: 0.5rem 1rem;
+    --btn-padding-lg: 0.75rem 1.5rem;
+    --btn-height-sm: 2rem;
+    --btn-height-md: 2.5rem;
+    --btn-height-lg: 3rem;
+
+    /* متغيرات الجداول */
+    --table-cell-padding: 0.75rem;
+    --table-header-bg: var(--gray-50);
+    --table-border: 1px solid var(--border-color);
+    --table-hover-bg: rgba(0, 0, 0, 0.02);
+
+    /* متغيرات البطاقات */
+    --card-padding: 1.5rem;
+    --card-header-padding: 1rem 1.5rem;
+    --card-footer-padding: 1rem 1.5rem;
+    --card-bg: var(--white);
+    --card-border: 1px solid var(--border-color);
+
+    /* ========================================
+       10. ألوان خاصة (Special Colors)
+       ======================================== */
+    
+    /* ألوان أنواع الحسابات */
+    --account-asset: #1a73e8;
+    --account-liability: #ff5252;
+    --account-equity: #41b883;
+    --account-income: #00bcd4;
+    --account-expense: #ff9800;
+    --account-cash: #28a745;
+    --account-bank: #007bff;
+    --account-wallet: #6f42c1;
+    --account-other: #6c757d;
+
+    /* ألوان الشارات */
+    --badge-purple: #6f42c1;
+    --badge-purple-soft: rgba(111, 66, 193, 0.1);
+
+    /* ألوان حالة المخزون */
+    --stock-high: var(--success-color);
+    --stock-medium: var(--warning-color);
+    --stock-low: var(--danger-color);
+    --stock-out: var(--gray-500);
+
+    /* ألوان الرسوم البيانية */
+    --chart-color-1: #3b82f6;
+    --chart-color-2: #10b981;
+    --chart-color-3: #f59e0b;
+    --chart-color-4: #ef4444;
+    --chart-color-5: #8b5cf6;
+    --chart-color-6: #06b6d4;
+
+    /* ألوان الحالات */
+    --status-active: var(--success-color);
+    --status-inactive: var(--gray-500);
+    --status-pending: var(--warning-color);
+    --status-cancelled: var(--danger-color);
+    --status-draft: var(--gray-400);
+}
+
+/* ========================================
+   11. متغيرات الاستجابة (Responsive Variables)
+   ======================================== */
+
+/* نقاط التوقف للشاشات */
+@media (max-width: 1199.98px) {
+    :root {
+        --container-max-width: 960px;
+        --sidebar-width: 240px;
+    }
+}
+
+@media (max-width: 991.98px) {
+    :root {
+        --container-max-width: 720px;
+        --sidebar-width: 220px;
+        --main-padding: 1.5rem;
+    }
+}
+
+@media (max-width: 767.98px) {
+    :root {
+        --container-max-width: 540px;
+        --footer-height: 80px;
+        --notification-dropdown-width: 300px;
+        --main-padding: 1rem;
+        --card-padding: 1rem;
+        --card-header-padding: 0.75rem 1rem;
+        --card-footer-padding: 0.75rem 1rem;
+        --table-cell-padding: 0.5rem;
+    }
+}
+
+@media (max-width: 575.98px) {
+    :root {
+        --container-max-width: 100%;
+        --notification-dropdown-width: 280px;
+        --main-padding: 0.75rem;
+        --card-padding: 0.75rem;
+        --spacing-md: 0.75rem;
+        --spacing-lg: 1rem;
+        --spacing-xl: 1.5rem;
+    }
+}
+
+/* متغيرات للطباعة */
+@media print {
+    :root {
+        --shadow-xs: none;
+        --shadow-sm: none;
+        --shadow-md: none;
+        --shadow-lg: none;
+        --shadow-xl: none;
+        --box-shadow: none;
+        --box-shadow-sm: none;
+        --card-shadow: none;
+    }
+}
+
+/* متغيرات للوضع الداكن (للاستخدام المستقبلي) */
+@media (prefers-color-scheme: dark) {
+    :root {
+        /* سيتم إضافة متغيرات الوضع الداكن هنا عند الحاجة */
+    }
+} 

@@ -1,0 +1,470 @@
+/**
+ * Performance Optimizations CSS
+ * تحسينات الأداء والسرعة
+ */
+
+/* ========================================
+   Critical CSS - Above the fold
+   ======================================== */
+
+/* Inline critical styles for immediate rendering */
+.enhanced-profile {
+    contain: layout style paint;
+    will-change: auto;
+}
+
+.profile-container {
+    contain: layout;
+}
+
+.profile-tabs {
+    contain: layout style;
+}
+
+/* ========================================
+   Hardware Acceleration
+   ======================================== */
+
+/* Enable GPU acceleration for smooth animations */
+.profile-tabs .nav-link,
+.profile-tabs .tab-content,
+.auto-save-indicator,
+.unsaved-changes-warning {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+}
+
+/* Optimize tab switching animations */
+.profile-tabs .tab-pane {
+    will-change: opacity, transform;
+    transform: translateZ(0);
+}
+
+.profile-tabs .tab-pane.active {
+    will-change: auto;
+}
+
+/* ========================================
+   Layout Optimization
+   ======================================== */
+
+/* Use CSS containment for better performance */
+.tab-content {
+    contain: layout style paint;
+}
+
+.card-responsive {
+    contain: layout style;
+}
+
+/* Optimize reflows and repaints */
+.loading-spinner,
+.tab-loading-overlay {
+    contain: strict;
+    position: absolute;
+}
+
+/* ========================================
+   Image Optimization
+   ======================================== */
+
+/* Lazy loading placeholder styles */
+.lazy-image {
+    background: var(--gray-200);
+    background-image: 
+        linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.5) 50%, transparent 60%),
+        linear-gradient(var(--gray-200), var(--gray-200));
+    background-repeat: no-repeat;
+    background-size: 200% 100%, 100% 100%;
+    animation: loading-shimmer 1.5s infinite;
+}
+
+.lazy-image.loaded {
+    animation: none;
+    background: none;
+}
+
+@keyframes loading-shimmer {
+    0% {
+        background-position: -200% 0, 0 0;
+    }
+    100% {
+        background-position: 200% 0, 0 0;
+    }
+}
+
+/* Optimize image rendering */
+img {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
+/* ========================================
+   Font Loading Optimization
+   ======================================== */
+
+/* Prevent FOIT (Flash of Invisible Text) */
+.font-display-swap {
+    font-display: swap;
+}
+
+/* Optimize font rendering */
+body {
+    text-rendering: optimizeSpeed;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Critical text should render immediately */
+.page-title,
+.nav-link {
+    font-display: block;
+}
+
+/* ========================================
+   CSS Grid and Flexbox Optimizations
+   ======================================== */
+
+/* Optimize grid layouts */
+.responsive-grid,
+.tab-card-grid {
+    contain: layout;
+}
+
+/* Optimize flexbox performance */
+.flex-responsive,
+.btn-group-responsive {
+    contain: layout;
+}
+
+/* ========================================
+   Animation Performance
+   ======================================== */
+
+/* Use transform and opacity for smooth animations */
+.efficient-fade {
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.efficient-fade.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Optimize hover effects */
+.hover-lift {
+    transition: transform 0.2s ease;
+}
+
+.hover-lift:hover {
+    transform: translateY(-2px);
+}
+
+/* Disable animations on low-end devices */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* ========================================
+   Memory Optimization
+   ======================================== */
+
+/* Limit the number of box-shadows for better memory usage */
+.optimized-shadow {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Use single box-shadow instead of multiple */
+.card-stack {
+    box-shadow: 
+        0 1px 3px rgba(0, 0, 0, 0.1),
+        0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+/* ========================================
+   Scroll Performance
+   ======================================== */
+
+/* Optimize scrolling performance */
+.scroll-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    contain: strict;
+}
+
+/* Optimize horizontal scrolling for tabs */
+.profile-tabs .nav-tabs {
+    scroll-snap-type: x mandatory;
+    scrollbar-width: thin;
+}
+
+.profile-tabs .nav-item {
+    scroll-snap-align: start;
+}
+
+/* ========================================
+   Critical Resource Hints
+   ======================================== */
+
+/* Preload critical fonts */
+@font-face {
+    font-family: 'Tajawal';
+    font-display: swap;
+    /* Font files would be preloaded via link tags */
+}
+
+/* ========================================
+   Efficient Selectors
+   ======================================== */
+
+/* Use efficient CSS selectors */
+.tab-optimized {
+    /* Avoid deep nesting and complex selectors */
+}
+
+/* Use class selectors instead of complex attribute selectors */
+.is-active {
+    /* More efficient than [aria-selected="true"] */
+}
+
+.is-loading {
+    /* More efficient than [data-loading="true"] */
+}
+
+/* ========================================
+   Paint Optimization
+   ======================================== */
+
+/* Reduce paint complexity */
+.simple-border {
+    border: 1px solid var(--border-color);
+    /* Avoid complex border-radius on large elements */
+}
+
+/* Optimize gradients */
+.efficient-gradient {
+    background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+    /* Simple gradients perform better */
+}
+
+/* ========================================
+   Layout Thrashing Prevention
+   ======================================== */
+
+/* Prevent layout thrashing during animations */
+.no-layout-change {
+    transform: translateX(0);
+    /* Use transform instead of changing left/right */
+}
+
+/* Fixed dimensions to prevent reflow */
+.fixed-dimensions {
+    width: 100%;
+    height: 200px;
+    /* Explicit dimensions prevent layout recalculation */
+}
+
+/* ========================================
+   Critical Path Optimization
+   ======================================== */
+
+/* Inline critical CSS for above-the-fold content */
+.critical-content {
+    /* Styles for immediately visible content */
+    display: block;
+    visibility: visible;
+}
+
+/* Defer non-critical styles */
+.non-critical {
+    /* These styles can be loaded later */
+    opacity: 1;
+}
+
+/* ========================================
+   Resource Loading Optimization
+   ======================================== */
+
+/* Optimize background images */
+.bg-optimized {
+    background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMSIgaGVpZ2h0PSIxIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNmOGY5ZmEiLz48L3N2Zz4=');
+    /* Use data URIs for small images */
+}
+
+/* ========================================
+   Mobile Performance Optimizations
+   ======================================== */
+
+@media (max-width: 767.98px) {
+    /* Reduce complexity on mobile */
+    .mobile-optimized {
+        box-shadow: none;
+        border-radius: 4px;
+        /* Simpler styles for mobile */
+    }
+    
+    /* Disable expensive effects on mobile */
+    .mobile-simple {
+        backdrop-filter: none;
+        filter: none;
+    }
+    
+    /* Optimize touch interactions */
+    .touch-optimized {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
+}
+
+/* ========================================
+   Print Performance
+   ======================================== */
+
+@media print {
+    /* Remove expensive styles for printing */
+    * {
+        box-shadow: none !important;
+        text-shadow: none !important;
+        filter: none !important;
+        backdrop-filter: none !important;
+    }
+    
+    /* Optimize for print */
+    .print-optimized {
+        color: black !important;
+        background: white !important;
+    }
+}
+
+/* ========================================
+   High DPI Optimizations
+   ======================================== */
+
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    /* Optimize for high DPI displays */
+    .hidpi-optimized {
+        image-rendering: -webkit-optimize-contrast;
+    }
+}
+
+/* ========================================
+   CSS Custom Properties for Performance
+   ======================================== */
+
+/* Use CSS custom properties for dynamic values */
+.dynamic-color {
+    color: var(--dynamic-text-color, var(--text-color));
+    /* Fallback to static value */
+}
+
+/* ========================================
+   Efficient Animations
+   ======================================== */
+
+/* Use efficient keyframes */
+@keyframes efficient-pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.pulse-efficient {
+    animation: efficient-pulse 2s ease-in-out infinite;
+}
+
+/* ========================================
+   Memory-Efficient Patterns
+   ======================================== */
+
+/* Reuse common patterns */
+.pattern-reuse {
+    /* Define once, use multiple times */
+    padding: var(--spacing-3);
+    margin: var(--spacing-2);
+    border-radius: var(--border-radius);
+}
+
+/* ========================================
+   Performance Monitoring Styles
+   ======================================== */
+
+/* Visual indicators for performance debugging */
+.perf-debug {
+    position: relative;
+}
+
+.perf-debug::after {
+    content: attr(data-perf-time) 'ms';
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: rgba(255, 0, 0, 0.8);
+    color: white;
+    padding: 2px 4px;
+    font-size: 10px;
+    border-radius: 2px;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+/* ========================================
+   Lazy Loading Enhancements
+   ======================================== */
+
+/* Intersection Observer optimizations */
+.lazy-load-container {
+    min-height: 200px;
+    background: var(--gray-100);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.lazy-load-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        var(--gray-200) 25%,
+        var(--gray-100) 50%,
+        var(--gray-200) 75%
+    );
+    background-size: 200% 100%;
+    animation: loading-shimmer 1.5s infinite;
+}
+
+/* ========================================
+   Critical CSS Inlining Support
+   ======================================== */
+
+/* Mark critical styles for inlining */
+.critical-inline {
+    /* These styles should be inlined in HTML */
+    display: block;
+    font-family: var(--font-family-sans);
+    color: var(--text-color);
+}
+
+/* ========================================
+   Bundle Splitting Support
+   ======================================== */
+
+/* Styles that can be loaded later */
+.deferred-styles {
+    /* Non-critical styles for code splitting */
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-md);
+}

@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load app_tags %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title|default:"المنتجات المجمعة" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- CSRF Token للاستخدام في JavaScript -->
+    {% csrf_token %}
+    
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- قسم الإحصائيات السريعة -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            إحصائيات سريعة
+        </h5>
+        <div class="row">
+            <div class="col-md-4 mb-3">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-boxes"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المنتجات المجمعة</div>
+                        <div class="stats-card-value">{{ total_bundles|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-card-title">المنتجات النشطة</div>
+                        <div class="stats-card-value">{{ active_bundles|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4 mb-3">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-pause-circle"></i>
+                        </div>
+                        <div class="stats-card-title">المنتجات غير النشطة</div>
+                        <div class="stats-card-value">{{ inactive_bundles|smart_float }}</div>
+                        <div class="stats-card-unit">منتج</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- قسم الفلاتر -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-filter me-2"></i>
+            تصفية وبحث
+        </h5>
+        <form method="get" id="filter-form">
+            <div class="row g-3 align-items-end">
+                <!-- البحث -->
+                <div class="col-md-3">
+                    <label for="search" class="form-label">البحث</label>
+                    <input type="text" class="form-control" id="search" name="search" 
+                           value="{{ search_query }}" placeholder="اسم المنتج أو الكود">
+                </div>
+                <!-- التصنيف -->
+                <div class="col-md-3">
+                    <label for="category" class="form-label">التصنيف</label>
+                    <select class="form-select" id="category" name="category">
+                        <option value="">جميع التصنيفات</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}" 
+                                    {% if request.GET.category == category.id|stringformat:"s" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- الحالة -->
+                <div class="col-md-2">
+                    <label for="status" class="form-label">الحالة</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="">جميع الحالات</option>
+                        <option value="active" {% if request.GET.status == "active" %}selected{% endif %}>نشط</option>
+                        <option value="inactive" {% if request.GET.status == "inactive" %}selected{% endif %}>غير نشط</option>
+                    </select>
+                </div>
+                <!-- الأزرار -->
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-search me-2"></i>تطبيق الفلاتر
+                    </button>
+                    <a href="{% url 'product:bundle_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-undo me-2"></i>إعادة تعيين
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- قسم الجدول -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-list me-2"></i>قائمة المنتجات المجمعة
+                <span class="badge bg-primary ms-2">{{ table_data|length|smart_float }} منتج</span>
+            </h5>
+        </div>
+        
+        <!-- استخدام الجدول الموحد -->
+        {% include "components/data_table.html" with table_id="bundles-table" headers=bundle_headers data=table_data primary_key="id" empty_message="لا توجد منتجات مجمعة متاحة" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول الموحد
+    const tableElement = document.getElementById('bundles-table');
+    if (tableElement && typeof initGlobalTable === 'function') {
+        initGlobalTable('bundles-table', {
+            ordering: true,
+            order: [[0, 'desc']],
+            columnDefs: [
+                { targets: 0, width: '120px', className: 'text-center' }, // كود المنتج
+                { targets: 1, className: 'text-start' }, // اسم المنتج
+                { targets: 2, width: '120px', className: 'text-center' }, // التصنيف
+                { targets: 3, width: '120px', className: 'text-center' }, // عدد المكونات
+                { targets: 4, width: '120px', className: 'text-center' }, // سعر البيع
+                { targets: 5, width: '120px', className: 'text-center' }, // المخزون المحسوب
+                { targets: 6, width: '90px', className: 'text-center' }, // الحالة
+                { targets: -1, orderable: false, width: '150px', className: 'text-center' } // الإجراءات
+            ],
+            language: {
+                "search": "البحث:",
+                "lengthMenu": "عرض _MENU_ منتج",
+                "info": "عرض _START_ إلى _END_ من _TOTAL_ منتج",
+                "emptyTable": "لا توجد منتجات مجمعة للعرض",
+                "zeroRecords": "لم يتم العثور على منتجات مجمعة مطابقة",
+                "paginate": {
+                    "first": "الأول",
+                    "last": "الأخير",
+                    "next": "التالي",
+                    "previous": "السابق"
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

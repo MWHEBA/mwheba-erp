@@ -1,0 +1,75 @@
+{% comment %}
+========================================
+مكون القسم القابل للطي الموحد
+Unified Collapsible Section Component
+========================================
+
+الاستخدام | Usage:
+{% include "components/collapsible_section.html" with section_id="filters-section" section_title="الفلاتر المتقدمة" section_icon="fas fa-filter" default_collapsed=True content=filter_content %}
+
+المعاملات | Parameters:
+- section_id: معرف فريد للقسم (مطلوب | Required) - يجب أن يكون فريداً في الصفحة
+- section_title: عنوان القسم (مطلوب | Required)
+- section_icon: أيقونة FontAwesome (اختياري | Optional)
+- default_collapsed: البدء في حالة مطوية (اختياري | Optional، افتراضي: False)
+- content: محتوى القسم HTML (مطلوب | Required)
+
+أمثلة | Examples:
+
+1. قسم مفتوح بشكل افتراضي | Default expanded section:
+{% include "components/collapsible_section.html" with section_id="stats-section" section_title="الإحصائيات السريعة" section_icon="fas fa-chart-bar" content=stats_html %}
+
+2. قسم مطوي بشكل افتراضي | Default collapsed section:
+{% include "components/collapsible_section.html" with section_id="advanced-filters" section_title="الفلاتر المتقدمة" section_icon="fas fa-filter" default_collapsed=True content=filters_html %}
+
+3. قسم بدون أيقونة | Section without icon:
+{% include "components/collapsible_section.html" with section_id="details-section" section_title="التفاصيل الإضافية" default_collapsed=True content=details_html %}
+
+4. استخدام مع محتوى مباشر | Using with inline content:
+{% with content="<p>محتوى القسم هنا</p>" %}
+    {% include "components/collapsible_section.html" with section_id="info-section" section_title="معلومات إضافية" content=content %}
+{% endwith %}
+
+متى تستخدم الأقسام القابلة للطي؟ | When to use collapsible sections?
+- عند وجود محتوى ثانوي أو اختياري (مثل الفلاتر المتقدمة)
+- لتقليل الازدحام في الصفحات الطويلة
+- عندما يكون المحتوى مفيد لكن ليس ضروري للعرض دائماً
+- في صفحات التقارير حيث الإحصائيات والفلاتر يمكن إخفاؤها
+
+ملاحظات مهمة | Important Notes:
+- تأكد من أن كل قسم له معرف فريد (section_id)
+- السهم (fa-chevron-down) يدور تلقائياً عند الفتح/الإغلاق
+- يستخدم Bootstrap 5 Collapse للوظائف
+- يتضمن خصائص ARIA للوصول السهل
+
+المتطلبات | Requirements:
+- Requirements 5.1: Bootstrap collapse functionality
+- Requirements 5.2: Chevron icon animation
+- Requirements 5.3: Default collapsed and expanded states
+- Requirements 5.5: Accessibility attributes (ARIA)
+
+========================================
+{% endcomment %}
+
+<div class="section-container mb-4" role="region" aria-label="{{ section_title }}">
+    <h5 class="section-title" 
+        style="cursor: pointer;" 
+        data-bs-toggle="collapse" 
+        data-bs-target="#{{ section_id }}" 
+        aria-expanded="{% if default_collapsed %}false{% else %}true{% endif %}" 
+        aria-controls="{{ section_id }}"
+        role="button"
+        tabindex="0"
+        onkeypress="if(event.key === 'Enter' || event.key === ' ') { event.preventDefault(); document.getElementById('{{ section_id }}').classList.toggle('show'); this.setAttribute('aria-expanded', this.getAttribute('aria-expanded') === 'true' ? 'false' : 'true'); }">
+        {% if section_icon %}
+        <i class="{{ section_icon }} me-2" aria-hidden="true"></i>
+        {% endif %}
+        {{ section_title }}
+        <i class="fas fa-chevron-down float-end" aria-hidden="true"></i>
+    </h5>
+    <div class="collapse {% if not default_collapsed %}show{% endif %}" 
+         id="{{ section_id }}"
+         aria-labelledby="{{ section_id }}-title">
+        {{ content|safe }}
+    </div>
+</div>

@@ -1,0 +1,94 @@
+<!-- Overview Tab Content -->
+
+<!-- Active Roles -->
+{% if active_roles %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-crown me-2 text-warning"></i>
+                    الأدوار الأكثر استخداماً
+                </h6>
+                <a href="?tab=roles" class="btn btn-sm btn-outline-primary">
+                    عرض جميع الأدوار
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for role in active_roles %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="border rounded p-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">{{ role.display_name }}</h6>
+                                {% if role.is_system_role %}
+                                    <span class="badge bg-info">نظام</span>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <small class="text-muted">{{ role.name }}</small>
+                                <span class="badge bg-primary">{{ role.user_count }} مستخدم</span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Recent Users -->
+{% if recent_users %}
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent d-flex justify-content-between align-items-center">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-user-plus me-2 text-success"></i>
+                    المستخدمين الجدد (آخر 7 أيام)
+                </h6>
+                <a href="?tab=users" class="btn btn-sm btn-outline-primary">
+                    عرض جميع المستخدمين
+                </a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for user in recent_users %}
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="d-flex align-items-center p-3 border rounded">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="bg-success-subtle text-success rounded-circle d-flex align-items-center justify-content-center" 
+                                     style="width: 40px; height: 40px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ user.get_full_name|default:user.username }}</h6>
+                                <small class="text-muted">
+                                    {{ user.date_joined|timesince }} مضت
+                                    {% if user.role %}
+                                        • {{ user.role.display_name }}
+                                    {% else %}
+                                        • بدون دور
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+
+{% if overview_error %}
+<div class="alert alert-warning mt-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>تحذير:</strong> حدث خطأ في تحميل بعض البيانات: {{ overview_error }}
+</div>
+{% endif %}

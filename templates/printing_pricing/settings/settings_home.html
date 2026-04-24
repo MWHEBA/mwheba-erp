@@ -1,0 +1,363 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* تحسينات خاصة بصفحة إعدادات التسعير */
+    .settings-card {
+        transition: all 0.3s ease;
+        border: none;
+        border-radius: var(--border-radius);
+        box-shadow: var(--box-shadow-sm);
+        overflow: hidden;
+    }
+    
+    .settings-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    
+    .settings-card .card-header {
+        background: var(--primary-color);
+        border: none;
+        padding: var(--spacing-4);
+    }
+    
+    .settings-card .card-header.bg-success {
+        background: var(--success-color);
+    }
+    
+    .settings-card .card-header.bg-info {
+        background: var(--info-color);
+    }
+    
+    .settings-card .card-header.bg-warning {
+        background: var(--warning-color);
+        color: var(--white) !important;
+    }
+    
+    .settings-card .card-title {
+        position: relative;
+        z-index: 2;
+        font-weight: var(--font-weight-bold);
+        font-size: 1.1rem;
+        margin-bottom: 0;
+        color: var(--white);
+    }
+    
+    .settings-card .card-body {
+        padding: 0;
+        background: var(--white);
+    }
+    
+    .settings-list-item {
+        border: none;
+        padding: var(--spacing-4);
+        transition: all 0.2s ease;
+        color: var(--text-dark);
+        text-decoration: none;
+        display: flex;
+        align-items: center;
+        justify-content: between;
+        border-bottom: 1px solid var(--gray-100);
+    }
+    
+    .settings-list-item:last-child {
+        border-bottom: none;
+    }
+    
+    .settings-list-item:hover {
+        background: var(--gray-50);
+        color: var(--primary-color);
+    }
+    
+    .settings-list-item i.fa-chevron-left {
+        color: var(--gray-400);
+        transition: all 0.2s ease;
+    }
+    
+    .settings-list-item:hover i.fa-chevron-left {
+        color: var(--primary-color);
+        transform: translateX(-2px);
+    }
+    
+    @media (max-width: 768px) {
+        .settings-card:hover {
+            transform: none;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        {% endfor %}
+    {% endif %}
+            
+            <div class="row">
+                <!-- بطاقة إعدادات الورق -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title">
+                                <i class="fas fa-scroll me-2"></i>
+                                {% translate "إعدادات الورق" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="{% url 'printing_pricing:paper_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-layer-group me-3 text-primary"></i>
+                                        <span>{% translate "أنواع الورق" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:paper_size_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-ruler-combined me-3 text-primary"></i>
+                                        <span>{% translate "أحجام الورق" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:paper_weight_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-weight-hanging me-3 text-primary"></i>
+                                        <span>{% translate "أوزان الورق" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:paper_origin_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-globe me-3 text-primary"></i>
+                                        <span>{% translate "منشأ الورق" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:piece_size_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-cut me-3 text-primary"></i>
+                                        <span>{% translate "مقاسات القطع" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- بطاقة إعدادات الطباعة -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="card-title">
+                                <i class="fas fa-print me-2"></i>
+                                {% translate "إعدادات الطباعة" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="{% url 'printing_pricing:print_direction_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-arrows-alt me-3 text-success"></i>
+                                        <span>{% translate "اتجاهات الطباعة" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:print_side_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-clone me-3 text-success"></i>
+                                        <span>{% translate "جوانب الطباعة" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:offset_machine_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-print me-3 text-success"></i>
+                                        <span>{% translate "أنواع ماكينات الأوفست" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:offset_sheet_size_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-ruler-combined me-3 text-success"></i>
+                                        <span>{% translate "مقاسات ماكينات الأوفست" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:digital_machine_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-desktop me-3 text-success"></i>
+                                        <span>{% translate "أنواع ماكينات الديجيتال" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:digital_sheet_size_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-expand-arrows-alt me-3 text-success"></i>
+                                        <span>{% translate "مقاسات ماكينات الديجيتال" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- بطاقة خدمات الطباعة -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header bg-info text-white">
+                            <h5 class="card-title">
+                                <i class="fas fa-cut me-2"></i>
+                                {% translate "خدمات الطباعة" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="{% url 'printing_pricing:finishing_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-cut me-3 text-info"></i>
+                                        <span>{% translate "أنواع خدمات الطباعة" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:packaging_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-box me-3 text-info"></i>
+                                        <span>{% translate "أنواع التقفيل" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:coating_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-paint-brush me-3 text-info"></i>
+                                        <span>{% translate "أنواع التغطية" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- بطاقة إعدادات المنتجات -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header" style="background: var(--purple-color, #6f42c1);">
+                            <h5 class="card-title">
+                                <i class="fas fa-box me-2"></i>
+                                {% translate "إعدادات المنتجات" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="{% url 'printing_pricing:product_type_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tags me-3" style="color: #6f42c1;"></i>
+                                        <span>{% translate "أنواع المنتجات" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                                <a href="{% url 'printing_pricing:product_size_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-expand-arrows-alt me-3" style="color: #6f42c1;"></i>
+                                        <span>{% translate "مقاسات المنتجات" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- الصف الثاني -->
+            <div class="row">
+                <!-- بطاقة إعدادات الموردين -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header" style="background: var(--secondary-color);">
+                            <h5 class="card-title">
+                                <i class="fas fa-industry me-2"></i>
+                                {% translate "إعدادات الموردين" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="#" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-tags me-3" style="color: var(--secondary-color);"></i>
+                                        <span>{% translate "أنواع الموردين" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- بطاقة إعدادات الضرائب -->
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <div class="card settings-card h-100">
+                        <div class="card-header" style="background: var(--warning-color);">
+                            <h5 class="card-title">
+                                <i class="fas fa-percentage me-2"></i>
+                                {% translate "إعدادات الضرائب" %}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="list-group list-group-flush">
+                                <a href="{% url 'printing_pricing:vat_setting_list' %}" class="settings-list-item">
+                                    <div class="d-flex align-items-center">
+                                        <i class="fas fa-percentage me-3 text-warning"></i>
+                                        <span>{% translate "ضريبة القيمة المضافة" %}</span>
+                                    </div>
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تأثيرات بسيطة للعناصر في القائمة
+    const listItems = document.querySelectorAll('.settings-list-item');
+    
+    listItems.forEach(item => {
+        item.addEventListener('mouseenter', function() {
+            const icon = this.querySelector('i.fa-chevron-left');
+            if (icon) {
+                icon.style.transform = 'translateX(-2px)';
+                icon.style.color = 'var(--primary-color)';
+            }
+        });
+        
+        item.addEventListener('mouseleave', function() {
+            const icon = this.querySelector('i.fa-chevron-left');
+            if (icon) {
+                icon.style.transform = 'translateX(0)';
+                icon.style.color = 'var(--gray-400)';
+            }
+        });
+    });
+});
+</script>
+{% endblock %} 

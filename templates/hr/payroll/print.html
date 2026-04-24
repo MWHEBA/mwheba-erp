@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>قسيمة راتب - {{ payroll.employee.get_full_name_ar }} - {{ payroll.month|date:"F Y" }}</title>
+    {% load static %}
+    {% load humanize %}
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            direction: rtl;
+            background: white;
+            color: #1f2937;
+            line-height: 1.6;
+        }
+
+        .print-container {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 20mm;
+            background: white;
+        }
+
+        /* Header */
+        .payslip-header {
+            text-align: center;
+            border-bottom: 3px solid #2563eb;
+            padding-bottom: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .company-logo {
+            max-width: 150px;
+            margin-bottom: 1rem;
+        }
+
+        .company-name {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1f2937;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2563eb;
+            margin-bottom: 0.5rem;
+        }
+
+        .document-subtitle {
+            font-size: 1rem;
+            color: #6b7280;
+        }
+
+        /* Employee Info */
+        .employee-section {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .info-label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+
+        .info-value {
+            color: #1f2937;
+        }
+
+        /* Salary Details */
+        .salary-section {
+            margin-bottom: 2rem;
+        }
+
+
+        .salary-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1.5rem;
+        }
+
+        .salary-table thead {
+            background: #f3f4f6;
+        }
+
+        .salary-table th {
+            padding: 0.75rem 1rem;
+            text-align: right;
+            font-weight: 600;
+            color: #374151;
+            border: 1px solid #e5e7eb;
+        }
+
+        .salary-table td {
+            padding: 0.75rem 1rem;
+            border: 1px solid #e5e7eb;
+        }
+
+        .salary-table tbody tr:nth-child(even) {
+            background: #f9fafb;
+        }
+
+        .amount-cell {
+            text-align: left;
+            font-weight: 600;
+        }
+
+        .positive-amount {
+            color: #10b981;
+        }
+
+        .negative-amount {
+            color: #ef4444;
+        }
+
+        .source-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.75rem;
+            font-weight: 500;
+            background: #e5e7eb;
+            color: #4b5563;
+        }
+
+        /* Summary */
+        .summary-section {
+            background: #f9fafb;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.75rem 0;
+            font-size: 1.125rem;
+        }
+
+        .summary-row.total {
+            border-top: 2px solid #2563eb;
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+        }
+
+        .summary-label {
+            font-weight: 600;
+        }
+
+        .summary-value {
+            font-weight: 700;
+        }
+
+        .net-salary-box {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .net-salary-label {
+            font-size: 1.125rem;
+            margin-bottom: 0.5rem;
+            opacity: 0.9;
+        }
+
+        .net-salary-amount {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .net-salary-words {
+            font-size: 0.875rem;
+            opacity: 0.8;
+        }
+
+        /* Footer */
+        .payslip-footer {
+            border-top: 2px solid #e5e7eb;
+            padding-top: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .signatures {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .signature-box {
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 1px solid #1f2937;
+            margin-bottom: 0.5rem;
+            padding-top: 0.5rem;
+        }
+
+        .signature-label {
+            font-size: 0.875rem;
+            color: #6b7280;
+        }
+
+        .footer-notes {
+            margin-top: 2rem;
+            font-size: 0.8125rem;
+            color: #6b7280;
+            text-align: center;
+        }
+
+        /* Print Styles */
+        @media print {
+            body {
+                background: white;
+            }
+
+            .print-container {
+                padding: 0;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            @page {
+                size: A4;
+                margin: 15mm;
+            }
+        }
+
+        /* Print Button */
+        .print-button {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            padding: 0.75rem 1.5rem;
+            background: #2563eb;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+            z-index: 1000;
+        }
+
+        .print-button:hover {
+            background: #1d4ed8;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-button no-print" onclick="window.print()">
+        🖨️ طباعة
+    </button>
+
+    <div class="print-container">
+        <!-- Header -->
+        <div class="payslip-header">
+            {% if company_logo %}
+            <img src="{{ company_logo }}" alt="شعار الشركة" class="company-logo">
+            {% endif %}
+            <h1 class="company-name">{{ company_name|default:"اسم الشركة" }}</h1>
+            <h2 class="document-title">قسيمة راتب</h2>
+            <p class="document-subtitle">{{ payroll.month|date:"F Y" }}</p>
+        </div>
+
+        <!-- Employee Information -->
+        <div class="employee-section">
+            <h3 class="section-title">بيانات الموظف</h3>
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-label">الاسم:</span>
+                    <span class="info-value">{{ payroll.employee.get_full_name_ar }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">رقم الموظف:</span>
+                    <span class="info-value">{{ payroll.employee.employee_number }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">القسم:</span>
+                    <span class="info-value">{{ payroll.employee.department.name_ar|default:"—" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">الوظيفة:</span>
+                    <span class="info-value">{{ payroll.employee.job_title.name_ar|default:"—" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">تاريخ التعيين:</span>
+                    <span class="info-value">{{ payroll.employee.hire_date|date:"Y/m/d" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">رقم العقد:</span>
+                    <span class="info-value">{{ payroll.contract.contract_number|default:"—" }}</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">التصنيف المالي:</span>
+                    <span class="info-value">
+                        {% if payroll.financial_category %}
+                            {{ payroll.financial_category.name }}
+                        {% else %}
+                            غير محدد
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Earnings -->
+        <div class="salary-section">
+            <h3 class="section-title">💰 المستحقات</h3>
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50%;" class="text-center">البند</th>
+                        <th style="width: 20%;" class="text-center">المصدر</th>
+                        <th style="width: 15%;" class="text-center">التفاصيل</th>
+                        <th style="width: 15%;" class="text-center">المبلغ (جنيه)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in payroll_lines_earnings %}
+                    <tr>
+                        <td class="text-center">{{ line.name }}</td>
+                        <td class="text-center">
+                            <span class="source-badge">
+                                {% if line.source == 'contract' %}من العقد
+                                {% elif line.source == 'component' %}بند راتب
+                                {% elif line.source == 'attendance' %}حضور
+                                {% elif line.source == 'overtime' %}إضافي
+                                {% else %}{{ line.get_source_display }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if line.quantity != 1 %}
+                                {{ line.quantity|floatformat:2 }} × {{ line.rate|floatformat:2|intcomma }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="amount-cell positive-amount text-center">{{ line.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #6b7280;" class="text-center">لا توجد بنود مستحقات</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Deductions -->
+        <div class="salary-section">
+            <h3 class="section-title">📉 الخصومات</h3>
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th style="width: 50%;" class="text-center">البند</th>
+                        <th style="width: 20%;" class="text-center">المصدر</th>
+                        <th style="width: 15%;" class="text-center">التفاصيل</th>
+                        <th style="width: 15%;" class="text-center">المبلغ (جنيه)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for line in payroll_lines_deductions %}
+                    <tr>
+                        <td class="text-center">
+                            {{ line.name }}
+                            {% if line.code == 'EXTRA_PERM_DEDUCTION' %}
+                                <span class="source-badge" style="background: #ffc107; color: #000; font-size: 0.7em;">إضافي</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="source-badge">
+                                {% if line.source == 'attendance' %}حضور
+                                {% elif line.source == 'leave' %}إجازات
+                                {% elif line.source == 'permission' %}أذونات
+                                {% elif line.source == 'advance' %}سلفة
+                                {% elif line.source == 'component' %}بند راتب
+                                {% else %}{{ line.get_source_display }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {% if line.code == 'EXTRA_PERM_DEDUCTION' and line.calculation_details %}
+                                {{ line.calculation_details.permissions|length }} إذن
+                            {% elif line.quantity != 1 %}
+                                {{ line.quantity|floatformat:2 }} × {{ line.rate|floatformat:2|intcomma }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td class="amount-cell negative-amount text-center">{{ line.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" style="text-align: center; color: #6b7280;" class="text-center">لا توجد خصومات</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if insurable_salary_line %}
+        <!-- Insurable Salary Reference -->
+        <div class="salary-section" style="opacity: 0.7;">
+            <h3 class="section-title" style="font-size: 0.85em;">📋 مرجعية التأمينات</h3>
+            <table class="salary-table">
+                <thead>
+                    <tr>
+                        <th style="width: 70%;" class="text-center">البند</th>
+                        <th style="width: 30%;" class="text-center">المبلغ (جنيه)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-center">الأجر التأميني <small style="color:#6b7280;">(مرجعية — لا يُضاف للراتب)</small></td>
+                        <td class="text-center">{{ insurable_salary_line.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        <!-- Summary -->
+        <div class="summary-section">
+            <div class="summary-row">
+                <span class="summary-label">الأجر الأساسي:</span>
+                <span class="summary-value">{{ payroll.basic_salary|floatformat:2|intcomma }} جنيه</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">إجمالي المستحقات:</span>
+                <span class="summary-value positive-amount">{{ payroll.gross_salary|floatformat:2|intcomma }} جنيه</span>
+            </div>
+            <div class="summary-row">
+                <span class="summary-label">إجمالي الخصومات:</span>
+                <span class="summary-value negative-amount">{{ payroll.total_deductions|floatformat:2|intcomma }} جنيه</span>
+            </div>
+            <div class="summary-row total">
+                <span class="summary-label">صافي الراتب المستحق:</span>
+                <span class="summary-value">{{ correct_net_salary|floatformat:2|intcomma }} جنيه</span>
+            </div>
+        </div>
+
+        <!-- Net Salary Highlight -->
+        <div class="net-salary-box">
+            <div class="net-salary-label">صافي الراتب المستحق</div>
+            <div class="net-salary-amount">{{ correct_net_salary|floatformat:2|intcomma }} جنيه</div>
+            <div class="net-salary-words">
+                {{ correct_net_salary|floatformat:0 }} جنيه مصري فقط لا غير
+            </div>
+        </div>
+
+        <!-- Attendance Summary -->
+        {% if payroll.attendance_summary %}
+        <div class="employee-section">
+            <h3 class="section-title">📊 ملخص الحضور</h3>
+            <div class="info-grid">
+                <div class="info-row">
+                    <span class="info-label">أيام العمل:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.total_working_days|default:0 }} يوم</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">أيام الحضور:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.present_days|default:0 }} يوم</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">أيام الغياب:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.absent_days|default:0 }} يوم</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">ساعات العمل:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.total_work_hours|floatformat:1 }} ساعة</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">العمل الإضافي:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.total_overtime_hours|floatformat:1 }} ساعة</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">دقائق التأخير:</span>
+                    <span class="info-value">{{ payroll.attendance_summary.total_late_minutes|default:0 }} دقيقة</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Footer -->
+        <div class="payslip-footer">
+            <div class="info-row">
+                <span class="info-label">تاريخ الإصدار:</span>
+                <span class="info-value">{{ payroll.processed_at|date:"Y/m/d H:i" }}</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">معالج بواسطة:</span>
+                <span class="info-value">{{ payroll.processed_by.get_full_name|default:payroll.processed_by.username }}</span>
+            </div>
+            {% if payroll.approved_by %}
+            <div class="info-row">
+                <span class="info-label">معتمد بواسطة:</span>
+                <span class="info-value">{{ payroll.approved_by.get_full_name|default:payroll.approved_by.username }}</span>
+            </div>
+            {% endif %}
+
+            <!-- Signatures -->
+            <div class="signatures">
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-label">توقيع الموظف</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-label">مدير الموارد البشرية</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <div class="signature-label">المدير المالي</div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="footer-notes">
+                <p>هذه الوثيقة صادرة إلكترونياً ولا تحتاج إلى توقيع أو ختم</p>
+                <p>تم الإصدار بواسطة نظام ERP المتكامل</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // يمكنك تفعيل الطباعة التلقائية عند الفتح إذا حبيت
+        // window.onload = function() { window.print(); };
+    </script>
+</body>
+</html>

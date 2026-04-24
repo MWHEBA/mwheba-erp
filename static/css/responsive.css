@@ -1,0 +1,496 @@
+/**
+ * Responsive Design System
+ * نظام التصميم المتجاوب العام للنظام
+ * 
+ * يحتوي على قواعد التصميم المتجاوب المشتركة عبر النظام
+ */
+
+/* ========================================
+   Responsive Utilities
+   ======================================== */
+
+/* Container responsive behavior */
+.container-responsive {
+    width: 100%;
+    max-width: var(--container-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-4);
+}
+
+/* Responsive text sizes */
+.text-responsive {
+    font-size: clamp(var(--font-size-sm), 2.5vw, var(--font-size-lg));
+}
+
+.heading-responsive {
+    font-size: clamp(var(--font-size-lg), 4vw, var(--font-size-3xl));
+}
+
+/* Responsive spacing */
+.spacing-responsive {
+    padding: clamp(var(--spacing-2), 3vw, var(--spacing-6));
+}
+
+.margin-responsive {
+    margin: clamp(var(--spacing-2), 3vw, var(--spacing-6));
+}
+
+/* ========================================
+   Responsive Grid System
+   ======================================== */
+
+.responsive-grid {
+    display: grid;
+    gap: var(--spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.responsive-grid-2 {
+    display: grid;
+    gap: var(--spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.responsive-grid-3 {
+    display: grid;
+    gap: var(--spacing-4);
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+/* Responsive flex utilities */
+.flex-responsive {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+}
+
+.flex-responsive > * {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* ========================================
+   Responsive Cards
+   ======================================== */
+
+.card-responsive {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: clamp(var(--spacing-3), 4vw, var(--spacing-6));
+    box-shadow: var(--card-shadow);
+    transition: var(--transition-all);
+}
+
+.card-responsive:hover {
+    box-shadow: var(--shadow-lg);
+    transform: translateY(-2px);
+}
+
+@media (max-width: 767.98px) {
+    .card-responsive {
+        padding: var(--spacing-3);
+        margin-bottom: var(--spacing-3);
+    }
+}
+
+/* ========================================
+   Responsive Tables
+   ======================================== */
+
+.table-responsive-custom {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive-custom table {
+    min-width: 600px;
+    width: 100%;
+}
+
+@media (max-width: 767.98px) {
+    .table-responsive-stack {
+        display: block;
+    }
+    
+    .table-responsive-stack thead {
+        display: none;
+    }
+    
+    .table-responsive-stack tbody,
+    .table-responsive-stack tr,
+    .table-responsive-stack td {
+        display: block;
+        width: 100%;
+    }
+    
+    .table-responsive-stack tr {
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: var(--spacing-3);
+        padding: var(--spacing-3);
+        background: var(--bg-card);
+    }
+    
+    .table-responsive-stack td {
+        border: none;
+        padding: var(--spacing-2) 0;
+        position: relative;
+        padding-right: 50%;
+    }
+    
+    .table-responsive-stack td:before {
+        content: attr(data-label);
+        position: absolute;
+        right: 6px;
+        width: 45%;
+        text-align: right;
+        font-weight: var(--font-weight-semibold);
+        color: var(--text-dark);
+    }
+}
+
+/* ========================================
+   Responsive Forms
+   ======================================== */
+
+.form-responsive {
+    display: grid;
+    gap: var(--spacing-4);
+    grid-template-columns: 1fr;
+}
+
+.form-responsive .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+}
+
+.form-responsive .form-row {
+    display: grid;
+    gap: var(--spacing-3);
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+@media (min-width: 768px) {
+    .form-responsive-2col {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .form-responsive-3col {
+        grid-template-columns: 1fr 1fr 1fr;
+    }
+}
+
+/* Form controls responsive sizing */
+.form-control-responsive {
+    width: 100%;
+    padding: clamp(var(--spacing-2), 2vw, var(--spacing-3));
+    font-size: clamp(var(--font-size-sm), 2vw, var(--font-size-base));
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+}
+
+.form-control-responsive:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-focus);
+    outline: none;
+}
+
+/* ========================================
+   Responsive Buttons
+   ======================================== */
+
+.btn-responsive {
+    padding: clamp(var(--spacing-2), 2vw, var(--spacing-3)) clamp(var(--spacing-3), 3vw, var(--spacing-5));
+    font-size: clamp(var(--font-size-sm), 2vw, var(--font-size-base));
+    border-radius: var(--border-radius);
+    border: none;
+    cursor: pointer;
+    transition: var(--transition-all);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-2);
+    min-height: 44px; /* Minimum touch target */
+}
+
+.btn-group-responsive {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+}
+
+.btn-group-responsive .btn {
+    flex: 1;
+    min-width: 120px;
+}
+
+@media (max-width: 575.98px) {
+    .btn-group-responsive {
+        flex-direction: column;
+    }
+    
+    .btn-group-responsive .btn {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   Responsive Navigation
+   ======================================== */
+
+.nav-responsive {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-2);
+    padding: 0;
+    margin: 0;
+    list-style: none;
+}
+
+.nav-responsive .nav-item {
+    flex: 1;
+    min-width: 100px;
+}
+
+.nav-responsive .nav-link {
+    display: block;
+    padding: var(--spacing-3);
+    text-decoration: none;
+    color: var(--text-medium);
+    border-radius: var(--border-radius);
+    transition: var(--transition-colors);
+    text-align: center;
+}
+
+.nav-responsive .nav-link:hover,
+.nav-responsive .nav-link.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+@media (max-width: 767.98px) {
+    .nav-responsive {
+        flex-direction: column;
+    }
+    
+    .nav-responsive .nav-item {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   Responsive Images and Media
+   ======================================== */
+
+.img-responsive {
+    max-width: 100%;
+    height: auto;
+    border-radius: var(--border-radius);
+}
+
+.media-responsive {
+    position: relative;
+    width: 100%;
+    height: 0;
+    padding-bottom: 56.25%; /* 16:9 aspect ratio */
+    overflow: hidden;
+    border-radius: var(--border-radius);
+}
+
+.media-responsive iframe,
+.media-responsive video,
+.media-responsive embed {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* ========================================
+   Responsive Typography
+   ======================================== */
+
+.text-responsive-center {
+    text-align: center;
+}
+
+@media (max-width: 767.98px) {
+    .text-responsive-center {
+        text-align: right; /* RTL alignment for Arabic */
+    }
+}
+
+.heading-stack {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    flex-wrap: wrap;
+}
+
+@media (max-width: 575.98px) {
+    .heading-stack {
+        flex-direction: column;
+        align-items: flex-start;
+        text-align: center;
+        width: 100%;
+    }
+}
+
+/* ========================================
+   Responsive Utilities
+   ======================================== */
+
+/* Show/hide utilities */
+.d-mobile-none {
+    display: block;
+}
+
+.d-mobile-block {
+    display: none;
+}
+
+@media (max-width: 767.98px) {
+    .d-mobile-none {
+        display: none;
+    }
+    
+    .d-mobile-block {
+        display: block;
+    }
+}
+
+.d-tablet-none {
+    display: block;
+}
+
+.d-tablet-block {
+    display: none;
+}
+
+@media (max-width: 991.98px) and (min-width: 768px) {
+    .d-tablet-none {
+        display: none;
+    }
+    
+    .d-tablet-block {
+        display: block;
+    }
+}
+
+/* Responsive spacing utilities */
+.p-responsive {
+    padding: clamp(var(--spacing-2), 3vw, var(--spacing-6));
+}
+
+.m-responsive {
+    margin: clamp(var(--spacing-2), 3vw, var(--spacing-6));
+}
+
+.gap-responsive {
+    gap: clamp(var(--spacing-2), 2vw, var(--spacing-4));
+}
+
+/* ========================================
+   Responsive Animations
+   ======================================== */
+
+@media (prefers-reduced-motion: reduce) {
+    .card-responsive,
+    .btn-responsive,
+    .nav-responsive .nav-link {
+        transition: none;
+    }
+    
+    .card-responsive:hover {
+        transform: none;
+    }
+}
+
+/* ========================================
+   Responsive Accessibility
+   ======================================== */
+
+/* Focus indicators */
+.focus-responsive:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px var(--primary-focus);
+}
+
+/* High contrast mode */
+@media (prefers-contrast: high) {
+    .card-responsive,
+    .form-control-responsive,
+    .btn-responsive {
+        border-width: 2px;
+    }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+    .btn-responsive,
+    .nav-responsive .nav-link {
+        min-height: 48px;
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .form-control-responsive {
+        min-height: 48px;
+        font-size: 16px; /* Prevent zoom on iOS */
+    }
+}
+
+/* ========================================
+   Responsive Print Styles
+   ======================================== */
+
+@media print {
+    .d-print-none {
+        display: none !important;
+    }
+    
+    .container-responsive {
+        max-width: none;
+        padding: 0;
+    }
+    
+    .card-responsive {
+        box-shadow: none;
+        border: 1px solid #ccc;
+        page-break-inside: avoid;
+    }
+    
+    .btn-responsive {
+        display: none;
+    }
+    
+    .nav-responsive {
+        display: none;
+    }
+}
+
+/* ========================================
+   Container Queries (Future Support)
+   ======================================== */
+
+@supports (container-type: inline-size) {
+    .container-query {
+        container-type: inline-size;
+    }
+    
+    @container (max-width: 400px) {
+        .container-query .btn-group-responsive {
+            flex-direction: column;
+        }
+    }
+    
+    @container (min-width: 600px) {
+        .container-query .form-responsive {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+}

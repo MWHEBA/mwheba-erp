@@ -1,0 +1,61 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+{% if form.instance.pk %}{% trans "تعديل" %}: {{ form.instance }}{% else %}{% trans "إضافة" %} {{ object_type }}{% endif %}
+{% endblock %}
+
+{% block extra_css %}
+{% block page_css %}{% endblock %}
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <form method="post" enctype="multipart/form-data" id="data-form" novalidate>
+            {% csrf_token %}
+            
+            {% block form_content %}
+            <div class="row">
+                {% for field in form %}
+                <div class="col-md-6 mb-3">
+                    {{ field|as_crispy_field }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endblock %}
+
+            <div class="form-actions mt-4 text-end">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>{% trans "حفظ" %}
+                </button>
+                <a href="{{ list_url }}" class="btn btn-secondary ms-2">
+                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+    $(document).ready(function() {
+        // تنشيط Select2 للقوائم المنسدلة
+        $('select').each(function() {
+            $(this).select2({
+                theme: 'bootstrap-5',
+                placeholder: "{% trans 'اختر...' %}",
+                allowClear: true
+            });
+        });
+    });
+</script>
+{% block page_js %}{% endblock %}
+{% endblock %} 

@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}حذف المخزن: {{ warehouse.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+.dependency-card {
+    border-left: 4px solid #ffc107;
+    background-color: #fff3cd;
+}
+.action-card {
+    border: 2px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+.action-card:hover {
+    border-color: #007bff;
+    box-shadow: 0 4px 8px rgba(0,123,255,0.1);
+}
+.action-card.selected {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+}
+.danger-action {
+    border-color: #dc3545 !important;
+}
+.danger-action:hover {
+    border-color: #c82333 !important;
+    box-shadow: 0 4px 8px rgba(220,53,69,0.2);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        حذف المخزن: {{ warehouse.name }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    
+                    {% if dependencies.has_dependencies %}
+                    <!-- عرض الارتباطات الموجودة -->
+                    <div class="dependency-card p-3 mb-4 rounded">
+                        <h6 class="text-warning mb-3">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            تحذير: هذا المخزن مرتبط ببيانات أخرى
+                        </h6>
+                        <p class="mb-2">المخزن مرتبط بالبيانات التالية:</p>
+                        <ul class="mb-0">
+                            {% for detail in dependencies.details %}
+                            <li>{{ detail }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    
+                    <!-- خيارات الحذف -->
+                    <form method="post" id="deleteForm">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" id="selectedAction" value="">
+                        
+                        <h6 class="mb-3">اختر الإجراء المناسب:</h6>
+                        
+                        <!-- إلغاء التنشيط -->
+                        <div class="action-card p-3 mb-3 rounded" data-action="deactivate">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action_radio" id="deactivate" value="deactivate">
+                                <label class="form-check-label" for="deactivate">
+                                    <strong>إلغاء تنشيط المخزن</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1">
+                                المخزن سيبقى في النظام لكن لن يظهر في القوائم النشطة. يمكن إعادة تنشيطه لاحقاً.
+                                <span class="badge bg-success">آمن</span>
+                            </small>
+                        </div>
+                        
+                        <!-- نقل البيانات -->
+                        {% if other_warehouses %}
+                        <div class="action-card p-3 mb-3 rounded" data-action="transfer">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action_radio" id="transfer" value="transfer">
+                                <label class="form-check-label" for="transfer">
+                                    <strong>نقل البيانات إلى مخزن آخر</strong>
+                                </label>
+                            </div>
+                            <small class="text-muted d-block mt-1 mb-2">
+                                سيتم نقل جميع البيانات إلى المخزن المحدد ثم حذف هذا المخزن.
+                                <span class="badge bg-warning">متوسط المخاطر</span>
+                            </small>
+                            <div class="mt-2" id="transferOptions" style="display: none;">
+                                <label for="target_warehouse" class="form-label">اختر المخزن المستهدف:</label>
+                                <select name="target_warehouse" id="target_warehouse" class="form-select">
+                                    <option value="">-- اختر مخزن --</option>
+                                    {% for other_warehouse in other_warehouses %}
+                                    <option value="{{ other_warehouse.id }}">{{ other_warehouse.name }} ({{ other_warehouse.code }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- حذف قسري -->
+                        <div class="action-card danger-action p-3 mb-3 rounded" data-action="force_delete">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="action_radio" id="force_delete" value="force_delete">
+                                <label class="form-check-label text-danger" for="force_delete">
+                                    <strong>حذف قسري (خطير)</strong>
+                                </label>
+                            </div>
+                            <small class="text-danger d-block mt-1">
+                                <strong>سيتم حذف نهائياً:</strong> المخزن + جميع فواتير المبيعات والمشتريات + حركات المخزون + المخزون الحالي.
+                                <br><strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه!
+                                <span class="badge bg-danger">خطير جداً</span>
+                            </small>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="#" onclick="window.history.back(); return false;"product:warehouse_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="confirmBtn" disabled>
+                                <i class="fas fa-trash-alt me-1"></i> تنفيذ الإجراء
+                            </button>
+                        </div>
+                    </form>
+                    
+                    {% else %}
+                    <!-- حذف عادي إذا لم توجد ارتباطات -->
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        هذا المخزن غير مرتبط بأي بيانات أخرى ويمكن حذفه بأمان.
+                    </div>
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="delete">
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="#" onclick="window.history.back(); return false;"product:warehouse_list' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-1"></i> نعم، احذف المخزن
+                            </button>
+                        </div>
+                    </form>
+                    {% endif %}
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const actionCards = document.querySelectorAll('.action-card');
+    const actionRadios = document.querySelectorAll('input[name="action_radio"]');
+    const selectedActionInput = document.getElementById('selectedAction');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const transferOptions = document.getElementById('transferOptions');
+    const targetWarehouse = document.getElementById('target_warehouse');
+    
+    // معالجة اختيار الإجراء
+    actionCards.forEach(card => {
+        card.addEventListener('click', function() {
+            const action = this.dataset.action;
+            const radio = this.querySelector('input[type="radio"]');
+            
+            // إزالة التحديد من جميع البطاقات
+            actionCards.forEach(c => c.classList.remove('selected'));
+            
+            // تحديد البطاقة الحالية
+            this.classList.add('selected');
+            radio.checked = true;
+            
+            // تحديث الإجراء المحدد
+            selectedActionInput.value = action;
+            
+            // إظهار/إخفاء خيارات النقل
+            if (action === 'transfer') {
+                transferOptions.style.display = 'block';
+                confirmBtn.disabled = !targetWarehouse.value;
+            } else {
+                transferOptions.style.display = 'none';
+                confirmBtn.disabled = false;
+            }
+            
+            // تحديث نص الزر
+            updateButtonText(action);
+        });
+    });
+    
+    // معالجة تغيير المخزن المستهدف
+    if (targetWarehouse) {
+        targetWarehouse.addEventListener('change', function() {
+            confirmBtn.disabled = !this.value;
+        });
+    }
+    
+    function updateButtonText(action) {
+        const btn = confirmBtn;
+        switch(action) {
+            case 'deactivate':
+                btn.innerHTML = '<i class="fas fa-pause me-1"></i> إلغاء تنشيط المخزن';
+                btn.className = 'btn btn-warning';
+                break;
+            case 'transfer':
+                btn.innerHTML = '<i class="fas fa-exchange-alt me-1"></i> نقل البيانات وحذف المخزن';
+                btn.className = 'btn btn-primary';
+                break;
+            case 'force_delete':
+                btn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> حذف قسري';
+                btn.className = 'btn btn-danger';
+                break;
+            default:
+                btn.innerHTML = '<i class="fas fa-trash-alt me-1"></i> تنفيذ الإجراء';
+                btn.className = 'btn btn-danger';
+        }
+    }
+    
+    // تأكيد إضافي للحذف القسري
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        const action = selectedActionInput.value;
+        if (action === 'force_delete') {
+            const confirmMessage = 'تحذير خطير: سيتم حذف نهائياً:\n\n' +
+                                 '• المخزن وجميع إعداداته\n' +
+                                 '• جميع فواتير المبيعات المرتبطة\n' +
+                                 '• جميع فواتير المشتريات المرتبطة\n' +
+                                 '• جميع حركات المخزون\n' +
+                                 '• المخزون الحالي لجميع المنتجات\n\n' +
+                                 'هذا الإجراء لا يمكن التراجع عنه!\n\n' +
+                                 'هل أنت متأكد من المتابعة؟';
+            
+            if (!confirm(confirmMessage)) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %} 

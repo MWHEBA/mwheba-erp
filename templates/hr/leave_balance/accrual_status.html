@@ -1,0 +1,197 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row">
+
+        <!-- العمود الأيسر: معلومات الموظف والمراحل -->
+        <div class="col-lg-4">
+
+            <!-- معلومات الاستحقاق -->
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات الاستحقاق</h5>
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <th class="text-muted fw-normal">تاريخ التعيين</th>
+                        <td>{{ status.hire_date|date:"Y-m-d" }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted fw-normal">أشهر الخدمة</th>
+                        <td><strong class="text-primary">{{ status.months_worked }}</strong> شهر</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted fw-normal">سنوات الخدمة</th>
+                        <td><strong>{{ employee.years_of_service }}</strong> سنة</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted fw-normal">العمر</th>
+                        <td><strong>{{ employee.age }}</strong> سنة</td>
+                    </tr>
+                    <tr>
+                        <th class="text-muted fw-normal">المرحلة الحالية</th>
+                        <td>
+                            {% if status.is_senior %}
+                                <span class="badge bg-warning text-dark">{{ status.stage }}</span>
+                            {% elif status.months_worked >= 12 %}
+                                <span class="badge bg-success">{{ status.stage }}</span>
+                            {% elif status.months_worked >= leave_settings.partial_after_months %}
+                                <span class="badge bg-info">{{ status.stage }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{{ status.stage }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+
+            <!-- المعالم الزمنية -->
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-flag-checkered me-2"></i>المعالم الزمنية</h5>
+
+                <!-- المرحلة الجزئية -->
+                {% if status.months_worked >= leave_settings.partial_after_months %}
+                <div class="card mb-2 border-success">
+                {% else %}
+                <div class="card mb-2 border-warning">
+                {% endif %}
+                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">بعد {{ leave_settings.partial_after_months }} أشهر</div>
+                            <small class="text-muted">
+                                {{ leave_settings.annual_partial_days }} اعتيادي +
+                                {{ leave_settings.emergency_partial_days }} عارضة
+                            </small>
+                        </div>
+                        {% if status.months_worked >= leave_settings.partial_after_months %}
+                            <i class="fas fa-check-circle fa-lg text-success"></i>
+                        {% else %}
+                            <i class="fas fa-clock fa-lg text-warning"></i>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- المرحلة الكاملة -->
+                {% if status.months_worked >= 12 %}
+                <div class="card mb-2 border-success">
+                {% else %}
+                <div class="card mb-2 border-warning">
+                {% endif %}
+                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">بعد 12 شهر</div>
+                            <small class="text-muted">
+                                {{ leave_settings.annual_full_days }} اعتيادي +
+                                {{ leave_settings.emergency_full_days }} عارضة
+                            </small>
+                        </div>
+                        {% if status.months_worked >= 12 %}
+                            <i class="fas fa-check-circle fa-lg text-success"></i>
+                        {% else %}
+                            <i class="fas fa-clock fa-lg text-warning"></i>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- كبار الموظفين -->
+                {% if status.is_senior %}
+                <div class="card mb-2 border-warning">
+                {% else %}
+                <div class="card mb-2 border-secondary">
+                {% endif %}
+                    <div class="card-body py-2 px-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">كبار الموظفين</div>
+                            <small class="text-muted">
+                                {{ leave_settings.senior_age_threshold }} سنة أو {{ leave_settings.senior_service_years }} سنوات خدمة |
+                                {{ leave_settings.senior_annual_days }} اعتيادي +
+                                {{ leave_settings.senior_emergency_days }} عارضة
+                            </small>
+                        </div>
+                        {% if status.is_senior %}
+                            <i class="fas fa-star fa-lg text-warning"></i>
+                        {% else %}
+                            <i class="fas fa-minus fa-lg text-secondary"></i>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="alert alert-info mb-0 py-2">
+                    <small><i class="fas fa-lightbulb me-1"></i>{{ status.next_milestone }}</small>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- العمود الأيمن: الأرصدة -->
+        <div class="col-lg-8">
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>تفاصيل الأرصدة</h5>
+
+                {% if status.balances %}
+                <div class="row">
+                    {% for balance in status.balances %}
+                    <div class="col-md-6 mb-3">
+                        <div class="card h-100">
+                            <div class="card-header py-2">
+                                <span class="fw-semibold">{{ balance.leave_type }}</span>
+                                <span class="badge bg-secondary ms-1 fw-normal">
+                                    {% if balance.category == 'annual' %}اعتيادي{% else %}عارضة{% endif %}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="row text-center mb-3">
+                                    <div class="col-6 border-end">
+                                        <small class="text-muted d-block">الإجمالي</small>
+                                        <h4 class="mb-0">{{ balance.total_days }}</h4>
+                                        <small class="text-muted">يوم</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <small class="text-muted d-block">المستخدم</small>
+                                        <h4 class="mb-0 text-warning">{{ balance.used_days }}</h4>
+                                        <small class="text-muted">يوم</small>
+                                    </div>
+                                </div>
+
+                                <div class="text-center mb-3">
+                                    <small class="text-muted d-block">المتبقي</small>
+                                    <h3 class="mb-0 text-primary">{{ balance.remaining_days }}</h3>
+                                    <small class="text-muted">يوم</small>
+                                </div>
+
+                                {% if balance.total_days > 0 %}
+                                    {% widthratio balance.remaining_days balance.total_days 100 as pct %}
+                                    <div class="progress mt-2" style="height:6px;">
+                                        <div class="progress-bar bg-primary" role="progressbar"
+                                             aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"
+                                             data-width="{{ pct }}"></div>
+                                    </div>
+                                    <script>
+                                    (function(){
+                                        var bar = document.currentScript.previousElementSibling.querySelector('.progress-bar');
+                                        bar.style.width = bar.dataset.width + '%';
+                                    })();
+                                    </script>
+                                {% else %}
+                                    <div class="alert alert-secondary py-1 mb-0 text-center">
+                                        <small>لم يستحق بعد</small>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="alert alert-info">لا توجد أرصدة مسجلة لهذا الموظف للسنة الحالية.</div>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

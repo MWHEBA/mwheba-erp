@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="إنشاء فترة محاسبية جديدة لتغطية التواريخ المفقودة" icon="fas fa-calendar-plus" breadcrumb_items=breadcrumb_items %}
+    
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Info Alert -->
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>ملاحظة:</strong> أنشئ فترة محاسبية جديدة تغطي التواريخ التي لا تحتوي على فترة محاسبية
+            </div>
+            
+            <!-- Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        بيانات الفترة المحاسبية
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="name" class="form-label">
+                                <i class="fas fa-tag me-1"></i>
+                                اسم الفترة <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" name="name" id="name" class="form-control" 
+                                   placeholder="مثال: الفترة المحاسبية يناير 2024" required>
+                            <small class="text-muted">اسم واضح للفترة المحاسبية</small>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="start_date" class="form-label">
+                                    <i class="fas fa-calendar-day me-1"></i>
+                                    تاريخ البداية <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" name="start_date" id="start_date" class="form-control" required>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="end_date" class="form-label">
+                                    <i class="fas fa-calendar-day me-1"></i>
+                                    تاريخ النهاية <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" name="end_date" id="end_date" class="form-control" required>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            <strong>تنبيه:</strong> تأكد من أن الفترة الجديدة لا تتداخل مع فترات موجودة
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'financial:validation_fix_dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-right me-2"></i>
+                                إلغاء
+                            </a>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-plus me-2"></i>
+                                إنشاء الفترة
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Help Section -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-question-circle me-2"></i>
+                        نصائح
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>عادة ما تكون الفترة المحاسبية شهر واحد</li>
+                        <li>تأكد من أن تاريخ النهاية بعد تاريخ البداية</li>
+                        <li>لا تنشئ فترات متداخلة</li>
+                        <li>الفترة الجديدة ستكون مفتوحة تلقائياً</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تعيين تاريخ افتراضي (أول الشهر الحالي)
+    const today = new Date();
+    const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
+    const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    
+    $('#start_date').val(firstDay.toISOString().split('T')[0]);
+    $('#end_date').val(lastDay.toISOString().split('T')[0]);
+    
+    // توليد اسم تلقائي
+    const monthNames = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 
+                        'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    const monthName = monthNames[today.getMonth()];
+    const year = today.getFullYear();
+    $('#name').val(`الفترة المحاسبية ${monthName} ${year}`);
+});
+</script>
+{% endblock %}

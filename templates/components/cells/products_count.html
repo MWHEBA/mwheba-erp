@@ -1,0 +1,6 @@
+{% load i18n %}
+{% with count=object.products.count %}
+<span class="badge {% if count %}bg-info-subtle text-info border border-info{% else %}bg-secondary-subtle text-secondary border border-secondary opacity-50{% endif %} fw-bold">
+  <i class="fas fa-boxes me-1"></i>{{ count }}
+</span>
+{% endwith %}

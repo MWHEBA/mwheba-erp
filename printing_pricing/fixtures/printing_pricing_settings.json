@@ -1,0 +1,85 @@
+[
+{
+  "model": "printing_pricing.papertype",
+  "pk": 1,
+  "fields": {
+    "name": "كوشيه",
+    "description": "ورق كوشيه عالي الجودة للطباعة الملونة",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 2,
+  "fields": {
+    "name": "طبع",
+    "description": "ورق أوفست للطباعة العادية",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 3,
+  "fields": {
+    "name": "فنلندي",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 4,
+  "fields": {
+    "name": "بريستول",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 5,
+  "fields": {
+    "name": "ستيكر",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 6,
+  "fields": {
+    "name": "كونكورد",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+},
+{
+  "model": "printing_pricing.papertype",
+  "pk": 7,
+  "fields": {
+    "name": "فبريانو",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:14:02.260Z"
+  }
+}]

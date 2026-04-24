@@ -1,0 +1,107 @@
+[
+  {
+    "model": "hr.department",
+    "pk": 1,
+    "fields": {
+      "code": "DEPT001",
+      "name_ar": "الإدارة العامة",
+      "name_en": "General Management",
+      "description": "قسم الإدارة العامة - يشمل المدير والسكرتارية والإدارة التنفيذية",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 2,
+    "fields": {
+      "code": "DEPT002",
+      "name_ar": "العمليات",
+      "name_en": "Operations",
+      "description": "قسم العمليات - يشمل مسؤولي العمليات والمشرفين",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 3,
+    "fields": {
+      "code": "DEPT003",
+      "name_ar": "الشؤون المالية",
+      "name_en": "Financial Affairs",
+      "description": "قسم الحسابات والشؤون المالية - يشمل المحاسبين والمسؤولين الماليين فقط",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 4,
+    "fields": {
+      "code": "DEPT004",
+      "name_ar": "الخدمات المساندة",
+      "name_en": "Support Services",
+      "description": "قسم الخدمات المساندة - يشمل العاملين المساعدين وخدمات الدعم",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 5,
+    "fields": {
+      "code": "DEPT005",
+      "name_ar": "الموارد البشرية",
+      "name_en": "Human Resources",
+      "description": "قسم الموارد البشرية - يشمل شؤون الموظفين والتوظيف والتدريب",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 6,
+    "fields": {
+      "code": "DEPT006",
+      "name_ar": "الإشراف والمتابعة",
+      "name_en": "Supervision & Follow-up",
+      "description": "قسم الإشراف والمتابعة - يشمل المشرفين والمتابعين",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  },
+  {
+    "model": "hr.department",
+    "pk": 7,
+    "fields": {
+      "code": "DEPT007",
+      "name_ar": "تطوير الأعمال",
+      "name_en": "Business Development",
+      "description": "قسم تطوير الأعمال - يشمل مسؤولي المبيعات وخدمة العملاء وتطوير الشراكات",
+      "parent": null,
+      "manager": null,
+      "is_active": true,
+      "created_at": "2025-01-08T00:00:00Z",
+      "updated_at": "2025-01-08T00:00:00Z"
+    }
+  }
+]

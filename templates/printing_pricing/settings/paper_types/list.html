@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "أنواع الورق" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>{% trans "اسم النوع" %}</th>
+                        <th>{% trans "الوصف" %}</th>
+                        <th>{% trans "الحالة" %}</th>
+                        <th>{% trans "افتراضي" %}</th>
+                        <th>{% trans "الإجراءات" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for paper_type in paper_types %}
+                    <tr>
+                        <td>
+                            <strong>{{ paper_type.name }}</strong>
+                        </td>
+                        <td>
+                            {% if paper_type.description %}
+                                {{ paper_type.description|truncatechars:50 }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if paper_type.is_active %}
+                                <span class="badge bg-success">{% trans "نشط" %}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">{% trans "غير نشط" %}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if paper_type.is_default %}
+                                <span class="badge bg-primary">{% trans "افتراضي" %}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button type="button" class="btn btn-outline-primary" onclick="openEditModal({{ paper_type.pk }})">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button type="button" class="btn btn-outline-danger" onclick="openDeleteModal({{ paper_type.pk }})">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-layer-group fa-3x mb-3 d-block"></i>
+                            {% trans "لا توجد أنواع ورق مضافة بعد" %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</div>
+
+<!-- Modal للإنشاء والتعديل -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="modalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+
+<!-- Modal للحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="deleteModalContent">
+            <!-- سيتم تحميل المحتوى هنا -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateModal() {
+    fetch('{% url "printing_pricing:paper_type_create" %}')
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openEditModal(id) {
+    fetch(`{% url "printing_pricing:paper_type_edit" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openDeleteModal(id) {
+    fetch(`{% url "printing_pricing:paper_type_delete" 0 %}`.replace('0', id))
+        .then(response => response.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+        });
+}
+
+function submitForm(formId) {
+    const form = document.getElementById(formId);
+    const formData = new FormData(form);
+    
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => {
+        // التحقق من نوع المحتوى
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+            return response.json();
+        } else {
+            // إذا لم يكن JSON، فهناك خطأ في الخادم
+            throw new Error('Server returned HTML instead of JSON');
+        }
+    })
+    .then(data => {
+        if (data.success) {
+            // إغلاق المودال
+            const modal = bootstrap.Modal.getInstance(document.querySelector('.modal'));
+            if (modal) modal.hide();
+            // إعادة تحميل الصفحة
+            location.reload();
+        } else {
+            // عرض الأخطاء
+            console.error('Form errors:', data.errors);
+            alert('حدث خطأ في النموذج');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('حدث خطأ أثناء معالجة الطلب');
+    });
+}
+</script>
+{% endblock %} 

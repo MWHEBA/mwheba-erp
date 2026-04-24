@@ -1,0 +1,37 @@
+{% load dict_tags %}
+
+{% comment %}
+قالب عرض نوع القيد المحاسبي بناءً على تحليل خطوط القيد
+{% endcomment %}
+
+{% if object.journalentryline_set %}
+  {% with lines=object.journalentryline_set.all %}
+    {% if lines|length == 2 %}
+      {% if lines.0.debit > 0 and 'خزينة' in lines.0.account.name %}
+        <span class="badge bg-success">إيراد نقدي</span>
+      {% elif lines.1.debit > 0 and 'خزينة' in lines.1.account.name %}
+        <span class="badge bg-success">إيراد نقدي</span>
+      {% elif lines.0.credit > 0 and 'خزينة' in lines.0.account.name %}
+        <span class="badge bg-danger">مصروف نقدي</span>
+      {% elif lines.1.credit > 0 and 'خزينة' in lines.1.account.name %}
+        <span class="badge bg-danger">مصروف نقدي</span>
+      {% elif lines.0.debit > 0 and 'بنك' in lines.0.account.name %}
+        <span class="badge bg-primary">إيراد بنكي</span>
+      {% elif lines.1.debit > 0 and 'بنك' in lines.1.account.name %}
+        <span class="badge bg-primary">إيراد بنكي</span>
+      {% elif lines.0.credit > 0 and 'بنك' in lines.0.account.name %}
+        <span class="badge bg-warning">مصروف بنكي</span>
+      {% elif lines.1.credit > 0 and 'بنك' in lines.1.account.name %}
+        <span class="badge bg-warning">مصروف بنكي</span>
+      {% else %}
+        <span class="badge bg-info">تحويل</span>
+      {% endif %}
+    {% elif lines|length > 2 %}
+      <span class="badge bg-secondary">قيد مركب</span>
+    {% else %}
+      <span class="badge bg-info">تحويل</span>
+    {% endif %}
+  {% endwith %}
+{% else %}
+  <span class="badge bg-secondary">غير محدد</span>
+{% endif %}

@@ -1,0 +1,224 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}Quarantine System Health Check{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.health-status {
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    text-align: center;
+    font-size: 1.2em;
+    font-weight: bold;
+}
+
+.health-healthy {
+    background-color: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.health-unhealthy {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.health-warning {
+    background-color: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.checks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.check-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    background: #f8f9fa;
+}
+
+.check-card h3 {
+    margin: 0 0 15px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.check-status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.check-status.ok {
+    background-color: #28a745;
+    color: white;
+}
+
+.check-status.warning {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.check-status.error {
+    background-color: #dc3545;
+    color: white;
+}
+
+.check-details {
+    margin-top: 10px;
+}
+
+.check-details dt {
+    font-weight: 600;
+    color: #495057;
+    margin-top: 8px;
+}
+
+.check-details dd {
+    margin: 2px 0 0 20px;
+    color: #6c757d;
+}
+
+.timestamp {
+    color: #6c757d;
+    font-size: 0.9em;
+    margin-top: 20px;
+    text-align: center;
+}
+
+.refresh-button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1em;
+    margin: 20px 0;
+}
+
+.refresh-button:hover {
+    background: #0056b3;
+}
+
+.auto-refresh {
+    margin: 20px 0;
+    text-align: center;
+}
+
+.auto-refresh label {
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.auto-refresh input[type="checkbox"] {
+    margin-right: 5px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Quarantine System Health Check</h1>
+    
+    <!-- Overall Health Status -->
+    <div class="health-status health-{{ health_status.status }}">
+        System Status: {{ health_status.status|upper }}
+    </div>
+    
+    <!-- Auto-refresh controls -->
+    <div class="auto-refresh">
+        <label>
+            <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()">
+            Auto-refresh every 30 seconds
+        </label>
+        <button class="refresh-button" onclick="location.reload()">Refresh Now</button>
+    </div>
+    
+    <!-- Health Checks -->
+    <div class="checks-grid">
+        {% for check_name, check_result in health_status.checks.items %}
+        <div class="check-card">
+            <h3>
+                {{ check_name|title|cut:'_'|cut:'-' }}
+                <span class="check-status {{ check_result.status }}">
+                    {{ check_result.status }}
+                </span>
+            </h3>
+            
+            <div class="check-details">
+                {% for key, value in check_result.items %}
+                    {% if key != 'status' %}
+                    <dt>{{ key|title|cut:'_' }}:</dt>
+                    <dd>
+                        {% if key == 'error' %}
+                            <span style="color: #dc3545;">{{ value }}</span>
+                        {% elif key|slice:'-5:' == 'count' %}
+                            <strong>{{ value }}</strong>
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </dd>
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Timestamp -->
+    <div class="timestamp">
+        Last checked: {{ health_status.timestamp }}
+    </div>
+    
+    <!-- Navigation Links -->
+    <div style="margin-top: 30px;">
+        <a href="{% url 'admin:governance_quarantinerecord_changelist' %}" class="button">Back to Quarantine Records</a>
+        <a href="{% url 'admin:governance_quarantinerecord_statistics' %}" class="button">View Statistics</a>
+        <a href="{% url 'admin:governance_quarantinerecord_trends' %}" class="button">View Trends</a>
+    </div>
+</div>
+
+<script>
+let autoRefreshInterval = null;
+
+function toggleAutoRefresh() {
+    const checkbox = document.getElementById('auto-refresh');
+    
+    if (checkbox.checked) {
+        // Start auto-refresh
+        autoRefreshInterval = setInterval(() => {
+            location.reload();
+        }, 30000); // 30 seconds
+        
+    } else {
+        // Stop auto-refresh
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+        
+    }
+}
+
+// Clean up interval when page is unloaded
+window.addEventListener('beforeunload', () => {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+{% endblock %}

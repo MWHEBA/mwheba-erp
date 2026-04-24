@@ -1,0 +1,122 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load dict_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  
+  <!-- قائمة المسميات الوظيفية -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>قائمة المسميات الوظيفية</h5>
+      </div>
+      <div class="card-body">
+        {% if job_titles %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="jobTitlesTable">
+                <thead>
+                    <tr>
+                        <th>الكود</th>
+                        <th>المسمى (عربي)</th>
+                        <th>المسمى (إنجليزي)</th>
+                        <th>القسم</th>
+                        <th>عدد الموظفين</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for job_title in job_titles %}
+                    <tr>
+                        <td><strong>{{ job_title.code }}</strong></td>
+                        <td><strong>{{ job_title.title_ar }}</strong></td>
+                        <td>{{ job_title.title_en|default:"-" }}</td>
+                        <td>{{ job_title.department.name_ar|default:"-" }}</td>
+                        <td>
+                            {% with names=jt_employees|get_item:job_title.pk %}
+                            {% if names %}
+                                <span class="employee-count-badge"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      data-bs-html="true"
+                                      title="{% for n in names %}{{ n }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                    <strong>{{ names|length }}</strong> موظف
+                                </span>
+                            {% else %}
+                                <span class="text-muted">0 موظف</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            {% if job_title.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-danger">غير نشط</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:job_title_form_edit' job_title.pk %}" class="btn btn-warning" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'hr:job_title_delete' job_title.pk %}" class="btn btn-danger" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد مسميات وظيفية" icon="briefcase" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<style>
+.employee-count-badge {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--primary-color);
+}
+.tooltip-employees .tooltip-inner {
+    white-space: nowrap;
+    max-width: none;
+    text-align: right;
+}
+</style>
+<script>
+$(document).ready(function() {
+    if ($('#jobTitlesTable').length) {
+        initGlobalTable('jobTitlesTable', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+            paging: false,
+            columnDefs: [
+                { targets: [5, 6], orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+
+    // تفعيل tooltips أسماء الموظفين
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el, { trigger: 'hover', customClass: 'tooltip-employees' });
+    });
+});
+</script>
+{% endblock %}

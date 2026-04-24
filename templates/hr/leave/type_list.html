@@ -1,0 +1,282 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}أنواع الإجازات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    {% if leave_types %}
+    <div class="table-responsive">
+      <table class="table table-hover" id="leave-types-table">
+        <thead>
+          <tr>
+            <th class="text-center">الكود</th>
+            <th class="text-center">الاسم</th>
+            <th class="text-center">التصنيف</th>
+            <th class="text-center">الحد الأقصى</th>
+            <th class="text-center">مدفوعة</th>
+            <th class="text-center">موافقة</th>
+            <th class="text-center">مستند</th>
+            <th class="text-center">الحالة</th>
+            <th class="text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for lt in leave_types %}
+          <tr id="row-{{ lt.pk }}">
+            <td class="text-center"><code>{{ lt.code }}</code></td>
+            <td class="text-center">
+              <strong>{{ lt.name_ar }}</strong>
+              {% if lt.name_en %}<br><small class="text-muted">{{ lt.name_en }}</small>{% endif %}
+            </td>
+            <td class="text-center"><span class="badge bg-info">{{ lt.get_category_display }}</span></td>
+            <td class="text-center"><span class="badge bg-secondary">{{ lt.max_days_per_year }} يوم</span></td>
+            <td class="text-center">
+              {% if lt.is_paid %}<span class="badge bg-success">نعم</span>
+              {% else %}<span class="badge bg-danger">لا</span>{% endif %}
+            </td>
+            <td class="text-center">
+              {% if lt.requires_approval %}<span class="badge bg-warning text-dark">نعم</span>
+              {% else %}<span class="badge bg-secondary">لا</span>{% endif %}
+            </td>
+            <td class="text-center">
+              {% if lt.requires_document %}<span class="badge bg-warning text-dark">نعم</span>
+              {% else %}<span class="badge bg-secondary">لا</span>{% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge {% if lt.is_active %}bg-success{% else %}bg-secondary{% endif %}"
+                    style="cursor:pointer;" onclick="toggleStatus({{ lt.pk }}, this)">
+                {% if lt.is_active %}نشط{% else %}غير نشط{% endif %}
+              </span>
+            </td>
+            <td class="text-center">
+              <button class="btn btn-sm btn-outline-primary"
+                onclick="openEditModal({{ lt.pk }},'{{ lt.name_ar|escapejs }}','{{ lt.name_en|escapejs }}','{{ lt.code }}','{{ lt.category }}',{{ lt.max_days_per_year }},{{ lt.is_paid|yesno:'true,false' }},{{ lt.requires_approval|yesno:'true,false' }},{{ lt.requires_document|yesno:'true,false' }},{{ lt.allow_encashment|yesno:'true,false' }},'{{ lt.deduction_multiplier }}',{{ lt.is_active|yesno:'true,false' }})">
+                <i class="fas fa-edit"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-danger" onclick="deleteType({{ lt.pk }},'{{ lt.name_ar|escapejs }}')">
+                <i class="fas fa-trash"></i>
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      {% include 'partials/empty_state.html' with message="لا توجد أنواع إجازات" icon="tags" %}
+    {% endif %}
+  </div>
+</div>
+
+<!-- مودال الإضافة / التعديل -->
+<div class="modal fade" id="leaveTypeModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalTitle">إضافة نوع إجازة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPk" value="">
+
+        <div class="row mb-3">
+          <div class="col-md-8">
+            <label class="form-label">الاسم (عربي) <span class="text-danger">*</span></label>
+            <input type="text" id="f_name_ar" class="form-control" placeholder="مثال: إجازة اعتيادية">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">الكود <span class="text-danger">*</span></label>
+            <input type="text" id="f_code" class="form-control text-uppercase" placeholder="ANNUAL">
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-8">
+            <label class="form-label">الاسم (إنجليزي)</label>
+            <input type="text" id="f_name_en" class="form-control" placeholder="Annual Leave">
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">التصنيف <span class="text-danger">*</span></label>
+            <select id="f_category" class="form-select">
+              {% for val, label in category_choices %}
+              <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <label class="form-label">الحد الأقصى (أيام/سنة) <span class="text-danger">*</span></label>
+            <input type="number" id="f_max_days" class="form-control" min="1" value="21">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">معامل الخصم</label>
+            <input type="number" id="f_deduction" class="form-control" step="0.1" min="0" value="1.0">
+            <small class="text-muted">للإجازات غير المدفوعة فقط</small>
+          </div>
+        </div>
+
+        <div class="row mb-2">
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f_is_paid" checked>
+              <label class="form-check-label" for="f_is_paid">مدفوعة</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f_requires_approval" checked>
+              <label class="form-check-label" for="f_requires_approval">تحتاج موافقة</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f_requires_document">
+              <label class="form-check-label" for="f_requires_document">تحتاج مستند</label>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f_allow_encashment">
+              <label class="form-check-label" for="f_allow_encashment">يسمح بالتحويل المالي</label>
+            </div>
+          </div>
+        </div>
+
+        <div class="row mt-2">
+          <div class="col-md-3">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="f_is_active" checked>
+              <label class="form-check-label" for="f_is_active">نشط</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-primary" onclick="saveLeaveType()">
+          <i class="fas fa-save me-1"></i>حفظ
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+const CSRF = '{{ csrf_token }}';
+
+$(document).ready(function() {
+    if ($('#leave-types-table').length && typeof initGlobalTable === 'function') {
+        initGlobalTable('leave-types-table', { order: [[0, 'asc']] });
+    }
+});
+
+function openAddModal() {
+    $('#editPk').val('');
+    $('#modalTitle').text('إضافة نوع إجازة');
+    $('#f_name_ar').val('');
+    $('#f_name_en').val('');
+    $('#f_code').val('');
+    $('#f_category').val('annual');
+    $('#f_max_days').val(21);
+    $('#f_deduction').val('1.0');
+    $('#f_is_paid').prop('checked', true);
+    $('#f_requires_approval').prop('checked', true);
+    $('#f_requires_document').prop('checked', false);
+    $('#f_allow_encashment').prop('checked', false);
+    $('#f_is_active').prop('checked', true);
+    new bootstrap.Modal('#leaveTypeModal').show();
+}
+
+function openEditModal(pk, name_ar, name_en, code, category, max_days, is_paid, requires_approval, requires_document, allow_encashment, deduction, is_active) {
+    $('#editPk').val(pk);
+    $('#modalTitle').text('تعديل: ' + name_ar);
+    $('#f_name_ar').val(name_ar);
+    $('#f_name_en').val(name_en);
+    $('#f_code').val(code);
+    $('#f_category').val(category);
+    $('#f_max_days').val(max_days);
+    $('#f_deduction').val(deduction);
+    $('#f_is_paid').prop('checked', is_paid);
+    $('#f_requires_approval').prop('checked', requires_approval);
+    $('#f_requires_document').prop('checked', requires_document);
+    $('#f_allow_encashment').prop('checked', allow_encashment);
+    $('#f_is_active').prop('checked', is_active);
+    new bootstrap.Modal('#leaveTypeModal').show();
+}
+
+function saveLeaveType() {
+    const pk = $('#editPk').val();
+    const url = pk ? `/hr/leave-types/${pk}/save/` : '/hr/leave-types/save/';
+
+    $.post(url, {
+        csrfmiddlewaretoken: CSRF,
+        name_ar:            $('#f_name_ar').val(),
+        name_en:            $('#f_name_en').val(),
+        code:               $('#f_code').val(),
+        category:           $('#f_category').val(),
+        max_days_per_year:  $('#f_max_days').val(),
+        deduction_multiplier: $('#f_deduction').val(),
+        is_paid:            $('#f_is_paid').is(':checked') ? 'true' : 'false',
+        requires_approval:  $('#f_requires_approval').is(':checked') ? 'true' : 'false',
+        requires_document:  $('#f_requires_document').is(':checked') ? 'true' : 'false',
+        allow_encashment:   $('#f_allow_encashment').is(':checked') ? 'true' : 'false',
+        is_active:          $('#f_is_active').is(':checked') ? 'true' : 'false',
+    }).done(function(data) {
+        if (data.success) {
+            toastr.success(data.message);
+            bootstrap.Modal.getInstance('#leaveTypeModal').hide();
+            setTimeout(() => location.reload(), 800);
+        } else {
+            toastr.error(data.error);
+        }
+    }).fail(function() {
+        toastr.error('حدث خطأ في الاتصال');
+    });
+}
+
+function toggleStatus(pk, badge) {
+    $.post(`/hr/leave-types/${pk}/toggle/`, { csrfmiddlewaretoken: CSRF })
+        .done(function(data) {
+            if (data.success) {
+                $(badge).text(data.status)
+                    .removeClass('bg-success bg-secondary')
+                    .addClass(data.is_active ? 'bg-success' : 'bg-secondary');
+                toastr.success('تم تحديث الحالة');
+            }
+        });
+}
+
+function deleteType(pk, name) {
+    Swal.fire({
+        title: 'حذف نوع الإجازة',
+        text: `هل تريد حذف "${name}"؟`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then(result => {
+        if (result.isConfirmed) {
+            $.post(`/hr/leave-types/${pk}/delete/`, { csrfmiddlewaretoken: CSRF })
+                .done(function(data) {
+                    if (data.success) {
+                        toastr.success(data.message);
+                        $(`#row-${pk}`).fadeOut(400, function() { $(this).remove(); });
+                    } else {
+                        toastr.error(data.error);
+                    }
+                });
+        }
+    });
+}
+</script>
+{% endblock %}

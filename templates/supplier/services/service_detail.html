@@ -1,0 +1,173 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+{% load dict_tags %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  {% include "shared/page_header.html" %}
+
+  <!-- معلومات الخدمة -->
+  <div class="row mb-4">
+    <div class="col-md-3">
+      <div class="stats-card stats-card-primary">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="{{ service.service_type.icon }}"></i></div>
+          <div class="stats-card-title">نوع الخدمة</div>
+          <div class="stats-card-value" style="font-size:1rem;">{{ service.service_type.name }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-success">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-tag"></i></div>
+          <div class="stats-card-title">السعر الأساسي</div>
+          <div class="stats-card-value">{{ service.base_price|smart_float }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-warning">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-tools"></i></div>
+          <div class="stats-card-title">تكلفة الإعداد</div>
+          <div class="stats-card-value">{{ service.setup_cost|smart_float }}</div>
+          <div class="stats-card-unit">ج.م</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="stats-card stats-card-info">
+        <div class="stats-card-body">
+          <div class="stats-card-icon"><i class="fas fa-layer-group"></i></div>
+          <div class="stats-card-title">الشرائح السعرية</div>
+          <div class="stats-card-value">{{ tiers|length }}</div>
+          <div class="stats-card-unit">شريحة</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- جدول الشرائح السعرية -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h5 class="section-title mb-0"><i class="fas fa-layer-group me-2"></i>الشرائح السعرية</h5>
+      <a href="{% url 'supplier:price_tier_add' supplier.pk service.pk %}" class="btn btn-success btn-sm">
+        <i class="fas fa-plus me-1"></i>إضافة شريحة
+      </a>
+    </div>
+
+    {% if tiers_data %}
+      {% include "components/data_table.html" with table_id="price-tiers-table" headers=tiers_headers data=tiers_data primary_key="id" empty_message="لا توجد شرائح سعرية" %}
+    {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-layer-group fa-3x text-muted mb-3"></i>
+        <p class="text-muted mb-1">لا توجد شرائح سعرية لهذه الخدمة</p>
+        <small class="text-muted d-block mb-3">السعر الأساسي {{ service.base_price|smart_float }} ج.م يُستخدم لجميع الكميات</small>
+        <a href="{% url 'supplier:price_tier_add' supplier.pk service.pk %}" class="btn btn-success">
+          <i class="fas fa-plus me-1"></i>إضافة أول شريحة
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+  <!-- خصائص الخدمة -->
+  {% if service.attributes %}
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-sliders-h me-2"></i>خصائص الخدمة</h5>
+    <div class="row">
+      {% for key, val in service.attributes.items %}
+      <div class="col-md-3 col-sm-6 mb-3">
+        <small class="text-muted d-block">
+          {% with field_def=service.service_type.attribute_schema|get_item:key %}
+            {{ field_def.label|default:key }}
+          {% endwith %}
+        </small>
+        <strong>{{ val }}</strong>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if service.notes %}
+  <div class="alert alert-info">
+    <i class="fas fa-sticky-note me-2"></i><strong>ملاحظات:</strong> {{ service.notes }}
+  </div>
+  {% endif %}
+</div>
+
+<!-- مودال حذف الشريحة -->
+<div class="modal fade" id="deleteTierModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-trash me-2 text-danger"></i>حذف الشريحة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>هل أنت متأكد من حذف الشريحة <strong id="tierRangeLabel"></strong>؟</p>
+        <p class="text-muted small">لا يمكن التراجع عن هذا الإجراء.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <form id="deleteTierForm" method="post">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="fas fa-trash me-1"></i>حذف</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    if (typeof GlobalTableManager !== 'undefined' && $('#price-tiers-table').length) {
+        GlobalTableManager.initializeTable('price-tiers-table', {
+            order: [[0, 'asc']],
+            columnDefs: [{ targets: -1, orderable: false }]
+        });
+    }
+});
+
+function deleteTier(tierId, rangeLabel) {
+    Swal.fire({
+        title: 'حذف الشريحة؟',
+        text: `الشريحة: ${rangeLabel}`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/supplier/{{ supplier.pk }}/services/{{ service.pk }}/tiers/${tierId}/delete/`;
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrf) {
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'csrfmiddlewaretoken'; inp.value = csrf.value;
+                form.appendChild(inp);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+{% endblock %}

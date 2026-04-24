@@ -1,0 +1,450 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ title|default:"الميزانية العمومية" }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  /* ستايلات خاصة بصفحة الميزانية العمومية فقط */
+  /* تصميم الميزانية العمومية */
+  .balance-sheet-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .balance-sheet-title {
+    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+  }
+  
+  .account-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+  }
+  
+  .account-row:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+  }
+  
+  .account-name {
+    font-weight: 500;
+    color: #495057;
+  }
+  
+  .account-balance {
+    font-weight: 600;
+    color: var(--success-color);
+    font-family: 'Tajawal', sans-serif;
+  }
+  
+  .total-row {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border: none;
+    margin-top: 1rem;
+  }
+  
+  .total-row:hover {
+    transform: none;
+  }
+  
+  .balance-status {
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    text-align: center;
+    margin-top: 2rem;
+  }
+  
+  .balance-status.balanced {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border: 2px solid rgba(40, 167, 69, 0.3);
+  }
+  
+  .balance-status.unbalanced {
+    background: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+    border: 2px solid rgba(220, 53, 69, 0.3);
+  }
+  
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container no-print">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-2">
+        <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+          <a href="{% url 'financial:balance_sheet' %}" class="btn btn-outline-secondary flex-fill" title="{% trans 'اليوم' %}">
+            <i class="fas fa-calendar-day"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الأصول" %}</div>
+            <div class="stats-card-value">{{ balance_sheet_data.total_assets|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-chart-pie"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الخصوم" %}</div>
+            <div class="stats-card-value">{{ balance_sheet_data.total_liabilities|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-user-tie"></i>
+            </div>
+            <div class="stats-card-title">{% trans "حقوق الملكية" %}</div>
+            <div class="stats-card-value">{{ balance_sheet_data.total_equity|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-balance-scale"></i>
+            </div>
+            <div class="stats-card-title">{% trans "حالة التوازن" %}</div>
+            <div class="stats-card-value">
+              {% if balance_sheet_data.is_balanced %}
+                {% trans "متوازنة" %}
+              {% else %}
+                {% trans "غير متوازنة" %}
+              {% endif %}
+            </div>
+            <div class="stats-card-unit">{% trans "ميزانية" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- الميزانية العمومية -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-balance-scale me-2"></i>{% trans "الميزانية العمومية" %}</h5>
+        <div class="actions-container">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportBalanceSheet()">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success" onclick="exportBalanceSheetExcel()">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <!-- الأصول -->
+          <div class="col-md-6">
+            <div class="balance-sheet-section">
+              <h5 class="balance-sheet-title">{% trans "الأصول" %}</h5>
+              {% if balance_sheet_data.assets.accounts %}
+                {% for asset in balance_sheet_data.assets.accounts %}
+                <div class="account-row">
+                  <span class="account-name">{{ asset.account.name }}</span>
+                  <span class="account-balance">{{ asset.balance|currency }}</span>
+                </div>
+                {% endfor %}
+                <div class="account-row total-row">
+                  <span>{% trans "إجمالي الأصول" %}</span>
+                  <span>{{ balance_sheet_data.total_assets|currency }}</span>
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <i class="fas fa-chart-line"></i>
+                  </div>
+                  <h5>{% trans "لا توجد أصول" %}</h5>
+                  <p>{% trans "لا توجد أصول لعرضها في هذا التاريخ" %}</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- الخصوم وحقوق الملكية -->
+          <div class="col-md-6">
+            <!-- الخصوم -->
+            <div class="balance-sheet-section">
+              <h5 class="balance-sheet-title">{% trans "الخصوم" %}</h5>
+              {% if balance_sheet_data.liabilities.accounts %}
+                {% for liability in balance_sheet_data.liabilities.accounts %}
+                <div class="account-row">
+                  <span class="account-name">{{ liability.account.name }}</span>
+                  <span class="account-balance">{{ liability.balance|currency }}</span>
+                </div>
+                {% endfor %}
+                <div class="account-row total-row">
+                  <span>{% trans "إجمالي الخصوم" %}</span>
+                  <span>{{ balance_sheet_data.total_liabilities|currency }}</span>
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">
+                  <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد خصوم" %}
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- حقوق الملكية -->
+            <div class="balance-sheet-section">
+              <h5 class="balance-sheet-title">{% trans "حقوق الملكية" %}</h5>
+              {% if balance_sheet_data.equity.accounts %}
+                {% for item in balance_sheet_data.equity.accounts %}
+                <div class="account-row">
+                  <span class="account-name">{{ item.account.name }}</span>
+                  <span class="account-balance">{{ item.balance|currency }}</span>
+                </div>
+                {% endfor %}
+                <div class="account-row total-row">
+                  <span>{% trans "إجمالي حقوق الملكية" %}</span>
+                  <span>{{ balance_sheet_data.total_equity|currency }}</span>
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">
+                  <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد حقوق ملكية" %}
+                </div>
+              {% endif %}
+            </div>
+            
+            <!-- إجمالي الخصوم وحقوق الملكية -->
+            <div class="balance-sheet-section">
+              <div class="account-row total-row">
+                <span>{% trans "إجمالي الخصوم وحقوق الملكية" %}</span>
+                <span>{{ balance_sheet_data.total_liabilities_equity|currency }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- حالة التوازن -->
+        <div class="balance-status {% if balance_sheet_data.is_balanced %}balanced{% else %}unbalanced{% endif %}">
+          {% if balance_sheet_data.is_balanced %}
+            <i class="fas fa-check-circle me-2"></i>
+            {% trans "الميزانية متوازنة" %}
+          {% else %}
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% trans "الميزانية غير متوازنة" %} - {% trans "الفرق" %}: {{ balance_sheet_data.difference|currency }}
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير الميزانية العمومية إلى CSV
+  function exportBalanceSheet() {
+    try {
+      let csvContent = '\uFEFF'; // BOM للدعم العربي
+      csvContent += 'الميزانية العمومية كما في {{ balance_date|date:"Y-m-d" }}\n\n';
+      
+      // الأصول
+      csvContent += 'الأصول\n';
+      {% if assets %}
+        {% for asset in assets %}
+          csvContent += '"{{ asset.account.name }}","{{ asset.balance|currency }}"\n';
+        {% endfor %}
+        csvContent += '"إجمالي الأصول","{{ total_assets|currency }}"\n\n';
+      {% endif %}
+      
+      // الخصوم
+      csvContent += 'الخصوم\n';
+      {% if liabilities %}
+        {% for liability in liabilities %}
+          csvContent += '"{{ liability.account.name }}","{{ liability.balance|currency }}"\n';
+        {% endfor %}
+        csvContent += '"إجمالي الخصوم","{{ total_liabilities|currency }}"\n\n';
+      {% endif %}
+      
+      // حقوق الملكية
+      csvContent += 'حقوق الملكية\n';
+      {% if equity %}
+        {% for item in equity %}
+          csvContent += '"{{ item.account.name }}","{{ item.balance|currency }}"\n';
+        {% endfor %}
+        csvContent += '"إجمالي حقوق الملكية","{{ total_equity|currency }}"\n\n';
+      {% endif %}
+      
+      csvContent += '"إجمالي الخصوم وحقوق الملكية","{{ total_liabilities_equity|currency }}"\n';
+      
+      // تحميل الملف
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'الميزانية_العمومية_{{ balance_date|date:"Y-m-d" }}.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى CSV بنجاح'); };
+    } catch (error) {
+      console.error('خطأ في تصدير CSV:', error);
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+    }
+  }
+  
+  // تصدير الميزانية العمومية إلى Excel
+  function exportBalanceSheetExcel() {
+    try {
+      let data = [];
+      
+      // العنوان
+      data.push(['الميزانية العمومية كما في {{ balance_date|date:"Y-m-d" }}']);
+      data.push([]);
+      
+      // الأصول
+      data.push(['الأصول']);
+      {% if assets %}
+        {% for asset in assets %}
+          data.push(['{{ asset.account.name }}', '{{ asset.balance|currency }}']);
+        {% endfor %}
+        data.push(['إجمالي الأصول', '{{ total_assets|currency }}']);
+      {% endif %}
+      data.push([]);
+      
+      // الخصوم
+      data.push(['الخصوم']);
+      {% if liabilities %}
+        {% for liability in liabilities %}
+          data.push(['{{ liability.account.name }}', '{{ liability.balance|currency }}']);
+        {% endfor %}
+        data.push(['إجمالي الخصوم', '{{ total_liabilities|currency }}']);
+      {% endif %}
+      data.push([]);
+      
+      // حقوق الملكية
+      data.push(['حقوق الملكية']);
+      {% if equity %}
+        {% for item in equity %}
+          data.push(['{{ item.account.name }}', '{{ item.balance|currency }}']);
+        {% endfor %}
+        data.push(['إجمالي حقوق الملكية', '{{ total_equity|currency }}']);
+      {% endif %}
+      data.push([]);
+      
+      data.push(['إجمالي الخصوم وحقوق الملكية', '{{ total_liabilities_equity|currency }}']);
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'الميزانية العمومية');
+      XLSX.writeFile(wb, 'الميزانية_العمومية_{{ balance_date|date:"Y-m-d" }}.xlsx');
+      
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير الميزانية العمومية إلى Excel بنجاح'); };
+    } catch (error) {
+      console.error('خطأ في تصدير Excel:', error);
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  $(document).ready(function() {
+    // تحميل مكتبة XLSX للتصدير
+    if (typeof XLSX === 'undefined') {
+      const script = document.createElement('script');
+      script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      document.head.appendChild(script);
+    }
+    
+    // إضافة تأثيرات hover للحسابات
+    $('.account-row').hover(
+      function() {
+        if (!$(this).hasClass('total-row')) {
+          $(this).addClass('shadow-sm');
+        }
+      },
+      function() {
+        $(this).removeClass('shadow-sm');
+      }
+    );
+    
+    // تنسيق حقول التاريخ
+    $('input[type="date"]').addClass('form-control');
+  });
+</script>
+{% endblock %} 

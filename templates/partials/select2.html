@@ -1,0 +1,166 @@
+{% comment %}
+مكون مختار القائمة المتقدم (Select2)
+
+الاستخدام:
+{% include "partials/select2.html" with id="select-field" name="select" label="الاختيار" options=options %}
+
+المعلمات:
+- id: معرف حقل الاختيار (مطلوب)
+- name: اسم حقل الاختيار (مطلوب)
+- label: نص العنوان (اختياري)
+- options: قائمة بالخيارات [{'value': 1, 'text': 'خيار 1'}, ...] (مطلوب)
+- selected: القيمة المحددة (اختياري)
+- required: هل الحقل مطلوب (اختياري، افتراضي False)
+- multiple: هل يمكن اختيار قيم متعددة (اختياري، افتراضي False)
+- placeholder: نص توضيحي (اختياري، افتراضي "اختر...")
+- readonly: هل الحقل للقراءة فقط (اختياري، افتراضي False)
+- disabled: هل الحقل معطل (اختياري، افتراضي False)
+- class: تصنيفات CSS إضافية (اختياري)
+- help_text: نص مساعد (اختياري)
+- ajax_url: عنوان URL لتحميل الخيارات عبر AJAX (اختياري)
+- min_input: الحد الأدنى للأحرف للبدء في البحث (اختياري، افتراضي 2)
+- clear_button: عرض زر حذف الاختيار (اختياري، افتراضي True)
+- tags: السماح بإضافة خيارات جديدة (اختياري، افتراضي False)
+{% endcomment %}
+
+<div class="form-group mb-3">
+    {% if label %}
+        <label for="{{ id }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <select id="{{ id }}" 
+            name="{{ name }}{% if multiple %}[]{% endif %}" 
+            class="form-select select2-control {{ class }}" 
+            {% if required %}required{% endif %}
+            {% if readonly %}readonly{% endif %}
+            {% if disabled %}disabled{% endif %}
+            {% if multiple %}multiple{% endif %}
+            {% if ajax_url %}data-ajax-url="{{ ajax_url }}"{% endif %}
+            {% if min_input %}data-min-input="{{ min_input }}"{% endif %}
+            {% if tags %}data-tags="true"{% endif %}
+            {% if clear_button|default:True %}data-allow-clear="true"{% endif %}
+            {% if multiple %}data-close-on-select="false"{% endif %}>
+        
+        {% if not multiple %}
+            <option value="">{{ placeholder|default:"اختر..." }}</option>
+        {% endif %}
+        
+        {% if options %}
+            {% for option in options %}
+                <option value="{{ option.value }}" 
+                        {% if selected == option.value or option.value in selected|default:[] %}selected{% endif %}
+                        {% if option.disabled %}disabled{% endif %}>
+                    {{ option.text }}
+                </option>
+            {% endfor %}
+        {% endif %}
+    </select>
+    
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إذا تم تحميل select2 بالفعل
+        if (typeof $.fn.select2 === 'function') {
+            initSelect2();
+        } else {
+            // تحميل select2 إذا لم يكن محملاً
+            if (!document.getElementById('select2-css')) {
+                const cssLink = document.createElement('link');
+                cssLink.id = 'select2-css';
+                cssLink.rel = 'stylesheet';
+                cssLink.href = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css';
+                document.head.appendChild(cssLink);
+                
+                // تحميل موضوع bootstrap لـ select2
+                const bsCssLink = document.createElement('link');
+                bsCssLink.rel = 'stylesheet';
+                bsCssLink.href = 'https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css';
+                document.head.appendChild(bsCssLink);
+            }
+            
+            if (!document.getElementById('select2-js')) {
+                const script = document.createElement('script');
+                script.id = 'select2-js';
+                script.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js';
+                script.onload = function() {
+                    const langScript = document.createElement('script');
+                    langScript.src = 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/i18n/ar.js';
+                    langScript.onload = initSelect2;
+                    document.head.appendChild(langScript);
+                };
+                document.head.appendChild(script);
+            }
+        }
+        
+        function initSelect2() {
+            const $select = $('#{{ id }}');
+            const ajaxUrl = $select.data('ajax-url');
+            const placeholder = "{{ placeholder|default:'اختر...' }}";
+            const minInput = parseInt($select.data('min-input') || 2);
+            const allowClear = $select.data('allow-clear') !== false;
+            const tags = $select.data('tags') === true;
+            
+            const options = {
+                language: 'ar',
+                theme: 'bootstrap-5',
+                placeholder: placeholder,
+                allowClear: allowClear,
+                tags: tags,
+                width: '100%',
+                dir: 'rtl',
+                closeOnSelect: $select.data('close-on-select') !== false,
+                selectionCssClass: 'select2--selection',
+                dropdownCssClass: 'select2--dropdown'
+            };
+            
+            if (ajaxUrl) {
+                options.ajax = {
+                    url: ajaxUrl,
+                    dataType: 'json',
+                    delay: 300,
+                    data: function (params) {
+                        return {
+                            q: params.term,
+                            page: params.page
+                        };
+                    },
+                    processResults: function (data, params) {
+                        params.page = params.page || 1;
+                        
+                        return {
+                            results: data.results || data.items,
+                            pagination: {
+                                more: data.more || data.pagination_more
+                            }
+                        };
+                    },
+                    cache: true
+                };
+                
+                options.minimumInputLength = minInput;
+            }
+            
+            $select.select2(options);
+            
+            // معالجة النماذج المنبثقة
+            if ($select.closest('.modal').length) {
+                $select.on('select2:close', function() {
+                    $(this).focus();
+                });
+                
+                // تصحيح موضع القائمة المنسدلة داخل النافذة المنبثقة
+                const modal = $select.closest('.modal');
+                $select.data('select2').$dropdown.css({
+                    'z-index': modal.css('z-index') + 10
+                });
+            }
+        }
+    });
+</script> 

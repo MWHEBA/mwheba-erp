@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .filter-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .badge-bypass {
+        background: var(--warning-color);
+        color: white;
+    }
+    
+    .badge-normal {
+        background: var(--danger-color);
+        color: white;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="عرض تفصيلي لجميع محاولات التحقق الفاشلة" icon="fas fa-list" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- Filter Section -->
+    <div class="filter-card">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label for="days" class="form-label">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    الفترة الزمنية
+                </label>
+                <select name="days" id="days" class="form-select">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>آخر 7 أيام</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>آخر 30 يوم</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>آخر 60 يوم</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>آخر 90 يوم</option>
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="validation_type" class="form-label">
+                    <i class="fas fa-check-circle me-1"></i>
+                    نوع التحقق
+                </label>
+                <select name="validation_type" id="validation_type" class="form-select">
+                    <option value="">الكل</option>
+                    {% for value, label in validation_type_choices %}
+                    <option value="{{ value }}" {% if validation_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="entity_type" class="form-label">
+                    <i class="fas fa-layer-group me-1"></i>
+                    نوع الكيان
+                </label>
+                <select name="entity_type" id="entity_type" class="form-select">
+                    <option value="">الكل</option>
+                    {% for value, label in entity_type_choices %}
+                    <option value="{{ value }}" {% if entity_type == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-2">
+                <label for="module" class="form-label">
+                    <i class="fas fa-cubes me-1"></i>
+                    الوحدة
+                </label>
+                <select name="module" id="module" class="form-select">
+                    <option value="">الكل</option>
+                    {% for value, label in module_choices %}
+                    <option value="{{ value }}" {% if module == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label for="search" class="form-label">
+                    <i class="fas fa-search me-1"></i>
+                    البحث
+                </label>
+                <input type="text" name="search" id="search" class="form-control" 
+                       placeholder="اسم الكيان، المستخدم، أو سبب الفشل..." 
+                       value="{{ search }}">
+            </div>
+            
+            <div class="col-md-1 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-filter me-1"></i>
+                    تصفية
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Stats Summary -->
+    <div class="alert alert-info mb-3">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>إجمالي السجلات:</strong> {{ total_logs|intcomma }} محاولة فاشلة
+    </div>
+    
+    <!-- Data Table -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-table me-2"></i>
+            سجل المحاولات الفاشلة
+        </h5>
+        
+        {% include "components/data_table.html" with table_id="validation-logs-table" headers=table_headers data=table_data primary_key="id" empty_message="لا توجد محاولات فاشلة في الفترة المحددة" %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if (typeof GlobalTableManager !== 'undefined') {
+        GlobalTableManager.initializeTable('validation-logs-table', {
+            order: [[0, 'desc']], // ترتيب حسب التاريخ (الأحدث أولاً)
+            columnDefs: [
+                { targets: 0, width: '12%' },
+                { targets: 1, width: '10%' },
+                { targets: 2, width: '10%', className: 'text-center' },
+                { targets: 3, width: '15%' },
+                { targets: 4, width: '12%', className: 'text-center' },
+                { targets: 5, width: '18%' },
+                { targets: 6, width: '10%', className: 'text-center' },
+                { targets: 7, width: '8%', className: 'text-center' },
+                { targets: -1, orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+});
+
+// دالة تصدير Excel
+function exportToExcel() {
+    // الحصول على الجدول
+    const table = document.getElementById('validation-logs-table');
+    if (!table) return;
+    
+    // تحويل الجدول إلى CSV
+    let csv = [];
+    const rows = table.querySelectorAll('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = [];
+        const cols = rows[i].querySelectorAll('td, th');
+        
+        for (let j = 0; j < cols.length - 1; j++) { // تجاهل عمود الإجراءات
+            let text = cols[j].innerText;
+            row.push('"' + text.replace(/"/g, '""') + '"');
+        }
+        
+        csv.push(row.join(','));
+    }
+    
+    // تنزيل الملف
+    const csvContent = '\uFEFF' + csv.join('\n'); // BOM for UTF-8
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'validation_logs_' + new Date().toISOString().split('T')[0] + '.csv');
+    link.style.visibility = 'hidden';
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
+{% endblock %}

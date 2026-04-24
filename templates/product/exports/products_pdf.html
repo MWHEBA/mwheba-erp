@@ -1,0 +1,163 @@
+{% load static %}
+{% load utils_extras %}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+    <title>قائمة المنتجات</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 1cm;
+        }
+        
+        * {
+            direction: rtl;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            direction: rtl;
+            text-align: right;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #333;
+            padding-bottom: 10px;
+            direction: rtl;
+        }
+        
+        .header h1 {
+            margin: 0;
+            color: #333;
+            font-size: 24px;
+        }
+        
+        .header p {
+            margin: 5px 0;
+            color: #666;
+            font-size: 12px;
+        }
+        
+        .info-box {
+            background: #f5f5f5;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 11px;
+            direction: rtl;
+        }
+        
+        th {
+            background-color: #344767;
+            color: white;
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+            direction: rtl;
+        }
+        
+        td {
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            text-align: center;
+            direction: rtl;
+        }
+        
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .status-active {
+            color: #0f5132;
+            font-weight: bold;
+        }
+        
+        .status-inactive {
+            color: #721c24;
+            font-weight: bold;
+        }
+        
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 10px;
+        }
+        
+        .text-start {
+            text-align: right !important;
+        }
+        
+        .product-image {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>قائمة المنتجات</h1>
+        <p>تاريخ الطباعة: {{ today|date:"d/m/Y - H:i" }}</p>
+    </div>
+    
+    <div class="info-box">
+        <strong>إجمالي المنتجات:</strong> {{ total_products }} منتج
+    </div>
+    
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 8%;" class="text-center">#</th>
+                <th style="width: 15%;" class="text-center">كود المنتج</th>
+                <th style="width: 27%;" class="text-center">اسم المنتج</th>
+                <th style="width: 15%;" class="text-center">التصنيف</th>
+                <th style="width: 12%;" class="text-center">النوع</th>
+                <th style="width: 10%;" class="text-center">سعر البيع</th>
+                <th style="width: 8%;" class="text-center">المخزون</th>
+                <th style="width: 10%;" class="text-center">الحالة</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td class="text-center">{{ forloop.counter }}</td>
+                <td class="text-center">{{ product.sku }}</td>
+                <td class="text-start">{{ product.name }}</td>
+                <td class="text-center">{{ product.category.name|default:"-" }}</td>
+                <td class="text-center">-</td>
+                <td class="text-center">{{ product.sale_price|smart_float }} ج.م</td>
+                <td class="text-center">{{ product.total_stock|smart_float }}</td>
+                <td class="text-center">
+                    {% if product.is_active %}
+                        <span class="status-active">نشط</span>
+                    {% else %}
+                        <span class="status-inactive">غير نشط</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center">لا توجد منتجات</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <div class="footer">
+        <p>تم إنشاء هذا التقرير بواسطة نظام Corporate ERP</p>
+    </div>
+</body>
+</html>

@@ -1,0 +1,322 @@
+{% load static %}
+{% load custom_filters %}
+
+<!-- Modal Header -->
+<div class="modal-header" style="background-color: var(--bg-light); border-bottom: 1px solid var(--border-color);">
+  <h5 class="modal-title d-flex align-items-center">
+    <div class="me-3"><i class="fas fa-tags text-primary fa-lg"></i></div>
+    <div>
+      <span class="fw-bold" style="color: var(--text-dark);">{{ modal_title }}</span>
+    </div>
+  </h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<!-- Modal Body -->
+<div class="modal-body">
+  <form method="post" id="serviceTypeModalForm" action="{{ action_url }}">
+    {% csrf_token %}
+
+    <div class="row">
+      <!-- الجانب الأيسر: النموذج -->
+      <div class="col-lg-7">
+
+        <!-- المعلومات الأساسية -->
+        <div class="form-section mb-3">
+          <h6 class="section-title"><i class="fas fa-info-circle text-primary me-2"></i>المعلومات الأساسية</h6>
+
+          <div class="row">
+            <div class="col-md-8 mb-3">
+              <label class="form-label">الاسم <span class="text-danger">*</span></label>
+              <input type="text" name="name" id="st-name" class="form-control" required
+                     value="{{ form_data.name|default:'' }}" placeholder="مثال: ورق، طباعة أوفست">
+              <div class="invalid-feedback" id="err-name"></div>
+            </div>
+            <div class="col-md-4 mb-3">
+              <label class="form-label">الترتيب</label>
+              <input type="number" name="order" class="form-control" min="0"
+                     value="{{ form_data.order|default:'0' }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الرمز <span class="text-danger">*</span></label>
+              <input type="text" name="code" id="st-code" class="form-control" required
+                     value="{{ form_data.code|default:'' }}"
+                     placeholder="paper, offset_printing"
+                     {% if service_type %}readonly style="background-color: var(--bg-soft-secondary); color: var(--text-muted);"{% endif %}>
+              {% if service_type %}<small class="text-muted">لا يمكن تغيير الرمز بعد الإنشاء</small>{% endif %}
+              <div class="invalid-feedback" id="err-code"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الفئة</label>
+              <select name="category" class="form-select">
+                {% for val, label in categories %}
+                <option value="{{ val }}" {% if form_data.category == val %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">الوصف</label>
+            <textarea name="description" id="st-desc" class="form-control" rows="2">{{ form_data.description|default:'' }}</textarea>
+          </div>
+
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="st-is-active"
+                   {% if form_data.is_active %}checked{% endif %}>
+            <label class="form-check-label" for="st-is-active">نشط</label>
+          </div>
+        </div>
+
+        <!-- المظهر البصري -->
+        <div class="form-section">
+          <h6 class="section-title"><i class="fas fa-palette text-primary me-2"></i>المظهر البصري</h6>
+
+          <!-- الأيقونة -->
+          <div class="mb-3">
+            <label class="form-label">الأيقونة</label>
+            <div class="d-flex align-items-center gap-2">
+              <div id="st-icon-preview"
+                   style="width:38px;height:38px;border-radius:var(--border-radius-md);border:1px solid var(--border-color);background-color:var(--bg-light);display:flex;align-items:center;justify-content:center;font-size:var(--font-size-xl);color:var(--text-medium);flex-shrink:0;">
+                <i class="{{ form_data.icon|default:'fas fa-cog' }}"></i>
+              </div>
+              <input type="text" name="icon" id="st-icon" class="form-control"
+                     value="{{ form_data.icon|default:'fas fa-cog' }}" placeholder="fas fa-cog">
+            </div>
+            <div class="d-flex flex-wrap gap-1 mt-2">
+              {% with icons="fas fa-tags|fas fa-print|fas fa-scroll|fas fa-layer-group|fas fa-cut|fas fa-book|fas fa-desktop|fas fa-cog|fas fa-truck|fas fa-industry|fas fa-tools|fas fa-palette" %}
+              {% for ico in icons|split:"|" %}
+              <button type="button" class="btn btn-outline-secondary btn-sm st-icon-btn"
+                      data-icon="{{ ico }}" title="{{ ico }}"
+                      style="width:36px;height:36px;padding:0;display:flex;align-items:center;justify-content:center;border-radius:6px;">
+                <i class="{{ ico }}"></i>
+              </button>
+              {% endfor %}
+              {% endwith %}
+            </div>          </div>
+
+          <!-- اللون -->
+          <div class="mb-3">
+            <label class="form-label">اللون</label>
+            <div class="d-flex align-items-center gap-2">
+              <div id="st-color-preview"
+                   style="width:38px;height:38px;border-radius:var(--border-radius-md);border:1px solid var(--border-color);background-color:{{ form_data.color|default:'var(--primary-color)' }};flex-shrink:0;transition:var(--transition-all);"></div>
+              <input type="text" name="color" id="st-color" class="form-control"
+                     value="{{ form_data.color|default:'var(--primary-color)' }}" placeholder="#006699" maxlength="15">
+            </div>
+            <div class="d-flex flex-wrap gap-1 mt-2">
+              {% with colors="var(--primary-color)|var(--success-color)|var(--danger-color)|var(--warning-color)|var(--info-color)|var(--badge-purple)|#fd7e14|#20c997|#e83e8c|#6c757d|#343a40|#795548" %}
+              {% for clr in colors|split:"|" %}
+              <button type="button" class="st-color-btn"
+                      data-color="{{ clr }}"
+                      style="width:28px;height:28px;border-radius:var(--border-radius-sm);border:1px solid var(--border-color);background-color:{{ clr }};cursor:pointer;transition:var(--transition-all);"
+                      title="{{ clr }}"></button>
+              {% endfor %}
+              {% endwith %}
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- الجانب الأيمن: المعاينة -->
+      <div class="col-lg-5">
+        <div style="background-color:var(--bg-light);border-radius:var(--border-radius-md);padding:var(--spacing-6);position:sticky;top:20px;">
+          <h6 class="section-title"><i class="fas fa-eye text-primary me-2"></i>المعاينة المباشرة</h6>
+
+          <!-- في الجدول -->
+          <div style="background-color:var(--white);border-radius:var(--border-radius-md);padding:var(--spacing-4);border:1px solid var(--border-color);margin-bottom:var(--spacing-4);">
+            <small class="text-muted d-block mb-2 fw-bold">في الجدول:</small>
+            <div class="d-flex align-items-center">
+              <div id="st-prev-icon-sm"
+                   style="width:32px;height:32px;border-radius:var(--border-radius-full);background-color:var(--primary-color);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:var(--font-size-sm);margin-left:var(--spacing-3);transition:var(--transition-all);">
+                <i class="{{ form_data.icon|default:'fas fa-cog' }}"></i>
+              </div>
+              <div>
+                <strong id="st-prev-name">{{ form_data.name|default:'اسم النوع' }}</strong>
+                <br><small class="text-muted" id="st-prev-code">{{ form_data.code|default:'code' }}</small>
+              </div>
+            </div>
+          </div>
+
+          <!-- كشارة -->
+          <div style="background-color:var(--white);border-radius:var(--border-radius-md);padding:var(--spacing-4);border:1px solid var(--border-color);margin-bottom:var(--spacing-4);text-align:center;">
+            <small class="text-muted d-block mb-2 fw-bold">كشارة:</small>
+            <span id="st-prev-badge"
+                  style="display:inline-flex;align-items:center;gap:var(--spacing-2);padding:var(--spacing-2) var(--spacing-4);background-color:var(--primary-color);color:var(--white);border-radius:20px;font-size:var(--font-size-sm);transition:var(--transition-all);">
+              <i class="{{ form_data.icon|default:'fas fa-cog' }}"></i>
+              <span>{{ form_data.name|default:'اسم النوع' }}</span>
+            </span>
+          </div>
+
+          <!-- كبطاقة -->
+          <div style="background-color:var(--white);border-radius:var(--border-radius-md);padding:var(--spacing-4);border:1px solid var(--border-color);text-align:center;">
+            <small class="text-muted d-block mb-2 fw-bold">كبطاقة:</small>
+            <div id="st-prev-icon-lg"
+                 style="width:60px;height:60px;border-radius:var(--border-radius-full);background-color:var(--primary-color);color:var(--white);display:flex;align-items:center;justify-content:center;font-size:var(--font-size-2xl);margin:0 auto var(--spacing-3);transition:var(--transition-all);">
+              <i class="{{ form_data.icon|default:'fas fa-cog' }}"></i>
+            </div>
+            <strong id="st-prev-name2">{{ form_data.name|default:'اسم النوع' }}</strong>
+            <br><code id="st-prev-code2" style="font-size:var(--font-size-sm);background-color:var(--bg-soft-secondary);color:var(--text-dark);padding:var(--spacing-1) var(--spacing-2);border-radius:var(--border-radius-sm);display:inline-block;margin-top:var(--spacing-2);">{{ form_data.code|default:'code' }}</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </form>
+</div>
+
+<!-- Modal Footer -->
+<div class="modal-footer">
+  <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+    <i class="fas fa-times me-1"></i>إلغاء
+  </button>
+  <button type="submit" form="serviceTypeModalForm" class="btn btn-primary" id="st-save-btn">
+    <i class="fas fa-save me-1"></i>{% if service_type %}تحديث{% else %}إضافة{% endif %}
+  </button>
+</div>
+
+<script>
+(function() {
+  const form    = document.getElementById('serviceTypeModalForm');
+  const nameEl  = document.getElementById('st-name');
+  const codeEl  = document.getElementById('st-code');
+  const iconEl  = document.getElementById('st-icon');
+  const colorEl = document.getElementById('st-color');
+  const saveBtn = document.getElementById('st-save-btn');
+
+  // ── معاينة مباشرة ────────────────────────────────────────────
+  function updatePreview() {
+    const name  = nameEl?.value  || 'اسم النوع';
+    const code  = codeEl?.value  || 'code';
+    const icon  = iconEl?.value  || 'fas fa-cog';
+    const color = colorEl?.value || 'var(--primary-color)';
+
+    // أيقونة صغيرة
+    const sm = document.getElementById('st-prev-icon-sm');
+    if (sm) { sm.style.backgroundColor = color; sm.querySelector('i').className = icon; }
+
+    // شارة
+    const badge = document.getElementById('st-prev-badge');
+    if (badge) {
+      badge.style.backgroundColor = color;
+      badge.querySelector('i').className = icon;
+      badge.querySelector('span').textContent = name;
+    }
+
+    // بطاقة كبيرة
+    const lg = document.getElementById('st-prev-icon-lg');
+    if (lg) { lg.style.backgroundColor = color; lg.querySelector('i').className = icon; }
+
+    // نصوص
+    ['st-prev-name','st-prev-name2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = name;
+    });
+    ['st-prev-code','st-prev-code2'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.textContent = code;
+    });
+
+    // معاينة الأيقونة بجانب الـ input
+    const iconPrev = document.getElementById('st-icon-preview');
+    if (iconPrev) iconPrev.querySelector('i').className = icon;
+
+    // معاينة اللون
+    const colorPrev = document.getElementById('st-color-preview');
+    if (colorPrev) colorPrev.style.backgroundColor = color;
+  }
+
+  // ── أحداث الحقول ─────────────────────────────────────────────
+  [nameEl, codeEl, iconEl, colorEl].forEach(el => {
+    if (el) el.addEventListener('input', updatePreview);
+  });
+
+  // أزرار الأيقونات
+  document.querySelectorAll('.st-icon-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      iconEl.value = this.dataset.icon;
+      document.querySelectorAll('.st-icon-btn').forEach(b => b.classList.remove('selected'));
+      this.classList.add('selected');
+      updatePreview();
+    });
+  });
+
+  // أزرار الألوان
+  document.querySelectorAll('.st-color-btn').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      colorEl.value = this.dataset.color;
+      document.querySelectorAll('.st-color-btn').forEach(b => b.style.border = '1px solid var(--border-color)');
+      this.style.border = '2px solid var(--primary-color)';
+      updatePreview();
+    });
+  });
+
+  // تحديد الزر النشط عند الفتح
+  function markActive() {
+    const curIcon  = iconEl?.value;
+    const curColor = colorEl?.value;
+    document.querySelectorAll('.st-icon-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.icon === curIcon);
+    });
+    document.querySelectorAll('.st-color-btn').forEach(b => {
+      b.style.border = b.dataset.color === curColor ? '2px solid var(--primary-color)' : '1px solid var(--border-color)';
+    });
+  }
+
+  // ── إرسال AJAX ───────────────────────────────────────────────
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+    // مسح أخطاء سابقة
+    ['name','code'].forEach(f => {
+      const err = document.getElementById(`err-${f}`);
+      const inp = form.querySelector(`[name="${f}"]`);
+      if (err) err.textContent = '';
+      if (inp) inp.classList.remove('is-invalid');
+    });
+
+    fetch(form.action, {
+      method: 'POST',
+      headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      body: new FormData(form),
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('serviceTypeModal')).hide();
+        toastr.success(data.message);
+        if (data.schema_url) {
+          setTimeout(() => { window.location.href = data.schema_url; }, 700);
+        } else {
+          setTimeout(() => { window.location.reload(); }, 700);
+        }
+      } else {
+        Object.entries(data.errors || {}).forEach(([field, msg]) => {
+          const inp = form.querySelector(`[name="${field}"]`);
+          const err = document.getElementById(`err-${field}`);
+          if (inp) inp.classList.add('is-invalid');
+          if (err) err.textContent = msg;
+        });
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>{% if service_type %}تحديث{% else %}إضافة{% endif %}';
+      }
+    })
+    .catch(() => {
+      toastr.error('حدث خطأ في الاتصال');
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = '<i class="fas fa-save me-1"></i>{% if service_type %}تحديث{% else %}إضافة{% endif %}';
+    });
+  });
+
+  // تهيئة أولية
+  setTimeout(() => { updatePreview(); markActive(); }, 50);
+})();
+</script>

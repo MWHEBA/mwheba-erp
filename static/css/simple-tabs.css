@@ -1,0 +1,134 @@
+/**
+ * Simple Profile Tabs - نسخة مبسطة
+ * تصميم بسيط وواضح للتابات
+ */
+
+/* ===== Tab Container ===== */
+.profile-tabs {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-lg);
+    overflow: hidden;
+    margin-top: var(--spacing-6);
+}
+
+/* ===== Tab Navigation ===== */
+.profile-tabs .nav-tabs {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+    margin: 0;
+    padding: 0 var(--spacing-4);
+}
+
+.profile-tabs .nav-link {
+    border: none;
+    border-radius: 0;
+    color: var(--text-medium);
+    font-weight: var(--font-weight-medium);
+    padding: var(--spacing-4) var(--spacing-6);
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.profile-tabs .nav-link:hover {
+    color: var(--primary-color);
+    background: rgba(var(--primary-rgb), 0.05);
+}
+
+.profile-tabs .nav-link.active {
+    color: var(--primary-color);
+    background: var(--bg-card);
+    border-bottom: 3px solid var(--primary-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+/* ===== Tab Content ===== */
+.profile-tabs .tab-content {
+    padding: var(--spacing-6);
+    min-height: 400px;
+    background: var(--bg-card);
+}
+
+.profile-tabs .tab-pane {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.profile-tabs .tab-pane.active {
+    opacity: 1;
+}
+
+/* ===== Responsive Design ===== */
+@media (max-width: 767.98px) {
+    .profile-tabs .nav-tabs {
+        padding: 0 var(--spacing-2);
+        overflow-x: auto;
+    }
+    
+    .profile-tabs .nav-link {
+        padding: var(--spacing-3) var(--spacing-4);
+        font-size: var(--font-size-sm);
+        white-space: nowrap;
+    }
+    
+    .profile-tabs .tab-content {
+        padding: var(--spacing-4);
+        min-height: 300px;
+    }
+}
+
+/* ===== Keyboard Navigation Hint ===== */
+.keyboard-hint {
+    position: fixed;
+    bottom: var(--spacing-4);
+    left: var(--spacing-4);
+    background: var(--dark-color);
+    color: var(--white);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-xs);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: 1000;
+}
+
+.keyboard-hint.show {
+    opacity: 0.8;
+}
+
+.keyboard-hint kbd {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--white);
+    padding: 0.1rem 0.3rem;
+    border-radius: 0.2rem;
+    font-size: 0.7rem;
+}
+
+/* ===== Mobile Optimizations ===== */
+@media (max-width: 767.98px) {
+    .keyboard-hint {
+        display: none;
+    }
+}
+
+/* ===== Print Styles ===== */
+@media print {
+    .profile-tabs .nav-tabs {
+        display: none;
+    }
+    
+    .profile-tabs .tab-content {
+        padding: 0;
+    }
+    
+    .tab-pane {
+        display: block !important;
+        opacity: 1 !important;
+    }
+    
+    .keyboard-hint {
+        display: none !important;
+    }
+}

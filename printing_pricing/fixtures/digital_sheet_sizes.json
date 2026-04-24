@@ -1,0 +1,44 @@
+[
+  {
+    "model": "printing_pricing.digitalsheetsize",
+    "pk": 1,
+    "fields": {
+      "name": "A4",
+      "code": "a4",
+      "width_cm": 21.0,
+      "height_cm": 29.7,
+      "description": "مقاس A4 للأعمال المكتبية",
+      "is_active": true,
+      "is_default": true,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.digitalsheetsize",
+    "pk": 2,
+    "fields": {
+      "name": "A3",
+      "code": "a3",
+      "width_cm": 29.7,
+      "height_cm": 42.0,
+      "description": "مقاس A3 للأعمال المتوسطة",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  },
+  {
+    "model": "printing_pricing.digitalsheetsize",
+    "pk": 3,
+    "fields": {
+      "name": "SRA3",
+      "code": "sra3",
+      "width_cm": 32.0,
+      "height_cm": 45.0,
+      "description": "مقاس SRA3 للطباعة مع هوامش",
+      "is_active": true,
+      "is_default": false,
+      "created_at": "2025-01-01T00:00:00Z"
+    }
+  }
+]

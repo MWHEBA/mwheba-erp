@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .detail-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .detail-row {
+        display: flex;
+        padding: 12px 0;
+        border-bottom: 1px solid var(--border-color);
+    }
+    
+    .detail-row:last-child {
+        border-bottom: none;
+    }
+    
+    .detail-label {
+        font-weight: 600;
+        color: var(--text-secondary);
+        min-width: 180px;
+        display: flex;
+        align-items: center;
+    }
+    
+    .detail-label i {
+        margin-left: 8px;
+        color: var(--primary-color);
+    }
+    
+    .detail-value {
+        flex: 1;
+        color: var(--text-primary);
+    }
+    
+    .badge-large {
+        padding: 8px 16px;
+        font-size: 0.95rem;
+    }
+    
+    .error-message-box {
+        background: #fff3cd;
+        border: 1px solid #ffc107;
+        border-radius: 6px;
+        padding: 15px;
+        margin-top: 10px;
+        direction: rtl;
+    }
+    
+    .alert-bypass {
+        background: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="عرض تفاصيل كاملة لمحاولة التحقق الفاشلة" icon="fas fa-info-circle" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- Alert for Bypass Attempts -->
+    {% if log.is_bypass_attempt %}
+    <div class="alert alert-bypass">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>تنبيه:</strong> هذه محاولة تجاوز للتحقق
+        {% if log.bypass_reason %}
+        - السبب: {{ log.bypass_reason }}
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <!-- معلومات المحاولة -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    معلومات المحاولة
+                </h5>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-hashtag"></i>
+                        رقم السجل
+                    </div>
+                    <div class="detail-value">
+                        <code>#{{ log.id }}</code>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-clock"></i>
+                        التاريخ والوقت
+                    </div>
+                    <div class="detail-value">
+                        {{ log.timestamp|date:"Y-m-d H:i:s" }}
+                        <small class="text-muted">({{ log.timestamp|timesince }} مضت)</small>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-user"></i>
+                        المستخدم
+                    </div>
+                    <div class="detail-value">
+                        {{ user_name }}
+                        {% if log.user %}
+                        <small class="text-muted">(@{{ log.user.username }})</small>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-check-circle"></i>
+                        نوع التحقق
+                    </div>
+                    <div class="detail-value">
+                        <span class="badge badge-large bg-primary">
+                            {{ log.get_validation_type_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-cubes"></i>
+                        الوحدة
+                    </div>
+                    <div class="detail-value">
+                        <span class="badge badge-large bg-info">
+                            {{ log.get_module_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                {% if log.view_name %}
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-code"></i>
+                        اسم الـ View
+                    </div>
+                    <div class="detail-value">
+                        <code>{{ log.view_name }}</code>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if log.request_path %}
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-link"></i>
+                        مسار الطلب
+                    </div>
+                    <div class="detail-value">
+                        <code>{{ log.request_path }}</code>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- معلومات الكيان -->
+        <div class="col-md-6">
+            <div class="detail-card">
+                <h5 class="mb-3">
+                    <i class="fas fa-layer-group me-2"></i>
+                    معلومات الكيان
+                </h5>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-tag"></i>
+                        نوع الكيان
+                    </div>
+                    <div class="detail-value">
+                        <span class="badge badge-large bg-secondary">
+                            {{ log.get_entity_type_display }}
+                        </span>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-id-card"></i>
+                        معرف الكيان
+                    </div>
+                    <div class="detail-value">
+                        <code>{{ log.entity_id }}</code>
+                    </div>
+                </div>
+                
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-signature"></i>
+                        اسم الكيان
+                    </div>
+                    <div class="detail-value">
+                        <strong>{{ log.entity_name }}</strong>
+                    </div>
+                </div>
+                
+                {% if log.transaction_type %}
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-exchange-alt"></i>
+                        نوع المعاملة
+                    </div>
+                    <div class="detail-value">
+                        <code>{{ log.transaction_type }}</code>
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if log.transaction_date %}
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-calendar"></i>
+                        تاريخ المعاملة
+                    </div>
+                    <div class="detail-value">
+                        {{ log.transaction_date|date:"Y-m-d" }}
+                    </div>
+                </div>
+                {% endif %}
+                
+                {% if log.transaction_amount %}
+                <div class="detail-row">
+                    <div class="detail-label">
+                        <i class="fas fa-money-bill-wave"></i>
+                        مبلغ المعاملة
+                    </div>
+                    <div class="detail-value">
+                        <strong>{{ log.transaction_amount|smart_float }}</strong> {% currency_symbol %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- معلومات الفشل -->
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
+            تفاصيل الفشل
+        </h5>
+        
+        <div class="detail-row">
+            <div class="detail-label">
+                <i class="fas fa-times-circle"></i>
+                سبب الفشل
+            </div>
+            <div class="detail-value">
+                <span class="badge badge-large bg-danger">
+                    {{ failure_reason_ar }}
+                </span>
+                <small class="text-muted ms-2">({{ log.failure_reason }})</small>
+            </div>
+        </div>
+        
+        <div class="detail-row">
+            <div class="detail-label">
+                <i class="fas fa-comment-alt"></i>
+                رسالة الخطأ
+            </div>
+            <div class="detail-value">
+                <div class="error-message-box">
+                    {{ log.error_message }}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- معلومات الطلب -->
+    {% if log.ip_address or log.user_agent %}
+    <div class="detail-card">
+        <h5 class="mb-3">
+            <i class="fas fa-network-wired me-2"></i>
+            معلومات الطلب
+        </h5>
+        
+        {% if log.ip_address %}
+        <div class="detail-row">
+            <div class="detail-label">
+                <i class="fas fa-map-marker-alt"></i>
+                عنوان IP
+            </div>
+            <div class="detail-value">
+                <code>{{ log.ip_address }}</code>
+            </div>
+        </div>
+        {% endif %}
+        
+        {% if log.user_agent %}
+        <div class="detail-row">
+            <div class="detail-label">
+                <i class="fas fa-desktop"></i>
+                متصفح المستخدم
+            </div>
+            <div class="detail-value">
+                <small class="text-muted">{{ log.user_agent }}</small>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

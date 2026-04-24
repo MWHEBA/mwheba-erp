@@ -1,0 +1,87 @@
+[
+  {
+    "model": "hr.leavetype",
+    "pk": 1,
+    "fields": {
+      "name_ar": "إجازة اعتيادية",
+      "name_en": "Annual Leave",
+      "code": "ANNUAL",
+      "category": "annual",
+      "max_days_per_year": 21,
+      "is_paid": true,
+      "requires_approval": true,
+      "requires_document": false,
+      "deduction_multiplier": "1.0",
+      "allow_encashment": true,
+      "is_active": true
+    }
+  },
+  {
+    "model": "hr.leavetype",
+    "pk": 2,
+    "fields": {
+      "name_ar": "إجازة عارضة",
+      "name_en": "Emergency Leave",
+      "code": "EMERGENCY",
+      "category": "emergency",
+      "max_days_per_year": 7,
+      "is_paid": true,
+      "requires_approval": true,
+      "requires_document": false,
+      "deduction_multiplier": "1.0",
+      "allow_encashment": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "hr.leavetype",
+    "pk": 3,
+    "fields": {
+      "name_ar": "إجازة مرضية",
+      "name_en": "Sick Leave",
+      "code": "SICK",
+      "category": "sick",
+      "max_days_per_year": 90,
+      "is_paid": true,
+      "requires_approval": true,
+      "requires_document": true,
+      "deduction_multiplier": "1.0",
+      "allow_encashment": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "hr.leavetype",
+    "pk": 4,
+    "fields": {
+      "name_ar": "إجازة استثنائية",
+      "name_en": "Exceptional Leave",
+      "code": "EXCEPTIONAL",
+      "category": "exceptional",
+      "max_days_per_year": 15,
+      "is_paid": true,
+      "requires_approval": true,
+      "requires_document": false,
+      "deduction_multiplier": "1.0",
+      "allow_encashment": false,
+      "is_active": true
+    }
+  },
+  {
+    "model": "hr.leavetype",
+    "pk": 5,
+    "fields": {
+      "name_ar": "إجازة بدون مرتب",
+      "name_en": "Unpaid Leave",
+      "code": "UNPAID",
+      "category": "unpaid",
+      "max_days_per_year": 30,
+      "is_paid": false,
+      "requires_approval": true,
+      "requires_document": false,
+      "deduction_multiplier": "1.0",
+      "allow_encashment": false,
+      "is_active": true
+    }
+  }
+]

@@ -1,0 +1,471 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+<!-- Override messages block to prevent showing Django messages -->
+{% block messages %}
+    <!-- تم تعطيل عرض رسائل Django في هذه الصفحة -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- بطاقة القائمة -->
+    <div class="section-container">
+        <div class="card shadow-sm">
+            <div class="card-body p-0">
+                <!-- أدوات البحث والفلترة -->
+                <div class="p-3 border-bottom">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <input type="text" class="form-control" placeholder="بحث عن اسم مستخدم أو بريد إلكتروني">
+                                <button class="btn btn-outline-primary" type="button">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select class="form-select">
+                                <option value="">نوع المستخدم</option>
+                                <option value="admin">مدير</option>
+                                <option value="cashier">كاشير</option>
+                                <option value="sales">مندوب مبيعات</option>
+                                <option value="inventory">أمين مخزن</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <select class="form-select">
+                                <option value="">الحالة</option>
+                                <option value="active">نشط</option>
+                                <option value="inactive">غير نشط</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- استخدام الجدول الموحد -->
+                {% if users %}
+                  {% with table_id="users-table" %}
+                    {% with headers=headers %}
+                      {% with data=users %}
+                        {% with action_buttons=action_buttons %}
+                          {% with empty_message="لا يوجد مستخدمين مسجلين حتى الآن" %}
+                            {% with show_export=True export_filename="users" %}
+                              {% include "components/data_table.html" %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                  
+                  <!-- Pagination Controls -->
+                  {% if page_obj.has_other_pages %}
+                  <div class="d-flex justify-content-between align-items-center p-3 border-top">
+                      <div class="text-muted">
+                          عرض {{ page_obj.start_index }} - {{ page_obj.end_index }} من {{ page_obj.paginator.count }} مستخدم
+                      </div>
+                      <nav aria-label="Page navigation">
+                          <ul class="pagination mb-0">
+                              {% if page_obj.has_previous %}
+                              <li class="page-item">
+                                  <a class="page-link" href="?page=1" aria-label="First">
+                                      <i class="fas fa-angle-double-right"></i>
+                                  </a>
+                              </li>
+                              <li class="page-item">
+                                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}" aria-label="Previous">
+                                      <i class="fas fa-angle-right"></i>
+                                  </a>
+                              </li>
+                              {% else %}
+                              <li class="page-item disabled">
+                                  <span class="page-link"><i class="fas fa-angle-double-right"></i></span>
+                              </li>
+                              <li class="page-item disabled">
+                                  <span class="page-link"><i class="fas fa-angle-right"></i></span>
+                              </li>
+                              {% endif %}
+                              
+                              {% for num in page_obj.paginator.page_range %}
+                                  {% if page_obj.number == num %}
+                                  <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                                  {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                                  <li class="page-item"><a class="page-link" href="?page={{ num }}">{{ num }}</a></li>
+                                  {% endif %}
+                              {% endfor %}
+                              
+                              {% if page_obj.has_next %}
+                              <li class="page-item">
+                                  <a class="page-link" href="?page={{ page_obj.next_page_number }}" aria-label="Next">
+                                      <i class="fas fa-angle-left"></i>
+                                  </a>
+                              </li>
+                              <li class="page-item">
+                                  <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}" aria-label="Last">
+                                      <i class="fas fa-angle-double-left"></i>
+                                  </a>
+                              </li>
+                              {% else %}
+                              <li class="page-item disabled">
+                                  <span class="page-link"><i class="fas fa-angle-left"></i></span>
+                              </li>
+                              <li class="page-item disabled">
+                                  <span class="page-link"><i class="fas fa-angle-double-left"></i></span>
+                              </li>
+                              {% endif %}
+                          </ul>
+                      </nav>
+                  </div>
+                  {% endif %}
+                {% else %}
+                  {% include 'partials/empty_state.html' with message="لا يوجد مستخدمين مسجلين حتى الآن" icon="users" %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal تعديل المستخدم -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="editUserModalLabel">
+                    <i class="fas fa-user-edit me-2"></i>
+                    تعديل بيانات المستخدم
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="editUserForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <input type="hidden" id="edit_user_id" name="user_id">
+
+                    <!-- الاسم -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_first_name" class="form-label">الاسم الأول <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_first_name" name="first_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_last_name" class="form-label">الاسم الأخير <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="edit_last_name" name="last_name" required>
+                        </div>
+                    </div>
+
+                    <!-- اسم المستخدم -->
+                    <div class="mb-3">
+                        <label for="edit_username" class="form-label">اسم المستخدم <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="edit_username" name="username" required dir="ltr" readonly>
+                        <small class="text-muted">لا يمكن تغيير اسم المستخدم</small>
+                    </div>
+
+                    <!-- البريد والهاتف -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_email" class="form-label">البريد الإلكتروني <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="edit_email" name="email" required dir="ltr">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_phone" class="form-label">الهاتف</label>
+                            <input type="text" class="form-control" id="edit_phone" name="phone" dir="ltr">
+                        </div>
+                    </div>
+
+                    <!-- نوع المستخدم والدور -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit_user_type" class="form-label">نوع المستخدم</label>
+                            <select class="form-select" id="edit_user_type" name="user_type">
+                                <!-- يتم تعبئتها ديناميكياً -->
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit_role_id" class="form-label">الدور</label>
+                            <select class="form-select" id="edit_role_id" name="role_id">
+                                <option value="">بدون دور</option>
+                                <!-- يتم تعبئتها ديناميكياً -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- العنوان -->
+                    <div class="mb-3">
+                        <label for="edit_address" class="form-label">العنوان</label>
+                        <textarea class="form-control" id="edit_address" name="address" rows="2"></textarea>
+                    </div>
+
+                    <!-- الحالة -->
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="edit_is_active" name="is_active">
+                        <label class="form-check-label" for="edit_is_active">حساب نشط</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-2"></i>إلغاء
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>حفظ التغييرات
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal حذف المستخدم -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1" aria-labelledby="deleteUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteUserModalLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    تأكيد حذف المستخدم
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>تحذير:</strong> هذا الإجراء لا يمكن التراجع عنه!
+                </div>
+                
+                <p class="mb-3">هل أنت متأكد من حذف المستخدم التالي؟</p>
+                
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-sm-4"><strong>الاسم:</strong></div>
+                            <div class="col-sm-8" id="delete_user_name">-</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>اسم المستخدم:</strong></div>
+                            <div class="col-sm-8" id="delete_user_username">-</div>
+                        </div>
+                        <div class="row">
+                            <div class="col-sm-4"><strong>البريد الإلكتروني:</strong></div>
+                            <div class="col-sm-8" id="delete_user_email">-</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="fas fa-times me-2"></i>
+                    إلغاء
+                </button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    تأكيد الحذف
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let deleteUserId = null;
+
+// تهيئة DataTable مع إعدادات محسّنة للأداء
+$(document).ready(function() {
+    if ($.fn.DataTable && $('#users-table').length) {
+        $('#users-table').DataTable({
+            "paging": false,  // تعطيل pagination لأننا نستخدم Django pagination
+            "searching": true,
+            "ordering": true,
+            "info": false,
+            "language": {
+                "search": "بحث:",
+                "zeroRecords": "لا توجد نتائج",
+                "emptyTable": "لا توجد بيانات"
+            },
+            "columnDefs": [
+                { "orderable": false, "targets": -1 }  // تعطيل الترتيب على عمود الإجراءات
+            ],
+            "order": [[0, 'desc']],  // ترتيب حسب ID تنازلياً
+            "deferRender": true,  // تحسين الأداء
+            "dom": '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>rt<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>'
+        });
+    }
+});
+
+// فتح modal التعديل وتعبئة البيانات
+function openEditModal(userId) {
+    fetch(`/users/${userId}/edit/`, {
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            toastr.error(data.message || 'حدث خطأ أثناء جلب بيانات المستخدم');
+            return;
+        }
+        const user = data.user;
+
+        // تعبئة الحقول الأساسية
+        document.getElementById('edit_user_id').value = user.id;
+        document.getElementById('edit_first_name').value = user.first_name;
+        document.getElementById('edit_last_name').value = user.last_name;
+        document.getElementById('edit_username').value = user.username;
+        document.getElementById('edit_email').value = user.email;
+        document.getElementById('edit_phone').value = user.phone || '';
+        document.getElementById('edit_address').value = user.address || '';
+        document.getElementById('edit_is_active').checked = user.is_active;
+
+        // تعبئة قائمة نوع المستخدم
+        const userTypeSelect = document.getElementById('edit_user_type');
+        userTypeSelect.innerHTML = '';
+        data.user_types.forEach(type => {
+            const opt = document.createElement('option');
+            opt.value = type.value;
+            opt.textContent = type.label;
+            if (type.value === user.user_type) opt.selected = true;
+            userTypeSelect.appendChild(opt);
+        });
+
+        // تعبئة قائمة الأدوار
+        const roleSelect = document.getElementById('edit_role_id');
+        roleSelect.innerHTML = '<option value="">بدون دور</option>';
+        data.roles.forEach(role => {
+            const opt = document.createElement('option');
+            opt.value = role.id;
+            opt.textContent = role.display_name;
+            if (role.id === user.role_id) opt.selected = true;
+            roleSelect.appendChild(opt);
+        });
+
+        const modal = new bootstrap.Modal(document.getElementById('editUserModal'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        toastr.error('حدث خطأ أثناء جلب بيانات المستخدم');
+    });
+}
+
+// فتح modal حذف المستخدم
+function openDeleteModal(userId) {
+    // جلب بيانات المستخدم من الجدول
+    const row = document.querySelector(`tr[data-id="${userId}"]`);
+    if (!row) return;
+    
+    // استخراج البيانات من الصف
+    const cells = row.querySelectorAll('td');
+    const fullName = cells[1].textContent.trim();
+    const username = cells[2].textContent.trim();
+    const email = cells[3].textContent.trim();
+    
+    // تعبئة بيانات المستخدم في المودال
+    document.getElementById('delete_user_name').textContent = fullName;
+    document.getElementById('delete_user_username').textContent = username;
+    document.getElementById('delete_user_email').textContent = email || 'غير محدد';
+    
+    // حفظ معرف المستخدم
+    deleteUserId = userId;
+    
+    // فتح الـ modal
+    const modal = new bootstrap.Modal(document.getElementById('deleteUserModal'));
+    modal.show();
+}
+
+// تأكيد حذف المستخدم
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!deleteUserId) return;
+    
+    // تعطيل الزر أثناء المعالجة
+    this.disabled = true;
+    this.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحذف...';
+    
+    fetch(`/users/${deleteUserId}/delete/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
+            toastr.success(data.message);
+            const row = document.querySelector(`tr[data-id="${deleteUserId}"]`);
+            if (row) row.remove();
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            toastr.error(data.message);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        toastr.error('حدث خطأ أثناء حذف المستخدم');
+    })
+    .finally(() => {
+        // إعادة تفعيل الزر
+        this.disabled = false;
+        this.innerHTML = '<i class="fas fa-trash me-2"></i>تأكيد الحذف';
+        deleteUserId = null;
+    });
+});
+
+// حفظ التعديلات
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const userId = formData.get('user_id');
+    
+    fetch(`/users/${userId}/edit/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('editUserModal')).hide();
+            toastr.success(data.message || 'تم تحديث البيانات بنجاح');
+            location.reload();
+        } else {
+            toastr.error(data.message || 'حدث خطأ أثناء التحديث');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        toastr.error('حدث خطأ أثناء التحديث');
+    });
+});
+
+// تعديل أزرار التعديل والحذف في الجدول
+document.addEventListener('DOMContentLoaded', function() {
+    // إضافة event listener لأزرار التعديل
+    document.querySelectorAll('a[href*="/edit/"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.href.match(/\/users\/(\d+)\/edit\//)[1];
+            openEditModal(userId);
+        });
+    });
+    
+    // إضافة event listener لأزرار الحذف
+    document.querySelectorAll('a[href*="/delete/"]').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const userId = this.href.match(/\/users\/(\d+)\/delete\//)[1];
+            openDeleteModal(userId);
+        });
+    });
+});
+</script>
+{% endblock %} 

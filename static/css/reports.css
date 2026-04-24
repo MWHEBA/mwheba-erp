@@ -1,0 +1,156 @@
+/* تنسيقات التقارير والإحصائيات */
+
+/* الألوان المخصصة */
+:root {
+    --report-primary: #3498db;
+    --report-success: #2ecc71;
+    --report-warning: #f39c12;
+    --report-danger: #e74c3c;
+    --report-info: #17a2b8;
+    --report-light: #f8f9fa;
+    --report-dark: #343a40;
+    --report-orange: #fd7e14;
+}
+
+/* الشارات */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* أشرطة التقدم */
+.progress {
+    height: 0.75rem;
+    border-radius: 0.375rem;
+    background-color: rgba(0, 0, 0, 0.1);
+}
+
+.progress-bar {
+    border-radius: 0.375rem;
+}
+
+/* الرسوم البيانية */
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 1rem;
+}
+
+canvas {
+    max-height: 100%;
+}
+
+/* تحسينات للطباعة */
+@media print {
+    .btn, .btn-group, .dropdown {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #dee2e6 !important;
+        box-shadow: none !important;
+    }
+    
+    .table {
+        font-size: 0.8rem;
+    }
+    
+    .page-break {
+        page-break-before: always;
+    }
+}
+
+/* تأثيرات التفاعل */
+.card:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    transition: box-shadow 0.15s ease-in-out;
+}
+
+.btn {
+    transition: all 0.15s ease-in-out;
+}
+
+.table tbody tr:hover {
+    background-color: rgba(0, 0, 0, 0.075);
+}
+
+/* تحسينات الوصولية */
+.btn:focus,
+.form-control:focus,
+.form-select:focus {
+    box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+}
+
+/* تنسيقات خاصة بالتقارير */
+.report-header {
+    background: linear-gradient(135deg, var(--report-primary), var(--report-info));
+    color: white;
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+    border-radius: 0.5rem;
+}
+
+.report-summary {
+    background-color: var(--report-light);
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    text-align: center;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.metric-value {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+}
+
+.metric-label {
+    color: #6c757d;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* تحسينات للرسوم البيانية */
+.chart-wrapper {
+    position: relative;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+}
+
+.chart-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--report-dark);
+}
+
+/* تنسيقات الحالة */
+.status-pending {
+    color: var(--report-warning);
+}
+
+.status-paid {
+    color: var(--report-success);
+}
+
+.status-overdue {
+    color: var(--report-danger);
+}
+
+.status-active {
+    color: var(--report-success);
+}
+
+.status-inactive {
+    color: var(--report-dark);
+}

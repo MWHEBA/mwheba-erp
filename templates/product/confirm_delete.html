@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n static %}
+
+{% block title %}{% trans "تأكيد الحذف" %}: {{ object }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container my-4">
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">{% trans "تأكيد الحذف" %}</h5>
+                </div>
+                <div class="card-body">
+                    <h4 class="card-title mb-4">{% trans "هل أنت متأكد من حذف هذا العنصر؟" %}</h4>
+                    <p class="card-text">
+                        <strong>{{ object_name|default:"العنصر" }}:</strong> {{ object }}
+                    </p>
+                    
+                    {% block warning_message %}
+                    {% if warning_message %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {{ warning_message }}
+                    </div>
+                    {% endif %}
+                    {% endblock %}
+                    
+                    {% if related_items %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% trans "سيؤدي حذف هذا العنصر إلى حذف العناصر التالية:" %}
+                        <ul class="mb-0 mt-2">
+                            {% for item in related_items %}
+                            <li>{{ item }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                    
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{{ cancel_url|default:request.META.HTTP_REFERER }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-1"></i> {% trans "إلغاء" %}
+                            </a>
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-1"></i> {% trans "نعم، قم بالحذف" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %} 

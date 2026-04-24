@@ -1,0 +1,58 @@
+{% comment %}
+مكون مختار التاريخ المخصص
+
+الاستخدام:
+{% include "partials/datepicker.html" with id="date-field" name="date" label="التاريخ" %}
+
+المعلمات:
+- id: معرف حقل التاريخ (مطلوب)
+- name: اسم حقل التاريخ (مطلوب)
+- label: نص العنوان (اختياري)
+- value: قيمة مبدئية للحقل (اختياري)
+- required: هل الحقل مطلوب (اختياري، افتراضي False)
+- format: تنسيق التاريخ (اختياري، افتراضي "YYYY-MM-DD")
+- placeholder: نص توضيحي (اختياري، افتراضي "اختر التاريخ...")
+- readonly: هل الحقل للقراءة فقط (اختياري، افتراضي False)
+- disabled: هل الحقل معطل (اختياري، افتراضي False)
+- class: تصنيفات CSS إضافية (اختياري)
+- min_date: أدنى تاريخ يمكن اختياره (اختياري)
+- max_date: أقصى تاريخ يمكن اختياره (اختياري)
+- help_text: نص مساعد (اختياري)
+{% endcomment %}
+
+<div class="form-group mb-3">
+    {% if label %}
+        <label for="{{ id }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <div class="input-group datepicker-group">
+        <input type="text" 
+               id="{{ id }}" 
+               name="{{ name }}" 
+               class="form-control datepicker {{ class }}" 
+               value="{{ value|default:'' }}" 
+               placeholder="{{ placeholder|default:'اختر التاريخ...' }}"
+               {% if required %}required{% endif %}
+               {% if readonly %}readonly{% endif %}
+               {% if disabled %}disabled{% endif %}
+               data-format="{{ format|default:'YYYY-MM-DD' }}"
+               {% if min_date %}data-min-date="{{ min_date }}"{% endif %}
+               {% if max_date %}data-max-date="{{ max_date }}"{% endif %}
+        >
+        <span class="input-group-text">
+            <i class="fas fa-calendar-alt"></i>
+        </span>
+    </div>
+    
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+
+{% comment %}
+السكريبت القديم تم تعطيله - الآن يتم التهيئة تلقائياً من flatpickr-init.js
+النظام الجديد يتعرف على class="datepicker" تلقائياً
+{% endcomment %} 

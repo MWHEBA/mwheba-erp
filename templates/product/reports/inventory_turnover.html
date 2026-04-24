@@ -1,0 +1,488 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load dict_tags %}
+{% load app_tags %}
+
+{% block title %}تقرير دوران المخزون{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  /* ستايلات خاصة بتقرير معدل دوران المخزون فقط */
+  
+  .bg-primary-header {
+    background-color: rgba(13, 110, 253, 0.05);
+    color: #0d6efd;
+    border-bottom: 1px solid rgba(13, 110, 253, 0.1);
+  }
+  
+  .bg-success-header {
+    background-color: rgba(25, 135, 84, 0.05);
+    color: #198754;
+    border-bottom: 1px solid rgba(25, 135, 84, 0.1);
+  }
+  
+  .bg-danger-header {
+    background-color: rgba(220, 53, 69, 0.05);
+    color: #dc3545;
+    border-bottom: 1px solid rgba(220, 53, 69, 0.1);
+  }
+  
+  .bg-warning-header {
+    background-color: rgba(255, 193, 7, 0.05);
+    color: #ffc107;
+    border-bottom: 1px solid rgba(255, 193, 7, 0.1);
+  }
+  
+  .icon-box {
+    width: 42px;
+    height: 42px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 12px;
+    background-color: rgba(255, 255, 255, 0.6);
+  }
+  
+  .card-header .icon-box {
+    font-size: 1.1rem;
+  }
+  
+  .bg-primary-header .icon-box {
+    color: #0d6efd;
+  }
+  
+  .bg-success-header .icon-box {
+    color: #198754;
+  }
+  
+  .bg-danger-header .icon-box {
+    color: #dc3545;
+  }
+  
+  .bg-warning-header .icon-box {
+    color: #ffc107;
+  }
+
+  /* مؤشرات الدوران */
+  .turnover-indicator {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-weight: bold;
+    color: white;
+    text-align: center;
+    display: inline-block;
+    min-width: 80px;
+    font-size: 0.85em;
+  }
+  .turnover-high { background-color: #28a745; }
+  .turnover-medium { background-color: #ffc107; color: #000; }
+  .turnover-low { background-color: #dc3545; }
+  .turnover-zero { background-color: #6c757d; }
+  .progress-thin {
+    height: 8px;
+    border-radius: 4px;
+  }
+
+  /* empty-state موجود في shared-components.css */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="category" class="form-label">{% trans "التصنيف" %}</label>
+          <select class="form-select" id="category" name="category">
+            <option value="">{% trans "جميع التصنيفات" %}</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if cat.id|stringformat:"s" == request.GET.category %}selected{% endif %}>
+              {{ cat.name }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 d-flex align-items-end">
+          <button type="submit" class="btn btn-primary me-2 w-50">
+            <i class="fas fa-search me-2"></i>{% trans "تطبيق" %}
+          </button>
+          <button type="button" class="btn btn-outline-secondary w-50" onclick="window.location.reload()">
+            <i class="fas fa-undo me-2"></i>{% trans "إعادة تعيين" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-sync-alt"></i>
+            </div>
+            <div class="stats-card-title">{% trans "متوسط معدل الدوران" %}</div>
+            <div class="stats-card-value">{{ summary.average_turnover|smart_float|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "مرة في السنة" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stats-card-title">{% trans "دوران سريع" %}</div>
+            <div class="stats-card-value">{{ summary.high_turnover_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "منتج (6+ مرات/سنة)" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-minus"></i>
+            </div>
+            <div class="stats-card-title">{% trans "دوران متوسط" %}</div>
+            <div class="stats-card-value">{{ summary.medium_turnover_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "منتج (3-6 مرات/سنة)" %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stats-card-title">{% trans "دوران بطيء/راكد" %}</div>
+            <div class="stats-card-value">{{ summary.low_turnover_count|default:"0"|add:summary.zero_turnover_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "منتج (<3 مرات/سنة)" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- شرح معدل الدوران -->
+    <div class="alert alert-info">
+      <i class="fas fa-info-circle me-2"></i>
+      <strong>معدل الدوران:</strong> عدد المرات اللي بيتباع فيها المنتج خلال الفترة المحددة.
+      <br>
+      <strong>الحساب:</strong> تكلفة البضاعة المباعة ÷ متوسط قيمة المخزون
+      <br>
+      <strong>التقييم:</strong> 
+      <span class="turnover-indicator turnover-high">سريع (6+)</span> = ممتاز | 
+      <span class="turnover-indicator turnover-medium">متوسط (3-6)</span> = جيد | 
+      <span class="turnover-indicator turnover-low">بطيء (1-3)</span> = يحتاج مراجعة | 
+      <span class="turnover-indicator turnover-zero">راكد (0)</span> = لا توجد مبيعات
+    </div>
+  </div>
+
+  <!-- الرسم البياني -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "توزيع معدلات الدوران" %}</h5>
+    <div class="chart-container">
+      <canvas id="turnoverChart" width="400" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- قائمة تفاصيل دوران المنتجات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-table me-2"></i>{% trans "تفاصيل دوران المنتجات" %}</h5>
+        <div class="actions-container">
+          <button class="btn btn-sm btn-outline-secondary" onclick="exportTableToCSV('dataTable', 'inventory_turnover.csv')">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button class="btn btn-sm btn-outline-success" onclick="exportTableToExcel('dataTable', 'inventory_turnover.xlsx')">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="dataTable">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">كود المنتج</th>
+                            <th class="text-center">اسم المنتج</th>
+                            <th class="text-center">تكلفة الوحدة</th>
+                            <th class="text-center">الرصيد الحالي</th>
+                            <th class="text-center">متوسط المخزون</th>
+                            <th class="text-center">الكمية المباعة</th>
+                            <th class="text-center">تكلفة البضاعة المباعة</th>
+                            <th class="text-center">معدل الدوران</th>
+                            <th class="text-center">التقييم</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in turnover_data %}
+                        <tr>
+                            <td class="text-center">{{ item.product.sku }}</td>
+                            <td class="text-center">
+                                <strong>{{ item.product.name }}</strong>
+                                {% if item.product.category %}
+                                    <br><small class="text-muted">{{ item.product.category.name }}</small>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-secondary">{{ item.product_cost|smart_float }} ج.م</span>
+                            </td>
+                            <td class="text-center">{{ item.current_stock|smart_float }}</td>
+                            <td class="text-center">{{ item.average_inventory|smart_float }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-info">{{ item.quantity_sold|smart_float }}</span>
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ item.cogs|smart_float }} ج.م</strong>
+                                <br><small class="text-muted">إيراد: {{ item.revenue|smart_float }} ج.م</small>
+                            </td>
+                            <td class="text-center">
+                                <strong>{{ item.turnover_ratio|smart_float }}</strong>
+                                <div class="progress progress-thin mt-1">
+                                    <div class="progress-bar 
+                                        {% if item.turnover_ratio >= 6 %}bg-success
+                                        {% elif item.turnover_ratio >= 3 %}bg-warning
+                                        {% else %}bg-danger{% endif %}" 
+                                        style="width: {% widthratio item.turnover_ratio 1 10 %}%">
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                {% if item.turnover_ratio >= 6 %}
+                                    <span class="turnover-indicator turnover-high">سريع</span>
+                                {% elif item.turnover_ratio >= 3 %}
+                                    <span class="turnover-indicator turnover-medium">متوسط</span>
+                                {% elif item.turnover_ratio > 0 %}
+                                    <span class="turnover-indicator turnover-low">بطيء</span>
+                                {% else %}
+                                    <span class="turnover-indicator turnover-zero">راكد</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            {% if not turnover_data %}
+            <div class="empty-state">
+              <div class="empty-state-icon">
+                <i class="fas fa-chart-line"></i>
+              </div>
+              <h5 class="text-muted">لا توجد بيانات متاحة</h5>
+              <p class="text-muted">لا توجد بيانات دوران المخزون للفترة المحددة</p>
+            </div>
+            {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- التوصيات -->
+  {% if recommendations %}
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-lightbulb me-2"></i>{% trans "توصيات لتحسين دوران المخزون" %}</h5>
+    <div class="row">
+      {% for rec in recommendations %}
+      <div class="col-md-6 mb-3">
+        <div class="alert alert-{{ rec.type }} alert-dismissible fade show">
+          <strong>{{ rec.title }}</strong>
+          <p class="mb-0">{{ rec.description }}</p>
+          <small class="text-muted">{{ rec.products_count }} منتج متأثر</small>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- استخدام مكتبة DataTables من ملف global-table.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+  // تهيئة جدول دوران المخزون
+  initGlobalTable('dataTable', {
+    ordering: true,
+    order: [[7, 'desc']], // ترتيب حسب معدل الدوران (العمود الثامن)
+    columnDefs: [
+      { targets: [2, 3, 4, 5, 6, 7], className: 'text-end' }, // الأعمدة الرقمية
+      { targets: [0, 1, 8], className: 'text-center' }
+    ],
+    autoWidth: true,
+    responsive: true
+  });
+  
+  // تم استبدال حقول التاريخ بالنظام الموحد
+  
+  // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
+  function adjustTableSize() {
+    $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
+    $('#dataTable').css('width', '100%');
+  }
+  
+  adjustTableSize();
+  $(window).resize(adjustTableSize);
+  
+  // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
+  $('#dataTable tbody').on('click', 'tr', function(e) {
+    // تجاهل النقر على أزرار الإجراءات
+    if ($(e.target).closest('.btn-group').length > 0) {
+      return;
+    }
+    
+    // الحصول على رابط زر العرض
+    var viewButton = $(this).find('.btn-outline-primary');
+    if (viewButton.length > 0) {
+      var url = viewButton.attr('href');
+      if (url) {
+        window.location.href = url;
+      }
+    }
+  });
+  
+  // إضافة مؤشر اليد عند المرور على الصف
+  $('#dataTable tbody tr').css('cursor', 'pointer');
+});
+
+// Turnover Distribution Chart
+const ctx = document.getElementById('turnoverChart').getContext('2d');
+const turnoverChart = new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['دوران عالي (6+)', 'دوران متوسط (3-6)', 'دوران منخفض (1-3)', 'راكد (0-1)'],
+    datasets: [{
+      label: 'عدد المنتجات',
+      data: [
+        {{ summary.high_turnover_count|default:"0" }},
+        {{ summary.medium_turnover_count|default:"0" }},
+        {{ summary.low_turnover_count|default:"0" }},
+        {{ summary.zero_turnover_count|default:"0" }}
+      ],
+      backgroundColor: [
+        '#28a745',
+        '#ffc107',
+        '#dc3545',
+        '#6c757d'
+      ],
+      borderColor: [
+        '#1e7e34',
+        '#e0a800',
+        '#c82333',
+        '#545b62'
+      ],
+      borderWidth: 1
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return 'عدد المنتجات: ' + context.parsed.y;
+          }
+        }
+      }
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1
+        }
+      }
+    }
+  }
+});
+
+// دوال التصدير
+function exportTableToCSV(tableId, filename) {
+  const table = document.getElementById(tableId);
+  let csv = [];
+  
+  // إضافة headers
+  const headers = [];
+  table.querySelectorAll('thead th').forEach(th => {
+    headers.push('"' + th.textContent.trim() + '"');
+  });
+  csv.push(headers.join(','));
+  
+  // إضافة البيانات
+  table.querySelectorAll('tbody tr').forEach(row => {
+    const rowData = [];
+    row.querySelectorAll('td').forEach((cell, index) => {
+      // تجاهل عمود الإجراءات
+      if (index < row.querySelectorAll('td').length - 1) {
+        rowData.push('"' + cell.textContent.trim().replace(/"/g, '""') + '"');
+      }
+    });
+    if (rowData.length > 0) {
+      csv.push(rowData.join(','));
+    }
+  });
+  
+  // تحميل الملف
+  const csvContent = csv.join('\n');
+  const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  link.href = URL.createObjectURL(blob);
+  link.download = filename;
+  link.click();
+}
+
+function exportTableToExcel(tableId, filename) {
+  const table = document.getElementById(tableId);
+  const wb = XLSX.utils.book_new();
+  
+  // تحويل الجدول إلى worksheet
+  const ws = XLSX.utils.table_to_sheet(table);
+  
+  // إضافة worksheet إلى workbook
+  XLSX.utils.book_append_sheet(wb, ws, 'تقرير دوران المخزون');
+  
+  // تحميل الملف
+  XLSX.writeFile(wb, filename);
+}
+</script>
+{% endblock %}

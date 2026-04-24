@@ -1,0 +1,51 @@
+{% load static %}
+{% load django_bootstrap5 %}
+
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-weight-hanging me-2"></i>{{ title }}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<form id="paperWeightForm" method="post" action="{{ action_url }}">
+    {% csrf_token %}
+    <div class="modal-body">
+        <div class="row">
+            <div class="col-md-8">
+                {% bootstrap_field form.name %}
+            </div>
+            <div class="col-md-4">
+                {% bootstrap_field form.gsm %}
+            </div>
+        </div>
+
+        {% bootstrap_field form.description %}
+
+        <div class="row">
+            <div class="col-md-6">
+                {% bootstrap_field form.is_active %}
+            </div>
+            <div class="col-md-6">
+                {% bootstrap_field form.is_default %}
+                <small class="form-text text-muted">سيتم استخدام هذا الوزن كافتراضي في النماذج</small>
+            </div>
+        </div>
+
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="button" class="btn btn-primary" onclick="submitForm('paperWeightForm')">
+            <i class="fas fa-save me-2"></i>حفظ
+        </button>
+    </div>
+</form>

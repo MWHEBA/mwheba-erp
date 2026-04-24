@@ -1,0 +1,16 @@
+{% extends 'product/confirm_delete.html' %}
+{% load i18n %}
+
+{% block content %}
+{{ block.super }}
+{% endblock %}
+
+{% block warning_message %}
+{% if has_dependencies %}
+<div class="alert alert-warning">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>تنبيه:</strong> هذا المنتج مرتبط بسجلات أخرى (حركات مخزون، مبيعات، مشتريات). 
+    سيتم إلغاء تنشيط المنتج فقط وليس حذفه بالكامل.
+</div>
+{% endif %}
+{% endblock %} 

@@ -1,0 +1,691 @@
+﻿/**
+ * ========================================
+ * نظام المساعدة التفاعلية
+ * ========================================
+ * 
+ * يحتوي على أنماط:
+ * 1. نصائح الأدوات (Tooltips)
+ * 2. المساعدة السياقية
+ * 3. الجولة التعريفية
+ * 4. نوافذ المساعدة المنبثقة
+ * ========================================
+ */
+
+/* ========================================
+   1. نصائح الأدوات (Tooltips)
+   ======================================== */
+
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip {
+    position: absolute;
+    z-index: 1000;
+    padding: var(--spacing-2) var(--spacing-3);
+    background-color: var(--gray-900);
+    color: var(--white);
+    font-size: var(--font-size-sm);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-all);
+    pointer-events: none;
+    max-width: 250px;
+    white-space: normal;
+    word-wrap: break-word;
+}
+
+.tooltip.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* مواضع نصائح الأدوات */
+.tooltip.top {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    margin-bottom: 8px;
+}
+
+.tooltip.bottom {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    margin-top: 8px;
+}
+
+.tooltip.left {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%) translateX(-8px);
+    margin-right: 8px;
+}
+
+.tooltip.right {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%) translateX(8px);
+    margin-left: 8px;
+}
+
+/* أسهم نصائح الأدوات */
+.tooltip::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+}
+
+.tooltip.top::before {
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-top-color: var(--gray-900);
+}
+
+.tooltip.bottom::before {
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-bottom-color: var(--gray-900);
+}
+
+.tooltip.left::before {
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left-color: var(--gray-900);
+}
+
+.tooltip.right::before {
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    border-right-color: var(--gray-900);
+}
+
+/* أيقونة المساعدة */
+.help-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    background-color: var(--info-color);
+    color: var(--white);
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: var(--font-weight-bold);
+    cursor: help;
+    margin-left: var(--spacing-1);
+    transition: var(--transition-colors);
+}
+
+.help-icon:hover {
+    background-color: var(--info-dark);
+    transform: scale(1.1);
+}
+
+/* ========================================
+   2. المساعدة السياقية
+   ======================================== */
+
+.contextual-help {
+    position: relative;
+    margin-bottom: var(--spacing-4);
+}
+
+.help-panel {
+    background-color: var(--info-soft);
+    border: 1px solid rgba(var(--info-rgb), 0.2);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    display: none;
+}
+
+.help-panel.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+.help-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-3);
+}
+
+.help-panel-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--info-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+}
+
+.help-panel-title i {
+    margin-left: var(--spacing-2);
+    font-size: var(--font-size-xl);
+}
+
+.help-panel-close {
+    background: none;
+    border: none;
+    color: var(--info-color);
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-colors);
+}
+
+.help-panel-close:hover {
+    background-color: rgba(var(--info-rgb), 0.1);
+    color: var(--info-dark);
+}
+
+.help-panel-content {
+    color: var(--text-color);
+    line-height: var(--line-height-relaxed);
+}
+
+.help-panel-content h4 {
+    color: var(--info-dark);
+    margin-top: var(--spacing-3);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+}
+
+.help-panel-content ul {
+    margin: var(--spacing-2) 0;
+    padding-right: var(--spacing-4);
+}
+
+.help-panel-content li {
+    margin-bottom: var(--spacing-1);
+}
+
+.help-panel-content code {
+    background-color: rgba(var(--gray-600-rgb), 0.1);
+    padding: 2px 4px;
+    border-radius: 3px;
+
+    font-size: 0.9em;
+}
+
+/* زر إظهار المساعدة */
+.show-help-btn {
+    background-color: transparent;
+    border: 1px solid var(--info-color);
+    color: var(--info-color);
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.show-help-btn:hover {
+    background-color: var(--info-color);
+    color: var(--white);
+}
+
+.show-help-btn i {
+    font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   3. الجولة التعريفية
+   ======================================== */
+
+.tour-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 9998;
+    display: none;
+}
+
+.tour-overlay.show {
+    display: block;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.tour-highlight {
+    position: relative;
+    z-index: 9999;
+    box-shadow: 0 0 0 4px var(--primary-color), 0 0 0 8px rgba(var(--primary-rgb), 0.3);
+    border-radius: var(--border-radius);
+    background-color: var(--white);
+}
+
+.tour-popup {
+    position: absolute;
+    z-index: 10000;
+    background-color: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    padding: var(--spacing-6);
+    max-width: 350px;
+    min-width: 280px;
+}
+
+.tour-popup-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-4);
+}
+
+.tour-popup-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-color);
+    margin: 0;
+}
+
+.tour-popup-step {
+    background-color: var(--primary-color);
+    color: var(--white);
+    padding: 2px 8px;
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+.tour-popup-content {
+    color: var(--text-color);
+    line-height: var(--line-height-relaxed);
+    margin-bottom: var(--spacing-4);
+}
+
+.tour-popup-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tour-popup-navigation {
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.tour-btn {
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--border-radius);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    border: none;
+}
+
+.tour-btn-primary {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.tour-btn-primary:hover {
+    background-color: var(--primary-dark);
+}
+
+.tour-btn-secondary {
+    background-color: var(--gray-200);
+    color: var(--text-color);
+}
+
+.tour-btn-secondary:hover {
+    background-color: var(--gray-300);
+}
+
+.tour-btn-skip {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.tour-btn-skip:hover {
+    color: var(--text-color);
+}
+
+/* مؤشر التقدم */
+.tour-progress {
+    display: flex;
+    justify-content: center;
+    gap: var(--spacing-1);
+    margin-bottom: var(--spacing-4);
+}
+
+.tour-progress-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--gray-300);
+    transition: var(--transition-colors);
+}
+
+.tour-progress-dot.active {
+    background-color: var(--primary-color);
+}
+
+.tour-progress-dot.completed {
+    background-color: var(--success-color);
+}
+
+/* ========================================
+   4. نوافذ المساعدة المنبثقة
+   ======================================== */
+
+.help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1050;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+}
+
+.help-modal.show {
+    display: flex;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.help-modal-content {
+    background-color: var(--white);
+    border-radius: var(--border-radius-lg);
+    box-shadow: var(--shadow-xl);
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+    animation: slideUp 0.3s ease-out;
+}
+
+.help-modal-header {
+    padding: var(--spacing-6);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.help-modal-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-color);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.help-modal-close {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: var(--font-size-xl);
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-colors);
+}
+
+.help-modal-close:hover {
+    background-color: var(--gray-100);
+    color: var(--text-color);
+}
+
+.help-modal-body {
+    padding: var(--spacing-6);
+}
+
+.help-section {
+    margin-bottom: var(--spacing-6);
+}
+
+.help-section:last-child {
+    margin-bottom: 0;
+}
+
+.help-section-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-3);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.help-section-content {
+    color: var(--text-color);
+    line-height: var(--line-height-relaxed);
+}
+
+.help-section-content h4 {
+    color: var(--text-dark);
+    margin-top: var(--spacing-4);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-medium);
+}
+
+.help-section-content ul,
+.help-section-content ol {
+    margin: var(--spacing-2) 0;
+    padding-right: var(--spacing-4);
+}
+
+.help-section-content li {
+    margin-bottom: var(--spacing-1);
+}
+
+.help-section-content code {
+    background-color: var(--gray-100);
+    padding: 2px 6px;
+    border-radius: 4px;
+
+    font-size: 0.9em;
+    color: var(--danger-color);
+}
+
+.help-section-content .highlight {
+    background-color: var(--warning-soft);
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-weight: var(--font-weight-medium);
+}
+
+/* ========================================
+   5. أنماط مساعدة للنماذج
+   ======================================== */
+
+.form-help {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+    margin-bottom: var(--spacing-3);
+}
+
+.form-help-icon {
+    color: var(--info-color);
+    font-size: var(--font-size-lg);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.form-help-text {
+    color: var(--text-medium);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+}
+
+.field-help {
+    font-size: var(--font-size-xs);
+    color: var(--text-light);
+    margin-top: var(--spacing-1);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-1);
+}
+
+.field-help-icon {
+    color: var(--info-color);
+    font-size: var(--font-size-sm);
+}
+
+/* ========================================
+   6. الحركات والتأثيرات
+   ======================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+.pulse {
+    animation: pulse 2s infinite;
+}
+
+/* ========================================
+   7. الاستجابة للشاشات الصغيرة
+   ======================================== */
+
+@media (max-width: 767.98px) {
+    .tooltip {
+        max-width: 200px;
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-1) var(--spacing-2);
+    }
+    
+    .tour-popup {
+        max-width: 280px;
+        min-width: 250px;
+        padding: var(--spacing-4);
+    }
+    
+    .help-modal-content {
+        margin: var(--spacing-2);
+        max-height: 90vh;
+    }
+    
+    .help-modal-header,
+    .help-modal-body {
+        padding: var(--spacing-4);
+    }
+    
+    .help-panel {
+        padding: var(--spacing-3);
+    }
+}
+
+/* ========================================
+   8. أنماط إضافية للمساعدة
+   ======================================== */
+
+.help-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    background-color: var(--info-soft);
+    color: var(--info-dark);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+}
+
+.help-shortcut {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    background-color: var(--gray-100);
+    color: var(--text-medium);
+    padding: 2px 6px;
+    border-radius: 4px;
+
+    font-size: var(--font-size-xs);
+    border: 1px solid var(--border-color);
+}
+
+.help-tip {
+    background-color: var(--success-soft);
+    border: 1px solid rgba(var(--success-rgb), 0.2);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-3);
+    margin: var(--spacing-3) 0;
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-2);
+}
+
+.help-tip-icon {
+    color: var(--success-color);
+    font-size: var(--font-size-lg);
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.help-tip-content {
+    color: var(--success-dark);
+    font-size: var(--font-size-sm);
+    line-height: var(--line-height-relaxed);
+}

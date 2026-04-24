@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات الفاتورة</h5>
+                <table class="table table-borderless table-sm">
+                    <tr><th class="text-center">رقم الفاتورة</th><td class="text-center">{{ sale.number }}</td></tr>
+                    <tr><th class="text-center">التاريخ</th><td class="text-center">{{ sale.date }}</td></tr>
+                    <tr><th class="text-center">العميل</th><td class="text-center">{{ sale.customer.name }}</td></tr>
+                    <tr><th class="text-center">المخزن</th><td class="text-center">{{ sale.warehouse.name }}</td></tr>
+                    <tr><th class="text-center">الإجمالي</th><td class="text-center">{{ sale.total|smart_float }} ج.م</td></tr>
+                </table>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-undo me-2"></i>بنود المرتجع</h5>
+
+                <form method="post" id="return-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="date" value="{{ sale.date|date:'Y-m-d' }}">
+
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">المنتج</th>
+                                    <th class="text-center">الكمية الأصلية</th>
+                                    <th class="text-center">الكمية المرتجعة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in sale_items %}
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="hidden" name="sale_item[]" value="{{ item.id }}">
+                                        {{ item.product.name }}
+                                    </td>
+                                    <td class="text-center">{{ item.quantity|smart_float }}</td>
+                                    <td class="text-center">
+                                        <input type="number" name="quantity[]"
+                                               class="form-control return-qty text-center"
+                                               style="width:90px;margin:auto;"
+                                               min="0" max="{{ item.quantity }}" value="0">
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="mt-3 text-end">
+                        <button type="submit" class="btn btn-primary" id="submit-btn">
+                            <i class="fas fa-save me-1"></i> تأكيد المرتجع
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('return-form').addEventListener('submit', function(e) {
+    const inputs = document.querySelectorAll('.return-qty');
+    const hasReturn = Array.from(inputs).some(i => parseInt(i.value) > 0);
+
+    if (!hasReturn) {
+        e.preventDefault();
+        Swal.fire({ title: 'تنبيه', text: 'يجب تحديد كمية مرتجعة واحدة على الأقل', icon: 'warning', confirmButtonText: 'حسناً' });
+        return;
+    }
+
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري المعالجة...';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,215 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* chart-container موجود في shared-components.css */
+  
+  .stats-card-unit {
+    font-size: 0.8rem;
+    color: #6c757d;
+    font-weight: 400;
+  }
+  
+  /* empty-state موجود في shared-components.css */
+  
+  /* تحسين الجدول */
+  .purchases-table {
+    font-size: 0.95rem;
+  }
+  
+  .purchases-table thead th {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 600;
+    padding: 1rem 0.75rem;
+    border: none;
+    white-space: nowrap;
+  }
+  
+  .purchases-table tbody td {
+    padding: 0.875rem 0.75rem;
+    vertical-align: middle;
+    border-color: var(--border-color);
+  }
+  
+  .purchases-table tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.05);
+    transition: background-color 0.2s ease;
+  }
+  
+  .purchases-table .text-end {
+    font-family: 'Tajawal', sans-serif;
+    font-weight: 500;
+  }
+  
+  .purchases-table .table-active {
+    background-color: var(--primary-color) !important;
+    color: white;
+    font-weight: 700;
+  }
+  
+  .purchases-table .table-active td {
+    border-color: var(--primary-color);
+    padding: 1rem 0.75rem;
+  }
+  
+  .account-code-badge {
+    background-color: rgba(13, 110, 253, 0.1);
+    color: var(--primary-color);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- عنوان الصفحة (مضمن مباشرة) -->
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>الإحصائيات العامة</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stats-card-title">إجمالي المشتريات</div>
+            <div class="stats-card-value">{{ total_purchases|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calendar-day"></i>
+            </div>
+            <div class="stats-card-title">متوسط المشتريات اليومية</div>
+            <div class="stats-card-value">{{ avg_daily_purchases|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-4 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-clock"></i>
+            </div>
+            <div class="stats-card-title">فترة التقرير</div>
+            <div class="stats-card-value">{{ days_count }}</div>
+            <div class="stats-card-unit">يوم</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container no-print">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="GET" action="" class="row g-3">
+      <div class="col-md-4">
+        <label for="date_from" class="form-label">من تاريخ:</label>
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+      </div>
+      <div class="col-md-2">
+        <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+        <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to|date:'Y-m-d' }}">
+      </div>
+      <div class="col-md-4 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary me-2">
+          <i class="fas fa-filter me-1"></i>فلترة
+        </button>
+          <i class="fas fa-undo me-1"></i>إعادة تعيين
+        </a>
+      </div>
+    </form>
+  </div>
+
+  <!-- جدول المشتريات -->
+  <div class="section-container">
+    <div class="d-flex justify-content-between align-items-center mb-3 pb-3" style="border-bottom: 1px solid #eee;">
+      <h5 class="mb-0" style="color: #344767; font-size: 1.2rem; font-weight: 600;">
+        <i class="fas fa-table me-2"></i>تفاصيل المشتريات حسب الحساب
+      </h5>
+      {% if purchases_data %}
+      <span class="badge bg-primary">
+        <i class="fas fa-list me-1"></i>
+        {{ purchases_data|length }} حساب
+      </span>
+      {% endif %}
+    </div>
+    {% if purchases_data %}
+    <div class="table-responsive">
+      <table class="table purchases-table table-hover mb-0">
+        <thead>
+          <tr>
+            <th style="width: 100px;">كود الحساب</th>
+            <th>اسم الحساب</th>
+            <th class="text-center" style="width: 120px;">عدد المعاملات</th>
+            <th class="text-end" style="width: 150px;">المبلغ</th>
+            <th class="text-end" style="width: 100px;">النسبة %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in purchases_data %}
+          <tr>
+            <td>
+              <span class="account-code-badge">{{ item.account_code }}</span>
+            </td>
+            <td>
+              <strong class="text-dark">{{ item.account_name }}</strong>
+            </td>
+            <td class="text-center">
+              {{ item.transaction_count }}
+            </td>
+            <td class="text-end">
+              {{ item.total_amount|smart_float }}
+            </td>
+            <td class="text-end">
+              {{ item.percentage|smart_float:1 }}%
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="table-active">
+            <td colspan="3">
+              <i class="fas fa-sigma me-2"></i>الإجمالي
+            </td>
+            <td class="text-end">{{ total_purchases|smart_float }}</td>
+            <td class="text-end">100%</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="empty-state-icon">
+                <i class="fas fa-shopping-cart"></i>
+            </div>
+            <h5 class="text-muted mb-3">لا توجد بيانات مشتريات</h5>
+            <p class="text-muted mb-4">لا توجد مصروفات مسجلة في الفترة المحددة</p>
+        </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

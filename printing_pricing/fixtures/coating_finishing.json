@@ -1,0 +1,128 @@
+[
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 1,
+  "fields": {
+    "name": "سلوفان مط",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 2,
+  "fields": {
+    "name": "سلوفان لميع",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 3,
+  "fields": {
+    "name": "يوفي",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 4,
+  "fields": {
+    "name": "بصمة",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 5,
+  "fields": {
+    "name": "كوفراج",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 6,
+  "fields": {
+    "name": "كوفراج بصمة",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.coatingtype",
+  "pk": 7,
+  "fields": {
+    "name": "سبوت يوفي",
+    "description": "",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.finishingtype",
+  "pk": 3,
+  "fields": {
+    "name": "تجليد حلزوني",
+    "description": "تجليد بالحلزونة المعدنية أو البلاستيكية",
+    "is_active": true,
+    "created_at": "2025-10-20T17:22:55.730Z"
+  }
+},
+{
+  "model": "printing_pricing.finishingtype",
+  "pk": 5,
+  "fields": {
+    "name": "تقطيع",
+    "description": "تقطيع الورق بأشكال مختلفة",
+    "is_active": true,
+    "created_at": "2025-10-20T17:22:55.733Z"
+  }
+},
+{
+  "model": "printing_pricing.finishingtype",
+  "pk": 6,
+  "fields": {
+    "name": "طي",
+    "description": "طي الورق بأشكال مختلفة",
+    "is_active": true,
+    "created_at": "2025-10-20T17:22:55.739Z"
+  }
+},
+{
+  "model": "printing_pricing.finishingtype",
+  "pk": 7,
+  "fields": {
+    "name": "تثقيب",
+    "description": "تثقيب الورق للملفات",
+    "is_active": true,
+    "created_at": "2025-10-20T17:22:55.744Z"
+  }
+},
+{
+  "model": "printing_pricing.finishingtype",
+  "pk": 8,
+  "fields": {
+    "name": "تدبيس",
+    "description": "تدبيس الأوراق",
+    "is_active": true,
+    "created_at": "2025-10-20T17:22:55.748Z"
+  }
+}]

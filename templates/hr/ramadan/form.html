@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="section-container">
+                <div class="card-body">
+                    <form method="post" id="ramadan-form">
+                        {% csrf_token %}
+
+                        <div class="mb-3">
+                            <label class="form-label">{{ form.hijri_year.label }} <span class="text-danger">*</span></label>
+                            <div class="input-group">
+                                {{ form.hijri_year }}
+                                <button type="button" class="btn btn-outline-info" id="fetch-dates-btn"
+                                        title="جلب تواريخ رمضان تلقائياً من AlAdhan API">
+                                    <i class="fas fa-magic me-1"></i>جلب التواريخ
+                                </button>
+                            </div>
+                            {% if form.hijri_year.errors %}
+                                <div class="text-danger small">{{ form.hijri_year.errors.0 }}</div>
+                            {% endif %}
+                            <div class="form-text text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                اكتب السنة الهجرية ثم اضغط "جلب التواريخ" لتحديد بداية ونهاية رمضان تلقائياً
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ form.start_date.label }} <span class="text-danger">*</span></label>
+                                {{ form.start_date }}
+                                {% if form.start_date.errors %}
+                                    <div class="text-danger small">{{ form.start_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ form.end_date.label }} <span class="text-danger">*</span></label>
+                                {{ form.end_date }}
+                                {% if form.end_date.errors %}
+                                    <div class="text-danger small">{{ form.end_date.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr>
+                        <h6 class="mb-3"><i class="fas fa-business-time me-2"></i>إعدادات الأذونات في رمضان</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ form.permission_max_count.label }} <span class="text-danger">*</span></label>
+                                {{ form.permission_max_count }}
+                                {% if form.permission_max_count.errors %}
+                                    <div class="text-danger small">{{ form.permission_max_count.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text text-muted">الحد الأقصى لعدد الأذونات خلال شهر رمضان بالكامل</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label">{{ form.permission_max_hours.label }} <span class="text-danger">*</span></label>
+                                {{ form.permission_max_hours }}
+                                {% if form.permission_max_hours.errors %}
+                                    <div class="text-danger small">{{ form.permission_max_hours.errors.0 }}</div>
+                                {% endif %}
+                                <div class="form-text text-muted">الحد الأقصى لساعات الأذونات خلال شهر رمضان بالكامل</div>
+                            </div>
+                        </div>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">{{ form.non_field_errors.0 }}</div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>{% if is_edit %}تحديث{% else %}إضافة{% endif %}
+                            </button>
+                            <a href="{% url 'hr:ramadan_settings_list' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-right me-2"></i>إلغاء
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('id_hijri_year').addEventListener('change', function () {
+    var hijriYear = this.value.trim();
+
+    if (!hijriYear || isNaN(hijriYear)) {
+        toastr.warning('من فضلك أدخل السنة الهجرية أولاً');
+        return;
+    }
+
+    var btn = document.getElementById('fetch-dates-btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>جاري الجلب...';
+
+    fetch('{% url "hr:fetch_ramadan_dates" %}?hijri_year=' + hijriYear)
+    .then(function(res) {
+        if (!res.ok) {
+            toastr.error('خطأ HTTP: ' + res.status);
+            throw new Error('HTTP ' + res.status);
+        }
+        return res.json();
+    })
+    .then(function(data) {
+        if (data.success) {
+            var startInput = document.getElementById('id_start_date');
+            var endInput = document.getElementById('id_end_date');
+
+            // استخدام flatpickr API لو الحقل متهيأ بيها، وإلا نعمل set مباشر
+            if (startInput._flatpickr) {
+                startInput._flatpickr.setDate(data.start_date, true);
+            } else {
+                startInput.value = data.start_date;
+            }
+
+            if (endInput._flatpickr) {
+                endInput._flatpickr.setDate(data.end_date, true);
+            } else {
+                endInput.value = data.end_date;
+            }
+
+            toastr.success('تم جلب تواريخ رمضان ' + data.hijri_year + ' هـ بنجاح');
+        } else {
+            toastr.error(data.message || 'فشل في جلب التواريخ');
+        }
+    })
+    .catch(function(err) {
+        toastr.error('خطأ: ' + err.message);
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-magic me-1"></i>جلب التواريخ';
+    });
+});
+</script>
+{% endblock %}

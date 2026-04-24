@@ -1,0 +1,322 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .problem-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: box-shadow 0.3s;
+    }
+    
+    .problem-card:hover {
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    
+    .problem-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+    
+    .problem-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-left: 15px;
+    }
+    
+    .problem-icon-danger {
+        background: #fee;
+        color: var(--danger-color);
+    }
+    
+    .problem-icon-warning {
+        background: #fff3cd;
+        color: var(--warning-color);
+    }
+    
+    .problem-count {
+        font-size: 2rem;
+        font-weight: 700;
+        color: var(--primary-color);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="إصلاح المشاكل المكتشفة في التحقق من المعاملات المالية" icon="fas fa-wrench" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- Summary -->
+    <div class="alert alert-info mb-4">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>نظرة عامة:</strong> هذه الصفحة تعرض المشاكل الشائعة التي تم اكتشافها في آخر 30 يوم وتوفر أدوات لإصلاحها.
+    </div>
+    
+    <div class="row">
+        <!-- Missing Accounts -->
+        <div class="col-md-6 mb-4">
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon problem-icon-danger">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">حسابات محاسبية مفقودة</h5>
+                        <p class="text-muted mb-0">كيانات لا تحتوي على حساب محاسبي</p>
+                    </div>
+                </div>
+                
+                <div class="problem-count mb-3">
+                    {{ problems.missing_accounts|length }}
+                </div>
+                
+                {% if problems.missing_accounts %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center">الكيان</th>
+                                <th class="text-center">المحاولات</th>
+                                <th class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for problem in problems.missing_accounts|slice:":5" %}
+                            <tr>
+                                <td class="text-center">
+                                    <small class="text-muted">{{ problem.entity_type }}</small><br>
+                                    {{ problem.entity_name }}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger">{{ problem.count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'financial:fix_missing_account' problem.entity_type problem.entity_id %}" 
+                                       class="btn btn-sm btn-primary">
+                                        <i class="fas fa-wrench"></i> إصلاح
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    لا توجد مشاكل!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Inactive Accounts -->
+        <div class="col-md-6 mb-4">
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon problem-icon-warning">
+                        <i class="fas fa-ban"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">حسابات محاسبية غير مفعّلة</h5>
+                        <p class="text-muted mb-0">كيانات مرتبطة بحسابات غير مفعّلة</p>
+                    </div>
+                </div>
+                
+                <div class="problem-count mb-3">
+                    {{ problems.inactive_accounts|length }}
+                </div>
+                
+                {% if problems.inactive_accounts %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center">الكيان</th>
+                                <th class="text-center">المحاولات</th>
+                                <th class="text-center">إجراء</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for problem in problems.inactive_accounts|slice:":5" %}
+                            <tr>
+                                <td class="text-center">
+                                    <small class="text-muted">{{ problem.entity_type }}</small><br>
+                                    {{ problem.entity_name }}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning">{{ problem.count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'financial:fix_inactive_account' problem.entity_type problem.entity_id %}" 
+                                       class="btn btn-sm btn-warning">
+                                        <i class="fas fa-wrench"></i> إصلاح
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    لا توجد مشاكل!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Missing Periods -->
+        <div class="col-md-6 mb-4">
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon problem-icon-danger">
+                        <i class="fas fa-calendar-times"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">فترات محاسبية مفقودة</h5>
+                        <p class="text-muted mb-0">تواريخ لا تحتوي على فترة محاسبية</p>
+                    </div>
+                </div>
+                
+                <div class="problem-count mb-3">
+                    {{ problems.missing_periods|length }}
+                </div>
+                
+                {% if problems.missing_periods %}
+                <div class="mb-3">
+                    <a href="{% url 'financial:fix_missing_period' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        إنشاء فترة محاسبية جديدة
+                    </a>
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center">التاريخ</th>
+                                <th class="text-center">المحاولات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for problem in problems.missing_periods|slice:":5" %}
+                            <tr>
+                                <td class="text-center">{{ problem.transaction_date|date:"Y-m-d" }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-danger">{{ problem.count }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    لا توجد مشاكل!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Closed Periods -->
+        <div class="col-md-6 mb-4">
+            <div class="problem-card">
+                <div class="problem-header">
+                    <div class="problem-icon problem-icon-warning">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <div>
+                        <h5 class="mb-1">فترات محاسبية مغلقة</h5>
+                        <p class="text-muted mb-0">معاملات في فترات مغلقة</p>
+                    </div>
+                </div>
+                
+                <div class="problem-count mb-3">
+                    {{ problems.closed_periods|length }}
+                </div>
+                
+                {% if problems.closed_periods %}
+                <div class="alert alert-warning mb-3">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>ملاحظة:</strong> يجب مراجعة هذه المعاملات وإما تصحيح تاريخها أو إعادة فتح الفترة المحاسبية.
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th class="text-center">التاريخ</th>
+                                <th class="text-center">المحاولات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for problem in problems.closed_periods|slice:":5" %}
+                            <tr>
+                                <td class="text-center">{{ problem.transaction_date|date:"Y-m-d" }}</td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning">{{ problem.count }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <a href="{% url 'financial:accounting_periods_list' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-calendar-alt me-2"></i>
+                        إدارة الفترات المحاسبية
+                    </a>
+                </div>
+                {% else %}
+                <div class="alert alert-success mb-0">
+                    <i class="fas fa-check-circle me-2"></i>
+                    لا توجد مشاكل!
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Help Section -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-question-circle me-2"></i>
+            كيفية إصلاح المشاكل
+        </h5>
+        
+        <div class="card">
+            <div class="card-body">
+                <h6>1. حسابات محاسبية مفقودة:</h6>
+                <p>اضغط على زر "إصلاح" بجانب كل كيان لربطه بحساب محاسبي موجود.</p>
+                
+                <h6 class="mt-3">2. حسابات محاسبية غير مفعّلة:</h6>
+                <p>يمكنك إما تفعيل الحساب الحالي أو استبداله بحساب آخر مفعّل.</p>
+                
+                <h6 class="mt-3">3. فترات محاسبية مفقودة:</h6>
+                <p>أنشئ فترة محاسبية جديدة تغطي التواريخ المفقودة.</p>
+                
+                <h6 class="mt-3">4. فترات محاسبية مغلقة:</h6>
+                <p>راجع المعاملات وإما صحح تاريخها أو أعد فتح الفترة المحاسبية من صفحة إدارة الفترات.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

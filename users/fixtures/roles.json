@@ -1,0 +1,126 @@
+[{
+    "model": "users.role",
+    "pk": 1,
+    "fields": {
+      "name": "admin",
+      "display_name": "مدير النظام",
+      "description": "صلاحيات كاملة على جميع أجزاء النظام - الإدارة التقنية والتشغيلية الكاملة",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": []
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 2,
+    "fields": {
+      "name": "manager",
+      "display_name": "مدير",
+      "description": "إدارة العمليات والإشراف العام - كل شيء ماعدا الإعدادات التقنية",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [29, 30, 31, 32, 117, 118, 120, 177, 178, 180, 209, 210, 212, 241, 242, 244, 301, 305, 306, 311, 323, 324, 325, 326, 327, 328, 330, 423, 424, 426, 487, 488, 490, 507, 508, 510, 579, 580, 582, 699, 714, 715, 717, 718, 736, 824, 825, 827, 828, 829, 830, 848]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 3,
+    "fields": {
+      "name": "accountant",
+      "display_name": "محاسب",
+      "description": "إدارة الحسابات والقيود المحاسبية والتقارير المالية",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [29, 30, 32, 180, 212, 244, 426, 490, 510, 579, 580, 582, 717, 736]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 5,
+    "fields": {
+      "name": "hr_manager",
+      "display_name": "مدير موارد بشرية",
+      "description": "إدارة الموظفين والرواتب والعقود والشؤون الإدارية",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 699, 714, 715, 717, 718, 736]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 6,
+    "fields": {
+      "name": "inventory_manager",
+      "display_name": "مدير مخزون",
+      "description": "إدارة المنتجات والمبيعات والمشتريات والمخزون",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 423, 424, 426, 487, 488, 490, 507, 508, 510]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 7,
+    "fields": {
+      "name": "activities_coordinator",
+      "display_name": "منسق أنشطة",
+      "description": "إدارة الأنشطة والفعاليات",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 180, 327, 328, 330]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 8,
+    "fields": {
+      "name": "transportation_coordinator",
+      "display_name": "منسق نقل",
+      "description": "إدارة خدمات النقل والمشرفين",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 180, 301, 305, 306, 311, 323, 324, 325, 326]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 9,
+    "fields": {
+      "name": "receptionist",
+      "display_name": "موظف استقبال",
+      "description": "استقبال التقديمات والاستعلامات - صلاحيات محدودة",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 180, 827, 829, 830, 848]
+    }
+  },
+  {
+    "model": "users.role",
+    "pk": 10,
+    "fields": {
+      "name": "viewer",
+      "display_name": "مراجع (قراءة فقط)",
+      "description": "عرض البيانات والتقارير بدون صلاحيات تعديل",
+      "is_system_role": true,
+      "is_active": true,
+      "created_at": "2025-01-01T00:00:00Z",
+      "updated_at": "2025-01-01T00:00:00Z",
+      "permissions": [32, 88, 120, 180, 212, 244, 326, 330, 426, 490, 510, 582, 717, 827]
+    }
+  }]

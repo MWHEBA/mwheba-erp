@@ -1,0 +1,118 @@
+{% comment %}
+مكون محرر النصوص المتقدم (WYSIWYG Editor)
+
+الاستخدام:
+{% include "partials/editor.html" with id="editor-field" name="content" label="المحتوى" %}
+
+المعلمات:
+- id: معرف حقل المحرر (مطلوب)
+- name: اسم حقل المحرر (مطلوب)
+- label: نص العنوان (اختياري)
+- value: القيمة المبدئية للمحرر (اختياري)
+- required: هل الحقل مطلوب (اختياري، افتراضي False)
+- placeholder: نص توضيحي (اختياري)
+- readonly: هل الحقل للقراءة فقط (اختياري، افتراضي False)
+- disabled: هل الحقل معطل (اختياري، افتراضي False)
+- height: ارتفاع المحرر بالبكسل (اختياري، افتراضي 300)
+- toolbar: نوع شريط الأدوات (اختياري، الخيارات: "full", "basic"، افتراضي "full")
+- help_text: نص مساعد (اختياري)
+{% endcomment %}
+
+<div class="form-group mb-3">
+    {% if label %}
+        <label for="{{ id }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <textarea id="{{ id }}" 
+             name="{{ name }}" 
+             class="form-control tinymce-editor" 
+             {% if required %}required{% endif %}
+             {% if readonly %}readonly{% endif %}
+             {% if disabled %}disabled{% endif %}
+             {% if placeholder %}placeholder="{{ placeholder }}"{% endif %}
+             data-height="{{ height|default:300 }}"
+             data-toolbar="{{ toolbar|default:'full' }}"
+             rows="5">{{ value|default:'' }}</textarea>
+    
+    {% if help_text %}
+        <small class="form-text text-muted">{{ help_text }}</small>
+    {% endif %}
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // إذا تم تحميل TinyMCE بالفعل
+        if (typeof tinymce !== 'undefined') {
+            initEditor();
+        } else {
+            // تحميل TinyMCE إذا لم يكن محملاً
+            if (!document.getElementById('tinymce-js')) {
+                const script = document.createElement('script');
+                script.id = 'tinymce-js';
+                script.src = 'https://cdn.jsdelivr.net/npm/tinymce@6.4.2/tinymce.min.js';
+                script.onload = initEditor;
+                document.head.appendChild(script);
+            }
+        }
+        
+        function initEditor() {
+            const $editor = $('#{{ id }}');
+            const toolbarType = $editor.data('toolbar') || 'full';
+            const height = parseInt($editor.data('height') || 300);
+            
+            let toolbarOptions;
+            
+            if (toolbarType === 'basic') {
+                toolbarOptions = 'undo redo | bold italic underline | bullist numlist | link unlink | removeformat';
+            } else {
+                toolbarOptions = 'undo redo | formatselect | ' +
+                    'bold italic underline strikethrough | alignleft aligncenter ' +
+                    'alignright alignjustify | bullist numlist outdent indent | ' +
+                    'link image media table | forecolor backcolor | ' +
+                    'removeformat | code | fullscreen';
+            }
+            
+            tinymce.init({
+                selector: '#{{ id }}',
+                plugins: 'preview importcss searchreplace autolink autosave directionality code visualblocks visualchars fullscreen image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
+                toolbar: toolbarOptions,
+                height: height,
+                menubar: toolbarType === 'full',
+                toolbar_mode: 'sliding',
+                contextmenu: 'link image table',
+                branding: false,
+                promotion: false,
+                language: 'ar',
+                directionality: 'rtl',
+                entity_encoding: 'raw',
+                convert_urls: false,
+                relative_urls: false,
+                remove_script_host: false,
+                setup: function (editor) {
+                    editor.on('change', function () {
+                        editor.save();
+                    });
+                    
+                    // تعطيل المحرر إذا كان الحقل معطلاً أو للقراءة فقط
+                    if ($editor.attr('readonly') || $editor.attr('disabled')) {
+                        editor.settings.readonly = true;
+                    }
+                },
+                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; direction: rtl; }'
+            });
+            
+            // تخصيص المحرر للعمل مع الفورم المنبثقة
+            if ($editor.closest('.modal').length) {
+                // إصلاح مشكلة التحرير في النافذة المنبثقة
+                $(document).on('focusin', function(e) {
+                    if ($(e.target).closest('.tox-tinymce, .tox-tinymce-aux, .moxman-window, .tam-assetmanager-root').length) {
+                        e.stopImmediatePropagation();
+                    }
+                });
+            }
+        }
+    });
+</script> 

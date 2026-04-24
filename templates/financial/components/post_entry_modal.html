@@ -1,0 +1,151 @@
+{% load i18n %}
+
+<!-- مودال ترحيل القيد -->
+<div class="modal fade" id="postEntryModal" tabindex="-1" aria-labelledby="postEntryModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="postEntryModalLabel">
+          <i class="fas fa-check-circle me-2"></i>
+          {% trans "ترحيل القيد المحاسبي" %}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <form id="postEntryForm" method="post">
+        <div class="modal-body">
+          {% csrf_token %}
+          <input type="hidden" id="post_entry_id" name="entry_id">
+          
+          <!-- رسائل الخطأ -->
+          <div id="postEntryErrors" class="alert alert-danger d-none" role="alert">
+            <ul class="mb-0" id="postEntryErrorsList"></ul>
+          </div>
+          
+          <div class="alert alert-info">
+            <i class="fas fa-info-circle me-2"></i>
+            {% trans "هل أنت متأكد من ترحيل هذا القيد؟" %}
+          </div>
+          
+          <div class="mb-3">
+            <p class="mb-2"><strong>{% trans "رقم القيد:" %}</strong> <span id="post_entry_number"></span></p>
+            <p class="mb-2"><strong>{% trans "التاريخ:" %}</strong> <span id="post_entry_date"></span></p>
+            <p class="mb-0"><strong>{% trans "البيان:" %}</strong> <span id="post_entry_description"></span></p>
+          </div>
+          
+          <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <small>{% trans "بعد الترحيل، لن يمكن تعديل أو حذف القيد." %}</small>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>
+            {% trans "إلغاء" %}
+          </button>
+          <button type="submit" class="btn btn-success" id="postEntrySubmitBtn">
+            <i class="fas fa-check-circle me-1"></i>
+            {% trans "ترحيل القيد" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// دالة فتح مودال الترحيل
+function openPostModal(entryId) {
+  // تحميل بيانات القيد
+  fetch(`/financial/journal-entries/${entryId}/`)
+    .then(response => response.text())
+    .then(html => {
+      // استخراج البيانات من صفحة التفاصيل
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      
+      // ملء البيانات في المودال (يمكن تحسينها لاحقاً)
+      document.getElementById('post_entry_id').value = entryId;
+      document.getElementById('post_entry_number').textContent = entryId;
+      document.getElementById('post_entry_date').textContent = new Date().toLocaleDateString('ar-EG');
+      document.getElementById('post_entry_description').textContent = 'قيد محاسبي';
+      
+      // فتح المودال
+      const modal = new bootstrap.Modal(document.getElementById('postEntryModal'));
+      modal.show();
+    })
+    .catch(error => {
+      console.error('خطأ في تحميل بيانات القيد:', error);
+      alert('حدث خطأ في تحميل بيانات القيد');
+    });
+}
+
+// معالجة إرسال النموذج
+document.getElementById('postEntryForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  
+  const entryId = document.getElementById('post_entry_id').value;
+  const submitBtn = document.getElementById('postEntrySubmitBtn');
+  const errorsDiv = document.getElementById('postEntryErrors');
+  const errorsList = document.getElementById('postEntryErrorsList');
+  
+  // تعطيل الزر
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> {% trans "جاري الترحيل..." %}';
+  
+  // إخفاء الأخطاء السابقة
+  errorsDiv.classList.add('d-none');
+  errorsList.innerHTML = '';
+  
+  // إرسال الطلب
+  fetch(`/financial/journal-entries/${entryId}/post/`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'X-Requested-With': 'XMLHttpRequest'
+    },
+    body: JSON.stringify({})
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.success) {
+      // إغلاق المودال
+      bootstrap.Modal.getInstance(document.getElementById('postEntryModal')).hide();
+      
+      // إعادة تحميل الصفحة
+      location.reload();
+    } else {
+      // عرض الأخطاء
+      errorsDiv.classList.remove('d-none');
+      if (data.errors) {
+        Object.values(data.errors).forEach(error => {
+          const li = document.createElement('li');
+          li.textContent = error;
+          errorsList.appendChild(li);
+        });
+      } else {
+        const li = document.createElement('li');
+        li.textContent = data.message || '{% trans "حدث خطأ أثناء الترحيل" %}';
+        errorsList.appendChild(li);
+      }
+      
+      // إعادة تفعيل الزر
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "ترحيل القيد" %}';
+    }
+  })
+  .catch(error => {
+    console.error('خطأ:', error);
+    errorsDiv.classList.remove('d-none');
+    const li = document.createElement('li');
+    li.textContent = '{% trans "حدث خطأ في الاتصال بالخادم" %}';
+    errorsList.appendChild(li);
+    
+    // إعادة تفعيل الزر
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = '<i class="fas fa-check-circle me-1"></i> {% trans "ترحيل القيد" %}';
+  });
+});
+</script>

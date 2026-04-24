@@ -1,0 +1,177 @@
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-box me-2"></i>
+        {% if form.instance.pk %}
+            {% if form.instance.is_service %}
+                {% trans "تعديل خدمة" %}
+            {% else %}
+                {% trans "تعديل منتج" %}
+            {% endif %}
+        {% else %}
+            {% trans "إضافة عنصر جديد" %}
+        {% endif %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form method="post" enctype="multipart/form-data" id="product-modal-form">
+    {% csrf_token %}
+    
+    <div class="modal-body">
+        <div class="row">
+            <!-- المعلومات الأساسية -->
+            <div class="col-12 mb-3">
+                {{ form.name|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.sku|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.category|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.unit|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.cost_price|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.selling_price|as_crispy_field }}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                {{ form.min_stock|as_crispy_field }}
+            </div>
+            
+            <div class="col-12 mb-3">
+                {{ form.description|as_crispy_field }}
+            </div>
+            
+            <!-- الخيارات -->
+            <div class="col-12">
+                <div class="form-check form-switch mb-2">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        {% trans "منتج نشط" %}
+                    </label>
+                </div>
+                
+                <div class="form-check form-switch">
+                    {{ form.is_featured }}
+                    <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
+                        {% trans "منتج مميز" %}
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>
+            {% if form.instance.pk %}
+                {% trans "تحديث" %}
+            {% else %}
+                {% trans "حفظ" %}
+            {% endif %}
+        </button>
+    </div>
+</form>
+
+<script>
+$(document).ready(function() {
+    // تنشيط Select2 للقوائم المنسدلة في المودال
+    $('#id_category').select2({
+        theme: 'bootstrap-5',
+        placeholder: "{% trans 'اختر التصنيف' %}",
+        allowClear: true,
+        dropdownParent: $('#productModal')
+    });
+    
+    $('#id_unit').select2({
+        theme: 'bootstrap-5',
+        placeholder: "{% trans 'اختر وحدة القياس' %}",
+        allowClear: true,
+        dropdownParent: $('#productModal')
+    });
+    
+    // معالجة إرسال النموذج
+    $('#product-modal-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: $(this).attr('action') || window.location.href,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $('#productModal').modal('hide');
+                    // إعادة تحميل الصفحة أو تحديث الجدول
+                    if (typeof refreshProductTable === 'function') {
+                        refreshProductTable();
+                    } else {
+                        location.reload();
+                    }
+                    
+                    // عرض رسالة نجاح
+                    if (response.message) {
+                        showSuccessMessage(response.message);
+                    }
+                } else {
+                    // عرض الأخطاء
+                    if (response.errors) {
+                        displayFormErrors(response.errors);
+                    } else if (response.error) {
+                        showErrorMessage(response.error);
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error:', error);
+                showErrorMessage('{% trans "حدث خطأ أثناء حفظ البيانات" %}');
+            }
+        });
+    });
+});
+
+// دوال مساعدة لعرض الرسائل
+function showSuccessMessage(message) {
+    // يمكن استبدالها بنظام الإشعارات المستخدم في المشروع
+    alert(message);
+}
+
+function showErrorMessage(message) {
+    alert(message);
+}
+
+function displayFormErrors(errors) {
+    // مسح الأخطاء السابقة
+    $('.invalid-feedback').remove();
+    $('.is-invalid').removeClass('is-invalid');
+    
+    // عرض الأخطاء الجديدة
+    for (const field in errors) {
+        const fieldElement = $(`#id_${field}`);
+        if (fieldElement.length) {
+            fieldElement.addClass('is-invalid');
+            fieldElement.after(`<div class="invalid-feedback">${errors[field].join(', ')}</div>`);
+        }
+    }
+}
+</script>

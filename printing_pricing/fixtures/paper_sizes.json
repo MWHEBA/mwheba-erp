@@ -1,0 +1,40 @@
+[
+{
+  "model": "printing_pricing.papersize",
+  "pk": 1,
+  "fields": {
+    "name": "فرخ كامل 70×100",
+    "width": "70.00",
+    "height": "100.00",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 3,
+  "fields": {
+    "name": "فرخ طبع جاير 60×85",
+    "width": "60.00",
+    "height": "85.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+},
+{
+  "model": "printing_pricing.papersize",
+  "pk": 8,
+  "fields": {
+    "name": "فرخ جاير 66×88",
+    "width": "66.00",
+    "height": "88.00",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T19:07:44Z",
+    "updated_at": "2025-10-20T15:15:07.390Z"
+  }
+}]

@@ -1,0 +1,344 @@
+/**
+ * Main CSS File for Corporate ERP
+ * 
+ * ملف CSS الرئيسي الذي يستورد كل ملفات التنسيق المستخدمة في النظام
+ * 
+ * @author Corporate ERP Team
+ * @version 1.0.0
+ */
+
+/**
+ * استيراد المتغيرات والستايلات الأساسية
+ */
+@import 'variables.css';
+/* ملف base.css غير موجود، تم إزالته */
+
+/**
+ * استيراد ملفات التخطيط والمكونات
+ */
+@import 'layout.css';
+@import 'components.css';
+
+/**
+ * استيراد ملفات خاصة بمناطق معينة
+ */
+@import 'dashboard.css';
+@import 'forms.css';
+
+/**
+ * استيراد ملف المصادقة (لاحظ أن هذا الملف يستورد في auth_base.html مباشرة أيضاً)
+ */
+/* @import 'auth.css'; */
+
+/**
+ * Table of Contents:
+ * 
+ * 1. General Styles
+ * 2. Layout Styles
+ * 3. Component Styles
+ * 4. Dashboard Styles
+ * 5. Responsive Adjustments
+ */
+
+/*===================================================
+  1. General Styles
+===================================================*/
+/* متغيرات CSS تم نقلها إلى ملف variables.css */
+
+body {
+    font-family: 'Tajawal', sans-serif;
+    font-size: 0.9rem;
+    background-color: var(--bg-body);
+    color: var(--text-medium);
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-weight: 600;
+    color: var(--text-dark);
+}
+
+a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: all var(--transition-speed);
+}
+
+a:hover {
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+/*===================================================
+  2. Layout Styles
+===================================================*/
+.wrapper {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    margin-right: var(--sidebar-width);
+    transition: margin var(--transition-speed);
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+.main-header {
+    height: var(--header-height);
+    background-color: var(--header-bg);
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: var(--sidebar-width);
+    z-index: 990;
+    transition: right var(--transition-speed);
+}
+
+
+.footer {
+    height: var(--footer-height);
+    background-color: var(--footer-bg);
+    border-top: 1px solid var(--border-color);
+    padding: 0.75rem 1.5rem;
+    margin-top: auto;
+}
+
+
+/*===================================================
+  3. Component Styles
+===================================================*/
+/* Cards */
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
+    margin-bottom: 1.5rem;
+}
+
+.card-header {
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    padding: 0.75rem 1.25rem;
+}
+
+.card-header h6 {
+    margin-bottom: 0;
+}
+
+.border-right-primary {
+    border-right: 0.25rem solid var(--primary-color);
+}
+
+.border-right-success {
+    border-right: 0.25rem solid var(--success-color);
+}
+
+.border-right-info {
+    border-right: 0.25rem solid var(--info-color);
+}
+
+.border-right-warning {
+    border-right: 0.25rem solid var(--warning-color);
+}
+
+.border-right-danger {
+    border-right: 0.25rem solid var(--danger-color);
+}
+
+/* Tables */
+.table-hover tbody tr:hover {
+    background-color: rgba(78, 115, 223, 0.05);
+}
+
+.table th {
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    color: var(--text-medium);
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+}
+
+/* Forms */
+.form-control {
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+    font-size: 0.9rem;
+    padding: 0.5rem 0.75rem;
+}
+
+.form-control:focus {
+    border-color: var(--primary-light);
+    box-shadow: 0 0 0 0.25rem var(--primary-focus);
+}
+
+label {
+    font-weight: 500;
+    color: var(--text-medium);
+    margin-bottom: 0.5rem;
+}
+
+/* Buttons */
+.btn {
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 0.375rem 0.5rem;
+    border-radius: var(--border-radius);
+    transition: all var(--transition-speed);
+}
+
+.btn-block {
+    width: 100%;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+}
+
+
+/* Navbar */
+.navbar .user-avatar {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Badge العداد */
+.notification-badge {
+    position: absolute;
+    top: -7px;
+    left: -7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 23px;
+    height: 23px;
+    border-radius: 50%;
+    background-color: var(--danger-color);
+    color: white;
+    font-size: 10px;
+    line-height: 1;
+    font-weight: var(--font-weight-bold);
+    border: 2px solid var(--white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+    transform-origin: center;
+    animation: pulse 2s infinite;
+}
+
+.dropdown-menu {
+    border: none;
+    box-shadow: var(--box-shadow);
+    border-radius: var(--border-radius);
+}
+
+/*===================================================
+  4. Dashboard Styles
+===================================================*/
+/* Stat Cards - تم نقلها إلى shared-components.css */
+
+/* Progress */
+.progress {
+    height: 0.5rem;
+    border-radius: 10rem;
+}
+
+/* Status Indicator */
+.status-indicator {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    margin-right: 0.5rem;
+}
+
+.status-indicator.success {
+    background-color: var(--success-color);
+}
+
+.status-indicator.warning {
+    background-color: var(--warning-color);
+}
+
+.status-indicator.danger {
+    background-color: var(--danger-color);
+}
+
+.status-indicator.info {
+    background-color: var(--info-color);
+}
+
+
+/* تحسين responsive للشاشات المختلفة */
+@media (max-width: 767.98px) {
+    .footer {
+        padding: 0.5rem 0.75rem;
+    }
+}
+
+/*===================================================
+  Maintenance Mode Notification (Floating)
+===================================================*/
+.maintenance-notification {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    background: rgba(255, 152, 0, 0.65);
+    backdrop-filter: blur(10px);
+    color: white;
+    padding: 8px 20px;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1050;
+    font-size: 0.9rem;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    animation: slideInLeft 0.3s ease-out;
+}
+
+@keyframes slideInLeft {
+    from {
+        transform: translateX(-100px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.maintenance-notification i.fa-tools {
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.15);
+    }
+}
+
+.maintenance-notification a {
+    color: white;
+    opacity: 0.9;
+    transition: opacity 0.2s;
+}
+
+.maintenance-notification a:hover {
+    opacity: 1;
+} 

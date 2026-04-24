@@ -1,0 +1,80 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    {% if messages %}
+    <div class="row mb-4">
+        <div class="col-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section-container">
+        <div class="row mb-4">
+            <div class="col">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">{% trans "قائمة مرتجعات المبيعات" %}</h5>
+                            <span class="badge bg-primary">{{ returns.count }} {% trans "مرتجع" %}</span>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- استخدام الجدول الموحد -->
+                        {% if returns %}
+                          {% with table_id="sale-returns-table" %}
+                            {% with headers=return_headers %}
+                              {% with data=returns %}
+                                {% with action_buttons=return_actions %}
+                                  {% with empty_message="لا توجد مرتجعات مبيعات متاحة" %}
+                                    {% with clickable_rows=True row_click_url="/sales/returns/0/" %}
+                                      {% with show_export=True export_filename="sale_returns" %}
+                                        {% include "components/data_table.html" %}
+                                      {% endwith %}
+                                    {% endwith %}
+                                  {% endwith %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% else %}
+                          {% include 'partials/empty_state.html' with message="لا توجد مرتجعات مبيعات متاحة" icon="undo-alt" %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+</script>
+{% endblock %} 

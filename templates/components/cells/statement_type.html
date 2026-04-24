@@ -1,0 +1,16 @@
+{% load i18n %}
+{% if object.type == 'purchase' %}
+  <span class="badge bg-info">
+    <i class="fas fa-shopping-cart me-1"></i>{% trans "فاتورة شراء" %}
+  </span>
+{% elif object.type == 'invoice' %}
+  <span class="badge bg-success">
+    <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "فاتورة بيع" %}
+  </span>
+{% elif object.type == 'payment' %}
+  <span class="badge bg-primary">
+    <i class="fas fa-money-bill-wave me-1"></i>{% trans "دفعة" %}
+  </span>
+{% else %}
+  <span class="badge bg-secondary">{{ object.type }}</span>
+{% endif %}

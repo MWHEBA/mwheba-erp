@@ -1,0 +1,9 @@
+{% if object.is_processed %}
+    <span class="badge bg-success" title="تم تحويل هذا السجل إلى حضور/انصراف في نظام الموارد البشرية">
+        <i class="fas fa-check-circle me-1"></i>تم التحويل للنظام
+    </span>
+{% else %}
+    <span class="badge bg-warning text-dark" title="السجل موجود لكن لم يتم تحويله لحضور/انصراف بعد">
+        <i class="fas fa-clock me-1"></i>في انتظار المعالجة
+    </span>
+{% endif %}

@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row mb-4">
+      <div class="col-md-4">
+          <div class="section-container">
+                    <h5>معلومات الموظف</h5>
+                    <table class="table table-sm">
+                        <tr>
+                            <th>رقم الموظف:</th>
+                            <td>{{ employee.employee_number }}</td>
+                        </tr>
+                        <tr>
+                            <th>القسم:</th>
+                            <td>{{ employee.department.name_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>الوظيفة:</th>
+                            <td>{{ employee.job_title.title_ar }}</td>
+                        </tr>
+                        <tr>
+                            <th>تاريخ التعيين:</th>
+                            <td>{{ employee.hire_date|date:"Y-m-d" }}</td>
+                        </tr>
+                    </table>
+          </div>
+      </div>
+
+      <div class="col-md-8">
+          <div class="section-container">
+              <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>أرصدة الإجازات - {{ current_year }}</h5>
+                    <div class="row">
+                        {% for balance in balances %}
+                        <div class="col-md-12 mb-3">
+                            <div class="card border-start border-primary border-4">
+                                <div class="card-body">
+                                    <h6 class="text-primary">{{ balance.leave_type.name_ar }}</h6>
+                                    <div class="row text-center mt-3">
+                                        <div class="col-3">
+                                            <small class="text-muted">الإجمالي</small>
+                                            <h4>{{ balance.total_days }}</h4>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-muted">المستحق</small>
+                                            <h4 class="text-success">{{ balance.accrued_days }}</h4>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-muted">المستخدم</small>
+                                            <h4 class="text-warning">{{ balance.used_days }}</h4>
+                                        </div>
+                                        <div class="col-3">
+                                            <small class="text-muted">المتبقي</small>
+                                            <h4 class="text-primary">{{ balance.remaining_days }}</h4>
+                                        </div>
+                                    </div>
+                                    {% if balance.accrued_days > 0 %}
+                                        {% widthratio balance.remaining_days balance.accrued_days 100 as percentage %}
+                                        <div class="progress mt-3" style="height: 10px;">
+                                            <div class="progress-bar {% if percentage < 25 %}bg-danger{% elif percentage < 50 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                 style="width: {{ percentage }}%"></div>
+                                        </div>
+                                    {% else %}
+                                        <div class="alert alert-info mt-3 mb-0 py-2">
+                                            <small><i class="fas fa-info-circle me-1"></i>لم يستحق رصيد إجازات بعد</small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="col-12">
+                            <p class="text-muted text-center">لا توجد أرصدة إجازات لهذا الموظف</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+          </div>
+      </div>
+  </div>
+
+  <div class="section-container">
+      <h5 class="section-title"><i class="fas fa-list me-2"></i>سجل الإجازات - {{ current_year }}</h5>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">نوع الإجازة</th>
+                                    <th class="text-center">من</th>
+                                    <th class="text-center">إلى</th>
+                                    <th class="text-center">الأيام</th>
+                                    <th class="text-center">الحالة</th>
+                                    <th class="text-center">السبب</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for leave in leaves %}
+                                <tr>
+                                    <td class="text-center">{{ leave.leave_type.name_ar }}</td>
+                                    <td class="text-center">{{ leave.start_date|date:"Y-m-d" }}</td>
+                                    <td class="text-center">{{ leave.end_date|date:"Y-m-d" }}</td>
+                                    <td class="text-center">{{ leave.days_count }}</td>
+                                    <td class="text-center">
+                                        {% if leave.status == 'approved' %}
+                                            <span class="badge bg-success">معتمدة</span>
+                                        {% elif leave.status == 'pending' %}
+                                            <span class="badge bg-warning">قيد الانتظار</span>
+                                        {% elif leave.status == 'rejected' %}
+                                            <span class="badge bg-danger">مرفوضة</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">ملغاة</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ leave.reason|truncatewords:10 }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center">لا توجد إجازات</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+  </div>
+</div>
+{% endblock %}

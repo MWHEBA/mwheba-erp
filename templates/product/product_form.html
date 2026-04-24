@@ -1,0 +1,466 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title|default:"إضافة منتج جديد" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/products-payment-enhancements.css' %}">
+<style>
+.form-check-label small {
+    font-size: 0.875rem;
+    margin-top: 2px;
+}
+
+.card-header h6 {
+    color: var(--bs-primary);
+}
+
+#parent-price-field {
+    transition: all 0.3s ease;
+}
+
+.form-switch .form-check-input:checked {
+    background-color: var(--bs-success);
+    border-color: var(--bs-success);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- CSRF Token -->
+    {% csrf_token %}
+    
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- مؤشر نوع العنصر -->
+    {% if form.instance.pk %}
+    <div class="alert {% if form.instance.is_service %}alert-info{% else %}alert-primary{% endif %} mb-3">
+        <div class="d-flex align-items-center">
+            <i class="fas {% if form.instance.is_service %}fa-concierge-bell{% else %}fa-box{% endif %} fa-2x me-3"></i>
+            <div>
+                <h6 class="mb-0">
+                    {% if form.instance.is_service %}
+                        <i class="fas fa-info-circle me-1"></i>تقوم بتعديل خدمة
+                    {% else %}
+                        <i class="fas fa-info-circle me-1"></i>تقوم بتعديل منتج
+                    {% endif %}
+                </h6>
+                <small class="text-muted">
+                    {% if form.instance.is_service %}
+                        الخدمات لا تحتاج إلى إدارة مخزون
+                    {% else %}
+                        المنتجات تتطلب إدارة مخزون
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="section-container">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            {% trans "المعلومات الأساسية" %}
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="post" enctype="multipart/form-data" id="product-form" novalidate>
+                            {% csrf_token %}
+
+                            <div class="row">
+                                <div class="col-lg-8">
+                                    <!-- المعلومات الأساسية -->
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    {{ form.name|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="position-relative">
+                                                        {{ form.sku|as_crispy_field }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-12">
+                                                    {{ form.description|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- التصنيف والوحدة -->
+                                    <div class="card shadow-sm mb-3">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-tags me-2"></i>التصنيف والوحدة</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.category|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-6 mb-3" id="unit-field">
+                                                    {{ form.unit|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- الأسعار والمخزون -->
+                                    <div class="card shadow-sm mb-3" id="pricing-stock-card">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0">
+                                                <i class="fas fa-dollar-sign me-2"></i>
+                                                <span id="pricing-title">الأسعار والمخزون</span>
+                                            </h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.cost_price|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3">
+                                                    {{ form.selling_price|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-4 mb-3" id="min-stock-field">
+                                                    {{ form.min_stock|as_crispy_field }}
+                                                </div>
+                                                <div class="col-md-12 mb-3">
+                                                    {{ form.barcode|as_crispy_field }}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-lg-4">
+                                    <!-- الخيارات العامة -->
+                                    <div class="card shadow-sm mb-4">
+                                        <div class="card-header bg-light">
+                                            <h6 class="card-title mb-0"><i class="fas fa-cog me-2"></i>الخيارات العامة</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if not is_service %}
+                                            <div class="form-check mb-3">
+                                                {{ form.is_service }}
+                                                <label class="form-check-label" for="{{ form.is_service.id_for_label }}">
+                                                    <strong>{{ form.is_service.label }}</strong>
+                                                    <small class="d-block text-muted">{{ form.is_service.help_text }}</small>
+                                                </label>
+                                            </div>
+                                            {% else %}
+                                            <!-- حقل مخفي للخدمات -->
+                                            <input type="hidden" name="is_service" value="True">
+                                            <div class="alert alert-info mb-3">
+                                                <i class="fas fa-info-circle me-2"></i>
+                                                <strong>هذا عنصر من نوع: خدمة</strong>
+                                                <small class="d-block mt-1">الخدمات لا تحتاج إدارة مخزون</small>
+                                            </div>
+                                            {% endif %}
+                                            <div class="form-check mb-3">
+                                                {{ form.is_active }}
+                                                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                                    <strong>نشط</strong>
+                                                    <small class="d-block text-muted">هل متاح للبيع؟</small>
+                                                </label>
+                                            </div>
+                                            <div class="form-check mb-3">
+                                                {{ form.is_featured }}
+                                                <label class="form-check-label" for="{{ form.is_featured.id_for_label }}">
+                                                    <strong>مميز</strong>
+                                                    <small class="d-block text-muted">هل مميز في العرض؟</small>
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- البيع للأهالي محذوف -->
+
+                                    {% if form.instance.pk %}
+                                    <div class="card shadow-sm mb-4">
+                                        <div class="card-header bg-light d-flex justify-content-between">
+                                            <h6 class="card-title mb-0">{% trans "الصور" %}</h6>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="add-image-btn">
+                                                <i class="fas fa-plus"></i>
+                                            </button>
+                                        </div>
+                                        <div class="card-body">
+                                            <div id="product-images">
+                                                {% if form.instance.images.exists %}
+                                                <div class="row">
+                                                    {% for image in form.instance.images.all %}
+                                                    <div class="col-6 mb-3">
+                                                        <div class="card">
+                                                            <img src="{{ image.image.url }}" class="card-img-top" alt="{{ image.alt_text }}">
+                                                            <div class="card-body p-2 text-center">
+                                                                <a href="#" class="btn btn-sm btn-outline-danger delete-image" data-id="{{ image.id }}">
+                                                                    <i class="fas fa-trash"></i>
+                                                                </a>
+                                                                <a href="#" class="btn btn-sm btn-outline-info {% if image.is_primary %}active{% endif %}" data-id="{{ image.id }}">
+                                                                    <i class="fas fa-star"></i>
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                {% else %}
+                                                <p class="text-center text-muted">{% trans "لا توجد صور" %}</p>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="form-actions mt-3">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>{% trans "حفظ" %}
+                                </button>
+                                <a href="{% url 'product:product_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                                </a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- نافذة منبثقة لإضافة صورة -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="imageModalLabel">{% trans "إضافة صورة" %}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="image-form" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="image-file" class="form-label">{% trans "الصورة" %}</label>
+                        <input type="file" class="form-control" id="image-file" name="image" accept="image/*" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="image-alt" class="form-label">{% trans "نص بديل" %}</label>
+                        <input type="text" class="form-control" id="image-alt" name="alt_text">
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="image-primary" name="is_primary">
+                        <label class="form-check-label" for="image-primary">
+                            {% trans "صورة رئيسية" %}
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+                <button type="button" class="btn btn-primary" id="save-image-btn">{% trans "حفظ" %}</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        
+        // التحكم في إظهار/إخفاء حقول المخزون للخدمات
+        function toggleStockFields() {
+            // التحقق من وجود checkbox أو hidden field
+            const isServiceCheckbox = $('#id_is_service');
+            const isServiceHidden = $('input[name="is_service"][type="hidden"]');
+            
+            let isService = false;
+            if (isServiceCheckbox.length) {
+                isService = isServiceCheckbox.is(':checked');
+            } else if (isServiceHidden.length) {
+                isService = isServiceHidden.val() === 'True';
+            }
+            
+            const minStockField = $('#min-stock-field');
+            const unitField = $('#unit-field');
+            const costPriceField = $('#id_cost_price').closest('.col-md-4');
+            const pricingTitle = $('#pricing-title');
+            
+            if (isService) {
+                // إخفاء حقول المخزون
+                minStockField.slideUp(300);
+                $('#id_min_stock').val(0).prop('required', false);
+                
+                // جعل وحدة القياس اختيارية
+                unitField.find('label').html('وحدة القياس <small class="text-muted">(اختياري)</small>');
+                $('#id_unit').prop('required', false);
+                
+                // جعل سعر التكلفة اختياري
+                costPriceField.find('label').html('سعر التكلفة <small class="text-muted">(اختياري)</small>');
+                $('#id_cost_price').prop('required', false);
+                
+                pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار');
+            } else {
+                // إظهار حقول المخزون
+                minStockField.slideDown(300);
+                $('#id_min_stock').prop('required', false);
+                
+                // جعل وحدة القياس إجبارية
+                unitField.find('label').html('وحدة القياس <span class="text-danger">*</span>');
+                $('#id_unit').prop('required', true);
+                
+                // جعل سعر التكلفة إجباري
+                costPriceField.find('label').html('سعر التكلفة <span class="text-danger">*</span>');
+                $('#id_cost_price').prop('required', true);
+                
+                pricingTitle.html('<i class="fas fa-dollar-sign me-2"></i>الأسعار والمخزون');
+            }
+        }
+        
+        // تشغيل عند تحميل الصفحة
+        toggleStockFields();
+        
+        // تشغيل عند تغيير الحالة (فقط إذا كان الـ checkbox موجود)
+        $('#id_is_service').change(function() {
+            toggleStockFields();
+        });
+        
+        // التحكم في توليد الكود التلقائي
+        function generateSKU() {
+            const categorySelect = $('#id_category');
+            const skuField = $('#id_sku');
+            
+            if (categorySelect.val() && !skuField.val()) {
+                // إرسال طلب AJAX لتوليد الكود
+                $.ajax({
+                    url: '{% url "product:generate_sku" %}',
+                    type: 'POST',
+                    data: {
+                        'category_id': categorySelect.val(),
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            skuField.val(response.sku);
+                            skuField.addClass('auto-generated');
+                            // إضافة تأثير بصري للإشارة للتوليد التلقائي
+                            skuField.animate({backgroundColor: '#d4edda'}, 300)
+                                   .delay(1000)
+                                   .animate({backgroundColor: '#fff'}, 300);
+                        }
+                    },
+                    error: function() {
+                        console.log('خطأ في توليد الكود');
+                    }
+                });
+            }
+        }
+        
+        // توليد الكود عند تغيير التصنيف
+        $('#id_category').change(function() {
+            const skuField = $('#id_sku');
+            // توليد كود جديد فقط إذا كان الحقل فارغ أو تم توليده تلقائياً
+            if (!skuField.val() || skuField.hasClass('auto-generated')) {
+                skuField.val('').removeClass('auto-generated');
+                generateSKU();
+            }
+        });
+        function validatePrices() {
+            const costPrice = parseFloat($('#id_cost_price').val()) || 0;
+            const sellingPrice = parseFloat($('#id_selling_price').val()) || 0;
+            
+            if (sellingPrice > 0 && costPrice > 0 && sellingPrice <= costPrice) {
+                alert('سعر البيع يجب أن يكون أكبر من سعر التكلفة');
+                return false;
+            }
+            
+            return true;
+        }
+        
+        // التحقق عند إرسال النموذج
+        $('#product-form').submit(function(e) {
+            if (!validatePrices()) {
+                e.preventDefault();
+                return false;
+            }
+        });
+        
+        // زر إضافة صورة جديدة
+        $('#add-image-btn').click(function() {
+            $('#image-form')[0].reset();
+            $('#imageModal').modal('show');
+        });
+        
+        {% if form.instance.pk %}
+        // حفظ الصورة الجديدة
+        $('#save-image-btn').click(function() {
+            const formData = new FormData($('#image-form')[0]);
+            formData.append('product_id', '{{ form.instance.pk }}');
+            
+            $.ajax({
+                url: "{% url 'product:add_product_image' %}",
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                success: function(response) {
+                    if (response.success) {
+                        $('#imageModal').modal('hide');
+                        // تحديث صفحة الصور
+                        location.reload();
+                    } else {
+                        alert(response.error);
+                    }
+                },
+                error: function(xhr, textStatus, errorThrown) {
+                    alert('{% trans "حدث خطأ أثناء رفع الصورة" %}');
+                }
+            });
+        });
+        
+        // حذف صورة
+        $('.delete-image').click(function(e) {
+            e.preventDefault();
+            const imageId = $(this).data('id');
+            
+            if (confirm('{% trans "هل أنت متأكد من حذف هذه الصورة؟" %}')) {
+                $.ajax({
+                    url: `/products/images/${imageId}/delete/`,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRFToken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    data: {
+                        'csrfmiddlewaretoken': $('input[name=csrfmiddlewaretoken]').val()
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            alert(response.message || 'تم حذف الصورة بنجاح');
+                            location.reload();
+                        } else {
+                            alert(response.error || 'حدث خطأ أثناء حذف الصورة');
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Error details:', xhr.responseText);
+                        alert('{% trans "حدث خطأ أثناء حذف الصورة" %}: ' + error);
+                    }
+                });
+            }
+        });
+        {% endif %}
+    });
+</script>
+{% endblock %} 

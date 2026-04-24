@@ -1,0 +1,45 @@
+{% comment %}
+مكون نموذج البحث المستخدم في صفحات القوائم
+
+الاستخدام:
+{% include "partials/search_form.html" with placeholder="بحث في المنتجات..." %}
+
+المعلمات:
+- placeholder: نص توضيحي لحقل البحث (اختياري، افتراضي "بحث...")
+- search_value: قيمة البحث الحالية (اختياري)
+- action: عنوان النموذج (اختياري، افتراضي "")
+- additional_fields: حقول إضافية للنموذج (اختياري)
+- query_param: اسم معلمة البحث (اختياري، افتراضي "q")
+- search_class: تصنيفات CSS إضافية للنموذج (اختياري)
+{% endcomment %}
+
+<form method="get" action="{{ action|default:'' }}" class="search-form {{ search_class }}">
+    <div class="input-group">
+        <div class="search-input flex-grow-1">
+            <input type="text" 
+                   name="{{ query_param|default:'q' }}" 
+                   class="form-control" 
+                   placeholder="{{ placeholder|default:'بحث...' }}"
+                   value="{{ search_value|default:request.GET.q|default:'' }}" 
+                   aria-label="{{ placeholder|default:'بحث...' }}">
+            <i class="fas fa-search search-icon"></i>
+        </div>
+        
+        {% if additional_fields %}
+            {{ additional_fields|safe }}
+        {% endif %}
+        
+        <div class="input-group-append">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-search d-lg-none"></i>
+                <span class="d-none d-lg-inline">بحث</span>
+            </button>
+            
+            {% if request.GET.q or request.GET.query or search_value %}
+            <a href="{{ action|default:'.' }}" class="btn btn-outline-secondary">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</form> 

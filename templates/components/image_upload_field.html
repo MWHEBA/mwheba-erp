@@ -1,0 +1,234 @@
+{% load static %}
+
+<div class="mb-3">
+    <label for="{{ field.id_for_label }}" class="form-label">
+        {% if prepend_icon %}
+            <i class="fas {{ prepend_icon }} me-2"></i>
+        {% endif %}
+        {{ field.label }}
+        {% if field.field.required %}
+            <span class="text-danger">*</span>
+        {% endif %}
+    </label>
+    
+    <div class="image-upload-container">
+        <!-- منطقة رفع الصورة -->
+        <div class="image-upload-area" id="image-upload-area-{{ field.name }}">
+            <div class="upload-placeholder" id="upload-placeholder-{{ field.name }}">
+                <div class="upload-icon">
+                    <i class="fas fa-cloud-upload-alt fa-2x text-muted mb-2"></i>
+                </div>
+                <div class="upload-text">
+                    <h6 class="text-muted mb-1">اضغط لاختيار صورة أو اسحب الصورة هنا</h6>
+                    <small class="text-muted">الحد الأقصى: 5 ميجابايت | JPG, PNG, GIF</small>
+                </div>
+            </div>
+            
+            <!-- معاينة الصورة -->
+            <div class="image-preview" id="image-preview-{{ field.name }}" style="display: none;">
+                <img id="preview-img-{{ field.name }}" src="" alt="معاينة الصورة" class="preview-image">
+                <div class="image-overlay">
+                    <div class="image-actions">
+                        <button type="button" class="btn btn-sm btn-light" onclick="changeImage('{{ field.name }}')">
+                            <i class="fas fa-edit me-1"></i>تغيير
+                        </button>
+                        <button type="button" class="btn btn-sm btn-danger" onclick="removeImage('{{ field.name }}')">
+                            <i class="fas fa-trash me-1"></i>حذف
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- حقل الرفع المخفي -->
+        {{ field }}
+        
+        <!-- معلومات الصورة -->
+        <div class="image-info" id="image-info-{{ field.name }}" style="display: none;">
+            <small class="text-muted">
+                <i class="fas fa-info-circle me-1"></i>
+                <span id="image-name-{{ field.name }}"></span>
+                <span id="image-size-{{ field.name }}"></span>
+            </small>
+        </div>
+        
+        <!-- رسائل الخطأ -->
+        {% if field.errors %}
+            <div class="invalid-feedback d-block">
+                {% for error in field.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fieldName = '{{ field.name }}';
+    const fileInput = document.getElementById('id_' + fieldName);
+    const uploadArea = document.getElementById('image-upload-area-' + fieldName);
+    const placeholder = document.getElementById('upload-placeholder-' + fieldName);
+    const preview = document.getElementById('image-preview-' + fieldName);
+    const previewImg = document.getElementById('preview-img-' + fieldName);
+    const imageInfo = document.getElementById('image-info-' + fieldName);
+    const imageName = document.getElementById('image-name-' + fieldName);
+    const imageSize = document.getElementById('image-size-' + fieldName);
+    
+    // إذا كانت هناك صورة موجودة مسبقاً
+    if (fileInput.value && fileInput.value.trim() !== '') {
+        showExistingImage();
+    }
+    
+    // معالجة النقر على منطقة الرفع
+    uploadArea.addEventListener('click', function(e) {
+        if (e.target !== fileInput && !e.target.closest('.image-actions')) {
+            fileInput.click();
+        }
+    });
+    
+    // معالجة تغيير الملف
+    fileInput.addEventListener('change', function(e) {
+        handleFileSelect(e.target.files[0]);
+    });
+    
+    // معالجة السحب والإفلات
+    uploadArea.addEventListener('dragover', function(e) {
+        e.preventDefault();
+        uploadArea.classList.add('dragover');
+    });
+    
+    uploadArea.addEventListener('dragleave', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+    });
+    
+    uploadArea.addEventListener('drop', function(e) {
+        e.preventDefault();
+        uploadArea.classList.remove('dragover');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            const file = files[0];
+            if (file.type.startsWith('image/')) {
+                fileInput.files = files;
+                handleFileSelect(file);
+            } else {
+                showMessage('يرجى اختيار ملف صورة صالح', 'error');
+            }
+        }
+    });
+    
+    function handleFileSelect(file) {
+        if (!file) {
+            showPlaceholder();
+            return;
+        }
+        
+        // التحقق من نوع الملف
+        if (!file.type.startsWith('image/')) {
+            alert('يرجى اختيار ملف صورة صالح');
+            return;
+        }
+        
+        // التحقق من حجم الملف (5 ميجابايت)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('حجم الصورة يجب أن يكون أقل من 5 ميجابايت');
+            return;
+        }
+        
+        // عرض الصورة
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            previewImg.src = e.target.result;
+            showPreview();
+            updateImageInfo(file);
+        };
+        reader.readAsDataURL(file);
+    }
+    
+    function showPreview() {
+        placeholder.style.display = 'none';
+        preview.style.display = 'block';
+        imageInfo.style.display = 'block';
+    }
+    
+    function showPlaceholder() {
+        placeholder.style.display = 'flex';
+        preview.style.display = 'none';
+        imageInfo.style.display = 'none';
+    }
+    
+    function showExistingImage() {
+        // إذا كانت هناك صورة موجودة، عرضها
+        if (fileInput.value && fileInput.value.trim() !== '') {
+            // إذا كان المسار يبدأ بـ /media/ أو http، استخدمه مباشرة
+            let imagePath = fileInput.value;
+            if (!imagePath.startsWith('http') && !imagePath.startsWith('/media/')) {
+                imagePath = '/media/' + imagePath;
+            }
+            
+            previewImg.src = imagePath;
+            showPreview();
+            imageName.textContent = 'صورة موجودة';
+            imageSize.textContent = '';
+            
+            // التحقق من وجود الصورة
+            previewImg.onerror = function() {
+                showPlaceholder();
+            };
+        }
+    }
+    
+    function updateImageInfo(file) {
+        imageName.textContent = file.name;
+        if (file.size) {
+            imageSize.textContent = ' - ' + formatFileSize(file.size);
+        }
+    }
+    
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 بايت';
+        const k = 1024;
+        const sizes = ['بايت', 'كيلوبايت', 'ميجابايت'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+    
+    // إضافة الدوال للنطاق العام
+    window['changeImage' + fieldName] = function() {
+        fileInput.click();
+    };
+    
+    window['removeImage' + fieldName] = function() {
+        if (confirm('هل أنت متأكد من حذف الصورة؟')) {
+            fileInput.value = '';
+            showPlaceholder();
+        }
+    };
+});
+
+// دوال عامة للاستخدام من الأزرار
+function changeImage(fieldName) {
+    document.getElementById('id_' + fieldName).click();
+}
+
+function removeImage(fieldName) {
+    if (confirm('هل أنت متأكد من حذف الصورة؟')) {
+        const fileInput = document.getElementById('id_' + fieldName);
+        fileInput.value = '';
+        
+        const placeholder = document.getElementById('upload-placeholder-' + fieldName);
+        const preview = document.getElementById('image-preview-' + fieldName);
+        const imageInfo = document.getElementById('image-info-' + fieldName);
+        
+        placeholder.style.display = 'flex';
+        preview.style.display = 'none';
+        imageInfo.style.display = 'none';
+    }
+}
+</script>

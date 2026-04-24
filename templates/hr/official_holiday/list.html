@@ -1,0 +1,224 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}الإجازات الرسمية{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <!-- فلتر السنة -->
+  <div class="section-container mb-4">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية</h5>
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-3">
+        <label class="form-label">السنة</label>
+        <select name="year" class="form-select" onchange="this.form.submit()">
+          {% for y in available_years %}
+          <option value="{{ y }}" {% if y == selected_year %}selected{% endif %}>{{ y }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </div>
+
+  <!-- الجدول -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>قائمة الإجازات الرسمية — {{ selected_year }}</h5>
+    <div class="table-responsive">
+      <table class="table table-hover" id="holidays-table">
+        <thead>
+          <tr>
+            <th class="text-center">#</th>
+            <th class="text-center">اسم الإجازة</th>
+            <th class="text-center">من</th>
+            <th class="text-center">إلى</th>
+            <th class="text-center">عدد الأيام</th>
+            <th class="text-center">الوصف</th>
+            <th class="text-center">الحالة</th>
+            <th class="text-center">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for holiday in holidays %}
+          <tr>
+            <td class="text-center">{{ forloop.counter }}</td>
+            <td class="text-center fw-semibold">{{ holiday.name }}</td>
+            <td class="text-center">{{ holiday.start_date|date:"Y-m-d" }}</td>
+            <td class="text-center">{{ holiday.end_date|date:"Y-m-d" }}</td>
+            <td class="text-center"><span class="badge bg-info">{{ holiday.duration_days }} يوم</span></td>
+            <td class="text-center text-muted small">{{ holiday.description|default:"—"|truncatechars:40 }}</td>
+            <td class="text-center">
+              {% if holiday.is_active %}
+                <span class="badge bg-success">نشطة</span>
+              {% else %}
+                <span class="badge bg-secondary">معطلة</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <button type="button" class="btn btn-sm btn-outline-primary me-1 btn-edit-holiday"
+                      data-pk="{{ holiday.pk }}"
+                      data-name="{{ holiday.name|escapejs }}"
+                      data-start="{{ holiday.start_date|date:'Y-m-d' }}"
+                      data-end="{{ holiday.end_date|date:'Y-m-d' }}"
+                      data-description="{{ holiday.description|escapejs }}"
+                      data-active="{{ holiday.is_active|yesno:'1,0' }}">
+                <i class="fas fa-edit"></i>
+              </button>
+              <form method="post" action="{% url 'hr:official_holiday_toggle' holiday.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit"
+                        class="btn btn-sm me-1 {% if holiday.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                        title="{% if holiday.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                  <i class="fas {% if holiday.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                </button>
+              </form>
+              <button type="button" class="btn btn-sm btn-outline-danger btn-delete-holiday"
+                      data-pk="{{ holiday.pk }}"
+                      data-name="{{ holiday.name|escapejs }}">
+                <i class="fas fa-trash"></i>
+              </button>
+              <form id="delete-form-{{ holiday.pk }}" method="post"
+                    action="{% url 'hr:official_holiday_delete' holiday.pk %}" style="display:none;">
+                {% csrf_token %}
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-5">
+              <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+              لا توجد إجازات رسمية لسنة {{ selected_year }}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الإضافة / التعديل -->
+<div class="modal fade" id="holidayModal" tabindex="-1" aria-labelledby="holidayModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="post" id="holiday-form" novalidate>
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title" id="holidayModalLabel">إضافة إجازة رسمية</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">اسم الإجازة <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="modal-name" class="form-control" required placeholder="مثال: عيد الأضحى">
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">من <span class="text-danger">*</span></label>
+              <input type="text" name="start_date" id="modal-start-date" class="form-control" data-date-picker required>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">إلى <span class="text-danger">*</span></label>
+              <input type="text" name="end_date" id="modal-end-date" class="form-control" data-date-picker required>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">الوصف</label>
+            <textarea name="description" id="modal-description" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="form-check mb-2">
+            <input type="checkbox" name="is_active" id="modal-is-active" class="form-check-input" value="1" checked>
+            <label class="form-check-label" for="modal-is-active">إجازة نشطة</label>
+          </div>
+          <div id="modal-alert" class="alert alert-info small mt-3" style="display:none;"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>حفظ
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+var CREATE_URL = "{% url 'hr:official_holiday_create' %}";
+
+function openCreateModal() {
+    document.getElementById('holidayModalLabel').textContent = 'إضافة إجازة رسمية';
+    document.getElementById('holiday-form').action = CREATE_URL;
+    document.getElementById('modal-name').value = '';
+    document.getElementById('modal-start-date').value = '';
+    document.getElementById('modal-end-date').value = '';
+    document.getElementById('modal-description').value = '';
+    document.getElementById('modal-is-active').checked = true;
+    var alertEl = document.getElementById('modal-alert');
+    alertEl.className = 'alert alert-info small mt-3';
+    alertEl.style.display = 'block';
+    alertEl.textContent = 'بعد الإضافة، ستُحذف سجلات الغياب في أيام الإجازة تلقائياً.';
+    new bootstrap.Modal(document.getElementById('holidayModal')).show();
+}
+
+$(document).ready(function() {
+
+    // زر التعديل
+    $(document).on('click', '.btn-edit-holiday', function() {
+        var btn = $(this);
+        var pk = btn.data('pk');
+        var name = btn.data('name');
+        var startDate = btn.data('start');
+        var endDate = btn.data('end');
+        var description = btn.data('description');
+        var isActive = btn.data('active') == '1';
+
+        document.getElementById('holidayModalLabel').textContent = 'تعديل: ' + name;
+        document.getElementById('holiday-form').action = '/hr/official-holidays/' + pk + '/update/';
+        document.getElementById('modal-name').value = name;
+        document.getElementById('modal-start-date').value = startDate;
+        document.getElementById('modal-end-date').value = endDate;
+        document.getElementById('modal-description').value = description;
+        document.getElementById('modal-is-active').checked = isActive;
+        var alertEl = document.getElementById('modal-alert');
+        alertEl.className = 'alert alert-warning small mt-3';
+        alertEl.style.display = 'block';
+        alertEl.textContent = 'التعديل سيؤثر على سجلات الحضور والملخصات المتأثرة تلقائياً.';
+        new bootstrap.Modal(document.getElementById('holidayModal')).show();
+    });
+
+    // زر الحذف
+    $(document).on('click', '.btn-delete-holiday', function() {
+        var pk = $(this).data('pk');
+        var name = $(this).data('name');
+        Swal.fire({
+            title: 'حذف الإجازة؟',
+            text: '"' + name + '" — ستُعاد إنشاء سجلات الغياب للأيام دي تلقائياً.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: 'var(--danger-color)',
+            cancelButtonColor: 'var(--secondary-color)',
+            confirmButtonText: 'نعم، احذف',
+            cancelButtonText: 'إلغاء'
+        }).then(function(result) {
+            if (result.isConfirmed) {
+                document.getElementById('delete-form-' + pk).submit();
+            }
+        });
+    });
+
+    // تهيئة الجدول
+    if (typeof GlobalTableManager !== 'undefined' && $('#holidays-table tbody tr td').length > 1) {
+        GlobalTableManager.initializeTable('holidays-table', {
+            order: [[2, 'asc']],
+            columnDefs: [{ targets: [0, 7], orderable: false }]
+        });
+    }
+});
+</script>
+{% endblock %}

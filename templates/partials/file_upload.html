@@ -1,0 +1,242 @@
+{% comment %}
+مكون رفع الملفات المخصص
+
+الاستخدام:
+{% include "partials/file_upload.html" with id="file-upload" name="document" label="الملف" %}
+
+المعلمات:
+- id: معرف حقل الملف (مطلوب)
+- name: اسم حقل الملف (مطلوب)
+- label: نص العنوان (اختياري)
+- required: هل الحقل مطلوب (اختياري، افتراضي False)
+- accept: أنواع الملفات المقبولة (اختياري، مثال: "image/*,application/pdf")
+- multiple: تمكين رفع ملفات متعددة (اختياري، افتراضي False)
+- max_size: الحد الأقصى لحجم الملف بالميجابايت (اختياري، افتراضي 5)
+- placeholder: نص توضيحي (اختياري، افتراضي "اختر ملفًا...")
+- help_text: نص مساعد (اختياري)
+- preview: عرض معاينة للصور (اختياري، افتراضي True)
+{% endcomment %}
+
+<div class="form-group mb-3">
+    {% if label %}
+        <label for="{{ id }}" class="form-label">
+            {{ label }}
+            {% if required %}<span class="text-danger">*</span>{% endif %}
+        </label>
+    {% endif %}
+    
+    <div class="custom-file-upload">
+        <div class="input-group">
+            <input type="file" 
+                   id="{{ id }}" 
+                   name="{{ name }}{% if multiple %}[]{% endif %}" 
+                   class="form-control file-upload-input {{ class }}" 
+                   {% if required %}required{% endif %}
+                   {% if accept %}accept="{{ accept }}"{% endif %}
+                   {% if multiple %}multiple{% endif %}
+                   data-max-size="{{ max_size|default:5 }}"
+                   aria-describedby="{{ id }}-custom-text"
+            >
+            <label class="input-group-text" for="{{ id }}">
+                <i class="fas fa-upload"></i>
+            </label>
+        </div>
+        
+        {% if help_text %}
+            <small class="form-text text-muted">{{ help_text }}</small>
+        {% else %}
+            <small class="form-text text-muted">
+                الحد الأقصى للحجم: {{ max_size|default:5 }} ميجابايت
+                {% if accept %}| الأنواع المقبولة: {{ accept }}{% endif %}
+            </small>
+        {% endif %}
+        
+        {% if preview|default:True %}
+            <div id="{{ id }}-preview" class="file-preview mt-2" style="display: none;">
+                <p class="preview-title mb-1">الملفات المحددة:</p>
+                <div class="preview-container"></div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const fileInput = document.getElementById('{{ id }}');
+        const previewContainer = document.getElementById('{{ id }}-preview');
+        const maxSize = parseInt(fileInput.dataset.maxSize || 5) * 1024 * 1024; // تحويل إلى بايت
+        
+        fileInput.addEventListener('change', function() {
+            // التحقق من الملفات المحددة
+            const files = this.files;
+            const previewContent = previewContainer ? previewContainer.querySelector('.preview-container') : null;
+            
+            if (previewContent) {
+                previewContent.innerHTML = '';
+                
+                if (files.length > 0) {
+                    previewContainer.style.display = 'block';
+                    
+                    for (let i = 0; i < files.length; i++) {
+                        const file = files[i];
+                        const fileSize = file.size;
+                        
+                        // التحقق من حجم الملف
+                        if (fileSize > maxSize) {
+                            // إعادة تعيين حقل الملف
+                            fileInput.value = '';
+                            previewContainer.style.display = 'none';
+                            
+                            // عرض رسالة الخطأ
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'خطأ في حجم الملف',
+                                text: `الملف "${file.name}" أكبر من الحجم المسموح (${(maxSize / (1024 * 1024)).toFixed(1)} ميجابايت)`,
+                                confirmButtonText: 'موافق'
+                            });
+                            
+                            return;
+                        }
+                        
+                        // إضافة عنصر معاينة
+                        const item = document.createElement('div');
+                        item.className = 'preview-item';
+                        
+                        // عرض صورة مصغرة للصور
+                        if (file.type.startsWith('image/')) {
+                            const img = document.createElement('img');
+                            img.className = 'preview-image';
+                            img.file = file;
+                            
+                            const reader = new FileReader();
+                            reader.onload = (function(aImg) {
+                                return function(e) {
+                                    aImg.src = e.target.result;
+                                };
+                            })(img);
+                            
+                            reader.readAsDataURL(file);
+                            
+                            item.appendChild(img);
+                        }
+                        
+                        // إضافة معلومات الملف
+                        const info = document.createElement('div');
+                        info.className = 'preview-info';
+                        
+                        const name = document.createElement('div');
+                        name.className = 'preview-name';
+                        name.textContent = file.name;
+                        
+                        const size = document.createElement('div');
+                        size.className = 'preview-size';
+                        size.textContent = formatFileSize(file.size);
+                        
+                        info.appendChild(name);
+                        info.appendChild(size);
+                        item.appendChild(info);
+                        
+                        // زر الحذف
+                        const remove = document.createElement('button');
+                        remove.type = 'button';
+                        remove.className = 'preview-remove btn btn-sm btn-danger';
+                        remove.innerHTML = '<i class="fas fa-times"></i>';
+                        remove.onclick = function() {
+                            // تحديد الملف المحدد لتجاهله (لا يمكن إزالته من FileList)
+                            this.parentNode.remove();
+                            
+                            // إذا تمت إزالة جميع الملفات
+                            if (previewContent.children.length === 0) {
+                                previewContainer.style.display = 'none';
+                                fileInput.value = ''; // إعادة تعيين حقل الملفات بالكامل
+                            }
+                        };
+                        
+                        item.appendChild(remove);
+                        previewContent.appendChild(item);
+                    }
+                } else {
+                    previewContainer.style.display = 'none';
+                }
+            }
+        });
+        
+        // دالة تنسيق حجم الملف
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 بايت';
+            
+            const k = 1024;
+            const sizes = ['بايت', 'كيلوبايت', 'ميجابايت', 'جيجابايت'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+    });
+</script>
+
+<style>
+    .custom-file-upload {
+        margin-bottom: 1rem;
+    }
+    
+    .file-preview {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 10px;
+        background-color: #f9f9f9;
+    }
+    
+    .preview-title {
+        font-weight: bold;
+        margin-bottom: 8px;
+    }
+    
+    .preview-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .preview-item {
+        position: relative;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 8px;
+        background-color: white;
+        display: flex;
+        align-items: center;
+        max-width: 250px;
+    }
+    
+    .preview-image {
+        width: 50px;
+        height: 50px;
+        object-fit: cover;
+        margin-right: 10px;
+        border-radius: 3px;
+    }
+    
+    .preview-info {
+        flex: 1;
+        overflow: hidden;
+    }
+    
+    .preview-name {
+        font-size: 0.85rem;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    
+    .preview-size {
+        font-size: 0.75rem;
+        color: #666;
+    }
+    
+    .preview-remove {
+        margin-right: 5px;
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+</style> 

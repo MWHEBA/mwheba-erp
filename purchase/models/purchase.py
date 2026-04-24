@@ -1,0 +1,452 @@
+from django.db import models
+from django.utils.translation import gettext_lazy as _
+from django.conf import settings
+from django.utils import timezone
+from django.urls import reverse
+
+
+class Purchase(models.Model):
+    """
+    نموذج فاتورة المشتريات
+    """
+
+    STATUS_CHOICES = (
+        ("draft", _("مسودة")),
+        ("confirmed", _("مؤكدة")),
+        ("cancelled", _("ملغية")),
+    )
+
+    PAYMENT_STATUSES = (
+        ("paid", _("مدفوعة")),
+        ("partially_paid", _("مدفوعة جزئياً")),
+        ("unpaid", _("غير مدفوعة")),
+    )
+    
+    SERVICE_TYPES = (
+        ("course", _("كورس تعليمي")),
+        ("consultation", _("استشارة")),
+        ("maintenance", _("صيانة")),
+        ("other", _("أخرى")),
+    )
+
+    number = models.CharField(_("رقم الفاتورة"), max_length=20, unique=True)
+    date = models.DateField(_("تاريخ الفاتورة"))
+    status = models.CharField(
+        _("الحالة"), max_length=20, choices=STATUS_CHOICES, default="confirmed"
+    )
+    supplier = models.ForeignKey(
+        "supplier.Supplier",
+        on_delete=models.PROTECT,
+        verbose_name=_("المورد"),
+        related_name="purchases",
+    )
+    warehouse = models.ForeignKey(
+        "product.Warehouse",
+        on_delete=models.PROTECT,
+        verbose_name=_("المخزن"),
+        related_name="purchases",
+        null=True,  # اختياري للفواتير الخدمية
+        blank=True,
+    )
+    subtotal = models.DecimalField(_("المجموع الفرعي"), max_digits=12, decimal_places=2)
+    discount = models.DecimalField(
+        _("الخصم"), max_digits=12, decimal_places=2, default=0
+    )
+    tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
+    total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
+    payment_method = models.CharField(
+        _("طريقة الدفع (account code)"),
+        max_length=50,
+        help_text=_("رمز الحساب المحاسبي أو طريقة الدفع (cash/credit)")
+    )
+    payment_status = models.CharField(
+        _("حالة الدفع"), max_length=20, choices=PAYMENT_STATUSES, default="unpaid"
+    )
+    notes = models.TextField(_("ملاحظات"), blank=True, null=True)
+
+    # ربط محاسبي
+    journal_entry = models.ForeignKey(
+        "financial.JournalEntry",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("القيد المحاسبي"),
+        related_name="purchases",
+    )
+    
+    # التصنيف المالي
+    financial_category = models.ForeignKey(
+        'financial.FinancialCategory',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("التصنيف المالي"),
+        related_name="purchases",
+        help_text=_("التصنيف المالي للمصروف (يحدد الحساب المحاسبي تلقائياً)")
+    )
+    
+    # ✨ حقول الخدمات الجديدة
+    is_service = models.BooleanField(
+        _("خدمة"),
+        default=False,
+        db_index=True,
+        help_text=_("هل هذه فاتورة خدمة أم منتج؟")
+    )
+    
+    service_type = models.CharField(
+        _("نوع الخدمة"),
+        max_length=20,
+        choices=SERVICE_TYPES,
+        blank=True,
+        null=True,
+        help_text=_("نوع الخدمة (إذا كانت فاتورة خدمة)")
+    )
+    
+    service_metadata = models.JSONField(
+        _("بيانات الخدمة"),
+        default=dict,
+        blank=True,
+        help_text=_("بيانات إضافية خاصة بالخدمة (JSON)")
+    )
+
+    created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        verbose_name=_("أنشئ بواسطة"),
+        related_name="purchases_created",
+    )
+
+    class Meta:
+        verbose_name = _("فاتورة مشتريات")
+        verbose_name_plural = _("فواتير المشتريات")
+        ordering = ["-date", "-number"]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # حفظ القيم الأصلية عند تحميل الكائن
+        if self.pk:
+            self._original_payment_method = self.payment_method
+            self._original_total = self.total
+            self._original_payment_status = self.payment_status
+
+    def __str__(self):
+        prefix = "خدمة" if self.is_service else "فاتورة"
+        return f"{prefix} {self.number} - {self.supplier} - {self.date}"
+    
+    @property
+    def service_type_display(self):
+        """عرض نوع الفاتورة (خدمة أو منتج)"""
+        if self.is_service and self.service_type:
+            return self.get_service_type_display()
+        elif self.is_service:
+            return "خدمة"
+        return "منتج"
+    
+    @property
+    def is_service_invoice(self):
+        """
+        تحديد نوع الفاتورة من نوع المورد
+        Dynamic detection based on supplier type
+        """
+        if not self.supplier:
+            return False
+        return (
+            self.supplier.is_service_provider() or
+            self.is_service
+        )
+    
+    @property
+    def invoice_type_display(self):
+        """
+        عرض نوع الفاتورة بالعربية
+        Display invoice type in Arabic
+        """
+        if self.is_service_invoice:
+            if self.service_type:
+                return self.get_service_type_display()
+            return "خدمة"
+        return "منتجات"
+    
+    @property
+    def invoice_type_icon(self):
+        """
+        أيقونة نوع الفاتورة
+        Icon for invoice type
+        """
+        if self.is_service_invoice:
+            icons = {
+                'course': 'fas fa-graduation-cap',
+                'consultation': 'fas fa-user-tie',
+                'maintenance': 'fas fa-tools',
+                'other': 'fas fa-concierge-bell',
+            }
+            return icons.get(self.service_type, 'fas fa-concierge-bell')
+        return "fas fa-boxes"
+    
+    def auto_set_service_fields(self):
+        """
+        تعيين حقول الخدمة تلقائياً من نوع المورد
+        Auto-set service fields based on supplier type
+        """
+        if not self.supplier:
+            return
+        
+        if self.supplier.is_service_provider():
+            self.is_service = True
+            if not self.service_type:
+                self.service_type = 'other'
+            if not self.service_metadata:
+                self.service_metadata = {'auto_set': True, 'supplier_type': 'service_provider'}
+        
+        elif self.supplier.is_educational_supplier():
+            self.is_service = False  # منتجات تعليمية
+            if not self.service_metadata:
+                self.service_metadata = {'supplier_type': 'educational'}
+        
+        else:
+            self.is_service = False  # مورد عام - منتجات
+            if not self.service_metadata:
+                self.service_metadata = {'supplier_type': 'general'}
+
+
+    def save(self, *args, **kwargs):
+        if not self.number:
+            # الحصول على الرقم التسلسلي
+            from product.models import SerialNumber
+
+            # البحث عن آخر رقم مستخدم
+            last_purchase = Purchase.objects.order_by("-number").first()
+            if last_purchase:
+                try:
+                    last_number = int(last_purchase.number.replace("PUR", ""))
+                except ValueError:
+                    last_number = 0
+            else:
+                last_number = 0
+
+            # إنشاء أو تحديث الرقم التسلسلي
+            serial = SerialNumber.objects.get_or_create(
+                document_type="purchase",
+                year=timezone.now().year,
+                defaults={"prefix": "PUR", "last_number": last_number},
+            )[0]
+
+            # تحديث آخر رقم إذا كان أقل من الرقم الحالي
+            if serial.last_number <= last_number:
+                serial.last_number = last_number
+                serial.save()
+
+            next_number = serial.get_next_number()
+            self.number = f"{serial.prefix}{next_number:04d}"
+
+        # حفظ الفاتورة أولاً
+        is_new = self.pk is None
+        super().save(*args, **kwargs)
+
+        # تحديث حالة الدفع بعد الحفظ
+        self.update_payment_status()
+
+        # ملاحظة: القيود المحاسبية للفواتير تُنشأ عبر:
+        # - AccountingIntegrationService.create_purchase_journal_entry()
+        # - يتم استدعاؤها من purchase/signals.py عند تأكيد الفاتورة
+
+    @property
+    def amount_paid(self):
+        """
+        حساب المبلغ المدفوع - فقط الدفعات المرحّلة
+        """
+        return (
+            self.payments.filter(status="posted").aggregate(models.Sum("amount"))[
+                "amount__sum"
+            ]
+            or 0
+        )
+
+    @property
+    def amount_due(self):
+        """
+        حساب المبلغ المتبقي
+        """
+        return self.total - self.amount_paid
+
+    @property
+    def is_fully_paid(self):
+        """
+        هل الفاتورة مدفوعة بالكامل
+        """
+        return self.amount_due <= 0
+
+    @property
+    def has_posted_payments(self):
+        """
+        هل الفاتورة تحتوي على دفعات مرحلة
+        """
+        return self.payments.filter(status="posted").exists()
+
+    def update_payment_status(self):
+        """
+        تحديث حالة الدفع
+        """
+        old_status = self.payment_status
+        old_method = getattr(self, "_original_payment_method", self.payment_method)
+        old_total = getattr(self, "_original_total", self.total)
+
+        if self.is_fully_paid:
+            new_status = "paid"
+        elif self.amount_paid > 0:
+            new_status = "partially_paid"
+        else:
+            new_status = "unpaid"
+
+        # تحديث مديونية المورد بناءً على تغييرات حالة الدفع أو طريقة الدفع أو المبلغ الإجمالي
+        supplier = self.supplier
+        if supplier:
+            # إذا تغيرت طريقة الدفع من آجل إلى نقدي
+            if old_method == "credit" and self.payment_method == "cash":
+                # إلغاء المديونية القديمة (المبلغ الكامل للفاتورة الآجلة)
+                supplier.balance -= old_total
+
+                # إضافة المديونية الجديدة فقط إذا كانت الفاتورة النقدية غير مدفوعة بالكامل
+                if new_status != "paid":
+                    supplier.balance += self.amount_due
+
+                supplier.save(update_fields=["balance"])
+
+            # إذا تغيرت طريقة الدفع من نقدي إلى آجل
+            elif old_method == "cash" and self.payment_method == "credit":
+                # إلغاء المديونية القديمة (قد تكون صفر إذا كانت مدفوعة بالكامل)
+                if old_status != "paid":
+                    amount_was_due = old_total - self.amount_paid
+                    supplier.balance -= amount_was_due
+
+                # إضافة المديونية الجديدة (المبلغ الكامل للفاتورة الآجلة)
+                supplier.balance += self.total
+                supplier.save(update_fields=["balance"])
+
+            # إذا تغير المبلغ الإجمالي (مع بقاء نفس طريقة الدفع)
+            elif old_total != self.total:
+                # للفواتير الآجلة
+                if self.payment_method == "credit":
+                    # إلغاء المديونية القديمة وإضافة المديونية الجديدة
+                    supplier.balance -= old_total
+                    supplier.balance += self.total
+                    supplier.save(update_fields=["balance"])
+                # للفواتير النقدية غير المدفوعة بالكامل
+                elif self.payment_method == "cash" and new_status != "paid":
+                    # إلغاء المديونية القديمة (إذا كانت موجودة)
+                    if old_status != "paid":
+                        amount_was_due = old_total - self.amount_paid
+                        supplier.balance -= amount_was_due
+
+                    # إضافة المديونية الجديدة
+                    supplier.balance += self.amount_due
+                    supplier.save(update_fields=["balance"])
+
+            # إذا تغيرت حالة الدفع فقط، بدون تغيير طريقة الدفع أو المبلغ
+            elif old_status != new_status:
+                # للفواتير النقدية فقط (الآجلة تظل مديونية كاملة بغض النظر عن حالة الدفع)
+                if self.payment_method == "cash":
+                    if old_status == "unpaid" and new_status == "partially_paid":
+                        # إذا تغيرت من غير مدفوعة إلى مدفوعة جزئياً
+                        # نضيف المبلغ المتبقي لمديونية المورد
+                        supplier.balance += self.amount_due
+                        supplier.save(update_fields=["balance"])
+                    elif old_status == "partially_paid" and new_status == "paid":
+                        # إذا تغيرت من مدفوعة جزئياً إلى مدفوعة بالكامل
+                        # نلغي المديونية المتبقية
+                        amount_was_due = old_total - self.amount_paid
+                        supplier.balance -= amount_was_due
+                        supplier.save(update_fields=["balance"])
+                    elif old_status == "paid" and new_status in [
+                        "partially_paid",
+                        "unpaid",
+                    ]:
+                        # إذا تغيرت من مدفوعة بالكامل إلى غير مدفوعة بالكامل
+                        # نضيف المبلغ المتبقي لمديونية المورد
+                        supplier.balance += self.amount_due
+                        supplier.save(update_fields=["balance"])
+
+        # تحديث حالة الدفع في قاعدة البيانات
+        if old_status != new_status:
+            Purchase.objects.filter(pk=self.pk).update(payment_status=new_status)
+
+        # احفظ القيم الحالية للاستخدام في المرة التالية
+        self._original_payment_method = self.payment_method
+        self._original_total = self.total
+
+    @property
+    def is_returned(self):
+        """
+        فحص إذا كانت الفاتورة مرتجعة (كليًا أو جزئيًا)
+        """
+        confirmed_returns = self.returns.filter(status="confirmed")
+        return confirmed_returns.exists()
+
+    @property
+    def return_status(self):
+        """
+        حالة الإرجاع للفاتورة (كلي، جزئي، غير مرتجع)
+        """
+        confirmed_returns = self.returns.filter(status="confirmed")
+
+        if not confirmed_returns.exists():
+            return None
+
+        # حساب إجمالي الكميات المشتراة
+        purchased_quantities = {}
+        for item in self.items.all():
+            purchased_quantities[item.id] = item.quantity
+
+        # حساب إجمالي الكميات المرتجعة
+        returned_quantities = {}
+        for ret in confirmed_returns:
+            for item in ret.items.all():
+                purchase_item_id = item.purchase_item.id
+                if purchase_item_id in returned_quantities:
+                    returned_quantities[purchase_item_id] += item.quantity
+                else:
+                    returned_quantities[purchase_item_id] = item.quantity
+
+        # فحص إذا كانت كل المنتجات مرتجعة بالكامل
+        for item_id, purchased_qty in purchased_quantities.items():
+            returned_qty = returned_quantities.get(item_id, 0)
+            if returned_qty < purchased_qty:
+                return "partial"
+
+        # إذا وصلنا إلى هنا فكل المنتجات مرتجعة بالكامل
+        return "full"
+
+    def get_absolute_url(self):
+        """
+        ترجع URL لعرض تفاصيل فاتورة المشتريات
+        """
+        return reverse("purchase:purchase_detail", kwargs={"pk": self.pk})
+    
+    def get_payment_method_display(self):
+        """
+        عرض طريقة الدفع بشكل مفهوم
+        """
+        # التعامل مع القيم القديمة
+        if self.payment_method == 'cash':
+            return 'نقداً'
+        elif self.payment_method == 'credit':
+            return 'آجل'
+        elif self.payment_method == 'bank_transfer':
+            return 'تحويل بنكي'
+
+        # محاولة الحصول على اسم الحساب من الكود
+        if self.payment_method:
+            try:
+                from financial.models import ChartOfAccounts
+                account = ChartOfAccounts.objects.filter(
+                    code=self.payment_method, 
+                    is_active=True
+                ).first()
+                if account:
+                    return f"{account.name} ({account.code})"
+            except Exception:
+                pass
+
+        return self.payment_method or 'غير محدد'

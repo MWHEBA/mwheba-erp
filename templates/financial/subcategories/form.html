@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title|default:"نموذج التصنيف الفرعي" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" with title=title icon="fas fa-list" header_buttons=header_buttons %}
+    
+    <!-- Info Card -->
+    <div class="section-container mb-4">
+        <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>التصنيف الرئيسي:</strong> {{ category.name }} ({{ category.code }})
+        </div>
+    </div>
+    
+    <!-- Form -->
+    <div class="section-container">
+        <form method="post" class="needs-validation" novalidate>
+            {% csrf_token %}
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.code.id_for_label }}" class="form-label">
+                        الرمز <span class="text-danger">*</span>
+                    </label>
+                    {{ form.code }}
+                    {% if form.code.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.code.errors.0 }}
+                        </div>
+                    {% endif %}
+                    <small class="form-text text-muted">رمز فريد للتصنيف الفرعي (مثال: kg1, kg2)</small>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                        الاسم <span class="text-danger">*</span>
+                    </label>
+                    {{ form.name }}
+                    {% if form.name.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.name.errors.0 }}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label for="{{ form.display_order.id_for_label }}" class="form-label">
+                        ترتيب العرض
+                    </label>
+                    {{ form.display_order }}
+                    {% if form.display_order.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.display_order.errors.0 }}
+                        </div>
+                    {% endif %}
+                    <small class="form-text text-muted">الأصغر يظهر أولاً</small>
+                </div>
+                
+                <div class="col-md-6 mb-3">
+                    <div class="form-check mt-4">
+                        {{ form.is_active }}
+                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                            نشط
+                        </label>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-4">
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                    <a href="{% url 'financial:subcategory_list' category.pk %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times"></i> إلغاء
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // إضافة class للحقول
+    $('#id_code, #id_name').addClass('form-control');
+    $('#id_display_order').addClass('form-control').attr('type', 'number').attr('min', '0').val($('#id_display_order').val() || '0');
+    $('#id_is_active').addClass('form-check-input');
+});
+</script>
+{% endblock %}

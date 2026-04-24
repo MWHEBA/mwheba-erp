@@ -1,0 +1,31 @@
+{% comment %}
+مكون الحالة الفارغة يظهر عندما لا توجد بيانات للعرض
+
+الاستخدام:
+{% include "partials/empty_state.html" with message="لا توجد منتجات للعرض" icon="fa-box" action_url="{% url 'product:create' %}" action_label="إضافة منتج جديد" %}
+
+المعلمات:
+- message: الرسالة التي تظهر للمستخدم (إلزامي)
+- icon: أيقونة Font Awesome (افتراضي "fa-folder-open")
+- icon_class: فئة إضافية للأيقونة (اختياري)
+- action_url: رابط زر الإجراء (اختياري)
+- action_label: نص زر الإجراء (اختياري)
+- action_icon: أيقونة زر الإجراء (اختياري، افتراضي "fa-plus")
+- container_class: فئة إضافية لحاوية المكون (اختياري)
+{% endcomment %}
+
+<div class="empty-state {{ container_class }}">
+    <div class="empty-state-icon">
+        <i class="fas {{ icon|default:'fa-folder-open' }} {{ icon_class }}"></i>
+    </div>
+    <h4 class="empty-state-title">{{ message }}</h4>
+    
+    {% if action_url and action_label %}
+    <div class="empty-state-action">
+        <a href="{{ action_url }}" class="btn btn-primary">
+            <i class="fas {{ action_icon|default:'fa-plus' }} me-2"></i>
+            {{ action_label }}
+        </a>
+    </div>
+    {% endif %}
+</div> 

@@ -1,0 +1,150 @@
+[
+{
+  "model": "printing_pricing.producttype",
+  "pk": 1,
+  "fields": {
+    "name": "كتالوج",
+    "description": "كتالوج للمنتجات والخدمات",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 2,
+  "fields": {
+    "name": "بروشور",
+    "description": "بروشور إعلاني",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 3,
+  "fields": {
+    "name": "فلاير",
+    "description": "فلاير إعلاني",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 4,
+  "fields": {
+    "name": "كارت شخصي",
+    "description": "كارت شخصي أو بزنس كارد",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 5,
+  "fields": {
+    "name": "بوستر",
+    "description": "بوستر إعلاني كبير",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 6,
+  "fields": {
+    "name": "ظرف",
+    "description": "ظرف للمراسلات",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 7,
+  "fields": {
+    "name": "ورق مراسلات",
+    "description": "ورق رسمي للمراسلات",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 8,
+  "fields": {
+    "name": "استيكر",
+    "description": "استيكر لاصق",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 9,
+  "fields": {
+    "name": "نوتة",
+    "description": "نوتة أو دفتر",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.producttype",
+  "pk": 10,
+  "fields": {
+    "name": "تقويم",
+    "description": "تقويم سنوي أو شهري",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.productsize",
+  "pk": 2,
+  "fields": {
+    "name": "A4",
+    "width": "21.00",
+    "height": "29.70",
+    "description": "مقاس A4 القياسي",
+    "is_active": true,
+    "is_default": true,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.productsize",
+  "pk": 3,
+  "fields": {
+    "name": "A3",
+    "width": "29.70",
+    "height": "42.00",
+    "description": "مقاس A3 الكبير",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+},
+{
+  "model": "printing_pricing.productsize",
+  "pk": 4,
+  "fields": {
+    "name": "A5",
+    "width": "14.80",
+    "height": "21.00",
+    "description": "مقاس A5 الصغير",
+    "is_active": true,
+    "is_default": false,
+    "created_at": "2025-10-19T22:15:43Z"
+  }
+}]

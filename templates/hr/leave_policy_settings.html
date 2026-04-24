@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <form method="post" id="leave-policy-form">
+        {% csrf_token %}
+
+        <!-- 1. الاستحقاق المرحلي -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-chart-line me-2"></i>الاستحقاق المرحلي</h5>
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle me-2"></i>
+                        المنطق: قبل الحد → لا يستحق | بعد الحد الجزئي → رصيد جزئي | بعد 12 شهر → رصيد كامل.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">بعد كام شهر يستحق الجزئي</label>
+                            <input type="number" name="leave_partial_after_months" class="form-control"
+                                   value="{{ leave_settings.partial_after_months }}" min="1" max="12" required>
+                            <small class="text-muted">قبل هذا الحد: لا يستحق شيء</small>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">اعتيادي جزئي (أيام)</label>
+                            <input type="number" name="leave_annual_partial_days" class="form-control"
+                                   value="{{ leave_settings.annual_partial_days }}" min="0" max="60" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">عارضة جزئية (أيام)</label>
+                            <input type="number" name="leave_emergency_partial_days" class="form-control"
+                                   value="{{ leave_settings.emergency_partial_days }}" min="0" max="30" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">اعتيادي كامل — بعد 12 شهر (أيام)</label>
+                            <input type="number" name="leave_annual_full_days" class="form-control"
+                                   value="{{ leave_settings.annual_full_days }}" min="0" max="60" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">عارضة كاملة — بعد 12 شهر (أيام)</label>
+                            <input type="number" name="leave_emergency_full_days" class="form-control"
+                                   value="{{ leave_settings.emergency_full_days }}" min="0" max="30" required>
+                        </div>
+                    </div>
+
+                    <!-- مثال توضيحي -->
+                    <div class="alert alert-success mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        <strong>مثال:</strong>
+                        من 0 إلى {{ leave_settings.partial_after_months }} شهر: لا يستحق |
+                        من {{ leave_settings.partial_after_months }} إلى 12 شهر:
+                        {{ leave_settings.annual_partial_days }} اعتيادي + {{ leave_settings.emergency_partial_days }} عارضة |
+                        بعد 12 شهر:
+                        {{ leave_settings.annual_full_days }} اعتيادي + {{ leave_settings.emergency_full_days }} عارضة
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. كبار الموظفين -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-user-tie me-2"></i>كبار الموظفين</h5>
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-warning mb-4">
+                        <i class="fas fa-star me-2"></i>
+                        يُطبَّق على من أتم <strong>{{ leave_settings.senior_age_threshold }} سنة</strong>
+                        أو <strong>{{ leave_settings.senior_service_years }} سنوات خدمة فعلية</strong> — أيهما أسبق.
+                        هذا الرصيد يأخذ الأولوية على الرصيد العادي.
+                    </div>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">حد السن (سنة)</label>
+                            <input type="number" name="leave_senior_age_threshold" class="form-control"
+                                   value="{{ leave_settings.senior_age_threshold }}" min="40" max="65" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">حد سنوات الخدمة</label>
+                            <input type="number" name="leave_senior_service_years" class="form-control"
+                                   value="{{ leave_settings.senior_service_years }}" min="5" max="30" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">اعتيادي للكبار (أيام)</label>
+                            <input type="number" name="leave_senior_annual_days" class="form-control"
+                                   value="{{ leave_settings.senior_annual_days }}" min="0" max="60" required>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label class="form-label">عارضة للكبار (أيام)</label>
+                            <input type="number" name="leave_senior_emergency_days" class="form-control"
+                                   value="{{ leave_settings.senior_emergency_days }}" min="0" max="30" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 3. دورة الإجازات والترحيل -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-calendar-alt me-2"></i>دورة الإجازات والترحيل</h5>
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">مرجع بداية دورة الإجازات</label>
+                            <select name="leave_year_reference" class="form-select">
+                                <option value="academic_year" {% if leave_settings.year_reference == 'academic_year' %}selected{% endif %}>
+                                    السنة المالية (افتراضي)
+                                </option>
+                                <option value="financial_year" {% if leave_settings.year_reference == 'financial_year' %}selected{% endif %}>
+                                    السنة الميلادية / المالية
+                                </option>
+                            </select>
+                            <small class="text-muted">يحدد متى تبدأ وتنتهي دورة الإجازات للترحيل</small>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">الحد الأقصى للأيام المرحلة</label>
+                            <input type="number" name="leave_rollover_max_days" class="form-control"
+                                   value="{{ leave_settings.rollover_max_days }}" min="0" max="30">
+                            <small class="text-muted">أقصى عدد أيام يمكن ترحيلها للسنة التالية</small>
+                        </div>
+                        <div class="col-md-4 mb-3 d-flex align-items-end">
+                            <div class="w-100">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" name="leave_rollover_enabled"
+                                           id="rolloverEnabled" {% if leave_settings.rollover_enabled %}checked{% endif %}>
+                                    <label class="form-check-label" for="rolloverEnabled">
+                                        تفعيل ترحيل الإجازات غير المستخدمة
+                                    </label>
+                                </div>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" name="leave_auto_create_balances"
+                                           id="autoCreate" {% if leave_settings.auto_create %}checked{% endif %}>
+                                    <label class="form-check-label" for="autoCreate">
+                                        إنشاء أرصدة تلقائياً للموظفين الجدد
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. تحويل الرصيد لمقابل مالي -->
+        <div class="section-container mb-4">
+            <h5 class="section-title"><i class="fas fa-coins me-2"></i>تحويل الرصيد لمقابل مالي</h5>
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="form-check form-switch mb-2">
+                                <input class="form-check-input" type="checkbox" name="leave_encashment_enabled"
+                                       id="encashmentEnabled" {% if leave_settings.encashment_enabled %}checked{% endif %}>
+                                <label class="form-check-label fw-semibold" for="encashmentEnabled">
+                                    تفعيل تحويل رصيد الإجازات المتبقي لمقابل مالي مع المرتب
+                                </label>
+                            </div>
+                            <small class="text-muted d-block">
+                                المعادلة: عدد الأيام المتبقية × (الراتب الأساسي ÷ 30).
+                                يُطبَّق فقط على أنواع الإجازات التي تم تفعيل خيار "يسمح بتحويله لمالي" فيها.
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <a href="{% url 'hr:leave_balance_list' %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-chart-pie me-1"></i>إدارة الأرصدة
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- زر الحفظ السفلي -->
+        <div class="d-flex justify-content-end gap-2 mb-4">
+            <a href="{% url 'hr:hr_settings' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-right me-1"></i>رجوع
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>حفظ الإعدادات
+            </button>
+        </div>
+
+    </form>
+</div>
+{% endblock %}

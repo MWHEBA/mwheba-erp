@@ -1,0 +1,14 @@
+{% comment %}
+Template لعرض تفاصيل الخدمة المتخصصة في الجدول
+{% endcomment %}
+
+{% comment %}
+Service details display - obsolete service models have been removed
+{% endcomment %}
+<span class="text-muted">-</span>
+
+{% if object.unit %}
+    <div class="mt-1">
+        <small class="text-muted">{{ object.unit }}</small>
+    </div>
+{% endif %}

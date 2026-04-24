@@ -1,0 +1,62 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- قسم الجدول -->
+    <div class="section-container">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+                <i class="fas fa-list me-2"></i>قائمة التصنيفات
+                <span class="badge bg-primary ms-2">{{ categories.count|smart_float }} تصنيف</span>
+            </h5>
+        </div>
+        
+        <!-- استخدام الجدول الموحد -->
+        {% if categories %}
+          {% with table_id="categories-table" %}
+            {% with headers=category_headers %}
+              {% with data=categories %}
+                {% with action_buttons=category_actions %}
+                  {% with empty_message="لا توجد فئات متاحة" %}
+                    {% with clickable_rows=True row_click_url="/products/categories/0/" %}
+                      {% with show_export=True export_filename="categories" %}
+                        {% include "components/data_table.html" %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% endwith %}
+              {% endwith %}
+            {% endwith %}
+          {% endwith %}
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد فئات متاحة" icon="tags" %}
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+});
+</script>
+{% endblock %} 

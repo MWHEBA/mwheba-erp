@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load dict_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  
+  <!-- قائمة الأقسام -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>قائمة الأقسام</h5>
+      </div>
+      <div class="card-body">
+        {% if departments %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="departments-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">الكود</th>
+                        <th class="text-center">الاسم (عربي)</th>
+                        <th class="text-center">الاسم (إنجليزي)</th>
+                        <th class="text-center">مركز التكلفة</th>
+                        <th class="text-center">عدد الموظفين</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for department in departments %}
+                    <tr>
+                        <td class="text-center"><strong>{{ department.code }}</strong></td>
+                        <td class="text-center"><strong>{{ department.name_ar }}</strong></td>
+                        <td class="text-center">{{ department.name_en|default:"-" }}</td>
+                        <td class="text-center">
+                            {% if department.financial_subcategory %}
+                                <span class="badge bg-info">{{ department.financial_subcategory.name }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% with names=dept_employees|get_item:department.pk %}
+                            {% if names %}
+                                <span class="employee-count-badge"
+                                      data-bs-toggle="tooltip"
+                                      data-bs-placement="top"
+                                      data-bs-html="true"
+                                      title="{% for n in names %}{{ n }}{% if not forloop.last %}<br>{% endif %}{% endfor %}">
+                                    <strong>{{ names|length }}</strong> موظف
+                                </span>
+                            {% else %}
+                                <span class="text-muted">0 موظف</span>
+                            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            {% if department.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-danger">غير نشط</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:department_form_edit' department.pk %}" class="btn btn-warning" title="تعديل">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <a href="{% url 'hr:department_delete' department.pk %}" class="btn btn-danger" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد أقسام" icon="building" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<style>
+.employee-count-badge {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--primary-color);
+}
+.tooltip-employees .tooltip-inner {
+    white-space: nowrap;
+    max-width: none;
+    text-align: right;
+}
+</style>
+<script>
+$(document).ready(function() {
+    if ($('#departments-table').length) {
+        initGlobalTable('departments-table', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+            columnDefs: [
+                { targets: [5, 6], orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+
+    // تفعيل tooltips أسماء الموظفين
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => {
+        new bootstrap.Tooltip(el, { trigger: 'hover', customClass: 'tooltip-employees' });
+    });
+});
+</script>
+{% endblock %}

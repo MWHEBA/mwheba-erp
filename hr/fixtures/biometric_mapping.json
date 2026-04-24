@@ -1,0 +1,67 @@
+[
+{
+    "model": "hr.biometricusermapping",
+    "pk": 1,
+    "fields": {
+        "employee": 88,
+        "biometric_user_id": "1",
+        "device": 1,
+        "is_active": true,
+        "notes": "",
+        "created_at": "2026-02-20T10:00:00Z",
+        "updated_at": "2026-02-20T10:00:00Z"
+    }
+},
+{
+    "model": "hr.biometricusermapping",
+    "pk": 2,
+    "fields": {
+        "employee": 89,
+        "biometric_user_id": "2",
+        "device": 1,
+        "is_active": true,
+        "notes": "",
+        "created_at": "2026-02-20T10:00:00Z",
+        "updated_at": "2026-02-20T10:00:00Z"
+    }
+},
+{
+    "model": "hr.biometricusermapping",
+    "pk": 3,
+    "fields": {
+        "employee": 90,
+        "biometric_user_id": "3",
+        "device": 1,
+        "is_active": true,
+        "notes": "",
+        "created_at": "2026-02-20T10:00:00Z",
+        "updated_at": "2026-02-20T10:00:00Z"
+    }
+},
+{
+    "model": "hr.biometricusermapping",
+    "pk": 4,
+    "fields": {
+        "employee": 94,
+        "biometric_user_id": "4",
+        "device": 1,
+        "is_active": true,
+        "notes": "",
+        "created_at": "2026-02-20T10:00:00Z",
+        "updated_at": "2026-02-20T10:00:00Z"
+    }
+},
+{
+    "model": "hr.biometricusermapping",
+    "pk": 5,
+    "fields": {
+        "employee": 95,
+        "biometric_user_id": "5",
+        "device": 1,
+        "is_active": true,
+        "notes": "",
+        "created_at": "2026-02-20T10:00:00Z",
+        "updated_at": "2026-02-20T10:00:00Z"
+    }
+}
+]

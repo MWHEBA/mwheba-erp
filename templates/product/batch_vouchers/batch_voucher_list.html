@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- الفلاتر -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>الفلاتر</h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">نوع الإذن</label>
+                <select name="voucher_type" class="form-select">
+                    <option value="">الكل</option>
+                    <option value="receipt" {% if request.GET.voucher_type == 'receipt' %}selected{% endif %}>إذن استلام جماعي</option>
+                    <option value="issue" {% if request.GET.voucher_type == 'issue' %}selected{% endif %}>إذن صرف جماعي</option>
+                    <option value="transfer" {% if request.GET.voucher_type == 'transfer' %}selected{% endif %}>إذن تحويل جماعي</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select">
+                    <option value="">الكل</option>
+                    <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>مسودة</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>معلق</option>
+                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">المخزن</label>
+                <select name="warehouse" class="form-select">
+                    <option value="">الكل</option>
+                    {% for warehouse in warehouses %}
+                    <option value="{{ warehouse.id }}" {% if request.GET.warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                        {{ warehouse.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> بحث
+                </button>
+                <a href="{% url 'product:batch_voucher_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-redo"></i> إعادة تعيين
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- الجدول -->
+    <div class="section-container">
+        <div class="table-responsive">
+            <table class="table table-hover" id="batch-vouchers-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">رقم الإذن</th>
+                        <th class="text-center">النوع</th>
+                        <th class="text-center">التاريخ</th>
+                        <th class="text-center">المخزن</th>
+                        <th class="text-center">عدد الأصناف</th>
+                        <th class="text-center">إجمالي الكمية</th>
+                        <th class="text-center">القيمة الإجمالية</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for voucher in vouchers %}
+                    <tr>
+                        <td class="text-center">
+                            <a href="{% url 'product:batch_voucher_detail' voucher.pk %}">
+                                {{ voucher.voucher_number }}
+                            </a>
+                        </td>
+                        <td class="text-center">
+                            {% if voucher.voucher_type == 'receipt' %}
+                                <span class="badge bg-success">استلام</span>
+                            {% elif voucher.voucher_type == 'issue' %}
+                                <span class="badge bg-warning">صرف</span>
+                            {% else %}
+                                <span class="badge bg-info">تحويل</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ voucher.voucher_date|date:"Y-m-d h:i A" }}</td>
+                        <td class="text-center">
+                            {{ voucher.warehouse.name }}
+                            {% if voucher.target_warehouse %}
+                                <i class="fas fa-arrow-left mx-1"></i>
+                                {{ voucher.target_warehouse.name }}
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ voucher.total_items|smart_float }}</td>
+                        <td class="text-center">{{ voucher.total_quantity|smart_float }}</td>
+                        <td class="text-center">{{ voucher.total_value|smart_float }} {{ currency_symbol }}</td>
+                        <td class="text-center">
+                            {% if voucher.status == 'draft' %}
+                                <span class="badge bg-secondary">مسودة</span>
+                            {% elif voucher.status == 'pending' %}
+                                <span class="badge bg-warning">معلق</span>
+                            {% else %}
+                                <span class="badge bg-success">معتمد</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'product:batch_voucher_detail' voucher.pk %}" 
+                               class="btn btn-sm btn-outline-info" title="عرض">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if voucher.can_edit and perms.product.change_batchvoucher %}
+                            <a href="{% url 'product:batch_voucher_update' voucher.pk %}" 
+                               class="btn btn-sm btn-outline-primary" title="تعديل">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            لا توجد أذون جماعية
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">الأولى</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">السابقة</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">التالية</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">الأخيرة</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    if (typeof GlobalTableManager !== 'undefined' && $('#batch-vouchers-table tbody tr').length > 1) {
+        GlobalTableManager.initializeTable('batch-vouchers-table', {
+            order: [[2, 'desc']],
+            columnDefs: [
+                { targets: -1, orderable: false }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

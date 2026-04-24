@@ -1,0 +1,261 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="{% if request.GET.search or request.GET.status or request.GET.has_debt %}true{% else %}false{% endif %}" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      {% if request.GET.search or request.GET.status or request.GET.has_debt %}<span class="badge bg-primary ms-2">فعّال</span>{% endif %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse {% if request.GET.search or request.GET.status or request.GET.has_debt %}show{% endif %}" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="GET" action="{% url 'client:customer_list' %}" class="d-flex flex-nowrap gap-2 align-items-end">
+          <div class="flex-grow-1">
+            <label for="search" class="form-label">{% trans "بحث" %}</label>
+            <input type="text" class="form-control" id="search" name="search" value="{{ request.GET.search }}" placeholder="اسم أو هاتف أو كود العميل">
+          </div>
+          <div class="flex-shrink-0">
+            <label for="has_debt" class="form-label">المديونية</label>
+            <select class="form-select" id="has_debt" name="has_debt" style="min-width:150px">
+              <option value="">الكل</option>
+              <option value="1" {% if request.GET.has_debt == '1' %}selected{% endif %}>عليهم مديونية</option>
+              <option value="0" {% if request.GET.has_debt == '0' %}selected{% endif %}>بدون مديونية</option>
+            </select>
+          </div>
+          <div class="flex-shrink-0">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select class="form-select" id="status" name="status" style="min-width:120px">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>{% trans "نشط" %}</option>
+              <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>{% trans "غير نشط" %}</option>
+            </select>
+          </div>
+          <div class="flex-shrink-0 d-flex gap-2 align-self-end">
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+            </button>
+            <a href="{% url 'client:customer_list' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-times me-1"></i>مسح
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة العملاء -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة العملاء" %}</h5>
+      </div>
+      <div class="card-body">
+        <div id="customers-table-container">
+        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True %}
+        </div>
+        
+        <!-- تصدير البيانات -->
+        <div class="d-flex justify-content-end mt-3">
+          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="customers-table" data-filename="customers.csv">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="customers-table" data-filename="customers.xlsx">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+      </div>
+
+      <!-- Django Pagination -->
+      <div id="pagination-wrapper">
+      {% if paginator and paginator.num_pages > 1 %}
+      <div class="card-footer">
+        {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+      </div>
+      {% endif %}
+      </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  function initTable() {
+    if (typeof GlobalTableManager !== 'undefined') {
+      GlobalTableManager.initializeTable('customers-table', {
+        paging: false, searching: false, info: false, dom: 't', ordering: true,
+        columnDefs: [
+          { targets: 'col-name', width: '20%' },
+          { targets: 'col-phone', width: '15%' },
+          { targets: 'col-address', width: '25%' }
+        ],
+        autoWidth: true, responsive: true
+      });
+    }
+    $('#customers-table tbody').off('click', 'tr').on('click', 'tr', function() {
+      const match = $(this).html().match(/customer\/(\d+)/);
+      if (match) window.location.href = '/client/customer/' + match[1] + '/';
+    }).css('cursor', 'pointer');
+  }
+
+  $(document).ready(function() {
+    initTable();
+
+    // Ajax search with debounce
+    let debounceTimer;
+    function doSearch() {
+      const params = new URLSearchParams({
+        search: $('#search').val(),
+        has_debt: $('#has_debt').val(),
+        status: $('#status').val(),
+        page: 1
+      });
+
+      $.ajax({
+        url: '{% url "client:customer_list" %}?' + params.toString(),
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function(data) {
+          $('#customers-table-container').html(data.table_html);
+          $('#pagination-wrapper').html(
+            data.pagination_html
+              ? '<div class="card-footer">' + data.pagination_html + '</div>'
+              : ''
+          );
+          history.replaceState(null, '', '?' + params.toString());
+          initTable();
+        }
+      });
+    }
+
+    $('#search').on('input', function() {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(doSearch, 400);
+    });
+
+    $('#has_debt, #status').on('change', function() {
+      doSearch();
+    });
+
+    // منع submit العادي دايماً واستخدام Ajax
+    $('form').on('submit', function(e) {
+      e.preventDefault();
+      doSearch();
+    });
+  });
+
+  // ===== مزامنة دفترة =====
+  function syncWithDaftra(type) {
+    const btn = document.getElementById('daftra-sync-btn');
+    const url = type === 'clients' ? '/utils/daftra/sync-clients/' : '/utils/daftra/sync-suppliers/';
+    const label = type === 'clients' ? 'العملاء' : 'الموردين';
+
+    Swal.fire({
+      title: `مزامنة ${label} مع دفترة`,
+      html: `
+        <div class="text-start">
+          <p id="sync-status-msg" class="mb-2">جاري الاتصال بدفترة...</p>
+          <div class="progress mb-3" style="height: 20px;">
+            <div id="sync-progress-bar" class="progress-bar progress-bar-striped progress-bar-animated bg-info"
+                 role="progressbar" style="width: 0%">0%</div>
+          </div>
+          <div id="sync-stats" class="d-none">
+            <div class="row text-center">
+              <div class="col-3"><span class="badge bg-success fs-6" id="stat-created">0</span><br><small>جديد</small></div>
+              <div class="col-3"><span class="badge bg-primary fs-6" id="stat-updated">0</span><br><small>محدّث</small></div>
+              <div class="col-3"><span class="badge bg-secondary fs-6" id="stat-skipped">0</span><br><small>بدون تغيير</small></div>
+              <div class="col-3"><span class="badge bg-danger fs-6" id="stat-errors">0</span><br><small>أخطاء</small></div>
+            </div>
+          </div>
+        </div>`,
+      showConfirmButton: false,
+      showCancelButton: true,
+      cancelButtonText: 'إلغاء',
+      allowOutsideClick: false,
+      didOpen: () => {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]') 
+                        || document.querySelector('meta[name="csrf-token"]');
+        const csrfValue = csrfToken ? (csrfToken.value || csrfToken.getAttribute('content')) : '';
+        if (!csrfValue) { Swal.close(); toastr.error('خطأ في CSRF Token'); return; }
+
+        fetch(url, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfValue }
+        }).then(response => {
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+
+          function read() {
+            reader.read().then(({ done, value }) => {
+              if (done) return;
+              const lines = decoder.decode(value).split('\n').filter(l => l.trim());
+              lines.forEach(line => {
+                try {
+                  const data = JSON.parse(line);
+                  const bar = document.getElementById('sync-progress-bar');
+                  const msg = document.getElementById('sync-status-msg');
+                  const stats = document.getElementById('sync-stats');
+
+                  if (bar) { bar.style.width = data.progress + '%'; bar.textContent = data.progress + '%'; }
+
+                  if (data.type === 'status' && msg) msg.textContent = data.message;
+
+                  if (data.stats && stats) {
+                    stats.classList.remove('d-none');
+                    document.getElementById('stat-created').textContent = data.stats.created;
+                    document.getElementById('stat-updated').textContent = data.stats.updated;
+                    document.getElementById('stat-skipped').textContent = data.stats.skipped;
+                    document.getElementById('stat-errors').textContent = data.stats.errors;
+                  }
+
+                  if (data.type === 'complete') {
+                    if (bar) bar.classList.replace('bg-info', data.stats.errors > 0 && data.stats.created === 0 && data.stats.updated === 0 ? 'bg-warning' : 'bg-success');
+                    const hasErrors = data.stats && data.stats.errors > 0;
+                    const msg = hasErrors
+                      ? `تمت المزامنة مع ${data.stats.errors} خطأ - تم: ${data.stats.created} جديد، ${data.stats.updated} محدّث`
+                      : `تمت مزامنة ${label} بنجاح`;
+                    hasErrors ? toastr.warning(msg) : toastr.success(msg);
+                    setTimeout(() => { Swal.close(); location.reload(); }, 2000);
+                  }
+
+                  if (data.type === 'error') {
+                    if (msg) msg.textContent = data.message;
+                    if (bar) bar.classList.replace('bg-info', 'bg-danger');
+                    Swal.update({ showConfirmButton: true, confirmButtonText: 'إغلاق', showCancelButton: false });
+                    toastr.error(data.message);
+                  }
+                } catch(e) {}
+              });
+              read();
+            });
+          }
+          read();
+        }).catch(err => {
+          toastr.error('فشل الاتصال بالخادم');
+          Swal.close();
+        });
+      }
+    });
+  }
+</script>
+{% csrf_token %}
+{% endblock %}

@@ -1,0 +1,1773 @@
+/**
+ * ========================================
+ * Corporate ERP - Shared Components Styles
+ * ========================================
+ * 
+ * ملف مركزي موحد لجميع المكونات المشتركة المستخدمة عبر النظام
+ * 
+ * المكونات المشتركة:
+ * 1. CSS Variables (متغيرات CSS)
+ * 2. Breadcrumb (البريدكرمب)
+ * 3. Page Headers (هيدر الصفحات)
+ * 4. Stats Cards (كروت الإحصائيات)
+ * 5. Modals (النوافذ المنبثقة)
+ * 6. Alerts (التنبيهات)
+ * 7. Cards (البطاقات)
+ * 8. Badges (الشارات)
+ * 9. Tabs (التبويبات)
+ * 10. Empty States (الحالات الفارغة)
+ * 11. Chart Containers (حاويات الرسوم البيانية)
+ * 
+ * جميع التعديلات على المكونات المشتركة تتم هنا فقط
+ * ========================================
+ */
+
+/* ========================================
+   Print Variables (متغيرات الطباعة)
+   ======================================== */
+
+@media print {
+    :root {
+        --shadow-xs: none;
+        --shadow-sm: none;
+        --shadow-md: none;
+        --shadow-lg: none;
+        --shadow-xl: none;
+        --box-shadow: none;
+        --box-shadow-sm: none;
+        --card-shadow: none;
+    }
+}
+
+
+/* ========================================
+   1. BREADCRUMB STYLES (البريدكرمب)
+   ======================================== */
+
+/* Base Breadcrumb Styles */
+.page-breadcrumb {
+    margin-bottom: 1rem;
+}
+
+.page-breadcrumb .breadcrumb {
+    background: var(--bs-white, #ffffff);
+    border-radius: 0.5rem;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+    font-size: 0.875rem;
+    margin-bottom: 0;
+}
+
+/* RTL Support */
+.page-breadcrumb .breadcrumb[dir="rtl"] {
+    direction: rtl;
+}
+
+.page-breadcrumb .breadcrumb[dir="rtl"] .breadcrumb-item + .breadcrumb-item::before {
+    content: "‹";
+    float: left;
+    padding-right: 0;
+    padding-left: 0.5rem;
+    color: var(--bs-secondary, #6c757d);
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+/* Default RTL separator for Arabic */
+.page-breadcrumb .breadcrumb-item + .breadcrumb-item::before {
+    content: "‹";
+    color: var(--bs-secondary, #6c757d);
+    font-weight: bold;
+    font-size: 1rem;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+/* Breadcrumb Items */
+.page-breadcrumb .breadcrumb-item {
+    display: flex;
+    align-items: center;
+    color: var(--bs-secondary, #6c757d);
+    font-size: 0.875rem;
+}
+
+.page-breadcrumb .breadcrumb-item a {
+    color: var(--primary-color);
+    text-decoration: none;
+    transition: color 0.15s ease-in-out;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.page-breadcrumb .breadcrumb-item a:hover {
+    color: var(--primary-color);
+    text-decoration: underline;
+}
+
+.page-breadcrumb .breadcrumb-item a:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+}
+
+.page-breadcrumb .breadcrumb-item.active {
+    color: var(--bs-secondary, #6c757d);
+    font-weight: 500;
+}
+
+.page-breadcrumb .breadcrumb-current {
+    color: var(--bs-dark, #212529);
+    font-weight: 500;
+}
+
+/* Home Link Styles */
+.page-breadcrumb .breadcrumb-home-link {
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+}
+
+.page-breadcrumb .breadcrumb-home-text {
+    margin-right: 0;
+}
+
+/* Ellipsis Styles */
+.page-breadcrumb .breadcrumb-ellipsis {
+    color: var(--bs-secondary, #6c757d);
+    pointer-events: none;
+}
+
+.page-breadcrumb .breadcrumb-ellipsis-text {
+    font-weight: bold;
+    letter-spacing: 0.1em;
+}
+
+/* Icon Styles */
+.page-breadcrumb .breadcrumb-item i {
+    font-size: 0.875rem;
+    margin-left: 0.25rem;
+}
+
+.page-breadcrumb .breadcrumb-item.active i {
+    opacity: 0.6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .page-breadcrumb .breadcrumb {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.8125rem;
+    }
+    
+    .page-breadcrumb .breadcrumb-home-text {
+        display: none;
+    }
+    
+    .page-breadcrumb .breadcrumb-item {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .page-breadcrumb .breadcrumb-item a,
+    .page-breadcrumb .breadcrumb-current {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-breadcrumb .breadcrumb {
+        padding: 0.375rem 0.5rem;
+        font-size: 0.75rem;
+    }
+    
+    .page-breadcrumb .breadcrumb-item {
+        max-width: 80px;
+    }
+    
+    .page-breadcrumb .breadcrumb-item i {
+        font-size: 0.75rem;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .page-breadcrumb .breadcrumb {
+        border-width: 2px;
+    }
+    
+    .page-breadcrumb .breadcrumb-item a {
+        font-weight: 600;
+    }
+    
+    .page-breadcrumb .breadcrumb-item a:focus {
+        outline-width: 3px;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .page-breadcrumb .breadcrumb-item a {
+        transition: none;
+    }
+}
+
+
+/* ========================================
+   2. PAGE HEADER STYLES (هيدر الصفحات)
+   ======================================== */
+
+.page-header-container {
+    margin-bottom: 1.5rem;
+}
+
+.page-header {
+    background: var(--bs-white, #ffffff);
+    border-radius: 0.5rem;
+    padding: 1.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid var(--bs-border-color, #dee2e6);
+}
+
+.page-header-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.page-header-title {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+/* أيقونة الهيدر */
+.header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    color: var(--primary-color);
+    border-radius: 0.5rem;
+    font-size: 2rem;
+    flex-shrink: 0;
+    transition: all 0.3s ease;
+}
+
+.header-icon:hover {
+    transform: scale(1.05);
+}
+
+/* نص الهيدر */
+.header-text {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.header-title {
+    font-size: 1.75rem;
+    font-weight: 600;
+    margin: 0;
+    color: var(--bs-dark, #212529);
+    line-height: 1.2;
+    word-wrap: break-word;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.header-subtitle {
+    font-size: 1rem;
+    color: var(--bs-secondary, #6c757d);
+    margin: 0.25rem 0 0 0;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.header-description {
+    font-size: 0.875rem;
+    color: var(--bs-secondary, #6c757d);
+    margin: 0.5rem 0 0 0;
+    line-height: 1.5;
+    opacity: 0.8;
+}
+
+/* شارات الهيدر */
+.header-badges {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.header-badges .badge {
+    transition: all 0.2s ease;
+}
+
+.header-badges .badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* أزرار الإجراءات */
+.page-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.header-buttons-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+/* منتقي الشهر */
+.month-selector {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.month-selector .form-label {
+    margin-bottom: 0;
+    white-space: nowrap;
+}
+
+/* دعم الأزرار داخل الهيدر */
+.page-header .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.2s ease;
+}
+
+.page-header .btn:hover {
+    transform: translateY(-1px);
+}
+
+/* دعم text-muted من Bootstrap */
+.page-header .text-muted {
+    color: var(--bs-secondary, #6c757d) !important;
+    margin-bottom: 0;
+}
+
+/* تحسينات إمكانية الوصول */
+.page-header [role="group"] {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.page-header .badge[onclick],
+.page-header .badge[role="button"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.page-header .badge[onclick]:hover,
+.page-header .badge[role="button"]:hover {
+    opacity: 0.8;
+    transform: translateY(-1px);
+}
+
+/* تنسيق للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .page-header-content {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .page-header-title {
+        flex-direction: row;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    
+    .page-header-actions {
+        justify-content: flex-start;
+        margin-top: unset;
+    }
+    
+    .header-buttons-group {
+        width: 100%;
+        justify-content: flex-start;
+    }
+    
+    .header-buttons-group .btn {
+        flex: 1;
+        min-width: auto;
+    }
+    
+    .month-selector {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .page-header {
+        padding: 1rem;
+    }
+    
+    .header-title {
+        font-size: 1.5rem;
+    }
+    
+    .header-buttons-group .btn {
+        font-size: 0.875rem;
+        padding: 0.375rem 0.5rem;
+    }
+    
+    .header-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        font-size: 1rem;
+    }
+}
+
+
+/* ========================================
+   3. STATS CARDS STYLES (كروت الإحصائيات)
+   ======================================== */
+
+/* الكارت الأساسي */
+.stats-card {
+    border-radius: 10px;
+    background: var(--white);
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border: none;
+    position: relative;
+    transition: all 0.3s ease-in-out;
+    z-index: 1;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+/* رأس الكارت (الشريط الملون) */
+.stats-card-header {
+    padding: 0;
+    position: relative;
+    height: 8px;
+    overflow: hidden;
+}
+
+/* جسم الكارت */
+.stats-card-body {
+    padding: 1.5rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+/* أيقونة الكارت */
+.stats-card-icon {
+    width: clamp(35px, 10vw, 45px);
+    height: clamp(35px, 10vw, 45px);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    left: 1.5rem;
+    top: 1.5rem;
+    font-size: clamp(1rem, 2.5vw, 1.25rem);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.07);
+    z-index: 2;
+    transition: all 0.3s ease;
+}
+
+/* عنوان الكارت */
+.stats-card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    padding-left: 40px;
+    margin-bottom: 0.3rem;
+}
+
+/* القيمة الرئيسية */
+.stats-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+    margin-top: 0.5rem;
+    color: var(--gray-900);
+}
+
+/* الوحدة */
+.stats-card-unit {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+    font-weight: 500;
+}
+
+/* الاتجاه (صعود/هبوط) */
+.stats-card-trend {
+    margin-top: auto;
+    display: flex;
+    align-items: center;
+    font-size: 0.875rem;
+    font-weight: 500;
+}
+
+.stats-card-trend.up {
+    color: var(--success-color);
+}
+
+.stats-card-trend.down {
+    color: var(--danger-color);
+}
+
+.stats-card-trend i {
+    margin-right: 0.3rem;
+}
+
+/* ألوان رأس الكارت */
+.stats-card-primary .stats-card-header {
+    background-color: var(--primary-color);
+}
+
+.stats-card-success .stats-card-header {
+    background-color: var(--success-color);
+}
+
+.stats-card-danger .stats-card-header {
+    background-color: var(--danger-color);
+}
+
+.stats-card-info .stats-card-header {
+    background-color: var(--info-color);
+}
+
+.stats-card-warning .stats-card-header {
+    background-color: var(--warning-color);
+}
+
+.stats-card-secondary .stats-card-header {
+    background-color: var(--secondary-color);
+}
+
+/* ألوان أيقونات الكروت */
+.stats-card-primary .stats-card-icon {
+    background-color: var(--primary-soft);
+    color: var(--primary-color);
+}
+
+.stats-card-success .stats-card-icon {
+    background-color: var(--success-soft);
+    color: var(--success-color);
+}
+
+.stats-card-danger .stats-card-icon {
+    background-color: var(--danger-soft);
+    color: var(--danger-color);
+}
+
+.stats-card-info .stats-card-icon {
+    background-color: var(--info-soft);
+    color: var(--info-color);
+}
+
+.stats-card-warning .stats-card-icon {
+    background-color: var(--warning-soft);
+    color: var(--warning-color);
+}
+
+.stats-card-secondary .stats-card-icon {
+    background-color: var(--secondary-soft);
+    color: var(--secondary-color);
+}
+
+/* نمط بديل للكروت (بدون رأس ملون) */
+.stats-card-alt {
+    border-radius: 15px;
+    background: var(--white);
+    padding: 1.5rem;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.07);
+    transition: all 0.3s ease-in-out;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    height: 100%;
+}
+
+.stats-card-alt:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+}
+
+.stats-card-alt-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.75rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    flex-shrink: 0;
+}
+
+.stats-card-alt-content {
+    flex-grow: 1;
+}
+
+.stats-card-alt-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--gray-600);
+    margin-bottom: 0.5rem;
+}
+
+.stats-card-alt-value {
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--gray-900);
+    margin-bottom: 0.25rem;
+}
+
+.stats-card-alt-unit {
+    font-size: 0.875rem;
+    color: var(--gray-500);
+}
+
+/* ألوان النمط البديل */
+.stats-card-alt.primary .stats-card-alt-icon {
+    background-color: var(--primary-soft);
+    color: var(--primary-color);
+}
+
+.stats-card-alt.success .stats-card-alt-icon {
+    background-color: var(--success-soft);
+    color: var(--success-color);
+}
+
+.stats-card-alt.danger .stats-card-alt-icon {
+    background-color: var(--danger-soft);
+    color: var(--danger-color);
+}
+
+.stats-card-alt.info .stats-card-alt-icon {
+    background-color: var(--info-soft);
+    color: var(--info-color);
+}
+
+.stats-card-alt.warning .stats-card-alt-icon {
+    background-color: var(--warning-soft);
+    color: var(--warning-color);
+}
+
+/* تنسيق responsive للكروت */
+@media (max-width: 768px) {
+    .stats-card-icon {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.25rem;
+    }
+    
+    .stats-card-alt {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stats-card-alt-icon {
+        width: 56px;
+        height: 56px;
+        font-size: 1.5rem;
+    }
+    
+    .stats-card-alt-value {
+        font-size: 1.75rem;
+    }
+}
+
+
+/* ========================================
+   4. UTILITY CLASSES (فئات مساعدة)
+   ======================================== */
+
+/* حدود ملونة للكروت */
+.border-right-primary {
+    border-right: 4px solid var(--primary-color);
+}
+
+.border-right-success {
+    border-right: 4px solid var(--success-color);
+}
+
+.border-right-info {
+    border-right: 4px solid var(--info-color);
+}
+
+.border-right-warning {
+    border-right: 4px solid var(--warning-color);
+}
+
+.border-right-danger {
+    border-right: 4px solid var(--danger-color);
+}
+
+/* للعربية - حدود من اليسار */
+html[dir="rtl"] .border-right-primary,
+html[dir="rtl"] .border-right-success,
+html[dir="rtl"] .border-right-info,
+html[dir="rtl"] .border-right-warning,
+html[dir="rtl"] .border-right-danger {
+    border-right: none;
+}
+
+html[dir="rtl"] .border-right-primary {
+    border-left: 4px solid var(--primary-color);
+}
+
+html[dir="rtl"] .border-right-success {
+    border-left: 4px solid var(--success-color);
+}
+
+html[dir="rtl"] .border-right-info {
+    border-left: 4px solid var(--info-color);
+}
+
+html[dir="rtl"] .border-right-warning {
+    border-left: 4px solid var(--warning-color);
+}
+
+html[dir="rtl"] .border-right-danger {
+    border-left: 4px solid var(--danger-color);
+}
+
+/* ========================================
+   5. INFO CARDS & CONTENT CARDS (من cards.css)
+   ======================================== */
+
+/* كروت المحتوى والمعلومات */
+.info-card {
+  border-radius: var(--radius-xl);
+  background: var(--white);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  margin-bottom: var(--spacing-lg);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  transition: var(--transition-all);
+}
+
+.info-card:hover {
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+}
+
+.info-card-header {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  background-color: rgba(0, 0, 0, 0.01);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.info-card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 0;
+}
+
+.info-card-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+.info-card-body {
+  padding: 1.5rem;
+}
+
+.info-card-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  background-color: rgba(0, 0, 0, 0.01);
+}
+
+/* ========================================
+   6. USER CARDS (من cards.css)
+   ======================================== */
+
+.user-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  box-shadow: var(--shadow-md);
+  transition: var(--transition-all);
+  background: var(--white);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  height: 100%;
+}
+
+.user-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+.user-card-header {
+  position: relative;
+  padding-top: 56.25%;
+  background-color: var(--light-gray);
+  overflow: hidden;
+}
+
+.user-card-header::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 123, 255, 0.15);
+  z-index: 1;
+}
+
+.user-card-avatar {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  bottom: -40px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 4px solid var(--white);
+  box-shadow: var(--shadow-lg);
+  z-index: 2;
+  background-color: var(--white);
+}
+
+.user-card-body {
+  padding: 3rem 1.5rem 1.5rem;
+  text-align: center;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.user-card-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.user-card-title {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  margin-bottom: 1rem;
+}
+
+.user-card-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 1rem;
+  margin-top: auto;
+}
+
+.user-card-stat {
+  text-align: center;
+}
+
+.user-card-stat-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.user-card-stat-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.user-card-footer {
+  padding: 1rem 1.5rem;
+  background-color: rgba(0, 0, 0, 0.02);
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* ========================================
+   7. ACCOUNT CARDS (من cards.css)
+   ======================================== */
+
+.account-card {
+  transition: var(--transition-all);
+  border: none;
+  border-radius: var(--radius-xl);
+  overflow: hidden;
+  height: 100%;
+  box-shadow: var(--shadow-lg);
+  background-color: var(--white);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 4px;
+  height: 100%;
+  z-index: 1;
+}
+
+.account-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 12px 20px rgba(0, 0, 0, 0.08);
+}
+
+.account-card .card-body {
+  padding: 1.25rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.account-card.asset::before { background-color: var(--account-asset); }
+.account-card.liability::before { background-color: var(--account-liability); }
+.account-card.equity::before { background-color: var(--account-equity); }
+.account-card.income::before { background-color: var(--account-income); }
+.account-card.expense::before { background-color: var(--account-expense); }
+.account-card.cash::before { background-color: var(--account-cash); }
+.account-card.bank::before { background-color: var(--account-bank); }
+.account-card.wallet::before { background-color: var(--account-wallet); }
+.account-card.other::before { background-color: var(--account-other); }
+
+.account-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.account-card-header > div:first-child {
+  flex: 1;
+  margin-right: 10px;
+  min-width: 0;
+}
+
+.account-card .card-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  margin-bottom: 0.25rem;
+}
+
+.account-card .card-code {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.25rem;
+  display: inline-block;
+  background-color: rgba(0, 0, 0, 0.03);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+}
+
+.account-card .card-type-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  background-color: rgba(0, 0, 0, 0.03);
+  color: var(--text-secondary);
+}
+
+.account-card.cash .card-type-icon {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: var(--account-cash);
+}
+
+.account-card.bank .card-type-icon {
+  background-color: rgba(0, 123, 255, 0.1);
+  color: var(--account-bank);
+}
+
+.account-card.wallet .card-type-icon {
+  background-color: var(--badge-purple-soft);
+  color: var(--account-wallet);
+}
+
+.account-balance {
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0.5rem 0 1rem;
+  padding: 0.5rem;
+  border-radius: 8px;
+  background-color: var(--light-gray);
+}
+
+.account-balance.text-success { color: var(--success-color); }
+.account-balance.text-danger { color: var(--danger-color); }
+
+.account-details {
+  font-size: 0.85rem;
+  color: var(--text-medium);
+  background-color: rgba(0, 0, 0, 0.02);
+  border-radius: 8px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.account-detail-label {
+  font-weight: 500;
+  display: block;
+  margin-bottom: 0.2rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.account-detail-value {
+  font-weight: 600;
+  color: var(--text-dark);
+}
+
+.account-actions {
+  display: flex;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  margin-top: auto;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.account-actions .btn {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+}
+
+/* ========================================
+   8. SOFT BADGES (من cards.css)
+   ======================================== */
+
+.soft-badge {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.soft-badge-primary { background-color: var(--primary-soft); color: var(--primary-color); }
+.soft-badge-success { background-color: var(--success-soft); color: var(--success-color); }
+.soft-badge-danger { background-color: var(--danger-soft); color: var(--danger-color); }
+.soft-badge-info { background-color: var(--info-soft); color: var(--info-color); }
+.soft-badge-warning { background-color: var(--warning-soft); color: var(--warning-color); }
+.soft-badge-purple { background-color: var(--badge-purple-soft); color: var(--badge-purple); }
+.soft-badge-secondary { background-color: rgba(108, 117, 125, 0.1); color: var(--text-secondary); }
+
+/* ========================================
+   9. EMPTY STATE (من cards.css)
+   ======================================== */
+
+.empty-state {
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 4rem;
+  color: var(--gray-300);
+  margin-bottom: 1.5rem;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+  100% { transform: translateY(0px); }
+}
+
+.empty-state-title {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--text-medium);
+}
+
+.empty-state-description {
+  color: var(--text-muted);
+  margin-bottom: 1.5rem;
+  max-width: 500px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ========================================
+   10. CHART CONTAINERS (من ملفات HTML متعددة)
+   ======================================== */
+
+.chart-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  position: relative;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid #eee;
+}
+
+.chart-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0;
+}
+
+/* ========================================
+   11. RESPONSIVE (من cards.css)
+   ======================================== */
+
+@media (max-width: 767.98px) {
+  .user-card-avatar {
+    width: 70px;
+    height: 70px;
+    bottom: -35px;
+  }
+}
+
+/* ========================================
+   12. MODAL COMPONENTS (النوافذ المنبثقة)
+   ======================================== */
+
+.modal-title {
+    color: white;
+    font-weight: 600;
+}
+
+.modal-header {
+    background: var(--primary-color);
+    border-bottom-color: var(--border-color);
+}
+
+.modal-header .btn-close {
+    filter: brightness(0) invert(1);
+    opacity: 1;
+}
+
+.modal-header .btn-close:hover {
+    opacity: 0.8;
+}
+
+.modal-footer {
+    border-top-color: var(--border-color);
+}
+
+/* ========================================
+   13. ALERT COMPONENTS (التنبيهات)
+   ======================================== */
+
+.alert {
+    border: none;
+    border-radius: var(--border-radius);
+    margin-bottom: var(--spacing-3);
+    padding: var(--spacing-3);
+    position: relative;
+}
+
+.alert-dismissible {
+    padding-left: 4rem;
+}
+
+.alert-dismissible .close {
+    position: absolute;
+    top: 0;
+    left: 0;
+    padding: 0.75rem 1.25rem;
+    color: inherit;
+}
+
+.alert-primary {
+    background-color: var(--primary-soft);
+    color: var(--primary-dark);
+    border: 1px solid rgba(1, 87, 138, 0.2);
+}
+
+.alert-success {
+    background-color: var(--success-soft);
+    color: var(--success-dark);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.alert-danger {
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.alert-warning {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.alert-info {
+    background-color: var(--info-soft);
+    color: var(--info-dark);
+    border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+/* ========================================
+   14. CARD COMPONENTS (البطاقات)
+   ======================================== */
+
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+    background-color: var(--white);
+    transition: var(--transition-all);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--card-header-padding);
+}
+
+.card-header h5,
+.card-header h6 {
+    margin-bottom: 0;
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+}
+
+.card-body {
+    padding: var(--card-padding);
+}
+
+.card-footer {
+    background-color: rgba(0, 0, 0, 0.02);
+    border-top: 1px solid var(--border-color);
+    padding: var(--card-footer-padding);
+}
+
+/* Card variations */
+.border-right-primary {
+    border-right: 4px solid var(--primary-color);
+}
+
+.border-right-success {
+    border-right: 4px solid var(--success-color);
+}
+
+.border-right-info {
+    border-right: 4px solid var(--info-color);
+}
+
+.border-right-warning {
+    border-right: 4px solid var(--warning-color);
+}
+
+.border-right-danger {
+    border-right: 4px solid var(--danger-color);
+}
+
+/* RTL support for card borders */
+html[dir="rtl"] .border-right-primary,
+html[dir="rtl"] .border-right-success,
+html[dir="rtl"] .border-right-info,
+html[dir="rtl"] .border-right-warning,
+html[dir="rtl"] .border-right-danger {
+    border-right: none;
+}
+
+html[dir="rtl"] .border-right-primary {
+    border-left: 4px solid var(--primary-color);
+}
+
+html[dir="rtl"] .border-right-success {
+    border-left: 4px solid var(--success-color);
+}
+
+html[dir="rtl"] .border-right-info {
+    border-left: 4px solid var(--info-color);
+}
+
+html[dir="rtl"] .border-right-warning {
+    border-left: 4px solid var(--warning-color);
+}
+
+html[dir="rtl"] .border-right-danger {
+    border-left: 4px solid var(--danger-color);
+}
+
+/* ========================================
+   15. BADGE COMPONENTS (الشارات)
+   ======================================== */
+
+.badge {
+    font-weight: var(--font-weight-medium);
+    padding: 0.35em 0.65em;
+    letter-spacing: 0.5px;
+    line-height: 1;
+    border-radius: var(--border-radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.badge.badge-sm {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+}
+
+.badge.badge-lg {
+    font-size: 0.9rem;
+    padding: 0.45em 0.8em;
+}
+
+.badge.rounded-pill {
+    border-radius: 50rem;
+}
+
+/* Bootstrap compatible badge colors */
+.bg-primary {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.bg-secondary {
+    background-color: var(--secondary-color);
+    color: var(--white);
+}
+
+.bg-success {
+    background-color: var(--success-color);
+    color: var(--white);
+}
+
+.bg-danger {
+    background-color: var(--danger-color);
+    color: var(--white);
+}
+
+.bg-warning {
+    background-color: var(--warning-color);
+    color: var(--text-dark);
+}
+
+.bg-info {
+    background-color: var(--info-color);
+    color: var(--white);
+}
+
+.bg-light {
+    background-color: var(--light);
+    color: var(--text-dark);
+}
+
+.bg-dark {
+    background-color: var(--dark);
+    color: var(--white);
+}
+
+/* Badge with icon */
+.badge-with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.badge-with-icon i {
+    font-size: 0.85em;
+}
+
+/* ========================================
+   16. TAB COMPONENTS (التبويبات)
+   ======================================== */
+
+.tabs-container {
+    margin-bottom: var(--spacing-4);
+}
+
+.tabs-container .nav-tabs {
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-3);
+}
+
+.tabs-container .nav-tabs .nav-link {
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    color: var(--text-color);
+    padding: var(--spacing-2) var(--spacing-3);
+    font-weight: var(--font-weight-medium);
+    transition: var(--transition-colors);
+}
+
+.tabs-container .nav-tabs .nav-link:hover {
+    border-bottom-color: var(--border-hover);
+    color: var(--text-dark);
+}
+
+.tabs-container .nav-tabs .nav-link.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: var(--font-weight-semibold);
+}
+
+.tabs-container .nav-pills .nav-link {
+    color: var(--text-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2) var(--spacing-3);
+    margin-bottom: var(--spacing-1);
+    font-weight: var(--font-weight-medium);
+    transition: var(--transition-colors);
+}
+
+.tabs-container .nav-pills .nav-link:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-dark);
+}
+
+.tabs-container .nav-pills .nav-link.active {
+    background-color: var(--primary-color);
+    color: var(--white);
+    font-weight: var(--font-weight-semibold);
+}
+
+.tabs-container .tab-content {
+    padding: var(--spacing-3) 0;
+}
+
+/* Vertical tabs specific styles */
+.tabs-container .nav-tabs.flex-column {
+    border-bottom: none;
+    border-right: 1px solid var(--border-color);
+    margin-bottom: 0;
+}
+
+.tabs-container .nav-tabs.flex-column .nav-link {
+    border-right: 2px solid transparent;
+    border-bottom: none;
+    text-align: right;
+}
+
+.tabs-container .nav-tabs.flex-column .nav-link:hover {
+    border-right-color: var(--border-hover);
+    border-bottom-color: transparent;
+}
+
+.tabs-container .nav-tabs.flex-column .nav-link.active {
+    border-right-color: var(--primary-color);
+    border-bottom-color: transparent;
+}
+
+/* RTL specific adjustments for vertical tabs */
+html[dir="rtl"] .tabs-container .nav-tabs.flex-column {
+    border-right: none;
+    border-left: 1px solid var(--border-color);
+}
+
+html[dir="rtl"] .tabs-container .nav-tabs.flex-column .nav-link {
+    border-right: none;
+    border-left: 2px solid transparent;
+    text-align: left;
+}
+
+html[dir="rtl"] .tabs-container .nav-tabs.flex-column .nav-link:hover {
+    border-right-color: transparent;
+    border-left-color: var(--border-hover);
+}
+
+html[dir="rtl"] .tabs-container .nav-tabs.flex-column .nav-link.active {
+    border-right-color: transparent;
+    border-left-color: var(--primary-color);
+}
+
+/* Responsive adjustments for tabs */
+@media (max-width: 767.98px) {
+    .tabs-container .row {
+        flex-direction: column;
+    }
+
+    .tabs-container .nav-tabs.flex-column {
+        flex-direction: row !important;
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        border-left: none;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: var(--spacing-3);
+    }
+
+    .tabs-container .nav-tabs.flex-column .nav-link {
+        border-left: none;
+        border-bottom: 2px solid transparent;
+        white-space: nowrap;
+    }
+
+    .tabs-container .nav-tabs.flex-column .nav-link:hover,
+    .tabs-container .nav-tabs.flex-column .nav-link.active {
+        border-left-color: transparent;
+        border-bottom-color: var(--primary-color);
+    }
+}
+
+/* ========================================
+   17. TOAST NOTIFICATIONS (إشعارات التوست)
+   ======================================== */
+
+/* تحسين موضع الـ toast لتجنب التداخل مع الـ navbar */
+.toast {
+    top: 50px !important;
+}
+
+/* ========================================
+   SWEETALERT2 UNIFIED STYLES (أنماط SweetAlert موحدة)
+   ======================================== */
+
+/* تخصيص SweetAlert للعربية */
+.swal2-popup {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    direction: rtl;
+    text-align: right;
+}
+
+.swal2-title {
+    text-align: center;
+}
+
+.swal2-content {
+    text-align: right;
+}
+
+/* إجبار SweetAlert على استخدام ألوان النظام */
+.swal2-styled.swal2-confirm {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+
+.swal2-styled.swal2-cancel {
+    background-color: var(--bs-secondary) !important;
+    border-color: var(--bs-secondary) !important;
+}
+
+/* ألوان مخصصة حسب نوع العملية */
+.swal2-popup[data-status="success"] .swal2-styled.swal2-confirm {
+    background-color: var(--bs-success) !important;
+    border-color: var(--bs-success) !important;
+}
+
+.swal2-popup[data-status="danger"] .swal2-styled.swal2-confirm {
+    background-color: var(--bs-danger) !important;
+    border-color: var(--bs-danger) !important;
+}
+
+.swal2-popup[data-status="warning"] .swal2-styled.swal2-confirm {
+    background-color: var(--bs-warning) !important;
+    border-color: var(--bs-warning) !important;
+    color: var(--bs-dark) !important;
+}
+
+.swal2-popup[data-status="info"] .swal2-styled.swal2-confirm {
+    background-color: var(--bs-info) !important;
+    border-color: var(--bs-info) !important;
+}
+
+.swal2-popup[data-status="primary"] .swal2-styled.swal2-confirm {
+    background-color: var(--bs-primary) !important;
+    border-color: var(--bs-primary) !important;
+}
+
+/* إزالة الألوان الافتراضية لـ SweetAlert */
+.swal2-styled:not(.swal2-confirm):not(.swal2-deny):not(.swal2-cancel) {
+    background-color: var(--bs-primary) !important;
+}
+
+/* تحسين مظهر الأزرار */
+.swal2-actions {
+    gap: 0.5rem;
+}
+
+.swal2-styled {
+    font-weight: 500;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    transition: all 0.15s ease-in-out;
+}
+
+.swal2-styled:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* ========================================
+   18. COLLAPSIBLE SECTIONS (الأقسام القابلة للطي)
+   ======================================== */
+
+/* تحسين مظهر العناوين القابلة للطي */
+.section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    user-select: none;
+    transition: all 0.2s ease;
+}
+
+.section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+}
+
+.section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+    font-size: 0.875rem;
+}
+
+.section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* تحسين الانتقال السلس */
+.collapse {
+    transition: height 0.3s ease;
+}
+
+/* تحسين مظهر الأقسام */
+.section-container {
+    background-color: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+    overflow: hidden;
+}
+
+h5.section-title {
+    margin-bottom: 10px;
+}
+
+.section-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    padding: var(--spacing-4) var(--spacing-5);
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+}
+
+.section-title i:first-child {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+/* محتوى القسم */
+.section-content {
+    padding: var(--spacing-5);
+}
+
+/* نمط بديل للأقسام بدون حدود */
+.section-container.borderless {
+    border: none;
+    box-shadow: none;
+    background-color: transparent;
+}
+
+.section-container.borderless .section-title {
+    background-color: transparent;
+    border-bottom: 2px solid var(--border-color);
+    padding: var(--spacing-3) 0;
+}
+
+.section-container.borderless .section-content {
+    padding: var(--spacing-4) 0;
+}
+
+/* تحسينات responsive للأقسام القابلة للطي */
+@media (max-width: 768px) {
+    .section-title {
+        font-size: 1rem;
+        padding: var(--spacing-3) var(--spacing-4);
+    }
+    
+    .section-content {
+        padding: var(--spacing-4);
+    }
+    
+    .section-title .fa-chevron-down {
+        font-size: 0.8rem;
+    }
+}
+
+
+/* ========================================
+   SELECT2 RTL FIX (إصلاح Select2 للعربية)
+   ======================================== */
+
+/* Fix clear button position for RTL */
+.select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear,
+.select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    position: absolute;
+    right: unset !important;
+}
+
+.select2-container--bootstrap-5 .select2-selection--single {
+    background-position: left 0.75rem center !important;
+}
+
+.select2-container[dir="rtl"] .select2-selection--single .select2-selection__rendered {
+    padding-right: 8px;
+}
+
+.select2-container--bootstrap-5 .select2-selection__clear, .select2-container--bootstrap-5 .select2-selection--multiple .select2-selection__clear, .select2-container--bootstrap-5 .select2-selection--single .select2-selection__clear {
+    left: 40px!important;
+}

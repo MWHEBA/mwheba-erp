@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.transfer-flow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2rem;
+    margin: 2rem 0;
+}
+
+.warehouse-box {
+    flex: 1;
+    max-width: 300px;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.warehouse-box h6 {
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+    margin-bottom: 0.5rem;
+}
+
+.warehouse-box .warehouse-name {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.transfer-arrow {
+    font-size: 2rem;
+    color: var(--primary-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+    
+    <!-- معلومات التحويل -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات التحويل</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="text-center" width="40%">رقم الإذن:</th>
+                        <td class="text-center"><strong>{{ voucher.document_number }}</strong></td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">التاريخ:</th>
+                        <td class="text-center">{{ voucher.movement_date|date:"Y-m-d h:i A" }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">المنتج:</th>
+                        <td class="text-center">{{ voucher.product.name }}</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">الكمية:</th>
+                        <td class="text-center"><strong>{{ voucher.quantity }} {{ unit_name }}</strong></td>
+                    </tr>
+                </table>
+            </div>
+            
+            <div class="col-md-6">
+                <table class="table table-borderless">
+                    <tr>
+                        <th class="text-center" width="40%">تكلفة الوحدة:</th>
+                        <td class="text-center">{{ voucher.unit_cost|smart_float }} ج.م</td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">القيمة الإجمالية:</th>
+                        <td class="text-center"><strong>{{ voucher.total_cost|smart_float }} ج.م</strong></td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">الحالة:</th>
+                        <td class="text-center">
+                            {% if voucher.is_approved %}
+                                <span class="badge bg-success">معتمد</span>
+                            {% else %}
+                                <span class="badge bg-warning">معلق</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class="text-center">أنشئ بواسطة:</th>
+                        <td class="text-center">{{ voucher.created_by.get_full_name|default:voucher.created_by.username }}</td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    </div>
+    
+    <!-- مسار التحويل -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-route me-2"></i>مسار التحويل</h5>
+        
+        <div class="transfer-flow">
+            <div class="warehouse-box">
+                <h6>من مخزن</h6>
+                <div class="warehouse-name">{{ voucher.warehouse.name }}</div>
+                <div class="mt-2">
+                    <small class="text-muted">الكمية قبل: {{ voucher.quantity_before }}</small>
+                    <br>
+                    <small class="text-muted">الكمية بعد: {{ voucher.quantity_after }}</small>
+                </div>
+            </div>
+            
+            <div class="transfer-arrow">
+                <i class="fas fa-arrow-left"></i>
+            </div>
+            
+            <div class="warehouse-box">
+                <h6>إلى مخزن</h6>
+                <div class="warehouse-name">{{ to_warehouse.name }}</div>
+                {% if movement_in %}
+                <div class="mt-2">
+                    <small class="text-muted">الكمية قبل: {{ movement_in.quantity_before }}</small>
+                    <br>
+                    <small class="text-muted">الكمية بعد: {{ movement_in.quantity_after }}</small>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- تفاصيل إضافية -->
+    {% if voucher.reference_document or voucher.issued_by_name or voucher.notes %}
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-file-alt me-2"></i>تفاصيل إضافية</h5>
+        
+        <div class="row">
+            {% if voucher.reference_document %}
+            <div class="col-md-6 mb-3">
+                <strong>المستند المرجعي:</strong>
+                <p>{{ voucher.reference_document }}</p>
+            </div>
+            {% endif %}
+            
+            {% if voucher.issued_by_name %}
+            <div class="col-md-6 mb-3">
+                <strong>المحول:</strong>
+                <p>{{ voucher.issued_by_name }}</p>
+            </div>
+            {% endif %}
+            
+            {% if voucher.notes %}
+            <div class="col-md-12 mb-3">
+                <strong>ملاحظات:</strong>
+                <p>{{ voucher.notes }}</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- معلومات الاعتماد -->
+    {% if voucher.is_approved %}
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-check-circle me-2"></i>معلومات الاعتماد</h5>
+        
+        <div class="row">
+            <div class="col-md-6">
+                <strong>اعتمد بواسطة:</strong>
+                <p>{{ voucher.approved_by.get_full_name|default:voucher.approved_by.username }}</p>
+            </div>
+            <div class="col-md-6">
+                <strong>تاريخ الاعتماد:</strong>
+                <p>{{ voucher.approval_date|date:"Y-m-d h:i A" }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- نموذج الاعتماد المخفي -->
+{% if not voucher.is_approved %}
+<form id="approve-form" method="post" action="{% url 'product:transfer_voucher_approve' voucher.pk %}" style="display: none;">
+    {% csrf_token %}
+</form>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function confirmApprove() {
+    Swal.fire({
+        title: 'اعتماد إذن التحويل؟',
+        text: 'سيتم تحديث المخزون في المخزنين وإنشاء القيد المحاسبي.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، اعتماد',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('approve-form').submit();
+        }
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,410 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/governance-dashboard.css' %}">
+<style>
+.governance-dashboard {
+    padding: 20px;
+}
+
+.status-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.status-indicator {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.status-enabled { background-color: #28a745; }
+.status-disabled { background-color: #dc3545; }
+.status-warning { background-color: #ffc107; }
+
+.signal-card {
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 15px;
+    background: white;
+}
+
+.signal-header {
+    display: flex;
+    justify-content: between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.signal-name {
+    font-weight: bold;
+    color: #495057;
+}
+
+.rollout-bar {
+    width: 100%;
+    height: 20px;
+    background-color: #e9ecef;
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.rollout-progress {
+    height: 100%;
+    background-color: #28a745;
+    transition: width 0.3s ease;
+}
+
+.rollout-progress.warning { background-color: #ffc107; }
+.rollout-progress.danger { background-color: #dc3545; }
+
+.metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-top: 10px;
+}
+
+.metric-item {
+    text-align: center;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.metric-value {
+    font-size: 1.2em;
+    font-weight: bold;
+    color: #495057;
+}
+
+.metric-label {
+    font-size: 0.8em;
+    color: #6c757d;
+}
+
+.btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}
+
+.health-issues {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.health-issues ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.recommendations {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 4px;
+    padding: 10px;
+    margin-top: 10px;
+}
+
+.auto-refresh {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="governance-dashboard">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>🎛️ Payroll Signal Governance Dashboard</h1>
+        <div class="auto-refresh">
+            <button id="refresh-btn" class="btn btn-outline-primary btn-sm">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <strong>Error:</strong> {{ error }}
+    </div>
+    {% else %}
+
+    <!-- Overall Status -->
+    <div class="row">
+        <div class="col-md-4">
+            <div class="status-card">
+                <h5>🎛️ Governance Status</h5>
+                <p>
+                    <span class="status-indicator {% if governance_enabled %}status-enabled{% else %}status-disabled{% endif %}"></span>
+                    {% if governance_enabled %}Enabled{% else %}Disabled{% endif %}
+                </p>
+                {% if governance_enabled %}
+                <form method="post" action="{% url 'governance:disable_payroll_governance' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="text" name="reason" placeholder="Reason for disable" class="form-control form-control-sm mb-2">
+                    <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Are you sure you want to disable payroll signal governance?')">
+                        Disable Governance
+                    </button>
+                </form>
+                {% else %}
+                <form method="post" action="{% url 'governance:enable_payroll_governance' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="text" name="reason" placeholder="Reason for enable" class="form-control form-control-sm mb-2">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        Enable Governance
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="status-card">
+                <h5>📡 Monitoring Status</h5>
+                <p>
+                    <span class="status-indicator {% if monitoring_active %}status-enabled{% else %}status-disabled{% endif %}"></span>
+                    {% if monitoring_active %}Active{% else %}Inactive{% endif %}
+                </p>
+                {% if master_kill_switch %}
+                <div class="alert alert-danger alert-sm">
+                    🔴 Master kill switch is active
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="status-card">
+                <h5>📊 Summary</h5>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value">{{ summary.enabled_signals }}/{{ summary.total_signals }}</div>
+                        <div class="metric-label">Enabled</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ summary.fully_rolled_out }}</div>
+                        <div class="metric-label">100% Rollout</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ summary.kill_switches_active }}</div>
+                        <div class="metric-label">Kill Switches</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ summary.average_error_rate|floatformat:1 }}%</div>
+                        <div class="metric-label">Avg Error Rate</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Status -->
+    {% if health_issues or recommendations %}
+    <div class="row">
+        <div class="col-12">
+            <div class="status-card">
+                <h5>🏥 Health Status: 
+                    {% if health_status.status == 'healthy' %}
+                        <span class="badge bg-success">Healthy</span>
+                    {% elif health_status.status == 'warning' %}
+                        <span class="badge bg-warning">Warning</span>
+                    {% else %}
+                        <span class="badge bg-danger">Critical</span>
+                    {% endif %}
+                </h5>
+                
+                {% if health_issues %}
+                <div class="health-issues">
+                    <strong>⚠️ Issues:</strong>
+                    <ul>
+                        {% for issue in health_issues %}
+                        <li>{{ issue }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                
+                {% if recommendations %}
+                <div class="recommendations">
+                    <strong>💡 Recommendations:</strong>
+                    <ul>
+                        {% for rec in recommendations %}
+                        <li>{{ rec }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Individual Signals -->
+    <div class="row">
+        <div class="col-12">
+            <div class="status-card">
+                <h5>📋 Individual Signal Status</h5>
+                
+                {% for signal_name, signal_data in signals.items %}
+                <div class="signal-card">
+                    <div class="signal-header">
+                        <div class="signal-name">
+                            {% if signal_data.kill_switch_active %}🔴{% elif signal_data.is_enabled %}✅{% else %}❌{% endif %}
+                            {{ signal_name }}
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            {% if signal_data.kill_switch_active %}
+                            <form method="post" action="{% url 'governance:deactivate_kill_switch' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="signal_name" value="{{ signal_name }}">
+                                <input type="hidden" name="reason" value="Dashboard restore">
+                                <button type="submit" class="btn btn-success btn-sm">Restore</button>
+                            </form>
+                            {% else %}
+                            <form method="post" action="{% url 'governance:activate_kill_switch' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="signal_name" value="{{ signal_name }}">
+                                <input type="hidden" name="reason" value="Dashboard kill switch">
+                                <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('Activate kill switch for {{ signal_name }}?')">Kill</button>
+                            </form>
+                            {% endif %}
+                            
+                            {% if signal_data.is_enabled and not signal_data.kill_switch_active %}
+                            <form method="post" action="{% url 'governance:promote_signal' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <input type="hidden" name="signal_name" value="{{ signal_name }}">
+                                <input type="hidden" name="target_percentage" value="{% if signal_data.rollout_percentage < 100 %}{{ signal_data.rollout_percentage|add:25 }}{% else %}100{% endif %}">
+                                <button type="submit" class="btn btn-primary btn-sm">Promote</button>
+                            </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="signal-description">
+                        {{ signal_data.description }}
+                    </div>
+                    
+                    <div class="rollout-bar">
+                        <div class="rollout-progress {% if signal_data.metrics.error_rate > 10 %}danger{% elif signal_data.metrics.error_rate > 5 %}warning{% endif %}" 
+                             style="width: {{ signal_data.rollout_percentage }}%"></div>
+                    </div>
+                    <div class="text-center">
+                        <small>{{ signal_data.rollout_percentage }}% rollout</small>
+                    </div>
+                    
+                    <div class="metrics-grid">
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.total_executions }}</div>
+                            <div class="metric-label">Total Executions</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.successful_executions }}</div>
+                            <div class="metric-label">Successful</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.failed_executions }}</div>
+                            <div class="metric-label">Failed</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.error_rate|floatformat:1 }}%</div>
+                            <div class="metric-label">Error Rate</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.average_execution_time|floatformat:3 }}s</div>
+                            <div class="metric-label">Avg Time</div>
+                        </div>
+                        <div class="metric-item">
+                            <div class="metric-value">{{ signal_data.metrics.consecutive_failures }}</div>
+                            <div class="metric-label">Consecutive Failures</div>
+                        </div>
+                    </div>
+                    
+                    {% if signal_data.metrics.last_error %}
+                    <div class="alert alert-warning alert-sm mt-2">
+                        <strong>Last Error:</strong> {{ signal_data.metrics.last_error }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Operation Counters -->
+    <div class="row">
+        <div class="col-12">
+            <div class="status-card">
+                <h5>📈 Operation Counters</h5>
+                <div class="metrics-grid">
+                    <div class="metric-item">
+                        <div class="metric-value">{{ counters.rollout_promotions }}</div>
+                        <div class="metric-label">Promotions</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ counters.rollout_rollbacks }}</div>
+                        <div class="metric-label">Rollbacks</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ counters.kill_switch_activations }}</div>
+                        <div class="metric-label">Kill Switch Activations</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh functionality
+    const refreshBtn = document.getElementById('refresh-btn');
+    let autoRefreshInterval;
+    
+    function refreshPage() {
+        location.reload();
+    }
+    
+    refreshBtn.addEventListener('click', refreshPage);
+    
+    // Auto-refresh every 30 seconds
+    autoRefreshInterval = setInterval(refreshPage, 30000);
+    
+    // Stop auto-refresh when user is interacting with forms
+    const forms = document.querySelectorAll('form');
+    forms.forEach(form => {
+        form.addEventListener('submit', function() {
+            clearInterval(autoRefreshInterval);
+        });
+    });
+    
+    // Add loading states to buttons
+    const buttons = document.querySelectorAll('button[type="submit"]');
+    buttons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.disabled = true;
+            this.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+        });
+    });
+});
+</script>
+{% endblock %}

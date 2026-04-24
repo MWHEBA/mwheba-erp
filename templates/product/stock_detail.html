@@ -1,0 +1,189 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load custom_filters %}
+
+{% block title %}{{ stock.product.name }} - {{ stock.warehouse.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/stock.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Page Header الموحد -->
+    {% include "shared/page_header.html" %}
+    
+    <div class="row">
+        <div class="col-md-4">
+            <!-- معلومات المخزون -->
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-box me-2"></i>معلومات المخزون</h5>
+                
+                <div class="text-center mb-4 p-4" style="background: var(--bg-light); border-radius: var(--border-radius);">
+                    <h6 class="text-muted mb-2">الكمية الحالية</h6>
+                    <h1 class="display-4 fw-bold mb-3" style="color: var(--text-dark);">{{ stock.quantity|smart_float }}</h1>
+                    {% if stock.quantity <= 0 %}
+                    <span class="badge bg-danger">نفذ من المخزون</span>
+                    {% elif stock.quantity < stock.product.min_stock %}
+                    <span class="badge bg-warning">مخزون منخفض</span>
+                    {% else %}
+                    <span class="badge bg-success">مخزون جيد</span>
+                    {% endif %}
+                </div>
+                
+                <div class="progress mb-3" style="height: 20px;">
+                    {% if stock.product.min_stock > 0 %}
+                        {% with percentage=stock.quantity|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                            {% with min_stock=stock.product.min_stock|smart_float|default:"0"|stringformat:"i"|add:"0" %}
+                                {% with percent=percentage|divide:min_stock|multiply:100|smart_float %}
+                                    <div class="progress-bar 
+                                        {% if stock.quantity <= 0 %}bg-danger
+                                        {% elif stock.quantity < stock.product.min_stock %}bg-warning
+                                        {% else %}bg-success{% endif %}"
+                                        role="progressbar" style="width: {% if percent > 100 %}100{% else %}{{ percent }}{% endif %}%">
+                                    </div>
+                                {% endwith %}
+                            {% endwith %}
+                        {% endwith %}
+                    {% else %}
+                        <div class="progress-bar bg-secondary" role="progressbar" style="width: 100%">
+                            غير محدد
+                        </div>
+                    {% endif %}
+                </div>
+                
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">المنتج</dt>
+                    <dd class="col-sm-7">
+                        <a href="{% url 'product:product_detail' stock.product.pk %}">
+                            {{ stock.product.name }}
+                        </a>
+                    </dd>
+                    
+                    <dt class="col-sm-5">كود المنتج</dt>
+                    <dd class="col-sm-7"><code class="bg-light px-2 py-1 rounded">{{ stock.product.sku }}</code></dd>
+                    
+                    <dt class="col-sm-5">المخزن</dt>
+                    <dd class="col-sm-7">
+                        <a href="{% url 'product:warehouse_detail' stock.warehouse.pk %}">
+                            {{ stock.warehouse.name }}
+                        </a>
+                    </dd>
+                    
+                    <dt class="col-sm-5">الحد الأدنى</dt>
+                    <dd class="col-sm-7">{{ stock.product.min_stock|smart_float }}</dd>
+                    
+                    <dt class="col-sm-5">آخر تحديث</dt>
+                    <dd class="col-sm-7">{{ stock.updated_at|date:"Y-m-d H:i" }}</dd>
+                </dl>
+            </div>
+            
+            <!-- معلومات المنتج -->
+            <div class="section-container mb-4">
+                <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات المنتج</h5>
+                <dl class="row mb-0">
+                    <dt class="col-sm-5">التصنيف</dt>
+                    <dd class="col-sm-7">{{ stock.product.category|default:"-" }}</dd>
+                    
+                    <dt class="col-sm-5">وحدة القياس</dt>
+                    <dd class="col-sm-7">{{ stock.product.unit|default:"-" }}</dd>
+                    
+                    <dt class="col-sm-5">سعر التكلفة</dt>
+                    <dd class="col-sm-7">{{ stock.product.cost_price|smart_float }} ج.م</dd>
+                    
+                    <dt class="col-sm-5">سعر البيع</dt>
+                    <dd class="col-sm-7">{{ stock.product.selling_price|smart_float }} ج.م</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <div class="col-md-8">
+            <!-- سجل حركات المخزون -->
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-history me-2"></i>سجل حركات المخزون</h5>
+                
+                {% if movements %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">التاريخ</th>
+                                <th class="text-center">نوع الحركة</th>
+                                <th class="text-center">الكمية</th>
+                                <th class="text-center">المخزون قبل</th>
+                                <th class="text-center">المخزون بعد</th>
+                                <th class="text-center">المستخدم</th>
+                                <th class="text-center">خيارات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for movement in movements %}
+                            <tr>
+                                <td class="text-center">{{ movement.timestamp|date:"Y-m-d H:i" }}</td>
+                                <td class="text-center">
+                                    {% if movement.movement_type == 'in' %}
+                                    <span class="badge bg-success">إضافة</span>
+                                    {% elif movement.movement_type == 'out' %}
+                                    <span class="badge bg-danger">سحب</span>
+                                    {% elif movement.movement_type == 'transfer' %}
+                                    <span class="badge bg-info">تحويل</span>
+                                    {% elif movement.movement_type == 'adjustment' %}
+                                    <span class="badge bg-warning">تعديل</span>
+                                    {% endif %}
+                                </td>
+                                <td class="fw-bold text-center">
+                                    {% if movement.movement_type == 'in' or movement.movement_type == 'transfer_in' or movement.movement_type == 'adjustment_in' %}
+                                        <span class="text-success">+{{ movement.quantity|smart_float }}</span>
+                                    {% elif movement.movement_type == 'out' or movement.movement_type == 'transfer_out' or movement.movement_type == 'adjustment_out' %}
+                                        <span class="text-danger">-{{ movement.quantity|smart_float }}</span>
+                                    {% elif movement.movement_type == 'adjustment' %}
+                                        {% if movement.quantity_after > movement.quantity_before %}
+                                            {% with diff=movement.quantity_after|subtract:movement.quantity_before %}
+                                                <span class="text-success">+{{ diff|smart_float }}</span>
+                                            {% endwith %}
+                                        {% elif movement.quantity_after < movement.quantity_before %}
+                                            {% with diff=movement.quantity_before|subtract:movement.quantity_after %}
+                                                <span class="text-danger">-{{ diff|smart_float }}</span>
+                                            {% endwith %}
+                                        {% else %}
+                                            <span class="text-muted">0</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span>{{ movement.quantity|smart_float }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">{{ movement.quantity_before|smart_float }}</td>
+                                <td class="text-center">{{ movement.quantity_after|smart_float }}</td>
+                                <td class="text-center">{{ movement.created_by|default:"-" }}</td>
+                                <td class="text-center">
+                                    <a href="{% url 'product:stock_movement_detail' movement.pk %}" class="btn btn-sm btn-outline-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-exchange-alt" style="font-size: 3rem; color: var(--gray-300);"></i>
+                    <h5 class="mt-3">لا توجد حركات مخزون</h5>
+                    <p class="text-muted">لم يتم تسجيل أي حركات مخزون لهذا المنتج في هذا المخزن</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/stock.js' %}"></script>
+{% endblock %} 

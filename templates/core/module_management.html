@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.module-card {
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-color);
+}
+
+.module-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.module-card.disabled {
+    opacity: 0.6;
+    background-color: var(--bg-light);
+}
+
+.module-icon {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--primary-light);
+    border-radius: 8px;
+}
+
+.module-switch {
+    transform: scale(1.2);
+}
+
+.dependency-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+}
+
+.section-divider {
+    margin: 2rem 0;
+    border-top: 2px solid var(--border-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title="إدارة تطبيقات النظام" subtitle="تفعيل وتعطيل تطبيقات النظام" icon="fas fa-cubes" breadcrumb_items=breadcrumb_items %}
+    
+    <!-- التطبيقات الأساسية -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-shield-alt me-2"></i>التطبيقات الأساسية
+            <small class="text-muted ms-2">(لا يمكن تعطيلها)</small>
+        </h5>
+        
+        <div class="row">
+            {% for module in core_modules %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card module-card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="module-icon me-3">
+                                <i class="{{ module.icon }} fa-2x text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">{{ module.name_ar }}</h6>
+                                <small class="text-muted">{{ module.code }}</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input module-switch" type="checkbox" checked disabled>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text text-muted small mb-2">{{ module.description }}</p>
+                        
+                        <div class="mt-2">
+                            <span class="badge bg-success">مفعّل دائماً</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="section-divider"></div>
+    
+    <!-- التطبيقات الاختيارية -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-puzzle-piece me-2"></i>التطبيقات الاختيارية
+            <small class="text-muted ms-2">(قابلة للتفعيل/التعطيل)</small>
+        </h5>
+        
+        <div class="row">
+            {% for module in optional_modules %}
+            <div class="col-md-6 col-lg-4 mb-3">
+                <div class="card module-card h-100 {% if not module.is_enabled %}disabled{% endif %}">
+                    <div class="card-body">
+                        <div class="d-flex align-items-start mb-3">
+                            <div class="module-icon me-3">
+                                <i class="{{ module.icon }} fa-2x {% if module.is_enabled %}text-primary{% else %}text-secondary{% endif %}"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="card-title mb-1">{{ module.name_ar }}</h6>
+                                <small class="text-muted">{{ module.code }}</small>
+                            </div>
+                            <div class="form-check form-switch">
+                                <form method="post" class="d-inline module-toggle-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="module_code" value="{{ module.code }}">
+                                    <input type="hidden" name="action" value="{% if module.is_enabled %}disable{% else %}enable{% endif %}">
+                                    <input class="form-check-input module-switch" type="checkbox" 
+                                           {% if module.is_enabled %}checked{% endif %}
+                                           onchange="toggleModule(this)"
+                                           {% if not module.can_disable and module.is_enabled %}disabled{% endif %}>
+                                </form>
+                            </div>
+                        </div>
+                        
+                        <p class="card-text text-muted small mb-3">{{ module.description }}</p>
+                        
+                        {% if module.required_modules.exists %}
+                        <div class="mb-2">
+                            <small class="text-muted d-block mb-1">
+                                <i class="fas fa-link me-1"></i>يتطلب:
+                            </small>
+                            {% for req in module.required_modules.all %}
+                                <span class="badge dependency-badge {% if req.is_enabled %}bg-success{% else %}bg-danger{% endif %} me-1">
+                                    {{ req.name_ar }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if module.dependent_modules.exists %}
+                        <div class="mb-2">
+                            <small class="text-muted d-block mb-1">
+                                <i class="fas fa-project-diagram me-1"></i>مطلوب من:
+                            </small>
+                            {% for dep in module.dependent_modules.all %}
+                                <span class="badge dependency-badge bg-info me-1">
+                                    {{ dep.name_ar }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                        
+                        <div class="mt-3 pt-2 border-top">
+                            <span class="badge {% if module.is_enabled %}bg-success{% else %}bg-secondary{% endif %}">
+                                {% if module.is_enabled %}
+                                    <i class="fas fa-check-circle me-1"></i>مفعّل
+                                {% else %}
+                                    <i class="fas fa-times-circle me-1"></i>معطّل
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleModule(checkbox) {
+    const form = checkbox.closest('form');
+    
+    if (checkbox.checked) {
+        // تفعيل التطبيق
+        form.submit();
+    } else {
+        // تعطيل التطبيق - طلب تأكيد
+        Swal.fire({
+            title: 'هل أنت متأكد؟',
+            text: 'سيتم إخفاء جميع القوائم والروابط المرتبطة بهذا التطبيق',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'نعم، عطّل التطبيق',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                form.submit();
+            } else {
+                // إعادة تفعيل الـ checkbox
+                checkbox.checked = true;
+            }
+        });
+    }
+}
+</script>
+{% endblock %}

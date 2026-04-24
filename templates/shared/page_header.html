@@ -1,0 +1,348 @@
+{% comment %}
+========================================
+PAGE HEADER المركزي - Corporate ERP
+========================================
+
+مكون رأس الصفحة الموحد مع دعم شامل لجميع الحالات والمعاملات
+
+المعاملات الأساسية:
+- title: عنوان الصفحة (مطلوب) - يمكن أيضاً استخدام page_title
+- subtitle: نص فرعي للشرح (اختياري) - يمكن أيضاً استخدام page_subtitle  
+- icon: أيقونة Font Awesome (اختياري) - يمكن أيضاً استخدام page_icon
+- description: وصف إضافي طويل (اختياري)
+
+معاملات التخصيص:
+- header_class: فئات CSS إضافية للهيدر (اختياري)
+- container_class: فئات CSS إضافية للحاوية (اختياري)
+- title_class: فئات CSS إضافية للعنوان (اختياري)
+- icon_class: فئات CSS إضافية للأيقونة (اختياري)
+- show_breadcrumb: إظهار مسار التنقل (اختياري، افتراضي True)
+- breadcrumb_items: عناصر مسار التنقل المخصصة (اختياري)
+
+معاملات الأزرار والشارات:
+- header_buttons: قائمة أزرار الهيدر (اختياري)
+- header_badges: قائمة شارات الهيدر (اختياري)
+- action_buttons: مرادف لـ header_buttons (اختياري)
+
+معاملات خاصة (للتوافق مع الاستخدامات الحالية):
+- month_selector: منتقي الشهر للتقارير (اختياري)
+- supplier_types_badges: شارات أنواع الموردين (اختياري)
+- extra_content: محتوى HTML إضافي (اختياري)
+
+أنواع الأزرار المدعومة:
+1. زر تنقل: {'url': '/add/', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-primary'}
+2. زر وظيفي: {'onclick': 'myFunction()', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-success'}
+3. زر نموذج: {'form_id': 'my-form', 'icon': 'fa-save', 'text': 'حفظ', 'class': 'btn-primary'}
+4. زر مودال: {'toggle': 'modal', 'target': '#myModal', 'icon': 'fa-plus', 'text': 'إضافة', 'class': 'btn-primary'}
+5. زر شارة: {'is_badge': True, 'icon': 'fa-info', 'text': 'معلومة', 'class': 'bg-info'}
+6. زر مع بيانات إضافية: {'url': '/edit/', 'icon': 'fa-edit', 'text': 'تعديل', 'class': 'btn-warning', 'data_attrs': 'data-id="123"'}
+7. زر قائمة منسدلة: {'dropdown': True, 'icon': 'fa-cog', 'text': 'إجراءات', 'class': 'btn-secondary', 'items': [{'url': '/edit/', 'icon': 'fa-edit', 'text': 'تعديل'}, {'onclick': 'delete()', 'icon': 'fa-trash', 'text': 'حذف', 'class': 'text-danger'}]}
+
+خصائص الأزرار الإضافية:
+- id: معرف فريد للزر
+- title: نص التلميح عند التمرير
+- disabled: تعطيل الزر
+- target: هدف الرابط (_blank, _self, إلخ)
+- style: تنسيق CSS مباشر
+- data_attrs: خصائص البيانات الإضافية
+
+أنواع الشارات المدعومة:
+1. شارة بسيطة: {'text': 'نشط', 'class': 'bg-success'}
+2. شارة مع أيقونة: {'icon': 'fa-star', 'text': 'مميز', 'class': 'bg-warning'}
+3. شارة قابلة للنقر: {'url': '/details/', 'icon': 'fa-info', 'text': 'تفاصيل', 'class': 'bg-info'}
+4. شارة وظيفية: {'onclick': 'showInfo()', 'icon': 'fa-info', 'text': 'معلومات', 'class': 'bg-secondary'}
+
+خصائص الشارات الإضافية:
+- title: نص التلميح عند التمرير
+- target: هدف الرابط للشارات القابلة للنقر
+- style: تنسيق CSS مباشر
+
+أمثلة الاستخدام:
+
+1. هيدر بسيط:
+{% include "shared/page_header.html" with title="قائمة العملاء" %}
+
+2. هيدر مع أيقونة ووصف:
+{% include "shared/page_header.html" with title="قائمة العملاء" subtitle="إدارة بيانات العملاء" icon="fa-users" %}
+
+3. هيدر مع وصف طويل:
+{% include "shared/page_header.html" with title="التقارير المالية" subtitle="تقارير شاملة" description="عرض جميع التقارير المالية والإحصائيات الخاصة بالشركة" %}
+
+4. هيدر مع أزرار وشارات:
+{% include "shared/page_header.html" with title="قائمة العملاء" icon="fa-users" header_buttons=buttons header_badges=badges %}
+
+5. هيدر بدون breadcrumb:
+{% include "shared/page_header.html" with title="لوحة التحكم" show_breadcrumb=False %}
+
+6. هيدر مع فئات مخصصة:
+{% include "shared/page_header.html" with title="التقارير" header_class="bg-light border" container_class="shadow-sm" title_class="text-primary" %}
+
+7. هيدر مع محتوى إضافي:
+{% include "shared/page_header.html" with title="الإعدادات" extra_content="<div class='alert alert-info'>تم حفظ التغييرات بنجاح</div>" %}
+
+8. استخدام المعاملات البديلة:
+{% include "shared/page_header.html" with page_title="العملاء" page_subtitle="إدارة العملاء" page_icon="fa-users" action_buttons=buttons %}
+
+========================================
+{% endcomment %}
+
+{% comment %}
+Note: This template can work with or without custom_filters.
+If custom_filters is available, it will be used for JSON parsing.
+{% endcomment %}
+
+<div class="page-header-container {{ container_class }}">
+    <!-- Breadcrumb -->
+    {% if show_breadcrumb|default:True %}
+        {% if breadcrumb_items %}
+            {% include "shared/breadcrumb.html" with items=breadcrumb_items %}
+        {% else %}
+            {% include "shared/breadcrumb.html" %}
+        {% endif %}
+    {% endif %}
+    
+    <!-- Page Header -->
+    <div class="page-header {{ header_class }}">
+        <div class="page-header-content">
+            <div class="page-header-title">
+                {% if icon %}
+                    <div class="header-icon {{ icon_class }}">
+                        <i class="{{ icon }}"></i>
+                    </div>
+                {% elif page_icon %}
+                    <div class="header-icon {{ icon_class }}">
+                        <i class="{{ page_icon }}"></i>
+                    </div>
+                {% endif %}
+                <div class="header-text">
+                    <h1 class="header-title {{ title_class }}">
+                        {% if title %}{{ title }}{% elif page_title %}{{ page_title }}{% endif %}
+                    </h1>
+                    {% if subtitle %}
+                        <p class="header-subtitle">{{ subtitle }}</p>
+                    {% elif page_subtitle %}
+                        <p class="header-subtitle">{{ page_subtitle }}</p>
+                    {% endif %}
+                    {% if description %}
+                        <p class="header-description">{{ description }}</p>
+                    {% endif %}
+                    
+                    <!-- Header Badges (optional) -->
+                    {% if header_badges %}
+                        <div class="header-badges mt-2">
+                            {% for badge in header_badges %}
+                                {% if badge.url and badge.url != "#" %}
+                                    <a href="{{ badge.url }}" class="badge {{ badge.class|default:'bg-secondary' }} me-2 text-decoration-none" 
+                                       {% if badge.style %}style="{{ badge.style }}"{% endif %}
+                                       {% if badge.title %}title="{{ badge.title }}"{% endif %}
+                                       {% if badge.target %}target="{{ badge.target }}"{% endif %}
+                                       aria-label="{{ badge.text }}">
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </a>
+                                {% elif badge.onclick %}
+                                    <button type="button" class="badge {{ badge.class|default:'bg-secondary' }} me-2 border-0" 
+                                            style="cursor: pointer;{% if badge.style %} {{ badge.style }}{% endif %}" 
+                                            onclick="{{ badge.onclick }}"
+                                            {% if badge.title %}title="{{ badge.title }}"{% endif %}
+                                            aria-label="{{ badge.text }}">
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </button>
+                                {% else %}
+                                    <span class="badge {{ badge.class|default:'bg-secondary' }} me-2" 
+                                          {% if badge.style %}style="{{ badge.style }}"{% endif %}
+                                          {% if badge.title %}title="{{ badge.title }}"{% endif %}>
+                                        {% if badge.icon %}<i class="{{ badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ badge.text }}
+                                    </span>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            {% if header_buttons or supplier_types_badges or month_selector %}
+                <div class="page-header-actions">
+                    <!-- Month Selector -->
+                    {% if month_selector %}
+                    <div class="month-selector me-3">
+                        <label for="month-select-{{ month_selector.id|default:'default' }}" class="form-label me-2" style="font-weight: 600; color: var(--text-secondary);">الشهر:</label>
+                        <select id="month-select-{{ month_selector.id|default:'default' }}" class="form-select form-select-sm" onchange="changeMonth(this.value)" aria-label="اختيار الشهر">
+                            {% for month_option in month_selector.available_months %}
+                            <option value="{{ month_option.value }}" {% if month_option.value == month_selector.current_month|date:'Y-m' %}selected{% endif %}>
+                                {{ month_option.date_obj|date:"F Y"|default:month_option.value }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- أنواع الخدمات (للموردين) -->
+                    {% if supplier_types_badges %}
+                        <div class="d-flex flex-wrap align-items-center me-3" role="group" aria-label="أنواع الخدمات">
+                            {% for type_badge in supplier_types_badges %}
+                                <span class="badge me-1 mb-1" 
+                                      style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 12px; background-color: {{ type_badge.color }}; color: white;"
+                                      {% if type_badge.title %}title="{{ type_badge.title }}"{% endif %}>
+                                    {% if type_badge.icon %}<i class="{{ type_badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                    {{ type_badge.text }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                    
+                    {% if header_buttons %}
+                    <div class="header-buttons-group" role="group" aria-label="إجراءات الصفحة">
+                    {% with buttons=header_buttons %}
+                        {% comment %}Handle both list objects and JSON strings{% endcomment %}
+                        {% if buttons and buttons|length > 0 and buttons.0.text %}
+                            {% comment %}Direct list of button objects{% endcomment %}
+                            {% for button in buttons %}
+                                    {% if button.dropdown %}
+                                        {% comment %}Dropdown button{% endcomment %}
+                                        <div class="btn-group me-2" role="group">
+                                            <button type="button" 
+                                                    class="btn {{ button.class|default:'btn-secondary' }} dropdown-toggle" 
+                                                    data-bs-toggle="dropdown" 
+                                                    aria-expanded="false"
+                                                    {% if button.id %}id="{{ button.id }}"{% endif %}
+                                                    {% if button.title %}title="{{ button.title }}"{% endif %}
+                                                    aria-label="{{ button.text }}">
+                                                {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                                {{ button.text }}
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end">
+                                                {% for item in button.items %}
+                                                    {% if item.divider %}
+                                                        <li><hr class="dropdown-divider"></li>
+                                                    {% elif item.onclick %}
+                                                        <li>
+                                                            <a class="dropdown-item {{ item.class }}" 
+                                                               href="javascript:void(0)" 
+                                                               onclick="{{ item.onclick }}"
+                                                               {% if item.title %}title="{{ item.title }}"{% endif %}>
+                                                                {% if item.icon %}<i class="fas {{ item.icon }} me-2" aria-hidden="true"></i>{% endif %}
+                                                                {{ item.text }}
+                                                            </a>
+                                                        </li>
+                                                    {% else %}
+                                                        <li>
+                                                            <a class="dropdown-item {{ item.class }}" 
+                                                               href="{{ item.url|default:'#' }}"
+                                                               {% if item.title %}title="{{ item.title }}"{% endif %}
+                                                               {% if item.target %}target="{{ item.target }}"{% endif %}
+                                                               {% if item.data_toggle %}data-bs-toggle="{{ item.data_toggle }}"{% endif %}
+                                                               {% if item.data_target %}data-bs-target="{{ item.data_target }}"{% endif %}>
+                                                                {% if item.icon %}<i class="fas {{ item.icon }} me-2" aria-hidden="true"></i>{% endif %}
+                                                                {{ item.text }}
+                                                            </a>
+                                                        </li>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </ul>
+                                        </div>
+                                    {% elif button.form_id %}
+                                        <button type="submit" 
+                                                form="{{ button.form_id }}" 
+                                                class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                                {% if button.id %}id="{{ button.id }}"{% endif %}
+                                                {% if button.title %}title="{{ button.title }}"{% endif %}
+                                                {% if button.disabled %}disabled{% endif %}
+                                                aria-label="{{ button.text }}">
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                            {{ button.text }}
+                                        </button>
+                                    {% elif button.onclick %}
+                                        <button type="button" 
+                                                class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                                onclick="{{ button.onclick }}"
+                                                {% if button.id %}id="{{ button.id }}"{% endif %}
+                                                {% if button.title %}title="{{ button.title }}"{% endif %}
+                                                {% if button.disabled %}disabled{% endif %}
+                                                aria-label="{{ button.text }}">
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                            {{ button.text }}
+                                        </button>
+                                    {% else %}
+                                        <a href="{{ button.url|default:'#' }}" 
+                                           class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                           {% if button.id %}id="{{ button.id }}"{% endif %}
+                                           {% if button.title %}title="{{ button.title }}"{% endif %}
+                                           {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
+                                           {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}
+                                           {% if button.disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+                                           aria-label="{{ button.text }}">
+                                            {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                            {{ button.text }}
+                                        </a>
+                                    {% endif %}
+                            {% endfor %}
+                        {% else %}
+                            {% comment %}Fallback for other formats or when custom_filters is available{% endcomment %}
+                            {% for button in buttons %}
+                                {% if button.is_badge %}
+                                    <span class="badge {{ button.class|default:'bg-primary' }} me-2"
+                                          {% if button.title %}title="{{ button.title }}"{% endif %}>
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ button.text }}
+                                    </span>
+                                {% elif button.form_id %}
+                                    <button type="submit" 
+                                            form="{{ button.form_id }}" 
+                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                            {% if button.id %}id="{{ button.id }}"{% endif %}
+                                            {% if button.title %}title="{{ button.title }}"{% endif %}
+                                            {% if button.disabled %}disabled{% endif %}
+                                            aria-label="{{ button.text }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ button.text }}
+                                    </button>
+                                {% elif button.onclick %}
+                                    <button type="button" 
+                                            class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                            onclick="{{ button.onclick }}"
+                                            {% if button.id %}id="{{ button.id }}"{% endif %}
+                                            {% if button.title %}title="{{ button.title }}"{% endif %}
+                                            {% if button.disabled %}disabled{% endif %}
+                                            aria-label="{{ button.text }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ button.text }}
+                                    </button>
+                                {% else %}
+                                    <a href="{{ button.url|default:'#' }}" 
+                                       class="btn {{ button.class|default:'btn-primary' }} me-2"
+                                       {% if button.id %}id="{{ button.id }}"{% endif %}
+                                       {% if button.title %}title="{{ button.title }}"{% endif %}
+                                       {% if button.toggle %}data-bs-toggle="{{ button.toggle }}"{% endif %}
+                                       {% if button.target %}data-bs-target="{{ button.target }}"{% endif %}
+                                       {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}
+                                       {% if button.disabled %}aria-disabled="true" tabindex="-1"{% endif %}
+                                       aria-label="{{ button.text }}">
+                                        {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                        {{ button.text }}
+                                    </a>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+                    {% endwith %}
+                    </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Extra Header Content Slot -->
+    {% block extra_header_content %}{% endblock %}
+    
+    <!-- Custom Header Content -->
+    {% if extra_content %}
+        <div class="page-header-extra mt-3">
+            {{ extra_content|safe }}
+        </div>
+    {% endif %}
+</div>
+
+

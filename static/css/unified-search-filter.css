@@ -1,0 +1,901 @@
+/**
+ * ========================================
+ * Unified Search and Filter Components
+ * مكونات البحث والفلترة الموحدة
+ * ========================================
+ * 
+ * نظام شامل للبحث والفلترة المتقدمة
+ * يتضمن مكونات البحث الذكي، الفلاتر المتعددة، والنتائج التفاعلية
+ * 
+ * الأقسام:
+ * 1. Search Components (مكونات البحث)
+ * 2. Filter Components (مكونات الفلترة)
+ * 3. Advanced Search (البحث المتقدم)
+ * 4. Filter Panels (لوحات الفلترة)
+ * 5. Search Results (نتائج البحث)
+ * 6. Quick Filters (الفلاتر السريعة)
+ * 7. Search Suggestions (اقتراحات البحث)
+ * 8. Filter Tags (علامات الفلترة)
+ * ========================================
+ */
+
+/* ========================================
+   1. SEARCH COMPONENTS (مكونات البحث)
+   ======================================== */
+
+.unified-search-container {
+    position: relative;
+    width: 100%;
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-search-box {
+    position: relative;
+    display: flex;
+    align-items: center;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-2);
+    transition: var(--transition-colors);
+    box-shadow: var(--shadow-sm);
+}
+
+.unified-search-box:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-focus);
+}
+
+.unified-search-input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    padding: var(--spacing-2) var(--spacing-3);
+    font-size: var(--font-size-base);
+    color: var(--text-color);
+    font-family: var(--font-family-sans);
+}
+
+.unified-search-input::placeholder {
+    color: var(--text-light);
+}
+
+.unified-search-icon {
+    color: var(--text-light);
+    font-size: var(--font-size-lg);
+    margin: 0 var(--spacing-2);
+    cursor: pointer;
+    transition: var(--transition-colors);
+}
+
+.unified-search-icon:hover {
+    color: var(--primary-color);
+}
+
+.unified-search-clear {
+    color: var(--text-light);
+    font-size: var(--font-size-base);
+    margin: 0 var(--spacing-2);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    opacity: 0;
+    visibility: hidden;
+}
+
+.unified-search-box.has-value .unified-search-clear {
+    opacity: 1;
+    visibility: visible;
+}
+
+.unified-search-clear:hover {
+    color: var(--danger-color);
+}
+
+.unified-search-loading {
+    color: var(--primary-color);
+    font-size: var(--font-size-base);
+    margin: 0 var(--spacing-2);
+    animation: spin 1s linear infinite;
+}
+
+/* Search sizes */
+.unified-search-box.search-sm {
+    padding: var(--spacing-1);
+}
+
+.unified-search-box.search-sm .unified-search-input {
+    padding: var(--spacing-1) var(--spacing-2);
+    font-size: var(--font-size-sm);
+}
+
+.unified-search-box.search-lg {
+    padding: var(--spacing-3);
+}
+
+.unified-search-box.search-lg .unified-search-input {
+    padding: var(--spacing-3) var(--spacing-4);
+    font-size: var(--font-size-lg);
+}
+
+/* ========================================
+   2. FILTER COMPONENTS (مكونات الفلترة)
+   ======================================== */
+
+.unified-filter-container {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+    overflow: hidden;
+}
+
+.unified-filter-header {
+    background-color: var(--bg-light);
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-filter-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.unified-filter-title .icon {
+    color: var(--primary-color);
+    font-size: 1.1em;
+}
+
+.unified-filter-toggle {
+    background: none;
+    border: none;
+    color: var(--text-light);
+    font-size: var(--font-size-lg);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    padding: var(--spacing-1);
+    border-radius: var(--border-radius-sm);
+}
+
+.unified-filter-toggle:hover {
+    color: var(--text-dark);
+    background-color: var(--bg-hover);
+}
+
+.unified-filter-body {
+    padding: var(--spacing-4);
+    transition: var(--transition-all);
+}
+
+.unified-filter-container.collapsed .unified-filter-body {
+    display: none;
+}
+
+.unified-filter-row {
+    display: flex;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+    flex-wrap: wrap;
+}
+
+.unified-filter-group {
+    flex: 1;
+    min-width: 200px;
+}
+
+.unified-filter-label {
+    display: block;
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-2);
+    font-size: var(--font-size-sm);
+}
+
+.unified-filter-control {
+    width: 100%;
+    padding: var(--spacing-2) var(--spacing-3);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    background-color: var(--bg-card);
+    color: var(--text-color);
+    font-size: var(--font-size-sm);
+    transition: var(--transition-colors);
+}
+
+.unified-filter-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-focus);
+}
+
+.unified-filter-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    justify-content: flex-end;
+    margin-top: var(--spacing-4);
+    padding-top: var(--spacing-4);
+    border-top: 1px solid var(--border-color);
+}
+
+/* ========================================
+   3. ADVANCED SEARCH (البحث المتقدم)
+   ======================================== */
+
+.unified-advanced-search {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-advanced-search-header {
+    background-color: var(--bg-light);
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-advanced-search-title {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.unified-advanced-search-toggle {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius-sm);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-advanced-search-toggle:hover {
+    background-color: var(--primary-soft);
+}
+
+.unified-advanced-search-body {
+    padding: var(--spacing-4);
+    display: none;
+}
+
+.unified-advanced-search.expanded .unified-advanced-search-body {
+    display: block;
+}
+
+.unified-search-field-group {
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-search-field-group:last-child {
+    margin-bottom: 0;
+}
+
+.unified-search-field-row {
+    display: flex;
+    gap: var(--spacing-3);
+    align-items: flex-end;
+    margin-bottom: var(--spacing-3);
+}
+
+.unified-search-field-select {
+    min-width: 150px;
+}
+
+.unified-search-field-operator {
+    min-width: 120px;
+}
+
+.unified-search-field-value {
+    flex: 1;
+}
+
+.unified-search-field-actions {
+    display: flex;
+    gap: var(--spacing-1);
+}
+
+.unified-search-field-add,
+.unified-search-field-remove {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: var(--border-radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: var(--transition-colors);
+    font-size: var(--font-size-sm);
+}
+
+.unified-search-field-add {
+    background-color: var(--success-color);
+    color: var(--white);
+}
+
+.unified-search-field-add:hover {
+    background-color: var(--success-hover);
+}
+
+.unified-search-field-remove {
+    background-color: var(--danger-color);
+    color: var(--white);
+}
+
+.unified-search-field-remove:hover {
+    background-color: var(--danger-hover);
+}
+
+/* ========================================
+   4. FILTER PANELS (لوحات الفلترة)
+   ======================================== */
+
+.unified-filter-panel {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-filter-panel-header {
+    background-color: var(--bg-light);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-filter-panel-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.unified-filter-panel-count {
+    background-color: var(--primary-color);
+    color: var(--white);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-full);
+    min-width: 20px;
+    text-align: center;
+}
+
+.unified-filter-panel-body {
+    padding: var(--spacing-3);
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.unified-filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    margin-bottom: var(--spacing-1);
+}
+
+.unified-filter-option:hover {
+    background-color: var(--bg-hover);
+}
+
+.unified-filter-option input[type="checkbox"],
+.unified-filter-option input[type="radio"] {
+    margin: 0;
+    accent-color: var(--primary-color);
+}
+
+.unified-filter-option-label {
+    flex: 1;
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.unified-filter-option-count {
+    font-size: var(--font-size-xs);
+    color: var(--text-light);
+    background-color: var(--bg-light);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-full);
+    min-width: 24px;
+    text-align: center;
+}
+
+/* ========================================
+   5. SEARCH RESULTS (نتائج البحث)
+   ======================================== */
+
+.unified-search-results {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-search-results-header {
+    background-color: var(--bg-light);
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-color);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.unified-search-results-info {
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+}
+
+.unified-search-results-count {
+    font-weight: var(--font-weight-semibold);
+    color: var(--primary-color);
+}
+
+.unified-search-results-actions {
+    display: flex;
+    gap: var(--spacing-2);
+    align-items: center;
+}
+
+.unified-search-results-sort {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    font-size: var(--font-size-sm);
+}
+
+.unified-search-results-sort select {
+    padding: var(--spacing-1) var(--spacing-2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius-sm);
+    background-color: var(--bg-card);
+    color: var(--text-color);
+    font-size: var(--font-size-sm);
+}
+
+.unified-search-results-body {
+    padding: var(--spacing-4);
+}
+
+.unified-search-result-item {
+    padding: var(--spacing-4);
+    border-bottom: 1px solid var(--border-light);
+    transition: var(--transition-colors);
+    cursor: pointer;
+}
+
+.unified-search-result-item:last-child {
+    border-bottom: none;
+}
+
+.unified-search-result-item:hover {
+    background-color: var(--bg-hover);
+}
+
+.unified-search-result-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-2);
+}
+
+.unified-search-result-title {
+    font-size: var(--font-size-base);
+    font-weight: var(--font-weight-semibold);
+    color: var(--text-dark);
+    margin: 0;
+    line-height: 1.4;
+}
+
+.unified-search-result-title .highlight {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.unified-search-result-meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-light);
+    display: flex;
+    gap: var(--spacing-3);
+    margin-top: var(--spacing-1);
+}
+
+.unified-search-result-description {
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    line-height: 1.5;
+    margin-bottom: var(--spacing-2);
+}
+
+.unified-search-result-description .highlight {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.unified-search-result-tags {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+}
+
+.unified-search-result-tag {
+    background-color: var(--bg-light);
+    color: var(--text-color);
+    font-size: var(--font-size-xs);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-full);
+    border: 1px solid var(--border-color);
+}
+
+/* Empty state */
+.unified-search-results-empty {
+    text-align: center;
+    padding: var(--spacing-8) var(--spacing-4);
+    color: var(--text-light);
+}
+
+.unified-search-results-empty .icon {
+    font-size: 3rem;
+    color: var(--gray-300);
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-search-results-empty h4 {
+    color: var(--text-color);
+    margin-bottom: var(--spacing-2);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-search-results-empty p {
+    margin-bottom: var(--spacing-4);
+    max-width: 400px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ========================================
+   6. QUICK FILTERS (الفلاتر السريعة)
+   ======================================== */
+
+.unified-quick-filters {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-4);
+}
+
+.unified-quick-filter {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: var(--spacing-2) var(--spacing-3);
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: var(--transition-all);
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    white-space: nowrap;
+}
+
+.unified-quick-filter:hover {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-color);
+    color: var(--primary-dark);
+    text-decoration: none;
+    transform: translateY(-1px);
+}
+
+.unified-quick-filter.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.unified-quick-filter.active:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--white);
+}
+
+.unified-quick-filter .count {
+    background-color: rgba(255, 255, 255, 0.2);
+    padding: 0 var(--spacing-1);
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-xs);
+    min-width: 18px;
+    text-align: center;
+}
+
+.unified-quick-filter:not(.active) .count {
+    background-color: var(--bg-light);
+    color: var(--text-light);
+}
+
+/* ========================================
+   7. SEARCH SUGGESTIONS (اقتراحات البحث)
+   ======================================== */
+
+.unified-search-suggestions {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 var(--border-radius) var(--border-radius);
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+}
+
+.unified-search-suggestions.show {
+    display: block;
+}
+
+.unified-search-suggestion {
+    padding: var(--spacing-3) var(--spacing-4);
+    cursor: pointer;
+    transition: var(--transition-colors);
+    border-bottom: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+}
+
+.unified-search-suggestion:last-child {
+    border-bottom: none;
+}
+
+.unified-search-suggestion:hover,
+.unified-search-suggestion.highlighted {
+    background-color: var(--primary-soft);
+}
+
+.unified-search-suggestion-icon {
+    color: var(--text-light);
+    font-size: var(--font-size-base);
+    width: 20px;
+    text-align: center;
+}
+
+.unified-search-suggestion-content {
+    flex: 1;
+}
+
+.unified-search-suggestion-text {
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    margin-bottom: var(--spacing-1);
+}
+
+.unified-search-suggestion-text .highlight {
+    background-color: var(--warning-soft);
+    color: var(--warning-dark);
+    padding: 0 2px;
+    border-radius: 2px;
+}
+
+.unified-search-suggestion-meta {
+    font-size: var(--font-size-xs);
+    color: var(--text-light);
+}
+
+.unified-search-suggestions-header {
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--bg-light);
+    border-bottom: 1px solid var(--border-color);
+    font-size: var(--font-size-xs);
+    color: var(--text-light);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* ========================================
+   8. FILTER TAGS (علامات الفلترة)
+   ======================================== */
+
+.unified-active-filters {
+    display: flex;
+    gap: var(--spacing-2);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-4);
+    align-items: center;
+}
+
+.unified-active-filters-label {
+    font-size: var(--font-size-sm);
+    color: var(--text-color);
+    font-weight: var(--font-weight-medium);
+    margin-left: var(--spacing-2);
+}
+
+.unified-filter-tag {
+    background-color: var(--primary-soft);
+    color: var(--primary-dark);
+    border: 1px solid var(--primary-color);
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-1);
+    max-width: 200px;
+}
+
+.unified-filter-tag-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.unified-filter-tag-remove {
+    background: none;
+    border: none;
+    color: var(--primary-dark);
+    cursor: pointer;
+    padding: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition-colors);
+    font-size: 10px;
+}
+
+.unified-filter-tag-remove:hover {
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.unified-clear-all-filters {
+    background: none;
+    border: none;
+    color: var(--danger-color);
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+    padding: var(--spacing-1) var(--spacing-2);
+    border-radius: var(--border-radius-sm);
+    transition: var(--transition-colors);
+    font-weight: var(--font-weight-medium);
+}
+
+.unified-clear-all-filters:hover {
+    background-color: var(--danger-soft);
+    color: var(--danger-dark);
+}
+
+/* ========================================
+   RESPONSIVE DESIGN (التصميم المتجاوب)
+   ======================================== */
+
+@media (max-width: 768px) {
+    .unified-filter-row {
+        flex-direction: column;
+        gap: var(--spacing-3);
+    }
+    
+    .unified-filter-group {
+        min-width: auto;
+    }
+    
+    .unified-search-field-row {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .unified-search-field-select,
+    .unified-search-field-operator,
+    .unified-search-field-value {
+        min-width: auto;
+    }
+    
+    .unified-quick-filters {
+        gap: var(--spacing-1);
+    }
+    
+    .unified-quick-filter {
+        font-size: var(--font-size-xs);
+        padding: var(--spacing-1) var(--spacing-2);
+    }
+    
+    .unified-search-results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-3);
+    }
+    
+    .unified-search-results-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .unified-active-filters {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .unified-active-filters-label {
+        margin-left: 0;
+        margin-bottom: var(--spacing-2);
+    }
+}
+
+@media (max-width: 576px) {
+    .unified-filter-container,
+    .unified-advanced-search,
+    .unified-search-results {
+        margin-bottom: var(--spacing-3);
+    }
+    
+    .unified-filter-header,
+    .unified-advanced-search-header,
+    .unified-search-results-header {
+        padding: var(--spacing-3);
+    }
+    
+    .unified-filter-body,
+    .unified-advanced-search-body,
+    .unified-search-results-body {
+        padding: var(--spacing-3);
+    }
+    
+    .unified-search-box.search-lg {
+        padding: var(--spacing-2);
+    }
+    
+    .unified-search-box.search-lg .unified-search-input {
+        padding: var(--spacing-2) var(--spacing-3);
+        font-size: var(--font-size-base);
+    }
+    
+    .unified-filter-actions {
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .unified-filter-actions .unified-btn {
+        width: 100%;
+        justify-content: center;
+    }
+}

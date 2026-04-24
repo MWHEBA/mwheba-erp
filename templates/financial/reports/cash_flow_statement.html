@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  .cash-flow-section {
+    margin-bottom: 2rem;
+  }
+  
+  .cash-flow-item {
+    padding: 0.75rem;
+    border-bottom: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .cash-flow-item:last-child {
+    border-bottom: none;
+  }
+  
+  .cash-flow-total {
+    background-color: #f8f9fa;
+    padding: 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    margin-top: 1rem;
+  }
+  
+  .positive-amount {
+    color: var(--success-color);
+  }
+  .negative-amount {
+    color: var(--danger-color);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- فلتر التاريخ -->
+    <div class="section-container mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">من تاريخ</label>
+                <input type="text" name="date_from" class="form-control" data-date-picker placeholder="من تاريخ" value="{{ date_from|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">إلى تاريخ</label>
+                <input type="text" name="date_to" class="form-control" data-date-picker placeholder="إلى تاريخ" value="{{ date_to|date:'Y-m-d' }}">
+            </div>
+            <div class="col-md-4 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="fas fa-search me-2"></i>عرض التقرير
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- كروت الإحصائيات -->
+    {% if cash_flow_data %}
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>ملخص التدفقات النقدية</h5>
+        <div class="row">
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-wallet"></i>
+                        </div>
+                        <div class="stats-card-title">الرصيد الافتتاحي</div>
+                        <div class="stats-card-value">{{ cash_flow_data.opening_cash|smart_float }}</div>
+                        <div class="stats-card-unit">{% currency_symbol %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card {% if cash_flow_data.net_cash_flow >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas {% if cash_flow_data.net_cash_flow >= 0 %}fa-arrow-up{% else %}fa-arrow-down{% endif %}"></i>
+                        </div>
+                        <div class="stats-card-title">صافي التدفق النقدي</div>
+                        <div class="stats-card-value">{{ cash_flow_data.net_cash_flow|smart_float }}</div>
+                        <div class="stats-card-unit">{% currency_symbol %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-money-bill-wave"></i>
+                        </div>
+                        <div class="stats-card-title">الرصيد الختامي</div>
+                        <div class="stats-card-value">{{ cash_flow_data.closing_cash|smart_float }}</div>
+                        <div class="stats-card-unit">{% currency_symbol %}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-3 mb-4">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stats-card-title">نسبة التغير</div>
+                        <div class="stats-card-value">
+                            {% widthratio cash_flow_data.net_cash_flow cash_flow_data.opening_cash 100 %}%
+                        </div>
+                        <div class="stats-card-unit">من الرصيد الافتتاحي</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ملخص التدفقات (مخفي - البيانات في الكروت) -->
+    <div class="summary-card" style="display: none;">
+        <h5 class="mb-3">
+            <i class="fas fa-chart-line me-2"></i>
+            ملخص التدفقات النقدية
+        </h5>
+        <div class="summary-item">
+            <span>الرصيد النقدي في بداية الفترة</span>
+            <span>{{ cash_flow_data.opening_cash|smart_float }} جنيه</span>
+        </div>
+        <div class="summary-item">
+            <span>صافي التدفق النقدي</span>
+            <span class="{% if cash_flow_data.net_cash_flow >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
+                {{ cash_flow_data.net_cash_flow|smart_float }} جنيه
+            </span>
+        </div>
+        <div class="summary-item">
+            <span>الرصيد النقدي في نهاية الفترة</span>
+            <span>{{ cash_flow_data.closing_cash|smart_float }} جنيه</span>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if cash_flow_data %}
+    <div class="row">
+        <!-- التدفقات التشغيلية -->
+        <div class="col-md-4">
+            <div class="section-container cash-flow-section">
+                <div class="section-title">
+                    <i class="fas fa-cogs me-2 text-primary"></i>
+                    التدفقات التشغيلية
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية من الإيرادات</span>
+                    <span class="positive-amount">
+                        {{ cash_flow_data.operating_activities.cash_from_revenue|smart_float }}
+                    </span>
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية للمصروفات</span>
+                    <span class="negative-amount">
+                        ({{ cash_flow_data.operating_activities.cash_for_expenses|smart_float }})
+                    </span>
+                </div>
+                <div class="cash-flow-total">
+                    <div class="d-flex justify-content-between">
+                        <span>صافي التدفق التشغيلي:</span>
+                        <span class="{% if cash_flow_data.operating_activities.net_cash_from_operating >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
+                            {{ cash_flow_data.operating_activities.net_cash_from_operating|smart_float }} {% currency_symbol %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التدفقات الاستثمارية -->
+        <div class="col-md-4">
+            <div class="section-container cash-flow-section">
+                <div class="section-title">
+                    <i class="fas fa-chart-line me-2 text-success"></i>
+                    التدفقات الاستثمارية
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية لشراء الأصول</span>
+                    <span class="negative-amount">
+                        ({{ cash_flow_data.investing_activities.cash_for_investments|smart_float }})
+                    </span>
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية من بيع الأصول</span>
+                    <span class="positive-amount">
+                        {{ cash_flow_data.investing_activities.cash_from_asset_sales|smart_float }}
+                    </span>
+                </div>
+                <div class="cash-flow-total">
+                    <div class="d-flex justify-content-between">
+                        <span>صافي التدفق الاستثماري:</span>
+                        <span class="{% if cash_flow_data.investing_activities.net_cash_from_investing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
+                            {{ cash_flow_data.investing_activities.net_cash_from_investing|smart_float }} {% currency_symbol %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- التدفقات التمويلية -->
+        <div class="col-md-4">
+            <div class="section-container cash-flow-section">
+                <div class="section-title">
+                    <i class="fas fa-hand-holding-usd me-2 text-warning"></i>
+                    التدفقات التمويلية
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية من التمويل</span>
+                    <span class="positive-amount">
+                        {{ cash_flow_data.financing_activities.cash_from_financing|smart_float }}
+                    </span>
+                </div>
+                <div class="cash-flow-item">
+                    <span>النقدية لسداد التمويل</span>
+                    <span class="negative-amount">
+                        ({{ cash_flow_data.financing_activities.cash_for_financing|smart_float }})
+                    </span>
+                </div>
+                <div class="cash-flow-total">
+                    <div class="d-flex justify-content-between">
+                        <span>صافي التدفق التمويلي:</span>
+                        <span class="{% if cash_flow_data.financing_activities.net_cash_from_financing >= 0 %}positive-amount{% else %}negative-amount{% endif %}">
+                            {{ cash_flow_data.financing_activities.net_cash_from_financing|smart_float }} {% currency_symbol %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="section-container">
+        <div class="alert alert-info text-center mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            لا توجد بيانات تدفقات نقدية للفترة المحددة
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

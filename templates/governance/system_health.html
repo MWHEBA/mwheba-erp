@@ -1,0 +1,641 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}{{ title }} | {{ block.super }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/governance.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon %}
+    
+    <!-- System Health Score -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-heartbeat me-2"></i>نقاط صحة النظام</h5>
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <div class="health-score-circle">
+                            <div class="score-value">{{ system_health_score }}%</div>
+                            <div class="score-label">صحة النظام العامة</div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="health-metric">
+                                    <div class="metric-icon {% if db_connected %}text-success{% else %}text-danger{% endif %}">
+                                        <i class="fas fa-database"></i>
+                                    </div>
+                                    <div class="metric-value">{{ db_response_time }}ms</div>
+                                    <div class="metric-label">استجابة قاعدة البيانات</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="health-metric">
+                                    <div class="metric-icon text-info"><i class="fas fa-tasks"></i></div>
+                                    <div class="metric-value">{{ total_operations|default:0 }}</div>
+                                    <div class="metric-label">إجمالي العمليات</div>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="health-metric">
+                                    <div class="metric-icon {% if success_rate >= 98 %}text-success{% elif success_rate >= 95 %}text-warning{% else %}text-danger{% endif %}">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                    <div class="metric-value">{{ success_rate }}%</div>
+                                    <div class="metric-label">معدل النجاح</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card h-100">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">الحالة الحالية</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="status-item">
+                            <i class="fas fa-circle {% if db_connected %}text-success{% else %}text-danger{% endif %} me-2"></i>
+                            <span>قاعدة البيانات: {% if db_connected %}متصلة{% else %}غير متصلة{% endif %}</span>
+                        </div>
+                        <div class="status-item">
+                            <i class="fas fa-circle {% if system_status.operations == 'success' %}text-success{% elif system_status.operations == 'warning' %}text-warning{% else %}text-danger{% endif %} me-2"></i>
+                            <span>العمليات: {% if system_status.operations == 'success' %}طبيعية{% elif system_status.operations == 'warning' %}تحذير{% else %}خطر{% endif %}</span>
+                        </div>
+                        <div class="status-item">
+                            <i class="fas fa-circle {% if system_status.quarantine == 'success' %}text-success{% elif system_status.quarantine == 'warning' %}text-warning{% else %}text-danger{% endif %} me-2"></i>
+                            <span>الحجر الصحي: {{ active_quarantine }} عنصر</span>
+                        </div>
+                        <div class="status-item">
+                            <i class="fas fa-circle text-info me-2"></i>
+                            <span>حجم قاعدة البيانات: 
+                                {% if db_size_mb == 'N/A' %}
+                                    غير متاح
+                                {% else %}
+                                    {{ db_size_mb }} MB
+                                {% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Metrics -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-chart-line me-2"></i>مؤشرات الأداء
+        </h5>
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">إحصائيات العمليات</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="stats-grid">
+                            <div class="stat-box">
+                                <div class="stat-icon bg-primary"><i class="fas fa-clipboard-list"></i></div>
+                                <div class="stat-details">
+                                    <div class="stat-value">{{ total_operations|default:0 }}</div>
+                                    <div class="stat-label">إجمالي العمليات</div>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-icon bg-success"><i class="fas fa-calendar-day"></i></div>
+                                <div class="stat-details">
+                                    <div class="stat-value">{{ today_operations|default:0 }}</div>
+                                    <div class="stat-label">عمليات اليوم</div>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-icon bg-info"><i class="fas fa-calendar-week"></i></div>
+                                <div class="stat-details">
+                                    <div class="stat-value">{{ week_operations|default:0 }}</div>
+                                    <div class="stat-label">عمليات الأسبوع</div>
+                                </div>
+                            </div>
+                            <div class="stat-box">
+                                <div class="stat-icon {% if active_quarantine == 0 %}bg-success{% elif active_quarantine < 5 %}bg-warning{% else %}bg-danger{% endif %}">
+                                    <i class="fas fa-shield-alt"></i>
+                                </div>
+                                <div class="stat-details">
+                                    <div class="stat-value">{{ active_quarantine|default:0 }}</div>
+                                    <div class="stat-label">عناصر محجوزة</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">المستخدمين والجلسات</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="network-stats">
+                            <div class="stat-item">
+                                <div class="stat-icon"><i class="fas fa-users text-primary"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-value">{{ active_users|default:0 }}</div>
+                                    <div class="stat-label">جلسات نشطة</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon"><i class="fas fa-database text-info"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-value">
+                                        {% if db_size_mb == 'N/A' %}
+                                            غير متاح
+                                        {% else %}
+                                            {{ db_size_mb }} MB
+                                        {% endif %}
+                                    </div>
+                                    <div class="stat-label">حجم قاعدة البيانات</div>
+                                </div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-icon"><i class="fas fa-bolt text-warning"></i></div>
+                                <div class="stat-info">
+                                    <div class="stat-value">{{ db_response_time }}ms</div>
+                                    <div class="stat-label">زمن استجابة DB</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Active Alerts -->
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-exclamation-triangle me-2"></i>التنبيهات النشطة
+        </h5>
+        <div class="card">
+            <div class="card-body">
+                {% if active_alerts %}
+                    {% for alert in active_alerts %}
+                    <div class="alert alert-{% if alert.corruption_type == 'AUTHORITY_VIOLATION' %}danger{% else %}warning{% endif %}" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-{% if alert.corruption_type == 'AUTHORITY_VIOLATION' %}exclamation-circle{% else %}exclamation-triangle{% endif %} me-3"></i>
+                            <div class="flex-grow-1">
+                                <strong>{{ alert.get_corruption_type_display }}:</strong> {{ alert.quarantine_reason|truncatewords:15 }}
+                                <br>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>{{ alert.quarantined_at|date:"Y-m-d H:i" }}
+                                    {% if alert.quarantined_by %}
+                                    | <i class="fas fa-user me-1"></i>{{ alert.quarantined_by.get_full_name|default:alert.quarantined_by.username }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{% url 'governance:audit_management' %}#quarantine" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-eye me-1"></i>عرض التفاصيل
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="alert alert-success" role="alert">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-check-circle me-3"></i>
+                            <div class="flex-grow-1">
+                                <strong>ممتاز!</strong> لا توجد تنبيهات نشطة حالياً - النظام يعمل بشكل طبيعي
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+                
+                {% if recent_critical_logs %}
+                <div class="mt-3">
+                    <h6 class="text-muted mb-2"><i class="fas fa-history me-2"></i>آخر العمليات الحرجة</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">الوقت</th>
+                                    <th class="text-center">العملية</th>
+                                    <th class="text-center">المستخدم</th>
+                                    <th class="text-center">الموديل</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in recent_critical_logs %}
+                                <tr>
+                                    <td class="text-center">{{ log.timestamp|date:"Y-m-d H:i" }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{% if log.operation == 'EXCEPTION' %}danger{% else %}warning{% endif %}">
+                                            {{ log.get_operation_display }}
+                                        </span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if log.user %}
+                                            {{ log.user.get_full_name|default:log.user.username }}
+                                        {% else %}
+                                            <span class="text-muted">النظام</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ log.model_name }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Exceptions Analysis -->
+    {% if failed_operations > 0 %}
+    <div class="section-container mb-4">
+        <h5 class="section-title">
+            <i class="fas fa-bug me-2"></i>تحليل الأخطاء والمشاكل
+            <span class="badge bg-danger ms-2">{{ failed_operations }} خطأ</span>
+        </h5>
+        <div class="row">
+            <!-- Exception Summary -->
+            {% if exception_analysis %}
+            <div class="col-lg-4 mb-3">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="card-title mb-0"><i class="fas fa-chart-pie me-2"></i>ملخص الأخطاء</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="exception-summary">
+                            {% for exc in exception_analysis %}
+                            <div class="exception-item">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-truncate" style="max-width: 70%;">
+                                        <i class="fas fa-exclamation-circle text-danger me-1"></i>
+                                        {{ exc.model_name }}
+                                    </span>
+                                    <span class="badge bg-danger">{{ exc.count }}</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Detailed Exceptions -->
+            <div class="col-lg-8 mb-3">
+                <div class="card">
+                    <div class="card-header bg-danger text-white">
+                        <h6 class="card-title mb-0"><i class="fas fa-list me-2"></i>تفاصيل الأخطاء الأخيرة</h6>
+                    </div>
+                    <div class="card-body">
+                        {% if detailed_exceptions %}
+                        <div class="exceptions-list">
+                            {% for exc in detailed_exceptions %}
+                            <div class="exception-detail-item mb-3 p-3 border rounded" data-exception-id="{{ exc.id }}">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <div>
+                                        <span class="badge bg-danger">{{ exc.exception_type }}</span>
+                                        <small class="text-muted ms-2">
+                                            <i class="fas fa-clock me-1"></i>{{ exc.timestamp|date:"Y-m-d H:i:s" }}
+                                        </small>
+                                    </div>
+                                    <small class="text-muted">
+                                        <i class="fas fa-user me-1"></i>{{ exc.user }}
+                                    </small>
+                                </div>
+                                <div class="exception-message mb-2">
+                                    <strong>الرسالة:</strong>
+                                    <code class="d-block mt-1 p-2 bg-light rounded">{{ exc.exception_message|truncatewords:20 }}</code>
+                                </div>
+                                <div class="exception-location mb-2">
+                                    <small class="text-muted">
+                                        <i class="fas fa-link me-1"></i>
+                                        <strong>{{ exc.request_method }}</strong> {{ exc.request_path }}
+                                    </small>
+                                </div>
+                                <div class="exception-actions d-flex gap-2">
+                                    <button class="btn btn-sm btn-success" onclick="markAsResolved({{ exc.id }})">
+                                        <i class="fas fa-check me-1"></i>تم الحل
+                                    </button>
+                                    <button class="btn btn-sm btn-warning" onclick="recheckException({{ exc.id }})">
+                                        <i class="fas fa-sync me-1"></i>إعادة الفحص
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" onclick="markAsIgnored({{ exc.id }})">
+                                        <i class="fas fa-eye-slash me-1"></i>تجاهل
+                                    </button>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        {% else %}
+                        <p class="text-muted text-center mb-0">لا توجد تفاصيل متاحة</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- System Services Status -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-cogs me-2"></i>حالة خدمات النظام
+        </h5>
+        <div class="row">
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">الخدمات الأساسية</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="service-status">
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-database me-2"></i>خدمة قاعدة البيانات
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-{% if db_connected %}success{% else %}danger{% endif %}">
+                                        {% if db_connected %}نشط{% else %}غير متصل{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-tasks me-2"></i>نظام العمليات
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-{% if system_status.operations == 'success' %}success{% elif system_status.operations == 'warning' %}warning{% else %}danger{% endif %}">
+                                        {% if system_status.operations == 'success' %}نشط{% elif system_status.operations == 'warning' %}تحذير{% else %}خطر{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-shield-alt me-2"></i>نظام الحجر الصحي
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-{% if system_status.quarantine == 'success' %}success{% elif system_status.quarantine == 'warning' %}warning{% else %}danger{% endif %}">
+                                        {% if system_status.quarantine == 'success' %}نظيف{% elif system_status.quarantine == 'warning' %}تحذير{% else %}تنبيه{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-check-circle me-2"></i>معدل النجاح
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-{% if success_rate >= 98 %}success{% elif success_rate >= 95 %}warning{% else %}danger{% endif %}">
+                                        {{ success_rate }}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-6 mb-3">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">إحصائيات إضافية</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="service-status">
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-clipboard-list me-2"></i>إجمالي العمليات
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-info">{{ total_operations|default:0 }}</span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-calendar-day me-2"></i>عمليات اليوم
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-success">{{ today_operations|default:0 }}</span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-users me-2"></i>جلسات نشطة
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-primary">{{ active_users|default:0 }}</span>
+                                </div>
+                            </div>
+                            <div class="service-item">
+                                <div class="service-name">
+                                    <i class="fas fa-hdd me-2"></i>حجم قاعدة البيانات
+                                </div>
+                                <div class="service-indicator">
+                                    <span class="badge bg-secondary">
+                                        {% if db_size_mb == 'N/A' %}
+                                            غير متاح
+                                        {% else %}
+                                            {{ db_size_mb }} MB
+                                        {% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Initialize health score animation
+    animateHealthScore();
+});
+
+function animateHealthScore() {
+    // Animate the health score circle
+    const scoreElement = $('.score-value');
+    if (scoreElement.length === 0) return;
+    
+    const targetScore = parseInt(scoreElement.text());
+    if (isNaN(targetScore)) return;
+    
+    let currentScore = 0;
+    
+    const interval = setInterval(function() {
+        currentScore += 2;
+        scoreElement.text(currentScore + '%');
+        
+        if (currentScore >= targetScore) {
+            clearInterval(interval);
+            scoreElement.text(targetScore + '%');
+        }
+    }, 30);
+}
+
+function markAsResolved(exceptionId) {
+    Swal.fire({
+        title: 'تأكيد الحل',
+        input: 'textarea',
+        inputLabel: 'ملاحظات (اختياري)',
+        inputPlaceholder: 'اكتب ملاحظات عن كيفية حل المشكلة...',
+        showCancelButton: true,
+        confirmButtonText: 'تأكيد',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const notes = result.value || '';
+            
+            $.ajax({
+                url: `/governance/exception/${exceptionId}/resolve/`,
+                method: 'POST',
+                data: {
+                    notes: notes,
+                    csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        toastr.success(response.message);
+                        // Remove the exception item from UI
+                        $(`.exception-detail-item[data-exception-id="${exceptionId}"]`).fadeOut(300, function() {
+                            $(this).remove();
+                            // Check if no more exceptions
+                            if ($('.exception-detail-item').length === 0) {
+                                location.reload();
+                            }
+                        });
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function() {
+                    toastr.error('حدث خطأ أثناء تعليم المشكلة كمحلولة');
+                }
+            });
+        }
+    });
+}
+
+function markAsIgnored(exceptionId) {
+    Swal.fire({
+        title: 'تجاهل المشكلة',
+        text: 'هل أنت متأكد من تجاهل هذه المشكلة؟',
+        input: 'textarea',
+        inputLabel: 'سبب التجاهل (اختياري)',
+        inputPlaceholder: 'لماذا تريد تجاهل هذه المشكلة؟',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، تجاهل',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#6c757d',
+        cancelButtonColor: '#dc3545'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const notes = result.value || '';
+            
+            $.ajax({
+                url: `/governance/exception/${exceptionId}/ignore/`,
+                method: 'POST',
+                data: {
+                    notes: notes,
+                    csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                },
+                success: function(response) {
+                    if (response.success) {
+                        toastr.success(response.message);
+                        // Remove the exception item from UI
+                        $(`.exception-detail-item[data-exception-id="${exceptionId}"]`).fadeOut(300, function() {
+                            $(this).remove();
+                            // Check if no more exceptions
+                            if ($('.exception-detail-item').length === 0) {
+                                location.reload();
+                            }
+                        });
+                    } else {
+                        toastr.error(response.message);
+                    }
+                },
+                error: function() {
+                    toastr.error('حدث خطأ أثناء تجاهل المشكلة');
+                }
+            });
+        }
+    });
+}
+
+function recheckException(exceptionId) {
+    const $button = $(`.exception-detail-item[data-exception-id="${exceptionId}"] .btn-warning`);
+    const originalHtml = $button.html();
+    
+    // Show loading state
+    $button.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الفحص...');
+    
+    $.ajax({
+        url: `/governance/exception/${exceptionId}/recheck/`,
+        method: 'POST',
+        data: {
+            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+        },
+        success: function(response) {
+            if (response.success) {
+                if (response.resolved) {
+                    // Problem is resolved
+                    Swal.fire({
+                        title: 'تم الحل!',
+                        text: response.message,
+                        icon: 'success',
+                        confirmButtonText: 'حسناً'
+                    }).then(() => {
+                        // Remove the exception item from UI
+                        $(`.exception-detail-item[data-exception-id="${exceptionId}"]`).fadeOut(300, function() {
+                            $(this).remove();
+                            // Check if no more exceptions
+                            if ($('.exception-detail-item').length === 0) {
+                                location.reload();
+                            }
+                        });
+                    });
+                } else {
+                    // Problem still exists
+                    Swal.fire({
+                        title: 'المشكلة لا تزال موجودة',
+                        text: response.message,
+                        icon: 'error',
+                        confirmButtonText: 'حسناً'
+                    });
+                    $button.prop('disabled', false).html(originalHtml);
+                }
+            } else {
+                toastr.error(response.message);
+                $button.prop('disabled', false).html(originalHtml);
+            }
+        },
+        error: function() {
+            toastr.error('حدث خطأ أثناء إعادة الفحص');
+            $button.prop('disabled', false).html(originalHtml);
+        }
+    });
+}
+</script>
+{% endblock %}

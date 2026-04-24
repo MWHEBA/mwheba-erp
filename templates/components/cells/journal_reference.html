@@ -1,0 +1,22 @@
+{% load i18n %}
+{% if value %}
+  {% if 'SALE' in value %}
+    <span class="badge bg-success-subtle text-success border border-success">
+      <i class="fas fa-shopping-bag me-1"></i>{{ value }}
+    </span>
+  {% elif 'PURCHASE' in value or 'PURCH' in value %}
+    <span class="badge bg-info-subtle text-info border border-info">
+      <i class="fas fa-shopping-cart me-1"></i>{{ value }}
+    </span>
+  {% elif 'PAYMENT' in value or 'PAY' in value %}
+    <span class="badge bg-primary-subtle text-primary border border-primary">
+      <i class="fas fa-money-bill-wave me-1"></i>{{ value }}
+    </span>
+  {% else %}
+    <span class="badge bg-secondary-subtle text-secondary border border-secondary">
+      <i class="fas fa-file-alt me-1"></i>{{ value }}
+    </span>
+  {% endif %}
+{% else %}
+  <span class="text-muted">-</span>
+{% endif %}

@@ -1,0 +1,445 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <form method="post" id="whatsappForm">
+        {% csrf_token %}
+
+        <div class="row g-4">
+
+            <!-- الخطوة 1+2 مدمجتين: API Key + اختيار الرقم -->
+            <div class="col-lg-6">
+                <div class="section-container h-100">
+                    <h5 class="section-title">
+                        <i class="fab fa-whatsapp me-2"></i>ربط حساب Kapso
+                    </h5>
+
+                    <!-- تفعيل -->
+                    <div class="d-flex align-items-center justify-content-between p-3 rounded mb-4"
+                         style="background:var(--bg-light,#f8f9fa);border:1px solid var(--border-color,#dee2e6)">
+                        <div>
+                            <div class="fw-semibold">تفعيل إشعارات WhatsApp</div>
+                            <small class="text-muted">تشغيل أو إيقاف جميع الإشعارات</small>
+                        </div>
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   name="whatsapp_enabled" id="whatsapp_enabled"
+                                   {% if config.enabled %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <!-- API Key - بمجرد الكتابة يجيب الأرقام -->
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="whatsapp_api_key">
+                            API Key
+                            <a href="https://app.kapso.ai" target="_blank" rel="noopener"
+                               class="text-muted small fw-normal ms-2">
+                                احصل عليه من app.kapso.ai <i class="fas fa-external-link-alt fa-xs"></i>
+                            </a>
+                        </label>
+                        <input type="password" class="form-control" id="whatsapp_api_key"
+                                   name="whatsapp_api_key"
+                                   value="{{ config.api_key }}"
+                                   placeholder="الصق الـ API Key هنا...">
+                    </div>
+
+                    <!-- رقم الواتساب - يظهر تلقائياً بعد الـ API Key -->
+                    <div id="phoneSection" style="display:{% if config.phone_number_id %}block{% else %}none{% endif %}">
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">رقم الواتساب</label>
+                            <!-- hidden input للقيمة الفعلية -->
+                            <input type="hidden" name="whatsapp_phone_number_id" id="whatsapp_phone_number_id"
+                                   value="{{ config.phone_number_id }}">
+                            <select class="form-select" id="phoneNumberSelect" style="direction:ltr">
+                                <option value="">-- جاري التحميل... --</option>
+                                {% if config.phone_number_id %}
+                                <option value="{{ config.phone_number_id }}" selected>
+                                    {{ config.phone_number_id }}
+                                </option>
+                                {% endif %}
+                            </select>
+                            <div id="phoneStatus" class="mt-1"></div>
+                        </div>
+                    </div>
+
+                    <!-- حالة الاتصال -->
+                    <div id="connectionStatus">
+                        {% if is_connected %}
+                        <div class="d-flex align-items-center gap-2 text-success">
+                            <i class="fas fa-check-circle"></i>
+                            <span class="small fw-semibold">متصل ومفعل</span>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- loading indicator -->
+                    <div id="loadingIndicator" style="display:none" class="text-muted small mt-2">
+                        <i class="fas fa-spinner fa-spin me-1"></i> جاري جلب الأرقام...
+                    </div>
+                </div>
+            </div>
+
+            <!-- إعدادات الإشعارات -->
+            <div class="col-lg-6">
+                <div class="section-container h-100">
+                    <h5 class="section-title">
+                        <i class="fas fa-bell me-2"></i>أنواع الإشعارات
+                    </h5>
+                    <p class="text-muted small mb-4">اختر متى يتلقى العميل رسالة واتساب</p>
+
+                    <div class="d-flex align-items-start justify-content-between mb-3 pb-3"
+                         style="border-bottom:1px solid var(--border-color,#dee2e6)">
+                        <div class="d-flex gap-3">
+                            <div class="stats-card-icon" style="width:40px;height:40px;font-size:1rem">
+                                <i class="fas fa-file-invoice"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">فاتورة جديدة</div>
+                                <small class="text-muted">عند إنشاء فاتورة مبيعات</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-0 mt-1">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   name="whatsapp_send_invoice" id="whatsapp_send_invoice"
+                                   {% if config.send_invoice_notification %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start justify-content-between mb-3 pb-3"
+                         style="border-bottom:1px solid var(--border-color,#dee2e6)">
+                        <div class="d-flex gap-3">
+                            <div class="stats-card-icon stats-card-success" style="width:40px;height:40px;font-size:1rem">
+                                <i class="fas fa-check-circle"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">إيصال دفعة</div>
+                                <small class="text-muted">عند تسجيل دفعة على فاتورة</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-0 mt-1">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   name="whatsapp_send_payment" id="whatsapp_send_payment"
+                                   {% if config.send_payment_notification %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div class="d-flex align-items-start justify-content-between mb-3">
+                        <div class="d-flex gap-3">
+                            <div class="stats-card-icon stats-card-warning" style="width:40px;height:40px;font-size:1rem">
+                                <i class="fas fa-clock"></i>
+                            </div>
+                            <div>
+                                <div class="fw-semibold">تذكير فاتورة متأخرة</div>
+                                <small class="text-muted">تذكير تلقائي بالفواتير غير المسددة</small>
+                            </div>
+                        </div>
+                        <div class="form-check form-switch mb-0 mt-1">
+                            <input class="form-check-input" type="checkbox" role="switch"
+                                   name="whatsapp_send_overdue" id="whatsapp_send_overdue"
+                                   {% if config.send_overdue_reminder %}checked{% endif %}>
+                        </div>
+                    </div>
+
+                    <div id="overdueDaysSection" class="p-3 rounded"
+                         style="background:var(--bg-light,#f8f9fa);display:{% if config.send_overdue_reminder %}block{% else %}none{% endif %}">
+                        <label class="form-label fw-semibold mb-1">إرسال التذكير بعد</label>
+                        <div class="input-group" style="max-width:160px">
+                            <input type="number" class="form-control" name="whatsapp_overdue_days"
+                                   id="whatsapp_overdue_days"
+                                   value="{{ config.overdue_reminder_days }}" min="1" max="90">
+                            <span class="input-group-text">يوم</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Fallback Template -->
+        <div class="section-container mb-4">
+            <h5 class="section-title">
+                <i class="fas fa-reply me-2"></i>رسالة خارج نافذة 24 ساعة
+            </h5>
+            <p class="text-muted small mb-3">
+                لو العميل مبعتش رسالة في آخر 24 ساعة، WhatsApp مش بيسمح بإرسال رسائل عادية.
+                حدد template معتمد من Meta يُستخدم تلقائياً في هذه الحالة.
+            </p>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label fw-semibold mb-1">اسم القالب (Template)</label>
+                    <div class="input-group">
+                        <select class="form-select" name="whatsapp_fallback_template" id="whatsapp_fallback_template">
+                            <option value="{{ config.fallback_template }}" selected>
+                                {% if config.fallback_template %}{{ config.fallback_template }}{% else %}— اضغط 🔄 لجلب القائمة —{% endif %}
+                            </option>
+                        </select>
+                        {% if is_connected %}
+                        <button type="button" class="btn btn-outline-secondary" id="loadTemplatesBtn" title="تحميل الـ templates">
+                            <i class="fas fa-sync-alt"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                    <div class="form-text" id="templatesHint">اضغط 🔄 لتحميل القائمة من حسابك</div>
+                </div>
+                <input type="hidden" name="whatsapp_fallback_template_lang"
+                       id="whatsapp_fallback_template_lang"
+                       value="{{ config.fallback_template_lang|default:'ar' }}">
+            </div>
+        </div>
+
+        <!-- زر الحفظ الوحيد -->
+        <div class="mt-4 d-flex gap-2 justify-content-end">
+            <a href="{% url 'core:system_settings' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-times me-1"></i> إلغاء
+            </a>
+            <button type="submit" class="btn btn-primary" id="saveBtn">
+                <i class="fas fa-save me-1"></i> حفظ
+            </button>
+        </div>
+    </form>
+
+    <!-- اختبار الإشعارات - يظهر فقط لو الخدمة مفعلة -->
+    {% if is_connected %}
+    <div class="section-container mt-4">
+        <h5 class="section-title">
+            <i class="fas fa-paper-plane me-2"></i>اختبار الإشعارات
+        </h5>
+        <p class="text-muted small mb-3">أرسل رسالة تجريبية للتأكد إن كل حاجة شغالة</p>
+        <div class="d-flex gap-2 align-items-start" style="max-width:420px">
+            <div class="flex-grow-1">
+                <input type="tel" class="form-control" id="testPhone"
+                       placeholder="رقم الهاتف (مثال: 01012345678)">
+            </div>
+            <button type="button" class="btn btn-success flex-shrink-0" id="sendTestBtn">
+                <i class="fab fa-whatsapp me-1"></i> إرسال تجريبي
+            </button>
+        </div>
+        <div id="testMsgResult" class="mt-2"></div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const apiKeyInput    = document.getElementById('whatsapp_api_key');
+    const phoneSection   = document.getElementById('phoneSection');
+    const phoneSelect    = document.getElementById('phoneNumberSelect');
+    const phoneHidden    = document.getElementById('whatsapp_phone_number_id');
+    const phoneStatus    = document.getElementById('phoneStatus');
+    const loadingEl      = document.getElementById('loadingIndicator');
+    const connStatus     = document.getElementById('connectionStatus');
+    const csrfToken      = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    // ==================== إظهار/إخفاء أيام التأخير ====================
+    const overdueToggle = document.getElementById('whatsapp_send_overdue');
+    const overdueDays   = document.getElementById('overdueDaysSection');
+    overdueToggle.addEventListener('change', () => {
+        overdueDays.style.display = overdueToggle.checked ? 'block' : 'none';
+    });
+
+    // ==================== جلب الأرقام تلقائياً ====================
+    let fetchTimer = null;
+
+    function fetchPhoneNumbers(apiKey) {
+        if (!apiKey) return;
+
+        loadingEl.style.display = 'block';
+        phoneSection.style.display = 'none';
+        connStatus.innerHTML = '';
+
+        fetch('{% url "core:whatsapp_settings" %}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                action: 'test_connection',
+                api_key: apiKey,
+                phone_number_id: '',
+                csrfmiddlewaretoken: csrfToken,
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            loadingEl.style.display = 'none';
+
+            if (!data.success && !data.phone_numbers) {
+                // API Key غلط
+                connStatus.innerHTML = `<span class="text-danger small"><i class="fas fa-times-circle me-1"></i>${data.message}</span>`;
+                return;
+            }
+
+            const numbers = data.phone_numbers || [];
+            if (numbers.length === 0) {
+                connStatus.innerHTML = `<span class="text-warning small"><i class="fas fa-exclamation-circle me-1"></i>لا توجد أرقام في الحساب</span>`;
+                return;
+            }
+
+            // بناء الـ dropdown
+            const currentVal = phoneHidden.value;
+            phoneSelect.innerHTML = numbers.map(n =>
+                `<option value="${n.id}" ${n.id === currentVal ? 'selected' : ''}>${n.label}</option>`
+            ).join('');
+
+            // لو رقم واحد بس، اختاره تلقائياً
+            if (numbers.length === 1) {
+                phoneSelect.value = numbers[0].id;
+                phoneHidden.value = numbers[0].id;
+            } else if (currentVal) {
+                phoneHidden.value = currentVal;
+            } else {
+                phoneHidden.value = numbers[0].id;
+                phoneSelect.value = numbers[0].id;
+            }
+
+            phoneSection.style.display = 'block';
+            connStatus.innerHTML = `<span class="text-success small"><i class="fas fa-check-circle me-1"></i>API Key صحيح</span>`;
+        })
+        .catch(() => {
+            loadingEl.style.display = 'none';
+            connStatus.innerHTML = `<span class="text-danger small"><i class="fas fa-times-circle me-1"></i>خطأ في الاتصال</span>`;
+        });
+    }
+
+    // جلب الأرقام بعد 600ms من آخر حرف (debounce)
+    apiKeyInput.addEventListener('input', function () {
+        clearTimeout(fetchTimer);
+        const val = this.value.trim();
+        if (val.length < 10) {
+            phoneSection.style.display = 'none';
+            connStatus.innerHTML = '';
+            return;
+        }
+        fetchTimer = setTimeout(() => fetchPhoneNumbers(val), 600);
+    });
+
+    // لو الصفحة اتفتحت وفيها API Key محفوظ، جيب الأرقام مباشرة
+    if (apiKeyInput.value.trim().length >= 10) {
+        fetchPhoneNumbers(apiKeyInput.value.trim());
+    }
+
+    // تحديث الـ hidden input عند تغيير الـ dropdown
+    phoneSelect.addEventListener('change', function () {
+        phoneHidden.value = this.value;
+    });
+
+    // ==================== إرسال رسالة تجريبية ====================
+    const sendTestBtn = document.getElementById('sendTestBtn');
+    if (sendTestBtn) {
+        sendTestBtn.addEventListener('click', function () {
+            const phone = document.getElementById('testPhone').value.trim();
+            const resultDiv = document.getElementById('testMsgResult');
+
+            if (!phone) {
+                toastr.warning('أدخل رقم الهاتف أولاً');
+                return;
+            }
+
+            sendTestBtn.disabled = true;
+            sendTestBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الإرسال...';
+            resultDiv.innerHTML = '';
+
+            fetch('{% url "core:whatsapp_settings" %}', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({
+                    action: 'send_test',
+                    test_phone: phone,
+                    csrfmiddlewaretoken: csrfToken,
+                })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    toastr.success(data.message);
+                    resultDiv.innerHTML = `<span class="text-success small"><i class="fas fa-check-circle me-1"></i>${data.message}</span>`;
+                } else {
+                    toastr.error(data.message);
+                    resultDiv.innerHTML = `<span class="text-danger small"><i class="fas fa-times-circle me-1"></i>${data.message}</span>`;
+                }
+            })
+            .catch(() => toastr.error('خطأ في الاتصال'))
+            .finally(() => {
+                sendTestBtn.disabled = false;
+                sendTestBtn.innerHTML = '<i class="fab fa-whatsapp me-1"></i> إرسال تجريبي';
+            });
+        });
+    }
+
+    // ==================== تحميل الـ Templates ====================
+    const loadTemplatesBtn = document.getElementById('loadTemplatesBtn');
+    const savedTemplate = "{{ config.fallback_template|escapejs }}";
+
+    function loadTemplates() {
+        const select = document.getElementById('whatsapp_fallback_template');
+        const langInput = document.getElementById('whatsapp_fallback_template_lang');
+        const hint = document.getElementById('templatesHint');
+        const currentVal = select.value || savedTemplate;
+
+        if (loadTemplatesBtn) {
+            loadTemplatesBtn.disabled = true;
+            loadTemplatesBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        }
+
+        fetch('?action=get_templates')
+            .then(r => r.json())
+            .then(data => {
+                const templates = data.templates || [];
+                if (!templates.length) {
+                    hint.innerHTML = '<span class="text-warning">لا توجد templates - تأكد من عمل Sync في Kapso dashboard أولاً</span>';
+                    return;
+                }
+
+                select.innerHTML = '<option value="">— اختر قالب—</option>';
+                templates.forEach(tpl => {
+                    const opt = document.createElement('option');
+                    opt.value = tpl.name;
+                    const statusMap = { APPROVED: 'معتمد', PENDING: 'قيد المراجعة', REJECTED: 'مرفوض', DISABLED: 'موقوف' };
+                    const langMap = { ar: 'عربي', en: 'إنجليزي', en_US: 'إنجليزي', fr: 'فرنسي' };
+                    const status = statusMap[tpl.status] || tpl.status || '';
+                    const lang = langMap[tpl.language] || tpl.language || '';
+                    opt.textContent = `${tpl.name} (${status} - ${lang})`;
+                    opt.dataset.lang = tpl.language || '';
+                    if (tpl.name === currentVal) opt.selected = true;
+                    select.appendChild(opt);
+                });
+
+                // حدث اللغة للـ template المحدد حالياً
+                const current = select.querySelector(`option[value="${currentVal}"]`);
+                if (current && current.dataset.lang) langInput.value = current.dataset.lang;
+
+                // حدث اللغة تلقائياً عند الاختيار
+                select.addEventListener('change', function () {
+                    const chosen = this.options[this.selectedIndex];
+                    if (chosen && chosen.dataset.lang) langInput.value = chosen.dataset.lang;
+                });
+
+                hint.innerHTML = `<span class="text-success"><i class="fas fa-check me-1"></i>تم تحميل ${templates.length} قالب</span>`;
+            })
+            .catch(() => {
+                hint.innerHTML = '<span class="text-danger">فشل التحميل - تحقق من الـ logs</span>';
+            })
+            .finally(() => {
+                if (loadTemplatesBtn) {
+                    loadTemplatesBtn.disabled = false;
+                    loadTemplatesBtn.innerHTML = '<i class="fas fa-sync-alt"></i>';
+                }
+            });
+    }
+
+    if (loadTemplatesBtn) loadTemplatesBtn.addEventListener('click', loadTemplates);
+
+    // تحميل تلقائي عند فتح الصفحة
+    loadTemplates();
+});
+</script>
+{% endblock %}

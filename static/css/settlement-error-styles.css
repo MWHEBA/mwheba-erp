@@ -1,0 +1,301 @@
+/**
+ * Settlement Error Styles
+ * أنماط معالجة أخطاء نظام التسوية المالية
+ */
+
+/* Enhanced Error Messages */
+.settlement-error-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+    max-width: 400px;
+}
+
+.settlement-error-toast {
+    background: var(--bs-danger);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: translateX(100%);
+    transition: transform 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settlement-error-toast.show {
+    transform: translateX(0);
+}
+
+.settlement-error-toast .error-icon {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+}
+
+.settlement-error-toast .error-content {
+    flex: 1;
+}
+
+.settlement-error-toast .error-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.settlement-error-toast .error-message {
+    font-size: 0.9rem;
+    opacity: 0.9;
+}
+
+.settlement-error-toast .error-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    margin-left: 10px;
+    opacity: 0.8;
+    transition: opacity 0.2s ease;
+}
+
+.settlement-error-toast .error-close:hover {
+    opacity: 1;
+}
+
+/* Loading States with Error Handling */
+.settlement-loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9998;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.settlement-loading-overlay.show {
+    opacity: 1;
+    visibility: visible;
+}
+
+.settlement-loading-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    text-align: center;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+    max-width: 300px;
+}
+
+.settlement-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 4px solid var(--bs-primary-light);
+    border-top: 4px solid var(--bs-primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 15px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.settlement-loading-text {
+    color: var(--bs-gray-700);
+    font-weight: 500;
+}
+
+/* Form Error States */
+.settlement-form .form-control.error {
+    border-color: var(--bs-danger);
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.settlement-form .error-feedback {
+    display: block;
+    width: 100%;
+    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: var(--bs-danger);
+}
+
+.settlement-form .error-feedback .error-icon {
+    margin-right: 5px;
+}
+
+/* Network Error Banner */
+.settlement-network-error {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background: var(--bs-warning);
+    color: var(--bs-dark);
+    padding: 10px 0;
+    text-align: center;
+    z-index: 9997;
+    transform: translateY(-100%);
+    transition: transform 0.3s ease;
+}
+
+.settlement-network-error.show {
+    transform: translateY(0);
+}
+
+.settlement-network-error .network-error-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.settlement-network-error .network-error-icon {
+    font-size: 1.1rem;
+}
+
+.settlement-network-error .network-error-text {
+    font-weight: 500;
+}
+
+.settlement-network-error .network-error-retry {
+    background: var(--bs-dark);
+    color: white;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    cursor: pointer;
+    margin-left: 15px;
+    transition: background-color 0.2s ease;
+}
+
+.settlement-network-error .network-error-retry:hover {
+    background: var(--bs-gray-800);
+}
+
+/* Validation Error Highlights */
+.settlement-form .field-error {
+    position: relative;
+}
+
+.settlement-form .field-error::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    border: 2px solid var(--bs-danger);
+    border-radius: 4px;
+    pointer-events: none;
+    animation: errorPulse 0.5s ease-in-out;
+}
+
+@keyframes errorPulse {
+    0% { opacity: 0; transform: scale(1.05); }
+    50% { opacity: 1; transform: scale(1); }
+    100% { opacity: 0.7; transform: scale(1); }
+}
+
+/* Success States */
+.settlement-success-message {
+    background: var(--bs-success);
+    color: white;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideInFromTop 0.5s ease;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.settlement-success-message .success-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+}
+
+.settlement-success-message .success-content {
+    flex: 1;
+}
+
+.settlement-success-message .success-title {
+    font-weight: 600;
+    margin-bottom: 2px;
+}
+
+.settlement-success-message .success-text {
+    font-size: 0.9rem;
+    opacity: 0.95;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .settlement-error-container {
+        right: 10px;
+        left: 10px;
+        max-width: none;
+    }
+    
+    .settlement-error-toast {
+        padding: 12px 15px;
+    }
+    
+    .settlement-loading-content {
+        margin: 0 20px;
+        padding: 25px 20px;
+    }
+    
+    .settlement-network-error .network-error-content {
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .settlement-network-error .network-error-retry {
+        margin-left: 0;
+        margin-top: 5px;
+    }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .settlement-loading-content {
+        background: var(--bs-dark);
+        color: var(--bs-light);
+    }
+    
+    .settlement-loading-text {
+        color: var(--bs-gray-300);
+    }
+}
+
+/* Print Styles */
+@media print {
+    .settlement-error-container,
+    .settlement-loading-overlay,
+    .settlement-network-error {
+        display: none !important;
+    }
+}

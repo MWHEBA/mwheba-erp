@@ -1,0 +1,24 @@
+{% comment %}
+Template مشترك لعرض طريقة الحساب
+يستقبل متغير method
+{% endcomment %}
+
+{% if method == 'per_piece' %}
+    <span class="badge bg-primary">بالقطعة</span>
+{% elif method == 'per_thousand' %}
+    <span class="badge bg-success">بالألف</span>
+{% elif method == 'per_square_meter' %}
+    <span class="badge bg-info">بالمتر المربع</span>
+{% elif method == 'per_sheet' %}
+    <span class="badge bg-warning">بالفرخ</span>
+{% elif method == 'per_hour' %}
+    <span class="badge bg-secondary">بالساعة</span>
+{% elif method == 'per_kg' %}
+    <span class="badge bg-dark">بالكيلو</span>
+{% elif method == 'per_impression' %}
+    <span class="badge bg-danger">بالطبعة</span>
+{% elif method == 'per_meter' %}
+    <span class="badge bg-info">بالمتر</span>
+{% else %}
+    <span class="badge bg-light text-dark">{{ method }}</span>
+{% endif %}

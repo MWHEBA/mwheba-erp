@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.select2-container { width: 100% !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <!-- فلاتر البحث -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-filter me-2"></i>فلاتر البحث</h5>
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label class="form-label">المخزن المصدر</label>
+                <select name="from_warehouse" class="form-select">
+                    <option value="">جميع المخازن</option>
+                    {% for warehouse in warehouses %}
+                        <option value="{{ warehouse.id }}" {% if request.GET.from_warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                            {{ warehouse.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">المخزن الهدف</label>
+                <select name="to_warehouse" class="form-select">
+                    <option value="">جميع المخازن</option>
+                    {% for warehouse in warehouses %}
+                        <option value="{{ warehouse.id }}" {% if request.GET.to_warehouse == warehouse.id|stringformat:"s" %}selected{% endif %}>
+                            {{ warehouse.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <div class="col-md-3">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select">
+                    <option value="">الكل</option>
+                    <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>معلق</option>
+                    <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+                </select>
+            </div>
+            
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> بحث
+                </button>
+                <a href="{% url 'product:transfer_voucher_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-redo"></i> إعادة تعيين
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- جدول أذون التحويل -->
+    <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-exchange-alt me-2"></i>أذون التحويل المخزني</h5>
+        {% include "components/data_table.html" with table_id="transfer-vouchers-table" headers=table_headers data=table_data primary_key=primary_key empty_message="لا توجد أذون تحويل" %}
+    </div>
+</div>
+
+<!-- مودال إنشاء إذن تحويل -->
+<div class="modal fade" id="transferVoucherModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="fas fa-exchange-alt me-2"></i>تحويل مخزني جديد</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="transferVoucherForm" method="post" action="{% url 'product:transfer_voucher_create' %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">المنتج <span class="text-danger">*</span></label>
+                            <select name="product" id="id_product" class="form-select" required>
+                                <option value="">--- اختر المنتج ---</option>
+                                {% for product in form.fields.product.queryset %}
+                                    <option value="{{ product.id }}">{{ product.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">من مخزن <span class="text-danger">*</span></label>
+                            <select name="from_warehouse" id="id_from_warehouse" class="form-select" required disabled>
+                                <option value="">--- اختر المنتج أولاً ---</option>
+                            </select>
+                            <small class="text-muted" id="from-warehouse-stock"></small>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">إلى مخزن <span class="text-danger">*</span></label>
+                            <select name="to_warehouse" id="id_to_warehouse" class="form-select" required disabled>
+                                <option value="">--- اختر المخزن المصدر أولاً ---</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">الكمية <span class="text-danger">*</span></label>
+                            <input type="number" name="quantity" id="id_quantity" class="form-control" min="1" required>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">المستند المرجعي</label>
+                            <input type="text" name="reference_document" class="form-control" placeholder="رقم المستند المرجعي">
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">المحول</label>
+                            <input type="text" name="transferred_by_name" class="form-control" placeholder="اسم الشخص المسؤول عن التحويل">
+                        </div>
+                        
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">ملاحظات</label>
+                            <textarea name="notes" class="form-control" rows="3" placeholder="ملاحظات إضافية"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> حفظ
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/product-select2.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#transfer-vouchers-table').length && typeof GlobalTableManager !== 'undefined') {
+        GlobalTableManager.initializeTable('transfer-vouchers-table', {
+            order: [[1, 'desc']],
+            columnDefs: [{ targets: -1, orderable: false }]
+        });
+    }
+    
+    // تهيئة select2 عند فتح المودال
+    $('#transferVoucherModal').on('shown.bs.modal', function() {
+        ProductSelect2.initAll($('#transferVoucherModal'), $('#transferVoucherModal'));
+        // ربط الـ change event بعد تهيئة select2
+        $('#id_product').off('change.transfer').on('change.transfer', handleProductChange);
+    });
+    
+    // فتح مودال التحويل
+    window.openTransferVoucherModal = function() {
+        $('#transferVoucherForm')[0].reset();
+        var $product = $('#id_product');
+        if ($product.hasClass('select2-hidden-accessible')) {
+            $product.val(null).trigger('change');
+        }
+        $('#id_from_warehouse').prop('disabled', true).html('<option value="">--- اختر المنتج أولاً ---</option>');
+        $('#id_to_warehouse').prop('disabled', true).html('<option value="">--- اختر المخزن المصدر أولاً ---</option>');
+        $('#from-warehouse-stock').text('');
+        $('#transferVoucherModal').modal('show');
+    };
+    
+    // عند اختيار المنتج
+    function handleProductChange() {
+        const productId = $(this).val();
+        const fromWarehouseSelect = $('#id_from_warehouse');
+        const toWarehouseSelect = $('#id_to_warehouse');
+        
+        fromWarehouseSelect.prop('disabled', true).html('<option value="">جاري التحميل...</option>');
+        toWarehouseSelect.prop('disabled', true).html('<option value="">--- اختر المخزن المصدر أولاً ---</option>');
+        $('#from-warehouse-stock').text('');
+        
+        if (!productId) {
+            fromWarehouseSelect.html('<option value="">--- اختر المنتج أولاً ---</option>');
+            return;
+        }
+        
+        $.ajax({
+            url: '{% url "product:get_product_warehouses" %}',
+            data: { product_id: productId },
+            success: function(data) {
+                let options = '<option value="">--- اختر المخزن ---</option>';
+                const availableWarehouses = data.warehouses.filter(w => w.quantity > 0);
+                
+                if (availableWarehouses.length === 0) {
+                    options = '<option value="">لا توجد مخازن تحتوي على هذا المنتج</option>';
+                    fromWarehouseSelect.prop('disabled', true);
+                } else {
+                    availableWarehouses.forEach(function(warehouse) {
+                        options += `<option value="${warehouse.id}" data-quantity="${warehouse.quantity}">${warehouse.name} (متاح: ${warehouse.quantity} ${data.unit})</option>`;
+                    });
+                    fromWarehouseSelect.prop('disabled', false);
+                }
+                
+                fromWarehouseSelect.html(options);
+                fromWarehouseSelect.data('all-warehouses', data.warehouses);
+                fromWarehouseSelect.data('unit', data.unit);
+            },
+            error: function() {
+                fromWarehouseSelect.html('<option value="">حدث خطأ في تحميل المخازن</option>');
+            }
+        });
+    }
+    
+    // عند اختيار المخزن المصدر
+    $('#id_from_warehouse').on('change', function() {
+        const selectedWarehouseId = $(this).val();
+        const selectedOption = $(this).find('option:selected');
+        const quantity = selectedOption.data('quantity');
+        const unit = $(this).data('unit') || 'وحدة';
+        const toWarehouseSelect = $('#id_to_warehouse');
+        
+        if (selectedWarehouseId && quantity) {
+            $('#from-warehouse-stock').text(`الكمية المتاحة: ${quantity} ${unit}`);
+        } else {
+            $('#from-warehouse-stock').text('');
+        }
+        
+        toWarehouseSelect.prop('disabled', true).html('<option value="">جاري التحميل...</option>');
+        
+        if (!selectedWarehouseId) {
+            toWarehouseSelect.html('<option value="">--- اختر المخزن المصدر أولاً ---</option>');
+            return;
+        }
+        
+        const allWarehouses = [
+            {% for warehouse in warehouses %}
+            {id: '{{ warehouse.id }}', name: '{{ warehouse.name }}'}{% if not forloop.last %},{% endif %}
+            {% endfor %}
+        ];
+        
+        let options = '<option value="">--- اختر المخزن ---</option>';
+        allWarehouses.forEach(function(warehouse) {
+            if (warehouse.id !== selectedWarehouseId) {
+                options += `<option value="${warehouse.id}">${warehouse.name}</option>`;
+            }
+        });
+        
+        toWarehouseSelect.html(options).prop('disabled', false);
+    });
+    
+    // إرسال النموذج عبر AJAX
+    $('#transferVoucherForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        const form = $(this);
+        const submitBtn = form.find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...');
+        
+        $.ajax({
+            url: form.attr('action'),
+            method: 'POST',
+            data: form.serialize(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(response) {
+                if (response.success) {
+                    $('#transferVoucherModal').modal('hide');
+                    window.location.href = response.redirect_url;
+                } else {
+                    toastr.error(response.message || 'حدث خطأ');
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                const response = xhr.responseJSON;
+                toastr.error(response?.message || 'حدث خطأ في الحفظ');
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

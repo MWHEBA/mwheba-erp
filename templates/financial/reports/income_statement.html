@@ -1,0 +1,530 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load custom_filters %}
+{% load app_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+  .income-statement-section {
+    margin-bottom: 1.5rem;
+  }
+  
+  .income-statement-title {
+    color: var(--text-color);
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid var(--primary-color);
+  }
+  
+  .account-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    margin-bottom: 0.5rem;
+    background: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #e9ecef;
+    transition: all 0.2s ease;
+  }
+  
+  .account-row:hover {
+    background: #e9ecef;
+    transform: translateX(5px);
+  }
+  
+  .account-name {
+    font-weight: 500;
+    color: var(--text-color);
+  }
+  
+  .account-balance {
+    font-weight: 600;
+    color: var(--success-color);
+    font-family: 'Tajawal', sans-serif;
+  }
+  
+  .total-row {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1.05rem;
+    border: none;
+    margin-top: 1rem;
+  }
+  
+  .total-row:hover {
+    transform: none;
+  }
+  
+  .final-row {
+    background-color: var(--primary-color);
+    color: white;
+    font-weight: 700;
+    font-size: 1.15rem;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    margin-top: 2rem;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+  
+  .profit {
+    color: var(--success-color) !important;
+  }
+  
+  .loss {
+    color: var(--danger-color) !important;
+  }
+  
+  /* chart-container موجود في shared-components.css */
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container no-print">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}</h5>
+    <div class="filter-section mb-4">
+      <form method="GET" action="" class="row g-3">
+        <div class="col-md-3">
+          <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker
+                 placeholder="من تاريخ" value="{{ date_from|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3">
+          <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+          <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker
+                 placeholder="إلى تاريخ" value="{{ date_to|date:'Y-m-d' }}">
+        </div>
+        <div class="col-md-3 d-flex align-items-end gap-2">
+          <button type="submit" class="btn btn-primary flex-fill" title="{% trans 'عرض' %}">
+            <i class="fas fa-search"></i>
+          </button>
+          <a href="{% url 'financial:income_statement' %}" class="btn btn-outline-secondary flex-fill" title="{% trans 'الشهر الحالي' %}">
+            <i class="fas fa-calendar-alt"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-up"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+            <div class="stats-card-value">{{ income_statement_data.total_revenue|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-arrow-down"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المصروفات" %}</div>
+            <div class="stats-card-value">{{ income_statement_data.total_expense|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card {% if income_statement_data.is_profit %}stats-card-primary{% else %}stats-card-warning{% endif %}">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-{% if income_statement_data.is_profit %}chart-line{% else %}chart-line-down{% endif %}"></i>
+            </div>
+            <div class="stats-card-title">{% trans "صافي الربح/الخسارة" %}</div>
+            <div class="stats-card-value">{{ income_statement_data.net_income|smart_float }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-percentage"></i>
+            </div>
+            <div class="stats-card-title">{% trans "هامش الربح" %}</div>
+            <div class="stats-card-value">
+              {% if total_income and total_income != 0 %}
+                {% widthratio net_income total_income 100 %}%
+              {% else %}
+                0%
+              {% endif %}
+            </div>
+            <div class="stats-card-unit">{% trans "نسبة مئوية" %}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة الدخل -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-chart-line me-2"></i>{% trans "قائمة الدخل" %}</h5>
+        <div class="actions-container">
+          <button type="button" class="btn btn-sm btn-outline-secondary" onclick="exportIncomeStatement()">
+            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-success" onclick="exportIncomeStatementExcel()">
+            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <!-- الإيرادات -->
+          <div class="col-md-6">
+            <div class="income-statement-section">
+              <h5 class="income-statement-title">{% trans "الإيرادات" %}</h5>
+              {% if income_statement_data.revenues %}
+                {% for item in income_statement_data.revenues %}
+                <div class="account-row">
+                  <span class="account-name">{{ item.account.name }}</span>
+                  <span class="account-balance">{{ item.amount|currency }}</span>
+                </div>
+                {% endfor %}
+                <div class="account-row total-row">
+                  <span>{% trans "إجمالي الإيرادات" %}</span>
+                  <span>{{ income_statement_data.total_revenue|currency }}</span>
+                </div>
+              {% else %}
+                <div class="empty-state">
+                  <div class="empty-state-icon">
+                    <i class="fas fa-arrow-up"></i>
+                  </div>
+                  <h5>{% trans "لا توجد إيرادات" %}</h5>
+                  <p>{% trans "لا توجد إيرادات لعرضها في هذه الفترة" %}</p>
+                </div>
+              {% endif %}
+            </div>
+          </div>
+          
+          <!-- المصروفات -->
+          <div class="col-md-6">
+            <div class="income-statement-section">
+              <h5 class="income-statement-title">{% trans "المصروفات" %}</h5>
+              {% if income_statement_data.expenses %}
+                {% for item in income_statement_data.expenses %}
+                <div class="account-row">
+                  <span class="account-name">{{ item.account.name }}</span>
+                  <span class="account-balance">{{ item.amount|currency }}</span>
+                </div>
+                {% endfor %}
+                <div class="account-row total-row">
+                  <span>{% trans "إجمالي المصروفات" %}</span>
+                  <span>{{ income_statement_data.total_expense|currency }}</span>
+                </div>
+              {% else %}
+                <div class="text-center text-muted py-3">
+                  <i class="fas fa-info-circle me-2"></i>{% trans "لا توجد مصروفات" %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+        
+        <!-- صافي الربح أو الخسارة -->
+        <div class="final-row">
+          <div class="account-row">
+            <span>{% trans "صافي الربح (الخسارة)" %}</span>
+            <span class="{% if income_statement_data.is_profit %}profit{% else %}loss{% endif %}">
+              {{ income_statement_data.net_income|currency }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- التحليل البياني -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>{% trans "التحليل البياني" %}</h5>
+    <div class="row">
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h6 class="text-center mb-3"><i class="fas fa-arrow-up text-success me-2"></i>{% trans "تحليل الإيرادات" %}</h6>
+          <div class="chart-pie">
+            <canvas id="incomeChart" style="height: 300px;"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 mb-4">
+        <div class="chart-container">
+          <h6 class="text-center mb-3"><i class="fas fa-arrow-down text-danger me-2"></i>{% trans "تحليل المصروفات" %}</h6>
+          <div class="chart-pie">
+            <canvas id="expenseChart" style="height: 300px;"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- مكتبة Chart.js للرسوم البيانية -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+  // تصدير قائمة الدخل إلى CSV
+  function exportIncomeStatement() {
+    try {
+      let csvContent = '\uFEFF'; // BOM للدعم العربي
+      csvContent += 'قائمة الدخل للفترة من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}\n\n';
+      
+      // الإيرادات
+      csvContent += 'الإيرادات\n';
+      {% if income_statement_data.revenues %}
+        {% for item in income_statement_data.revenues %}
+          csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
+        {% endfor %}
+        csvContent += '"إجمالي الإيرادات","{{ income_statement_data.total_revenue|currency }}"\n\n';
+      {% endif %}
+      
+      // المصروفات
+      csvContent += 'المصروفات\n';
+      {% if income_statement_data.expenses %}
+        {% for item in income_statement_data.expenses %}
+          csvContent += '"{{ item.account.name }}","{{ item.amount|currency }}"\n';
+        {% endfor %}
+        csvContent += '"إجمالي المصروفات","{{ income_statement_data.total_expense|currency }}"\n\n';
+      {% endif %}
+      
+      csvContent += '"صافي الربح (الخسارة)","{{ income_statement_data.net_income|currency }}"\n';
+      
+      // تحميل الملف
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', 'قائمة_الدخل_{{ date_from|date:"Y-m-d" }}_{{ date_to|date:"Y-m-d" }}.csv');
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى CSV بنجاح'); };
+    } catch (error) {
+      console.error('خطأ في تصدير CSV:', error);
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+    }
+  }
+  
+  // تصدير قائمة الدخل إلى Excel
+  function exportIncomeStatementExcel() {
+    try {
+      let data = [];
+      
+      // العنوان
+      data.push(['قائمة الدخل للفترة من {{ date_from|date:"Y-m-d" }} إلى {{ date_to|date:"Y-m-d" }}']);
+      data.push([]);
+      
+      // الإيرادات
+      data.push(['الإيرادات']);
+      {% if income_statement_data.revenues %}
+        {% for item in income_statement_data.revenues %}
+          data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
+        {% endfor %}
+        data.push(['إجمالي الإيرادات', '{{ income_statement_data.total_revenue|currency }}']);
+      {% endif %}
+      data.push([]);
+      
+      // المصروفات
+      data.push(['المصروفات']);
+      {% if income_statement_data.expenses %}
+        {% for item in income_statement_data.expenses %}
+          data.push(['{{ item.account.name }}', '{{ item.amount|currency }}']);
+        {% endfor %}
+        data.push(['إجمالي المصروفات', '{{ income_statement_data.total_expense|currency }}']);
+      {% endif %}
+      data.push([]);
+      
+      data.push(['صافي الربح (الخسارة)', '{{ income_statement_data.net_income|currency }}']);
+      
+      // إنشاء ملف Excel
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'قائمة الدخل');
+      XLSX.writeFile(wb, 'قائمة_الدخل_{{ date_from|date:"Y-m-d" }}_{{ date_to|date:"Y-m-d" }}.xlsx');
+      
+      if (typeof toastr !== 'undefined') { toastr.success('تم تصدير قائمة الدخل إلى Excel بنجاح'); };
+    } catch (error) {
+      console.error('خطأ في تصدير Excel:', error);
+      if (typeof toastr !== 'undefined') { toastr.error('حدث خطأ أثناء تصدير البيانات'); };
+    }
+  }
+  
+  // دالة إظهار الإشعارات
+  // Removed: Using toastr library directly alert-dismissible fade show position-fixed" 
+             style="top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
+            <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `);
+    
+    $('body').append(notification);
+    
+    // إزالة الإشعار تلقائياً بعد 5 ثوان
+    setTimeout(() => {
+        notification.alert('close');
+    }, 5000);
+  }
+
+  $(document).ready(function() {
+    // إعداد الرسوم البيانية
+    initCharts();
+    
+    // إضافة تأثيرات hover للحسابات
+    $('.account-row').hover(
+      function() {
+        if (!$(this).hasClass('total-row')) {
+          $(this).addClass('shadow-sm');
+        }
+      },
+      function() {
+        $(this).removeClass('shadow-sm');
+      }
+    );
+    
+    // تنسيق حقول التاريخ
+    $('input[type="date"]').addClass('form-control');
+  });
+  
+  // دالة إعداد الرسوم البيانية
+  function initCharts() {
+    // بيانات الإيرادات
+    const incomeData = {
+      labels: [
+        {% for item in income_statement_data.revenues %}
+          '{{ item.account.name|escapejs }}',
+        {% endfor %}
+      ],
+      values: [
+        {% for item in income_statement_data.revenues %}
+          {{ item.amount|default:0 }},
+        {% endfor %}
+      ]
+    };
+    
+    // بيانات المصروفات
+    const expenseData = {
+      labels: [
+        {% for item in income_statement_data.expenses %}
+          '{{ item.account.name|escapejs }}',
+        {% endfor %}
+      ],
+      values: [
+        {% for item in income_statement_data.expenses %}
+          {{ item.amount|default:0 }},
+        {% endfor %}
+      ]
+    };
+    
+    // إنشاء رسم بياني للإيرادات
+    if (incomeData.labels.length > 0) {
+      createPieChart('incomeChart', incomeData, 'الإيرادات', '#28a745');
+    }
+    
+    // إنشاء رسم بياني للمصروفات
+    if (expenseData.labels.length > 0) {
+      createPieChart('expenseChart', expenseData, 'المصروفات', '#dc3545');
+    }
+  }
+  
+  // دالة إنشاء الرسم البياني الدائري
+  function createPieChart(canvasId, data, title, baseColor) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return;
+    
+    const colors = generateColors(data.labels.length, baseColor);
+    
+    new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: data.labels,
+        datasets: [{
+          data: data.values,
+          backgroundColor: colors,
+          borderWidth: 2,
+          borderColor: '#fff'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: {
+              padding: 20,
+              usePointStyle: true,
+              font: {
+                size: 12
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(context) {
+                const label = context.label || '';
+                const value = context.parsed || 0;
+                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                const percentage = ((value / total) * 100).toFixed(1);
+                return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+  
+  // توليد ألوان متدرجة
+  function generateColors(count, baseColor = '#0d6efd') {
+    const colors = [];
+    const baseColors = [
+      '#0d6efd', '#198754', '#dc3545', '#ffc107', '#6f42c1',
+      '#fd7e14', '#20c997', '#6610f2', '#e83e8c', '#17a2b8'
+    ];
+    
+    for (let i = 0; i < count; i++) {
+      colors.push(baseColors[i % baseColors.length]);
+    }
+    
+    return colors;
+  }
+</script>
+{% endblock %} 

@@ -1,0 +1,463 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+
+{% block title %}الجزاءات والمكافآت{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  {% include "shared/page_header.html" %}
+
+  <!-- الفلاتر -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+      <div class="col-md-3">
+        <label class="form-label">الموظف</label>
+        <select name="employee" class="form-select">
+          <option value="">جميع الموظفين</option>
+          {% for emp in employees %}
+          <option value="{{ emp.id }}" {% if request.GET.employee == emp.id|stringformat:"i" %}selected{% endif %}>
+            {{ emp.get_full_name_ar }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">النوع</label>
+        <select name="category" class="form-select">
+          <option value="">الكل</option>
+          <option value="penalty" {% if request.GET.category == 'penalty' %}selected{% endif %}>جزاء</option>
+          <option value="reward" {% if request.GET.category == 'reward' %}selected{% endif %}>مكافأة</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">الحالة</label>
+        <select name="status" class="form-select">
+          <option value="">جميع الحالات</option>
+          <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+          <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>معتمد</option>
+          <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>مرفوض</option>
+          <option value="applied" {% if request.GET.status == 'applied' %}selected{% endif %}>مطبق</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">من تاريخ</label>
+        <input type="date" name="from_date" class="form-control" value="{{ request.GET.from_date }}">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">إلى تاريخ</label>
+        <input type="date" name="to_date" class="form-control" value="{{ request.GET.to_date }}">
+      </div>
+      <div class="col-md-1 d-flex align-items-end">
+        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search"></i></button>
+      </div>
+    </form>
+  </div>
+
+  <!-- الجدول -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الجزاءات والمكافآت</h5>
+      </div>
+      <div class="card-body">
+        {% if items %}
+        <div class="table-responsive">
+          <table class="table table-hover" id="pr-table">
+            <thead>
+              <tr>
+                <th class="text-center">الموظف</th>
+                <th class="text-center">النوع</th>
+                <th class="text-center">طريقة الحساب</th>
+                <th class="text-center">التاريخ</th>
+                <th class="text-center">شهر التطبيق</th>
+                <th class="text-center">المبلغ</th>
+                <th class="text-center">الحالة</th>
+                <th class="text-center">الإجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for pr in items %}
+              <tr style="cursor:pointer;">
+                <td class="text-center">
+                  <strong>{{ pr.employee.get_full_name_ar }}</strong>
+                  <br><small class="text-muted">{{ pr.employee.employee_number }}</small>
+                </td>
+                <td class="text-center">
+                  {% if pr.category == 'penalty' %}
+                    <span class="badge bg-danger"><i class="fas fa-gavel me-1"></i>جزاء</span>
+                  {% else %}
+                    <span class="badge bg-success"><i class="fas fa-gift me-1"></i>مكافأة</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">
+                  {% if pr.calculation_method == 'fixed' %}
+                    <span class="badge bg-secondary">قيمة ثابتة</span>
+                  {% elif pr.calculation_method == 'days' %}
+                    <span class="badge bg-info">{{ pr.value }} يوم</span>
+                  {% else %}
+                    <span class="badge bg-info">{{ pr.value }} ساعة</span>
+                  {% endif %}
+                </td>
+                <td class="text-center">{{ pr.date|date:"Y-m-d" }}</td>
+                <td class="text-center">{{ pr.month|date:"Y-m" }}</td>
+                <td class="text-center">
+                  <strong>{{ pr.calculated_amount|smart_float }}</strong> ج.م
+                </td>
+                <td class="text-center">
+                  {% if pr.status == 'pending' %}
+                    <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                  {% elif pr.status == 'approved' %}
+                    <span class="badge bg-success">معتمد</span>
+                  {% elif pr.status == 'rejected' %}
+                    <span class="badge bg-danger">مرفوض</span>
+                  {% elif pr.status == 'applied' %}
+                    <span class="badge bg-primary">مطبق</span>
+                  {% endif %}
+                </td>
+                <td class="text-center col-actions">
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'hr:penalty_reward_detail' pr.pk %}" class="btn btn-outline-info action-view" title="عرض">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                    {% if pr.status == 'pending' %}
+                    <button class="btn btn-outline-success" title="اعتماد" onclick="approvePR('{{ pr.pk }}')">
+                      <i class="fas fa-check"></i>
+                    </button>
+                    <button class="btn btn-outline-danger" title="رفض" onclick="rejectPR('{{ pr.pk }}')">
+                      <i class="fas fa-times"></i>
+                    </button>
+                    <button class="btn btn-outline-secondary" title="تعديل" onclick="openEditModal('{{ pr.pk }}')">
+                      <i class="fas fa-edit"></i>
+                    </button>
+                    {% endif %}
+                    {% if pr.status != 'applied' %}
+                    <button class="btn btn-outline-danger" title="حذف" onclick="deletePR('{{ pr.pk }}')">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                    {% endif %}
+                  </div>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if items.has_other_pages %}
+        <nav class="mt-3">
+          <ul class="pagination justify-content-center">
+            {% if items.has_previous %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ items.previous_page_number }}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">السابق</a>
+            </li>
+            {% endif %}
+            <li class="page-item disabled"><span class="page-link">{{ items.number }} / {{ items.paginator.num_pages }}</span></li>
+            {% if items.has_next %}
+            <li class="page-item">
+              <a class="page-link" href="?page={{ items.next_page_number }}{% if request.GET.employee %}&employee={{ request.GET.employee }}{% endif %}{% if request.GET.category %}&category={{ request.GET.category }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">التالي</a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        {% include 'partials/empty_state.html' with message="لا توجد جزاءات أو مكافآت" icon="gavel" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الإضافة/التعديل -->
+<div class="modal fade" id="prModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="prModalTitle">إضافة جزاء/مكافأة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="prForm" method="post">
+        {% csrf_token %}
+        <div class="modal-body">
+          <!-- الموظف -->
+          <div class="mb-3">
+            <label class="form-label">الموظف <span class="text-danger">*</span></label>
+            <select name="employee" class="form-select" required id="id_employee">
+              <option value="">اختر الموظف</option>
+              {% for emp in employees %}
+              <option value="{{ emp.id }}">{{ emp.get_full_name_ar }} ({{ emp.employee_number }})</option>
+              {% endfor %}
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+
+          <!-- النوع -->
+          <div class="mb-3">
+            <label class="form-label">النوع <span class="text-danger">*</span></label>
+            <select name="category" class="form-select" required id="id_category">
+              <option value="penalty">جزاء</option>
+              <option value="reward">مكافأة</option>
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+
+          <!-- التاريخ وشهر التطبيق -->
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">التاريخ <span class="text-danger">*</span></label>
+              <input type="date" name="date" class="form-control" required id="id_date">
+              <div class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">شهر التطبيق <span class="text-danger">*</span></label>
+              <input type="month" name="month" class="form-control" required id="id_month">
+              <div class="invalid-feedback"></div>
+            </div>
+          </div>
+
+          <!-- طريقة الحساب -->
+          <div class="mb-3">
+            <label class="form-label">طريقة الحساب <span class="text-danger">*</span></label>
+            <select name="calculation_method" class="form-select" required id="id_calculation_method" onchange="updateValueLabel()">
+              <option value="fixed">قيمة ثابتة (جنيه)</option>
+              <option value="days">بالأيام</option>
+              <option value="hours">بالساعات</option>
+            </select>
+            <div class="invalid-feedback"></div>
+          </div>
+
+          <!-- القيمة -->
+          <div class="mb-3">
+            <label class="form-label" id="valueLabelText">المبلغ (جنيه) <span class="text-danger">*</span></label>
+            <input type="number" name="value" class="form-control" required id="id_value" step="0.01" min="0.01">
+            <div class="invalid-feedback"></div>
+          </div>
+
+          <!-- السبب -->
+          <div class="mb-3">
+            <label class="form-label">السبب/التفاصيل <span class="text-danger">*</span></label>
+            <textarea name="reason" class="form-control" rows="3" required id="id_reason" placeholder="اذكر السبب أو التفاصيل..."></textarea>
+            <div class="invalid-feedback"></div>
+          </div>
+
+          <!-- منطقة عرض أخطاء الفورم -->
+          <div id="formErrorsAlert" class="alert alert-danger d-none"></div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+          <button type="submit" class="btn btn-primary" id="prSubmitBtn">حفظ</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+$(document).ready(function() {
+  if ($('#pr-table').length && typeof initGlobalTable === 'function') {
+    initGlobalTable('pr-table', {
+      ordering: true,
+      order: [[3, 'desc']],
+      columnDefs: [{ targets: [6, 7], orderable: false }]
+    });
+    $('#pr-table tbody').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions').length) return;
+      const viewBtn = $(this).find('.action-view');
+      if (viewBtn.length) window.location.href = viewBtn.attr('href');
+    });
+  }
+
+  // تعيين التاريخ الافتراضي
+  const today = new Date().toISOString().split('T')[0];
+  const thisMonth = today.substring(0, 7);
+  document.getElementById('id_date').value = today;
+  document.getElementById('id_month').value = thisMonth;
+});
+
+function updateValueLabel() {
+  const method = document.getElementById('id_calculation_method').value;
+  const label = document.getElementById('valueLabelText');
+  if (method === 'fixed') label.innerHTML = 'المبلغ (جنيه) <span class="text-danger">*</span>';
+  else if (method === 'days') label.innerHTML = 'عدد الأيام <span class="text-danger">*</span>';
+  else label.innerHTML = 'عدد الساعات <span class="text-danger">*</span>';
+}
+
+function openCreateModal() {
+  document.getElementById('prModalTitle').textContent = 'إضافة جزاء/مكافأة';
+  document.getElementById('prForm').action = "{% url 'hr:penalty_reward_create' %}";
+  document.getElementById('prForm').reset();
+  document.getElementById('formErrorsAlert').classList.add('d-none');
+  // إزالة أي invalid classes سابقة
+  document.querySelectorAll('#prForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('id_date').value = today;
+  document.getElementById('id_month').value = today.substring(0, 7);
+  updateValueLabel();
+  new bootstrap.Modal(document.getElementById('prModal')).show();
+}
+
+// إرسال الفورم عبر AJAX
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('prForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const form = this;
+    const submitBtn = document.getElementById('prSubmitBtn');
+    const errorsAlert = document.getElementById('formErrorsAlert');
+
+    // إخفاء الأخطاء السابقة
+    errorsAlert.classList.add('d-none');
+    document.querySelectorAll('#prForm .is-invalid').forEach(el => el.classList.remove('is-invalid'));
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>جاري الحفظ...';
+
+    fetch(form.action, {
+      method: 'POST',
+      body: new FormData(form),
+      headers: {'X-CSRFToken': CSRF_TOKEN}
+    })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        bootstrap.Modal.getInstance(document.getElementById('prModal')).hide();
+        Swal.fire({icon: 'success', title: data.message, timer: 1500, showConfirmButton: false})
+          .then(() => location.reload());
+      } else if (data.form_errors) {
+        // عرض أخطاء الحقول
+        let errorLines = [];
+        for (const [field, info] of Object.entries(data.form_errors)) {
+          if (field === '__all__') {
+            errorLines.push(info.errors.join('<br>'));
+          } else {
+            const el = document.getElementById(`id_${field}`);
+            if (el) {
+              el.classList.add('is-invalid');
+              const feedback = el.parentElement.querySelector('.invalid-feedback');
+              if (feedback) feedback.textContent = info.errors.join(', ');
+            }
+            errorLines.push(`<strong>${info.label}:</strong> ${info.errors.join(', ')}`);
+          }
+        }
+        errorsAlert.innerHTML = errorLines.join('<br>');
+        errorsAlert.classList.remove('d-none');
+      } else {
+        Swal.fire('خطأ', data.message, 'error');
+      }
+    })
+    .catch(() => Swal.fire('خطأ', 'حدث خطأ في الاتصال', 'error'))
+    .finally(() => {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = 'حفظ';
+    });
+  });
+});
+
+function openEditModal(pk) {
+  window.location.href = `/hr/penalties-rewards/${pk}/`;
+}
+
+function approvePR(pk) {
+  Swal.fire({
+    title: 'اعتماد الطلب',
+    text: 'هل أنت متأكد من الاعتماد؟',
+    icon: 'question',
+    input: 'textarea',
+    inputPlaceholder: 'ملاحظات (اختياري)...',
+    showCancelButton: true,
+    confirmButtonColor: '#28a745',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، اعتمد',
+    cancelButtonText: 'إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: (notes) => {
+      return fetch(`/hr/penalties-rewards/${pk}/approve/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN},
+        body: new URLSearchParams({'review_notes': notes || ''})
+      }).then(r => r.json()).catch(e => Swal.showValidationMessage(`خطأ: ${e}`));
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then(result => {
+    if (result.isConfirmed) {
+      if (result.value.success) {
+        Swal.fire({icon: 'success', title: 'تم الاعتماد', timer: 1500, showConfirmButton: false})
+          .then(() => location.reload());
+      } else {
+        Swal.fire('خطأ', result.value.message, 'error');
+      }
+    }
+  });
+}
+
+function rejectPR(pk) {
+  Swal.fire({
+    title: 'رفض الطلب',
+    text: 'يجب إدخال سبب الرفض:',
+    icon: 'warning',
+    input: 'textarea',
+    inputPlaceholder: 'سبب الرفض...',
+    inputValidator: v => !v ? 'يجب إدخال سبب الرفض' : null,
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، ارفض',
+    cancelButtonText: 'إلغاء',
+    showLoaderOnConfirm: true,
+    preConfirm: (notes) => {
+      return fetch(`/hr/penalties-rewards/${pk}/reject/`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': CSRF_TOKEN},
+        body: new URLSearchParams({'review_notes': notes})
+      }).then(r => r.json()).catch(e => Swal.showValidationMessage(`خطأ: ${e}`));
+    },
+    allowOutsideClick: () => !Swal.isLoading()
+  }).then(result => {
+    if (result.isConfirmed) {
+      if (result.value.success) {
+        Swal.fire({icon: 'success', title: 'تم الرفض', timer: 1500, showConfirmButton: false})
+          .then(() => location.reload());
+      } else {
+        Swal.fire('خطأ', result.value.message, 'error');
+      }
+    }
+  });
+}
+
+function deletePR(pk) {
+  Swal.fire({
+    title: 'هل أنت متأكد من الحذف؟',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#dc3545',
+    cancelButtonColor: '#6c757d',
+    confirmButtonText: 'نعم، احذف',
+    cancelButtonText: 'إلغاء'
+  }).then(result => {
+    if (result.isConfirmed) {
+      fetch(`/hr/penalties-rewards/${pk}/delete/`, {
+        method: 'POST',
+        headers: {'X-CSRFToken': CSRF_TOKEN}
+      }).then(r => r.json()).then(data => {
+        if (data.success) {
+          Swal.fire({icon: 'success', title: 'تم الحذف', timer: 1500, showConfirmButton: false})
+            .then(() => location.reload());
+        } else {
+          Swal.fire('خطأ', data.message, 'error');
+        }
+      });
+    }
+  });
+}
+</script>
+{% endblock %}

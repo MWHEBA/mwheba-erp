@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-6">
+
+      <!-- معلومات الخدمة -->
+      <div class="alert alert-info mb-4">
+        <i class="{{ service.service_type.icon }} me-2"></i>
+        <strong>{{ service.name }}</strong>
+        <span class="text-muted ms-2">— {{ service.service_type.name }}</span>
+        <span class="ms-3">السعر الأساسي: <strong>{{ service.base_price|smart_float }} ج.م</strong></span>
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+        <div class="section-container">
+          <h5 class="section-title"><i class="fas fa-layer-group me-2"></i>بيانات الشريحة</h5>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الحد الأدنى للكمية <span class="text-danger">*</span></label>
+              <input type="number" name="min_quantity" class="form-control" min="0" required
+                     value="{{ form_data.min_quantity }}"
+                     placeholder="مثال: 1000">
+              <small class="text-muted">الكمية الأدنى لتطبيق هذا السعر</small>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">الحد الأقصى للكمية</label>
+              <input type="number" name="max_quantity" class="form-control" min="0"
+                     value="{{ form_data.max_quantity }}"
+                     placeholder="اتركه فارغاً = بلا حد">
+              <small class="text-muted">فارغ = يطبق على جميع الكميات الأعلى</small>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">السعر لكل وحدة (ج.م) <span class="text-danger">*</span></label>
+              <input type="number" name="price_per_unit" class="form-control" step="0.01" min="0" required
+                     value="{{ form_data.price_per_unit }}"
+                     placeholder="0.00">
+            </div>
+            <div class="col-md-6 mb-3 d-flex align-items-end pb-2">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                       {% if form_data.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="is_active">شريحة نشطة</label>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- مثال توضيحي -->
+        <div class="alert alert-secondary mb-4">
+          <i class="fas fa-info-circle me-2"></i>
+          <strong>مثال:</strong> الحد الأدنى = 1000، الحد الأقصى = 4999، السعر = 0.50 ج.م
+          <br>
+          <small class="text-muted">يعني: من 1000 إلى 4999 وحدة، السعر 0.50 ج.م لكل وحدة</small>
+        </div>
+
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{% url 'supplier:supplier_service_detail' supplier.pk service.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% if is_edit %}حفظ التعديلات{% else %}إضافة الشريحة{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

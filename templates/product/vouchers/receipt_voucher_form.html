@@ -1,0 +1,83 @@
+{% load crispy_forms_tags %}
+
+<form method="post" action="{% url 'product:receipt_voucher_create' %}">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.product.label }}</label>
+            {{ form.product }}
+            {% if form.product.errors %}
+                <div class="text-danger">{{ form.product.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.warehouse.label }}</label>
+            {{ form.warehouse }}
+            {% if form.warehouse.errors %}
+                <div class="text-danger">{{ form.warehouse.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.quantity.label }}</label>
+            {{ form.quantity }}
+            {% if form.quantity.errors %}
+                <div class="text-danger">{{ form.quantity.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.unit_cost.label }}</label>
+            {{ form.unit_cost }}
+            {% if form.unit_cost.errors %}
+                <div class="text-danger">{{ form.unit_cost.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.purpose_type.label }}</label>
+            {{ form.purpose_type }}
+            {% if form.purpose_type.errors %}
+                <div class="text-danger">{{ form.purpose_type.errors }}</div>
+            {% endif %}
+        </div>
+        <div class="col-md-6 mb-3">
+            <label class="form-label">{{ form.received_by_name.label }}</label>
+            {{ form.received_by_name }}
+            {% if form.received_by_name.errors %}
+                <div class="text-danger">{{ form.received_by_name.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-12 mb-3">
+            <label class="form-label">{{ form.reference_document.label }}</label>
+            {{ form.reference_document }}
+            {% if form.reference_document.errors %}
+                <div class="text-danger">{{ form.reference_document.errors }}</div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="mb-3">
+        <label class="form-label">{{ form.notes.label }}</label>
+        {{ form.notes }}
+        {% if form.notes.errors %}
+            <div class="text-danger">{{ form.notes.errors }}</div>
+        {% endif %}
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>حفظ
+        </button>
+    </div>
+</form>

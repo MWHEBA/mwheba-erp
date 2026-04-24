@@ -1,0 +1,384 @@
+/* Image Cropper Styles */
+
+.image-cropper-modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    overflow: auto;
+}
+
+.image-cropper-modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.image-cropper-container {
+    background-color: white;
+    border-radius: var(--border-radius-lg);
+    padding: 2rem;
+    max-width: 90%;
+    max-height: 90vh;
+    width: 800px;
+    box-shadow: var(--shadow-xl);
+    display: flex;
+    flex-direction: column;
+}
+
+.image-cropper-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.image-cropper-header h3 {
+    margin: 0;
+    color: var(--text-primary);
+    font-size: 1.25rem;
+    font-weight: 600;
+}
+
+.image-cropper-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--border-radius);
+    transition: all 0.2s ease;
+}
+
+.image-cropper-close:hover {
+    background-color: var(--hover-bg);
+    color: var(--text-primary);
+}
+
+.image-cropper-body {
+    flex: 1;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+}
+
+.image-cropper-wrapper {
+    max-height: 500px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-secondary);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.image-cropper-wrapper img {
+    max-width: 100%;
+    display: block;
+}
+
+.image-cropper-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.cropper-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.cropper-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.cropper-btn-icon {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.cropper-btn-icon:hover {
+    background-color: var(--hover-bg);
+}
+
+.cropper-btn-primary {
+    background-color: var(--primary-color);
+    color: white;
+}
+
+.cropper-btn-primary:hover {
+    background-color: var(--primary-hover);
+}
+
+.cropper-btn-secondary {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.cropper-btn-secondary:hover {
+    background-color: var(--hover-bg);
+}
+
+.image-preview-container {
+    margin-top: 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.image-preview-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid var(--border-color, #dee2e6);
+    background-color: var(--bg-secondary, #f8f9fa);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    width: 160px;
+    height: 160px;
+}
+
+.image-preview-wrapper:hover {
+    border-color: var(--primary-color, #0d6efd);
+    box-shadow: 0 4px 16px rgba(13, 110, 253, 0.2);
+    transform: translateY(-2px);
+}
+
+.image-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.image-preview-actions {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        to bottom, 
+        rgba(0, 0, 0, 0.2) 0%, 
+        rgba(0, 0, 0, 0.5) 50%,
+        rgba(0, 0, 0, 0.7) 100%
+    );
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 1rem;
+}
+
+.image-preview-wrapper:hover .image-preview-actions {
+    opacity: 1;
+}
+
+.preview-action-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid rgba(255, 255, 255, 0.9);
+    background-color: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.25s ease;
+    font-size: 1.1rem;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+    flex-shrink: 0;
+    padding: 0;
+    line-height: 1;
+    position: relative;
+}
+
+.preview-action-btn i {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    line-height: 1;
+}
+
+.preview-action-btn i::before {
+    display: block;
+    line-height: 1;
+}
+
+.preview-action-btn:hover {
+    transform: scale(1.15);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+}
+
+.preview-action-btn:active {
+    transform: scale(1.05);
+}
+
+.preview-action-btn.edit {
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #0d6efd;
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+.preview-action-btn.edit:hover {
+    background-color: #0d6efd;
+    color: white;
+    border-color: #0d6efd;
+}
+
+.preview-action-btn.edit:hover i {
+    color: white;
+}
+
+.preview-action-btn.delete {
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #dc3545;
+    border-color: rgba(255, 255, 255, 0.9);
+}
+
+.preview-action-btn.delete:hover {
+    background-color: #dc3545;
+    color: white;
+    border-color: #dc3545;
+}
+
+.preview-action-btn.delete:hover i {
+    color: white;
+}
+
+.image-preview-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary, #212529);
+    text-align: center;
+}
+
+.image-preview-label small {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 400;
+    color: var(--text-secondary, #6c757d);
+}
+
+.image-preview-label small i {
+    font-size: 0.875rem;
+}
+
+.image-preview-label .text-success {
+    color: #198754 !important;
+}
+
+/* تحسين للشاشات الصغيرة */
+@media (max-width: 576px) {
+    .image-preview-wrapper {
+        width: 140px;
+        height: 140px;
+    }
+    
+    .preview-action-btn {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .image-preview-actions {
+        gap: 0.75rem;
+    }
+}
+
+/* Cropper.js overrides */
+.cropper-container {
+    direction: ltr;
+}
+
+.cropper-view-box,
+.cropper-face {
+    border-radius: 0;
+}
+
+.cropper-point {
+    background-color: var(--primary-color);
+}
+
+.cropper-line {
+    background-color: var(--primary-color);
+}
+
+.cropper-point.point-se {
+    width: 8px;
+    height: 8px;
+    opacity: 1;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .image-cropper-container {
+        width: 95%;
+        padding: 1rem;
+        max-height: 95vh;
+    }
+    
+    .image-cropper-wrapper {
+        max-height: 400px;
+    }
+    
+    .image-cropper-footer {
+        flex-direction: column;
+    }
+    
+    .cropper-controls {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .image-cropper-footer > button {
+        width: 100%;
+    }
+}

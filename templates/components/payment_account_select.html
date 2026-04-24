@@ -1,0 +1,49 @@
+{% comment %}
+Component: Payment Account Select
+مكون موحد لاختيار حساب الدفع (الخزينة/البنك)
+
+IMPORTANT: payment_accounts و default_payment_account متاحين تلقائياً في جميع الصفحات
+عن طريق context processor (core.context_processors.payment_accounts)
+لا تحتاج إضافة أي كود في الـ view!
+
+Parameters:
+- field_name: اسم الحقل (default: payment_method)
+- field_id: معرف الحقل (default: payment_method)
+- label: التسمية (default: طريقة الدفع (الخزينة/البنك))
+- required: هل الحقل مطلوب (default: False)
+- selected_value: القيمة المحددة مسبقاً (optional)
+- show_empty_option: عرض خيار فارغ (default: True)
+- empty_option_text: نص الخيار الفارغ (default: اختر الحساب)
+
+Usage:
+{% include "components/payment_account_select.html" with field_name="payment_method" required=True %}
+{% include "components/payment_account_select.html" with field_name="payment_account" field_id="expense_payment" label="حساب الدفع" %}
+
+Note: القيمة المرسلة هي account.code (مثل: 10100 للخزينة، 10200 للبنك)
+{% endcomment %}
+
+{% load static %}
+
+<label for="{{ field_id|default:'payment_method' }}" class="form-label">
+    <i class="fas fa-wallet me-1"></i>{{ label|default:"طريقة الدفع (الخزينة/البنك)" }}
+    {% if required %}<span class="text-danger">*</span>{% endif %}
+</label>
+<select 
+    class="form-select" 
+    id="{{ field_id|default:'payment_method' }}" 
+    name="{{ field_name|default:'payment_method' }}"
+    {% if required %}required{% endif %}
+>
+    {% if show_empty_option|default:True %}
+    <option value="">{{ empty_option_text|default:"اختر الحساب" }}</option>
+    {% endif %}
+    
+    {% for account in payment_accounts %}
+    <option value="{{ account.code }}" 
+        {% if selected_value and account.code == selected_value %}selected{% endif %}
+        {% if not selected_value and default_payment_account and account.code == default_payment_account.code %}selected{% endif %}
+    >
+        {{ account.name }}
+    </option>
+    {% endfor %}
+</select>

@@ -1,0 +1,438 @@
+{% comment %}
+========================================
+STATS CARD المركزي - Corporate ERP
+========================================
+
+الاستخدام:
+{% include "shared/stats_card.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
+
+معاملات:
+- title: عنوان الكارت (مطلوب)
+- value: القيمة الرئيسية (مطلوب)
+- unit: الوحدة (اختياري)
+- subtitle: نص إضافي تحت القيمة (اختياري)
+- icon: أيقونة Font Awesome (اختياري)
+- color: اللون (primary/success/danger/info/warning/dark/light/secondary) (افتراضي: primary)
+- trend: الاتجاه (up/down/neutral) (اختياري)
+- trend_value: قيمة الاتجاه (مثل: 12, -5.2) (اختياري)
+- trend_text: نص الاتجاه (اختياري)
+- trend_period: فترة الاتجاه (مثل: "عن الشهر الماضي") (اختياري)
+- url: رابط عند الضغط على الكارت (اختياري)
+- target: هدف الرابط (_blank, _self) (اختياري)
+- card_class: فئات CSS إضافية للكارت (اختياري)
+- animate: تفعيل الحركة (اختياري، افتراضي True)
+- size: حجم الكارت (sm/md/lg) (اختياري، افتراضي md)
+- layout: تخطيط الكارت (horizontal/vertical) (اختياري، افتراضي vertical)
+
+الألوان المدعومة:
+- primary: أزرق أساسي
+- success: أخضر للنجاح
+- danger: أحمر للخطر
+- info: أزرق فاتح للمعلومات
+- warning: أصفر للتحذير
+- dark: رمادي داكن
+- light: رمادي فاتح
+- secondary: رمادي متوسط
+
+أنواع الاتجاهات:
+- up: اتجاه صاعد (أخضر مع سهم لأعلى)
+- down: اتجاه هابط (أحمر مع سهم لأسفل)
+- neutral: اتجاه محايد (رمادي مع خط مستقيم)
+
+أمثلة:
+
+1. كارت بسيط:
+{% include "shared/stats_card.html" with title="إجمالي العملاء" value=150 unit="عميل" icon="fa-users" color="primary" %}
+
+2. كارت مع اتجاه صاعد:
+{% include "shared/stats_card.html" with title="المبيعات" value=50000 unit="جنيه" icon="fa-chart-line" color="success" trend="up" trend_value=12.5 trend_period="عن الشهر الماضي" %}
+
+3. كارت مع اتجاه هابط:
+{% include "shared/stats_card.html" with title="المصروفات" value=25000 unit="جنيه" icon="fa-money-bill" color="danger" trend="down" trend_value=-8.2 trend_period="عن الأسبوع الماضي" %}
+
+4. كارت قابل للضغط:
+{% include "shared/stats_card.html" with title="الطلبات" value=25 unit="طلب" icon="fa-shopping-cart" color="info" url="/orders/" %}
+
+5. كارت أفقي كبير:
+{% include "shared/stats_card.html" with title="الإيرادات الشهرية" value=125000 unit="جنيه" icon="fa-chart-bar" color="success" layout="horizontal" size="lg" %}
+
+6. كارت صغير بدون حركة:
+{% include "shared/stats_card.html" with title="المستخدمين" value=42 icon="fa-user" color="secondary" size="sm" animate=False %}
+
+========================================
+{% endcomment %}
+
+{% load custom_filters %}
+
+<div class="col-xl-3 col-md-6 mb-4">
+    {% if url %}
+    <a href="{{ url }}" 
+       class="text-decoration-none stats-card-link" 
+       {% if target %}target="{{ target }}"{% endif %}
+       {% if title %}title="انقر لعرض {{ title }}"{% endif %}
+       aria-label="انقر لعرض تفاصيل {{ title }}">
+    {% endif %}
+        <div class="stats-card stats-card-{{ color|default:'primary' }} stats-card-{{ size|default:'md' }} stats-card-{{ layout|default:'vertical' }} {{ card_class }}"
+             {% if animate|default:True %}data-animate="true"{% endif %}
+             role="{% if url %}button{% else %}region{% endif %}"
+             {% if not url %}aria-label="إحصائية {{ title }}"{% endif %}>
+            
+            <!-- Card Header with colored bar -->
+            <div class="stats-card-header"></div>
+            
+            <!-- Card Body -->
+            <div class="stats-card-body">
+                {% if layout == 'horizontal' %}
+                    <!-- Horizontal Layout -->
+                    <div class="stats-horizontal-content">
+                        {% if icon %}
+                        <div class="stats-card-icon">
+                            <i class="fas {{ icon }}" aria-hidden="true"></i>
+                        </div>
+                        {% endif %}
+                        <div class="stats-card-info">
+                            <div class="stats-card-title">{{ title }}</div>
+                            <div class="stats-card-value-group">
+                                <span class="stats-card-value">{{ value|default:0|floatformat:0 }}</span>
+                                {% if unit %}
+                                <span class="stats-card-unit">{{ unit }}</span>
+                                {% endif %}
+                            </div>
+                            {% if subtitle %}
+                            <div class="stats-card-subtitle">{{ subtitle }}</div>
+                            {% endif %}
+                            {% if trend %}
+                            <div class="stats-card-trend trend-{{ trend }}">
+                                {% if trend == 'up' %}
+                                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                                {% elif trend == 'down' %}
+                                    <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                                {% else %}
+                                    <i class="fas fa-minus" aria-hidden="true"></i>
+                                {% endif %}
+                                {% if trend_value %}
+                                    <span class="trend-value">{{ trend_value|floatformat:1 }}%</span>
+                                {% endif %}
+                                {% if trend_text %}
+                                    <span class="trend-text">{{ trend_text }}</span>
+                                {% elif trend_period %}
+                                    <span class="trend-text">{{ trend_period }}</span>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% else %}
+                    <!-- Vertical Layout (Default) -->
+                    {% if icon %}
+                    <div class="stats-card-icon">
+                        <i class="fas {{ icon }}" aria-hidden="true"></i>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="stats-card-title">{{ title }}</div>
+                    
+                    <div class="stats-card-value-group">
+                        <span class="stats-card-value">{{ value|default:0|floatformat:0 }}</span>
+                        {% if unit %}
+                        <span class="stats-card-unit">{{ unit }}</span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if subtitle %}
+                    <div class="stats-card-subtitle">{{ subtitle }}</div>
+                    {% endif %}
+                    
+                    {% if trend %}
+                    <div class="stats-card-trend trend-{{ trend }}">
+                        {% if trend == 'up' %}
+                            <i class="fas fa-arrow-up" aria-hidden="true"></i>
+                        {% elif trend == 'down' %}
+                            <i class="fas fa-arrow-down" aria-hidden="true"></i>
+                        {% else %}
+                            <i class="fas fa-minus" aria-hidden="true"></i>
+                        {% endif %}
+                        {% if trend_value %}
+                            <span class="trend-value">{{ trend_value|floatformat:1 }}%</span>
+                        {% endif %}
+                        {% if trend_text %}
+                            <span class="trend-text">{{ trend_text }}</span>
+                        {% elif trend_period %}
+                            <span class="trend-text">{{ trend_period }}</span>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                {% endif %}
+            </div>
+            
+            <!-- Hover Effect Overlay -->
+            {% if url %}
+            <div class="stats-card-overlay">
+                <i class="fas fa-external-link-alt"></i>
+            </div>
+            {% endif %}
+        </div>
+    {% if url %}
+    </a>
+    {% endif %}
+</div>
+
+<!-- Stats Card Styles -->
+<style>
+/* Base Stats Card Styles */
+.stats-card {
+    background: var(--bs-white);
+    border-radius: 0.75rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    border: 1px solid var(--bs-border-color);
+    overflow: hidden;
+    position: relative;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.stats-card[data-animate="true"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.stats-card-link {
+    display: block;
+    height: 100%;
+}
+
+.stats-card-link:hover .stats-card {
+    border-color: var(--primary-color);
+}
+
+/* Card Header (Colored Bar) */
+.stats-card-header {
+    height: 4px;
+    background: var(--card-color, var(--primary-color));
+}
+
+/* Card Body */
+.stats-card-body {
+    padding: 1.5rem;
+    position: relative;
+}
+
+/* Icon Styles */
+.stats-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    background: var(--card-color, var(--primary-color));
+    color: white;
+    border-radius: 0.5rem;
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    flex-shrink: 0;
+}
+
+/* Title */
+.stats-card-title {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--bs-secondary);
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+/* Value Group */
+.stats-card-value-group {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.stats-card-value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--bs-dark);
+    line-height: 1;
+}
+
+.stats-card-unit {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--bs-secondary);
+}
+
+/* Subtitle */
+.stats-card-subtitle {
+    font-size: 0.75rem;
+    color: var(--bs-secondary);
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+/* Trend Styles */
+.stats-card-trend {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+}
+
+.stats-card-trend.trend-up {
+    color: var(--bs-success);
+}
+
+.stats-card-trend.trend-down {
+    color: var(--bs-danger);
+}
+
+.stats-card-trend.trend-neutral {
+    color: var(--bs-secondary);
+}
+
+.trend-value {
+    font-weight: 600;
+}
+
+.trend-text {
+    opacity: 0.8;
+}
+
+/* Horizontal Layout */
+.stats-horizontal-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.stats-card-horizontal .stats-card-icon {
+    margin-bottom: 0;
+}
+
+.stats-card-info {
+    flex: 1;
+}
+
+.stats-card-horizontal .stats-card-value {
+    font-size: 1.75rem;
+}
+
+/* Size Variations */
+.stats-card-sm .stats-card-body {
+    padding: 1rem;
+}
+
+.stats-card-sm .stats-card-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 1rem;
+}
+
+.stats-card-sm .stats-card-value {
+    font-size: 1.5rem;
+}
+
+.stats-card-lg .stats-card-body {
+    padding: 2rem;
+}
+
+.stats-card-lg .stats-card-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+    font-size: 1.5rem;
+}
+
+.stats-card-lg .stats-card-value {
+    font-size: 2.5rem;
+}
+
+/* Color Variations */
+.stats-card-primary {
+    --card-color: var(--primary-color);
+}
+
+.stats-card-success {
+    --card-color: var(--bs-success);
+}
+
+.stats-card-danger {
+    --card-color: var(--bs-danger);
+}
+
+.stats-card-info {
+    --card-color: var(--bs-info);
+}
+
+.stats-card-warning {
+    --card-color: var(--bs-warning);
+}
+
+.stats-card-dark {
+    --card-color: var(--bs-dark);
+}
+
+.stats-card-light {
+    --card-color: var(--bs-light);
+    border-color: var(--bs-gray-300);
+}
+
+.stats-card-secondary {
+    --card-color: var(--bs-secondary);
+}
+
+/* Hover Overlay */
+.stats-card-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    color: white;
+    font-size: 1.25rem;
+}
+
+.stats-card-link:hover .stats-card-overlay {
+    opacity: 1;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .stats-card-horizontal .stats-horizontal-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .stats-card-horizontal .stats-card-icon {
+        margin-bottom: 0.75rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.75rem;
+    }
+    
+    .stats-card-lg .stats-card-value {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-card-body {
+        padding: 1rem;
+    }
+    
+    .stats-card-lg .stats-card-body {
+        padding: 1.25rem;
+    }
+    
+    .stats-card-value {
+        font-size: 1.5rem;
+    }
+}
+</style>

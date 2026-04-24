@@ -1,0 +1,213 @@
+{% load static %}
+{% load i18n %}
+
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-truck me-2"></i>
+        {% if form.instance.pk %}
+            {% trans "تعديل مورد" %}
+        {% else %}
+            {% trans "إضافة مورد جديد" %}
+        {% endif %}
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+</div>
+
+<form method="post" id="supplier-modal-form">
+    {% csrf_token %}
+    
+    <div class="modal-body">
+        <div class="row">
+            <!-- المعلومات الأساسية -->
+            <div class="col-12 mb-3">
+                <label for="{{ form.name.id_for_label }}" class="form-label">اسم المورد *</label>
+                {{ form.name }}
+                {% if form.name.errors %}
+                    <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.code.id_for_label }}" class="form-label">كود المورد</label>
+                {{ form.code }}
+                {% if form.code.errors %}
+                    <div class="text-danger small">{{ form.code.errors.0 }}</div>
+                {% endif %}
+                <div class="form-text">سيتم إنشاء الكود تلقائياً إذا تُرك فارغاً</div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.primary_type.id_for_label }}" class="form-label">نوع المورد *</label>
+                {{ form.primary_type }}
+                {% if form.primary_type.errors %}
+                    <div class="text-danger small">{{ form.primary_type.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <!-- معلومات التواصل -->
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.phone.id_for_label }}" class="form-label">رقم الهاتف *</label>
+                {{ form.phone }}
+                {% if form.phone.errors %}
+                    <div class="text-danger small">{{ form.phone.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-md-6 mb-3">
+                <label for="{{ form.whatsapp.id_for_label }}" class="form-label">واتساب</label>
+                {{ form.whatsapp }}
+                {% if form.whatsapp.errors %}
+                    <div class="text-danger small">{{ form.whatsapp.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-12 mb-3">
+                <label for="{{ form.contact_person.id_for_label }}" class="form-label">الشخص المسؤول</label>
+                {{ form.contact_person }}
+                {% if form.contact_person.errors %}
+                    <div class="text-danger small">{{ form.contact_person.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <div class="col-12 mb-3">
+                <label for="{{ form.address.id_for_label }}" class="form-label">العنوان</label>
+                {{ form.address }}
+                {% if form.address.errors %}
+                    <div class="text-danger small">{{ form.address.errors.0 }}</div>
+                {% endif %}
+            </div>
+            
+            <!-- الخيارات -->
+            <div class="col-12">
+                <div class="form-check form-switch mb-2">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                        {% trans "مورد نشط" %}
+                    </label>
+                </div>
+                
+                {% if form.is_preferred %}
+                <div class="form-check form-switch">
+                    {{ form.is_preferred }}
+                    <label class="form-check-label" for="{{ form.is_preferred.id_for_label }}">
+                        <i class="fas fa-star text-warning"></i> {% trans "مورد مفضل" %}
+                    </label>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+        </button>
+        <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-2"></i>
+            {% if form.instance.pk %}
+                {% trans "تحديث" %}
+            {% else %}
+                {% trans "حفظ" %}
+            {% endif %}
+        </button>
+    </div>
+</form>
+
+<script>
+$(document).ready(function() {
+    // تنشيط Select2 للقوائم المنسدلة في المودال
+    $('#id_primary_type').select2({
+        theme: 'bootstrap-5',
+        placeholder: "{% trans 'اختر نوع المورد' %}",
+        allowClear: false,
+        dropdownParent: $('#supplierModal')
+    });
+    
+    // توليد كود تلقائي للمورد الجديد
+    {% if not form.instance.pk %}
+    $('#id_name').on('blur', function() {
+        const nameField = $(this);
+        const codeField = $('#id_code');
+        
+        if (!codeField.val().trim() && nameField.val().trim()) {
+            const name = nameField.val().trim();
+            // أخذ أول 3 أحرف من الاسم وإضافة تاريخ
+            let code = name.substring(0, 3).toUpperCase();
+            const date = new Date();
+            const dateStr = date.getFullYear().toString().substr(-2) + 
+                           (date.getMonth() + 1).toString().padStart(2, '0') +
+                           date.getDate().toString().padStart(2, '0');
+            code += dateStr;
+            codeField.val(code);
+        }
+    });
+    {% endif %}
+    
+    // معالجة إرسال النموذج
+    $('#supplier-modal-form').on('submit', function(e) {
+        e.preventDefault();
+        
+        const formData = new FormData(this);
+        
+        $.ajax({
+            url: $(this).attr('action') || window.location.href,
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    $('#supplierModal').modal('hide');
+                    // إعادة تحميل الصفحة أو تحديث الجدول
+                    if (typeof refreshSupplierTable === 'function') {
+                        refreshSupplierTable();
+                    } else {
+                        location.reload();
+                    }
+                    
+                    // عرض رسالة نجاح
+                    if (response.message) {
+                        showSuccessMessage(response.message);
+                    }
+                } else {
+                    // عرض الأخطاء
+                    if (response.errors) {
+                        displayFormErrors(response.errors);
+                    } else if (response.error) {
+                        showErrorMessage(response.error);
+                    }
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Error:', error);
+                showErrorMessage('{% trans "حدث خطأ أثناء حفظ البيانات" %}');
+            }
+        });
+    });
+});
+
+// دوال مساعدة لعرض الرسائل
+function showSuccessMessage(message) {
+    // يمكن استبدالها بنظام الإشعارات المستخدم في المشروع
+    alert(message);
+}
+
+function showErrorMessage(message) {
+    alert(message);
+}
+
+function displayFormErrors(errors) {
+    // مسح الأخطاء السابقة
+    $('.invalid-feedback').remove();
+    $('.is-invalid').removeClass('is-invalid');
+    
+    // عرض الأخطاء الجديدة
+    for (const field in errors) {
+        const fieldElement = $(`#id_${field}`);
+        if (fieldElement.length) {
+            fieldElement.addClass('is-invalid');
+            fieldElement.after(`<div class="invalid-feedback">${errors[field].join(', ')}</div>`);
+        }
+    }
+}
+</script>

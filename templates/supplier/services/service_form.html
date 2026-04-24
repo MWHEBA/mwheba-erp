@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+  {% csrf_token %}
+
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <form method="post" id="service-form">
+        {% csrf_token %}
+
+        <!-- نوع الخدمة (للإضافة فقط) -->
+        {% if not service %}
+        <div class="section-container mb-4">
+          <h5 class="section-title"><i class="fas fa-tag me-2"></i>نوع الخدمة</h5>
+          <div class="mb-3">
+            <label class="form-label">نوع الخدمة <span class="text-danger">*</span></label>
+            <select name="service_type" id="service_type" class="form-select" required>
+              <option value="">اختر نوع الخدمة</option>
+              {% if service_types_grouped %}
+                {% for group in service_types_grouped %}
+                <optgroup label="{{ group.label }}">
+                  {% for st in group.types %}
+                  <option value="{{ st.pk }}"
+                          data-icon="{{ st.icon }}"
+                          {% if form_data.service_type == st.pk|stringformat:"s" %}selected{% endif %}>
+                    {{ st.name }}
+                  </option>
+                  {% endfor %}
+                </optgroup>
+                {% endfor %}
+              {% else %}
+                {% for st in service_types %}
+                <option value="{{ st.pk }}"
+                        data-icon="{{ st.icon }}"
+                        {% if form_data.service_type == st.pk|stringformat:"s" %}selected{% endif %}>
+                  {{ st.name }}
+                </option>
+                {% endfor %}
+              {% endif %}
+            </select>
+          </div>
+        </div>
+        {% else %}
+        <input type="hidden" name="service_type" value="{{ service.service_type.pk }}">
+        {% endif %}
+
+        <!-- المعلومات الأساسية -->
+        <div class="section-container mb-4">
+          <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>المعلومات الأساسية</h5>
+          <div class="row">
+            <div class="col-md-8 mb-3">
+              <label class="form-label">اسم الخدمة <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control" required
+                     value="{{ form_data.name|default:'' }}"
+                     placeholder="مثال: كوشيه 135 جرام 70×100">
+            </div>
+            <div class="col-md-4 mb-3 d-flex align-items-end">
+              <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" name="is_active" id="is_active"
+                       {% if form_data.is_active %}checked{% endif %}>
+                <label class="form-check-label" for="is_active">نشطة</label>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">السعر الأساسي (ج.م)</label>
+              <input type="number" name="base_price" class="form-control" step="0.01" min="0"
+                     value="{{ form_data.base_price|default:'0' }}">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">تكلفة الإعداد (ج.م)</label>
+              <input type="number" name="setup_cost" class="form-control" step="0.01" min="0"
+                     value="{{ form_data.setup_cost|default:'0' }}">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">ملاحظات</label>
+            <textarea name="notes" class="form-control" rows="2">{{ form_data.notes|default:'' }}</textarea>
+          </div>
+        </div>
+
+        <!-- الخصائص الديناميكية -->
+        <div class="section-container mb-4" id="dynamic-attributes-section"
+             {% if not service %}style="display:none"{% endif %}>
+          <h5 class="section-title"><i class="fas fa-sliders-h me-2"></i>خصائص الخدمة</h5>
+          <div id="dynamic-attributes-container">
+            {% if service %}
+              {% include "supplier/services/_dynamic_attributes.html" with schema=service.service_type.attribute_schema values=service.attributes schema_sources=schema_sources %}
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- أزرار الحفظ -->
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{% url 'supplier:supplier_detail' supplier.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-save me-1"></i>{% if service %}حفظ التعديلات{% else %}إضافة الخدمة{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const SERVICE_SCHEMAS = {{ service_types_schemas|safe }};
+const schemaOptionsCache = {};
+
+async function getSourceOptions(source) {
+    if (schemaOptionsCache[source]) return schemaOptionsCache[source];
+    try {
+        const resp = await fetch(`/supplier/api/schema-options/?source=${source}`);
+        const data = await resp.json();
+        schemaOptionsCache[source] = data.success ? data.options : [];
+    } catch(e) {
+        schemaOptionsCache[source] = [];
+    }
+    return schemaOptionsCache[source];
+}
+
+const serviceTypeSelect = document.getElementById('service_type');
+if (serviceTypeSelect) {
+    serviceTypeSelect.addEventListener('change', async function() {
+        const section   = document.getElementById('dynamic-attributes-section');
+        const container = document.getElementById('dynamic-attributes-container');
+
+        if (!this.value) {
+            section.style.display = 'none';
+            container.innerHTML = '';
+            return;
+        }
+
+        const schema = SERVICE_SCHEMAS[this.value] || {};
+        section.style.display = 'block';
+        container.innerHTML = '<div class="text-center py-3"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        container.innerHTML = await buildAttributeFields(schema, {});
+    });
+}
+
+async function buildAttributeFields(schema, values) {
+    if (!schema || Object.keys(schema).length === 0) {
+        return '<p class="text-muted">لا توجد خصائص إضافية لهذا النوع</p>';
+    }
+
+    let html = '<div class="row">';
+    for (const [key, def] of Object.entries(schema)) {
+        const label    = def.label || key;
+        const required = def.required ? 'required' : '';
+        const val      = values[key] || '';
+        const reqMark  = def.required ? '<span class="text-danger">*</span>' : '';
+
+        html += `<div class="col-md-6 mb-3">
+            <label class="form-label">${label} ${reqMark}</label>`;
+
+        if (def.type === 'select') {
+            html += `<select name="attr_${key}" class="form-select" ${required}>
+                <option value="">اختر...</option>`;
+
+            if (def.options) {
+                for (const opt of def.options) {
+                    html += `<option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>`;
+                }
+            } else if (def.source) {
+                const opts = await getSourceOptions(def.source);
+                for (const opt of opts) {
+                    html += `<option value="${opt.value}" ${val === opt.value ? 'selected' : ''}>${opt.label}</option>`;
+                }
+            }
+            html += '</select>';
+        } else if (def.type === 'integer') {
+            const min = def.min !== undefined ? `min="${def.min}"` : '';
+            const max = def.max !== undefined ? `max="${def.max}"` : '';
+            html += `<input type="number" name="attr_${key}" class="form-control" ${min} ${max} ${required} value="${val}">`;
+        } else if (def.type === 'decimal') {
+            html += `<input type="number" name="attr_${key}" class="form-control" step="0.01" min="0" ${required} value="${val}">`;
+        } else {
+            html += `<input type="text" name="attr_${key}" class="form-control" ${required} value="${val}">`;
+        }
+
+        html += '</div>';
+    }
+    html += '</div>';
+    return html;
+}
+</script>
+{% endblock %}

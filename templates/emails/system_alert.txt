@@ -1,0 +1,18 @@
+SYSTEM ALERT
+============
+
+A system alert has been triggered and requires your attention.
+
+Alert Details:
+- Rule: {{ alert.rule.name }}
+- Severity: {{ alert.rule.severity|upper }}
+- Message: {{ alert.message }}
+- Time: {{ alert.created_at }}
+- Metric Value: {{ alert.metric_value }}
+- Threshold: {{ alert.threshold_value }}
+
+Please check the system dashboard for more details and take appropriate action.
+
+---
+This is an automated alert from the Corporate ERP.
+Generated at {{ alert.created_at }}

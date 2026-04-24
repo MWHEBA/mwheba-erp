@@ -1,0 +1,132 @@
+/* مكونات مبسطة للأنشطة */
+
+/* Activity Type Badge - مبسط مع أيقونات */
+.activity-type-badge {
+    background: var(--gray-100, #f3f4f6);
+    color: var(--text-medium, #6b7280);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    border: 1px solid var(--border-color, #e5e7eb);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    transition: all 0.2s ease;
+}
+
+.activity-type-badge i {
+    font-size: 10px;
+    opacity: 0.8;
+}
+
+/* تنويع بسيط وهادئ في الألوان */
+.activity-type-badge.type-party {
+    background: #fef3c7;
+    color: #92400e;
+    border-color: #fbbf24;
+}
+
+.activity-type-badge.type-trip {
+    background: #dbeafe;
+    color: #1e40af;
+    border-color: #60a5fa;
+}
+
+.activity-type-badge.type-course {
+    background: #dcfce7;
+    color: #166534;
+    border-color: #4ade80;
+}
+
+.activity-type-badge.type-session {
+    background: #fce7f3;
+    color: #be185d;
+    border-color: #f472b6;
+}
+
+.activity-type-badge.type-exhibition {
+    background: #f3e8ff;
+    color: #7c3aed;
+    border-color: #a78bfa;
+}
+
+/* حالة hover للـ badges */
+.activity-type-badge:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* تحسينات إضافية للبطاقات */
+.activity-card {
+    transition: all 0.3s ease;
+}
+
+.activity-card:hover .activity-type-badge {
+    transform: scale(1.05);
+}
+
+/* تبسيط الأيقونات */
+.activity-header {
+    margin-bottom: 12px;
+}
+
+.activity-status .badge {
+    font-size: 10px;
+    padding: 3px 6px;
+    font-weight: 500;
+}
+
+/* تحسين المظهر العام */
+.activity-name {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.activity-description {
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.detail-item {
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.detail-item i {
+    width: 14px;
+    font-size: 11px;
+    opacity: 0.7;
+}
+
+/* تبسيط الأزرار */
+.activity-actions .btn-sm {
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* تحسين responsive */
+@media (max-width: 768px) {
+    .activity-type-badge {
+        font-size: 10px;
+        padding: 3px 6px;
+    }
+    
+    .activity-name {
+        font-size: 14px;
+    }
+    
+    .activity-description {
+        font-size: 12px;
+    }
+    
+    .detail-item {
+        font-size: 11px;
+    }
+}

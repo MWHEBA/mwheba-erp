@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title|default:"التصنيفات الفرعية" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title icon="fas fa-list" header_buttons=header_buttons %}
+    
+    <!-- Info Card -->
+    <div class="section-container mb-4">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="alert alert-info mb-0">
+                    <i class="fas fa-info-circle me-2"></i>
+                    <strong>التصنيف الرئيسي:</strong> {{ category.name }} ({{ category.code }})
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Subcategories Table -->
+    <div class="section-container">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="subcategories-table">
+                <thead>
+                    <tr>
+                        <th style="width: 20%;" class="text-center">الرمز</th>
+                        <th style="width: 40%;" class="text-center">الاسم</th>
+                        <th style="width: 20%;" class="text-center">الحالة</th>
+                        <th style="width: 20%;" class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for subcategory in subcategories %}
+                    <tr>
+                        <td class="text-center"><code class="bg-light px-2 py-1 rounded">{{ subcategory.code }}</code></td>
+                        <td class="text-center"><strong>{{ subcategory.name }}</strong></td>
+                        <td class="text-center">
+                            {% if subcategory.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشط</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:subcategory_update' subcategory.pk %}" 
+                               class="btn btn-sm btn-outline-primary me-1" 
+                               title="تعديل">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{% url 'financial:subcategory_delete' subcategory.pk %}" 
+                                  style="display: inline-block;"
+                                  onsubmit="return confirm('هل أنت متأكد من حذف هذا التصنيف الفرعي؟');">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm btn-outline-danger" title="حذف">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            لا توجد تصنيفات فرعية
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    if (typeof GlobalTableManager !== 'undefined' && $('#subcategories-table tbody tr').length > 1) {
+        GlobalTableManager.initializeTable('subcategories-table', {
+            order: [[2, 'asc']],
+            columnDefs: [
+                { targets: -1, orderable: false }
+            ]
+        });
+    }
+});
+</script>
+{% endblock %}

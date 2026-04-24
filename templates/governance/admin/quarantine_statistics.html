@@ -1,0 +1,212 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}Quarantine Statistics{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.stats-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+}
+
+.stats-card h3 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 2em;
+}
+
+.stats-card p {
+    margin: 0;
+    color: #6c757d;
+    font-weight: 500;
+}
+
+.distribution-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+}
+
+.distribution-table th,
+.distribution-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.distribution-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.distribution-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.status-quarantined { color: #dc3545; }
+.status-under-review { color: #fd7e14; }
+.status-resolved { color: #28a745; }
+.status-permanent { color: #6c757d; }
+
+.filter-form {
+    background: #f8f9fa;
+    padding: 15px;
+    border-radius: 8px;
+    margin: 20px 0;
+}
+
+.filter-form label {
+    font-weight: 600;
+    margin-right: 10px;
+}
+
+.filter-form select {
+    padding: 5px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    margin-right: 10px;
+}
+
+.filter-form button {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.filter-form button:hover {
+    background: #0056b3;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Quarantine Statistics</h1>
+    
+    <!-- Filter Form -->
+    <form method="get" class="filter-form">
+        <label for="days">Time Period:</label>
+        <select name="days" id="days">
+            <option value="7" {% if days == 7 %}selected{% endif %}>Last 7 days</option>
+            <option value="30" {% if days == 30 %}selected{% endif %}>Last 30 days</option>
+            <option value="90" {% if days == 90 %}selected{% endif %}>Last 90 days</option>
+            <option value="365" {% if days == 365 %}selected{% endif %}>Last year</option>
+        </select>
+        <button type="submit">Update</button>
+    </form>
+    
+    <!-- Summary Statistics -->
+    <div class="stats-grid">
+        <div class="stats-card">
+            <h3>{{ stats.summary.total_quarantined }}</h3>
+            <p>Total Quarantined</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.summary.recent_24h }}</h3>
+            <p>Last 24 Hours</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.summary.recent_7d }}</h3>
+            <p>Last 7 Days</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.summary.resolved_count }}</h3>
+            <p>Resolved</p>
+        </div>
+        <div class="stats-card">
+            <h3>{{ stats.summary.resolution_rate }}%</h3>
+            <p>Resolution Rate</p>
+        </div>
+        {% if stats.summary.avg_resolution_time_seconds %}
+        <div class="stats-card">
+            <h3>{{ stats.summary.avg_resolution_time_seconds|floatformat:0|add:0|div:3600|floatformat:1 }}h</h3>
+            <p>Avg Resolution Time</p>
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Status Distribution -->
+    <div class="module">
+        <h2>Distribution by Status</h2>
+        <table class="distribution-table">
+            <thead>
+                <tr>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Count</th>
+                    <th class="text-center">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for status_data in status_distribution %}
+                <tr>
+                    <td class="text-center">
+                        <span class="status-{{ status_data.status|lower|cut:' '|cut:'_' }}">
+                            {{ status_data.status|title }}
+                        </span>
+                    </td>
+                    <td class="text-center">{{ status_data.count }}</td>
+                    <td class="text-center">
+                        {% if total_records > 0 %}
+                            {{ status_data.count|mul:100|div:total_records|floatformat:1 }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Corruption Type Distribution -->
+    <div class="module">
+        <h2>Distribution by Corruption Type</h2>
+        <table class="distribution-table">
+            <thead>
+                <tr>
+                    <th class="text-center">Corruption Type</th>
+                    <th class="text-center">Count</th>
+                    <th class="text-center">Percentage</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for corruption_data in corruption_distribution %}
+                <tr>
+                    <td class="text-center">{{ corruption_data.corruption_type|title }}</td>
+                    <td class="text-center">{{ corruption_data.count }}</td>
+                    <td class="text-center">
+                        {% if total_records > 0 %}
+                            {{ corruption_data.count|mul:100|div:total_records|floatformat:1 }}%
+                        {% else %}
+                            0%
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <!-- Navigation Links -->
+    <div style="margin-top: 30px;">
+        <a href="{% url 'admin:governance_quarantinerecord_changelist' %}" class="button">Back to Quarantine Records</a>
+        <a href="{% url 'admin:governance_quarantinerecord_health_check' %}" class="button">Health Check</a>
+        <a href="{% url 'admin:governance_quarantinerecord_trends' %}" class="button">View Trends</a>
+    </div>
+</div>
+{% endblock %}

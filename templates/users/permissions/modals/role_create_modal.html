@@ -1,0 +1,86 @@
+<!-- Modal إنشاء دور جديد -->
+<div class="modal fade" id="createRoleModal" tabindex="-1" aria-labelledby="createRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createRoleModalLabel">
+                    <i class="fas fa-plus-circle me-2"></i>إنشاء دور جديد
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            <form id="createRoleForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="roleName" class="form-label">اسم الدور <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="roleName" name="name" required>
+                                <div class="form-text">اسم الدور باللغة الإنجليزية (مثال: manager)</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="roleDisplayName" class="form-label">الاسم المعروض <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="roleDisplayName" name="display_name" required>
+                                <div class="form-text">الاسم المعروض باللغة العربية</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="roleDescription" class="form-label">الوصف</label>
+                        <textarea class="form-control" id="roleDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="roleActive" name="is_active" checked>
+                            <label class="form-check-label" for="roleActive">
+                                دور نشط
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">الصلاحيات</h6>
+                            <div class="btn-group btn-group-sm">
+                                <button type="button" class="btn btn-outline-primary" onclick="selectAllPermissions()">
+                                    <i class="fas fa-check-double me-1"></i>تحديد الكل
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearAllPermissions()">
+                                    <i class="fas fa-times me-1"></i>إلغاء الكل
+                                </button>
+                            </div>
+                        </div>
+                        <div class="permissions-container" style="max-height: 350px; overflow-y: auto; border: 1px solid var(--bs-border-color); border-radius: 8px;">
+                            <div class="text-center py-4">
+                                <div class="spinner-border spinner-border-sm text-primary me-2"></div>
+                                جاري تحميل الصلاحيات...
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                <i class="fas fa-info-circle me-1"></i>
+                                يمكنك النقر على اسم التطبيق لتحديد/إلغاء تحديد جميع صلاحياته
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-primary" id="createRoleBtn">
+                        <span class="btn-text">
+                            <i class="fas fa-save me-1"></i>إنشاء الدور
+                        </span>
+                        <span class="btn-loading d-none">
+                            <i class="fas fa-spinner fa-spin me-1"></i>جاري الإنشاء...
+                        </span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

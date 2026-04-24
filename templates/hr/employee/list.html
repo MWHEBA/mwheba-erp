@@ -1,0 +1,256 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+
+  
+  <!-- تصفية وبحث -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-filter me-2"></i>تصفية وبحث</h5>
+    <form method="get" class="row g-3">
+        <div class="col-md-2">
+            <label for="search" class="form-label">بحث</label>
+            <input type="text" name="search" id="search" class="form-control" placeholder="الاسم أو الرقم..." value="{{ request.GET.search }}">
+        </div>
+        <div class="col-md-2">
+            <label for="department" class="form-label">القسم</label>
+            <select name="department" id="department" class="form-select">
+                <option value="">جميع الأقسام</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if request.GET.department == dept.id|stringformat:"i" %}selected{% endif %}>
+                    {{ dept.name_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="job_title" class="form-label">المسمى الوظيفي</label>
+            <select name="job_title" id="job_title" class="form-select">
+                <option value="">الكل</option>
+                {% for job in job_titles %}
+                <option value="{{ job.id }}" {% if request.GET.job_title == job.id|stringformat:"i" %}selected{% endif %}>
+                    {{ job.title_ar }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="insurance_status" class="form-label">التأمينات</label>
+            <select name="insurance_status" id="insurance_status" class="form-select">
+                <option value="">الكل</option>
+                <option value="insured" {% if request.GET.insurance_status == 'insured' %}selected{% endif %}>مؤمن</option>
+                <option value="uninsured" {% if request.GET.insurance_status == 'uninsured' %}selected{% endif %}>غير مؤمن</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label for="status" class="form-label">الحالة</label>
+            <select name="status" id="status" class="form-select">
+                <option value="">الكل (نشط)</option>
+                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشط</option>
+                <option value="terminated" {% if request.GET.status == 'terminated' %}selected{% endif %}>منتهي الخدمة</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search me-2"></i>بحث
+            </button>
+        </div>
+    </form>
+  </div>
+
+  <!-- قائمة الموظفين -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة الموظفين</h5>
+        <div class="actions-container">
+          <a href="{% url 'hr:employee_form' %}" class="btn btn-sm btn-primary">
+            <i class="fas fa-plus me-1"></i>إضافة موظف
+          </a>
+        </div>
+      </div>
+      <div class="card-body">
+        {% include "components/data_table.html" with table_id="employees-table" headers=table_headers data=employees clickable_rows=True row_click_url="/hr/employees/0/" primary_key="pk" empty_message="لا توجد موظفين متاحين" %}
+      </div>
+      <div class="card-footer bg-light">
+        <div class="d-flex justify-content-between align-items-center">
+          <div class="text-muted">
+            <i class="fas fa-info-circle me-1"></i>
+            عدد الموظفين: <strong>{{ employees|length }}</strong>
+          </div>
+          <div class="export-buttons">
+            <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-file-csv me-1"></i>تصدير CSV
+            </a>
+            <a href="?{{ request.GET.urlencode }}&export=xlsx" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-file-excel me-1"></i>تصدير Excel
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال الاستيراد -->
+<div class="modal fade" id="importModal" tabindex="-1" aria-labelledby="importModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="importModalLabel">
+          <i class="fas fa-file-import me-2"></i>استيراد الموظفين
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form method="post" action="{% url 'hr:employee_import' %}" enctype="multipart/form-data" id="importForm">
+        {% csrf_token %}
+        <div class="modal-body">
+          
+          <div class="mb-3">
+            <label for="import_file" class="form-label">
+              <i class="fas fa-file me-1"></i>اختر الملف
+            </label>
+            <input type="file" class="form-control" id="import_file" name="import_file" 
+                   accept=".csv,.xlsx,.xls" required>
+            <div class="form-text">
+              الملفات المدعومة: CSV, Excel (.xlsx, .xls)
+            </div>
+          </div>
+          
+          <div class="card bg-light">
+            <div class="card-body">
+              <h6 class="card-title mb-3">
+                <i class="fas fa-list-check me-2"></i>الحقول المطلوبة:
+              </h6>
+              <ul class="mb-2 small">
+                <li><strong>رقم الموظف</strong> - مطلوب (فريد لكل موظف)</li>
+                <li><strong>الاسم الكامل</strong> - مطلوب</li>
+                <li><strong>الرقم القومي</strong> - مطلوب (14 رقم)</li>
+                <li><strong>تاريخ الميلاد</strong> - مطلوب (YYYY-MM-DD)</li>
+                <li><strong>الجنس</strong> - مطلوب (ذكر أو أنثى)</li>
+                <li><strong>القسم</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
+                <li><strong>المسمى الوظيفي</strong> - مطلوب (يجب أن يكون موجوداً في النظام)</li>
+              </ul>
+            </div>
+          </div>
+
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>إلغاء
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-upload me-1"></i>استيراد
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if ($('#employees-table').length) {
+        initGlobalTable('employees-table', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+            columnDefs: [
+                { targets: -1, orderable: false, className: 'text-center' }
+            ]
+        });
+    }
+    // إعادة الموظف للخدمة
+    window.reinstateEmployee = function(pk, name) {
+        Swal.fire({
+            title: 'إعادة للخدمة',
+            text: `هل تريد إعادة "${name}" للخدمة؟`,
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonColor: '#198754',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'نعم، إعادة للخدمة',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = `/hr/employees/${pk}/reinstate/`;
+                const csrf = document.createElement('input');
+                csrf.type = 'hidden';
+                csrf.name = 'csrfmiddlewaretoken';
+                csrf.value = '{{ csrf_token }}';
+                form.appendChild(csrf);
+                document.body.appendChild(form);
+                form.submit();
+            }
+        });
+    };
+
+    // معالجة نموذج الاستيراد
+    $('#importForm').on('submit', function(e) {
+        const fileInput = $('#import_file')[0];
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            e.preventDefault();
+            alert('الرجاء اختيار ملف للاستيراد');
+            return false;
+        }
+        
+        // التحقق من نوع الملف
+        const validExtensions = ['csv', 'xlsx', 'xls'];
+        const fileExtension = file.name.split('.').pop().toLowerCase();
+        
+        if (!validExtensions.includes(fileExtension)) {
+            e.preventDefault();
+            alert('نوع الملف غير مدعوم. الرجاء استخدام CSV أو Excel');
+            return false;
+        }
+        
+        // عرض مؤشر التحميل
+        const submitBtn = $(this).find('button[type="submit"]');
+        const originalText = submitBtn.html();
+        submitBtn.prop('disabled', true);
+        submitBtn.html('<i class="fas fa-spinner fa-spin me-1"></i>جاري الاستيراد...');
+        
+        // السماح بإرسال النموذج
+        return true;
+    });
+    
+    // إعادة تعيين النموذج عند إغلاق المودال
+    $('#importModal').on('hidden.bs.modal', function() {
+        $('#importForm')[0].reset();
+        const submitBtn = $('#importForm').find('button[type="submit"]');
+        submitBtn.prop('disabled', false);
+        submitBtn.html('<i class="fas fa-upload me-1"></i>استيراد');
+    });
+    
+    // عرض اسم الملف المختار
+    $('#import_file').on('change', function() {
+        const fileName = $(this).val().split('\\').pop();
+        if (fileName) {
+            $(this).next('.form-text').html(
+                '<i class="fas fa-check-circle text-success me-1"></i>تم اختيار: <strong>' + fileName + '</strong>'
+            );
+        }
+    });
+});
+</script>
+{% endblock %}

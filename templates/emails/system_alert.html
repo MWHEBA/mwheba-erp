@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>System Alert</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background-color: #f5f5f5; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; padding: 20px; border-radius: 5px; }
+        .header { background-color: #dc3545; color: white; padding: 15px; border-radius: 5px 5px 0 0; margin: -20px -20px 20px -20px; }
+        .alert-info { background-color: #f8f9fa; padding: 15px; border-left: 4px solid #dc3545; margin: 20px 0; }
+        .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #dee2e6; font-size: 12px; color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🚨 System Alert</h2>
+        </div>
+        
+        <p>A system alert has been triggered and requires your attention.</p>
+        
+        <div class="alert-info">
+            <h3>Alert Details</h3>
+            <p><strong>Rule:</strong> {{ alert.rule.name }}</p>
+            <p><strong>Severity:</strong> {{ alert.rule.severity|upper }}</p>
+            <p><strong>Message:</strong> {{ alert.message }}</p>
+            <p><strong>Time:</strong> {{ alert.created_at }}</p>
+            <p><strong>Metric Value:</strong> {{ alert.metric_value }}</p>
+            <p><strong>Threshold:</strong> {{ alert.threshold_value }}</p>
+        </div>
+        
+        <p>Please check the system dashboard for more details and take appropriate action.</p>
+        
+        <div class="footer">
+            <p>This is an automated alert from the Corporate ERP.</p>
+            <p>Generated at {{ alert.created_at }}</p>
+        </div>
+    </div>
+</body>
+</html>

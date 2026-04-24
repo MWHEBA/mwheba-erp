@@ -1,0 +1,375 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+<style>
+    
+    /* كروت الحسابات */
+    .cash-account-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+    
+    .cash-account-card:hover {
+        box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+        transform: translateY(-3px);
+        border-color: var(--primary-color);
+    }
+    
+    .cash-account-card:active {
+        transform: translateY(-1px);
+    }
+    
+    /* رؤوس الكروت */
+    .account-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 15px;
+    }
+    
+    .account-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 5px;
+    }
+    
+    .account-code {
+        font-size: 0.85rem;
+        color: #6c757d;
+        background: #f8f9fa;
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
+    /* شارات أنواع الحسابات */
+    .account-type-badge {
+        font-size: 0.75rem;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-weight: 500;
+    }
+    
+    /* عرض الأرصدة */
+    .balance-display {
+        text-align: center;
+        padding: 15px;
+        background: var(--light-bg);
+        border-radius: 6px;
+        margin: 15px 0;
+        border: 1px solid var(--border-color);
+    }
+    
+    .balance-amount {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--success-color);
+        margin-bottom: 5px;
+    }
+    
+    .balance-currency {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+    }
+    
+
+    
+    /* معلومات إضافية */
+    .account-info-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin: 15px 0;
+    }
+    
+    .info-item {
+        text-align: center;
+        padding: 10px;
+        background: var(--light-bg);
+        border-radius: 6px;
+        border: 1px solid var(--border-color);
+    }
+    
+    .info-label {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin-bottom: 4px;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-dark);
+    }
+    
+    .account-code {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        background: var(--light-bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    
+    /* تحسينات الاستجابة */
+    @media (max-width: 768px) {
+        .page-header {
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .page-header h1 {
+            font-size: 1.5rem;
+        }
+        
+        .balance-amount {
+            font-size: 1.25rem;
+        }
+        
+        .account-info-grid {
+            grid-template-columns: 1fr;
+            gap: 8px;
+        }
+        
+        .stat-item:not(:last-child) {
+            border-left: none;
+            border-bottom: 1px solid #dee2e6;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- Accounts Grid المحسن -->
+    {% if accounts %}
+        <div class="row">
+            {% for account in accounts %}
+                <div class="col-xl-4 col-lg-6 col-md-6 mb-4">
+                    <a href="{% url 'financial:cash_account_movements' account.id %}" class="card cash-account-card h-100 text-reset text-decoration-none" style="display: block;">
+                        <div class="card-body">
+                            <!-- رأس الكرت -->
+                            <div class="account-header">
+                                <div class="flex-grow-1">
+                                    <h5 class="account-title">{{ account.name }}</h5>
+                                    <span class="account-code">{{ account.code }}</span>
+                                </div>
+                                
+                                <!-- نوع الحساب -->
+                                <div>
+                                    {% if account.is_cash_account %}
+                                        <span class="account-type-badge cash-badge">
+                                            <i class="fas fa-money-bill-wave me-1"></i>نقدي
+                                        </span>
+                                    {% elif account.is_bank_account %}
+                                        <span class="account-type-badge bank-badge">
+                                            <i class="fas fa-university me-1"></i>بنكي
+                                        </span>
+                                    {% else %}
+                                        <span class="account-type-badge wallet-badge">
+                                            <i class="fas fa-wallet me-1"></i>خزينة
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- عرض الرصيد -->
+                            <div class="balance-display">
+                                <div class="balance-amount">
+                                    {% if account.calculated_balance is not None %}
+                                        {{ account.calculated_balance|default:0|smart_float }}
+                                    {% else %}
+                                        {{ account.opening_balance|default:0|smart_float }}
+                                    {% endif %}
+                                </div>
+                                <div class="balance-currency">{{ currency_symbol }}</div>
+                            </div>
+                            
+                            <!-- معلومات إضافية -->
+                            <div class="account-info-grid" style="grid-template-columns: 1fr;">
+                                <div class="info-item">
+                                    <div class="info-label">آخر تحديث</div>
+                                    <div class="info-value">
+                                        {% if account.last_movement_date %}
+                                            {% if account.updated_at %}
+                                                {{ account.updated_at|date:"Y-m-d" }} {{ account.updated_at|date:"g:i" }} {% if account.updated_at.hour < 12 %}ص{% else %}م{% endif %}
+                                            {% else %}
+                                                {{ account.last_movement_date|date:"Y-m-d" }}
+                                            {% endif %}
+                                        {% else %}
+                                            لا يوجد حركات
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </a>
+                </div>
+            {% endfor %}
+        </div>
+
+    {% else %}
+        <!-- حالة فارغة محسنة -->
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-money-bill-wave"></i>
+            </div>
+            <h4 class="empty-title">لا توجد حسابات نقدية أو بنكية</h4>
+            <p class="empty-description">
+                لم يتم العثور على أي حسابات نقدية أو بنكية في النظام.<br>
+                ابدأ بإضافة أول حساب لإدارة أموالك بكفاءة.
+            </p>
+            <button type="button" class="btn btn-success" onclick="openQuickAddModal()">
+                <i class="fas fa-plus me-2"></i>إضافة أول خزنة
+            </button>
+        </div>
+    {% endif %}
+    
+    <!-- Modal إضافة خزنة/بنك سريع -->
+    <div class="modal fade" id="quickAddModal" tabindex="-1" aria-labelledby="quickAddModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="quickAddModalLabel">
+                        <i class="fas fa-plus-circle me-2"></i>إضافة خزنة أو بنك
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="quickAddForm">
+                    {% csrf_token %}
+                    <div class="modal-body">
+                        <!-- نوع الحساب -->
+                        <div class="mb-3">
+                            <label class="form-label">النوع <span class="text-danger">*</span></label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="account_type" id="type_cash" value="cash" checked>
+                                <label class="btn btn-outline-primary" for="type_cash">
+                                    <i class="fas fa-money-bill-wave me-2"></i>خزنة نقدية
+                                </label>
+                                
+                                <input type="radio" class="btn-check" name="account_type" id="type_bank" value="bank">
+                                <label class="btn btn-outline-primary" for="type_bank">
+                                    <i class="fas fa-university me-2"></i>حساب بنكي
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <!-- اسم الحساب -->
+                        <div class="mb-3">
+                            <label for="account_name" class="form-label">الاسم <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="account_name" name="name" required placeholder="مثال: الخزنة الرئيسية">
+                        </div>
+                        
+                        <!-- الرصيد الافتتاحي -->
+                        <div class="mb-3">
+                            <label for="opening_balance" class="form-label">الرصيد الافتتاحي</label>
+                            <input type="number" class="form-control" id="opening_balance" name="opening_balance" value="0" min="0" step="0.01">
+                        </div>
+                        
+                        <!-- تاريخ الرصيد -->
+                        <div class="mb-3">
+                            <label for="opening_balance_date" class="form-label">تاريخ الرصيد</label>
+                            <input type="date" class="form-control" id="opening_balance_date" name="opening_balance_date">
+                        </div>
+                        
+                        <!-- الوصف -->
+                        <div class="mb-3">
+                            <label for="description" class="form-label">الوصف</label>
+                            <textarea class="form-control" id="description" name="description" rows="2" placeholder="وصف اختياري للحساب"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </button>
+                        <button type="submit" class="btn btn-success">
+                            <i class="fas fa-save me-2"></i>حفظ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// فتح المودال
+function openQuickAddModal() {
+    $('#quickAddModal').modal('show');
+    // تعيين التاريخ الحالي كافتراضي
+    var today = new Date().toISOString().split('T')[0];
+    $('#opening_balance_date').val(today);
+}
+
+$(document).ready(function() {
+    // تأثيرات بسيطة للكروت
+    $('.cash-account-card').hover(
+        function() {
+            $(this).find('.account-actions').addClass('show');
+        },
+        function() {
+            $(this).find('.account-actions').removeClass('show');
+        }
+    );
+    
+    // معالجة إرسال الفورم
+    $('#quickAddForm').on('submit', function(e) {
+        e.preventDefault();
+        
+        var submitBtn = $(this).find('button[type="submit"]');
+        var originalText = submitBtn.html();
+        
+        // تعطيل الزر وعرض loading
+        submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
+        
+        $.ajax({
+            url: '{% url "financial:quick_add_cash_bank_account" %}',
+            method: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                if (response.success) {
+                    // إغلاق المودال
+                    $('#quickAddModal').modal('hide');
+                    
+                    // عرض رسالة نجاح
+                    alert(response.message);
+                    
+                    // إعادة تحميل الصفحة
+                    location.reload();
+                } else {
+                    alert('خطأ: ' + response.error);
+                    submitBtn.prop('disabled', false).html(originalText);
+                }
+            },
+            error: function(xhr) {
+                var errorMsg = 'حدث خطأ أثناء الحفظ';
+                if (xhr.responseJSON && xhr.responseJSON.error) {
+                    errorMsg = xhr.responseJSON.error;
+                }
+                alert(errorMsg);
+                submitBtn.prop('disabled', false).html(originalText);
+            }
+        });
+    });
+    
+    // إعادة تعيين الفورم عند إغلاق المودال
+    $('#quickAddModal').on('hidden.bs.modal', function() {
+        $('#quickAddForm')[0].reset();
+        $('#type_cash').prop('checked', true);
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,355 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}Batch Resolve Quarantine Records{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.batch-form {
+    background: #f8f9fa;
+    padding: 20px;
+    border-radius: 8px;
+    margin: 20px 0;
+    border: 1px solid #dee2e6;
+}
+
+.batch-form h2 {
+    margin-top: 0;
+    color: #495057;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #495057;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-group small {
+    color: #6c757d;
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+}
+
+.submit-button {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.submit-button:hover {
+    background: #218838;
+}
+
+.submit-button:disabled {
+    background: #6c757d;
+    cursor: not-allowed;
+}
+
+.records-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    background: white;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.records-table th,
+.records-table td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.records-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+    color: #495057;
+}
+
+.records-table tr:hover {
+    background-color: #f8f9fa;
+}
+
+.record-checkbox {
+    margin-right: 8px;
+}
+
+.corruption-type {
+    font-size: 12px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    background: #e9ecef;
+    color: #495057;
+}
+
+.status-badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.status-quarantined {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status-under-review {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.select-all-controls {
+    margin: 15px 0;
+    padding: 10px;
+    background: #e9ecef;
+    border-radius: 4px;
+}
+
+.select-all-controls button {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    margin-right: 10px;
+    font-size: 12px;
+}
+
+.select-all-controls button:hover {
+    background: #5a6268;
+}
+
+.selected-count {
+    font-weight: 600;
+    color: #495057;
+    margin-left: 15px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="module">
+    <h1>Batch Resolve Quarantine Records</h1>
+    
+    <!-- Batch Resolution Form -->
+    <form method="post" class="batch-form">
+        {% csrf_token %}
+        <h2>Resolve Selected Records</h2>
+        
+        <div class="form-group">
+            <label for="quarantine_ids">Quarantine Record IDs:</label>
+            <input type="text" id="quarantine_ids" name="quarantine_ids" 
+                   placeholder="Enter comma-separated IDs (e.g., 1,2,3) or select from table below">
+            <small>You can enter IDs manually or select records from the table below</small>
+        </div>
+        
+        <div class="form-group">
+            <label for="resolution_notes">Resolution Notes:</label>
+            <textarea id="resolution_notes" name="resolution_notes" required
+                      placeholder="Describe how the quarantine was resolved..."></textarea>
+            <small>Required: Explain how the quarantined data was resolved</small>
+        </div>
+        
+        <button type="submit" class="submit-button" id="submit-button" disabled>
+            Resolve Selected Records
+        </button>
+        
+        <div class="selected-count" id="selected-count">
+            No records selected
+        </div>
+    </form>
+    
+    <!-- Unresolved Records Table -->
+    <div class="module">
+        <h2>Unresolved Quarantine Records</h2>
+        
+        <div class="select-all-controls">
+            <button type="button" onclick="selectAll()">Select All</button>
+            <button type="button" onclick="selectNone()">Select None</button>
+            <button type="button" onclick="selectByType('QUARANTINED')">Select Quarantined</button>
+            <button type="button" onclick="selectByType('UNDER_REVIEW')">Select Under Review</button>
+        </div>
+        
+        {% if unresolved_records %}
+        <table class="records-table">
+            <thead>
+                <tr>
+                    <th class="text-center">Select</th>
+                    <th class="text-center">ID</th>
+                    <th class="text-center">Model</th>
+                    <th class="text-center">Object ID</th>
+                    <th class="text-center">Corruption Type</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Quarantined</th>
+                    <th class="text-center">By</th>
+                    <th class="text-center">Reason</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in unresolved_records %}
+                <tr>
+                    <td class="text-center">
+                        <input type="checkbox" class="record-checkbox" 
+                               value="{{ record.id }}" 
+                               data-status="{{ record.status }}"
+                               onchange="updateSelection()">
+                    </td>
+                    <td class="text-center"><strong>{{ record.id }}</strong></td>
+                    <td class="text-center">{{ record.model_name }}</td>
+                    <td class="text-center">{{ record.object_id }}</td>
+                    <td class="text-center">
+                        <span class="corruption-type">
+                            {{ record.corruption_type|title }}
+                        </span>
+                    </td>
+                    <td class="text-center">
+                        <span class="status-badge status-{{ record.status|lower|cut:' '|cut:'_' }}">
+                            {{ record.status }}
+                        </span>
+                    </td>
+                    <td class="text-center">{{ record.quarantined_at|date:"M d, Y H:i" }}</td>
+                    <td class="text-center">{{ record.quarantined_by.username|default:"System" }}</td>
+                    <td class="text-center">{{ record.quarantine_reason|truncatechars:50 }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>No unresolved quarantine records found.</p>
+        {% endif %}
+    </div>
+    
+    <!-- Navigation Links -->
+    <div style="margin-top: 30px;">
+        <a href="{% url 'admin:governance_quarantinerecord_changelist' %}" class="button">Back to Quarantine Records</a>
+        <a href="{% url 'admin:governance_quarantinerecord_statistics' %}" class="button">View Statistics</a>
+    </div>
+</div>
+
+<script>
+function updateSelection() {
+    const checkboxes = document.querySelectorAll('.record-checkbox:checked');
+    const ids = Array.from(checkboxes).map(cb => cb.value);
+    const count = ids.length;
+    
+    // Update the IDs field
+    document.getElementById('quarantine_ids').value = ids.join(',');
+    
+    // Update the count display
+    const countElement = document.getElementById('selected-count');
+    if (count === 0) {
+        countElement.textContent = 'No records selected';
+        countElement.style.color = '#6c757d';
+    } else {
+        countElement.textContent = `${count} record${count === 1 ? '' : 's'} selected`;
+        countElement.style.color = '#28a745';
+    }
+    
+    // Enable/disable submit button
+    const submitButton = document.getElementById('submit-button');
+    const resolutionNotes = document.getElementById('resolution_notes').value.trim();
+    submitButton.disabled = count === 0 || resolutionNotes === '';
+}
+
+function selectAll() {
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    updateSelection();
+}
+
+function selectNone() {
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    updateSelection();
+}
+
+function selectByType(status) {
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = cb.dataset.status === status;
+    });
+    updateSelection();
+}
+
+// Enable submit button when resolution notes are entered
+document.getElementById('resolution_notes').addEventListener('input', function() {
+    updateSelection();
+});
+
+// Handle manual ID entry
+document.getElementById('quarantine_ids').addEventListener('input', function() {
+    const ids = this.value.split(',').map(id => id.trim()).filter(id => id);
+    const count = ids.length;
+    
+    // Update checkboxes to match manual entry
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = ids.includes(cb.value);
+    });
+    
+    // Update count display
+    const countElement = document.getElementById('selected-count');
+    if (count === 0) {
+        countElement.textContent = 'No records selected';
+        countElement.style.color = '#6c757d';
+    } else {
+        countElement.textContent = `${count} record${count === 1 ? '' : 's'} selected`;
+        countElement.style.color = '#28a745';
+    }
+    
+    // Enable/disable submit button
+    const submitButton = document.getElementById('submit-button');
+    const resolutionNotes = document.getElementById('resolution_notes').value.trim();
+    submitButton.disabled = count === 0 || resolutionNotes === '';
+});
+
+// Form validation
+document.querySelector('.batch-form').addEventListener('submit', function(e) {
+    const ids = document.getElementById('quarantine_ids').value.trim();
+    const notes = document.getElementById('resolution_notes').value.trim();
+    
+    if (!ids || !notes) {
+        e.preventDefault();
+        alert('Please select records and provide resolution notes.');
+        return false;
+    }
+    
+    const count = ids.split(',').length;
+    if (!confirm(`Are you sure you want to resolve ${count} quarantine record${count === 1 ? '' : 's'}?`)) {
+        e.preventDefault();
+        return false;
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load humanize %}
+
+{% block title %}{{ page_title|default:"الأرصدة المحسنة" }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- نموذج مخفي للتحديث -->
+  <form id="refresh-form" method="post" action="{% url 'financial:enhanced_balances_refresh' %}" style="display: none;">
+    {% csrf_token %}
+  </form>
+  
+  <!-- الإحصائيات -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "الإحصائيات العامة" %}</h5>
+    <div class="row">
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-content">
+              <div class="stats-card-title">{% trans "إجمالي الحسابات" %}</div>
+              <div class="stats-card-value">{{ balances|length|default:"0" }}</div>
+              <div class="stats-card-unit">{% trans "حساب" %}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-balance-scale"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-content">
+              <div class="stats-card-title">{% trans "حسابات بنكية" %}</div>
+              <div class="stats-card-value">{{ bank_accounts_count|default:"0" }}</div>
+              <div class="stats-card-unit">{% trans "حساب" %}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-university"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-content">
+              <div class="stats-card-title">{% trans "حسابات نقدية" %}</div>
+              <div class="stats-card-value">{{ cash_accounts_count|default:"0" }}</div>
+              <div class="stats-card-unit">{% trans "حساب" %}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6 col-lg-3 mb-4">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-content">
+              <div class="stats-card-title">{% trans "حسابات أخرى" %}</div>
+              <div class="stats-card-value">{{ other_accounts_count|default:"0" }}</div>
+              <div class="stats-card-unit">{% trans "حساب" %}</div>
+            </div>
+            <div class="stats-card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة الأرصدة -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة الأرصدة" %}</h5>
+        <div class="actions-container">
+          <span class="badge bg-primary">{{ balances|length }} {% trans "حساب" %}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if balances %}
+          <div class="table-responsive">
+            <table class="table table-hover table-sm">
+              <thead class="table-light">
+                <tr>
+                  <th width="15%" class="text-center">{% trans "كود الحساب" %}</th>
+                  <th width="35%" class="text-center">{% trans "اسم الحساب" %}</th>
+                  <th width="25%" class="text-center">{% trans "النوع" %}</th>
+                  <th width="25%" class="text-center">{% trans "الرصيد" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for balance in balances %}
+                <tr>
+                  <td class="text-center"><code class="text-primary">{{ balance.account_code }}</code></td>
+                  <td class="text-center">
+                    <div class="fw-medium">{{ balance.account_name }}</div>
+                    {% if balance.account_name != balance.account.name_en and balance.account.name_en %}
+                      <small class="text-muted">{{ balance.account.name_en }}</small>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="badge bg-secondary">{{ balance.account_type }}</span>
+                    {% if balance.is_bank_account %}
+                      <span class="badge bg-info">{% trans "بنكي" %}</span>
+                    {% endif %}
+                    {% if balance.is_cash_account %}
+                      <span class="badge bg-success">{% trans "نقدي" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="fw-bold {% if balance.balance > 0 %}text-success{% elif balance.balance < 0 %}text-danger{% else %}text-muted{% endif %}">
+                      {{ balance.balance|currency }}
+                    </span>
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          
+          {% if balances|length > 10 %}
+          <div class="text-center mt-3">
+            <small class="text-muted">{% trans "عرض" %} {{ balances|length }} {% trans "حساب" %}</small>
+          </div>
+          {% endif %}
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-state-icon">
+              <i class="fas fa-database"></i>
+            </div>
+            <h5>{% trans "لا توجد أرصدة متاحة" %}</h5>
+            <p class="text-muted mb-0">{% trans "لم يتم العثور على حسابات نشطة أو أرصدة للعرض" %}</p>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

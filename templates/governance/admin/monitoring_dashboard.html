@@ -1,0 +1,361 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block title %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+.dashboard-card {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.metric-card {
+    background: #f8f9fa;
+    border-left: 4px solid #007cba;
+    padding: 15px;
+    margin: 10px 0;
+}
+
+.metric-value {
+    font-size: 2em;
+    font-weight: bold;
+    color: #007cba;
+}
+
+.metric-label {
+    color: #666;
+    font-size: 0.9em;
+}
+
+.alert-critical {
+    border-left-color: #dc3545;
+    background-color: #f8d7da;
+}
+
+.alert-warning {
+    border-left-color: #ffc107;
+    background-color: #fff3cd;
+}
+
+.alert-info {
+    border-left-color: #17a2b8;
+    background-color: #d1ecf1;
+}
+
+.security-status {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: bold;
+}
+
+.status-good {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.status-critical {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.refresh-button {
+    background: #007cba;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 20px;
+}
+
+.refresh-button:hover {
+    background: #005a87;
+}
+
+.chart-container {
+    height: 300px;
+    margin: 20px 0;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-wrapper">
+    <h1>🔒 Admin Security Monitoring Dashboard</h1>
+    
+    <div class="dashboard-controls">
+        <button class="refresh-button" onclick="refreshDashboard()">🔄 Refresh Data</button>
+        <select id="timeRange" onchange="changeTimeRange()">
+            <option value="1" {% if hours == 1 %}selected{% endif %}>Last Hour</option>
+            <option value="6" {% if hours == 6 %}selected{% endif %}>Last 6 Hours</option>
+            <option value="24" {% if hours == 24 %}selected{% endif %}>Last 24 Hours</option>
+            <option value="168" {% if hours == 168 %}selected{% endif %}>Last Week</option>
+        </select>
+    </div>
+
+    <!-- System Health Overview -->
+    <div class="dashboard-card">
+        <h2>🚨 System Health Overview</h2>
+        <div class="row">
+            <div class="col-md-3">
+                <div class="metric-card {% if dashboard_data.system_health.critical_alerts > 0 %}alert-critical{% elif dashboard_data.system_health.total_alerts > 5 %}alert-warning{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.system_health.total_alerts }}</div>
+                    <div class="metric-label">Security Alerts</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card {% if dashboard_data.system_health.critical_alerts > 0 %}alert-critical{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.system_health.critical_alerts }}</div>
+                    <div class="metric-label">Critical Alerts</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card {% if dashboard_data.system_health.blocked_operations > 10 %}alert-warning{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.system_health.blocked_operations }}</div>
+                    <div class="metric-label">Blocked Operations</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card {% if dashboard_data.system_health.compliance_score < 80 %}alert-warning{% elif dashboard_data.system_health.compliance_score < 60 %}alert-critical{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.system_health.compliance_score|floatformat:0 }}%</div>
+                    <div class="metric-label">Compliance Score</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Summary -->
+    <div class="dashboard-card">
+        <h2>📊 Admin Activity Summary (Last {{ hours }} hours)</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.audit_summary.total_operations }}</div>
+                    <div class="metric-label">Total Operations</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.audit_summary.unique_users }}</div>
+                    <div class="metric-label">Active Users</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.audit_summary.unique_models }}</div>
+                    <div class="metric-label">Models Accessed</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- High-Risk Model Activity -->
+    <div class="dashboard-card">
+        <h2>⚠️ High-Risk Model Activity</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Summary</h3>
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.high_risk_activity.total_operations }}</div>
+                    <div class="metric-label">Operations on High-Risk Models</div>
+                </div>
+                <div class="metric-card {% if dashboard_data.high_risk_activity.blocked_operations > 0 %}alert-warning{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.high_risk_activity.blocked_operations }}</div>
+                    <div class="metric-label">Blocked Operations</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <h3>Model Breakdown</h3>
+                <div style="max-height: 300px; overflow-y: auto;">
+                    {% for model, stats in dashboard_data.high_risk_activity.model_breakdown.items %}
+                    <div class="metric-card {% if stats.blocked_operations > 0 %}alert-warning{% endif %}">
+                        <strong>{{ model }}</strong><br>
+                        <small>
+                            Operations: {{ stats.total_operations }} | 
+                            Blocked: {{ stats.blocked_operations }} | 
+                            Security Events: {{ stats.security_events }} |
+                            Users: {{ stats.unique_users }}
+                        </small>
+                    </div>
+                    {% empty %}
+                    <p>No high-risk model activity in the selected time period.</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Security Alerts -->
+    <div class="dashboard-card">
+        <h2>🚨 Recent Security Alerts</h2>
+        {% if dashboard_data.security_alerts %}
+        <div style="max-height: 400px; overflow-y: auto;">
+            {% for alert in dashboard_data.security_alerts %}
+            <div class="metric-card alert-{{ alert.security_level|lower }}">
+                <div class="row">
+                    <div class="col-md-8">
+                        <strong>{{ alert.operation }}</strong> on {{ alert.model_name }}<br>
+                        <small>
+                            User: {{ alert.user }} | 
+                            Time: {{ alert.timestamp }} |
+                            IP: {{ alert.ip_address|default:"Unknown" }}
+                        </small>
+                        {% if alert.violation_type %}
+                        <br><small><strong>Violation:</strong> {{ alert.violation_type }}</small>
+                        {% endif %}
+                    </div>
+                    <div class="col-md-4 text-right">
+                        <span class="security-status status-{{ alert.security_level|lower }}">
+                            {{ alert.security_level }}
+                        </span>
+                        {% if alert.requires_investigation %}
+                        <br><small style="color: red;">⚠️ Requires Investigation</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="text-center" style="margin-top: 15px;">
+            <a href="{% url 'admin:governance_security_alerts' %}" class="button">View All Alerts</a>
+        </div>
+        {% else %}
+        <p>✅ No security alerts in the selected time period.</p>
+        {% endif %}
+    </div>
+
+    <!-- User Activity -->
+    <div class="dashboard-card">
+        <h2>👥 User Activity Summary</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <h3>Top Active Users</h3>
+                {% for user in dashboard_data.user_activity.top_users %}
+                <div class="metric-card {% if user.blocked_count > 5 %}alert-warning{% endif %}">
+                    <strong>{{ user.user__username }}</strong><br>
+                    <small>
+                        Operations: {{ user.operation_count }} | 
+                        Blocked: {{ user.blocked_count }} | 
+                        Security Events: {{ user.security_events }}
+                    </small>
+                </div>
+                {% empty %}
+                <p>No user activity data available.</p>
+                {% endfor %}
+            </div>
+            <div class="col-md-6">
+                <h3>Suspicious Users</h3>
+                {% if dashboard_data.user_activity.suspicious_users %}
+                {% for user in dashboard_data.user_activity.suspicious_users %}
+                <div class="metric-card alert-warning">
+                    <strong>{{ user.user__username }}</strong><br>
+                    <small>
+                        Operations: {{ user.operation_count }} | 
+                        Blocked: {{ user.blocked_count }} | 
+                        Security Events: {{ user.security_events }}
+                    </small>
+                    <br><small style="color: red;">⚠️ Requires Review</small>
+                </div>
+                {% endfor %}
+                {% else %}
+                <p>✅ No suspicious user activity detected.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Compliance Status -->
+    <div class="dashboard-card">
+        <h2>✅ Compliance Status</h2>
+        <div class="row">
+            <div class="col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.compliance_status.compliant_models }}</div>
+                    <div class="metric-label">Compliant Models</div>
+                </div>
+                <div class="metric-card {% if dashboard_data.compliance_status.non_compliant_models > 0 %}alert-warning{% endif %}">
+                    <div class="metric-value">{{ dashboard_data.compliance_status.non_compliant_models }}</div>
+                    <div class="metric-label">Non-Compliant Models</div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.compliance_status.total_high_risk_models }}</div>
+                    <div class="metric-label">Total High-Risk Models</div>
+                </div>
+                {% if dashboard_data.compliance_status.errors %}
+                <div class="metric-card alert-critical">
+                    <div class="metric-value">{{ dashboard_data.compliance_status.errors|length }}</div>
+                    <div class="metric-label">Compliance Errors</div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metrics -->
+    <div class="dashboard-card">
+        <h2>📈 Performance Metrics</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.performance_metrics.avg_operations_per_hour|floatformat:1 }}</div>
+                    <div class="metric-label">Avg Operations/Hour</div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                {% if dashboard_data.performance_metrics.peak_hour %}
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.performance_metrics.peak_hour.operations }}</div>
+                    <div class="metric-label">Peak Hour ({{ dashboard_data.performance_metrics.peak_hour.hour }})</div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <div class="metric-card">
+                    <div class="metric-value">{{ dashboard_data.performance_metrics.total_operations }}</div>
+                    <div class="metric-label">Total Operations</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="dashboard-card">
+        <p><small>
+            <strong>Last Updated:</strong> {{ dashboard_data.timestamp }}<br>
+            <strong>Time Range:</strong> {{ hours }} hours<br>
+            <strong>Data Source:</strong> Admin Audit Trail System
+        </small></p>
+    </div>
+</div>
+
+<script>
+function refreshDashboard() {
+    location.reload();
+}
+
+function changeTimeRange() {
+    const hours = document.getElementById('timeRange').value;
+    const url = new URL(window.location);
+    url.searchParams.set('hours', hours);
+    window.location = url;
+}
+
+// Auto-refresh every 5 minutes
+setTimeout(function() {
+    location.reload();
+}, 300000);
+</script>
+{% endblock %}

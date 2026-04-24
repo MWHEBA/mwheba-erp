@@ -1,0 +1,1208 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{# صفحة حركات الحساب النقدي - القيود تُنشأ تلقائياً من المعاملات المالية فقط #}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<style>
+  /* تصميم متسق مع هوية النظام */
+
+  .movement-row {
+    transition: all var(--transition-speed) var(--transition-function);
+  }
+  
+  .movement-row:hover {
+    background-color: var(--gray-50);
+  }
+  
+  .movement-amount {
+    font-weight: var(--font-weight-medium);
+  }
+  
+  .movement-amount.debit {
+    color: var(--success-color);
+  }
+  
+  .movement-amount.credit {
+    color: var(--danger-color);
+  }
+
+  .card-header {
+    background-color: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--spacing-4);
+  }
+
+  .card-header h5 {
+    color: var(--text-dark);
+    font-weight: var(--font-weight-bold);
+    margin-bottom: 0;
+  }
+
+  .empty-state {
+    padding: var(--spacing-12) var(--spacing-6);
+    text-align: center;
+  }
+
+  .empty-state-icon {
+    font-size: 4rem;
+    color: var(--gray-400);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .empty-state-title {
+    color: var(--text-dark);
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-bold);
+    margin-bottom: var(--spacing-2);
+  }
+
+  .empty-state-description {
+    color: var(--text-medium);
+    margin-bottom: var(--spacing-4);
+  }
+
+
+  .btn-group-sm .btn {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+  }
+
+  /* Emphasis styles for current balance */
+  .current-balance-box {
+    background: var(--primary-soft-2);
+    border: 1px solid var(--primary-focus);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-3);
+  }
+  .current-balance-value {
+    font-size: 1.5rem;
+    font-weight: var(--font-weight-bold);
+    color: var(--primary-color);
+    line-height: 1.5;
+  }
+  .current-balance-label {
+    color: var(--text-medium);
+    font-size: 0.85rem;
+  }
+
+  /* Center debit/credit vertically */
+  .summary-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60px;
+  }
+
+  /* تصميم المودال */
+  .journal-entry-modal .modal-header {
+    background-color: var(--bg-card);
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  .journal-entry-modal .modal-title {
+    color: var(--text-dark);
+    font-weight: var(--font-weight-bold);
+  }
+
+  .journal-entry-details {
+    background-color: var(--gray-50);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .journal-entry-line {
+    border-bottom: 1px solid var(--border-color);
+    padding: var(--spacing-3) 0;
+  }
+
+  .journal-entry-line:last-child {
+    border-bottom: none;
+  }
+
+  .account-name {
+    font-weight: var(--font-weight-medium);
+    color: var(--text-dark);
+  }
+
+  .amount-debit {
+    color: var(--success-color);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .amount-credit {
+    color: var(--danger-color);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+  }
+
+  .clickable-row:hover {
+    background-color: var(--gray-50) !important;
+  }
+
+  /* تصميم الـ badges بدون خلفية ملونة */
+  .status-badge {
+    background-color: transparent !important;
+    padding: 0.25rem 0.5rem;
+    border-radius: var(--border-radius);
+    font-size: 0.75rem;
+    font-weight: var(--font-weight-medium);
+  }
+  
+  /* تنسيق التصنيفات في الـ select */
+  #income_category option[style*="font-weight: bold"],
+  #expense_category option[style*="font-weight: bold"] {
+    background-color: var(--gray-100);
+    color: var(--text-dark);
+  }
+  
+  #income_category option[style*="padding-right"],
+  #expense_category option[style*="padding-right"] {
+    color: var(--text-medium);
+  }
+  
+  /* تنسيق Select2 */
+  .select2-container--bootstrap-5 .select2-dropdown {
+    max-height: 300px;
+  }
+  
+  .select2-container--bootstrap-5 .select2-results__options {
+    max-height: 250px;
+    overflow-y: auto;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  
+  <!-- الهيدر الموحد -->
+  {% include "shared/page_header.html" with title=title subtitle=subtitle icon=icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+  <!-- ملخص الأرصدة البسيط -->
+  <div class="row mb-3">
+    <div class="col-12">
+      <div class="alert alert-light border" style="background-color: #f8f9fa; border-color: #dee2e6;">
+        <div class="row text-center">
+          <div class="col-md-4 summary-col">
+            <h6 class="mb-1 text-success">{{ total_debit|smart_float }} {{ currency_symbol }}</h6>
+            <small class="text-muted">إجمالي المدين</small>
+          </div>
+          <div class="col-md-4 summary-col">
+            <h6 class="mb-1 text-danger">{{ total_credit|smart_float }} {{ currency_symbol }}</h6>
+            <small class="text-muted">إجمالي الدائن</small>
+          </div>
+          <div class="col-md-4">
+            <div class="current-balance-box">
+              <div class="current-balance-value">{{ current_balance|smart_float }} {{ currency_symbol }}</div>
+              <div class="current-balance-label">الرصيد الحالي</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- فلاتر البحث -->
+  <div class="filter-section">
+    <form method="get" class="row g-3">
+      <div class="col-md-2">
+        <label for="date_from" class="form-label">من تاريخ</label>
+        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{% if date_from and date_from != 'None' %}{{ date_from }}{% endif %}">
+      </div>
+      <div class="col-md-2">
+        <label for="date_to" class="form-label">إلى تاريخ</label>
+        <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{% if date_to and date_to != 'None' %}{{ date_to }}{% endif %}">
+      </div>
+      <div class="col-md-3">
+        <label for="category" class="form-label">التصنيف المالي</label>
+        <select class="form-select" id="category" name="category">
+          <option value="">جميع التصنيفات</option>
+          {% for cat in categories %}
+            <option value="{{ cat.id }}" {% if category_filter == cat.id|stringformat:"s" %}selected{% endif %}>
+              {{ cat.name }}
+            </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <label for="search" class="form-label">بحث</label>
+        <input type="text" class="form-control" id="search" name="search" value="{{ search }}" placeholder="البحث في الوصف أو المرجع...">
+      </div>
+      <div class="col-md-2">
+        <label class="form-label">&nbsp;</label>
+        <div class="d-grid">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-search me-1"></i>بحث
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <!-- قائمة الحركات -->
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "حركات الحساب" %}</h5>
+        <div class="actions-container">
+          <span class="badge" style="background-color: var(--info-color); color: var(--white);">{{ movements.paginator.count }} حركة</span>
+        </div>
+      </div>
+      <div class="card-body">
+        {% if movements %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">التاريخ</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">المرجع</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">الوصف</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">التصنيف</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">مدين</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">دائن</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">الرصيد</th>
+                  <th class="text-center" style="color: var(--text-dark); font-weight: var(--font-weight-bold);">الحالة</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for movement in movements %}
+                <tr class="movement-row clickable-row" data-journal-entry-id="{{ movement.journal_entry.id }}">
+                  <td class="text-center">{{ movement.journal_entry.date|date:"Y-m-d" }}</td>
+                  <td class="text-center">
+                    <span class="badge" style="background-color: var(--gray-600); color: var(--white);">{{ movement.journal_entry.reference|default:movement.journal_entry.number }}</span>
+                  </td>
+                  <td class="text-center">
+                    <div>
+                      <strong>{{ movement.journal_entry.description }}</strong>
+                      {% if movement.description and movement.description != movement.journal_entry.description %}
+                        <br><small class="text-muted">{{ movement.description }}</small>
+                      {% endif %}
+                    </div>
+                  </td>
+                  <td class="text-center">
+                    {% if movement.journal_entry.financial_subcategory %}
+                      <span class="badge bg-primary">{{ movement.journal_entry.financial_subcategory.name }}</span>
+                    {% elif movement.journal_entry.financial_category %}
+                      <span class="badge bg-primary">{{ movement.journal_entry.financial_category.name }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if movement.debit %}
+                      <span class="movement-amount debit">
+                        {{ movement.debit|smart_float }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if movement.credit %}
+                      <span class="movement-amount credit">
+                        {{ movement.credit|smart_float }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    <span class="text-primary fw-bold">
+                      {{ movement.running_balance|smart_float }}
+                    </span>
+                  </td>
+                  <td class="text-center">
+                    {% if movement.journal_entry.status == 'posted' %}
+                      <span class="badge" style="background-color: var(--success-color); color: var(--white);">مرحل</span>
+                    {% elif movement.journal_entry.status == 'draft' %}
+                      <span class="badge" style="background-color: var(--warning-color); color: var(--white);">مسودة</span>
+                    {% else %}
+                      <span class="badge" style="background-color: var(--gray-600); color: var(--white);">{{ movement.journal_entry.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          {% if movements.has_other_pages %}
+            <nav aria-label="Page navigation">
+              <ul class="pagination justify-content-center">
+                {% if movements.has_previous %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ movements.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">السابق</a>
+                  </li>
+                {% endif %}
+                
+                {% for num in movements.paginator.page_range %}
+                  {% if movements.number == num %}
+                    <li class="page-item active">
+                      <span class="page-link">{{ num }}</span>
+                    </li>
+                  {% elif num > movements.number|add:'-3' and num < movements.number|add:'3' %}
+                    <li class="page-item">
+                      <a class="page-link" href="?page={{ num }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">{{ num }}</a>
+                    </li>
+                  {% endif %}
+                {% endfor %}
+                
+                {% if movements.has_next %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ movements.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if category_filter %}&category={{ category_filter }}{% endif %}">التالي</a>
+                  </li>
+                {% endif %}
+              </ul>
+            </nav>
+          {% endif %}
+        {% else %}
+          <div class="text-center py-5">
+            <div class="empty-state">
+              <div class="empty-state-icon"><i class="fas fa-list-alt"></i></div>
+              <h4 class="empty-state-title">لا توجد حركات</h4>
+              <p class="empty-state-description">لم يتم العثور على حركات لهذا الحساب في الفترة المحددة. الحركات تُنشأ تلقائياً من المعاملات المالية.</p>
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال إضافة إيراد -->
+<div class="modal fade" id="incomeModal" tabindex="-1" aria-labelledby="incomeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-success text-white">
+        <h5 class="modal-title" id="incomeModalLabel">
+          <i class="fas fa-plus-circle me-2"></i>إضافة إيراد لـ {{ account.name }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="incomeForm">
+        {% csrf_token %}
+        <input type="hidden" name="receipt_account" value="{{ account.id }}">
+        <div class="modal-body">
+          <div class="row">
+            <!-- العمود الأول -->
+            <div class="col-md-6">
+              <!-- الوصف -->
+              <div class="mb-3">
+                <label for="income_description" class="form-label">الوصف <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="income_description" name="description" required placeholder="مثال: إيراد من مبيعات">
+              </div>
+              
+              <!-- التاريخ -->
+              <div class="mb-3">
+                <label for="income_date" class="form-label">التاريخ <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="income_date" name="income_date" data-date-picker required placeholder="اختر التاريخ">
+              </div>
+            </div>
+            
+            <!-- العمود الثاني -->
+            <div class="col-md-6">
+              <!-- المبلغ -->
+              <div class="mb-3">
+                <label for="income_amount" class="form-label">المبلغ <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="income_amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
+              </div>
+              
+              <!-- التصنيف المالي -->
+              <div class="mb-3">
+                <label for="income_category" class="form-label">التصنيف المالي <span class="text-danger">*</span></label>
+                <select class="form-select" id="income_category" name="financial_category" required>
+                  <option value="">اختر التصنيف</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- الملاحظات - عرض كامل -->
+          <div class="row">
+            <div class="col-12">
+              <div class="mb-3">
+                <label for="income_notes" class="form-label">ملاحظات</label>
+                <textarea class="form-control" id="income_notes" name="notes" rows="2" placeholder="ملاحظات إضافية (اختياري)"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check me-2"></i>حفظ الإيراد
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال إضافة مصروف -->
+<div class="modal fade" id="expenseModal" tabindex="-1" aria-labelledby="expenseModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-danger text-white">
+        <h5 class="modal-title" id="expenseModalLabel">
+          <i class="fas fa-minus-circle me-2"></i>إضافة مصروف من {{ account.name }}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="expenseForm">
+        {% csrf_token %}
+        <input type="hidden" name="payment_account" value="{{ account.id }}">
+        <div class="modal-body">
+          <div class="row">
+            <!-- العمود الأول -->
+            <div class="col-md-6">
+              <!-- الوصف -->
+              <div class="mb-3">
+                <label for="expense_description" class="form-label">الوصف <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="expense_description" name="description" required placeholder="مثال: مصروف كهرباء">
+              </div>
+              
+              <!-- التاريخ -->
+              <div class="mb-3">
+                <label for="expense_date" class="form-label">التاريخ <span class="text-danger">*</span></label>
+                <input type="text" class="form-control" id="expense_date" name="expense_date" data-date-picker required placeholder="اختر التاريخ">
+              </div>
+            </div>
+            
+            <!-- العمود الثاني -->
+            <div class="col-md-6">
+              <!-- المبلغ -->
+              <div class="mb-3">
+                <label for="expense_amount" class="form-label">المبلغ <span class="text-danger">*</span></label>
+                <input type="number" class="form-control" id="expense_amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
+              </div>
+              
+              <!-- التصنيف المالي -->
+              <div class="mb-3">
+                <label for="expense_category" class="form-label">التصنيف المالي <span class="text-danger">*</span></label>
+                <select class="form-select" id="expense_category" name="financial_category" required>
+                  <option value="">اختر التصنيف</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- الملاحظات - عرض كامل -->
+          <div class="row">
+            <div class="col-12">
+              <div class="mb-3">
+                <label for="expense_notes" class="form-label">ملاحظات</label>
+                <textarea class="form-control" id="expense_notes" name="notes" rows="2" placeholder="ملاحظات إضافية (اختياري)"></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </button>
+          <button type="submit" class="btn btn-danger">
+            <i class="fas fa-check me-2"></i>حفظ المصروف
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال تحويل المبالغ -->
+<div class="modal fade" id="transferModal" tabindex="-1" aria-labelledby="transferModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="transferModalLabel">
+          <i class="fas fa-exchange-alt me-2"></i>تحويل مبلغ من {{ account.name }}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="transferForm">
+        {% csrf_token %}
+        <input type="hidden" name="from_account" value="{{ account.id }}">
+        <div class="modal-body">
+          <!-- الرصيد الحالي -->
+          <div class="alert alert-info">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-wallet me-2"></i>الرصيد المتاح:</span>
+              <strong class="fs-5">{{ current_balance|smart_float }} {{ currency_symbol }}</strong>
+            </div>
+          </div>
+          
+          <!-- الحساب المستهدف -->
+          <div class="mb-3">
+            <label for="to_account" class="form-label">التحويل إلى <span class="text-danger">*</span></label>
+            <select class="form-select" id="to_account" name="to_account" required>
+              <option value="">اختر الحساب المستهدف</option>
+            </select>
+            <small class="text-muted">اختر الخزنة أو البنك المراد التحويل إليه</small>
+          </div>
+          
+          <!-- المبلغ -->
+          <div class="mb-3">
+            <label for="amount" class="form-label">المبلغ <span class="text-danger">*</span></label>
+            <input type="number" class="form-control" id="amount" name="amount" required min="0.01" step="0.01" placeholder="0.00">
+            <small class="text-muted">أدخل المبلغ المراد تحويله</small>
+          </div>
+          
+          <!-- التاريخ -->
+          <div class="mb-3">
+            <label for="transfer_date" class="form-label">تاريخ التحويل <span class="text-danger">*</span></label>
+            <input type="date" class="form-control" id="transfer_date" name="transfer_date" required>
+          </div>
+          
+          <!-- الوصف -->
+          <div class="mb-3">
+            <label for="description" class="form-label">الوصف</label>
+            <textarea class="form-control" id="description" name="description" rows="2" placeholder="وصف اختياري للتحويل"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+          </button>
+          <button type="submit" class="btn btn-success">
+            <i class="fas fa-check me-2"></i>تأكيد التحويل
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- مودال ملخص القيد -->
+<div class="modal fade journal-entry-modal" id="journalEntryModal" tabindex="-1" aria-labelledby="journalEntryModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="journalEntryModalLabel">
+          <i class="fas fa-file-invoice me-2"></i>ملخص القيد المحاسبي
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body" id="journalEntryContent">
+        <div class="text-center py-4">
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">جاري التحميل...</span>
+          </div>
+          <p class="mt-2 text-muted">جاري تحميل تفاصيل القيد...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <div class="me-auto">
+          <!-- الأزرار الإضافية للدفعة والفاتورة والعميل/المورد -->
+          <a href="#" id="viewPaymentBtn" class="btn btn-outline-success btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-money-bill-wave me-1"></i>عرض الدفعة
+          </a>
+          <a href="#" id="viewInvoiceBtn" class="btn btn-outline-info btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-file-invoice me-1"></i>عرض الفاتورة
+          </a>
+          <a href="#" id="viewClientBtn" class="btn btn-outline-warning btn-sm me-2" target="_blank" style="display: none;">
+            <i class="fas fa-user me-1"></i><span id="clientBtnText">عرض العميل</span>
+          </a>
+        </div>
+        <div>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>إغلاق
+          </button>
+          <a href="#" id="viewFullJournalEntry" class="btn btn-primary" target="_blank">
+            <i class="fas fa-external-link-alt me-1"></i>عرض كامل
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+  // فتح مودال الإيراد
+  function openIncomeModal() {
+    $('#incomeModal').modal('show');
+    var today = new Date().toISOString().split('T')[0];
+    $('#income_date').val(today);
+    loadFinancialCategories('income');
+  }
+  
+  // فتح مودال المصروف
+  function openExpenseModal() {
+    $('#expenseModal').modal('show');
+    var today = new Date().toISOString().split('T')[0];
+    $('#expense_date').val(today);
+    loadFinancialCategories('expense');
+  }
+  
+  // فتح مودال التحويل
+  function openTransferModal() {
+    $('#transferModal').modal('show');
+    // تعيين التاريخ الحالي كافتراضي
+    var today = new Date().toISOString().split('T')[0];
+    $('#transfer_date').val(today);
+    // تحميل الحسابات المتاحة
+    loadAvailableAccounts();
+  }
+  
+  // تحميل التصنيفات المالية
+  function loadFinancialCategories(type) {
+    var selectId = type === 'income' ? '#income_category' : '#expense_category';
+    var $select = $(selectId);
+    
+    $select.html('<option value="">جاري التحميل...</option>');
+    
+    $.ajax({
+      url: '/financial/api/financial-categories/',
+      method: 'GET',
+      data: { type: type },
+      success: function(response) {
+        $select.html('<option value="">اختر التصنيف</option>');
+        if (response.categories && response.categories.length > 0) {
+          response.categories.forEach(function(cat) {
+            // إضافة التصنيف الرئيسي
+            var optgroup = $('<optgroup>').attr('label', cat.name);
+            
+            // إضافة التصنيف الرئيسي كخيار
+            $select.append(`<option value="${cat.id}" style="font-weight: bold;">${cat.name}</option>`);
+            
+            // إضافة التصنيفات الفرعية إن وجدت
+            if (cat.subcategories && cat.subcategories.length > 0) {
+              cat.subcategories.forEach(function(subcat) {
+                $select.append(`<option value="${subcat.id}" data-parent="${cat.id}">└─ ${subcat.name}</option>`);
+              });
+            }
+          });
+        }
+        
+        // تهيئة Select2 بعد تحميل البيانات
+        $select.select2({
+          theme: 'bootstrap-5',
+          dir: 'rtl',
+          placeholder: 'اختر التصنيف',
+          allowClear: true,
+          width: '100%',
+          dropdownParent: $select.closest('.modal'),
+          templateResult: formatCategory,
+          templateSelection: formatCategorySelection
+        });
+      },
+      error: function() {
+        $select.html('<option value="">خطأ في التحميل</option>');
+      }
+    });
+  }
+  
+  // تنسيق عرض التصنيفات في القائمة المنسدلة
+  function formatCategory(category) {
+    if (!category.id) {
+      return category.text;
+    }
+    
+    var $category = $(category.element);
+    var isSubcategory = $category.data('parent');
+    
+    if (isSubcategory) {
+      return $('<span style="padding-right: 20px; color: #6c757d;">└─ ' + category.text.replace('└─ ', '') + '</span>');
+    } else {
+      return $('<span style="font-weight: bold;">' + category.text + '</span>');
+    }
+  }
+  
+  // تنسيق عرض التصنيف المختار
+  function formatCategorySelection(category) {
+    return category.text.replace('└─ ', '');
+  }
+  
+  // تحميل الحسابات المتاحة للتحويل
+  function loadAvailableAccounts() {
+    var currentAccountId = {{ account.id }};
+    var toAccountSelect = $('#to_account');
+    
+    toAccountSelect.html('<option value="">جاري التحميل...</option>');
+    
+    $.ajax({
+      url: '/financial/api/cash-bank-accounts/',
+      method: 'GET',
+      success: function(response) {
+        toAccountSelect.html('<option value="">اختر الحساب المستهدف</option>');
+        
+        if (response.accounts && response.accounts.length > 0) {
+          response.accounts.forEach(function(account) {
+            // استبعاد الحساب الحالي
+            if (account.id != currentAccountId) {
+              var icon = account.is_cash ? 'fa-money-bill-wave' : 'fa-university';
+              var type = account.is_cash ? 'نقدي' : 'بنكي';
+              toAccountSelect.append(
+                `<option value="${account.id}">
+                  ${account.code} - ${account.name} (${type})
+                </option>`
+              );
+            }
+          });
+        } else {
+          toAccountSelect.html('<option value="">لا توجد حسابات متاحة</option>');
+        }
+      },
+      error: function() {
+        toAccountSelect.html('<option value="">خطأ في التحميل</option>');
+      }
+    });
+  }
+  
+  $(document).ready(function() {
+    // معالجة إرسال فورم الإيراد
+    $('#incomeForm').on('submit', function(e) {
+      e.preventDefault();
+      
+      var submitBtn = $(this).find('button[type="submit"]');
+      var originalText = submitBtn.html();
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
+      
+      $.ajax({
+        url: '/financial/incomes/create/',
+        method: 'POST',
+        data: $(this).serialize(),
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        success: function(response) {
+          if (response.success) {
+            $('#incomeModal').modal('hide');
+            Swal.fire({
+              icon: 'success',
+              title: 'تم الحفظ بنجاح',
+              text: response.message,
+              confirmButtonText: 'حسناً'
+            }).then(function() {
+              location.reload();
+            });
+          } else {
+            var errorMsg = response.message || 'حدث خطأ';
+            if (response.errors) {
+              errorMsg = Object.values(response.errors).flat().join('\n');
+            }
+            Swal.fire({
+              icon: 'error',
+              title: 'خطأ',
+              text: errorMsg,
+              confirmButtonText: 'حسناً'
+            });
+            submitBtn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function(xhr) {
+          var errorMsg = 'حدث خطأ أثناء الحفظ';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            errorMsg = xhr.responseJSON.message;
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: errorMsg,
+            confirmButtonText: 'حسناً'
+          });
+          submitBtn.prop('disabled', false).html(originalText);
+        }
+      });
+    });
+    
+    // معالجة إرسال فورم المصروف
+    $('#expenseForm').on('submit', function(e) {
+      e.preventDefault();
+      
+      var submitBtn = $(this).find('button[type="submit"]');
+      var originalText = submitBtn.html();
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...');
+      
+      $.ajax({
+        url: '/financial/expenses/create/',
+        method: 'POST',
+        data: $(this).serialize(),
+        headers: {'X-Requested-With': 'XMLHttpRequest'},
+        success: function(response) {
+          if (response.success) {
+            $('#expenseModal').modal('hide');
+            Swal.fire({
+              icon: 'success',
+              title: 'تم الحفظ بنجاح',
+              text: response.message,
+              confirmButtonText: 'حسناً'
+            }).then(function() {
+              location.reload();
+            });
+          } else {
+            var errorMsg = response.message || 'حدث خطأ';
+            if (response.errors) {
+              errorMsg = Object.values(response.errors).flat().join('\n');
+            }
+            Swal.fire({
+              icon: 'error',
+              title: 'خطأ',
+              text: errorMsg,
+              confirmButtonText: 'حسناً'
+            });
+            submitBtn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function(xhr) {
+          var errorMsg = 'حدث خطأ أثناء الحفظ';
+          if (xhr.responseJSON && xhr.responseJSON.message) {
+            errorMsg = xhr.responseJSON.message;
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: errorMsg,
+            confirmButtonText: 'حسناً'
+          });
+          submitBtn.prop('disabled', false).html(originalText);
+        }
+      });
+    });
+    
+    // تم استبدال حقول التاريخ بالنظام الموحد
+    
+    // تحديد التاريخ الافتراضي للبحث
+    if (!$('#date_from').val() || $('#date_from').val() === 'None') {
+      var lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      $('#date_from').val(lastMonth.toISOString().split('T')[0]);
+    }
+    
+    // معالجة إرسال فورم التحويل
+    $('#transferForm').on('submit', function(e) {
+      e.preventDefault();
+      
+      var amount = parseFloat($('#amount').val());
+      var currentBalance = {{ current_balance|default:0 }};
+      
+      // التحقق من الرصيد
+      if (amount > currentBalance) {
+        Swal.fire({
+          icon: 'error',
+          title: 'رصيد غير كافٍ',
+          text: 'المبلغ المطلوب تحويله أكبر من الرصيد المتاح!',
+          confirmButtonText: 'حسناً'
+        });
+        return;
+      }
+      
+      var submitBtn = $(this).find('button[type="submit"]');
+      var originalText = submitBtn.html();
+      
+      // تعطيل الزر وعرض loading
+      submitBtn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i>جاري التحويل...');
+      
+      $.ajax({
+        url: '/financial/api/transfer-between-accounts/',
+        method: 'POST',
+        data: $(this).serialize(),
+        success: function(response) {
+          if (response.success) {
+            // إغلاق المودال
+            $('#transferModal').modal('hide');
+            
+            // عرض رسالة نجاح
+            Swal.fire({
+              icon: 'success',
+              title: 'تم التحويل بنجاح',
+              text: response.message,
+              confirmButtonText: 'حسناً'
+            }).then(function() {
+              // إعادة تحميل الصفحة
+              location.reload();
+            });
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'خطأ',
+              text: response.error,
+              confirmButtonText: 'حسناً'
+            });
+            submitBtn.prop('disabled', false).html(originalText);
+          }
+        },
+        error: function(xhr) {
+          var errorMsg = 'حدث خطأ أثناء التحويل';
+          if (xhr.responseJSON && xhr.responseJSON.error) {
+            errorMsg = xhr.responseJSON.error;
+          }
+          Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: errorMsg,
+            confirmButtonText: 'حسناً'
+          });
+          submitBtn.prop('disabled', false).html(originalText);
+        }
+      });
+    });
+    
+    // إعادة تعيين الفورم عند إغلاق المودال
+    $('#transferModal').on('hidden.bs.modal', function() {
+      $('#transferForm')[0].reset();
+    });
+    
+    $('#incomeModal').on('hidden.bs.modal', function() {
+      $('#incomeForm')[0].reset();
+      // تدمير Select2 عند إغلاق المودال
+      $('#income_category').select2('destroy');
+    });
+    
+    $('#expenseModal').on('hidden.bs.modal', function() {
+      $('#expenseForm')[0].reset();
+      // تدمير Select2 عند إغلاق المودال
+      $('#expense_category').select2('destroy');
+    });
+    
+    // تم استبدال حقول التاريخ بالنظام الموحد
+    
+    // إضافة event listener للصفوف القابلة للنقر
+    $(document).on('click', '.clickable-row', function(e) {
+      // تجاهل النقر إذا كان على رابط أو زر
+      if ($(e.target).closest('a, button').length > 0) {
+        return;
+      }
+      
+      const journalEntryId = $(this).data('journal-entry-id');
+      if (journalEntryId) {
+        showJournalEntryModal(journalEntryId);
+      }
+    });
+  });
+
+  // دالة عرض مودال القيد المحاسبي
+  function showJournalEntryModal(journalEntryId) {
+    // منع انتشار الحدث للروابط الأخرى
+    event.stopPropagation();
+    
+    // إظهار المودال
+    const modal = new bootstrap.Modal(document.getElementById('journalEntryModal'));
+    modal.show();
+    
+    // تحديث رابط العرض الكامل
+    document.getElementById('viewFullJournalEntry').href = 
+      `/financial/journal-entries/${journalEntryId}/`;
+    
+    // إخفاء جميع الأزرار الإضافية في البداية
+    document.getElementById('viewPaymentBtn').style.display = 'none';
+    document.getElementById('viewInvoiceBtn').style.display = 'none';
+    document.getElementById('viewClientBtn').style.display = 'none';
+    
+    // جلب تفاصيل القيد
+    fetch(`/financial/api/journal-entry/${journalEntryId}/summary/`)
+      .then(response => {
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('القيد المحاسبي غير موجود');
+          } else if (response.status === 403) {
+            throw new Error('ليس لديك صلاحية للوصول إلى هذا القيد');
+          } else {
+            throw new Error(`خطأ في الخادم: ${response.status}`);
+          }
+        }
+        return response.json();
+      })
+      .then(data => {
+        if (data.error) {
+          throw new Error(data.error);
+        }
+        displayJournalEntrySummary(data);
+        updateActionButtons(data);
+      })
+      .catch(error => {
+        console.error('خطأ:', error);
+        document.getElementById('journalEntryContent').innerHTML = `
+          <div class="alert alert-danger text-center">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>خطأ في تحميل القيد:</strong><br>
+            ${error.message}
+            <div class="mt-3">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="showJournalEntryModal(${journalEntryId})">
+                <i class="fas fa-redo me-1"></i>إعادة المحاولة
+              </button>
+            </div>
+          </div>
+        `;
+      });
+  }
+
+  // دالة عرض ملخص القيد
+  function displayJournalEntrySummary(data) {
+    const content = document.getElementById('journalEntryContent');
+    
+    let html = `
+      <div class="journal-entry-details">
+        <div class="row">
+          <div class="col-md-6">
+            <strong>رقم القيد:</strong> ${data.number || data.reference}
+          </div>
+          <div class="col-md-6">
+            <strong>التاريخ:</strong> ${data.date}
+          </div>
+        </div>
+        <div class="row mt-2">
+          <div class="col-12">
+            <strong>الوصف:</strong> ${data.description}
+          </div>
+        </div>
+        <div class="row mt-2">
+          <div class="col-md-6">
+            <strong>الحالة:</strong> 
+            <span class="badge ${getStatusBadgeClass(data.status)}">
+              ${getStatusDisplayName(data.status)}
+            </span>
+          </div>
+          <div class="col-md-6">
+            <strong>المستخدم:</strong> ${data.created_by || 'غير محدد'}
+          </div>
+        </div>`;
+    
+    
+    html += `
+      </div>
+      
+      <h6 class="mb-3"><i class="fas fa-list me-2"></i>بنود القيد:</h6>
+      <div class="table-responsive">
+        <table class="table table-sm">
+          <thead class="table-light">
+            <tr>
+              <th>الحساب</th>
+              <th class="text-center">مدين</th>
+              <th class="text-center">دائن</th>
+            </tr>
+          </thead>
+          <tbody>
+    `;
+    
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    data.lines.forEach(line => {
+      totalDebit += parseFloat(line.debit || 0);
+      totalCredit += parseFloat(line.credit || 0);
+      
+      html += `
+        <tr class="journal-entry-line">
+          <td>
+            <div class="account-name">${line.account_name}</div>
+            <small class="text-muted">${line.account_code}</small>
+          </td>
+          <td class="text-center">
+            ${line.debit ? `<span class="amount-debit">${formatNumber(line.debit)}</span>` : '-'}
+          </td>
+          <td class="text-center">
+            ${line.credit ? `<span class="amount-credit">${formatNumber(line.credit)}</span>` : '-'}
+          </td>
+        </tr>
+      `;
+    });
+    
+    html += `
+          </tbody>
+          <tfoot class="table-secondary">
+            <tr>
+              <th>الإجمالي</th>
+              <th class="text-center amount-debit">${formatNumber(totalDebit)}</th>
+              <th class="text-center amount-credit">${formatNumber(totalCredit)}</th>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    `;
+    
+    content.innerHTML = html;
+  }
+
+  // دوال مساعدة
+  function getStatusBadgeClass(status) {
+    switch(status) {
+      case 'posted': return 'status-badge text-success border border-success';
+      case 'draft': return 'status-badge text-warning border border-warning';
+      case 'cancelled': return 'status-badge text-danger border border-danger';
+      default: return 'status-badge text-secondary border border-secondary';
+    }
+  }
+
+  function getStatusDisplayName(status) {
+    switch(status) {
+      case 'posted': return 'مرحل';
+      case 'draft': return 'مسودة';
+      case 'cancelled': return 'ملغي';
+      default: return status;
+    }
+  }
+
+  function formatNumber(num) {
+    return parseFloat(num).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  // دالة تحديث أزرار الإجراءات حسب توفر البيانات
+  function updateActionButtons(data) {
+    
+    const paymentBtn = document.getElementById('viewPaymentBtn');
+    const invoiceBtn = document.getElementById('viewInvoiceBtn');
+    const clientBtn = document.getElementById('viewClientBtn');
+    const clientBtnText = document.getElementById('clientBtnText');
+    
+    
+    // إخفاء جميع الأزرار في البداية
+    paymentBtn.style.display = 'none';
+    invoiceBtn.style.display = 'none';
+    clientBtn.style.display = 'none';
+    
+    // التحقق من وجود معلومات المصدر
+    if (data.source) {
+      
+      // زر عرض الدفعة
+      if (data.source.payment_url) {
+        paymentBtn.href = data.source.payment_url;
+        paymentBtn.style.display = 'inline-block';
+        paymentBtn.style.visibility = 'visible';
+      }
+      
+      // زر عرض الفاتورة
+      if (data.source.invoice_url) {
+        invoiceBtn.href = data.source.invoice_url;
+        invoiceBtn.style.display = 'inline-block';
+      }
+      
+      // زر عرض ولي الأمر أو المورد
+      if (data.source.parent_url) {
+        clientBtn.href = data.source.parent_url;
+        clientBtnText.textContent = 'عرض ولي الأمر';
+        clientBtn.style.display = 'inline-block';
+      } else if (data.source.supplier_url) {
+        clientBtn.href = data.source.supplier_url;
+        clientBtnText.textContent = 'عرض المورد';
+        clientBtn.style.display = 'inline-block';
+      }
+    }
+    
+  }
+</script>
+{% endblock %}

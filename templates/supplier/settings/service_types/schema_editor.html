@@ -1,0 +1,250 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.field-row { background: var(--bs-light); border-radius: 8px; padding: 12px; margin-bottom: 10px; }
+.field-row:hover { background: #e8f4fd; }
+.field-key { font-family: monospace; font-size: 0.85rem; }
+.schema-preview { background: #1e1e1e; color: #d4d4d4; border-radius: 8px; padding: 16px; font-family: monospace; font-size: 0.8rem; max-height: 400px; overflow-y: auto; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <!-- محرر الحقول -->
+    <div class="col-lg-7">
+      <div class="section-container mb-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="section-title mb-0">
+            <i class="{{ service_type.icon }} me-2"></i>حقول خدمة: {{ service_type.name }}
+          </h5>
+          <button class="btn btn-success btn-sm" onclick="addField()">
+            <i class="fas fa-plus me-1"></i>إضافة حقل
+          </button>
+        </div>
+
+        <div id="fields-container">
+          <!-- تُملأ من JavaScript -->
+        </div>
+
+        <div class="text-muted text-center py-3 d-none" id="empty-msg">
+          <i class="fas fa-inbox fa-2x mb-2"></i>
+          <p>لا توجد حقول — اضغط "إضافة حقل" للبدء</p>
+        </div>
+      </div>
+
+      <!-- حفظ -->
+      <form method="post" id="schema-form">
+        {% csrf_token %}
+        <input type="hidden" name="schema_json" id="schema_json">
+        <div class="d-flex gap-2 justify-content-end">
+          <a href="{% url 'supplier:service_type_list' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-1"></i>إلغاء
+          </a>
+          <button type="submit" class="btn btn-primary" onclick="prepareSubmit()">
+            <i class="fas fa-save me-1"></i>حفظ الحقول
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- معاينة JSON -->
+    <div class="col-lg-5">
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-code me-2"></i>معاينة JSON</h5>
+        <pre class="schema-preview" id="json-preview">{{ schema_json }}</pre>
+        <small class="text-muted">يتحدث تلقائياً عند تعديل الحقول</small>
+      </div>
+
+      <!-- المصادر المتاحة -->
+      <div class="section-container mt-3">
+        <h5 class="section-title"><i class="fas fa-database me-2"></i>المصادر المتاحة</h5>
+        <div class="row">
+          {% for src in sources %}
+          <div class="col-6 mb-2">
+            <span class="badge bg-light text-dark border w-100 text-start p-2" style="cursor:pointer"
+                  onclick="copySource('{{ src.value }}')">
+              <code>{{ src.value }}</code><br>
+              <small class="text-muted">{{ src.label }}</small>
+            </span>
+          </div>
+          {% endfor %}
+        </div>
+        <small class="text-muted">اضغط على المصدر لنسخه</small>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── البيانات الأولية ──────────────────────────────────────────
+let schema = {};
+try { schema = JSON.parse('{{ schema_json|escapejs }}'); } catch(e) { schema = {}; }
+
+const FIELD_TYPES = [
+    { value: 'text',    label: 'نص' },
+    { value: 'decimal', label: 'رقم عشري' },
+    { value: 'integer', label: 'رقم صحيح' },
+    { value: 'select',  label: 'قائمة منسدلة' },
+];
+
+// ── تهيئة ────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    renderFields();
+});
+
+function renderFields() {
+    const container = document.getElementById('fields-container');
+    const emptyMsg  = document.getElementById('empty-msg');
+    const keys = Object.keys(schema);
+
+    if (keys.length === 0) {
+        container.innerHTML = '';
+        emptyMsg.classList.remove('d-none');
+        updatePreview();
+        return;
+    }
+    emptyMsg.classList.add('d-none');
+
+    container.innerHTML = keys.map((key, idx) => buildFieldRow(key, schema[key], idx)).join('');
+    updatePreview();
+}
+
+function buildFieldRow(key, def, idx) {
+    const isSelect = def.type === 'select';
+    const hasSource = isSelect && def.source;
+    const hasOptions = isSelect && def.options;
+
+    return `
+    <div class="field-row" data-key="${key}">
+      <div class="row align-items-center">
+        <div class="col-md-3 mb-2">
+          <label class="form-label small mb-1">مفتاح الحقل</label>
+          <input type="text" class="form-control form-control-sm field-key"
+                 value="${key}" onchange="renameField('${key}', this.value)"
+                 placeholder="field_key">
+        </div>
+        <div class="col-md-3 mb-2">
+          <label class="form-label small mb-1">التسمية</label>
+          <input type="text" class="form-control form-control-sm"
+                 value="${def.label || ''}" onchange="updateField('${key}', 'label', this.value)"
+                 placeholder="اسم الحقل">
+        </div>
+        <div class="col-md-2 mb-2">
+          <label class="form-label small mb-1">النوع</label>
+          <select class="form-select form-select-sm" onchange="changeFieldType('${key}', this.value)">
+            ${FIELD_TYPES.map(t => `<option value="${t.value}" ${def.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+          </select>
+        </div>
+        <div class="col-md-2 mb-2">
+          <label class="form-label small mb-1">مطلوب</label>
+          <div class="form-check form-switch mt-1">
+            <input class="form-check-input" type="checkbox" ${def.required ? 'checked' : ''}
+                   onchange="updateField('${key}', 'required', this.checked)">
+          </div>
+        </div>
+        <div class="col-md-2 mb-2 text-end">
+          <button class="btn btn-sm btn-outline-danger mt-3" onclick="removeField('${key}')">
+            <i class="fas fa-trash"></i>
+          </button>
+        </div>
+      </div>
+      ${isSelect ? buildSelectOptions(key, def) : ''}
+    </div>`;
+}
+
+function buildSelectOptions(key, def) {
+    return `
+    <div class="row mt-2">
+      <div class="col-md-6 mb-2">
+        <label class="form-label small mb-1">مصدر (source)</label>
+        <input type="text" class="form-control form-control-sm"
+               value="${def.source || ''}" onchange="updateField('${key}', 'source', this.value)"
+               placeholder="PaperType, OffsetMachineType, ...">
+        <small class="text-muted">اختر من المصادر على اليمين</small>
+      </div>
+      <div class="col-md-6 mb-2">
+        <label class="form-label small mb-1">خيارات ثابتة (options)</label>
+        <input type="text" class="form-control form-control-sm"
+               value="${(def.options || []).join(', ')}"
+               onchange="updateFieldOptions('${key}', this.value)"
+               placeholder="خيار1, خيار2, خيار3">
+        <small class="text-muted">مفصولة بفاصلة — أو استخدم source</small>
+      </div>
+    </div>`;
+}
+
+// ── عمليات الحقول ─────────────────────────────────────────────
+function addField() {
+    const key = `field_${Date.now()}`;
+    schema[key] = { type: 'text', label: '', required: false };
+    renderFields();
+}
+
+function removeField(key) {
+    delete schema[key];
+    renderFields();
+}
+
+function renameField(oldKey, newKey) {
+    newKey = newKey.trim().replace(/\s+/g, '_');
+    if (!newKey || newKey === oldKey) return;
+    if (schema[newKey]) { toastr.warning('هذا المفتاح موجود بالفعل'); return; }
+    const val = schema[oldKey];
+    delete schema[oldKey];
+    schema[newKey] = val;
+    renderFields();
+}
+
+function updateField(key, prop, value) {
+    if (!schema[key]) return;
+    schema[key][prop] = value;
+    updatePreview();
+}
+
+function changeFieldType(key, newType) {
+    if (!schema[key]) return;
+    schema[key].type = newType;
+    if (newType !== 'select') {
+        delete schema[key].source;
+        delete schema[key].options;
+    }
+    renderFields();
+}
+
+function updateFieldOptions(key, value) {
+    if (!schema[key]) return;
+    const opts = value.split(',').map(s => s.trim()).filter(Boolean);
+    schema[key].options = opts.length ? opts : undefined;
+    updatePreview();
+}
+
+// ── معاينة JSON ───────────────────────────────────────────────
+function updatePreview() {
+    document.getElementById('json-preview').textContent =
+        JSON.stringify(schema, null, 2);
+}
+
+// ── نسخ المصدر ───────────────────────────────────────────────
+function copySource(val) {
+    navigator.clipboard.writeText(val).then(() => {
+        toastr.info(`تم نسخ: ${val}`);
+    });
+}
+
+// ── حفظ ──────────────────────────────────────────────────────
+function prepareSubmit() {
+    document.getElementById('schema_json').value = JSON.stringify(schema);
+}
+</script>
+{% endblock %}

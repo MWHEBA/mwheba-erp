@@ -1,0 +1,10 @@
+{% load i18n %}
+{% if value %}
+  <span class="badge bg-secondary-subtle text-secondary border border-secondary">
+    {{ value }}
+  </span>
+{% else %}
+  <span class="text-muted">
+    {% trans "بدون فئة" %}
+  </span>
+{% endif %}

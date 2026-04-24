@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load django_bootstrap5 %}
+
+{% block title %}استيراد جماعي - ربط البصمة{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<style>
+  .info-box {
+    background-color: #e7f3ff;
+    border-left: 4px solid #2196F3;
+    padding: 1rem;
+    border-radius: 4px;
+    margin-bottom: 1.5rem;
+  }
+  .info-box i {
+    color: #2196F3;
+    font-size: 1.2rem;
+  }
+  .example-box {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+  }
+  .section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+  }
+  .section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+  }
+  .section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Header -->
+  <div class="mb-4">
+      <div class="mb-2">
+          <nav aria-label="breadcrumb">
+              <ol class="breadcrumb mb-0">
+                  <li class="breadcrumb-item"><a href="{% url 'core:dashboard' %}"><i class="fas fa-home me-1"></i>الرئيسية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:employee_list' %}"><i class="fas fa-users-cog me-1"></i>الموارد البشرية</a></li>
+                  <li class="breadcrumb-item"><a href="{% url 'hr:biometric_mapping_list' %}"><i class="fas fa-link me-1"></i>ربط معرفات البصمة</a></li>
+                  <li class="breadcrumb-item active"><i class="fas fa-file-csv me-1"></i>استيراد جماعي</li>
+              </ol>
+          </nav>
+      </div>
+      <div class="d-flex justify-content-between align-items-center bg-white p-3 rounded shadow-sm">
+          <div class="d-flex align-items-center">
+              <div class="me-3">
+                  <i class="fas fa-file-csv fa-2x text-success"></i>
+              </div>
+              <div>
+                  <h1 class="h3 mb-1">استيراد جماعي من CSV</h1>
+                  <p class="text-muted mb-0">استيراد عدة عمليات ربط دفعة واحدة من ملف CSV</p>
+              </div>
+          </div>
+          <div>
+              <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-secondary">
+                  <i class="fas fa-arrow-right me-2"></i>رجوع
+              </a>
+          </div>
+      </div>
+  </div>
+
+  <div class="row">
+      <!-- نموذج الرفع -->
+      <div class="col-lg-8 mx-auto">
+          <!-- معلومات مهمة -->
+          <div class="info-box">
+              <div class="d-flex align-items-start">
+                  <i class="fas fa-info-circle me-3 mt-1"></i>
+                  <div>
+                      <strong>متطلبات ملف CSV:</strong>
+                      <ul class="mb-0 mt-2">
+                          <li>يجب أن يحتوي على الأعمدة: <code>employee_number</code>, <code>biometric_user_id</code></li>
+                          <li>عمود <code>device_code</code> اختياري (للربط بماكينة محددة)</li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+
+          <!-- نموذج الرفع -->
+          <div class="form-container">
+              <form method="post" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  
+                  <div class="section-title">
+                      <i class="fas fa-upload me-2"></i>رفع ملف CSV
+                  </div>
+
+                  <div class="mb-3">
+                      {% bootstrap_field form.csv_file show_label=True %}
+                  </div>
+
+                  <div class="mb-4">
+                      <div class="form-check">
+                          {{ form.skip_errors }}
+                          <label class="form-check-label" for="{{ form.skip_errors.id_for_label }}">
+                              <strong>تخطي الأخطاء</strong>
+                              <br>
+                              <small class="text-muted">
+                                  الاستمرار في الاستيراد حتى لو حدثت أخطاء في بعض السجلات
+                              </small>
+                          </label>
+                      </div>
+                  </div>
+
+                  <!-- Buttons -->
+                  <div class="d-flex justify-content-between align-items-center pt-3 border-top">
+                      <a href="{% url 'hr:biometric_mapping_list' %}" class="btn btn-secondary">
+                          <i class="fas fa-times me-2"></i>إلغاء
+                      </a>
+                      <button type="submit" class="btn btn-success">
+                          <i class="fas fa-file-import me-2"></i>استيراد الآن
+                      </button>
+                  </div>
+              </form>
+          </div>
+
+          <!-- مثال على الملف - مطوي -->
+          <div class="form-container mt-3">
+              <div class="section-title" data-bs-toggle="collapse" data-bs-target="#exampleSection" aria-expanded="false" style="cursor: pointer;">
+                  <i class="fas fa-file-code me-2"></i>مثال على ملف CSV
+                  <i class="fas fa-chevron-down float-end"></i>
+              </div>
+              
+              <div class="collapse" id="exampleSection">
+                  <div class="example-box mt-3">
+employee_number,biometric_user_id,device_code<br>
+EMP001,123,DEVICE-001<br>
+EMP002,456,DEVICE-001<br>
+EMP003,789,<br>
+EMP004,101,DEVICE-002
+                  </div>
+
+                  <div class="alert alert-info mt-3 mb-0">
+                      <i class="fas fa-lightbulb me-2"></i>
+                      <strong>نصيحة:</strong> يمكنك ترك عمود <code>device_code</code> فارغاً للربط العام على جميع الماكينات.
+                  </div>
+              </div>
+          </div>
+
+          <!-- ملاحظات إضافية - مطوية -->
+          <div class="form-container mt-3">
+              <div class="section-title" data-bs-toggle="collapse" data-bs-target="#notesSection" aria-expanded="false" style="cursor: pointer;">
+                  <i class="fas fa-exclamation-triangle me-2"></i>ملاحظات مهمة
+                  <i class="fas fa-chevron-down float-end"></i>
+              </div>
+              
+              <div class="collapse" id="notesSection">
+                  <div class="alert alert-warning mt-3 mb-0">
+                      <ul class="mb-0">
+                          <li>تأكد من صحة أرقام الموظفين قبل الاستيراد</li>
+                          <li>معرفات البصمة المكررة سيتم تحديثها بالبيانات الجديدة</li>
+                          <li>سيتم عرض تقرير مفصل بعد انتهاء الاستيراد</li>
+                      </ul>
+                  </div>
+              </div>
+          </div>
+      </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,482 @@
+{% comment %}
+========================================
+FORM FIELD المركزي - Corporate ERP
+========================================
+
+مكون حقل النموذج المستخدم في مختلف النماذج مع دعم شامل لجميع أنواع الحقول
+
+الاستخدام:
+{% include "components/form_field.html" with field=form.name %}
+
+المعلمات الأساسية:
+- field: كائن الحقل من نموذج Django (مطلوب)
+- field_type: نوع الحقل (text/email/password/number/tel/url/date/datetime/time/file/select/textarea/checkbox/radio) (اختياري، يتم تحديده تلقائياً)
+
+معلمات العرض:
+- show_label: عرض العنوان (اختياري، افتراضي True)
+- label: نص العنوان المخصص (اختياري، يستخدم field.label افتراضياً)
+- label_class: فئات CSS إضافية للعنوان (اختياري)
+- show_required_mark: إظهار علامة الحقل المطلوب (*) (اختياري، افتراضي True)
+
+معلمات الحقل:
+- field_class: فئات CSS إضافية للحقل (اختياري)
+- placeholder: نص توضيحي للحقل (اختياري)
+- readonly: هل الحقل للقراءة فقط (اختياري، افتراضي False)
+- disabled: هل الحقل معطل (اختياري، افتراضي False)
+- autofocus: التركيز التلقائي (اختياري، افتراضي False)
+- autocomplete: خاصية الإكمال التلقائي (اختياري)
+
+معلمات الأيقونات:
+- prepend_icon: أيقونة تضاف قبل الحقل (اختياري)
+- append_icon: أيقونة تضاف بعد الحقل (اختياري)
+- icon_color: لون الأيقونة (اختياري، افتراضي secondary)
+
+معلمات المساعدة والتحقق:
+- help_text: نص مساعد للحقل (اختياري، يستخدم field.help_text افتراضياً)
+- show_help_text: إظهار نص المساعدة (اختياري، افتراضي True)
+- validation_feedback: رسالة تحقق مخصصة (اختياري)
+- show_validation: إظهار رسائل التحقق (اختياري، افتراضي True)
+
+معلمات التخطيط:
+- layout: تخطيط الحقل (vertical/horizontal/inline) (اختياري، افتراضي vertical)
+- wrapper_class: فئات CSS للحاوية الخارجية (اختياري)
+- group_class: فئات CSS لمجموعة الحقل (اختياري)
+
+معلمات خاصة بأنواع الحقول:
+- min_value: القيمة الدنيا (للحقول الرقمية والتواريخ) (اختياري)
+- max_value: القيمة العليا (للحقول الرقمية والتواريخ) (اختياري)
+- step: خطوة الزيادة (للحقول الرقمية) (اختياري)
+- rows: عدد الصفوف (لـ textarea) (اختياري، افتراضي 3)
+- cols: عدد الأعمدة (لـ textarea) (اختياري)
+- multiple: اختيار متعدد (للملفات والقوائم) (اختياري، افتراضي False)
+- accept: أنواع الملفات المقبولة (للملفات) (اختياري)
+
+أمثلة:
+
+1. حقل نص بسيط:
+{% include "components/form_field.html" with field=form.name %}
+
+2. حقل بريد إلكتروني مع أيقونة:
+{% include "components/form_field.html" with field=form.email prepend_icon="fa-envelope" %}
+
+3. حقل كلمة مرور مع نص مساعد:
+{% include "components/form_field.html" with field=form.password help_text="يجب أن تحتوي على 8 أحرف على الأقل" %}
+
+4. حقل رقم مع حدود:
+{% include "components/form_field.html" with field=form.age min_value=18 max_value=100 %}
+
+5. حقل تاريخ مع تخطيط أفقي:
+{% include "components/form_field.html" with field=form.birth_date layout="horizontal" %}
+
+6. منطقة نص مع عدد صفوف مخصص:
+{% include "components/form_field.html" with field=form.description rows=5 %}
+
+7. حقل ملف مع قبول أنواع محددة:
+{% include "components/form_field.html" with field=form.avatar accept="image/*" %}
+
+========================================
+{% endcomment %}
+
+{% load widget_tweaks %}
+{% load custom_filters %}
+
+{% comment %} Determine field type - using inline conditions {% endcomment %}
+
+<div class="form-field-wrapper {{ wrapper_class }} layout-{{ layout|default:'vertical' }}">
+    <div class="form-group {{ group_class }} {% if field.errors %}has-error{% endif %}">
+        
+        {% comment %} Label {% endcomment %}
+        {% if show_label|default:True %}
+            <label for="{{ field.id_for_label }}" 
+                   class="form-label {{ label_class }} {% if field.field.required %}required{% endif %}">
+                {% if label %}
+                    {{ label }}
+                {% elif field.label %}
+                    {{ field.label }}
+                {% else %}
+                    {{ field.name|title }}
+                {% endif %}
+                {% if show_required_mark|default:True and field.field.required %}
+                    <span class="required-mark text-danger" aria-label="حقل مطلوب">*</span>
+                {% endif %}
+            </label>
+        {% endif %}
+        
+        {% comment %} Field Container {% endcomment %}
+        <div class="field-container">
+            
+            {% if field_type == 'checkbox' or field.field.widget.input_type == 'checkbox' %}
+                {% comment %} Checkbox Field {% endcomment %}
+                <div class="form-check">
+                    {{ field }}
+                    {% if show_label|default:True %}
+                        <label class="form-check-label {{ label_class }}" for="{{ field.id_for_label }}">
+                            {% if label %}
+                                {{ label }}
+                            {% elif field.label %}
+                                {{ field.label }}
+                            {% else %}
+                                {{ field.name|title }}
+                            {% endif %}
+                            {% if show_required_mark|default:True and field.field.required %}
+                                <span class="required-mark text-danger" aria-label="حقل مطلوب">*</span>
+                            {% endif %}
+                        </label>
+                    {% endif %}
+                </div>
+                
+            {% elif field_type == 'radio' %}
+                {% comment %} Radio Field {% endcomment %}
+                <div class="form-radio-group">
+                    {{ field|add_class:"form-check-input" }}
+                </div>
+                
+            {% elif field_type == 'file' or field.field.widget.input_type == 'file' %}
+                {% comment %} File Field {% endcomment %}
+                <div class="file-input-wrapper">
+                    {% if prepend_icon or append_icon %}
+                        <div class="input-group">
+                            {% if prepend_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ prepend_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                            
+                            {{ field }}
+                            
+                            {% if append_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ append_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
+                </div>
+                
+            {% elif field_type == 'textarea' %}
+                {% comment %} Textarea Field {% endcomment %}
+                <div class="textarea-wrapper">
+                    {{ field }}
+                </div>
+                
+            {% elif field_type == 'select' %}
+                {% comment %} Select Field {% endcomment %}
+                <div class="select-wrapper">
+                    {% if prepend_icon or append_icon %}
+                        <div class="input-group">
+                            {% if prepend_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ prepend_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                            
+                            {{ field }}
+                            
+                            {% if append_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ append_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
+                </div>
+                
+            {% else %}
+                {% comment %} Input Fields (text, email, password, number, etc.) {% endcomment %}
+                <div class="input-wrapper">
+                    {% if prepend_icon or append_icon %}
+                        <div class="input-group">
+                            {% if prepend_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ prepend_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                            
+                            {{ field }}
+                            
+                            {% if append_icon %}
+                                <span class="input-group-text text-{{ icon_color|default:'secondary' }}">
+                                    <i class="fas {{ append_icon }}" aria-hidden="true"></i>
+                                </span>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        {{ field }}
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+        </div>
+        
+        {% comment %} Help Text {% endcomment %}
+        {% if show_help_text|default:True %}
+            {% if help_text %}
+                <small class="form-text text-muted d-block mt-1">
+                    <i class="fas fa-info-circle me-1" aria-hidden="true"></i>
+                    {{ help_text }}
+                </small>
+            {% elif field.help_text %}
+                <small class="form-text text-muted d-block mt-1">
+                    <i class="fas fa-info-circle me-1" aria-hidden="true"></i>
+                    {{ field.help_text }}
+                </small>
+            {% endif %}
+        {% endif %}
+        
+        {% comment %} Validation Feedback {% endcomment %}
+        {% if show_validation|default:True %}
+            {% if field.errors %}
+                <div class="invalid-feedback d-block">
+                    <i class="fas fa-exclamation-triangle me-1" aria-hidden="true"></i>
+                    {% for error in field.errors %}
+                        <span class="error-message">{{ error }}</span>
+                        {% if not forloop.last %}<br>{% endif %}
+                    {% endfor %}
+                </div>
+            {% elif validation_feedback %}
+                <div class="valid-feedback d-block">
+                    <i class="fas fa-check-circle me-1" aria-hidden="true"></i>
+                    {{ validation_feedback }}
+                </div>
+            {% endif %}
+        {% endif %}
+        
+    </div>
+</div>
+
+<!-- Form Field Styles -->
+<style>
+/* Base Form Field Styles */
+.form-field-wrapper {
+    margin-bottom: 1rem;
+}
+
+.form-group {
+    position: relative;
+}
+
+.form-label {
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+    color: var(--bs-dark);
+}
+
+.form-label.required::after {
+    content: "";
+}
+
+.required-mark {
+    font-weight: bold;
+    margin-left: 0.25rem;
+}
+
+/* Field Container */
+.field-container {
+    position: relative;
+}
+
+/* Input Group Enhancements */
+.input-group-text {
+    background-color: var(--bs-light);
+    border-color: var(--bs-border-color);
+    color: var(--bs-secondary);
+}
+
+.input-group-text i {
+    width: 1rem;
+    text-align: center;
+}
+
+/* Form Control Enhancements */
+.form-control,
+.form-select {
+    border-radius: 0.375rem;
+    border-color: var(--bs-border-color);
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(var(--primary-color-rgb), 0.25);
+}
+
+/* Checkbox Enhancements */
+.form-check {
+    padding-left: 0;
+    margin-bottom: 0;
+}
+
+.form-check-input {
+    margin-left: 0;
+    margin-right: 0.5rem;
+}
+
+.form-check-label {
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+/* File Input Enhancements */
+.file-input-wrapper .form-control {
+    cursor: pointer;
+}
+
+.file-input-wrapper .form-control::-webkit-file-upload-button {
+    background-color: var(--bs-light);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 0.25rem;
+    color: var(--bs-dark);
+    cursor: pointer;
+    margin-right: 0.75rem;
+    padding: 0.375rem 0.75rem;
+}
+
+/* Textarea Enhancements */
+.textarea-wrapper .form-control {
+    resize: vertical;
+    min-height: calc(1.5em + 0.75rem + 2px);
+}
+
+/* Select Enhancements */
+.select-wrapper .form-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%23343a40' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m1 6 7 7 7-7'/%3e%3c/svg%3e");
+}
+
+/* Layout Variations */
+.layout-horizontal {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.layout-horizontal .form-label {
+    margin-bottom: 0;
+    min-width: 120px;
+    flex-shrink: 0;
+}
+
+.layout-horizontal .field-container {
+    flex: 1;
+}
+
+.layout-inline {
+    display: inline-block;
+    margin-right: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.layout-inline .form-label {
+    display: inline-block;
+    margin-right: 0.5rem;
+    margin-bottom: 0;
+}
+
+.layout-inline .field-container {
+    display: inline-block;
+}
+
+/* Error States */
+.has-error .form-control,
+.has-error .form-select {
+    border-color: var(--bs-danger);
+}
+
+.has-error .form-control:focus,
+.has-error .form-select:focus {
+    border-color: var(--bs-danger);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-danger-rgb), 0.25);
+}
+
+.has-error .input-group-text {
+    border-color: var(--bs-danger);
+    color: var(--bs-danger);
+}
+
+/* Feedback Messages */
+.form-text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+.invalid-feedback {
+    color: var(--bs-danger);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.valid-feedback {
+    color: var(--bs-success);
+    font-size: 0.875rem;
+    margin-top: 0.25rem;
+}
+
+.error-message {
+    display: inline-block;
+}
+
+/* Disabled and Readonly States */
+.form-control:disabled,
+.form-select:disabled {
+    background-color: var(--bs-secondary-bg);
+    opacity: 1;
+}
+
+.form-control[readonly] {
+    background-color: var(--bs-light);
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .layout-horizontal {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .layout-horizontal .form-label {
+        min-width: auto;
+        margin-bottom: 0.5rem;
+    }
+    
+    .layout-inline {
+        display: block;
+        margin-right: 0;
+    }
+    
+    .layout-inline .form-label {
+        display: block;
+        margin-right: 0;
+        margin-bottom: 0.5rem;
+    }
+    
+    .layout-inline .field-container {
+        display: block;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .form-control,
+    .form-select {
+        border-width: 2px;
+    }
+    
+    .form-control:focus,
+    .form-select:focus {
+        outline: 2px solid var(--primary-color);
+        outline-offset: 2px;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .form-control,
+    .form-select {
+        transition: none;
+    }
+}
+</style> 

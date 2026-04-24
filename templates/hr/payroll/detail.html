@@ -1,0 +1,846 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* معلومات الموظف */
+.employee-details {
+    padding: 0.5rem 0;
+}
+
+.employee-name-section {
+    display: flex;
+    align-items: center;
+}
+
+.employee-name-link {
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.employee-name-link:hover {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.employee-meta-grid {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.meta-item i {
+    font-size: 1rem;
+    color: var(--text-muted);
+}
+
+.meta-item span {
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+/* كارت صافي الراتب */
+.net-salary-card {
+    background: var(--primary-color);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    height: 100%;
+    transition: background-color 0.3s ease;
+}
+
+/* كارت صافي الراتب - مدفوع */
+.net-salary-card.paid {
+    background: var(--success-color);
+}
+
+.net-salary-icon {
+    width: 55px;
+    height: 55px;
+    background: rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.net-salary-icon i {
+    font-size: 1.5rem;
+    color: white;
+}
+
+.net-salary-content {
+    flex: 1;
+    color: white;
+}
+
+.net-salary-label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    opacity: 0.9;
+    margin-bottom: 0.25rem;
+}
+
+.net-salary-amount {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1;
+    display: inline;
+}
+
+.net-salary-currency {
+    font-size: 1.25rem;
+    font-weight: 600;
+    opacity: 0.9;
+    display: inline;
+    margin-right: 0.5rem;
+}
+
+/* كارت مدة الخدمة (Light) */
+.service-duration-card {
+    background: var(--gray-100);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    height: 100%;
+}
+
+.service-duration-icon {
+    width: 45px;
+    height: 45px;
+    background: var(--white);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid var(--border-color);
+}
+
+.service-duration-icon i {
+    font-size: 1.25rem;
+    color: var(--text-secondary);
+}
+
+.service-duration-content {
+    flex: 1;
+}
+
+.service-duration-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.service-duration-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* Responsive */
+@media (max-width: 991px) {
+    .net-salary-card {
+        justify-content: center;
+        text-align: center;
+        flex-direction: column;
+    }
+    
+    .employee-meta-grid {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+}
+
+/* بنود الراتب - تصميم بسيط */
+.salary-item-simple {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.salary-item-simple:last-child {
+    border-bottom: none;
+}
+
+.salary-item-simple .salary-item-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.salary-item-simple .salary-item-amount {
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+.badge-sm {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+}
+
+/* الإجماليات البسيطة */
+.totals-row {
+    padding: 0.7rem 0;
+    background: var(--gray-50);
+    border-top: 2px solid var(--border-color);
+}
+
+.total-simple {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: var(--white);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.total-simple.total-success {
+    border-right: 3px solid var(--success-color);
+}
+
+.total-simple.total-danger {
+    border-right: 3px solid var(--danger-color);
+}
+
+.total-simple .total-label {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.total-simple .total-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+/* معلومات الموظف */
+.employee-info {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+}
+
+.employee-name {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 0.5rem;
+}
+
+.employee-meta {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+/* معلومات القسيمة */
+.info-card {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 1.25rem;
+}
+
+.info-item {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.info-item:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-bottom: 0.25rem;
+}
+
+.info-value {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+}
+
+/* Audit log collapsible */
+.section-title[data-bs-toggle="collapse"] { cursor: pointer; transition: all 0.2s ease; }
+.section-title[data-bs-toggle="collapse"]:hover { opacity: 0.8; }
+.section-title .fa-chevron-down { transition: transform 0.3s ease; }
+.section-title[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+
+  <!-- ملخص قسيمة الراتب -->
+  <div class="section-container">
+      <h5 class="section-title">
+          <i class="fas fa-file-invoice me-2"></i>قسيمة راتب {{ payroll.month|arabic_month_year }}
+          {% if payroll.status == 'draft' %}
+              <span class="badge bg-light text-dark px-2 py-1 float-end"><i class="fas fa-file-alt me-1"></i>مسودة</span>
+          {% elif payroll.status == 'calculated' %}
+              <span class="badge bg-info px-2 py-1 float-end"><i class="fas fa-calculator me-1"></i>محسوب</span>
+          {% elif payroll.status == 'approved' %}
+              <span class="badge bg-warning px-2 py-1 float-end"><i class="fas fa-check-circle me-1"></i>معتمد</span>
+          {% elif payroll.status == 'paid' %}
+              <span class="badge bg-success text-white px-2 py-1 float-end"><i class="fas fa-money-bill-wave me-1"></i>مدفوع</span>
+          {% endif %}
+      </h5>
+      
+      <div class="row align-items-center">
+          <!-- معلومات الموظف -->
+          <div class="col-lg-4 mb-4 mb-lg-0">
+              <div class="employee-details">
+                  
+                  <div class="employee-name-section mb-2">
+                      <i class="fas fa-user-circle text-primary fs-5 me-2"></i>
+                      <a href="{% url 'hr:employee_detail' payroll.employee.pk %}" class="employee-name-link fs-5 fw-bold">
+                          {{ payroll.employee.get_full_name_ar }}
+                      </a>
+                  </div>
+                  
+                  <div class="employee-meta-grid">
+                      <div class="meta-item">
+                          <i class="fas fa-id-badge text-muted"></i>
+                          <span class="text-muted">{{ payroll.employee.employee_number }}</span>
+                      </div>
+                      <div class="meta-item">
+                          <i class="fas fa-building text-muted"></i>
+                          <span class="text-muted">{{ payroll.employee.department.name_ar }}</span>
+                      </div>
+                      <div class="meta-item">
+                          <i class="fas fa-briefcase text-muted"></i>
+                          <span class="text-muted">{{ payroll.employee.job_title.title_ar }}</span>
+                      </div>
+                  </div>
+              </div>
+          </div>
+
+          <!-- الكروت -->
+          <div class="col-lg-8">
+              <div class="row g-2">
+                  
+                  <!-- مدة الخدمة -->
+                  <div class="col-md-6">
+                      <div class="service-duration-card">
+                          <div class="service-duration-icon">
+                              <i class="fas fa-calendar-check"></i>
+                          </div>
+                          <div class="service-duration-content">
+                              <div class="service-duration-label">مدة الخدمة</div>
+                              <div class="service-duration-value">
+                                  {% if payroll.employee.hire_date %}
+                                      {{ payroll.employee.hire_date|arabic_timesince }}
+                                  {% else %}
+                                      غير محدد
+                                  {% endif %}
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+                  
+                <!-- صافي الراتب -->
+                  <div class="col-md-6">
+                      <div class="net-salary-card{% if payroll.status == 'paid' %} paid{% endif %}">
+                          <div class="net-salary-icon">
+                              <i class="fas fa-wallet"></i>
+                          </div>
+                          <div class="net-salary-content">
+                              <div class="net-salary-label">صافي الراتب</div>
+                              <div>
+                                  <span class="net-salary-amount" id="netSalaryValue">{{ correct_net_salary|remove_trailing_zeros }}</span>
+                                  <span class="net-salary-currency">{% currency_symbol %}</span>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+
+              </div>          </div>
+      </div>
+  </div>
+
+  <div class="row">
+      <div class="col-lg-8">
+          {% if has_lines %}
+          <!-- كارت واحد للمستحقات والاستقطاعات -->
+          <div class="section-container">
+          <h5 class="section-title"><i class="fas fa-money-bill-wave me-2"></i>تفاصيل الراتب</h5>
+          <div class="card shadow-sm mb-4">
+              <div class="card-body p-0">
+                  <div class="row g-0">
+                      <!-- المستحقات -->
+                      <div class="col-md-6 border-end">
+                          <div class="p-3 border-bottom bg-light">
+                              <h6 class="mb-0 text-success">
+                                  <i class="fas fa-plus-circle me-2"></i>المستحقات
+                              </h6>
+                          </div>
+                          <div class="p-3" id="earningsContainer">
+                          {% if earnings or payroll.basic_salary %}
+                              <!-- الأجر الأساسي — read-only دائماً (يظهر أولاً) -->
+                              {% if payroll.basic_salary %}
+                              <div class="salary-item-simple mb-2" data-line-category="a">
+                                  <div class="d-flex justify-content-between align-items-center">
+                                      <div class="salary-item-name">
+                                          الأجر الأساسي
+                                          <span class="badge bg-primary badge-sm ms-2">أساسي</span>
+                                      </div>
+                                      <div class="d-flex align-items-center gap-2">
+                                          <span class="salary-item-amount text-success fw-bold">
+                                              {{ payroll.basic_salary|remove_trailing_zeros }} {% currency_symbol %}
+                                          </span>
+                                          <i class="fas fa-lock fa-xs text-muted" title="لا يمكن تعديل هذا البند"></i>
+                                      </div>
+                                  </div>
+                              </div>
+                              {% endif %}
+
+                              <!-- البنود المرتبة: المقفولة (a) أولاً، ثم (b)، ثم (c) -->
+                              {% for line in earnings %}
+                              {% if line.line_category == 'a' %}
+                              <!-- بند read-only مقفول -->
+                              <div class="salary-item-simple mb-2" data-line-category="a">
+                                  <div class="d-flex justify-content-between align-items-center">
+                                      <div class="salary-item-name">
+                                          {{ line.name }}
+                                          <span class="badge bg-secondary badge-sm ms-1">مرجعية</span>
+                                      </div>
+                                      <div class="d-flex align-items-center gap-2">
+                                          <span class="salary-item-amount text-success">
+                                              {{ line.amount|remove_trailing_zeros }} {% currency_symbol %}
+                                          </span>
+                                          <i class="fas fa-lock fa-xs text-muted" title="لا يمكن تعديل هذا البند"></i>
+                                      </div>
+                                  </div>
+                              </div>
+                              {% else %}
+                              <!-- بند قابل للتعديل (b أو c) -->
+                              {% include "hr/payroll/_line_item.html" with line=line color="success" cat=line.line_category editable=payroll.status %}
+                              {% endif %}
+                              {% endfor %}
+                          {% else %}
+                              <p class="text-muted text-center py-4">لا توجد مستحقات</p>
+                          {% endif %}
+                          {% if payroll.status == 'draft' or payroll.status == 'calculated' %}
+                          <div class="pt-2 border-top mt-2">
+                              <button class="btn btn-sm btn-outline-success w-100 btn-add-line"
+                                      data-payroll-id="{{ payroll.pk }}" data-type="earning">
+                                  <i class="fas fa-plus me-1"></i>إضافة استحقاق
+                              </button>
+                          </div>
+                          {% endif %}
+                          </div>
+                      </div>
+
+                      <!-- الاستقطاعات -->
+                      <div class="col-md-6">
+                          <div class="p-3 border-bottom bg-light">
+                              <h6 class="mb-0 text-danger">
+                                  <i class="fas fa-minus-circle me-2"></i>الاستقطاعات
+                              </h6>
+                          </div>
+                          <div class="p-3" id="deductionsContainer">
+                          {% if deductions %}
+                              {% for line in deductions %}
+                              {% if line.line_category == 'a' %}
+                              <!-- بند read-only — لا يمكن تعديله أو حذفه -->
+                              <div class="salary-item-simple mb-2" data-line-category="a">
+                                  <div class="d-flex justify-content-between align-items-start">
+                                      <div class="salary-item-name">
+                                          {{ line.name }}
+                                          {% if line.code|in_list:'SOCIAL_INSURANCE,SOCIAL_INSURANCE_EMP,INCOME_TAX' %}
+                                              <span class="badge bg-secondary badge-sm ms-1">محسوب</span>
+                                          {% elif line.source == 'advance' %}
+                                              <span class="badge bg-secondary badge-sm ms-1">سلفة</span>
+                                          {% else %}
+                                              <span class="badge bg-secondary badge-sm ms-1">محمي</span>
+                                          {% endif %}
+                                          {% if line.calculation_details and line.calculation_details.calculation %}
+                                              <br><small class="text-muted">{{ line.calculation_details.calculation }}</small>
+                                          {% endif %}
+                                      </div>
+                                      <div class="d-flex align-items-center gap-2">
+                                          <span class="salary-item-amount text-danger">
+                                              {{ line.amount|remove_trailing_zeros }} {% currency_symbol %}
+                                          </span>
+                                          <i class="fas fa-lock fa-xs text-muted" title="لا يمكن تعديل هذا البند"></i>
+                                      </div>
+                                  </div>
+                              </div>
+                              {% else %}
+                                  {% include "hr/payroll/_line_item.html" with line=line color="danger" cat=line.line_category editable=payroll.status %}
+                              {% endif %}
+                              {% endfor %}
+                          {% else %}
+                              <p class="text-muted text-center py-4">لا توجد استقطاعات</p>
+                          {% endif %}
+                          {% if payroll.status == 'draft' or payroll.status == 'calculated' %}
+                          <div class="pt-2 border-top mt-2">
+                              <button class="btn btn-sm btn-outline-danger w-100 btn-add-line"
+                                      data-payroll-id="{{ payroll.pk }}" data-type="deduction">
+                                  <i class="fas fa-plus me-1"></i>إضافة خصم
+                              </button>
+                          </div>
+                          {% endif %}
+                          </div>
+                      </div>
+                  </div>
+                  
+                  <!-- الإجماليات في صف واحد -->
+                  <div class="totals-row">
+                      <div class="row g-0">
+                          <div class="col-md-6 px-3">
+                              <div class="total-simple total-success">
+                                  <span class="total-label">إجمالي المستحقات</span>
+                                  <span class="total-value" id="totalEarningsValue">{{ total_earnings|remove_trailing_zeros }} {% currency_symbol %}</span>
+                              </div>
+                          </div>
+                          <div class="col-md-6 px-3">
+                              <div class="total-simple total-danger">
+                                  <span class="total-label">إجمالي الاستقطاعات</span>
+                                  <span class="total-value" id="totalDeductionsValue">{{ total_deductions|remove_trailing_zeros }} {% currency_symbol %}</span>
+                              </div>
+                          </div>
+                      </div>
+                  </div>
+              </div>
+          </div>
+          </div>
+          {% endif %}
+
+      </div>
+
+      <div class="col-lg-4">
+          <div class="section-container">
+          <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>معلومات القسيمة</h5>
+          <div class="info-card">
+              
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-calendar-alt me-1"></i> الشهر</div>
+                  <div class="info-value">{{ payroll.month|arabic_month_year }}</div>
+              </div>
+              
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-tag me-1"></i> التصنيف المالي</div>
+                  <div class="info-value">
+                      {% if payroll.financial_subcategory %}
+                          {% with code=payroll.financial_subcategory.code %}
+                              {% if code == 'dept_admin' %}
+                                  <span class="soft-badge soft-badge-warning">{{ payroll.financial_subcategory.name }}</span>
+                              {% elif code == 'dept_operations' %}
+                                  <span class="soft-badge soft-badge-info">{{ payroll.financial_subcategory.name }}</span>
+                              {% elif code == 'dept_auto' %}
+                                  <span class="soft-badge soft-badge-purple">{{ payroll.financial_subcategory.name }}</span>
+                              {% else %}
+                                  <span class="soft-badge soft-badge-secondary">{{ payroll.financial_subcategory.name }}</span>
+                              {% endif %}
+                          {% endwith %}
+                      {% elif payroll.financial_category %}
+                          <span class="soft-badge soft-badge-secondary">{{ payroll.financial_category.name }}</span>
+                      {% else %}
+                          <span class="text-muted">غير محدد</span>
+                      {% endif %}
+                  </div>
+              </div>
+              
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-flag me-1"></i> الحالة</div>
+                  <div class="info-value">
+                      {% if payroll.status == 'draft' %}
+                          <span class="badge bg-secondary">مسودة</span>
+                      {% elif payroll.status == 'calculated' %}
+                          <span class="badge bg-info">محسوب</span>
+                      {% elif payroll.status == 'approved' %}
+                          <span class="badge bg-warning">معتمد</span>
+                      {% elif payroll.status == 'paid' %}
+                          <span class="badge bg-success">مدفوع</span>
+                      {% endif %}
+                      
+                      {% if is_partial_salary %}
+                          <span class="badge bg-warning text-dark ms-2">
+                              <i class="fas fa-clock me-1"></i>جزئي
+                          </span>
+                      {% endif %}
+                  </div>
+              </div>
+              
+              {% if is_partial_salary %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-info-circle me-1"></i> سبب الراتب الجزئي</div>
+                  <div class="info-value text-warning">
+                      <i class="fas fa-calendar-plus me-1"></i>{{ partial_reason }}
+                  </div>
+              </div>
+              {% endif %}
+              
+              {% if payroll.status == 'paid' %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-wallet me-1"></i> طريقة الدفع</div>
+                  <div class="info-value">{{ payroll.get_payment_method_display }}</div>
+              </div>
+              
+              {% if payroll.payment_date %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-calendar-check me-1"></i> تاريخ الدفع</div>
+                  <div class="info-value">{{ payroll.payment_date|date:"Y-m-d" }}</div>
+              </div>
+              {% endif %}
+              {% endif %}
+              
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-file-contract me-1"></i> رقم العقد</div>
+                  <div class="info-value">{{ payroll.contract.contract_number|default:"غير محدد" }}</div>
+              </div>
+
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-sun me-1"></i> قيمة اليوم / الساعة</div>
+                  <div class="info-value">{{ daily_value|smart_float }} / {{ hourly_value|smart_float }} {% currency_symbol %}</div>
+              </div>
+
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-history me-1"></i> مرتب الشهر السابق</div>
+                  <div class="info-value">
+                      {% if prev_net_salary %}
+                          {{ prev_net_salary|remove_trailing_zeros }} {% currency_symbol %}
+                      {% else %}
+                          <span class="text-muted">لا يوجد</span>
+                      {% endif %}
+                  </div>
+              </div>
+
+              {% if insurable_salary_line %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-shield-alt me-1"></i> الأجر التأميني</div>
+                  <div class="info-value">
+                      {{ insurable_salary_line.amount|remove_trailing_zeros }} {% currency_symbol %}
+                      <span class="badge bg-secondary ms-1" style="font-size: 0.7em;">مرجعية</span>
+                  </div>
+              </div>
+              {% endif %}
+
+              {% if payroll.processed_by %}
+              <div class="info-item">
+                  <div class="info-label"><i class="fas fa-user-check me-1"></i> معالج بواسطة</div>
+                  <div class="info-value">{{ payroll.processed_by.get_full_name }}</div>
+              </div>
+              {% endif %}
+          </div>
+          </div>
+
+          {% if payroll.notes %}
+          <div class="section-container mt-3">
+          <h5 class="section-title"><i class="fas fa-sticky-note me-2"></i>ملاحظات</h5>
+          <div class="info-card">
+              <div class="text-muted">{{ payroll.notes }}</div>
+          </div>
+          </div>
+          {% endif %}
+      </div>
+  </div>
+</div>
+
+<!-- مودال الاعتماد -->
+{% if payroll.status == 'calculated' %}
+<div class="modal fade" id="approvePayrollModal" tabindex="-1" aria-labelledby="approvePayrollModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            {% include "hr/payroll/approve_modal.html" %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- مودال الدفع -->
+{% if payroll.status == 'approved' %}
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-labelledby="paymentModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            {% include "hr/payroll/payment_modal.html" %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- سجل التدقيق -->
+{% if audit_logs %}
+<div class="container-fluid mt-4">
+    {% csrf_token %}
+    <div class="section-container">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#auditLogSection" aria-expanded="false">
+            <i class="fas fa-history me-2"></i>
+            سجل التدقيق
+            <span class="badge bg-secondary ms-2">{{ audit_logs|length }}</span>
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse" id="auditLogSection">
+            <div class="table-responsive mt-2">
+                <table class="table table-hover table-sm">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center" style="width:18%">التاريخ والوقت</th>
+                            <th class="text-center" style="width:15%">الإجراء</th>
+                            <th class="text-center" style="width:18%">بواسطة</th>
+                            <th class="text-center" style="width:12%">الحالة بعد</th>
+                            <th class="text-start">ملاحظات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                        <tr>
+                            <td class="text-center text-muted small">
+                                {{ log.timestamp|date:"Y-m-d" }}<br>
+                                <span class="text-muted">{{ log.timestamp|date:"H:i:s" }}</span>
+                            </td>
+                            <td class="text-center">
+                                {% if log.action == 'calculated' %}
+                                    <span class="badge bg-info">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'recalculated' %}
+                                    <span class="badge bg-warning text-dark">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'lines_edited' %}
+                                    <span class="badge bg-warning text-dark">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'approved' %}
+                                    <span class="badge bg-success">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'unapproved' %}
+                                    <span class="badge bg-danger">{{ log.get_action_display }}</span>
+                                {% elif log.action == 'paid' %}
+                                    <span class="badge bg-primary">{{ log.get_action_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ log.get_action_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center small">
+                                <i class="fas fa-user-circle me-1 text-muted"></i>
+                                {{ log.performed_by.get_full_name|default:log.performed_by.username }}
+                            </td>
+                            <td class="text-center">
+                                {% if log.snapshot.status == 'calculated' %}
+                                    <span class="badge bg-info">محسوب</span>
+                                {% elif log.snapshot.status == 'approved' %}
+                                    <span class="badge bg-success">معتمد</span>
+                                {% elif log.snapshot.status == 'paid' %}
+                                    <span class="badge bg-primary">مدفوع</span>
+                                {% elif log.snapshot.status %}
+                                    <span class="badge bg-secondary">{{ log.snapshot.status }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-start small text-muted">{{ log.notes|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/hr/payroll.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تفعيل tooltips لتفاصيل الأذونات الإضافية
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+function confirmRecalculate(payrollId) {
+    Swal.fire({
+        title: 'إعادة حساب القسيمة؟',
+        text: 'سيتم حذف البنود الحالية وإعادة الحساب من الصفر بناءً على بيانات الحضور المعتمدة.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، أعد الحساب',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#0dcaf0',
+        cancelButtonColor: '#6c757d',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/hr/payroll/${payrollId}/recalculate/`;
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrf) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrf.value;
+                form.appendChild(csrfInput);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+function confirmUnapprove(payrollId) {
+    Swal.fire({
+        title: 'إلغاء اعتماد القسيمة؟',
+        text: 'سيتم إرجاع القسيمة لحالة "محسوبة" وإلغاء الاعتماد.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، إلغاء الاعتماد',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/hr/payroll/${payrollId}/unapprove/`;
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrf) {
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrfmiddlewaretoken';
+                csrfInput.value = csrf.value;
+                form.appendChild(csrfInput);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+</script>
+{% endblock %}

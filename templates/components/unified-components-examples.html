@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مكتبة المكونات الموحدة - أمثلة</title>
+    
+    <!-- CSS Files -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="../../static/css/variables.css" rel="stylesheet">
+    <link href="../../static/css/unified-components.css" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: var(--bg-body);
+            font-family: var(--font-family-sans);
+        }
+        
+        .example-section {
+            margin-bottom: var(--spacing-8);
+        }
+        
+        .example-title {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-dark);
+            margin-bottom: var(--spacing-4);
+            padding-bottom: var(--spacing-2);
+            border-bottom: 2px solid var(--primary-color);
+        }
+        
+        .example-subtitle {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-color);
+            margin: var(--spacing-6) 0 var(--spacing-3);
+        }
+        
+        .code-example {
+            background-color: var(--gray-100);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-4);
+            margin: var(--spacing-3) 0;
+        
+            font-size: var(--font-size-sm);
+            overflow-x: auto;
+        }
+        
+        .demo-container {
+            background-color: var(--white);
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-6);
+            margin: var(--spacing-4) 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="unified-container">
+        <header class="text-center py-5">
+            <h1 class="display-4 text-primary mb-3">مكتبة المكونات الموحدة</h1>
+            <p class="lead text-muted">دليل شامل لاستخدام المكونات الموحدة في نظام إدارة الشركة</p>
+        </header>
+
+        <!-- Form Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-wpforms"></i>
+                مكونات النماذج
+            </h2>
+
+            <h3 class="example-subtitle">نموذج أساسي</h3>
+            <div class="demo-container">
+                <form class="unified-form" data-validation="userRegistration">
+                    <div class="unified-form-header">
+                        <h4 class="unified-form-title">
+                            <i class="fas fa-user-plus icon"></i>
+                            تسجيل مستخدم جديد
+                        </h4>
+                        <div class="unified-form-actions">
+                            <button type="button" class="unified-btn unified-btn-ghost unified-btn-sm">
+                                <i class="fas fa-question-circle"></i>
+                                مساعدة
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="unified-form-row">
+                        <div class="unified-form-col">
+                            <div class="unified-form-group required">
+                                <label class="unified-form-label">الاسم الكامل</label>
+                                <input type="text" name="name" class="unified-form-control" 
+                                       data-validate='{"required": true, "minLength": {"min": 2}, "arabicText": true}'>
+                                <div class="unified-form-help">يرجى إدخال الاسم باللغة العربية</div>
+                            </div>
+                        </div>
+                        <div class="unified-form-col">
+                            <div class="unified-form-group required">
+                                <label class="unified-form-label">البريد الإلكتروني</label>
+                                <div class="unified-input-group">
+                                    <input type="email" name="email" class="unified-form-control"
+                                           data-validate='{"required": true, "email": true}'>
+                                    <div class="unified-input-group-append">
+                                        <span class="unified-input-group-text">
+                                            <i class="fas fa-envelope"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="unified-form-row">
+                        <div class="unified-form-col">
+                            <div class="unified-form-group required">
+                                <label class="unified-form-label">رقم الهاتف</label>
+                                <input type="tel" name="phone" class="unified-form-control"
+                                       data-validate='{"required": true, "phone": true}'>
+                            </div>
+                        </div>
+                        <div class="unified-form-col">
+                            <div class="unified-form-group">
+                                <label class="unified-form-label">النوع</label>
+                                <div class="unified-select">
+                                    <select name="gender" class="unified-form-control">
+                                        <option value="">اختر النوع</option>
+                                        <option value="male">ذكر</option>
+                                        <option value="female">أنثى</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="unified-form-group">
+                        <div class="unified-checkbox">
+                            <input type="checkbox" id="terms" name="terms" required>
+                            <label for="terms">أوافق على الشروط والأحكام</label>
+                        </div>
+                    </div>
+
+                    <div class="unified-form-footer">
+                        <button type="button" class="unified-btn unified-btn-secondary">إلغاء</button>
+                        <button type="submit" class="unified-btn unified-btn-primary">
+                            <i class="fas fa-save"></i>
+                            حفظ
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="code-example">
+&lt;form class="unified-form" data-validation="userRegistration"&gt;
+    &lt;div class="unified-form-header"&gt;
+        &lt;h4 class="unified-form-title"&gt;
+            &lt;i class="fas fa-user-plus icon"&gt;&lt;/i&gt;
+            تسجيل مستخدم جديد
+        &lt;/h4&gt;
+    &lt;/div&gt;
+    
+    &lt;div class="unified-form-group required"&gt;
+        &lt;label class="unified-form-label"&gt;الاسم الكامل&lt;/label&gt;
+        &lt;input type="text" name="name" class="unified-form-control"&gt;
+    &lt;/div&gt;
+    
+    &lt;div class="unified-form-footer"&gt;
+        &lt;button type="submit" class="unified-btn unified-btn-primary"&gt;حفظ&lt;/button&gt;
+    &lt;/div&gt;
+&lt;/form&gt;
+            </div>
+        </section>
+
+        <!-- Table Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-table"></i>
+                مكونات الجداول
+            </h2>
+
+            <h3 class="example-subtitle">جدول موحد مع البحث والترقيم</h3>
+            <div class="demo-container">
+                <div class="unified-table-container">
+                    <div class="unified-table-header">
+                        <h4 class="unified-table-title">
+                            <i class="fas fa-users icon"></i>
+                            قائمة العملاء
+                        </h4>
+                        <div class="unified-table-actions">
+                            <div class="unified-search-input">
+                                <input type="text" class="unified-form-control" placeholder="البحث...">
+                                <i class="fas fa-search search-icon"></i>
+                            </div>
+                            <button class="unified-btn unified-btn-primary unified-btn-sm">
+                                <i class="fas fa-plus"></i>
+                                إضافة عميل
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="unified-table-wrapper">
+                        <table class="unified-table" id="customers-table">
+                            <thead>
+                                <tr>
+                                    <th class="sortable text-center" data-column="name">الاسم</th>
+                                    <th class="sortable text-center" data-column="class">الفصل</th>
+                                    <th class="sortable text-center" data-column="grade">الدرجة</th>
+                                    <th class="sortable text-center" data-column="status">الحالة</th>
+                                    <th class="text-center">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr class="clickable">
+                                    <td class="text-center">أحمد محمد علي</td>
+                                    <td class="text-center">الصف الأول الثانوي</td>
+                                    <td class="text-center">85%</td>
+                                    <td class="text-center">
+                                        <span class="unified-status-badge success">نشط</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="clickable">
+                                    <td class="text-center">فاطمة أحمد حسن</td>
+                                    <td class="text-center">الصف الثاني الثانوي</td>
+                                    <td class="text-center">92%</td>
+                                    <td class="text-center">
+                                        <span class="unified-status-badge success">نشط</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr class="clickable">
+                                    <td class="text-center">محمد عبد الله</td>
+                                    <td class="text-center">الصف الثالث الثانوي</td>
+                                    <td class="text-center">78%</td>
+                                    <td class="text-center">
+                                        <span class="unified-status-badge warning">معلق</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="unified-table-footer">
+                        <div class="unified-table-info">عرض 1 إلى 3 من 3 سجلات</div>
+                        <div class="unified-table-pagination">
+                            <div class="unified-pagination">
+                                <a href="#" class="unified-pagination-item disabled">
+                                    <i class="fas fa-chevron-right"></i>
+                                </a>
+                                <a href="#" class="unified-pagination-item active">1</a>
+                                <a href="#" class="unified-pagination-item disabled">
+                                    <i class="fas fa-chevron-left"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Card Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-id-card"></i>
+                مكونات البطاقات
+            </h2>
+
+            <h3 class="example-subtitle">بطاقات الإحصائيات</h3>
+            <div class="demo-container">
+                <div class="unified-row">
+                    <div class="unified-col-3">
+                        <div class="unified-stats-card">
+                            <div class="unified-stats-card-icon primary">
+                                <i class="fas fa-users"></i>
+                            </div>
+                            <div class="unified-stats-card-content">
+                                <div class="unified-stats-card-title">إجمالي العملاء</div>
+                                <div class="unified-stats-card-value">1,234</div>
+                                <div class="unified-stats-card-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    +12% من الشهر الماضي
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="unified-col-3">
+                        <div class="unified-stats-card">
+                            <div class="unified-stats-card-icon success">
+                                <i class="fas fa-graduation-cap"></i>
+                            </div>
+                            <div class="unified-stats-card-content">
+                                <div class="unified-stats-card-title">العملاء النشطون</div>
+                                <div class="unified-stats-card-value">1,156</div>
+                                <div class="unified-stats-card-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    +8% من الشهر الماضي
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="unified-col-3">
+                        <div class="unified-stats-card">
+                            <div class="unified-stats-card-icon warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="unified-stats-card-content">
+                                <div class="unified-stats-card-title">عملاء معلقون</div>
+                                <div class="unified-stats-card-value">78</div>
+                                <div class="unified-stats-card-change negative">
+                                    <i class="fas fa-arrow-down"></i>
+                                    -5% من الشهر الماضي
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="unified-col-3">
+                        <div class="unified-stats-card">
+                            <div class="unified-stats-card-icon info">
+                                <i class="fas fa-dollar-sign"></i>
+                            </div>
+                            <div class="unified-stats-card-content">
+                                <div class="unified-stats-card-title">إجمالي الإيرادات</div>
+                                <div class="unified-stats-card-value">₪125,430</div>
+                                <div class="unified-stats-card-change positive">
+                                    <i class="fas fa-arrow-up"></i>
+                                    +15% من الشهر الماضي
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h3 class="example-subtitle">بطاقة عادية</h3>
+            <div class="demo-container">
+                <div class="unified-card">
+                    <div class="unified-card-header">
+                        <h5 class="unified-card-title">
+                            <i class="fas fa-chart-bar icon"></i>
+                            تقرير الأداء الشهري
+                        </h5>
+                        <div class="unified-card-actions">
+                            <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                <i class="fas fa-download"></i>
+                            </button>
+                            <button class="unified-btn unified-btn-ghost unified-btn-sm">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="unified-card-body">
+                        <p>هذا المحتوى يعرض تقرير الأداء الشهري للعملاء والموظفين في الشركة. يتضمن التقرير إحصائيات مفصلة حول الحضور والغياب والأداء.</p>
+                        
+                        <div class="unified-progress">
+                            <div class="unified-progress-bar" style="width: 75%"></div>
+                        </div>
+                        <small class="text-muted">تم إكمال 75% من التقرير</small>
+                    </div>
+                    <div class="unified-card-footer">
+                        <small class="text-muted">آخر تحديث: منذ ساعتين</small>
+                        <button class="unified-btn unified-btn-primary unified-btn-sm">عرض التفاصيل</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Button Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-mouse-pointer"></i>
+                مكونات الأزرار
+            </h2>
+
+            <h3 class="example-subtitle">أنواع الأزرار</h3>
+            <div class="demo-container">
+                <div class="mb-4">
+                    <h6>الأزرار الأساسية</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="unified-btn unified-btn-primary">أساسي</button>
+                        <button class="unified-btn unified-btn-secondary">ثانوي</button>
+                        <button class="unified-btn unified-btn-success">نجاح</button>
+                        <button class="unified-btn unified-btn-danger">خطر</button>
+                        <button class="unified-btn unified-btn-warning">تحذير</button>
+                        <button class="unified-btn unified-btn-info">معلومات</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6>الأزرار المحددة</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="unified-btn unified-btn-outline-primary">أساسي محدد</button>
+                        <button class="unified-btn unified-btn-outline-secondary">ثانوي محدد</button>
+                        <button class="unified-btn unified-btn-ghost">شفاف</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6>أحجام الأزرار</h6>
+                    <div class="d-flex gap-2 align-items-center flex-wrap">
+                        <button class="unified-btn unified-btn-primary unified-btn-sm">صغير</button>
+                        <button class="unified-btn unified-btn-primary">عادي</button>
+                        <button class="unified-btn unified-btn-primary unified-btn-lg">كبير</button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6>أزرار مع أيقونات</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="unified-btn unified-btn-primary">
+                            <i class="fas fa-save"></i>
+                            حفظ
+                        </button>
+                        <button class="unified-btn unified-btn-danger">
+                            <i class="fas fa-trash"></i>
+                            حذف
+                        </button>
+                        <button class="unified-btn unified-btn-info">
+                            <i class="fas fa-download"></i>
+                            تحميل
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <h6>أزرار الأيقونات فقط</h6>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="unified-btn unified-btn-primary unified-btn-icon">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="unified-btn unified-btn-danger unified-btn-icon">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                        <button class="unified-btn unified-btn-success unified-btn-icon">
+                            <i class="fas fa-check"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-info-circle"></i>
+                مكونات الحالة
+            </h2>
+
+            <h3 class="example-subtitle">شارات الحالة</h3>
+            <div class="demo-container">
+                <div class="d-flex gap-3 flex-wrap mb-4">
+                    <span class="unified-status-badge success">نشط</span>
+                    <span class="unified-status-badge warning">معلق</span>
+                    <span class="unified-status-badge danger">محذوف</span>
+                    <span class="unified-status-badge info">جديد</span>
+                    <span class="unified-status-badge primary">مميز</span>
+                    <span class="unified-status-badge secondary">عادي</span>
+                </div>
+
+                <h6>مؤشرات الحالة</h6>
+                <div class="d-flex flex-column gap-2">
+                    <div class="unified-status-indicator success">العميل نشط ومسجل</div>
+                    <div class="unified-status-indicator warning">في انتظار الموافقة</div>
+                    <div class="unified-status-indicator danger">تم إيقاف الحساب</div>
+                    <div class="unified-status-indicator info">معلومات إضافية مطلوبة</div>
+                    <div class="unified-status-indicator inactive">غير نشط</div>
+                </div>
+            </div>
+
+            <h3 class="example-subtitle">أشرطة التقدم</h3>
+            <div class="demo-container">
+                <div class="mb-3">
+                    <label class="form-label">التقدم العام (75%)</label>
+                    <div class="unified-progress">
+                        <div class="unified-progress-bar" style="width: 75%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">النجاح (90%)</label>
+                    <div class="unified-progress">
+                        <div class="unified-progress-bar success" style="width: 90%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">تحذير (45%)</label>
+                    <div class="unified-progress">
+                        <div class="unified-progress-bar warning" style="width: 45%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">خطر (25%)</label>
+                    <div class="unified-progress">
+                        <div class="unified-progress-bar danger" style="width: 25%"></div>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">مخطط ومتحرك (60%)</label>
+                    <div class="unified-progress">
+                        <div class="unified-progress-bar striped animated" style="width: 60%"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Alert Components -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-bell"></i>
+                مكونات التنبيهات
+            </h2>
+
+            <div class="demo-container">
+                <div class="unified-alert success">
+                    <div class="unified-alert-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="unified-alert-content">
+                        <div class="unified-alert-title">تم بنجاح!</div>
+                        <div class="unified-alert-message">تم حفظ البيانات بنجاح وإرسال إشعار للمستخدم.</div>
+                    </div>
+                    <button class="unified-alert-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="unified-alert warning">
+                    <div class="unified-alert-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="unified-alert-content">
+                        <div class="unified-alert-title">تحذير!</div>
+                        <div class="unified-alert-message">يرجى مراجعة البيانات المدخلة قبل المتابعة.</div>
+                    </div>
+                    <button class="unified-alert-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="unified-alert danger">
+                    <div class="unified-alert-icon">
+                        <i class="fas fa-exclamation-circle"></i>
+                    </div>
+                    <div class="unified-alert-content">
+                        <div class="unified-alert-title">خطأ!</div>
+                        <div class="unified-alert-message">حدث خطأ أثناء معالجة الطلب. يرجى المحاولة مرة أخرى.</div>
+                    </div>
+                    <button class="unified-alert-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <div class="unified-alert info">
+                    <div class="unified-alert-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="unified-alert-content">
+                        <div class="unified-alert-title">معلومة</div>
+                        <div class="unified-alert-message">تم تحديث النظام إلى الإصدار الجديد. تحقق من الميزات الجديدة.</div>
+                    </div>
+                    <button class="unified-alert-close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Modal Example -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-window-maximize"></i>
+                النوافذ المنبثقة
+            </h2>
+
+            <div class="demo-container">
+                <button class="unified-btn unified-btn-primary" onclick="showModal()">
+                    <i class="fas fa-plus"></i>
+                    فتح نافذة منبثقة
+                </button>
+            </div>
+
+            <!-- Modal -->
+            <div class="unified-modal-overlay" id="exampleModal">
+                <div class="unified-modal unified-modal-md">
+                    <div class="unified-modal-header">
+                        <h5 class="unified-modal-title">
+                            <i class="fas fa-user-plus icon"></i>
+                            إضافة عميل جديد
+                        </h5>
+                        <button class="unified-modal-close">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div class="unified-modal-body">
+                        <form class="unified-form">
+                            <div class="unified-form-group required">
+                                <label class="unified-form-label">اسم العميل</label>
+                                <input type="text" class="unified-form-control" placeholder="أدخل اسم العميل">
+                            </div>
+                            <div class="unified-form-group">
+                                <label class="unified-form-label">الفصل</label>
+                                <div class="unified-select">
+                                    <select class="unified-form-control">
+                                        <option value="">اختر الفصل</option>
+                                        <option value="1">الصف الأول</option>
+                                        <option value="2">الصف الثاني</option>
+                                        <option value="3">الصف الثالث</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="unified-modal-footer">
+                        <button class="unified-btn unified-btn-secondary" onclick="hideModal()">إلغاء</button>
+                        <button class="unified-btn unified-btn-primary">
+                            <i class="fas fa-save"></i>
+                            حفظ
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tabs Example -->
+        <section class="example-section">
+            <h2 class="example-title">
+                <i class="fas fa-folder-open"></i>
+                التبويبات
+            </h2>
+
+            <div class="demo-container">
+                <div class="unified-tabs">
+                    <ul class="unified-tabs-nav">
+                        <li class="unified-tabs-item">
+                            <a href="#tab1" class="unified-tabs-link active">المعلومات الأساسية</a>
+                        </li>
+                        <li class="unified-tabs-item">
+                            <a href="#tab2" class="unified-tabs-link">الدرجات</a>
+                        </li>
+                        <li class="unified-tabs-item">
+                            <a href="#tab3" class="unified-tabs-link">الحضور</a>
+                        </li>
+                        <li class="unified-tabs-item">
+                            <a href="#tab4" class="unified-tabs-link">الملاحظات</a>
+                        </li>
+                    </ul>
+                    
+                    <div class="unified-tabs-content">
+                        <div id="tab1" class="unified-tabs-pane active">
+                            <h5>المعلومات الأساسية للعميل</h5>
+                            <p>هنا يتم عرض المعلومات الأساسية للعميل مثل الاسم، العنوان، رقم الهاتف، وتاريخ التسجيل.</p>
+                            <div class="unified-row">
+                                <div class="unified-col-6">
+                                    <strong>الاسم:</strong> أحمد محمد علي
+                                </div>
+                                <div class="unified-col-6">
+                                    <strong>رقم العميل:</strong> 2024001
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div id="tab2" class="unified-tabs-pane">
+                            <h5>معاملات العميل</h5>
+                            <p>عرض تفصيلي لمعاملات العميل وسجل المشتريات.</p>
+                            <div class="unified-progress">
+                                <div class="unified-progress-bar success" style="width: 85%"></div>
+                            </div>
+                            <small>معدل الرضا: 85%</small>
+                        </div>
+                        
+                        <div id="tab3" class="unified-tabs-pane">
+                            <h5>سجل التعاملات</h5>
+                            <p>تتبع تعاملات العميل خلال الفترة الحالية.</p>
+                            <div class="unified-status-indicator success">معدل النشاط: 95%</div>
+                        </div>
+                        
+                        <div id="tab4" class="unified-tabs-pane">
+                            <h5>ملاحظات الموظفين</h5>
+                            <p>ملاحظات وتعليقات الموظفين حول تعاملات العميل.</p>
+                            <div class="unified-alert info">
+                                <div class="unified-alert-content">
+                                    <div class="unified-alert-message">عميل متميز وملتزم في جميع التعاملات.</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- JavaScript Files -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="../../static/js/unified-components.js"></script>
+    <script src="../../static/js/unified-validation.js"></script>
+
+    <script>
+        // Modal functions
+        function showModal() {
+            const modal = document.getElementById('exampleModal');
+            if (modal._unifiedModal) {
+                modal._unifiedModal.show();
+            }
+        }
+
+        function hideModal() {
+            const modal = document.getElementById('exampleModal');
+            if (modal._unifiedModal) {
+                modal._unifiedModal.hide();
+            }
+        }
+
+        // Alert close functionality
+        document.addEventListener('click', function(e) {
+            if (e.target.classList.contains('unified-alert-close') || 
+                e.target.closest('.unified-alert-close')) {
+                const alert = e.target.closest('.unified-alert');
+                if (alert) {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        alert.style.display = 'none';
+                    }, 300);
+                }
+            }
+        });
+
+        // Demo toast notifications
+        setTimeout(() => {
+            UnifiedComponents.Utils.showToast('مرحباً بك في مكتبة المكونات الموحدة!', 'success', 5000);
+        }, 1000);
+    </script>
+</body>
+</html>

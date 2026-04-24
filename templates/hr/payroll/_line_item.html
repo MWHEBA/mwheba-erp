@@ -1,0 +1,71 @@
+{% comment %}
+Reusable partial for an editable payroll line item.
+Variables:
+  line      — PayrollLine object
+  color     — "success" or "danger"
+  cat       — "b" (value-only) or "c" (full edit)
+  editable  — payroll.status (show edit controls if draft/calculated)
+{% endcomment %}
+{% load custom_filters %}
+{% load pricing_filters %}
+<div class="salary-item-simple mb-2"
+     data-line-id="{{ line.pk }}"
+     data-line-category="{{ cat }}"
+     data-original-name="{{ line.name }}"
+     data-original-amount="{{ line.amount }}">
+
+    <!-- وضع العرض -->
+    <div class="line-view d-flex justify-content-between align-items-center">
+        <div class="salary-item-name">
+            <span class="line-name-display">{{ line.name }}</span>
+            {% if line.is_manual %}
+                <span class="badge bg-info badge-sm ms-1">يدوي</span>
+            {% elif line.is_modified %}
+                <span class="badge bg-warning text-dark badge-sm ms-1">معدّل</span>
+            {% endif %}
+            {% if line.calculation_details and line.calculation_details.calculation %}
+                <br><small class="text-muted">{{ line.calculation_details.calculation }}</small>
+            {% endif %}
+            {% if line.code == 'EXTRA_PERM_DEDUCTION' and line.calculation_details %}
+                <i class="fas fa-info-circle text-warning ms-1"
+                   data-bs-toggle="tooltip"
+                   data-bs-html="true"
+                   title="<strong>تفاصيل الأذونات الإضافية:</strong><br>{% for perm in line.calculation_details.permissions %}- {{ perm.date }}: {{ perm.hours }} ساعة ({{ perm.amount }} ج.م)<br>{% endfor %}"></i>
+            {% endif %}
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <span class="salary-item-amount text-{{ color }} line-amount-display">
+                {{ line.amount|remove_trailing_zeros }} {% currency_symbol %}
+            </span>
+            {% if editable == 'draft' or editable == 'calculated' %}
+            <button class="btn btn-sm btn-outline-primary btn-edit-line p-1" title="تعديل">
+                <i class="fas fa-pencil-alt fa-xs"></i>
+            </button>
+            {% if cat == 'c' %}
+            <button class="btn btn-sm btn-outline-danger btn-delete-line p-1" title="حذف">
+                <i class="fas fa-trash fa-xs"></i>
+            </button>
+            {% endif %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- وضع التعديل (مخفي افتراضياً) -->
+    {% if editable == 'draft' or editable == 'calculated' %}
+    <div class="line-edit d-none mt-1">
+        <div class="d-flex gap-2 align-items-center">
+            {% if cat == 'c' %}
+            <input type="text" class="form-control form-control-sm line-name-input"
+                   value="{{ line.name }}" placeholder="اسم البند">
+            {% endif %}
+            <input type="number" step="0.01" min="0"
+                   class="form-control form-control-sm line-amount-input"
+                   value="{{ line.amount }}" placeholder="المبلغ"
+                   style="width:25%%">
+            <span class="saving-spinner d-none text-muted">
+                <i class="fas fa-spinner fa-spin fa-sm"></i>
+            </span>
+        </div>
+    </div>
+    {% endif %}
+</div>

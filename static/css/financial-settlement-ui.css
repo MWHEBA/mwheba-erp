@@ -1,0 +1,1154 @@
+/**
+ * ========================================
+ * Financial Settlement System - Enhanced UI/UX Styles
+ * نظام التسوية المالية - أنماط واجهة المستخدم المحسنة
+ * ========================================
+ * 
+ * Enhanced UI/UX styles for the financial settlement system
+ * focusing on improved form design, user assistance, and messaging
+ * 
+ * Task 37: UI/UX improvements
+ * - Enhanced form design and interaction
+ * - User assistance features
+ * - Improved error and success messages
+ * ========================================
+ */
+
+/* ========================================
+   1. ENHANCED FORM DESIGN (تصميم النماذج المحسن)
+   ======================================== */
+
+/* Settlement Form Container */
+.settlement-form-container {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    margin-bottom: var(--spacing-6);
+}
+
+.settlement-form-header {
+    background: linear-gradient(135deg, var(--primary-soft) 0%, var(--info-soft) 100%);
+    padding: var(--spacing-6);
+    border-bottom: 1px solid var(--border-color);
+    text-align: center;
+}
+
+.settlement-form-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--primary-color);
+    margin-bottom: var(--spacing-2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-3);
+}
+
+.settlement-form-subtitle {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    margin: 0;
+}
+
+.settlement-form-body {
+    padding: var(--spacing-6);
+}
+
+/* Enhanced Form Sections */
+.form-section {
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-5);
+    margin-bottom: var(--spacing-5);
+    border: 1px solid var(--border-light);
+    position: relative;
+    transition: var(--transition-all);
+}
+
+.form-section:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px var(--primary-focus);
+}
+
+.form-section.active {
+    border-color: var(--primary-color);
+    background: var(--primary-soft);
+}
+
+.form-section-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+    padding-bottom: var(--spacing-3);
+    border-bottom: 2px solid var(--border-color);
+}
+
+.form-section-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+}
+
+.form-section-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+}
+
+.form-section-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin-top: var(--spacing-1);
+}
+
+/* Enhanced Form Fields */
+.enhanced-form-group {
+    position: relative;
+    margin-bottom: var(--spacing-5);
+}
+
+.enhanced-form-label {
+    display: block;
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-2);
+    font-size: 0.9375rem;
+    position: relative;
+}
+
+.enhanced-form-label.required::after {
+    content: " *";
+    color: var(--danger-color);
+    font-weight: 700;
+}
+
+.enhanced-form-control {
+    width: 100%;
+    padding: var(--spacing-4) var(--spacing-4);
+    font-size: 1rem;
+    line-height: 1.5;
+    color: var(--text-primary);
+    background: var(--white);
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius-md);
+    transition: var(--transition-all);
+    position: relative;
+}
+
+.enhanced-form-control:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px var(--primary-focus);
+    background: var(--white);
+    transform: translateY(-1px);
+}
+
+.enhanced-form-control:hover:not(:focus) {
+    border-color: var(--primary-light);
+}
+
+.enhanced-form-control.is-invalid {
+    border-color: var(--danger-color);
+    box-shadow: 0 0 0 4px var(--danger-soft);
+    background: var(--danger-soft);
+}
+
+.enhanced-form-control.is-valid {
+    border-color: var(--success-color);
+    box-shadow: 0 0 0 4px var(--success-soft);
+    background: var(--success-soft);
+}
+
+/* Enhanced Select Styling */
+.enhanced-select-wrapper {
+    position: relative;
+}
+
+.enhanced-select-wrapper::after {
+    content: "\f107";
+    font-family: "Font Awesome 5 Free";
+    font-weight: 900;
+    position: absolute;
+    left: var(--spacing-4);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    pointer-events: none;
+    transition: var(--transition-all);
+}
+
+.enhanced-select-wrapper:hover::after {
+    color: var(--primary-color);
+}
+
+.enhanced-form-control.select {
+    appearance: none;
+    padding-left: 3rem;
+    cursor: pointer;
+}
+
+/* Amount Input with Currency Symbol */
+.amount-input-wrapper {
+    position: relative;
+}
+
+.amount-input-wrapper::after {
+    content: "ج.م";
+    position: absolute;
+    left: var(--spacing-4);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+    font-weight: 600;
+    pointer-events: none;
+}
+
+.enhanced-form-control.amount {
+    padding-left: 3.5rem;
+    font-weight: 600;
+    font-size: 1.125rem;
+    text-align: right;
+}
+
+/* ========================================
+   2. USER ASSISTANCE FEATURES (ميزات مساعدة المستخدم)
+   ======================================== */
+
+/* Interactive Help Tooltips */
+.help-tooltip {
+    position: relative;
+    display: inline-block;
+    margin-right: var(--spacing-2);
+}
+
+.help-tooltip-trigger {
+    width: 20px;
+    height: 20px;
+    background: var(--info-color);
+    color: var(--white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    cursor: help;
+    transition: var(--transition-all);
+}
+
+.help-tooltip-trigger:hover {
+    background: var(--info-dark);
+    transform: scale(1.1);
+}
+
+.help-tooltip-content {
+    position: absolute;
+    bottom: 125%;
+    right: 50%;
+    transform: translateX(50%);
+    background: var(--gray-900);
+    color: var(--white);
+    padding: var(--spacing-3);
+    border-radius: var(--radius-md);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+    white-space: nowrap;
+    max-width: 250px;
+    white-space: normal;
+    opacity: 0;
+    visibility: hidden;
+    transition: var(--transition-all);
+    z-index: 1000;
+    box-shadow: var(--shadow-lg);
+}
+
+.help-tooltip-content::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    right: 50%;
+    transform: translateX(50%);
+    border: 6px solid transparent;
+    border-top-color: var(--gray-900);
+}
+
+.help-tooltip:hover .help-tooltip-content {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Progress Indicator */
+.form-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: var(--spacing-6);
+    padding: var(--spacing-4);
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+}
+
+.progress-step {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    padding: var(--spacing-2) var(--spacing-4);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 500;
+    transition: var(--transition-all);
+}
+
+.progress-step.active {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.progress-step.completed {
+    background: var(--success-color);
+    color: var(--white);
+}
+
+.progress-step.pending {
+    background: var(--gray-200);
+    color: var(--text-secondary);
+}
+
+.progress-step-icon {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    background: currentColor;
+    color: var(--white);
+}
+
+.progress-connector {
+    width: 40px;
+    height: 2px;
+    background: var(--gray-300);
+    margin: 0 var(--spacing-2);
+}
+
+.progress-connector.completed {
+    background: var(--success-color);
+}
+
+/* Real-time Validation Feedback */
+.validation-feedback {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    margin-top: var(--spacing-2);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(-10px);
+    transition: var(--transition-all);
+}
+
+.validation-feedback.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.validation-feedback.success {
+    color: var(--success-color);
+}
+
+.validation-feedback.error {
+    color: var(--danger-color);
+}
+
+.validation-feedback.warning {
+    color: var(--warning-color);
+}
+
+.validation-feedback-icon {
+    font-size: 1em;
+}
+
+/* Smart Suggestions */
+.smart-suggestions {
+    background: var(--info-soft);
+    border: 1px solid var(--info-color);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-3);
+    display: none;
+}
+
+.smart-suggestions.show {
+    display: block;
+    animation: slideDown 0.3s ease-out;
+}
+
+.smart-suggestions-title {
+    font-weight: 600;
+    color: var(--info-dark);
+    margin-bottom: var(--spacing-2);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.smart-suggestions-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.smart-suggestions-item {
+    padding: var(--spacing-2);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: var(--transition-all);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+}
+
+.smart-suggestions-item:hover {
+    background: var(--info-color);
+    color: var(--white);
+}
+
+/* ========================================
+   3. ENHANCED PREVIEW CARDS (بطاقات المعاينة المحسنة)
+   ======================================== */
+
+.financial-metric {
+    text-align: center;
+    padding: var(--spacing-3);
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+}
+
+.financial-metric-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: var(--spacing-1);
+}
+
+.financial-metric-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--text-dark);
+}
+
+.financial-metric-value.positive {
+    color: var(--success-color);
+}
+
+.financial-metric-value.negative {
+    color: var(--danger-color);
+}
+
+/* Financial Impact Preview */
+.financial-preview-card {
+    background: linear-gradient(135deg, var(--warning-soft) 0%, var(--success-soft) 100%);
+    border: 2px solid var(--warning-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-5);
+    margin-top: var(--spacing-4);
+    display: none;
+    animation: slideDown 0.4s ease-out;
+}
+
+.financial-preview-card.show {
+    display: block;
+}
+
+.financial-preview-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+}
+
+.preview-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--warning-color);
+    color: var(--white);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.financial-preview-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--warning-dark);
+    margin: 0;
+}
+
+.financial-impact-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-4);
+}
+
+.impact-item {
+    text-align: center;
+    padding: var(--spacing-4);
+    background: var(--white);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    position: relative;
+}
+
+.impact-item::after {
+    content: "→";
+    position: absolute;
+    top: 50%;
+    left: -15px;
+    transform: translateY(-50%);
+    font-size: 1.5rem;
+    color: var(--warning-color);
+    font-weight: 700;
+}
+
+.impact-item:first-child::after {
+    display: none;
+}
+
+.impact-label {
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 600;
+    margin-bottom: var(--spacing-2);
+}
+
+.impact-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: var(--spacing-1);
+}
+
+.impact-value.current {
+    color: var(--info-color);
+}
+
+.impact-value.settlement {
+    color: var(--primary-color);
+}
+
+.impact-value.result {
+    color: var(--success-color);
+}
+
+.impact-value.result.negative {
+    color: var(--danger-color);
+}
+
+/* Approval Info Card */
+.approval-info-card {
+    background: linear-gradient(135deg, var(--primary-soft) 0%, var(--info-soft) 100%);
+    border: 2px solid var(--primary-color);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-5);
+    margin-top: var(--spacing-4);
+    display: none;
+    animation: slideDown 0.4s ease-out;
+}
+
+.approval-info-card.show {
+    display: block;
+}
+
+.approval-info-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-4);
+}
+
+.approval-icon {
+    width: 50px;
+    height: 50px;
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.approval-info-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: var(--primary-dark);
+    margin: 0;
+}
+
+.approval-details {
+    background: var(--white);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    border: 1px solid var(--border-light);
+}
+
+.approval-requirement {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    margin-bottom: var(--spacing-3);
+}
+
+.approval-requirement:last-child {
+    margin-bottom: 0;
+}
+
+.approval-requirement-icon {
+    width: 30px;
+    height: 30px;
+    background: var(--success-color);
+    color: var(--white);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.approval-requirement-icon.automatic {
+    background: var(--info-color);
+}
+
+.approval-requirement-text {
+    flex: 1;
+}
+
+.approval-requirement-title {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin-bottom: var(--spacing-1);
+}
+
+.approval-requirement-description {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+/* ========================================
+   4. ENHANCED MESSAGING SYSTEM (نظام الرسائل المحسن)
+   ======================================== */
+
+/* Enhanced Alert Messages */
+.enhanced-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--spacing-3);
+    padding: var(--spacing-4) var(--spacing-5);
+    border-radius: var(--radius-lg);
+    margin-bottom: var(--spacing-4);
+    border: 2px solid;
+    position: relative;
+    overflow: hidden;
+    animation: slideInRight 0.4s ease-out;
+}
+
+.enhanced-alert::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 4px;
+    height: 100%;
+}
+
+.enhanced-alert.success {
+    background: var(--success-soft);
+    border-color: var(--success-color);
+    color: var(--success-dark);
+}
+
+.enhanced-alert.success::before {
+    background: var(--success-color);
+}
+
+.enhanced-alert.error {
+    background: var(--danger-soft);
+    border-color: var(--danger-color);
+    color: var(--danger-dark);
+}
+
+.enhanced-alert.error::before {
+    background: var(--danger-color);
+}
+
+.enhanced-alert.warning {
+    background: var(--warning-soft);
+    border-color: var(--warning-color);
+    color: var(--warning-dark);
+}
+
+.enhanced-alert.warning::before {
+    background: var(--warning-color);
+}
+
+.enhanced-alert.info {
+    background: var(--info-soft);
+    border-color: var(--info-color);
+    color: var(--info-dark);
+}
+
+.enhanced-alert.info::before {
+    background: var(--info-color);
+}
+
+.enhanced-alert-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    color: var(--white);
+}
+
+.enhanced-alert.success .enhanced-alert-icon {
+    background: var(--success-color);
+}
+
+.enhanced-alert.error .enhanced-alert-icon {
+    background: var(--danger-color);
+}
+
+.enhanced-alert.warning .enhanced-alert-icon {
+    background: var(--warning-color);
+}
+
+.enhanced-alert.info .enhanced-alert-icon {
+    background: var(--info-color);
+}
+
+.enhanced-alert-content {
+    flex: 1;
+}
+
+.enhanced-alert-title {
+    font-weight: 700;
+    font-size: 1.125rem;
+    margin-bottom: var(--spacing-2);
+}
+
+.enhanced-alert-message {
+    margin: 0;
+    line-height: 1.5;
+}
+
+.enhanced-alert-actions {
+    margin-top: var(--spacing-3);
+    display: flex;
+    gap: var(--spacing-2);
+}
+
+.enhanced-alert-close {
+    background: none;
+    border: none;
+    color: currentColor;
+    font-size: 1.25rem;
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-all);
+    opacity: 0.7;
+}
+
+.enhanced-alert-close:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.1);
+}
+
+/* Toast Notifications */
+.toast-container {
+    position: fixed;
+    top: var(--spacing-6);
+    left: var(--spacing-6);
+    z-index: 1060;
+    max-width: 400px;
+}
+
+.enhanced-toast {
+    background: var(--white);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-xl);
+    border: 1px solid var(--border-color);
+    margin-bottom: var(--spacing-3);
+    overflow: hidden;
+    transform: translateX(-100%);
+    opacity: 0;
+    transition: var(--transition-all);
+}
+
+.enhanced-toast.show {
+    transform: translateX(0);
+    opacity: 1;
+}
+
+.enhanced-toast-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-3);
+    padding: var(--spacing-3) var(--spacing-4);
+    border-bottom: 1px solid var(--border-light);
+}
+
+.enhanced-toast-icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    color: var(--white);
+}
+
+.enhanced-toast.success .enhanced-toast-icon {
+    background: var(--success-color);
+}
+
+.enhanced-toast.error .enhanced-toast-icon {
+    background: var(--danger-color);
+}
+
+.enhanced-toast.warning .enhanced-toast-icon {
+    background: var(--warning-color);
+}
+
+.enhanced-toast.info .enhanced-toast-icon {
+    background: var(--info-color);
+}
+
+.enhanced-toast-title {
+    font-weight: 600;
+    color: var(--text-dark);
+    margin: 0;
+    flex: 1;
+}
+
+.enhanced-toast-close {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: var(--spacing-1);
+    border-radius: var(--radius-sm);
+    transition: var(--transition-all);
+}
+
+.enhanced-toast-close:hover {
+    color: var(--text-dark);
+    background: var(--gray-100);
+}
+
+.enhanced-toast-body {
+    padding: var(--spacing-4);
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+/* Loading States */
+.loading-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.9);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    border-radius: inherit;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--gray-200);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+.loading-text {
+    margin-top: var(--spacing-3);
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* ========================================
+   5. ANIMATIONS AND TRANSITIONS (الحركات والانتقالات)
+   ======================================== */
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideInRight {
+    from {
+        opacity: 0;
+        transform: translateX(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* ========================================
+   6. RESPONSIVE DESIGN (التصميم المتجاوب)
+   ======================================== */
+
+@media (max-width: 768px) {
+    .settlement-form-container {
+        margin: var(--spacing-4);
+    }
+    
+    .settlement-form-header,
+    .settlement-form-body {
+        padding: var(--spacing-4);
+    }
+    
+    .form-section {
+        padding: var(--spacing-4);
+    }
+    
+    .financial-impact-grid {
+        grid-template-columns: 1fr;
+        gap: var(--spacing-3);
+    }
+    
+    .impact-item::after {
+        content: "↓";
+        top: -15px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .toast-container {
+        top: var(--spacing-4);
+        left: var(--spacing-4);
+        right: var(--spacing-4);
+        max-width: none;
+    }
+}
+
+@media (max-width: 576px) {
+    .settlement-form-title {
+        font-size: 1.5rem;
+        flex-direction: column;
+        gap: var(--spacing-2);
+    }
+    
+    .form-section-header {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .enhanced-alert {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .progress-step {
+        padding: var(--spacing-1) var(--spacing-2);
+        font-size: 0.75rem;
+    }
+    
+    .progress-connector {
+        width: 20px;
+    }
+}
+
+/* ========================================
+   7. ACCESSIBILITY IMPROVEMENTS (تحسينات إمكانية الوصول)
+   ======================================== */
+
+/* Focus Visible Styles */
+.enhanced-form-control:focus-visible,
+.help-tooltip-trigger:focus-visible,
+.smart-suggestions-item:focus-visible {
+    outline: 3px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .enhanced-form-control,
+    .form-section,
+    .enhanced-alert,
+    .enhanced-toast,
+    .loading-spinner {
+        transition: none;
+        animation: none;
+    }
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .form-section,
+    .enhanced-alert,
+    .enhanced-toast {
+        border-width: 3px;
+    }
+    
+    .enhanced-form-control {
+        border-width: 3px;
+    }
+}
+
+/* Print Styles */
+@media print {
+    .help-tooltip,
+    .enhanced-alert-close,
+    .enhanced-toast-close,
+    .loading-overlay {
+        display: none;
+    }
+    
+    .enhanced-alert,
+    .form-section {
+        break-inside: avoid;
+    }
+}
+
+/* ========================================
+   Fee Item Information Styles (أنماط معلومات بند الرسوم)
+   ======================================== */
+
+.fee-item-info .unified-card-header {
+    background: linear-gradient(135deg, var(--success-soft) 0%, var(--info-soft) 100%);
+    border-bottom: 1px solid var(--success-color);
+}
+
+.fee-item-info .unified-card-title {
+    color: var(--success-color);
+    font-weight: 600;
+}
+
+.fee-item-info .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-3) 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.fee-item-info .info-row:last-child {
+    border-bottom: none;
+}
+
+.fee-item-info .info-label {
+    font-weight: 600;
+    color: var(--text-primary);
+    flex: 0 0 40%;
+}
+
+.fee-item-info .info-value {
+    flex: 1;
+    text-align: left;
+    color: var(--text-secondary);
+}
+
+.fee-item-info .amount-display {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--primary-color);
+}
+
+.fee-item-info hr {
+    border-color: var(--border-color);
+    margin: var(--spacing-4) 0;
+}
+
+.fee-item-info h6 {
+    color: var(--info-color);
+    font-weight: 600;
+}
+
+/* Status badges in fee item info */
+.fee-item-info .unified-status-badge {
+    font-size: 0.875rem;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-full);
+}
+
+/* Financial summary adjustments */
+.financial-summary .unified-card-title {
+    color: var(--info-color);
+    font-size: 0.95rem;
+}
+
+.financial-summary .unified-card-header {
+    background: linear-gradient(135deg, var(--info-soft) 0%, var(--primary-soft) 100%);
+}
+/* ========================================
+   Settlement Detail Page Enhancements (تحسينات صفحة تفاصيل التسوية)
+   ======================================== */
+
+/* Subtle hover effects for cards - using CSS instead of JavaScript */
+.unified-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unified-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+/* Ensure hover effects don't interfere with system defaults */
+.unified-card:not(:hover) {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}

@@ -1,0 +1,35 @@
+{% if value %}
+    {% comment %} تحديد لون مميز لكل فصل {% endcomment %}
+    {% if value == 'فصل النجوم' %}
+        <span class="badge" style="background-color: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل القمر' %}
+        <span class="badge" style="background-color: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الشمس' %}
+        <span class="badge" style="background-color: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الورود' %}
+        <span class="badge" style="background-color: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل اختبار' %}
+        <span class="badge" style="background-color: var(--bs-info-bg-subtle); color: var(--bs-info-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الأزهار' %}
+        <span class="badge" style="background-color: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الطيور' %}
+        <span class="badge" style="background-color: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الفراشات' %}
+        <span class="badge" style="background-color: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الألوان' %}
+        <span class="badge" style="background-color: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل الأشكال' %}
+        <span class="badge" style="background-color: var(--bs-danger-bg-subtle); color: var(--bs-danger-text-emphasis);">{{ value }}</span>
+    {% elif value == 'تياترو' %}
+        <span class="badge" style="background-color: var(--bs-info-bg-subtle); color: var(--bs-info-text-emphasis);">{{ value }}</span>
+    {% elif value == 'ألوان السما السبعة' %}
+        <span class="badge" style="background-color: var(--bs-secondary-bg-subtle); color: var(--bs-secondary-text-emphasis);">{{ value }}</span>
+    {% elif value == 'فصل السحاب' %}
+        <span class="badge" style="background-color: var(--bs-primary-bg-subtle); color: var(--bs-primary-text-emphasis);">{{ value }}</span>
+    {% else %}
+        {% comment %} لون افتراضي للفصول غير المعرفة {% endcomment %}
+        <span class="badge classroom-badge-hash" data-name="{{ value }}">{{ value }}</span>
+    {% endif %}
+{% else %}
+    <span class="text-muted">-</span>
+{% endif %}

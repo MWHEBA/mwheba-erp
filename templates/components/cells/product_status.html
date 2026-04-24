@@ -1,0 +1,10 @@
+{% load i18n %}
+{% if object.is_active %}
+  <span class="badge bg-success">
+    <i class="fas fa-check-circle me-1"></i>{% trans "نشط" %}
+  </span>
+{% else %}
+  <span class="badge bg-danger">
+    <i class="fas fa-times-circle me-1"></i>{% trans "غير نشط" %}
+  </span>
+{% endif %}

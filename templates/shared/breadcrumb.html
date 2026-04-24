@@ -1,0 +1,182 @@
+{% comment %}
+========================================
+BREADCRUMB المركزي - Corporate ERP
+========================================
+
+مكون موحد لعرض مسار التنقل (Breadcrumb) مع دعم كامل للغة العربية وتوجيه RTL
+
+الاستخدام:
+{% include "shared/breadcrumb.html" with items=breadcrumb_items %}
+
+أو:
+{% include "shared/breadcrumb.html" %}
+(سيستخدم generated_breadcrumb_items تلقائياً من context processor)
+
+أولوية البيانات:
+1. items (المُمرر مع include)
+2. breadcrumb_items (من السياق)
+3. generated_breadcrumb_items (من context processor)
+4. رابط الرئيسية التلقائي
+
+معاملات:
+- items: قائمة العناصر (اختياري - أولوية عالية)
+- breadcrumb_items: قائمة العناصر من السياق (اختياري)
+- generated_breadcrumb_items: يتم توليدها تلقائياً (اختياري)
+- show_home: إظهار رابط الرئيسية التلقائي (افتراضي True)
+- home_title: عنوان الرئيسية (افتراضي "الرئيسية")
+- home_url: رابط الرئيسية (افتراضي "/")
+- home_icon: أيقونة الرئيسية (افتراضي "fa-home")
+- breadcrumb_class: فئات CSS إضافية (اختياري)
+
+بنية العنصر:
+{
+    'title': 'عنوان العنصر',        # مطلوب
+    'url': '/path/to/page/',        # اختياري (إذا لم يوجد أو "#"، سيكون نص فقط)
+    'icon': 'fa-icon-name',         # اختياري (بدون "fas" - يتم إضافتها تلقائياً)
+    'active': True/False,           # اختياري (العنصر الأخير نشط تلقائياً)
+    'target': '_blank',             # اختياري (هدف الرابط)
+    'title_attr': 'نص التلميح',     # اختياري (tooltip)
+    'class': 'custom-class'         # اختياري (فئة CSS مخصصة)
+}
+
+أمثلة:
+
+1. استخدام بسيط (يستخدم generated_breadcrumb_items):
+{% include "shared/breadcrumb.html" %}
+
+2. مع عناصر مخصصة:
+{% include "shared/breadcrumb.html" with items=custom_breadcrumb %}
+
+3. بدون رابط الرئيسية:
+{% include "shared/breadcrumb.html" with show_home=False %}
+
+4. مع فئات CSS مخصصة:
+{% include "shared/breadcrumb.html" with breadcrumb_class="custom-breadcrumb" %}
+
+مثال كامل للبيانات:
+breadcrumb_items = [
+    {"title": "الرئيسية", "url": "/", "icon": "fa-home"},
+    {"title": "المشتريات", "url": "/purchases/", "icon": "fa-truck"},
+    {"title": "فواتير المشتريات", "active": True}
+]
+
+ملاحظات مهمة:
+- يتم إضافة "fas" تلقائياً للأيقونات
+- الروابط "#" تُعامل كنص عادي
+- العنصر الأخير أو المحدد بـ active=True يظهر كعنصر نشط
+- دعم كامل لـ RTL مع أسهم الاتجاه الصحيح
+- تصميم متجاوب للشاشات الصغيرة
+
+========================================
+{% endcomment %}
+
+{% comment %}
+Note: This template can work with or without custom_filters.
+{% endcomment %}
+
+{% comment %} 
+Breadcrumb Component - Unified Implementation
+Priority: items > breadcrumb_items > generated_breadcrumb_items > automatic home
+{% endcomment %}
+
+{% comment %} Only render if there's data to show {% endcomment %}
+{% if items or breadcrumb_items or generated_breadcrumb_items or show_home|default:True %}
+
+<nav aria-label="مسار التنقل" class="page-breadcrumb {{ breadcrumb_class|default:'' }}" role="navigation">
+    <ol class="breadcrumb mb-0" dir="rtl">
+        
+        {% comment %} Priority 1: Use 'items' parameter (passed from includes) {% endcomment %}
+        {% if items %}
+            {% for item in items %}
+                {% if forloop.last or item.active %}
+                    <li class="breadcrumb-item active {{ item.class|default:'' }}" aria-current="page">
+                        {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                        <span class="breadcrumb-current">{{ item.title }}</span>
+                    </li>
+                {% else %}
+                    <li class="breadcrumb-item {{ item.class|default:'' }}">
+                        {% if item.url and item.url != '#' %}
+                            <a href="{{ item.url }}" 
+                               {% if item.target %}target="{{ item.target }}"{% endif %}
+                               {% if item.title_attr %}title="{{ item.title_attr }}"{% endif %}
+                               aria-label="{{ item.title }}">
+                                {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                {{ item.title }}
+                            </a>
+                        {% else %}
+                            {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                            {{ item.title }}
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+        {% comment %} Priority 2: Use 'breadcrumb_items' from context {% endcomment %}
+        {% elif breadcrumb_items %}
+            {% for item in breadcrumb_items %}
+                {% if forloop.last or item.active %}
+                    <li class="breadcrumb-item active {{ item.class|default:'' }}" aria-current="page">
+                        {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                        <span class="breadcrumb-current">{{ item.title }}</span>
+                    </li>
+                {% else %}
+                    <li class="breadcrumb-item {{ item.class|default:'' }}">
+                        {% if item.url and item.url != '#' %}
+                            <a href="{{ item.url }}" 
+                               {% if item.target %}target="{{ item.target }}"{% endif %}
+                               {% if item.title_attr %}title="{{ item.title_attr }}"{% endif %}
+                               aria-label="{{ item.title }}">
+                                {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                {{ item.title }}
+                            </a>
+                        {% else %}
+                            {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                            {{ item.title }}
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+        {% comment %} Priority 3: Use 'generated_breadcrumb_items' from context processor {% endcomment %}
+        {% elif generated_breadcrumb_items %}
+            {% for item in generated_breadcrumb_items %}
+                {% if forloop.last or item.active %}
+                    <li class="breadcrumb-item active {{ item.class|default:'' }}" aria-current="page">
+                        {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                        <span class="breadcrumb-current">{{ item.title }}</span>
+                    </li>
+                {% else %}
+                    <li class="breadcrumb-item {{ item.class|default:'' }}">
+                        {% if item.url and item.url != '#' %}
+                            <a href="{{ item.url }}" 
+                               {% if item.target %}target="{{ item.target }}"{% endif %}
+                               {% if item.title_attr %}title="{{ item.title_attr }}"{% endif %}
+                               aria-label="{{ item.title }}">
+                                {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                {{ item.title }}
+                            </a>
+                        {% else %}
+                            {% if item.icon %}<i class="fas {{ item.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                            {{ item.title }}
+                        {% endif %}
+                    </li>
+                {% endif %}
+            {% endfor %}
+            
+        {% comment %} Priority 4: Show automatic home only if no other data {% endcomment %}
+        {% elif show_home|default:True %}
+            <li class="breadcrumb-item">
+                <a href="{{ home_url|default:'/' }}" 
+                   class="breadcrumb-home-link"
+                   title="{{ home_title|default:'الرئيسية' }}"
+                   aria-label="العودة إلى {{ home_title|default:'الرئيسية' }}">
+                    <i class="fas {{ home_icon|default:'fa-home' }} me-1" aria-hidden="true"></i>
+                    <span class="breadcrumb-home-text">{{ home_title|default:"الرئيسية" }}</span>
+                </a>
+            </li>
+        {% endif %}
+
+    </ol>
+</nav>
+
+{% endif %}

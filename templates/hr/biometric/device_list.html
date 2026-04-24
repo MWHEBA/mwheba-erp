@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  {% include 'components/data_table.html' with data=devices headers=headers action_buttons=action_buttons empty_message='لا توجد ماكينات بصمة' empty_icon='fingerprint' primary_key='pk' %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// تحديث تلقائي كل 30 ثانية
+setInterval(function() { 
+    location.reload(); 
+}, 30000);
+</script>
+{% endblock %}

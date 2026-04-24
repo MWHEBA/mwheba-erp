@@ -1,0 +1,16 @@
+[
+  {
+    "model": "financial.accountingperiod",
+    "pk": 4,
+    "fields": {
+      "name": "السنة المالية 2026",
+      "start_date": "2026-01-01",
+      "end_date": "2026-12-31",
+      "status": "open",
+      "closed_at": null,
+      "closed_by": null,
+      "created_at": "2026-01-01T00:00:00Z",
+      "created_by": null
+    }
+  }
+]

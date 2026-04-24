@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title|default:"التصنيفات المالية" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    
+    {% include "shared/page_header.html" with title=title icon="fas fa-tags" header_buttons=header_buttons %}
+    
+    <!-- Filters Section -->
+    <div class="section-container mb-4">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">البحث</label>
+                <input type="text" name="search" class="form-control" placeholder="ابحث بالاسم أو الكود" value="{{ request.GET.search }}">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select">
+                    <option value="">الكل</option>
+                    <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>نشط</option>
+                    <option value="inactive" {% if request.GET.status == 'inactive' %}selected{% endif %}>غير نشط</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search"></i> بحث
+                </button>
+                <a href="{% url 'financial:category_list' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-redo"></i> إعادة تعيين
+                </a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Categories Table -->
+    <div class="section-container">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle" id="categories-table">
+                <thead>
+                    <tr>
+                        <th style="width: 10%;" class="text-center">الرمز</th>
+                        <th style="width: 15%;" class="text-center">الاسم</th>
+                        <th style="width: 18%;" class="text-center">حساب الإيرادات</th>
+                        <th style="width: 18%;" class="text-center">حساب المصروفات</th>
+                        <th style="width: 10%;" class="text-center">التصنيفات الفرعية</th>
+                        <th style="width: 8%;" class="text-center">الحالة</th>
+                        <th style="width: 21%;" class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for category in categories %}
+                    <tr>
+                        <td class="text-center"><code class="bg-light px-2 py-1 rounded">{{ category.code }}</code></td>
+                        <td class="text-center"><strong>{{ category.name }}</strong></td>
+                        <td class="text-center">
+                            {% if category.default_revenue_account %}
+                                <span class="text-success">
+                                    <i class="fas fa-arrow-down"></i>
+                                    {{ category.default_revenue_account.code }} - {{ category.default_revenue_account.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if category.default_expense_account %}
+                                <span class="text-danger">
+                                    <i class="fas fa-arrow-up"></i>
+                                    {{ category.default_expense_account.code }} - {{ category.default_expense_account.name }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% with subcategories_count=category.subcategories.count %}
+                                {% if subcategories_count > 0 %}
+                                    <span class="badge bg-info">{{ subcategories_count }}</span>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td class="text-center">
+                            {% if category.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشط</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'financial:subcategory_list' category.pk %}" 
+                               class="btn btn-sm btn-outline-info me-1" 
+                               title="التصنيفات الفرعية">
+                                <i class="fas fa-list"></i> فرعية
+                            </a>
+                            <a href="{% url 'financial:category_update' category.pk %}" 
+                               class="btn btn-sm btn-outline-primary" 
+                               title="تعديل">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                            لا توجد تصنيفات مالية
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Pagination -->
+        {% if is_paginated %}
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">الأولى</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">السابقة</a>
+                </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">{{ page_obj.number }} من {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">التالية</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.search %}&search={{ request.GET.search }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">الأخيرة</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    // تهيئة الجدول
+    if (typeof GlobalTableManager !== 'undefined' && $('#categories-table tbody tr').length > 1) {
+        GlobalTableManager.initializeTable('categories-table', {
+            order: [],  // عدم الترتيب التلقائي - الاحتفاظ بترتيب display_order من الداتابيز
+            columnDefs: [
+                { targets: -1, orderable: false }
+            ],
+            language: {
+                search: "البحث:",
+                lengthMenu: "عرض _MENU_ عنصر",
+                info: "عرض _START_ إلى _END_ من _TOTAL_ عنصر",
+                infoEmpty: "لا توجد عناصر",
+                infoFiltered: "(تمت التصفية من _MAX_ عنصر)",
+                paginate: {
+                    first: "الأولى",
+                    last: "الأخيرة",
+                    next: "التالي",
+                    previous: "السابق"
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

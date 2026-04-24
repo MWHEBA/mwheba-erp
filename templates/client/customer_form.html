@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-user-edit me-2"></i>
+            {% if customer %}
+                {% trans "تعديل بيانات العميل" %}
+            {% else %}
+                {% trans "نموذج إضافة عميل جديد" %}
+            {% endif %}
+        </h5>
+        <div class="row">
+            <div class="col-md-10 mx-auto">
+                        <form method="post" novalidate>
+                            {% csrf_token %}
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.name|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.code|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.phone|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.email|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.address|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.credit_limit|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    {{ form.tax_number|as_crispy_field }}
+                                </div>
+                                <div class="col-md-6">
+                                    {{ form.is_active|as_crispy_field }}
+                                </div>
+                            </div>
+                            
+                            <div class="form-group">
+                                {{ form.notes|as_crispy_field }}
+                            </div>
+                            
+                            <div class="d-flex justify-content-between mt-4">
+                                <a href="{% url 'client:customer_list' %}" class="btn btn-secondary">
+                                    <i class="fas fa-times me-2"></i>{% trans "إلغاء" %}
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    {% if customer %}
+                                        {% trans "حفظ التغييرات" %}
+                                    {% else %}
+                                        {% trans "إضافة العميل" %}
+                                    {% endif %}
+                                </button>
+                            </div>
+                        </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // لا حاجة لتوليد الكود يدوياً - الكود يتولد تلقائياً من الباك إند
+</script>
+{% endblock %} 

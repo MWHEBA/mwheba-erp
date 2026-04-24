@@ -1,0 +1,236 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2-bootstrap-5-theme.min.css" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" %}
+
+    <div class="row">
+
+        <!-- عمود الفورم -->
+        <div class="col-lg-6">
+            <div class="section-container">
+                <form method="post" id="balance-update-form">
+                    {% csrf_token %}
+
+                    <div class="mb-3">
+                        <label class="form-label">الموظف <span class="text-danger">*</span></label>
+                        <select class="form-select" name="employee_id" id="employee_id" required>
+                            <option value="">اختر الموظف</option>
+                            {% for employee in employees %}
+                            <option value="{{ employee.pk }}">{{ employee.get_full_name_ar }} - {{ employee.employee_number }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">نوع الإجازة <span class="text-danger">*</span></label>
+                        <select class="form-select" name="leave_type_id" id="leave_type_id" required>
+                            <option value="">اختر نوع الإجازة</option>
+                            {% for leave_type in leave_types %}
+                            <option value="{{ leave_type.pk }}">{{ leave_type.name_ar }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">إجمالي الأيام الجديد <span class="text-danger">*</span></label>
+                        <input type="number" class="form-control" name="total_days" id="total_days" min="0" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">سبب التعديل</label>
+                        <textarea class="form-control" name="adjustment_reason" id="adjustment_reason" rows="2" placeholder="اختياري — يُسجَّل في سجل التعديلات"></textarea>
+                    </div>
+
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>حفظ
+                        </button>
+                        <a href="{% url 'hr:leave_balance_list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- عمود المعلومات -->
+        <div class="col-lg-6">
+
+            <!-- رصيد الموظف الحالي -->
+            <div class="section-container mb-3">
+                <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>الرصيد الحالي</h5>
+
+                <div id="balance-placeholder" class="text-muted text-center py-3">
+                    <i class="fas fa-arrow-right me-1"></i>
+                    اختر الموظف ونوع الإجازة لعرض الرصيد
+                </div>
+
+                <div id="balance-loading" class="text-center py-3 d-none">
+                    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+                    <span class="ms-2 text-muted">جاري التحميل...</span>
+                </div>
+
+                <div id="current-balance-card" class="d-none">
+                    <div class="row text-center g-2 mb-2">
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-light">
+                                <div class="fw-bold fs-5" id="bal-accrued">-</div>
+                                <small class="text-muted">المستحق</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-light">
+                                <div class="fw-bold fs-5 text-danger" id="bal-used">-</div>
+                                <small class="text-muted">المستخدم</small>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="p-2 rounded bg-light">
+                                <div class="fw-bold fs-5 text-success" id="bal-remaining">-</div>
+                                <small class="text-muted">المتبقي</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <small class="text-muted">مرحلة الاستحقاق:</small>
+                        <span id="bal-phase" class="badge bg-secondary">-</span>
+                        <span id="bal-manual-badge" class="badge bg-warning text-dark d-none">معدل يدوياً</span>
+                    </div>
+                    <div id="bal-adjustment-reason" class="text-muted small mt-1 d-none"></div>
+                </div>
+
+                <div id="no-balance-msg" class="alert alert-warning mb-0 d-none">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    لا يوجد رصيد — سيتم إنشاؤه تلقائياً عند الحفظ
+                </div>
+            </div>
+
+            <!-- ملاحظات -->
+            <div class="section-container">
+                <h5 class="section-title"><i class="fas fa-info-circle me-2"></i>ملاحظات</h5>
+                <ul class="list-unstyled mb-0">
+                    <li class="mb-2"><i class="fas fa-circle-dot text-info me-2"></i>سيتم إنشاء رصيد جديد إذا لم يكن موجوداً</li>
+                    <li class="mb-2"><i class="fas fa-circle-dot text-info me-2"></i>سيتم تحديث الرصيد المتبقي تلقائياً</li>
+                    <li><i class="fas fa-circle-dot text-info me-2"></i>الأيام المستخدمة لن تتأثر بالتحديث</li>
+                </ul>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function () {
+    const API_URL = `/hr/api/employee/`;
+
+    $('#employee_id').select2({ theme: 'bootstrap-5', dir: 'rtl', placeholder: 'ابحث عن موظف...', allowClear: true, width: '100%' });
+    $('#leave_type_id').select2({ theme: 'bootstrap-5', dir: 'rtl', placeholder: 'اختر نوع الإجازة', allowClear: true, width: '100%' });
+
+    // cache الأرصدة عشان ما نعملش request تاني لو غير نوع الإجازة بس
+    let cachedBalances = null;
+    let cachedEmployeeId = null;
+
+    function showLoading() {
+        $('#balance-placeholder').addClass('d-none');
+        $('#current-balance-card').addClass('d-none');
+        $('#no-balance-msg').addClass('d-none');
+        $('#balance-loading').removeClass('d-none');
+    }
+
+    function renderBalance(leaveTypeId) {
+        if (!cachedBalances) return;
+        const b = cachedBalances.find(x => x.leave_type_id == leaveTypeId);
+        $('#balance-loading').addClass('d-none');
+        if (b && b.has_balance) {
+            $('#bal-total').text(b.accrued_days);
+            $('#bal-accrued').text(b.accrued_days);
+            $('#bal-used').text(b.used_days);
+            $('#bal-remaining').text(b.remaining_days);
+
+            // مرحلة الاستحقاق
+            const phaseLabels = { none: 'لم يستحق بعد', partial: 'رصيد جزئي', full: 'رصيد كامل', senior: 'كبير موظفين' };
+            const phaseColors = { none: 'secondary', partial: 'info', full: 'success', senior: 'primary' };
+            const phase = b.accrual_phase || 'none';
+            $('#bal-phase').text(phaseLabels[phase] || phase).removeClass().addClass(`badge bg-${phaseColors[phase] || 'secondary'}`);
+
+            // تعديل يدوي
+            if (b.is_manually_adjusted) {
+                $('#bal-manual-badge').removeClass('d-none');
+                if (b.adjustment_reason) {
+                    $('#bal-adjustment-reason').text('السبب: ' + b.adjustment_reason).removeClass('d-none');
+                } else {
+                    $('#bal-adjustment-reason').addClass('d-none');
+                }
+            } else {
+                $('#bal-manual-badge').addClass('d-none');
+                $('#bal-adjustment-reason').addClass('d-none');
+            }
+
+            $('#current-balance-card').removeClass('d-none');
+            $('#no-balance-msg').addClass('d-none');
+        } else {
+            $('#current-balance-card').addClass('d-none');
+            $('#no-balance-msg').removeClass('d-none');
+        }
+    }
+
+    function fetchBalance() {
+        const employeeId = $('#employee_id').val();
+        const leaveTypeId = $('#leave_type_id').val();
+
+        if (!employeeId || !leaveTypeId) {
+            $('#balance-loading').addClass('d-none');
+            $('#current-balance-card').addClass('d-none');
+            $('#no-balance-msg').addClass('d-none');
+            $('#balance-placeholder').removeClass('d-none');
+            return;
+        }
+
+        // لو نفس الموظف — استخدم الـ cache مباشرة
+        if (cachedEmployeeId == employeeId && cachedBalances) {
+            renderBalance(leaveTypeId);
+            return;
+        }
+
+        showLoading();
+        $.get(`${API_URL}${employeeId}/leave-info/`, function (data) {
+            if (data.success) {
+                cachedEmployeeId = employeeId;
+                cachedBalances = data.balances;
+                renderBalance(leaveTypeId);
+            } else {
+                $('#balance-loading').addClass('d-none');
+                $('#no-balance-msg').removeClass('d-none');
+            }
+        }).fail(function() {
+            $('#balance-loading').addClass('d-none');
+            $('#balance-placeholder').removeClass('d-none');
+        });
+    }
+
+    // reset cache لو غير الموظف
+    $('#employee_id').on('change', function() {
+        cachedBalances = null;
+        cachedEmployeeId = null;
+        fetchBalance();
+    });
+
+    $('#leave_type_id').on('change', fetchBalance);
+});
+</script>
+{% endblock %}

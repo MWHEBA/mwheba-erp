@@ -1,0 +1,499 @@
+/**
+ * ========================================
+ * Bootstrap Overrides - تخصيص Bootstrap
+ * ========================================
+ * 
+ * تخصيص ألوان Bootstrap لتتماشى مع ألوان النظام
+ * يجب تحميل هذا الملف بعد Bootstrap
+ * 
+ * التحديث الأخير: تم إضافة override لمتغيرات Bootstrap CSS
+ * بحيث --bs-primary وباقي الألوان تستخدم ألوان النظام مباشرة
+ */
+
+/* ========================================
+   تخصيص متغيرات Bootstrap الأساسية
+   ======================================== */
+
+:root {
+    /* تخصيص متغيرات Bootstrap لتستخدم ألوان النظام */
+    --bs-primary: var(--primary-color);
+    --bs-primary-rgb: var(--primary-rgb);
+    --bs-secondary: var(--secondary-color);
+    --bs-secondary-rgb: var(--secondary-rgb);
+    --bs-success: var(--success-color);
+    --bs-success-rgb: var(--success-rgb);
+    --bs-info: var(--info-color);
+    --bs-info-rgb: var(--info-rgb);
+    --bs-warning: var(--warning-color);
+    --bs-warning-rgb: var(--warning-rgb);
+    --bs-danger: var(--danger-color);
+    --bs-danger-rgb: var(--danger-rgb);
+    
+    /* تخصيص الألوان الرمادية */
+    --bs-light: var(--light);
+    --bs-light-rgb: var(--light-rgb);
+    --bs-dark: var(--dark);
+    --bs-dark-rgb: var(--dark-rgb);
+    --bs-white: var(--white);
+    --bs-white-rgb: var(--white-rgb);
+    --bs-black: var(--black);
+    --bs-black-rgb: var(--black-rgb);
+    
+    /* تخصيص ألوان الحدود والخلفيات */
+    --bs-border-color: var(--border-color);
+    --bs-border-color-translucent: rgba(var(--gray-600-rgb), 0.175);
+    --bs-body-color: var(--text-color);
+    --bs-body-bg: var(--bg-body);
+    
+    /* تخصيص ألوان الروابط */
+    --bs-link-color: var(--primary-color);
+    --bs-link-hover-color: var(--primary-hover);
+    
+    /* تخصيص ألوان النماذج */
+    --bs-form-valid-color: var(--success-color);
+    --bs-form-valid-border-color: var(--success-color);
+    --bs-form-invalid-color: var(--danger-color);
+    --bs-form-invalid-border-color: var(--danger-color);
+}
+
+/* ========================================
+   تخصيص الألوان الأساسية
+   ======================================== */
+
+/* Primary Color - اللون الأساسي */
+.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.border-primary {
+    border-color: var(--primary-color) !important;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    color: var(--white);
+}
+
+.btn-primary:focus,
+.btn-primary.focus {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.btn-primary:active,
+.btn-primary.active {
+    background-color: var(--primary-active);
+    border-color: var(--primary-active);
+}
+
+.btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-outline-primary:focus,
+.btn-outline-primary.focus {
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+/* Secondary Color - اللون الثانوي */
+.bg-secondary {
+    background-color: var(--secondary-color) !important;
+}
+
+.text-secondary {
+    color: var(--secondary-color) !important;
+}
+
+.border-secondary {
+    border-color: var(--secondary-color) !important;
+}
+
+.btn-secondary {
+    background-color: var(--secondary-color);
+    border-color: var(--secondary-color);
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-hover);
+    border-color: var(--secondary-hover);
+}
+
+/* Success Color - لون النجاح */
+.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.text-success {
+    color: var(--success-color) !important;
+}
+
+.border-success {
+    border-color: var(--success-color) !important;
+}
+
+.btn-success {
+    background-color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.btn-success:hover {
+    background-color: var(--success-hover);
+    border-color: var(--success-hover);
+}
+
+/* Info Color - لون المعلومات */
+.bg-info {
+    background-color: var(--info-color) !important;
+}
+
+.text-info {
+    color: var(--info-color) !important;
+}
+
+.border-info {
+    border-color: var(--info-color) !important;
+}
+
+.btn-info {
+    background-color: var(--info-color);
+    border-color: var(--info-color);
+    color: #ffffff;
+}
+
+.btn-info:hover {
+    background-color: var(--info-hover);
+    border-color: var(--info-hover);
+    color: #ffffff;
+}
+
+/* Warning Color - لون التحذير */
+.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.text-warning {
+    color: var(--warning-color) !important;
+}
+
+.border-warning {
+    border-color: var(--warning-color) !important;
+}
+
+.btn-warning {
+    background-color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+.btn-warning:hover {
+    background-color: var(--warning-hover);
+    border-color: var(--warning-hover);
+}
+
+/* Danger Color - لون الخطر */
+.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+.text-danger {
+    color: var(--danger-color) !important;
+}
+
+.border-danger {
+    border-color: var(--danger-color) !important;
+}
+
+.btn-danger {
+    background-color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.btn-danger:hover {
+    background-color: var(--danger-hover);
+    border-color: var(--danger-hover);
+}
+
+/* ========================================
+   تخصيص المكونات
+   ======================================== */
+
+/* Badges - الشارات */
+.badge.bg-primary {
+    background-color: var(--primary-color) !important;
+    color: var(--white) !important;
+}
+
+.badge.bg-secondary {
+    background-color: var(--secondary-color) !important;
+    color: var(--white) !important;
+}
+
+.badge.bg-success {
+    background-color: var(--success-color) !important;
+    color: var(--white) !important;
+}
+
+.badge.bg-info {
+    background-color: var(--info-color) !important;
+    color: var(--white) !important;
+}
+
+.badge.bg-warning {
+    background-color: var(--warning-color) !important;
+    color: var(--white) !important;
+}
+
+.badge.bg-danger {
+    background-color: var(--danger-color) !important;
+    color: var(--white) !important;
+}
+
+/* Alerts - التنبيهات */
+.alert-primary {
+    background-color: var(--primary-soft);
+    border-color: var(--primary-light);
+    color: var(--primary-dark);
+}
+
+.alert-secondary {
+    background-color: var(--secondary-soft);
+    border-color: var(--secondary-light);
+    color: var(--secondary-dark);
+}
+
+.alert-success {
+    background-color: var(--success-soft);
+    border-color: var(--success-light);
+    color: var(--success-dark);
+}
+
+.alert-info {
+    background-color: var(--info-soft);
+    border-color: var(--info-light);
+    color: var(--info-dark);
+}
+
+.alert-warning {
+    background-color: var(--warning-soft);
+    border-color: var(--warning-light);
+    color: var(--warning-dark);
+}
+
+.alert-danger {
+    background-color: var(--danger-soft);
+    border-color: var(--danger-light);
+    color: var(--danger-dark);
+}
+
+/* Progress Bars - أشرطة التقدم */
+.progress-bar {
+    background-color: var(--primary-color);
+}
+
+.progress-bar.bg-primary {
+    background-color: var(--primary-color) !important;
+}
+
+.progress-bar.bg-secondary {
+    background-color: var(--secondary-color) !important;
+}
+
+.progress-bar.bg-success {
+    background-color: var(--success-color) !important;
+}
+
+.progress-bar.bg-info {
+    background-color: var(--info-color) !important;
+}
+
+.progress-bar.bg-warning {
+    background-color: var(--warning-color) !important;
+}
+
+.progress-bar.bg-danger {
+    background-color: var(--danger-color) !important;
+}
+
+/* Links - الروابط */
+a {
+    color: var(--primary-color);
+}
+
+a:hover {
+    color: var(--primary-hover);
+}
+
+/* Form Controls - عناصر النماذج */
+.form-control:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem var(--primary-focus);
+}
+
+.form-check-input:checked {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.form-check-input:focus {
+    box-shadow: 0 0 0 0.25rem var(--primary-focus);
+}
+
+/* Navigation - التنقل */
+.nav-pills .nav-link.active {
+    background-color: var(--primary-color);
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color);
+    border-color: var(--border-color) var(--border-color) var(--primary-color);
+}
+
+/* Pagination - الترقيم */
+.page-link {
+    color: var(--primary-color);
+}
+
+.page-link:hover {
+    color: var(--primary-hover);
+    background-color: var(--primary-soft);
+    border-color: var(--primary-light);
+}
+
+.page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* Dropdown - القوائم المنسدلة */
+.dropdown-item:active {
+    background-color: var(--primary-color);
+}
+
+.dropdown-item.active {
+    background-color: var(--primary-color);
+}
+
+/* List Group - مجموعة القوائم */
+.list-group-item.active {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* ========================================
+   تخصيصات إضافية للنظام
+   ======================================== */
+
+/* تخصيص الجداول */
+.table-primary {
+    background-color: var(--primary-soft);
+}
+
+.table-primary th,
+.table-primary td {
+    border-color: var(--primary-light);
+}
+
+/* تخصيص الحدود */
+.border-primary {
+    border-color: var(--primary-color) !important;
+}
+
+/* تخصيص الظلال */
+.shadow-primary {
+    box-shadow: 0 0.5rem 1rem var(--primary-focus) !important;
+}
+
+/* تخصيص الخلفيات الناعمة */
+.bg-primary-soft {
+    background-color: var(--primary-soft) !important;
+    color: var(--primary-dark) !important;
+}
+
+.bg-secondary-soft {
+    background-color: var(--secondary-soft) !important;
+    color: var(--secondary-dark) !important;
+}
+
+.bg-success-soft {
+    background-color: var(--success-soft) !important;
+    color: var(--success-dark) !important;
+}
+
+.bg-info-soft {
+    background-color: var(--info-soft) !important;
+    color: var(--info-dark) !important;
+}
+
+.bg-warning-soft {
+    background-color: var(--warning-soft) !important;
+    color: var(--warning-dark) !important;
+}
+
+.bg-danger-soft {
+    background-color: var(--danger-soft) !important;
+    color: var(--danger-dark) !important;
+}
+
+/* ========================================
+   تحسينات الاستجابة
+   ======================================== */
+
+@media (max-width: 768px) {
+    .btn {
+        font-size: var(--font-size-sm);
+        padding: var(--btn-padding-sm);
+    }
+    
+    .badge {
+        font-size: 0.7em;
+    }
+}
+
+/* ========================================
+   تحسينات الطباعة
+   ======================================== */
+
+@media print {
+    .bg-primary,
+    .bg-secondary,
+    .bg-success,
+    .bg-info,
+    .bg-warning,
+    .bg-danger {
+        background-color: transparent !important;
+        color: var(--black) !important;
+        border: 1px solid var(--black) !important;
+    }
+    
+    .text-primary,
+    .text-secondary,
+    .text-success,
+    .text-info,
+    .text-warning,
+    .text-danger {
+        color: var(--black) !important;
+    }
+}

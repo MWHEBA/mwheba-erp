@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}استيراد عقود جماعية{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" with title=title subtitle=subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+
+            <!-- إرشادات الاستيراد -->
+            <div class="section-container mb-4">
+                <h5 class="section-title">
+                    <i class="fas fa-info-circle me-2"></i>إرشادات الاستيراد
+                </h5>
+                <div class="row g-3 mt-1">
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-check-circle text-success mt-1"></i>
+                            <div>
+                                <strong>الحقول المطلوبة</strong>
+                                <p class="text-muted small mb-0">رقم الموظف، نوع العقد، تاريخ البداية، الأجر الأساسي</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-user-check text-primary mt-1"></i>
+                            <div>
+                                <strong>بيانات الموظف تلقائية</strong>
+                                <p class="text-muted small mb-0">المسمى الوظيفي والقسم يُجلبان تلقائياً من ملف الموظف</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-file-excel text-success mt-1"></i>
+                            <div>
+                                <strong>صيغة الملف</strong>
+                                <p class="text-muted small mb-0">Excel فقط (.xlsx أو .xls) - حمّل القالب للبدء</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="d-flex align-items-start gap-2">
+                            <i class="fas fa-shield-alt text-warning mt-1"></i>
+                            <div>
+                                <strong>حالة العقود</strong>
+                                <p class="text-muted small mb-0">تُنشأ العقود كـ "مسودة" - يمكن تفعيلها لاحقاً</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- أعمدة الملف -->
+            <div class="section-container mb-4">
+                <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#colsGuide" aria-expanded="false">
+                    <i class="fas fa-table me-2"></i>أعمدة ملف Excel
+                    <i class="fas fa-chevron-down float-end"></i>
+                </h5>
+                <div class="collapse" id="colsGuide">
+                    <div class="table-responsive mt-2">
+                        <table class="table table-hover table-sm">
+                            <thead>
+                                <tr>
+                                    <th class="text-center">اسم العمود</th>
+                                    <th class="text-center">مطلوب</th>
+                                    <th class="text-center">القيم المقبولة</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td class="text-center"><code>رقم الموظف *</code></td>
+                                    <td class="text-center"><span class="badge bg-danger">مطلوب</span></td>
+                                    <td class="text-center">رقم الموظف كما هو في النظام</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>نوع العقد *</code></td>
+                                    <td class="text-center"><span class="badge bg-danger">مطلوب</span></td>
+                                    <td class="text-center">دائم / مؤقت / عقد محدد المدة / تدريب / دوام جزئي</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>تاريخ البداية *</code></td>
+                                    <td class="text-center"><span class="badge bg-danger">مطلوب</span></td>
+                                    <td class="text-center">YYYY-MM-DD أو DD/MM/YYYY</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>الأجر الأساسي *</code></td>
+                                    <td class="text-center"><span class="badge bg-danger">مطلوب</span></td>
+                                    <td class="text-center">رقم (مثال: 5000)</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>تاريخ النهاية</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">YYYY-MM-DD أو DD/MM/YYYY</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>تجديد تلقائي</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">نعم / لا</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>نوع الزيادة السنوية</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">نسبة / ثابت</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>قيمة الزيادة السنوية</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">رقم (10 للنسبة أو 500 للمبلغ)</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>مسجل التأمينات</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">نعم / لا</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>الرقم التأميني</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">نص</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>الأجر التأميني</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">رقم</td>
+                                </tr>
+                                <tr>
+                                    <td class="text-center"><code>حصة الموظف في الاستقطاعات</code></td>
+                                    <td class="text-center"><span class="badge bg-secondary">اختياري</span></td>
+                                    <td class="text-center">نسبة مئوية (مثال: 11)</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- فورم الرفع -->
+            <div class="section-container">
+                <h5 class="section-title">
+                    <i class="fas fa-upload me-2"></i>رفع ملف الاستيراد
+                </h5>
+                <form method="post" enctype="multipart/form-data" id="importForm" class="mt-3">
+                    {% csrf_token %}
+                    <div class="mb-4">
+                        <label for="import_file" class="form-label fw-semibold">
+                            اختر ملف Excel <span class="text-danger">*</span>
+                        </label>
+                        <input type="file"
+                               class="form-control"
+                               id="import_file"
+                               name="import_file"
+                               accept=".xlsx,.xls"
+                               required>
+                        <div class="form-text">
+                            <i class="fas fa-info-circle me-1"></i>
+                            الصيغ المدعومة: .xlsx, .xls
+                        </div>
+                    </div>
+
+                    <!-- معاينة اسم الملف -->
+                    <div id="filePreview" class="alert alert-info d-none mb-4">
+                        <i class="fas fa-file-excel me-2"></i>
+                        <span id="fileName"></span>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary" id="submitBtn">
+                            <i class="fas fa-file-import me-2"></i>بدء الاستيراد
+                        </button>
+                        <a href="{% url 'hr:contract_import_template' %}" class="btn btn-outline-success">
+                            <i class="fas fa-download me-2"></i>تحميل القالب
+                        </a>
+                        <a href="{% url 'hr:contract_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-2"></i>إلغاء
+                        </a>
+                    </div>
+                </form>
+            </div>
+
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('import_file').addEventListener('change', function () {
+    const preview = document.getElementById('filePreview');
+    const nameSpan = document.getElementById('fileName');
+    if (this.files.length > 0) {
+        nameSpan.textContent = this.files[0].name;
+        preview.classList.remove('d-none');
+    } else {
+        preview.classList.add('d-none');
+    }
+});
+
+document.getElementById('importForm').addEventListener('submit', function () {
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>جاري الاستيراد...';
+});
+</script>
+{% endblock %}

@@ -1,0 +1,41 @@
+{% load static %}
+
+<div class="modal-header bg-danger text-white">
+    <h5 class="modal-title">
+        <i class="fas fa-exclamation-triangle me-2"></i>تأكيد الحذف
+    </h5>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+</div>
+
+<form method="post" action="{{ action_url }}">
+    {% csrf_token %}
+    <div class="modal-body">
+        <div class="text-center">
+            <i class="fas fa-weight-hanging fa-3x text-danger mb-3"></i>
+            <h5>هل أنت متأكد من حذف وزن الورق؟</h5>
+            <p class="text-muted mb-4">
+                سيتم حذف وزن الورق "<strong>{{ weight.name }} ({{ weight.gsm }} جم)</strong>" نهائياً من النظام.
+            </p>
+            
+            {% if weight.is_default %}
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>تحذير:</strong> هذا الوزن مُعَيَّن كافتراضي. تأكد من تعيين وزن آخر كافتراضي قبل الحذف.
+                </div>
+            {% endif %}
+            
+            <p class="small text-muted">
+                <strong>ملاحظة:</strong> هذا الإجراء لا يمكن التراجع عنه.
+            </p>
+        </div>
+    </div>
+
+    <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </button>
+        <button type="submit" class="btn btn-danger">
+            <i class="fas fa-trash me-2"></i>حذف نهائياً
+        </button>
+    </div>
+</form>

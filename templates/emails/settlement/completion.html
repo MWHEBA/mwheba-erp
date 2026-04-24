@@ -1,0 +1,71 @@
+﻿{% extends "emails/base_email.html" %}
+
+{% block title %}{{ notification_title }} - Corporate ERP{% endblock %}
+
+{% block content %}
+<h1 class="main-title">{{ notification_title }}</h1>
+<p class="main-message">
+    مرحباً {{ user_name }}،<br>
+    {{ notification_message }}
+</p>
+
+<div class="success-box" style="text-align: right;">
+    <strong style="color: #22c55e; font-size: 18px;">✓ تم الإتمام بنجاح</strong>
+    <div style="margin: 15px 0; color: #4b5563; line-height: 1.6; white-space: pre-line;">{{ notification_details }}</div>
+</div>
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ action_url }}" class="button">
+        {{ action_text|default:"عرض التفاصيل" }}
+    </a>
+</div>
+
+<div class="info-box" style="text-align: right;">
+    <strong style="color: #0ea5e9; font-size: 16px;">ℹ ما تم إنجازه</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">
+        • تم إنشاء القيود المحاسبية المطلوبة<br>
+        • تم تحديث أرصدة الحسابات<br>
+        • تم تحديث الملف المالي للعميل<br>
+        • تم توثيق العملية في سجل التدقيق
+    </p>
+</div>
+
+<div class="data-table" style="margin: 25px 0;">
+    <table style="width: 100%; border-collapse: collapse; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08);">
+        <thead>
+            <tr>
+                <th style="background-color: #0e3178; color: #ffffff; padding: 15px; text-align: right; font-weight: 600;" class="text-center">البيان</th>
+                <th style="background-color: #0e3178; color: #ffffff; padding: 15px; text-align: right; font-weight: 600;" class="text-center">التفاصيل</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td style="padding: 12px 15px; border-bottom: 1px solid #ecf0f1; color: #2c3e50; font-weight: 600;" class="text-center">حالة التسوية</td>
+                <td style="padding: 12px 15px; border-bottom: 1px solid #ecf0f1; color: #22c55e; font-weight: 600;" class="text-center">مكتملة ✓</td>
+            </tr>
+            <tr>
+                <td style="padding: 12px 15px; border-bottom: 1px solid #ecf0f1; color: #2c3e50; font-weight: 600;" class="text-center">الأثر المحاسبي</td>
+                <td style="padding: 12px 15px; border-bottom: 1px solid #ecf0f1; color: #2c3e50;" class="text-center">تم إنشاء القيود المطلوبة</td>
+            </tr>
+            <tr>
+                <td style="padding: 12px 15px; color: #2c3e50; font-weight: 600;" class="text-center">حالة الحساب</td>
+                <td style="padding: 12px 15px; color: #2c3e50;" class="text-center">تم التحديث</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<div class="success-box" style="text-align: right;">
+    <strong style="color: #22c55e; font-size: 16px;">✓ تأكيد العملية</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">
+        تم إتمام جميع الإجراءات المطلوبة بنجاح. يمكنك الآن مراجعة التفاصيل الكاملة
+        من خلال النظام أو طباعة تقرير التسوية للاحتفاظ بالسجلات.
+    </p>
+</div>
+
+<p class="help-text">
+    إذا كان لديك أي استفسار حول هذه التسوية، يمكنك الرد على هذا الإيميل وسنكون سعداء بمساعدتك.
+</p>
+
+<p class="signature">فريق النظام المالي</p>
+{% endblock %}

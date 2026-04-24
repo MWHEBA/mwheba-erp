@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% translate "إعدادات ضريبة القيمة المضافة" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="text-center">{% translate "النسبة" %}</th>
+                            <th class="text-center">{% translate "الوصف" %}</th>
+                            <th class="text-center">{% translate "الحالة" %}</th>
+                            <th class="text-center">{% translate "تاريخ الإنشاء" %}</th>
+                            <th class="text-center">{% translate "الإجراءات" %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for setting in vat_settings %}
+                        <tr>
+                            <td class="text-center"><strong>{{ setting.percentage }}%</strong></td>
+                            <td class="text-center">{{ setting.description|default:"-" }}</td>
+                            <td class="text-center">
+                                {% if setting.is_enabled %}
+                                    <span class="badge bg-success">{% translate "مفعل" %}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{% translate "معطل" %}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ setting.created_at|date:"d/m/Y" }}</td>
+                            <td class="text-center">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-primary" onclick="openEditModal({{ setting.pk }})">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-outline-danger" onclick="openDeleteModal({{ setting.pk }})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-percentage fa-3x mb-3 d-block"></i>
+                                {% translate "لا توجد إعدادات ضريبة مضافة بعد" %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal الإنشاء والتعديل -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="modalContent"></div>
+    </div>
+</div>
+
+<!-- Modal الحذف -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" id="deleteModalContent"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openCreateModal() {
+    fetch('{% url "printing_pricing:vat_setting_create" %}')
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openEditModal(id) {
+    fetch(`{% url "printing_pricing:vat_setting_edit" 0 %}`.replace('0', id))
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('modalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('formModal')).show();
+        });
+}
+
+function openDeleteModal(id) {
+    fetch(`{% url "printing_pricing:vat_setting_delete" 0 %}`.replace('0', id))
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('deleteModalContent').innerHTML = html;
+            new bootstrap.Modal(document.getElementById('deleteModal')).show();
+            // تفعيل submit handler بعد تحميل المحتوى
+            document.getElementById('deleteVatForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const btn = document.getElementById('deleteVatBtn');
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new FormData(this),
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.success) {
+                        bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide();
+                        location.reload();
+                    }
+                });
+            });
+        });
+}
+
+function submitForm(formId) {
+    const form = document.getElementById(formId);
+    const formData = new FormData(form);
+    fetch(form.action, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.querySelector('.modal.show')).hide();
+            location.reload();
+        }
+    });
+}
+</script>
+{% endblock %}

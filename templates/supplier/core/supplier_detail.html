@@ -1,0 +1,701 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ supplier.name }} - {% trans "تفاصيل المورد" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- Overview Cards -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}</h5>
+    <div class="row">
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-success">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-shopping-cart"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المشتريات" %}</div>
+            <div class="stats-card-value">{{ total_purchases|default:"0"|smart_float }}</div>
+            <small class="text-muted">{% currency_symbol %}</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-box"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي المنتجات" %}</div>
+            <div class="stats-card-value">{{ products_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "منتج" %}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-info">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الفواتير" %}</div>
+            <div class="stats-card-value">{{ purchases_count|default:"0" }}</div>
+            <div class="stats-card-unit">{% trans "فاتورة" %}</div>
+          </div>
+        </div>
+      </div>
+
+      {% if enabled_modules.printing_pricing %}
+      <div class="col-md-4 col-lg-3">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-tools"></i>
+            </div>
+            <div class="stats-card-title">خدمات التسعير</div>
+            <div class="stats-card-value">{{ supplier_services_count|default:"0" }}</div>
+            <div class="stats-card-unit">خدمة</div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- نظام التابات -->
+  <div class="supplier-tabs">
+    <ul class="nav nav-tabs" id="supplierTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="info-tab" data-bs-toggle="tab" data-bs-target="#info-tab-pane" type="button" role="tab" aria-controls="info-tab-pane" aria-selected="true">
+          <i class="fas fa-info-circle me-2"></i>{% trans "معلومات المورد" %}
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases-tab-pane" type="button" role="tab" aria-controls="purchases-tab-pane" aria-selected="false">
+          <i class="fas fa-shopping-cart me-2"></i>{% trans "فواتير الشراء" %}
+          <span class="badge bg-info rounded-pill">{{ purchases_count|default:"0" }}</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="products-tab" data-bs-toggle="tab" data-bs-target="#products-tab-pane" type="button" role="tab" aria-controls="products-tab-pane" aria-selected="false">
+          <i class="fas fa-boxes me-2"></i>المنتجات
+          <span class="badge bg-success rounded-pill">{{ products_count|default:"0" }}</span>
+        </button>
+      </li>
+      {% if enabled_modules.printing_pricing %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="services-tab" data-bs-toggle="tab" data-bs-target="#services-tab-pane" type="button" role="tab" aria-controls="services-tab-pane" aria-selected="false">
+          <i class="fas fa-tags me-2"></i>خدمات التسعير
+          <span class="badge bg-warning text-dark rounded-pill">{{ supplier_services_count|default:"0" }}</span>
+        </button>
+      </li>
+      {% endif %}
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="payments-tab" data-bs-toggle="tab" data-bs-target="#payments-tab-pane" type="button" role="tab" aria-controls="payments-tab-pane" aria-selected="false">
+          <i class="fas fa-money-bill-wave me-2"></i>{% trans "المدفوعات" %}
+          <span class="badge bg-primary rounded-pill">{{ payments|length|default:"0" }}</span>
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="journal-tab" data-bs-toggle="tab" data-bs-target="#journal-tab-pane" type="button" role="tab" aria-controls="journal-tab-pane" aria-selected="false">
+          <i class="fas fa-book me-2"></i>{% trans "القيود المحاسبية" %}
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="statement-tab" data-bs-toggle="tab" data-bs-target="#statement-tab-pane" type="button" role="tab" aria-controls="statement-tab-pane" aria-selected="false">
+          <i class="fas fa-file-alt me-2"></i>{% trans "كشف الحساب" %}
+        </button>
+      </li>
+    </ul>
+                        
+    <div class="tab-content" id="supplierTabsContent">
+      <!-- تاب معلومات المورد -->
+      <div class="tab-pane fade show active" id="info-tab-pane" role="tabpanel" aria-labelledby="info-tab" tabindex="0">
+        <div class="section-container">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <i class="fas fa-phone fa-2x text-primary"></i>
+                </div>
+                <div>
+                  <small class="text-muted d-block">{% trans "رقم الهاتف" %}</small>
+                  <strong>{{ supplier.phone|format_phone }}</strong>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <i class="fas fa-map-marker-alt fa-2x text-danger"></i>
+                </div>
+                <div>
+                  <small class="text-muted d-block">{% trans "العنوان" %}</small>
+                  <strong>{{ supplier.address|default:"لا يوجد" }}</strong>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <i class="fas fa-user-tie fa-2x text-info"></i>
+                </div>
+                <div>
+                  <small class="text-muted d-block">{% trans "جهة الاتصال" %}</small>
+                  <strong>{{ supplier.contact_person|default:"لا يوجد" }}</strong>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <div class="d-flex align-items-center">
+                <div class="me-3">
+                  <i class="fas fa-file-invoice fa-2x text-warning"></i>
+                </div>
+                <div>
+                  <small class="text-muted d-block">{% trans "الرقم الضريبي" %}</small>
+                  <strong>{{ supplier.tax_number|default:"لا يوجد" }}</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {% if supplier.notes %}
+          <div class="alert alert-info mt-3">
+            <i class="fas fa-sticky-note me-2"></i>
+            <strong>{% trans "ملاحظات:" %}</strong> {{ supplier.notes }}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب فواتير الشراء -->
+      <div class="tab-pane fade" id="purchases-tab-pane" role="tabpanel" aria-labelledby="purchases-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            <a href="{% url 'purchase:purchase_create_for_supplier' supplier_id=supplier.pk %}" class="btn btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إضافة فاتورة جديدة" %}
+            </a>
+          </div>
+          
+          {% if purchases %}
+          {% include "components/data_table.html" with table_id="supplier-purchases-table" headers=purchase_headers data=purchases empty_message="لا توجد فواتير مشتريات متاحة" clickable_rows=purchases_clickable row_click_url="/purchases/0/" show_export=True export_filename="supplier_purchases" %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد فواتير مشتريات مسجلة لهذا المورد." %}
+              <a href="{% url 'purchase:purchase_create' %}?supplier={{ supplier.pk }}" class="alert-link">
+                {% trans "إضافة فاتورة جديدة" %}
+              </a>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب المنتجات -->
+      <div class="tab-pane fade" id="products-tab-pane" role="tabpanel" aria-labelledby="products-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0">
+              <i class="fas fa-boxes me-2"></i>منتجات المورد
+            </h5>
+            <div class="d-flex align-items-center">
+              <span class="badge bg-success me-2">{{ products_count }} منتج</span>
+            </div>
+          </div>
+          
+          {% include "components/data_table.html" with table_id="supplier-products-table" headers=products_headers data=supplier_products primary_key=products_primary_key empty_message="لا توجد منتجات مشتراة من هذا المورد" clickable_rows=True row_click_url="/products/0/" show_export=True export_filename="supplier_products" %}
+        </div>
+      </div>
+
+      <!-- تاب المدفوعات -->
+      <div class="tab-pane fade" id="payments-tab-pane" role="tabpanel" aria-labelledby="payments-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            <div class="badge bg-primary rounded-pill px-3 py-2 d-flex align-items-center">
+              <i class="fas fa-money-bill-wave me-2"></i>
+              <span>{% trans "الإجمالي:" %} {{ total_payments|currency }}</span>
+            </div>
+          </div>
+          
+          {% if payments %}
+          {% include "components/data_table.html" with table_id="supplier-payments-table" headers=payments_headers data=payments empty_message="لا توجد مدفوعات مسجلة لهذا المورد" clickable_rows=payments_clickable row_click_url="/purchases/payments/0/" show_export=True export_filename="supplier_payments" %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد مدفوعات مسجلة لهذا المورد. يمكنك إضافة دفعات عبر فواتير المشتريات." %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب القيود المحاسبية -->
+      <div class="tab-pane fade" id="journal-tab-pane" role="tabpanel" aria-labelledby="journal-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            {% if financial_account %}
+            <a href="{% url 'financial:account_detail' financial_account.pk %}" class="btn btn-sm btn-outline-success">
+              <i class="fas fa-link me-1"></i>{% trans "عرض الحساب المحاسبي" %}
+            </a>
+            {% endif %}
+          </div>
+          
+          {% if journal_entries %}
+          {% include "components/data_table.html" with table_id="supplier-journal-table" headers=journal_headers data=journal_entries empty_message="لا توجد قيود محاسبية لهذا المورد" clickable_rows=journal_clickable row_click_url="/financial/journal-entries/0/" show_export=True export_filename="supplier_journal_entries" %}
+          {% else %}
+          <div class="alert alert-info d-flex align-items-center m-3">
+            <i class="fas fa-info-circle fa-2x me-3"></i>
+            <div>
+              {% trans "لا توجد قيود محاسبية مسجلة لهذا المورد." %}
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      
+      <!-- تاب كشف الحساب -->
+      <div class="tab-pane fade" id="statement-tab-pane" role="tabpanel" aria-labelledby="statement-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-end mb-3">
+            <button class="btn btn-sm btn-outline-primary" onclick="window.print()">
+              <i class="fas fa-print me-1"></i>{% trans "طباعة" %}
+            </button>
+          </div>
+          
+          {% include "components/data_table.html" with table_id="supplier-statement-table" headers=statement_headers data=transactions empty_message="لا توجد معاملات مسجلة لهذا المورد" show_export=True export_filename="supplier_statement" %}
+        </div>
+      </div>
+
+      <!-- تاب خدمات التسعير -->
+      {% if enabled_modules.printing_pricing %}
+      <div class="tab-pane fade" id="services-tab-pane" role="tabpanel" aria-labelledby="services-tab" tabindex="0">
+        <div class="section-container">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="section-title mb-0"><i class="fas fa-tags me-2"></i>خدمات التسعير</h5>
+            <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-primary btn-sm">
+              <i class="fas fa-plus me-1"></i>إضافة خدمة
+            </a>
+          </div>
+
+          {% if supplier_services_table_data %}
+          <!-- فلاتر الخدمات -->
+          <div class="d-flex flex-wrap gap-2 mb-3 align-items-center">
+            <span class="text-muted small"><i class="fas fa-filter me-1"></i>فلتر:</span>
+
+            <!-- فلتر نوع الخدمة -->
+            <select id="services-type-filter" class="form-select form-select-sm" style="width:auto;">
+              <option value="">كل الأنواع</option>
+              {% for svc in supplier_services %}
+                <option value="{{ svc.service_type.name }}">{{ svc.service_type.name }}</option>
+              {% endfor %}
+            </select>
+
+            <!-- فلتر الحالة -->
+            <select id="services-status-filter" class="form-select form-select-sm" style="width:auto;">
+              <option value="">كل الحالات</option>
+              <option value="نشط">نشط</option>
+              <option value="غير نشط">غير نشط</option>
+            </select>
+
+            <button class="btn btn-sm btn-outline-secondary" id="services-filter-reset">
+              <i class="fas fa-times me-1"></i>إعادة تعيين
+            </button>
+            <span class="badge bg-secondary ms-1" id="services-filter-count"></span>
+          </div>
+
+            {% include "components/data_table.html" with table_id="supplier-services-table" headers=supplier_services_headers data=supplier_services_table_data primary_key="id" empty_message="لا توجد خدمات مسجلة لهذا المورد" show_export=False clickable_rows=True row_click_field="_row_url" %}
+          {% else %}
+            <div class="text-center py-5">
+              <i class="fas fa-tools fa-3x text-muted mb-3"></i>
+              <p class="text-muted mb-3">لا توجد خدمات مسجلة لهذا المورد بعد</p>
+              <a href="{% url 'supplier:supplier_service_add' supplier.pk %}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>إضافة أول خدمة
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+    </div> <!-- End tab-content -->
+  </div> <!-- End supplier-tabs -->
+</div> <!-- End container-fluid -->
+
+<!-- Actions Modal -->
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionsModalLabel">
+          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group">
+          <a href="{% url 'supplier:supplier_edit' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-edit fa-2x text-warning"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "تعديل بيانات المورد" %}</div>
+              <small class="text-muted">{% trans "تعديل معلومات الاتصال والبيانات الأساسية" %}</small>
+            </div>
+          </a>
+          <a href="{% url 'supplier:supplier_change_account' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-exchange-alt fa-2x text-primary"></i>
+            </div>
+            <div>
+              <div class="fw-bold">تغيير الحساب المحاسبي</div>
+              <small class="text-muted">ربط المورد بحساب آخر في دليل الحسابات</small>
+            </div>
+          </a>
+          <a href="{% url 'supplier:supplier_delete' supplier.pk %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-trash fa-2x text-danger"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "حذف المورد" %}</div>
+              <small class="text-muted">{% trans "حذف المورد نهائياً من النظام" %}</small>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal حذف الخدمة -->
+{% include 'components/modals/delete_service_modal.html' %}
+
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/global-table.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد مع ترتيب من الأحدث للأقدم
+    if (typeof window.GlobalTableManager !== 'undefined') {
+        // جدول الفواتير - ترتيب حسب التاريخ (عمود 1) تنازلياً
+        if (document.getElementById('supplier-purchases-table')) {
+            window.GlobalTableManager.initializeTable('supplier-purchases-table', {
+                order: [[1, 'desc']]  // عمود created_at
+            });
+        }
+        
+        // جدول المدفوعات - ترتيب حسب التاريخ (عمود 1) تنازلياً
+        if (document.getElementById('supplier-payments-table')) {
+            window.GlobalTableManager.initializeTable('supplier-payments-table', {
+                order: [[1, 'desc']]  // عمود created_at
+            });
+        }
+        
+        // جدول المنتجات - ترتيب حسب آخر شراء (عمود 5) تنازلياً
+        if (document.getElementById('supplier-products-table')) {
+            window.GlobalTableManager.initializeTable('supplier-products-table', {
+                order: [[5, 'desc']]  // عمود last_purchase_date
+            });
+        }
+        
+        // جدول المعاملات (لو موجود)
+        if (document.getElementById('supplier-transactions-table')) {
+            window.GlobalTableManager.initializeTable('supplier-transactions-table', {
+                order: [[0, 'desc']]  // عمود التاريخ
+            });
+        }
+        
+        // جدول القيود المحاسبية (لو موجود)
+        if (document.getElementById('supplier-journal-table')) {
+            window.GlobalTableManager.initializeTable('supplier-journal-table', {
+                order: [[2, 'desc']]  // عمود created_at (التاريخ والوقت)
+            });
+        }
+    }
+    
+    // جعل الصفوف القابلة للنقر تعمل
+    document.addEventListener('click', function(e) {
+        const clickableRow = e.target.closest('.clickable-row');
+        if (clickableRow && clickableRow.dataset.href) {
+            window.open(clickableRow.dataset.href, '_blank');
+        }
+    });
+    
+    // حفظ واستعادة التابات النشطة
+    initializeTabMemory();
+});
+
+function initializeTabMemory() {
+    const pageKey = 'supplier_detail_{{ supplier.pk }}';
+    
+    // استعادة التاب الرئيسي النشط
+    const savedMainTab = localStorage.getItem(pageKey + '_main_tab');
+    if (savedMainTab) {
+        const mainTabButton = document.querySelector(`#${savedMainTab}`);
+        const mainTabPane = document.querySelector(`#${savedMainTab.replace('-tab', '-tab-pane')}`);
+        
+        if (mainTabButton && mainTabPane) {
+            // إزالة active من جميع التابات الرئيسية
+            document.querySelectorAll('#supplierTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('#supplierTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // تفعيل التاب المحفوظ
+            mainTabButton.classList.add('active');
+            mainTabButton.setAttribute('aria-selected', 'true');
+            mainTabPane.classList.add('show', 'active');
+        }
+    }
+    
+    // استعادة التاب الفرعي النشط (للخدمات)
+    const savedSubTab = localStorage.getItem(pageKey + '_sub_tab');
+    if (savedSubTab) {
+        const subTabButton = document.querySelector(`#${savedSubTab}`);
+        const subTabPane = document.querySelector(`#${savedSubTab.replace('-tab', '-services')}`);
+        
+        if (subTabButton && subTabPane) {
+            // إزالة active من جميع التابات الفرعية
+            document.querySelectorAll('#servicesSubTabs .nav-link').forEach(tab => {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            document.querySelectorAll('#servicesSubTabsContent .tab-pane').forEach(pane => {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // تفعيل التاب الفرعي المحفوظ
+            subTabButton.classList.add('active');
+            subTabButton.setAttribute('aria-selected', 'true');
+            subTabPane.classList.add('show', 'active');
+        }
+    }
+    
+    // حفظ التاب الرئيسي عند التغيير
+    document.querySelectorAll('#supplierTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function() {
+            localStorage.setItem(pageKey + '_main_tab', this.id);
+        });
+    });
+    
+    // حفظ التاب الفرعي عند التغيير
+    document.querySelectorAll('#servicesSubTabs .nav-link').forEach(tab => {
+        tab.addEventListener('click', function() {
+            localStorage.setItem(pageKey + '_sub_tab', this.id);
+        });
+    });
+    
+    // تفعيل tooltips للأزرار الموحدة
+    $('.action-button').tooltip();
+}
+
+// دالة إظهار الإشعارات الموحدة
+function showNotification(message, type = 'info') {
+    if (typeof toastr !== 'undefined') {
+        toastr[type](message);
+    } else {
+        alert(message);
+    }
+}
+
+// دالة حذف الخدمة
+function deleteService(serviceId, serviceName) {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: `سيتم حذف الخدمة "${serviceName}" نهائياً`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/supplier/{{ supplier.pk }}/services/${serviceId}/delete/`;
+            const csrf = document.querySelector('[name=csrfmiddlewaretoken]');
+            if (csrf) {
+                const inp = document.createElement('input');
+                inp.type = 'hidden'; inp.name = 'csrfmiddlewaretoken'; inp.value = csrf.value;
+                form.appendChild(inp);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        }
+    });
+}
+
+// تفعيل تاب الخدمات إذا كان الـ hash في الـ URL
+if (window.location.hash === '#services-tab-pane') {
+    const servicesTab = document.getElementById('services-tab');
+    if (servicesTab) {
+        // إزالة active من جميع التابات
+        document.querySelectorAll('#supplierTabs .nav-link').forEach(t => {
+            t.classList.remove('active');
+            t.setAttribute('aria-selected', 'false');
+        });
+        document.querySelectorAll('#supplierTabsContent .tab-pane, #services-tab-pane').forEach(p => {
+            p.classList.remove('show', 'active');
+        });
+        servicesTab.classList.add('active');
+        servicesTab.setAttribute('aria-selected', 'true');
+        document.getElementById('services-tab-pane').classList.add('show', 'active');
+    }
+}
+
+function getCsrfToken() {
+    let csrfInput = document.querySelector('#createAccountModal [name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) return csrfInput.value;
+    csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (csrfInput && csrfInput.value) return csrfInput.value;
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    if (csrfMeta && csrfMeta.content) return csrfMeta.content;
+    const csrfCookie = document.cookie.split('; ').find(row => row.startsWith('csrftoken='));
+    if (csrfCookie) return csrfCookie.split('=')[1];
+    return null;
+}
+
+function openCreateAccountModal(supplierId) {
+    fetch(`/supplier/${supplierId}/create-account/`, {
+        method: 'GET',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.html) {
+            let modal = document.getElementById('createAccountModal');
+            if (!modal) {
+                modal = document.createElement('div');
+                modal.className = 'modal fade';
+                modal.id = 'createAccountModal';
+                modal.setAttribute('tabindex', '-1');
+                modal.innerHTML = '<div class="modal-dialog"><div class="modal-content" id="createAccountModalContent"></div></div>';
+                document.body.appendChild(modal);
+            }
+            document.getElementById('createAccountModalContent').innerHTML = data.html;
+            new bootstrap.Modal(document.getElementById('createAccountModal')).show();
+        }
+    })
+    .catch(() => { if (typeof toastr !== 'undefined') toastr.error('حدث خطأ في تحميل المودال'); });
+}
+
+function createSupplierAccount(supplierId) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('createAccountModal'));
+    const csrfToken = getCsrfToken();
+    if (!csrfToken) {
+        if (typeof toastr !== 'undefined') toastr.error('خطأ: لم يتم العثور على رمز الأمان');
+        return;
+    }
+    fetch(`/supplier/${supplierId}/create-account/`, {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRFToken': csrfToken }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            modal.hide();
+            if (typeof toastr !== 'undefined') toastr.success(data.message);
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            if (typeof toastr !== 'undefined') toastr.error(data.message);
+        }
+    })
+    .catch(() => { if (typeof toastr !== 'undefined') toastr.error('حدث خطأ أثناء إنشاء الحساب'); });
+}
+
+// ── فلتر خدمات التسعير ──────────────────────────────────────────────
+(function() {
+    function applyServicesFilter() {
+        const typeVal   = document.getElementById('services-type-filter')?.value.trim().toLowerCase() || '';
+        const statusVal = document.getElementById('services-status-filter')?.value.trim().toLowerCase() || '';
+        const table     = document.getElementById('supplier-services-table');
+        if (!table) return;
+
+        const rows    = table.querySelectorAll('tbody tr');
+        let visible   = 0;
+
+        rows.forEach(row => {
+            // عمود نوع الخدمة (index 0) وعمود الحالة (index 5)
+            const typeCell   = row.cells[0]?.innerText.trim().toLowerCase() || '';
+            const statusCell = row.cells[5]?.innerText.trim().toLowerCase() || '';
+
+            const typeMatch   = !typeVal   || typeCell.includes(typeVal);
+            const statusMatch = !statusVal || statusCell.includes(statusVal);
+
+            if (typeMatch && statusMatch) {
+                row.style.display = '';
+                visible++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        const countBadge = document.getElementById('services-filter-count');
+        if (countBadge) {
+            countBadge.textContent = (typeVal || statusVal) ? `${visible} نتيجة` : '';
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        // إزالة التكرار من قائمة الأنواع
+        const typeSelect = document.getElementById('services-type-filter');
+        if (typeSelect) {
+            const seen = new Set();
+            [...typeSelect.options].forEach(opt => {
+                if (opt.value && seen.has(opt.value)) {
+                    opt.remove();
+                } else {
+                    seen.add(opt.value);
+                }
+            });
+        }
+
+        document.getElementById('services-type-filter')?.addEventListener('change', applyServicesFilter);
+        document.getElementById('services-status-filter')?.addEventListener('change', applyServicesFilter);
+        document.getElementById('services-filter-reset')?.addEventListener('click', function() {
+            document.getElementById('services-type-filter').value = '';
+            document.getElementById('services-status-filter').value = '';
+            applyServicesFilter();
+        });
+    });
+})();
+</script>
+{% endblock %}

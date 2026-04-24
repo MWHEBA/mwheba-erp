@@ -1,0 +1,254 @@
+{% load payment_status_tags %}
+
+<div class="payment-history-container">
+    {% if audit_history %}
+        <div class="timeline">
+            {% for entry in audit_history %}
+                <div class="timeline-item">
+                    <div class="timeline-marker">
+                        <i class="fas {{ entry.action|payment_status_icon }} text-{{ entry.action|payment_status_color }}"></i>
+                    </div>
+                    <div class="timeline-content">
+                        <div class="timeline-header d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">
+                                    <span class="badge bg-{{ entry.action|payment_status_color }} me-2">
+                                        {{ entry.get_action_display }}
+                                    </span>
+                                    {{ entry.description }}
+                                </h6>
+                                <small class="text-muted">
+                                    <i class="fas fa-clock me-1"></i>
+                                    {{ entry.timestamp|date:"Y-m-d H:i:s" }}
+                                    {% if entry.user %}
+                                        | <i class="fas fa-user me-1"></i>
+                                        {{ entry.user.get_full_name|default:entry.user.username }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div class="timeline-status">
+                                {% if entry.status == 'success' %}
+                                    <span class="badge bg-success">نجحت</span>
+                                {% elif entry.status == 'failed' %}
+                                    <span class="badge bg-danger">فشلت</span>
+                                {% elif entry.status == 'pending' %}
+                                    <span class="badge bg-warning">معلقة</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        {% if entry.reason %}
+                            <div class="timeline-reason mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-comment me-1"></i>
+                                    <strong>السبب:</strong> {{ entry.reason }}
+                                </small>
+                            </div>
+                        {% endif %}
+                        
+                        {% if entry.has_changes %}
+                            <div class="timeline-changes mt-2">
+                                <button class="btn btn-sm btn-outline-info" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#changes-{{ entry.id }}" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-eye me-1"></i>
+                                    عرض التغييرات ({{ entry.changes_count }})
+                                </button>
+                                
+                                <div class="collapse mt-2" id="changes-{{ entry.id }}">
+                                    <div class="card card-body bg-light">
+                                        <div class="row">
+                                            {% for field, change in entry.changes.items %}
+                                                <div class="col-md-6 mb-2">
+                                                    <div class="change-item">
+                                                        <strong>{{ field|title }}:</strong>
+                                                        <div class="change-values">
+                                                            <span class="old-value text-danger">
+                                                                <i class="fas fa-minus-circle me-1"></i>
+                                                                {{ change.old|default:"غير محدد" }}
+                                                            </span>
+                                                            <i class="fas fa-arrow-right mx-2 text-muted"></i>
+                                                            <span class="new-value text-success">
+                                                                <i class="fas fa-plus-circle me-1"></i>
+                                                                {{ change.new|default:"غير محدد" }}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if entry.error_message %}
+                            <div class="timeline-error mt-2">
+                                <div class="alert alert-danger alert-sm mb-0">
+                                    <i class="fas fa-exclamation-triangle me-1"></i>
+                                    <strong>خطأ:</strong> {{ entry.error_message }}
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if entry.metadata %}
+                            <div class="timeline-metadata mt-2">
+                                <button class="btn btn-sm btn-outline-secondary" 
+                                        type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#metadata-{{ entry.id }}" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    معلومات إضافية
+                                </button>
+                                
+                                <div class="collapse mt-2" id="metadata-{{ entry.id }}">
+                                    <div class="card card-body bg-light">
+                                        <pre class="mb-0"><code>{{ entry.metadata|pprint }}</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+                        
+                        {% if entry.ip_address %}
+                            <div class="timeline-ip mt-2">
+                                <small class="text-muted">
+                                    <i class="fas fa-globe me-1"></i>
+                                    IP: {{ entry.ip_address }}
+                                </small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">لا يوجد تاريخ تغييرات</h5>
+            <p class="text-muted">لم يتم تسجيل أي تغييرات على هذه الدفعة بعد.</p>
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.payment-history-container {
+    max-height: 600px;
+    overflow-y: auto;
+}
+
+.timeline {
+    position: relative;
+    padding-left: 30px;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: #e3e6f0;
+}
+
+.timeline-item {
+    position: relative;
+    margin-bottom: 30px;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -22px;
+    top: 5px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: white;
+    border: 2px solid #e3e6f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.timeline-content {
+    background: white;
+    border: 1px solid #e3e6f0;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.timeline-header h6 {
+    color: #5a5c69;
+    font-weight: 600;
+}
+
+.change-item {
+    font-size: 0.875rem;
+}
+
+.change-values {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 5px;
+}
+
+.old-value, .new-value {
+    font-size: 0.8rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0,0,0,0.05);
+}
+
+.alert-sm {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+}
+
+.timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.timeline-item:last-child::after {
+    display: none;
+}
+
+/* تحسينات للشاشات الصغيرة */
+@media (max-width: 768px) {
+    .timeline {
+        padding-left: 20px;
+    }
+    
+    .timeline-marker {
+        left: -15px;
+        width: 24px;
+        height: 24px;
+        font-size: 10px;
+    }
+    
+    .change-values {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .change-values .fas.fa-arrow-right {
+        transform: rotate(90deg);
+        margin: 5px 0;
+    }
+}
+
+/* ألوان مخصصة للأحداث */
+.timeline-marker .text-create { color: #28a745; }
+.timeline-marker .text-update { color: #007bff; }
+.timeline-marker .text-delete { color: #dc3545; }
+.timeline-marker .text-post { color: #17a2b8; }
+.timeline-marker .text-unpost { color: #ffc107; }
+.timeline-marker .text-sync { color: #28a745; }
+.timeline-marker .text-unsync { color: #6c757d; }
+</style>

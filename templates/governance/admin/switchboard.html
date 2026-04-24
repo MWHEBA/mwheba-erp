@@ -1,0 +1,656 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_modify governance_tags %}
+
+{% block title %}Governance Switchboard{% endblock %}
+
+{% block extrahead %}
+{{ block.super }}
+<style>
+    .governance-switchboard {
+        padding: 20px;
+    }
+    
+    .switchboard-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    
+    .section-header {
+        border-bottom: 1px solid #eee;
+        margin-bottom: 15px;
+        padding-bottom: 10px;
+    }
+    
+    .section-title {
+        color: #333;
+        font-size: 18px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .section-description {
+        color: #666;
+        font-size: 14px;
+        margin: 5px 0 0 0;
+    }
+    
+    .flag-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 15px;
+        margin-top: 15px;
+    }
+    
+    .flag-card {
+        background: #f9f9f9;
+        border: 1px solid #e0e0e0;
+        border-radius: 4px;
+        padding: 15px;
+        position: relative;
+    }
+    
+    .flag-card.enabled {
+        border-left: 4px solid #28a745;
+    }
+    
+    .flag-card.disabled {
+        border-left: 4px solid #6c757d;
+    }
+    
+    .flag-card.emergency {
+        border-left: 4px solid #dc3545;
+        background: #fff5f5;
+    }
+    
+    .flag-card.emergency.active {
+        background: #ffe6e6;
+        border-color: #dc3545;
+    }
+    
+    .flag-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+    
+    .flag-name {
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+    }
+    
+    .flag-status {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 12px;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+    
+    .flag-status.enabled {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .flag-status.disabled {
+        background: #d1ecf1;
+        color: #0c5460;
+    }
+    
+    .flag-status.active {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .flag-description {
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 15px;
+    }
+    
+    .flag-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+    }
+    
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+    
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+        background-color: #28a745;
+    }
+    
+    input:checked + .toggle-slider:before {
+        transform: translateX(26px);
+    }
+    
+    .emergency-button {
+        background: #dc3545;
+        border: none;
+        color: white;
+        padding: 5px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        text-transform: uppercase;
+        font-weight: bold;
+    }
+    
+    .emergency-button:hover {
+        background: #c82333;
+    }
+    
+    .emergency-button.deactivate {
+        background: #6c757d;
+    }
+    
+    .emergency-button.deactivate:hover {
+        background: #5a6268;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .stat-card {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        padding: 15px;
+        text-align: center;
+    }
+    
+    .stat-value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .stat-label {
+        color: #666;
+        font-size: 12px;
+        text-transform: uppercase;
+    }
+    
+    .alert-banner {
+        background: #f8d7da;
+        border: 1px solid #f5c6cb;
+        border-radius: 4px;
+        color: #721c24;
+        padding: 15px;
+        margin-bottom: 20px;
+    }
+    
+    .alert-banner.warning {
+        background: #fff3cd;
+        border-color: #ffeaa7;
+        color: #856404;
+    }
+    
+    .alert-banner.info {
+        background: #d1ecf1;
+        border-color: #bee5eb;
+        color: #0c5460;
+    }
+    
+    .reason-input {
+        width: 100%;
+        padding: 5px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        margin-top: 5px;
+        font-size: 12px;
+    }
+    
+    .loading {
+        opacity: 0.6;
+        pointer-events: none;
+    }
+    
+    .error-message {
+        color: #dc3545;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+    
+    .success-message {
+        color: #28a745;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="governance-switchboard">
+    <h1>Governance Switchboard</h1>
+    <p>Centralized control panel for all governance components and workflows. Use with caution - changes affect system-wide governance enforcement.</p>
+    
+    <!-- Emergency Alert Banner -->
+    {% if current_state.emergencies.emergency_disable_all_governance %}
+    <div class="alert-banner">
+        <strong>EMERGENCY MODE ACTIVE:</strong> All governance controls are disabled. System is operating without governance protection.
+    </div>
+    {% endif %}
+    
+    <!-- Statistics Overview -->
+    <div class="switchboard-section">
+        <div class="section-header">
+            <h2 class="section-title">System Overview</h2>
+            <p class="section-description">Current governance system status and statistics</p>
+        </div>
+        
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.components.enabled }}</div>
+                <div class="stat-label">Components Enabled</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.workflows.enabled }}</div>
+                <div class="stat-label">Workflows Active</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.emergency.active }}</div>
+                <div class="stat-label">Emergency Flags</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ stats.counters.governance_violations }}</div>
+                <div class="stat-label">Total Violations</div>
+            </div>
+        </div>
+        
+        {% if stats.health.emergency_override %}
+        <div class="alert-banner">
+            <strong>Emergency Override Active:</strong> All governance controls are overridden by emergency flags.
+        </div>
+        {% elif not stats.health.governance_active %}
+        <div class="alert-banner warning">
+            <strong>No Governance Active:</strong> No governance components or workflows are currently enabled.
+        </div>
+        {% elif stats.health.critical_workflows_protected %}
+        <div class="alert-banner info">
+            <strong>System Protected:</strong> Critical workflows are under governance protection.
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- Component Flags -->
+    <div class="switchboard-section">
+        <div class="section-header">
+            <h2 class="section-title">Component Flags</h2>
+            <p class="section-description">Control major governance components (AccountingGateway, MovementService, etc.)</p>
+        </div>
+        
+        <div class="flag-grid">
+            {% for flag_name, config in component_flags.items %}
+            <div class="flag-card {% if current_state.components|lookup:flag_name %}enabled{% else %}disabled{% endif %}">
+                <div class="flag-header">
+                    <h3 class="flag-name">{{ config.name }}</h3>
+                    <span class="flag-status {% if current_state.components|lookup:flag_name %}enabled{% else %}disabled{% endif %}">
+                        {% if current_state.components|lookup:flag_name %}Enabled{% else %}Disabled{% endif %}
+                    </span>
+                </div>
+                <p class="flag-description">{{ config.description }}</p>
+                
+                <div class="flag-controls">
+                    <label class="toggle-switch">
+                        <input type="checkbox" 
+                               data-flag-type="component" 
+                               data-flag-name="{{ flag_name }}"
+                               {% if current_state.components|lookup:flag_name %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <input type="text" 
+                           class="reason-input" 
+                           placeholder="Reason for change..."
+                           data-flag-name="{{ flag_name }}">
+                </div>
+                
+                {% if config.affects_workflows %}
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>Affects workflows:</strong> {{ config.affects_workflows|join:", " }}
+                </div>
+                {% endif %}
+                
+                <div class="message-area" data-flag-name="{{ flag_name }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Workflow Flags -->
+    <div class="switchboard-section">
+        <div class="section-header">
+            <h2 class="section-title">Workflow Flags</h2>
+            <p class="section-description">Control specific high-risk workflows (Invoice→JournalEntry, etc.)</p>
+        </div>
+        
+        <div class="flag-grid">
+            {% for flag_name, config in workflow_flags.items %}
+            <div class="flag-card {% if current_state.workflows|lookup:flag_name %}enabled{% else %}disabled{% endif %}">
+                <div class="flag-header">
+                    <h3 class="flag-name">{{ config.name }}</h3>
+                    <span class="flag-status {% if current_state.workflows|lookup:flag_name %}enabled{% else %}disabled{% endif %}">
+                        {% if current_state.workflows|lookup:flag_name %}Enabled{% else %}Disabled{% endif %}
+                    </span>
+                </div>
+                <p class="flag-description">{{ config.description }}</p>
+                
+                <div class="flag-controls">
+                    <label class="toggle-switch">
+                        <input type="checkbox" 
+                               data-flag-type="workflow" 
+                               data-flag-name="{{ flag_name }}"
+                               {% if current_state.workflows|lookup:flag_name %}checked{% endif %}>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <input type="text" 
+                           class="reason-input" 
+                           placeholder="Reason for change..."
+                           data-flag-name="{{ flag_name }}">
+                </div>
+                
+                <div style="margin-top: 10px; font-size: 12px;">
+                    <span style="color: #666;"><strong>Risk Level:</strong> {{ config.risk_level }}</span>
+                    {% if config.component_dependencies %}
+                    <br><span style="color: #666;"><strong>Requires:</strong> {{ config.component_dependencies|join:", " }}</span>
+                    {% endif %}
+                </div>
+                
+                <div class="message-area" data-flag-name="{{ flag_name }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Emergency Flags -->
+    <div class="switchboard-section">
+        <div class="section-header">
+            <h2 class="section-title">Emergency Controls</h2>
+            <p class="section-description">Emergency disable switches for immediate system shutdown. Use only in critical situations.</p>
+        </div>
+        
+        <div class="flag-grid">
+            {% for flag_name, config in emergency_flags.items %}
+            <div class="flag-card emergency {% if current_state.emergencies|lookup:flag_name %}active{% endif %}">
+                <div class="flag-header">
+                    <h3 class="flag-name">{{ config.name }}</h3>
+                    <span class="flag-status {% if current_state.emergencies|lookup:flag_name %}active{% else %}disabled{% endif %}">
+                        {% if current_state.emergencies|lookup:flag_name %}ACTIVE{% else %}Inactive{% endif %}
+                    </span>
+                </div>
+                <p class="flag-description">{{ config.description }}</p>
+                
+                <div class="flag-controls">
+                    {% if current_state.emergencies|lookup:flag_name %}
+                    <button class="emergency-button deactivate" 
+                            data-flag-type="emergency" 
+                            data-flag-name="{{ flag_name }}"
+                            data-action="deactivate">
+                        Deactivate
+                    </button>
+                    {% else %}
+                    <button class="emergency-button" 
+                            data-flag-type="emergency" 
+                            data-flag-name="{{ flag_name }}"
+                            data-action="activate">
+                        Activate Emergency
+                    </button>
+                    {% endif %}
+                    <input type="text" 
+                           class="reason-input" 
+                           placeholder="Emergency reason (required)..."
+                           data-flag-name="{{ flag_name }}"
+                           required>
+                </div>
+                
+                {% if config.affects != 'ALL_COMPONENTS_AND_WORKFLOWS' %}
+                <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                    <strong>Affects:</strong> {{ config.affects|join:", " }}
+                </div>
+                {% else %}
+                <div style="margin-top: 10px; font-size: 12px; color: #dc3545; font-weight: bold;">
+                    <strong>⚠️ AFFECTS ALL GOVERNANCE CONTROLS</strong>
+                </div>
+                {% endif %}
+                
+                <div class="message-area" data-flag-name="{{ flag_name }}"></div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Handle component and workflow toggles
+    document.querySelectorAll('input[type="checkbox"][data-flag-type]').forEach(function(toggle) {
+        toggle.addEventListener('change', function() {
+            const flagType = this.dataset.flagType;
+            const flagName = this.dataset.flagName;
+            const enabled = this.checked;
+            const reasonInput = document.querySelector(`input.reason-input[data-flag-name="${flagName}"]`);
+            const reason = reasonInput.value.trim() || 'Admin panel toggle';
+            
+            toggleFlag(flagType, flagName, enabled, reason);
+        });
+    });
+    
+    // Handle emergency buttons
+    document.querySelectorAll('button[data-flag-type="emergency"]').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const flagName = this.dataset.flagName;
+            const action = this.dataset.action;
+            const reasonInput = document.querySelector(`input.reason-input[data-flag-name="${flagName}"]`);
+            const reason = reasonInput.value.trim();
+            
+            if (!reason) {
+                showMessage(flagName, 'Reason is required for emergency actions', 'error');
+                return;
+            }
+            
+            emergencyAction(flagName, action, reason);
+        });
+    });
+    
+    function toggleFlag(flagType, flagName, enabled, reason) {
+        const messageArea = document.querySelector(`.message-area[data-flag-name="${flagName}"]`);
+        const flagCard = messageArea.closest('.flag-card');
+        
+        // Show loading state
+        flagCard.classList.add('loading');
+        showMessage(flagName, 'Processing...', 'info');
+        
+        const url = flagType === 'component' ? 
+            '{% url "admin:governance_api_toggle_component" %}' : 
+            '{% url "admin:governance_api_toggle_workflow" %}';
+        
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                [flagType]: flagName,
+                enabled: enabled,
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            flagCard.classList.remove('loading');
+            
+            if (data.success) {
+                // Update UI
+                updateFlagUI(flagName, enabled);
+                showMessage(flagName, data.message, 'success');
+                
+                // Clear reason input
+                const reasonInput = document.querySelector(`input.reason-input[data-flag-name="${flagName}"]`);
+                reasonInput.value = '';
+            } else {
+                // Revert toggle
+                const toggle = document.querySelector(`input[data-flag-name="${flagName}"]`);
+                toggle.checked = !enabled;
+                
+                showMessage(flagName, data.error, 'error');
+            }
+        })
+        .catch(error => {
+            flagCard.classList.remove('loading');
+            
+            // Revert toggle
+            const toggle = document.querySelector(`input[data-flag-name="${flagName}"]`);
+            toggle.checked = !enabled;
+            
+            showMessage(flagName, 'Network error: ' + error.message, 'error');
+        });
+    }
+    
+    function emergencyAction(flagName, action, reason) {
+        const messageArea = document.querySelector(`.message-area[data-flag-name="${flagName}"]`);
+        const flagCard = messageArea.closest('.flag-card');
+        
+        // Show loading state
+        flagCard.classList.add('loading');
+        showMessage(flagName, 'Processing emergency action...', 'info');
+        
+        fetch('{% url "admin:governance_api_emergency" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                emergency: flagName,
+                action: action,
+                reason: reason
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            flagCard.classList.remove('loading');
+            
+            if (data.success) {
+                // Reload page to reflect emergency changes
+                location.reload();
+            } else {
+                showMessage(flagName, data.error, 'error');
+            }
+        })
+        .catch(error => {
+            flagCard.classList.remove('loading');
+            showMessage(flagName, 'Network error: ' + error.message, 'error');
+        });
+    }
+    
+    function updateFlagUI(flagName, enabled) {
+        const flagCard = document.querySelector(`.message-area[data-flag-name="${flagName}"]`).closest('.flag-card');
+        const statusSpan = flagCard.querySelector('.flag-status');
+        
+        if (enabled) {
+            flagCard.classList.remove('disabled');
+            flagCard.classList.add('enabled');
+            statusSpan.classList.remove('disabled');
+            statusSpan.classList.add('enabled');
+            statusSpan.textContent = 'Enabled';
+        } else {
+            flagCard.classList.remove('enabled');
+            flagCard.classList.add('disabled');
+            statusSpan.classList.remove('enabled');
+            statusSpan.classList.add('disabled');
+            statusSpan.textContent = 'Disabled';
+        }
+    }
+    
+    function showMessage(flagName, message, type) {
+        const messageArea = document.querySelector(`.message-area[data-flag-name="${flagName}"]`);
+        messageArea.innerHTML = `<div class="${type}-message">${message}</div>`;
+        
+        // Clear message after 5 seconds
+        setTimeout(() => {
+            messageArea.innerHTML = '';
+        }, 5000);
+    }
+    
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    // Auto-refresh statistics every 30 seconds
+    setInterval(function() {
+        fetch('{% url "admin:governance_api_status" %}')
+            .then(response => response.json())
+            .then(data => {
+                // Update statistics
+                document.querySelector('.stat-card:nth-child(1) .stat-value').textContent = data.components.enabled;
+                document.querySelector('.stat-card:nth-child(2) .stat-value').textContent = data.workflows.enabled;
+                document.querySelector('.stat-card:nth-child(3) .stat-value').textContent = data.emergency.active;
+                document.querySelector('.stat-card:nth-child(4) .stat-value').textContent = data.counters.governance_violations;
+            })
+            .catch(error => {
+                console.error('Failed to refresh statistics:', error);
+            });
+    }, 30000);
+});
+</script>
+{% endblock %}
+
+{% block extrajs %}
+{{ block.super }}
+{% endblock %}

@@ -1,0 +1,144 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .transaction-icon {
+        width: 35px;
+        height: 35px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        margin-right: 10px;
+    }
+    .transaction-expense {
+        background-color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- تصفية وبحث -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+            <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}<i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse" id="filterSection">
+            <div class="filter-section mb-4">
+                <form method="GET" action="" class="row g-3">
+                    <div class="col-md-3">
+                        <label for="category" class="form-label">{% trans "التصنيف" %}</label>
+                        <select class="form-select" id="category" name="category">
+                            <option value="">{% trans "جميع التصنيفات" %}</option>
+                            {% for category in categories %}
+                            <option value="{{ category.id }}" {% if request.GET.category == category.id|stringformat:"i" %}selected{% endif %}>
+                                {{ category.name }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="status" class="form-label">{% trans "الحالة" %}</label>
+                        <select class="form-select" id="status" name="status">
+                            <option value="">{% trans "جميع الحالات" %}</option>
+                            <option value="paid" {% if request.GET.status == 'paid' %}selected{% endif %}>{% trans "مدفوع" %}</option>
+                            <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>{% trans "معلق" %}</option>
+                            <option value="cancelled" {% if request.GET.status == 'cancelled' %}selected{% endif %}>{% trans "ملغي" %}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+                        <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ date_from }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+                        <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ date_to }}">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-2"></i>{% trans "بحث" %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- قائمة المصروفات -->
+    <div class="section-container">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0"><i class="fas fa-hand-holding-usd me-2"></i>{% trans "قائمة المصروفات" %}</h5>
+                <div class="actions-container">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="openQuickExpenseModal()">
+                        <i class="fas fa-plus me-1"></i>{% trans "إضافة مصروف" %}
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <!-- استخدام الجدول الموحد -->
+                {% if expenses %}
+                  {% with table_id="expenses-table" %}
+                    {% with headers=expense_headers %}
+                      {% with data=expenses %}
+                        {% with action_buttons=expense_actions %}
+                          {% with empty_message="لا توجد مصروفات متاحة" %}
+                            {% with clickable_rows=True %}
+                              {% with show_export=True export_filename="expenses" export_date_from=date_from export_date_to=date_to %}
+                                {% with disable_ordering=True %}
+                                  {% include "components/data_table.html" %}
+                                {% endwith %}
+                              {% endwith %}
+                            {% endwith %}
+                          {% endwith %}
+                        {% endwith %}
+                      {% endwith %}
+                    {% endwith %}
+                  {% endwith %}
+                {% else %}
+                  {% include 'partials/empty_state.html' with message="لا توجد مصروفات متاحة" icon="money-bill-wave" %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- تضمين مودال المصروف السريع -->
+{% include 'financial/components/quick_expense_modal.html' %}
+
+<!-- تضمين مودال الترحيل -->
+{% include 'financial/components/post_entry_modal.html' %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // تهيئة الجداول باستخدام النظام الموحد
+    if (typeof initializeAllTables === 'function') {
+        initializeAllTables();
+    }
+    
+    // ربط زر إضافة مصروف بفتح المودال
+    const addExpenseBtn = document.getElementById('addExpenseBtn');
+    if (addExpenseBtn) {
+        addExpenseBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            openQuickExpenseModal();
+        });
+    }
+});
+</script>
+{% endblock %} 

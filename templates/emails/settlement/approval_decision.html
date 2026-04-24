@@ -1,0 +1,53 @@
+{% extends "emails/base_email.html" %}
+
+{% block title %}{{ notification_title }} - Corporate ERP{% endblock %}
+
+{% block content %}
+<h1 class="main-title">{{ notification_title }}</h1>
+<p class="main-message">
+    مرحباً {{ user_name }}،<br>
+    {{ notification_message }}
+</p>
+
+{% if notification_type == 'success' %}
+<div class="success-box" style="text-align: right;">
+    <strong style="color: #22c55e; font-size: 18px;">✓ تمت الموافقة</strong>
+    <div style="margin: 15px 0; color: #4b5563; line-height: 1.6; white-space: pre-line;">{{ notification_details }}</div>
+</div>
+{% else %}
+<div class="danger-box" style="text-align: right;">
+    <strong style="color: #ef4444; font-size: 18px;">✕ تم الرفض</strong>
+    <div style="margin: 15px 0; color: #4b5563; line-height: 1.6; white-space: pre-line;">{{ notification_details }}</div>
+</div>
+{% endif %}
+
+<div style="text-align: center; margin: 30px 0;">
+    <a href="{{ action_url }}" class="button">
+        {{ action_text|default:"عرض التفاصيل" }}
+    </a>
+</div>
+
+{% if notification_type == 'success' %}
+<div class="info-box" style="text-align: right;">
+    <strong style="color: #0ea5e9; font-size: 16px;">ℹ الخطوات التالية</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">
+        سيتم الآن معالجة التسوية وإنشاء القيود المحاسبية المطلوبة.
+        ستتلقى إشعاراً آخر عند إتمام العملية بالكامل.
+    </p>
+</div>
+{% else %}
+<div class="warning-box" style="text-align: right;">
+    <strong style="color: #f59e0b; font-size: 16px;">⚠ إجراءات مطلوبة</strong>
+    <p style="margin: 10px 0 0; color: #4b5563;">
+        في حالة عدم الاتفاق مع قرار الرفض، يمكنك التواصل مع الإدارة المالية
+        أو إنشاء طلب تسوية جديد بعد تعديل البيانات المطلوبة.
+    </p>
+</div>
+{% endif %}
+
+<p class="help-text">
+    إذا كان لديك أي استفسار حول هذا القرار، يمكنك الرد على هذا الإيميل وسنكون سعداء بمساعدتك.
+</p>
+
+<p class="signature">فريق النظام المالي</p>
+{% endblock %}

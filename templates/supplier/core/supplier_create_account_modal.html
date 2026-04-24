@@ -1,0 +1,59 @@
+<!-- مودال إنشاء حساب محاسبي للمورد -->
+<div class="modal-header">
+    <h5 class="modal-title">
+        <i class="fas fa-plus-circle me-2 text-primary"></i>
+        إنشاء حساب محاسبي جديد
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<div class="modal-body">
+    <!-- معلومات المورد -->
+    <div class="alert alert-info border-0 mb-3">
+        <h6 class="alert-heading mb-2">
+            <i class="fas fa-truck me-2"></i>معلومات المورد:
+        </h6>
+        <div class="row">
+            <div class="col-6">
+                <strong>الاسم:</strong> {{ supplier.name }}
+            </div>
+            <div class="col-6">
+                <strong>الكود:</strong> {{ supplier.code }}
+            </div>
+        </div>
+    </div>
+
+    <!-- معلومات الحساب الجديد -->
+    <div class="alert alert-success border-0 mb-3">
+        <h6 class="alert-heading mb-2">
+            <i class="fas fa-chart-line me-2"></i>الحساب الجديد:
+        </h6>
+        <ul class="mb-0">
+            <li><strong>الكود:</strong> سيتم إنشاؤه تلقائياً (مثال: 2101007)</li>
+            <li><strong>الاسم:</strong> مورد - {{ supplier.name }}</li>
+            <li><strong>الحساب الأب:</strong> 21010 - حساب الموردين</li>
+            <li><strong>النوع:</strong> حساب دائن (Liability)</li>
+            <li><strong>الحالة:</strong> نشط وجاهز للاستخدام</li>
+        </ul>
+    </div>
+
+    <!-- تأكيد العملية -->
+    <div class="alert alert-warning border-0">
+        <h6 class="alert-heading mb-2">
+            <i class="fas fa-exclamation-triangle me-2"></i>تأكيد:
+        </h6>
+        <p class="mb-0">
+            سيتم إنشاء حساب محاسبي جديد وربطه بالمورد تلقائياً.
+            هل تريد المتابعة؟
+        </p>
+    </div>
+</div>
+
+<div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+        <i class="fas fa-times me-2"></i>إلغاء
+    </button>
+    <button type="button" class="btn btn-primary" onclick="createSupplierAccount({{ supplier.pk }})">
+        <i class="fas fa-plus-circle me-2"></i>إنشاء الحساب
+    </button>
+</div>

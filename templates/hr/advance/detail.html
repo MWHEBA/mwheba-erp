@@ -1,0 +1,278 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .installment-summary-item {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+  }
+  .installment-timeline {
+      position: relative;
+      padding-right: 1.25rem;
+      border-right: 1px solid var(--color-border);
+  }
+  .timeline-item { position: relative; margin-bottom: 1rem; }
+  .timeline-dot {
+      position: absolute;
+      right: -0.45rem;
+      top: 0.5rem;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--color-border);
+  }
+  .timeline-dot.paid { background: var(--color-success); }
+  .timeline-dot.pending { background: var(--color-warning); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <div class="col-lg-8">
+
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-hand-holding-usd me-2"></i>تفاصيل السلفة</h5>
+        <div class="card">
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <h6 class="mb-3"><i class="fas fa-user me-2"></i>بيانات الموظف</h6>
+                <dl class="row mb-0">
+                  <dt class="col-5 text-muted">الموظف</dt>
+                  <dd class="col-7">{{ advance.employee.get_full_name_ar }}</dd>
+                  <dt class="col-5 text-muted">رقم الموظف</dt>
+                  <dd class="col-7">{{ advance.employee.employee_number }}</dd>
+                  <dt class="col-5 text-muted">القسم</dt>
+                  <dd class="col-7">{{ advance.employee.department.name_ar }}</dd>
+                </dl>
+              </div>
+              <div class="col-md-6 mb-3">
+                <h6 class="mb-3"><i class="fas fa-file-invoice-dollar me-2"></i>بيانات السلفة</h6>
+                <dl class="row mb-0">
+                  <dt class="col-6 text-muted">المبلغ الإجمالي</dt>
+                  <dd class="col-6"><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</dd>
+                  <dt class="col-6 text-muted">عدد الأقساط</dt>
+                  <dd class="col-6">{{ advance.installments_count }}</dd>
+                  <dt class="col-6 text-muted">قيمة القسط</dt>
+                  <dd class="col-6">{{ advance.installment_amount|remove_trailing_zeros }} جنيه</dd>
+                  <dt class="col-6 text-muted">المبلغ المتبقي</dt>
+                  <dd class="col-6">{{ advance.remaining_amount|remove_trailing_zeros }} جنيه</dd>
+                  <dt class="col-6 text-muted">شهر بدء الخصم</dt>
+                  <dd class="col-6">
+                    {% if advance.deduction_start_month %}{{ advance.deduction_start_month|date:"Y-m" }}{% else %}<span class="text-muted">-</span>{% endif %}
+                  </dd>
+                </dl>
+              </div>
+            </div>
+
+            <hr class="my-3">
+
+            <h6 class="mb-2"><i class="fas fa-info-circle me-2"></i>معلومات إضافية</h6>
+            <dl class="row mb-0">
+              <dt class="col-md-2 col-4 text-muted">الحالة</dt>
+              <dd class="col-md-4 col-8">
+                {% if advance.status == 'pending' %}<span class="badge bg-warning text-dark">قيد الانتظار</span>
+                {% elif advance.status == 'approved' %}<span class="badge bg-primary">معتمدة</span>
+                {% elif advance.status == 'rejected' %}<span class="badge bg-danger">مرفوضة</span>
+                {% elif advance.status == 'paid' %}<span class="badge bg-info">مدفوعة</span>
+                {% elif advance.status == 'in_progress' %}<span class="badge bg-success">قيد الخصم</span>
+                {% elif advance.status == 'completed' %}<span class="badge bg-secondary">مكتملة</span>
+                {% elif advance.status == 'cancelled' %}<span class="badge bg-secondary">ملغاة</span>
+                {% endif %}
+              </dd>
+              <dt class="col-md-2 col-4 text-muted">تاريخ الطلب</dt>
+              <dd class="col-md-4 col-8">{{ advance.requested_at|date:"Y-m-d H:i" }}</dd>
+              {% if advance.approved_by %}
+                <dt class="col-md-2 col-4 text-muted">اعتمد بواسطة</dt>
+                <dd class="col-md-4 col-8">{{ advance.approved_by.get_full_name }}</dd>
+                <dt class="col-md-2 col-4 text-muted">تاريخ الاعتماد</dt>
+                <dd class="col-md-4 col-8">{{ advance.approved_at|date:"Y-m-d H:i" }}</dd>
+              {% endif %}
+            </dl>
+
+            {% if advance.reason %}
+            <div class="mt-3">
+              <h6 class="mb-2"><i class="fas fa-align-right me-2"></i>سبب السلفة</h6>
+              <p class="mb-0 text-muted">{{ advance.reason }}</p>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-history me-2"></i>سجل الأقساط</h5>
+        <div class="card">
+          <div class="card-body">
+            {% if installments %}
+              <div class="installment-timeline">
+                {% for installment in installments %}
+                <div class="timeline-item">
+                  <div class="timeline-dot {% if installment.payroll %}paid{% else %}pending{% endif %}"></div>
+                  <div class="card">
+                    <div class="card-body py-2 px-3">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                          <strong>القسط #{{ installment.installment_number }}</strong><br>
+                          <small class="text-muted">{{ installment.month|date:"Y-m" }}</small>
+                        </div>
+                        <div class="text-end">
+                          <div><strong>{{ installment.amount|remove_trailing_zeros }} جنيه</strong></div>
+                          {% if installment.payroll %}
+                            <small class="text-success">مدفوع ضمن قسيمة {{ installment.payroll.month|date:"Y-m" }}</small>
+                          {% else %}
+                            <small class="text-warning">مجدول</small>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <p class="text-muted mb-0">لا توجد أقساط مسجلة بعد.</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="col-lg-4">
+      <div class="section-container">
+        <h5 class="section-title"><i class="fas fa-chart-pie me-2"></i>تقدم السداد</h5>
+        <div class="card">
+          <div class="card-body">
+            <div class="installment-summary-item">
+              <span class="text-muted">إجمالي السلفة</span>
+              <span><strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه</span>
+            </div>
+            <div class="installment-summary-item">
+              <span class="text-muted">المبلغ المتبقي</span>
+              <span><strong>{{ advance.remaining_amount|remove_trailing_zeros }}</strong> جنيه</span>
+            </div>
+            <div class="installment-summary-item">
+              <span class="text-muted">الأقساط المدفوعة</span>
+              <span><strong>{{ advance.paid_installments }}</strong> / {{ advance.installments_count }}</span>
+            </div>
+            <div class="mt-3">
+              <div class="progress" style="height: 10px;">
+                <div class="progress-bar bg-success" role="progressbar"
+                     style="width: {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%;"
+                     aria-valuemin="0" aria-valuemax="100">
+                </div>
+              </div>
+              <small class="text-muted d-block mt-1">
+                {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}% مكتمل
+              </small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- مودال صرف السلفة -->
+{% if advance.status == 'approved' %}
+<div class="modal fade" id="payModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i>صرف السلفة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-3">سيتم تغيير حالة السلفة إلى "مدفوعة" وإنشاء القيد المحاسبي تلقائياً.</p>
+        <div class="mb-3">
+          <label class="form-label">حساب الصرف (الخزينة/البنك) <span class="text-danger">*</span></label>
+          <select id="modal-payment-account" class="form-select" required>
+            <option value="">اختر الحساب</option>
+            {% for acc in payment_accounts %}
+            <option value="{{ acc.code }}" {% if default_payment_account and acc.code == default_payment_account.code %}selected{% elif not default_payment_account and acc.is_cash_account and forloop.first %}selected{% endif %}>{{ acc.name }} ({{ acc.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">تاريخ الصرف</label>
+          <input type="date" id="modal-payment-date" class="form-control" value="{% now 'Y-m-d' %}">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-info" id="btn-confirm-pay">
+          <i class="fas fa-check me-1"></i>تأكيد الصرف
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = '{{ csrf_token }}';
+
+function advanceAction(id, action) {
+    const isApprove = action === 'approve';
+    Swal.fire({
+        title: isApprove ? 'اعتماد السلفة؟' : 'رفض السلفة؟',
+        icon: isApprove ? 'question' : 'warning',
+        showCancelButton: true,
+        confirmButtonText: isApprove ? 'نعم، اعتماد' : 'نعم، رفض',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: isApprove ? '#198754' : '#dc3545',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        fetch(`/hr/advances/${id}/${action}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(r => r.json()).then(data => {
+            if (data.success) { toastr.success(data.message); setTimeout(() => location.reload(), 800); }
+            else { toastr.error(data.message || 'حدث خطأ'); }
+        }).catch(() => toastr.error('حدث خطأ في الاتصال'));
+    });
+}
+
+function advancePay(id) {
+    const modal = new bootstrap.Modal(document.getElementById('payModal'));
+    modal.show();
+
+    document.getElementById('btn-confirm-pay').onclick = function() {
+        const account = document.getElementById('modal-payment-account').value;
+        const date = document.getElementById('modal-payment-date').value;
+        if (!account) { toastr.warning('يجب اختيار حساب الصرف'); return; }
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+        formData.append('payment_account', account);
+        formData.append('payment_date', date || '');
+
+        fetch(`/hr/advances/${id}/pay/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        }).then(r => r.json()).then(data => {
+            modal.hide();
+            if (data.success) { toastr.success(data.message); setTimeout(() => location.reload(), 800); }
+            else { toastr.error(data.message || 'حدث خطأ'); }
+        }).catch(() => toastr.error('حدث خطأ في الاتصال'));
+    };
+}
+</script>
+{% endblock %}

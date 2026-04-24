@@ -1,0 +1,179 @@
+{% load static %}
+{% load custom_filters %}
+{% load i18n %}
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'img/logo-icon.ico' %}" type="image/x-icon">
+    
+    <!-- CSRF Token -->
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    
+    <!-- خط Tajawal المحلي -->
+    <style>
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 400;
+            src: url('/static/fonts/Tajawal-Regular.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 500;
+            src: url('/static/fonts/Tajawal-Medium.ttf') format('truetype');
+        }
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 700;
+            src: url('/static/fonts/Tajawal-Bold.ttf') format('truetype');
+        }
+        body { font-family: 'Tajawal', sans-serif; }
+    </style>
+    
+    <!-- Bootstrap RTL CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.rtl.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- SweetAlert2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11.7.32/dist/sweetalert2.min.css">
+    
+    <!-- Toastr CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.css">
+    <link rel="stylesheet" href="{% static 'css/toastr-override.css' %}">
+    
+    <!-- Select2 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.rtl.min.css">
+    
+    <!-- DataTables CSS -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.1/css/dataTables.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/responsive/2.4.0/css/responsive.bootstrap5.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.3.2/css/buttons.bootstrap5.min.css">
+    
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/style.css">
+    <link rel="stylesheet" href="{% static 'css/flatpickr-custom.css' %}">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/bootstrap-overrides.css' %}">
+    <link rel="stylesheet" href="{% static 'css/main.css' %}">
+    <link rel="stylesheet" href="{% static 'css/footer.css' %}">
+    <link rel="stylesheet" href="{% static 'css/components.css' %}">
+    <link rel="stylesheet" href="{% static 'css/tables.css' %}">
+    <link rel="stylesheet" href="{% static 'css/layout.css' %}">
+    <link rel="stylesheet" href="{% static 'css/forms.css' %}">
+    <link rel="stylesheet" href="{% static 'css/notifications.css' %}">
+    <link rel="stylesheet" href="{% static 'css/quick-actions.css' %}">
+    <link rel="stylesheet" href="{% static 'css/message-system.css' %}">
+    <link rel="stylesheet" href="{% static 'css/quick-search.css' %}">
+    <link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+    <link href="{% static 'django_select2/django_select2.css' %}" rel="stylesheet">
+    <link href="{% static 'css/select2.min.css' %}" rel="stylesheet">
+    <link href="{% static 'css/select2-enhancements.css' %}" rel="stylesheet">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
+    <div class="wrapper">
+        {% include 'partials/sidebar.html' %}
+        <main class="main-content">
+            {% include 'partials/header.html' %}
+
+            {% if maintenance_mode %}
+            <div class="maintenance-notification">
+                <i class="fas fa-tools me-2"></i>
+                <span>وضع الصيانة مفعّل</span>
+                <a href="{% url 'core:system_settings' %}" class="ms-2"><i class="fas fa-cog"></i></a>
+            </div>
+            {% endif %}
+
+            <div class="content-wrapper">
+                {% block messages %}{% include 'components/messages.html' %}{% endblock %}
+                {% block content %}{% endblock %}
+            </div>
+            
+            {% include 'partials/footer.html' %}
+        </main>
+    </div>
+
+    <script>window.CURRENCY_SYMBOL = '{{ currency_symbol|default:"ج.م" }}';</script>
+    
+    <!-- Core JS - order matters -->
+    <script src="{% static 'js/jquery-3.6.0.min.js' %}"></script>
+    <script src="{% static 'js/bootstrap.bundle.min.js' %}"></script>
+    
+    <!-- Error handlers - بعد jQuery وBootstrap مباشرة -->
+    <script src="{% static 'js/suppress-json-errors.js' %}"></script>
+    <script src="{% static 'js/error-suppressor.js' %}"></script>
+    
+    <script src="{% static 'js/sweetalert2.all.min.js' %}"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/toastr.min.js"></script>
+    <script src="{% static 'js/select2.min.js' %}"></script>
+    
+    <!-- DataTables JS -->
+    <script src="{% static 'js/datatables.min.js' %}"></script>
+    <script src="https://cdn.datatables.net/1.13.1/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.4.0/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.4.0/js/responsive.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.3.2/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.3.2/js/buttons.bootstrap5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.3.2/js/buttons.html5.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/2.3.2/js/buttons.print.min.js"></script>
+    <script src="{% static 'js/datatables-ar.js' %}"></script>
+    
+    <!-- DataTables Error Handler - بعد DataTables -->
+    <script src="{% static 'js/datatables-error-handler.js' %}"></script>
+    
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/l10n/ar.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/plugins/monthSelect/index.js"></script>
+    <script src="{% static 'js/flatpickr-init.js' %}"></script>
+    
+    <!-- Select2 JS -->
+    <script src="{% static 'django_select2/django_select2.js' %}"></script>
+    
+    <!-- Fallback libraries (QRCode, XLSX stub, pdfMake stub) -->
+    <script src="{% static 'js/vendor/fallback-libraries.js' %}"></script>
+    
+    <!-- XLSX: load only on pages that need Excel export -->
+    {% block xlsx_js %}{% endblock %}
+    
+    <!-- Chart.js: load only on pages that need charts -->
+    {% block chart_js %}{% endblock %}
+    
+    <!-- Custom JS -->
+    <script src="{% static 'js/number_formatter.js' %}"></script>
+    <script src="{% static 'js/main.js' %}"></script>
+    <script src="{% static 'js/global-table.js' %}"></script>
+    <script src="{% static 'js/toastr-system.js' %}"></script>
+    <script src="{% static 'js/notifications.js' %}"></script>
+    <script src="{% static 'js/quick-actions.js' %}"></script>
+    <script src="{% static 'js/message-system.js' %}"></script>
+    <script src="{% static 'js/unpost-alerts.js' %}"></script>
+    
+    {% if debug %}
+    <script src="{% static 'js/syntax-validator.js' %}"></script>
+    {% endif %}
+    
+    <script>
+        if (typeof toastr !== 'undefined' && typeof DEFAULT_TOASTR_OPTIONS !== 'undefined') {
+            toastr.options = DEFAULT_TOASTR_OPTIONS;
+        }
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

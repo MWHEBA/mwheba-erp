@@ -1,0 +1,95 @@
+{% if show_button %}
+    {% comment %} تحديد نوع الزر {% endcomment %}
+    {% if button.type == 'button' %}
+        {% comment %} زر JavaScript مع data attributes {% endcomment %}
+        <button type="button"
+               class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+               title="{{ button.label }}"
+               {% if button.data %}
+                   {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+               {% endif %}
+               {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </button>
+    {% elif button.onclick %}
+        {% comment %} زر بـ onclick function {% endcomment %}
+        <button type="button"
+               class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+               title="{{ button.label }}"
+               onclick="{{ button.onclick }}"
+               {% if button.data %}
+                   {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+               {% endif %}
+               {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </button>
+    {% elif button.modal %}
+        {% comment %} زر مودال {% endcomment %}
+        <button type="button"
+               class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+               title="{{ button.label }}"
+               {% if button.class == 'action-delete' %}
+               onclick="openDeleteModal('{{ item_id }}')"
+               {% elif button.class == 'action-approve' %}
+               onclick="openApproveModal('{{ item_id }}')"
+               {% elif button.onclick %}
+               onclick="openPostModal({{ item.id }})"
+               {% endif %}
+               {% if button.data %}
+                   {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+               {% endif %}
+               {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </button>
+    {% elif button.url and ':' in button.url %}
+        {% comment %} رابط بـ URL name {% endcomment %}
+        {% with url_name=button.url %}
+            {% if 'user_permissions_detail' in url_name or 'user_edit' in url_name or 'user_delete' in url_name or 'user_assign_role' in url_name %}
+                <a href="{% url url_name user_id=item_id %}" 
+                   class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+                   title="{{ button.label }}"
+                   {% if button.target %}target="{{ button.target }}"{% endif %}
+                   {% if button.data %}
+                       {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+                   {% endif %}
+                   {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                    <i class="fas {{ button.icon }}"></i>
+                </a>
+            {% else %}
+                <a href="{% url url_name item_id %}" 
+                   class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+                   title="{{ button.label }}"
+                   {% if button.target %}target="{{ button.target }}"{% endif %}
+                   {% if button.data %}
+                       {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+                   {% endif %}
+                   {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+                    <i class="fas {{ button.icon }}"></i>
+                </a>
+            {% endif %}
+        {% endwith %}
+    {% elif button.url %}
+        {% comment %} رابط مباشر {% endcomment %}
+        <a href="{{ button.url }}" 
+           class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+           title="{{ button.label }}"
+           {% if button.target %}target="{{ button.target }}"{% endif %}
+           {% if button.data %}
+               {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+           {% endif %}
+           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </a>
+    {% else %}
+        {% comment %} رابط افتراضي {% endcomment %}
+        <a href="#" onclick="alert('تحديد الرابط مطلوب')" 
+           class="btn btn-sm action-button {{ button.class|default:'action-view' }}" 
+           title="{{ button.label }}"
+           {% if button.data %}
+               {% for key, value in button.data.items %}data-{{ key }}="{{ value }}" {% endfor %}
+           {% endif %}
+           {% if button.data_attrs %}{{ button.data_attrs|safe }}{% endif %}>
+            <i class="fas {{ button.icon }}"></i>
+        </a>
+    {% endif %}
+{% endif %}

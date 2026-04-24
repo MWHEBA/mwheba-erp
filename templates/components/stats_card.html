@@ -1,0 +1,77 @@
+﻿{% comment %}
+========================================
+مكون بطاقة الإحصائيات الموحد
+Unified Stats Card Component
+========================================
+
+الاستخدام | Usage:
+{% include "components/stats_card.html" with icon="fas fa-users" title="إجمالي العناصر" value=150 unit="عنصر" variant="primary" %}
+
+المعاملات | Parameters:
+- icon: أيقونة FontAwesome (مطلوب | Required)
+- title: عنوان البطاقة (مطلوب | Required)
+- value: القيمة الإحصائية (مطلوب | Required)
+- unit: وحدة القياس (اختياري | Optional)
+- variant: نوع اللون (مطلوب | Required): primary, success, info, warning, danger, secondary
+- url: رابط للبطاقة القابلة للنقر (اختياري | Optional)
+
+أمثلة | Examples:
+
+1. بطاقة بسيطة | Simple card:
+{% include "components/stats_card.html" with icon="fas fa-users" title="إجمالي العناصر" value=150 unit="عنصر" variant="primary" %}
+
+2. بطاقة قابلة للنقر | Clickable card:
+{% include "components/stats_card.html" with icon="fas fa-chart-line" title="المشتريات" value=50000 unit="جنيه" variant="success" url="/purchases/" %}
+
+3. بطاقة بدون وحدة | Card without unit:
+{% include "components/stats_card.html" with icon="fas fa-bell" title="الإشعارات" value=42 variant="warning" %}
+
+الألوان المدعومة | Supported Variants:
+- primary: اللون الأساسي (أزرق)
+- success: النجاح (أخضر)
+- info: المعلومات (أزرق فاتح)
+- warning: التحذير (أصفر/برتقالي)
+- danger: الخطر (أحمر)
+- secondary: ثانوي (رمادي)
+
+المتطلبات | Requirements:
+- Requirements 4.1: Standardized card layouts with consistent spacing
+- Requirements 4.2: Support different color variants
+- Requirements 4.3: Include icon, title, value, and optional unit fields
+- Requirements 4.5: Responsive grid layouts
+
+========================================
+{% endcomment %}
+
+{% load custom_filters %}
+
+<div class="stats-card stats-card-{{ variant|default:'primary' }}{% if url %} stats-card-clickable{% endif %}"
+     role="{% if url %}button{% else %}region{% endif %}"
+     {% if url %}onclick="window.location.href='{{ url }}'"{% endif %}
+     {% if url %}style="cursor: pointer;"{% endif %}
+     aria-label="إحصائية {{ title }}">
+    
+    <!-- Card Header - Colored bar at top -->
+    <div class="stats-card-header"></div>
+    
+    <!-- Card Body - Main content -->
+    <div class="stats-card-body">
+        <!-- Icon -->
+        {% if icon %}
+        <div class="stats-card-icon">
+            <i class="{{ icon }}" aria-hidden="true"></i>
+        </div>
+        {% endif %}
+        
+        <!-- Title -->
+        <div class="stats-card-title">{{ title }}</div>
+        
+        <!-- Value -->
+        <div class="stats-card-value">{{ value|default:0|floatformat:0 }}</div>
+        
+        <!-- Unit (optional) -->
+        {% if unit %}
+        <div class="stats-card-unit">{{ unit }}</div>
+        {% endif %}
+    </div>
+</div>

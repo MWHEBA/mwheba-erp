@@ -1,0 +1,657 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+
+{% block title %}{% if employee %}تعديل موظف{% else %}إضافة موظف جديد{% endif %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/components.css' %}">
+<link rel="stylesheet" href="{% static 'css/tables.css' %}">
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon breadcrumb_items=breadcrumb_items header_buttons=header_buttons %}
+
+  <!-- نموذج الموظف -->
+  <div class="section-container">
+    <h5 class="section-title">
+        <i class="fas {% if employee %}fa-user-edit{% else %}fa-user-plus{% endif %} me-2"></i>
+        بيانات الموظف
+    </h5>
+    
+    <!-- عرض الأخطاء -->
+    {% if form.errors %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <h5 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>يوجد أخطاء في النموذج</h5>
+        <ul class="mb-0">
+        {% for field in form %}
+            {% if field.errors %}
+                {% for error in field.errors %}
+                <li><strong>{{ field.label }}:</strong> {{ error }}</li>
+                {% endfor %}
+            {% endif %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+        {% endfor %}
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    <form method="post" enctype="multipart/form-data" id="employeeForm">
+        {% csrf_token %}
+        
+        <!-- معلومات أساسية -->
+        <h5 class="mb-3">المعلومات الأساسية</h5>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">رقم الموظف *</label>
+                <input type="text" name="employee_number" id="id_employee_number" class="form-control" 
+                       value="{% if employee %}{{ employee.employee_number }}{% else %}{{ next_employee_number }}{% endif %}" 
+                       {% if not employee %}readonly{% endif %}>
+                {% if not employee %}
+                <small class="text-muted">سيتم توليده تلقائياً</small>
+                {% endif %}
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">اسم الموظف *</label>
+                <input type="text" name="name" class="form-control" 
+                       value="{% if employee %}{{ employee.name }}{% endif %}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">الرقم القومي *</label>
+                <input type="text" name="national_id" id="id_national_id" class="form-control" maxlength="14" 
+                       value="{% if employee %}{{ employee.national_id }}{% endif %}" required>
+                <div class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">الصورة الشخصية</label>
+                <input type="file" name="photo" class="form-control" accept="image/*">
+                {% if employee and employee.photo %}
+                <small class="text-muted">الصورة الحالية: <a href="{{ employee.photo.url }}" target="_blank">عرض</a></small>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">تاريخ الميلاد *</label>
+                {{ form.birth_date }}
+                {% if form.birth_date.errors %}
+                    <div class="text-danger">{{ form.birth_date.errors }}</div>
+                {% endif %}
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">الجنس *</label>
+                <select name="gender" class="form-select" required>
+                    <option value="">اختر...</option>
+                    <option value="male" {% if employee and employee.gender == 'male' %}selected{% endif %}>ذكر</option>
+                    <option value="female" {% if employee and employee.gender == 'female' %}selected{% endif %}>أنثى</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">الحالة الاجتماعية *</label>
+                <select name="marital_status" class="form-select" required>
+                    <option value="">اختر...</option>
+                    <option value="single" {% if employee and employee.marital_status == 'single' %}selected{% endif %}>أعزب</option>
+                    <option value="married" {% if employee and employee.marital_status == 'married' %}selected{% endif %}>متزوج</option>
+                    <option value="divorced" {% if employee and employee.marital_status == 'divorced' %}selected{% endif %}>مطلق</option>
+                    <option value="widowed" {% if employee and employee.marital_status == 'widowed' %}selected{% endif %}>أرمل</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- معلومات الاتصال -->
+        <h5 class="mb-3">معلومات الاتصال</h5>
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">البريد الإلكتروني الوظيفي</label>
+                <input type="email" name="work_email" id="id_work_email" class="form-control" 
+                       placeholder="البريد الوظيفي (اختياري)"
+                       value="{% if employee %}{{ employee.work_email|default:'' }}{% endif %}">
+                <div class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">البريد الإلكتروني الشخصي</label>
+                <input type="email" name="personal_email" id="id_personal_email" class="form-control" 
+                       placeholder="البريد الشخصي (اختياري)"
+                       value="{% if employee %}{{ employee.personal_email|default:'' }}{% endif %}">
+                <div class="invalid-feedback"></div>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">الهاتف المحمول *</label>
+                <input type="tel" name="mobile_phone" id="id_mobile_phone" class="form-control" 
+                       value="{% if employee %}{{ employee.mobile_phone|default:'' }}{% endif %}" required>
+                <small class="text-muted">مثال: 01012345678 أو +201012345678 أو 201012345678</small>
+                <div class="invalid-feedback"></div>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">هاتف المنزل</label>
+                <input type="tel" name="home_phone" class="form-control" 
+                       placeholder="هاتف المنزل (اختياري)"
+                       value="{% if employee %}{{ employee.home_phone|default:'' }}{% endif %}">
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <label class="form-label">العنوان</label>
+                <textarea name="address" class="form-control" rows="2" 
+                          placeholder="العنوان (اختياري)">{% if employee %}{{ employee.address|default:'' }}{% endif %}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label">المدينة</label>
+                <input type="text" name="city" class="form-control" 
+                       placeholder="المدينة (اختياري)"
+                       value="{% if employee %}{{ employee.city|default:'' }}{% endif %}">
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- جهة اتصال الطوارئ (اختياري) -->
+        <h5 class="mb-3">جهة اتصال الطوارئ <small class="text-muted">(اختياري)</small></h5>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">الاسم</label>
+                <input type="text" name="emergency_contact_name" class="form-control" 
+                       value="{% if employee %}{{ employee.emergency_contact_name }}{% endif %}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">صلة القرابة</label>
+                <input type="text" name="emergency_contact_relation" class="form-control" 
+                       value="{% if employee %}{{ employee.emergency_contact_relation }}{% endif %}">
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">رقم الهاتف</label>
+                <input type="tel" name="emergency_contact_phone" class="form-control" 
+                       value="{% if employee %}{{ employee.emergency_contact_phone }}{% endif %}">
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- المعلومات الوظيفية -->
+        <h5 class="mb-3">المعلومات الوظيفية</h5>
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">القسم *</label>
+                <select name="department" id="id_department" class="form-select" required>
+                    <option value="">اختر القسم...</option>
+                    {% for dept in departments %}
+                    <option value="{{ dept.id }}" {% if employee and employee.department.id == dept.id %}selected{% endif %}>
+                        {{ dept.name_ar }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">المسمى الوظيفي *</label>
+                <select name="job_title" id="id_job_title" class="form-select" required>
+                    <option value="">اختر الوظيفة...</option>
+                    {% for job in job_titles %}
+                    <option value="{{ job.id }}" data-department="{{ job.department_id }}" 
+                            {% if employee and employee.job_title.id == job.id %}selected{% endif %}>
+                        {{ job.title_ar }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">تاريخ التعيين *</label>
+                {{ form.hire_date }}
+                {% if form.hire_date.errors %}
+                    <div class="text-danger">{{ form.hire_date.errors }}</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-4">
+                <label class="form-label">الوردية</label>
+                <select name="shift" id="id_shift" class="form-select" required>
+                    {% for shift in shifts %}
+                    <option value="{{ shift.id }}" {% if employee and employee.shift and employee.shift.id == shift.id %}selected{% elif not employee and forloop.first %}selected{% endif %}>
+                        {{ shift.name }} ({{ shift.start_time|arabic_time }} - {{ shift.end_time|arabic_time }})
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">نوع التوظيف</label>
+                <select name="employment_type" class="form-select">
+                    <option value="full_time" {% if employee and employee.employment_type == 'full_time' %}selected{% endif %}>دوام كامل</option>
+                    <option value="part_time" {% if employee and employee.employment_type == 'part_time' %}selected{% endif %}>دوام جزئي</option>
+                    <option value="contract" {% if employee and employee.employment_type == 'contract' %}selected{% endif %}>عقد</option>
+                    <option value="temporary" {% if employee and employee.employment_type == 'temporary' %}selected{% endif %}>مؤقت</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label">الحالة</label>
+                <select name="status" class="form-select">
+                    <option value="active" {% if not employee or employee.status == 'active' %}selected{% endif %}>نشط</option>
+                    <option value="on_leave" {% if employee and employee.status == 'on_leave' %}selected{% endif %}>في إجازة</option>
+                    <option value="suspended" {% if employee and employee.status == 'suspended' %}selected{% endif %}>موقوف</option>
+                    <option value="terminated" {% if employee and employee.status == 'terminated' %}selected{% endif %}>منتهي الخدمة</option>
+                </select>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- إعدادات الحضور -->
+        <h5 class="mb-3">إعدادات الحضور</h5>
+        <div class="row mb-3">
+            <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="attendance_exempt"
+                           id="id_attendance_exempt" role="switch"
+                           {% if employee and employee.attendance_exempt %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="id_attendance_exempt">
+                        معفى من البصمة
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    للمديرين والإداريين غير المسجلين في البصمة — يتطلب اعتماد ملخص الحضور يدوياً قبل معالجة الراتب.
+                    لربط الموظف بجهاز البصمة، استخدم <a href="{% url 'hr:biometric_mapping_list' %}">إدارة ربط البصمة</a>.
+                </small>
+            </div>
+        </div>
+
+        <div class="row mb-3">
+            <div class="col-md-6 d-flex align-items-center">
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" name="is_insurance_only"
+                           id="id_is_insurance_only" role="switch"
+                           {% if employee and employee.is_insurance_only %}checked{% endif %}>
+                    <label class="form-check-label fw-semibold" for="id_is_insurance_only">
+                        موظف تأمين فقط
+                    </label>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="fas fa-shield-alt me-1"></i>
+                    موظف مسجل تأمينات على الشركة لكن غير مدرج في كشف الرواتب — يدفع تأمينه مباشرة.
+                </small>
+            </div>
+        </div>
+
+        <hr class="my-4">
+
+        <!-- الأزرار -->
+        <div class="row">
+            <div class="col-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-2"></i>
+                    {% if employee %}تحديث{% else %}حفظ{% endif %}
+                </button>
+                <a href="{% url 'hr:employee_list' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-2"></i>
+                    إلغاء
+                </a>
+            </div>
+        </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // تفعيل Select2 للقوائم المنسدلة
+    $('#id_department').select2({
+        placeholder: 'اختر القسم...',
+        allowClear: true,
+        dir: 'rtl',
+        language: {
+            noResults: function() {
+                return "لا توجد نتائج";
+            }
+        },
+        width: '100%'
+    });
+    
+    $('#id_job_title').select2({
+        placeholder: 'اختر الوظيفة...',
+        allowClear: true,
+        dir: 'rtl',
+        language: {
+            noResults: function() {
+                return "لا توجد نتائج";
+            }
+        },
+        width: '100%'
+    });
+    
+    // تاريخ التعيين الافتراضي يتم تعيينه في Form
+    
+    // حفظ جميع الوظائف الأصلية
+    const allJobTitles = [];
+    $('#id_job_title option').each(function() {
+        if ($(this).val() !== '') {
+            allJobTitles.push({
+                value: $(this).val(),
+                text: $(this).text(),
+                department: $(this).data('department'),
+                selected: $(this).prop('selected')
+            });
+        }
+    });
+    
+    // فلترة المسميات الوظيفية حسب القسم المختار
+    $('#id_department').on('select2:select select2:clear', function(e) {
+        const selectedDept = $(this).val();
+        const jobTitleSelect = $('#id_job_title');
+        const currentJobTitle = jobTitleSelect.val();
+        
+        // حفظ القيمة الحالية إذا كانت متوافقة مع القسم الجديد
+        let shouldKeepSelection = false;
+        if (currentJobTitle && selectedDept) {
+            const currentJob = allJobTitles.find(j => j.value == currentJobTitle);
+            if (currentJob && currentJob.department == selectedDept) {
+                shouldKeepSelection = true;
+            }
+        }
+        
+        // تدمير Select2 مؤقتاً
+        jobTitleSelect.select2('destroy');
+        
+        // مسح جميع الخيارات ما عدا الخيار الفارغ
+        jobTitleSelect.find('option:not([value=""])').remove();
+        
+        // إضافة الوظائف المتعلقة بالقسم المختار فقط
+        if (selectedDept) {
+            allJobTitles.forEach(function(job) {
+                if (job.department == selectedDept) {
+                    const option = new Option(job.text, job.value, false, shouldKeepSelection && job.value == currentJobTitle);
+                    $(option).data('department', job.department);
+                    jobTitleSelect.append(option);
+                }
+            });
+        } else {
+            // إذا لم يتم اختيار قسم، أظهر جميع الوظائف
+            allJobTitles.forEach(function(job) {
+                const option = new Option(job.text, job.value, false, job.selected);
+                $(option).data('department', job.department);
+                jobTitleSelect.append(option);
+            });
+        }
+        
+        // إعادة تفعيل Select2
+        jobTitleSelect.select2({
+            placeholder: 'اختر الوظيفة...',
+            allowClear: true,
+            dir: 'rtl',
+            language: {
+                noResults: function() {
+                    return "لا توجد نتائج";
+                }
+            },
+            width: '100%'
+        });
+        
+        // إعادة تعيين القيمة إذا كانت متوافقة
+        if (!shouldKeepSelection) {
+            jobTitleSelect.val(null).trigger('change');
+        }
+    });
+    
+    // التحقق من البريد الإلكتروني الوظيفي
+    let emailCheckTimeout;
+    $('#id_work_email').on('input', function() {
+        const email = $(this).val();
+        const field = $(this);
+        const currentEmail = '{% if employee %}{{ employee.work_email|default:'' }}{% endif %}';
+        
+        clearTimeout(emailCheckTimeout);
+        
+        if (email && email.trim() !== '' && email !== currentEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                field.addClass('is-invalid').removeClass('is-valid');
+                field.siblings('.invalid-feedback').text('البريد الإلكتروني غير صحيح');
+            } else {
+                // التحقق من التكرار عبر AJAX
+                emailCheckTimeout = setTimeout(function() {
+                    $.ajax({
+                        url: '{% url "hr:check_employee_email" %}',
+                        data: { 
+                            email: email,
+                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
+                        },
+                        success: function(response) {
+                            if (response.available) {
+                                field.removeClass('is-invalid').addClass('is-valid');
+                                field.siblings('.invalid-feedback').text('');
+                            } else {
+                                field.addClass('is-invalid').removeClass('is-valid');
+                                field.siblings('.invalid-feedback').text(response.message);
+                            }
+                        }
+                    });
+                }, 500);
+            }
+        } else {
+            field.removeClass('is-valid is-invalid');
+        }
+    });
+    
+    // التحقق من البريد الإلكتروني الشخصي
+    let personalEmailCheckTimeout;
+    $('#id_personal_email').on('input', function() {
+        const email = $(this).val();
+        const field = $(this);
+        const currentEmail = '{% if employee %}{{ employee.personal_email|default:'' }}{% endif %}';
+        
+        clearTimeout(personalEmailCheckTimeout);
+        
+        if (email && email.trim() !== '' && email !== currentEmail) {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                field.addClass('is-invalid').removeClass('is-valid');
+                field.siblings('.invalid-feedback').text('البريد الإلكتروني غير صحيح');
+            } else {
+                // التحقق من التكرار عبر AJAX (إذا كان متاح)
+                personalEmailCheckTimeout = setTimeout(function() {
+                    // يمكن إضافة AJAX للتحقق من تكرار البريد الشخصي إذا لزم الأمر
+                    field.removeClass('is-invalid').addClass('is-valid');
+                    field.siblings('.invalid-feedback').text('');
+                }, 500);
+            }
+        } else {
+            field.removeClass('is-valid is-invalid');
+        }
+    });
+    
+    // التحقق من رقم الموبايل
+    let mobileCheckTimeout;
+    $('#id_mobile_phone').on('input', function() {
+        let value = $(this).val().trim();
+        const field = $(this);
+        const currentMobile = '{% if employee %}{{ employee.mobile_phone|default:'' }}{% endif %}';
+        
+        // إزالة المسافات والشرطات
+        value = value.replace(/[\s-]/g, '');
+        
+        // تحويل الصيغ المختلفة إلى الصيغة المحلية
+        let normalizedValue = value;
+        if (value.startsWith('+20')) {
+            normalizedValue = '0' + value.substring(3);
+        } else if (value.startsWith('20') && value.length === 12) {
+            normalizedValue = '0' + value.substring(2);
+        }
+        
+        clearTimeout(mobileCheckTimeout);
+        
+        if (normalizedValue.length === 11 && /^01[0-2,5]{1}[0-9]{8}$/.test(normalizedValue)) {
+            if (normalizedValue !== currentMobile) {
+                // التحقق من التكرار عبر AJAX
+                mobileCheckTimeout = setTimeout(function() {
+                    $.ajax({
+                        url: '{% url "hr:check_employee_mobile" %}',
+                        data: { 
+                            mobile: normalizedValue,
+                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
+                        },
+                        success: function(response) {
+                            if (response.available) {
+                                field.removeClass('is-invalid').addClass('is-valid');
+                                field.siblings('.invalid-feedback').text('');
+                            } else {
+                                field.addClass('is-invalid').removeClass('is-valid');
+                                field.siblings('.invalid-feedback').text(response.message);
+                            }
+                        }
+                    });
+                }, 500);
+            } else {
+                field.removeClass('is-invalid').addClass('is-valid');
+            }
+        } else if (value.length > 0) {
+            field.removeClass('is-valid').addClass('is-invalid');
+            field.siblings('.invalid-feedback').text('رقم الموبايل غير صحيح. مثال: 01012345678 أو +201012345678');
+        } else {
+            field.removeClass('is-valid is-invalid');
+        }
+    });
+    
+    // التحقق من الرقم القومي
+    let nationalIdCheckTimeout;
+    $('#id_national_id').on('input', function() {
+        const nationalId = $(this).val();
+        const field = $(this);
+        const currentNationalId = '{% if employee %}{{ employee.national_id }}{% endif %}';
+        
+        clearTimeout(nationalIdCheckTimeout);
+        
+        if (nationalId && nationalId !== currentNationalId) {
+            // التحقق من الصيغة (14 رقم)
+            if (nationalId.length !== 14 || !/^\d{14}$/.test(nationalId)) {
+                field.addClass('is-invalid').removeClass('is-valid');
+                field.siblings('.invalid-feedback').text('الرقم القومي يجب أن يكون 14 رقم');
+            } else {
+                // التحقق من التكرار عبر AJAX
+                nationalIdCheckTimeout = setTimeout(function() {
+                    $.ajax({
+                        url: '{% url "hr:check_employee_national_id" %}',
+                        data: { 
+                            national_id: nationalId,
+                            {% if employee %}employee_id: {{ employee.id }}{% endif %}
+                        },
+                        success: function(response) {
+                            if (response.available) {
+                                field.removeClass('is-invalid').addClass('is-valid');
+                                field.siblings('.invalid-feedback').text('');
+                            } else {
+                                field.addClass('is-invalid').removeClass('is-valid');
+                                field.siblings('.invalid-feedback').text(response.message);
+                            }
+                        }
+                    });
+                }, 500);
+            }
+        } else {
+            field.removeClass('is-valid is-invalid');
+        }
+    });
+    
+    // التحقق من صحة النموذج قبل الإرسال
+    $('#employeeForm').on('submit', function(e) {
+        let isValid = true;
+        let missingFields = [];
+        
+        // التحقق من الحقول الإجبارية
+        const requiredFields = [
+            { id: 'name', label: 'اسم الموظف' },
+            { id: 'national_id', label: 'الرقم القومي' },
+            { id: 'birth_date', label: 'تاريخ الميلاد' },
+            { id: 'gender', label: 'الجنس' },
+            { id: 'marital_status', label: 'الحالة الاجتماعية' },
+            { id: 'mobile_phone', label: 'الهاتف المحمول' },
+            { id: 'department', label: 'القسم' },
+            { id: 'job_title', label: 'المسمى الوظيفي' },
+            { id: 'hire_date', label: 'تاريخ التعيين' }
+        ];
+        
+        requiredFields.forEach(function(field) {
+            const value = $('[name="' + field.id + '"]').val();
+            if (!value || value.trim() === '') {
+                missingFields.push(field.label);
+                $('[name="' + field.id + '"]').addClass('is-invalid');
+                isValid = false;
+            } else {
+                $('[name="' + field.id + '"]').removeClass('is-invalid');
+            }
+        });
+        
+        // التحقق من رقم الموبايل
+        const mobile = $('#id_mobile_phone').val();
+        if (mobile && !/^01[0-2,5]{1}[0-9]{8}$/.test(mobile)) {
+            $('#id_mobile_phone').addClass('is-invalid');
+            missingFields.push('رقم الموبايل (صيغة غير صحيحة)');
+            isValid = false;
+        }
+        
+        // التحقق من البريد الإلكتروني (إذا تم إدخاله)
+        const email = $('#id_work_email').val();
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (email && email.trim() !== '' && !emailRegex.test(email)) {
+            $('#id_work_email').addClass('is-invalid');
+            missingFields.push('البريد الإلكتروني (صيغة غير صحيحة)');
+            isValid = false;
+        }
+        
+        // التحقق من البريد الشخصي (إذا تم إدخاله)
+        const personalEmail = $('#id_personal_email').val();
+        if (personalEmail && personalEmail.trim() !== '' && !emailRegex.test(personalEmail)) {
+            $('#id_personal_email').addClass('is-invalid');
+            missingFields.push('البريد الشخصي (صيغة غير صحيحة)');
+            isValid = false;
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+
+            let errorHtml = '<ul class="mb-0 text-start">';
+            missingFields.forEach(function(field) {
+                errorHtml += `<li>${field}</li>`;
+            });
+            errorHtml += '</ul>';
+
+            Swal.fire({
+                title: 'يرجى ملء الحقول المطلوبة',
+                html: errorHtml,
+                icon: 'warning',
+                confirmButtonText: 'حسناً'
+            });
+
+            // التمرير للحقل الأول المفقود
+            const firstInvalid = $('.is-invalid').first();
+            if (firstInvalid.length) {
+                $('html, body').animate({
+                    scrollTop: firstInvalid.offset().top - 100
+                }, 500);
+                firstInvalid.focus();
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

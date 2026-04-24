@@ -1,0 +1,101 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}أنواع الأذونات{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% include "shared/page_header.html" %}
+
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="card-title mb-0"><i class="fas fa-tags me-2"></i>أنواع الأذونات</h5>
+      </div>
+      <div class="card-body">
+        {% if permission_types %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="permission-types-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">الكود</th>
+                        <th class="text-center">الاسم (عربي)</th>
+                        <th class="text-center">الاسم (إنجليزي)</th>
+                        <th class="text-center">الحد الأقصى (ساعة)</th>
+                        <th class="text-center">يتطلب طلب مسبق</th>
+                        <th class="text-center">ساعات الطلب المسبق</th>
+                        <th class="text-center">يؤثر على الراتب</th>
+                        <th class="text-center">الحالة</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for type in permission_types %}
+                    <tr>
+                        <td class="text-center"><code>{{ type.code }}</code></td>
+                        <td class="text-center"><strong>{{ type.name_ar }}</strong></td>
+                        <td class="text-center">{{ type.name_en|default:"-" }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-info">{{ type.max_hours_per_request }} ساعة</span>
+                        </td>
+                        <td class="text-center">
+                            {% if type.requires_advance_request %}
+                                <span class="badge bg-warning text-dark">نعم</span>
+                            {% else %}
+                                <span class="badge bg-secondary">لا</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if type.requires_advance_request %}
+                                {{ type.advance_hours }} ساعة
+                            {% else %}
+                                -
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if type.affects_salary %}
+                                <span class="badge bg-danger">نعم</span>
+                            {% else %}
+                                <span class="badge bg-success">لا</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if type.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-secondary">غير نشط</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="alert alert-info mt-3">
+            <i class="fas fa-info-circle me-2"></i>
+            <strong>ملاحظة:</strong> يمكن إدارة أنواع الأذونات من لوحة الإدارة (Admin Panel) أو من خلال تعديل ملف الـ fixtures.
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد أنواع أذونات" icon="tags" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+$(document).ready(function() {
+    const tableElement = document.getElementById('permission-types-table');
+    if (tableElement && typeof initGlobalTable === 'function') {
+        initGlobalTable('permission-types-table', {
+            ordering: true,
+            order: [[0, 'asc']],
+            responsive: true,
+        });
+    }
+});
+</script>
+{% endblock %}

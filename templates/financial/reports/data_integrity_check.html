@@ -1,0 +1,307 @@
+﻿{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/financial-integrity-check.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+    
+    <!-- CSRF Token للاستخدام في JavaScript -->
+    {% csrf_token %}
+    
+    {% if results.summary.total_checks > 0 %}
+    {# Summary Cards #}
+    <div class="row mb-4">
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-primary">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <div class="stats-card-title">إجمالي الفحوصات</div>
+                    <div class="stats-card-value">{{ results.summary.total_checks }}</div>
+                    <div class="stats-card-unit">فحص</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-success">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stats-card-title">نجح</div>
+                    <div class="stats-card-value">{{ results.summary.passed }}</div>
+                    <div class="stats-card-unit">فحص</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-danger">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-times-circle"></i>
+                    </div>
+                    <div class="stats-card-title">فشل</div>
+                    <div class="stats-card-value">{{ results.summary.failed }}</div>
+                    <div class="stats-card-unit">مشكلة</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-lg-3 mb-4">
+            <div class="stats-card stats-card-warning">
+                <div class="stats-card-header"></div>
+                <div class="stats-card-body">
+                    <div class="stats-card-icon">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="stats-card-title">تحذيرات</div>
+                    <div class="stats-card-value">{{ results.summary.warnings }}</div>
+                    <div class="stats-card-unit">تحذير</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    {# Passed Checks #}
+    {% if results.checks %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-check-circle text-success me-2"></i>
+                الفحوصات الناجحة ({{ results.checks|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for check in results.checks %}
+            <div class="check-item success">
+                <div class="icon">
+                    <i class="fas fa-check"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ check.name }}</div>
+                    <small class="text-success">لا توجد مشاكل</small>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {# Errors #}
+    {% if results.errors %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-times-circle text-danger me-2"></i>
+                مشاكل حرجة ({{ results.errors|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for error in results.errors %}
+            <div class="check-item error mb-3">
+                <div class="icon">
+                    <i class="fas fa-times"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ error.check }}</div>
+                    <small class="text-danger">{{ error.count }} مشكلة</small>
+                </div>
+                <div class="count text-danger">{{ error.count }}</div>
+            </div>
+            
+            {% if error.message %}
+            <div class="alert alert-danger">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ error.message }}
+            </div>
+            {% endif %}
+            
+            {% if error.details %}
+            <div class="table-responsive">
+                <table class="table details-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center">#</th>
+                            <th class="text-center">التفاصيل</th>
+                            <th class="text-center">الفرق</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in error.details %}
+                        <tr>
+                            <td class="text-center">{{ forloop.counter }}</td>
+                            <td class="text-center">
+                                {% if detail.entry %}
+                                    قيد #{{ detail.entry.id }} - {{ detail.entry.date }}
+                                {% elif detail.product %}
+                                    {{ detail.product.name }}
+                                {% else %}
+                                    {{ detail }}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if detail.difference %}
+                                    <span class="badge bg-danger">{{ detail.difference }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if error.count > 10 %}
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                يتم عرض أول 10 مشاكل فقط. الإجمالي: {{ error.count }}
+            </small>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {# Warnings #}
+    {% if results.warnings %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">
+                <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                تحذيرات ({{ results.warnings|length }})
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for warning in results.warnings %}
+            <div class="check-item warning mb-3">
+                <div class="icon">
+                    <i class="fas fa-exclamation-triangle"></i>
+                </div>
+                <div class="content">
+                    <div class="title">{{ warning.check }}</div>
+                    <small class="text-warning">{{ warning.count }} تحذير</small>
+                </div>
+                <div class="count text-warning">{{ warning.count }}</div>
+            </div>
+            
+            {% if warning.message %}
+            <div class="alert alert-warning">
+                <i class="fas fa-info-circle me-2"></i>
+                {{ warning.message }}
+            </div>
+            {% endif %}
+            
+            {% if warning.details %}
+            <div class="table-responsive">
+                <table class="table details-table">
+                    <thead>
+                        <tr>
+                            <th class="text-center">#</th>
+                            <th class="text-center">الاسم</th>
+                            <th class="text-center">الرصيد الحالي</th>
+                            <th class="text-center">الرصيد المحسوب</th>
+                            <th class="text-center">الفرق</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for detail in warning.details %}
+                        <tr>
+                            <td class="text-center">{{ forloop.counter }}</td>
+                            <td class="text-center">
+                                {% if detail.parent %}
+                                    {{ detail.parent.name }}
+                                {% elif detail.supplier %}
+                                    {{ detail.supplier.name }}
+                                {% endif %}
+                            </td>
+                            <td class="text-center">{{ detail.system_balance }}</td>
+                            <td class="text-center">{{ detail.calculated_balance }}</td>
+                            <td class="text-center">
+                                <span class="badge bg-warning">{{ detail.difference }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if warning.count > 10 %}
+            <small class="text-muted">
+                <i class="fas fa-info-circle"></i>
+                يتم عرض أول 10 تحذيرات فقط. الإجمالي: {{ warning.count }}
+            </small>
+            {% endif %}
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+    
+    {% else %}
+    {# No Results Yet #}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-shield-alt fa-5x text-muted mb-4"></i>
+            <h3 class="mb-3">جاهز لفحص سلامة البيانات</h3>
+            <p class="text-muted mb-4">
+                سيتم فحص جميع البيانات المحاسبية والمخزنية للتأكد من سلامتها وتكاملها
+            </p>
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="alert alert-info text-start">
+                        <h6 class="mb-3"><i class="fas fa-info-circle me-2"></i>الفحوصات التي سيتم إجراؤها:</h6>
+                        <ul class="mb-0">
+                            <li>✓ توازن القيود المحاسبية (المدين = الدائن)</li>
+                            <li>✓ أرصدة العملاء (مقارنة مع الرسوم والدفعات)</li>
+                            <li>✓ أرصدة الموردين (مقارنة مع المشتريات والدفعات)</li>
+                            <li>✓ أرصدة المخزون (مقارنة مع الحركات)</li>
+                            <li>✓ القيود بدون مستند مرجعي</li>
+                            <li>✓ الحسابات المكررة</li>
+                            <li>✓ المخزون السالب</li>
+                            <li>✓ الرسوم المتأخرة (أكثر من 30 يوم)</li>
+                            <li>✓ رسوم الأنشطة غير المدفوعة</li>
+                            <li>✓ رسوم المواصلات غير المدفوعة</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function submitIntegrityCheck() {
+    if (confirm('هل تريد بدء فحص سلامة البيانات؟ قد يستغرق هذا بعض الوقت.')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '';
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

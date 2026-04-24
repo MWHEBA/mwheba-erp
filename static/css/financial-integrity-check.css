@@ -1,0 +1,89 @@
+/**
+ * ========================================
+ * Financial Integrity Check Page Styles
+ * ========================================
+ * 
+ * أنماط صفحة فحص سلامة البيانات المالية
+ */
+
+/* Check Items */
+.check-item {
+    background: var(--white);
+    border: 1px solid var(--border-color);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    transition: var(--transition-all);
+}
+
+.check-item:hover {
+    box-shadow: var(--shadow-sm);
+}
+
+.check-item .icon {
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.check-item.success .icon {
+    background: var(--bg-soft-success);
+    color: var(--success-color);
+}
+
+.check-item.error .icon {
+    background: var(--bg-soft-danger);
+    color: var(--danger-color);
+}
+
+.check-item.warning .icon {
+    background: var(--bg-soft-warning);
+    color: var(--warning-color);
+}
+
+.check-item .content {
+    flex: 1;
+}
+
+.check-item .title {
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: 0.25rem;
+    color: var(--text-dark);
+}
+
+.check-item .count {
+    font-size: 1.25rem;
+    font-weight: var(--font-weight-bold);
+}
+
+/* Details Table */
+.details-table {
+    font-size: 0.875rem;
+    margin-top: 1rem;
+}
+
+.details-table th {
+    background: var(--bg-light);
+    font-weight: var(--font-weight-semibold);
+    padding: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+    color: var(--text-dark);
+}
+
+.details-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border-color);
+    vertical-align: middle;
+}
+
+.details-table tbody tr:hover {
+    background: var(--table-hover-bg);
+}

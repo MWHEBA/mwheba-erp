@@ -1,0 +1,143 @@
+<!-- عنصر شجرة نوع الحساب -->
+<div class="tree-item" data-id="{{ item.type.id }}" data-level="{{ item.level|default:0 }}">
+    <div class="card mb-2 shadow-sm">
+        <div class="card-body py-2">
+            <div class="d-flex align-items-center">
+                <!-- مسافة بادئة حسب المستوى -->
+                {% for i in item.level_range %}
+                    <span class="tree-indent"></span>
+                {% endfor %}
+                
+                <!-- أيقونة التوسع/الطي -->
+                {% if item.children %}
+                    <button class="btn btn-sm btn-outline-secondary me-2 tree-toggle" type="button">
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                {% else %}
+                    <span class="tree-spacer me-2"></span>
+                {% endif %}
+                
+                <!-- أيقونة النوع -->
+                <i class="fas fa-folder text-primary me-2"></i>
+                
+                <!-- معلومات النوع -->
+                <div class="flex-grow-1">
+                    <strong>{{ item.type.name }}</strong>
+                    {% if item.type.code %}
+                        <span class="badge bg-secondary ms-2">{{ item.type.code }}</span>
+                    {% endif %}
+                    {% if item.type.description %}
+                        <small class="text-muted d-block">{{ item.type.description }}</small>
+                    {% endif %}
+                </div>
+                
+                <!-- حالة النشاط -->
+                {% if item.type.is_active %}
+                    <span class="badge bg-success me-2">نشط</span>
+                {% else %}
+                    <span class="badge bg-secondary me-2">غير نشط</span>
+                {% endif %}
+                
+                <!-- الإجراءات -->
+                <div class="btn-group" role="group">
+                    <a href="{% url 'financial:account_type_detail' item.type.id %}" 
+                       class="btn btn-sm btn-outline-info" title="عرض التفاصيل">
+                        <i class="fas fa-eye"></i>
+                    </a>
+                    <a href="{% url 'financial:account_types_edit' item.type.id %}" 
+                       class="btn btn-sm btn-outline-warning" title="تعديل">
+                        <i class="fas fa-edit"></i>
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" 
+                            onclick="confirmDelete('{{ item.type.id }}', '{{ item.type.name }}')" 
+                            title="حذف">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- العناصر الفرعية -->
+    {% if item.children %}
+        <div class="tree-children ms-3">
+            {% for child in item.children %}
+                {% include 'financial/accounts/account_type_tree_item.html' with item=child %}
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+
+<style>
+.tree-indent {
+    display: inline-block;
+    width: 20px;
+}
+
+.tree-spacer {
+    display: inline-block;
+    width: 32px;
+}
+
+.tree-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+}
+
+.tree-children {
+    border-left: 2px dashed #dee2e6;
+    padding-left: 1rem;
+}
+
+.tree-item:hover .card {
+    box-shadow: 0 0.125rem 0.5rem rgba(0, 0, 0, 0.15) !important;
+}
+</style>
+
+<script>
+// وظائف JavaScript للشجرة
+document.addEventListener('DOMContentLoaded', function() {
+    // معالج أزرار التوسع/الطي
+    document.querySelectorAll('.tree-toggle').forEach(function(button) {
+        button.addEventListener('click', function() {
+            const treeItem = this.closest('.tree-item');
+            const children = treeItem.querySelector('.tree-children');
+            const icon = this.querySelector('i');
+            
+            if (children) {
+                if (children.style.display === 'none') {
+                    children.style.display = 'block';
+                    icon.className = 'fas fa-chevron-down';
+                } else {
+                    children.style.display = 'none';
+                    icon.className = 'fas fa-chevron-right';
+                }
+            }
+        });
+    });
+});
+
+// دالة تأكيد الحذف
+function confirmDelete(itemId, itemName) {
+    if (confirm(`هل أنت متأكد من حذف نوع الحساب "${itemName}"؟\n\nتحذير: قد يؤثر هذا على الحسابات المرتبطة بهذا النوع.`)) {
+        // إرسال طلب الحذف
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `{% url 'financial:account_types_delete' 0 %}`.replace('0', itemId);
+        
+        // إضافة CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (csrfToken) {
+            const csrfInput = document.createElement('input');
+            csrfInput.type = 'hidden';
+            csrfInput.name = 'csrfmiddlewaretoken';
+            csrfInput.value = csrfToken.value;
+            form.appendChild(csrfInput);
+        }
+        
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>

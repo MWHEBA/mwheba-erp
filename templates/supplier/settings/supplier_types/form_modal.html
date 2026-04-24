@@ -1,0 +1,865 @@
+{% load static %}
+{% load i18n %}
+
+<!-- Modal Header -->
+<div class="modal-header">
+  <h5 class="modal-title d-flex align-items-center">
+    <div class="modal-icon me-3">
+      <i class="fas fa-tags text-primary fa-lg"></i>
+    </div>
+    <div>
+      <span class="fw-bold">{{ title }}</span>
+    </div>
+  </h5>
+  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+
+<!-- Modal Body -->
+<div class="modal-body">
+  <form method="post" id="supplierTypeForm" action="{{ action_url }}" class="needs-validation" novalidate>
+    {% csrf_token %}
+    
+    <div class="row">
+      <!-- الجانب الأيسر: النموذج -->
+      <div class="col-lg-7">
+        <div class="form-section">
+          <h6 class="section-title">
+            <i class="fas fa-info-circle text-primary me-2"></i>المعلومات الأساسية
+          </h6>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.name.id_for_label }}" class="form-label required">
+                {{ form.name.label }}
+              </label>
+              {{ form.name }}
+              {% if form.name.errors %}
+                <div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>
+              {% endif %}
+              <div class="form-text">اسم النوع كما سيظهر في النظام</div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.code.id_for_label }}" class="form-label required">
+                {{ form.code.label }}
+              </label>
+              {{ form.code }}
+              {% if form.code.errors %}
+                <div class="invalid-feedback d-block">{{ form.code.errors.0 }}</div>
+              {% endif %}
+              <div class="form-text">رمز فريد بالإنجليزية</div>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label for="{{ form.description.id_for_label }}" class="form-label">
+              {{ form.description.label }}
+            </label>
+            {{ form.description }}
+            {% if form.description.errors %}
+              <div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>
+            {% endif %}
+            <div class="form-text">وصف مختصر للنوع (اختياري)</div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.display_order.id_for_label }}" class="form-label">
+                {{ form.display_order.label }}
+              </label>
+              {{ form.display_order }}
+              {% if form.display_order.errors %}
+                <div class="invalid-feedback d-block">{{ form.display_order.errors.0 }}</div>
+              {% endif %}
+              <div class="form-text">ترتيب العرض في القوائم</div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <div class="form-check form-switch mt-4">
+                {{ form.is_active }}
+                <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                  {{ form.is_active.label }}
+                </label>
+                {% if form.is_active.errors %}
+                  <div class="invalid-feedback d-block">{{ form.is_active.errors.0 }}</div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+          <div class="row">
+            <div class="col-12 mb-3">
+              <div class="alert alert-info d-flex align-items-start">
+                <i class="fas fa-info-circle me-2 mt-1"></i>
+                <div>
+                  <strong>نوع المورد:</strong>
+                  <div class="form-check form-switch mt-2">
+                    {{ form.is_service_provider }}
+                    <label class="form-check-label" for="{{ form.is_service_provider.id_for_label }}">
+                      <i class="fas fa-concierge-bell me-1"></i>{{ form.is_service_provider.label }}
+                    </label>
+                    {% if form.is_service_provider.errors %}
+                      <div class="invalid-feedback d-block">{{ form.is_service_provider.errors.0 }}</div>
+                    {% endif %}
+                  </div>
+                  <small class="text-muted d-block mt-1">
+                    • مقدم خدمات: لا يحتاج مخزون (مثل: استشارات، صيانة، تنظيف)<br>
+                    • مورد منتجات: يحتاج مخزون (مثل: قرطاسية، أجهزة، مواد خام)
+                  </small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-section">
+          <h6 class="section-title">
+            <i class="fas fa-palette text-primary me-2"></i>المظهر البصري
+          </h6>
+          
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.icon.id_for_label }}" class="form-label">
+                {{ form.icon.label }}
+              </label>
+              <div class="icon-field-wrapper">
+                {{ form.icon }}
+                <div class="selected-icon-preview" id="selectedIconPreview">
+                  <i class="{% if form.icon.value %}{{ form.icon.value }}{% else %}fas fa-truck{% endif %}"></i>
+                </div>
+              </div>
+              {% if form.icon.errors %}
+                <div class="invalid-feedback d-block">{{ form.icon.errors.0 }}</div>
+              {% endif %}
+              
+              <div class="icon-suggestions mt-2">
+                <small class="text-muted d-block mb-2">أيقونات شائعة:</small>
+                <div class="d-flex flex-wrap gap-1">
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-truck" title="شاحنة">
+                    <i class="fas fa-truck"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-print" title="طباعة">
+                    <i class="fas fa-print"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-file-alt" title="ملف">
+                    <i class="fas fa-file-alt"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-cut" title="قطع">
+                    <i class="fas fa-cut"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-box" title="صندوق">
+                    <i class="fas fa-box"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-gift" title="هدية">
+                    <i class="fas fa-gift"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-industry" title="مصنع">
+                    <i class="fas fa-industry"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-tools" title="أدوات">
+                    <i class="fas fa-tools"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-cogs" title="إعدادات">
+                    <i class="fas fa-cogs"></i>
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm icon-btn" data-icon="fas fa-palette" title="ألوان">
+                    <i class="fas fa-palette"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="col-md-6 mb-3">
+              <label for="{{ form.color.id_for_label }}" class="form-label">
+                {{ form.color.label }}
+              </label>
+              <div class="color-input-wrapper">
+                {{ form.color }}
+                <div class="color-preview" id="colorPreview"></div>
+              </div>
+              {% if form.color.errors %}
+                <div class="invalid-feedback d-block">{{ form.color.errors.0 }}</div>
+              {% endif %}
+              
+              <div class="color-suggestions mt-2">
+                <small class="text-muted d-block mb-2">ألوان شائعة:</small>
+                <div class="d-flex flex-wrap gap-1">
+                  <button type="button" class="color-btn" data-color="#007bff" style="background-color: #007bff;" title="أزرق"></button>
+                  <button type="button" class="color-btn" data-color="#28a745" style="background-color: #28a745;" title="أخضر"></button>
+                  <button type="button" class="color-btn" data-color="#dc3545" style="background-color: #dc3545;" title="أحمر"></button>
+                  <button type="button" class="color-btn" data-color="#ffc107" style="background-color: #ffc107;" title="أصفر"></button>
+                  <button type="button" class="color-btn" data-color="#17a2b8" style="background-color: #17a2b8;" title="فيروزي"></button>
+                  <button type="button" class="color-btn" data-color="#6f42c1" style="background-color: #6f42c1;" title="بنفسجي"></button>
+                  <button type="button" class="color-btn" data-color="#fd7e14" style="background-color: #fd7e14;" title="برتقالي"></button>
+                  <button type="button" class="color-btn" data-color="#20c997" style="background-color: #20c997;" title="أخضر فاتح"></button>
+                  <button type="button" class="color-btn" data-color="#e83e8c" style="background-color: #e83e8c;" title="وردي"></button>
+                  <button type="button" class="color-btn" data-color="#6c757d" style="background-color: #6c757d;" title="رمادي"></button>
+                  <button type="button" class="color-btn" data-color="#343a40" style="background-color: #343a40;" title="أسود"></button>
+                  <button type="button" class="color-btn" data-color="#795548" style="background-color: #795548;" title="بني"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- الجانب الأيمن: المعاينة -->
+      <div class="col-lg-5">
+        <div class="preview-section">
+          <h6 class="section-title">
+            <i class="fas fa-eye text-primary me-2"></i>المعاينة المباشرة
+          </h6>
+          
+          <div class="preview-container">
+            <!-- معاينة في الجدول -->
+            <div class="preview-item">
+              <label class="preview-label">في الجدول:</label>
+              <div class="table-preview">
+                <div class="d-flex align-items-center">
+                  <div class="type-icon-small" id="previewIconSmall">
+                    <i class="fas fa-truck" id="previewIconClass"></i>
+                  </div>
+                  <div>
+                    <strong id="previewName">اسم النوع</strong>
+                    <br><small class="text-muted" id="previewSupplierCount">0 مورد</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- معاينة كبطاقة -->
+            <div class="preview-item">
+              <label class="preview-label">كبطاقة:</label>
+              <div class="card-preview">
+                <div class="type-card">
+                  <div class="type-icon-large" id="previewIconLarge">
+                    <i class="fas fa-truck" id="previewIconClassLarge"></i>
+                  </div>
+                  <div class="type-details">
+                    <h6 id="previewNameLarge">اسم النوع</h6>
+                    <code class="type-code" id="previewCode">code</code>
+                    <p class="type-description" id="previewDescription">وصف النوع</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- معاينة كشارة -->
+            <div class="preview-item">
+              <label class="preview-label">كشارة:</label>
+              <div class="badge-preview">
+                <span class="type-badge" id="previewBadge">
+                  <i class="fas fa-truck"></i>
+                  <span>اسم النوع</span>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- Modal Footer -->
+<div class="modal-footer">
+  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+    <i class="fas fa-times me-2"></i>إلغاء
+  </button>
+  <button type="submit" form="supplierTypeForm" class="btn btn-primary" id="submitBtn">
+    <i class="fas fa-save me-2"></i>
+    {% if supplier_type %}تحديث النوع{% else %}إضافة النوع{% endif %}
+  </button>
+</div>
+
+<style>
+/* Modal Styling */
+.modal-dialog {
+  max-width: 900px;
+}
+
+.modal-header {
+  background-color: var(--bg-light);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.modal-title {
+  font-size: var(--font-size-lg);
+  color: var(--text-dark);
+}
+
+/* form-section موجود في components.css */
+
+/* section-title موجود في components.css */
+
+.form-label.required::after {
+  content: " *";
+  color: var(--danger-color);
+}
+
+/* Icon Field */
+.icon-field-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.icon-field-wrapper select {
+  flex: 1;
+  min-width: 0;
+}
+
+.selected-icon-preview {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--bg-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-xl);
+  color: var(--text-medium);
+  transition: var(--transition-all);
+  flex-shrink: 0;
+}
+
+/* تحسين عرض القائمة المنسدلة للأيقونات */
+select.form-select option {
+  padding: 8px 12px;
+}
+
+/* Color Input */
+.color-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.color-preview {
+  width: 38px;
+  height: 38px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  background-color: var(--primary-color);
+  transition: var(--transition-all);
+}
+
+.color-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--border-radius-md);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: var(--transition-all);
+  position: relative;
+}
+
+.color-btn:hover {
+  transform: scale(1.1);
+  border-color: var(--primary-color);
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3);
+}
+
+.color-btn.selected {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.25);
+}
+
+.color-btn.selected::after {
+  content: '✓';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.5);
+}
+
+.icon-btn {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition-all);
+  border-radius: var(--border-radius-md);
+}
+
+.icon-btn:hover {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border-color: var(--primary-color);
+  transform: scale(1.05);
+}
+
+.icon-btn.selected {
+  background-color: var(--primary-color);
+  color: var(--white);
+  border-color: var(--primary-color);
+}
+
+/* Preview Section */
+.preview-section {
+  background-color: var(--bg-light);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-6);
+  height: fit-content;
+  position: sticky;
+  top: 20px;
+}
+
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-6);
+}
+
+.preview-item {
+  background-color: var(--white);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-4);
+  border: 1px solid var(--border-color);
+}
+
+.preview-label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-muted);
+  display: block;
+  margin-bottom: var(--spacing-sm);
+}
+
+/* Table Preview */
+.table-preview {
+  padding: var(--spacing-sm);
+  background-color: var(--white);
+  border-radius: var(--border-radius-sm);
+}
+
+.type-icon-small {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--border-radius-full);
+  background-color: var(--primary-color);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-sm);
+  margin-left: var(--spacing-3);
+  transition: var(--transition-all);
+}
+
+/* Card Preview */
+.card-preview {
+  display: flex;
+  justify-content: center;
+}
+
+.type-card {
+  text-align: center;
+  padding: var(--spacing-4);
+}
+
+.type-icon-large {
+  width: 60px;
+  height: 60px;
+  border-radius: var(--border-radius-full);
+  background-color: var(--primary-color);
+  color: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-2xl);
+  margin: 0 auto var(--spacing-3);
+  transition: var(--transition-all);
+}
+
+.type-details h6 {
+  margin-bottom: var(--spacing-1);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+}
+
+.type-code {
+  font-size: var(--font-size-sm);
+  background-color: var(--bg-soft-secondary);
+  color: var(--text-dark);
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--border-radius-sm);
+  display: inline-block;
+  margin-bottom: var(--spacing-2);
+}
+
+.type-description {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* Badge Preview */
+.badge-preview {
+  text-align: center;
+}
+
+.type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
+  background-color: var(--primary-color);
+  color: var(--white);
+  border-radius: 20px;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  transition: var(--transition-all);
+}
+
+/* Responsive */
+@media (max-width: 991.98px) {
+  .modal-dialog {
+    max-width: 95%;
+  }
+  
+  .preview-section {
+    position: static;
+    margin-top: 2rem;
+  }
+}
+
+/* Form Controls */
+.form-control:focus, .form-select:focus {
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 0.2rem rgba(var(--primary-rgb), 0.25);
+}
+
+.form-check-input:checked {
+  background-color: var(--primary-color);
+  border-color: var(--primary-color);
+}
+</style>
+
+<script>
+(function initSupplierTypeModal() {
+    // الحصول على عناصر النموذج باستخدام selectors ثابتة
+    const form = document.getElementById('supplierTypeForm');
+    const nameField = document.querySelector('input[name="name"]');
+    const codeField = document.querySelector('input[name="code"]');
+    const descField = document.querySelector('textarea[name="description"]');
+    const iconField = document.querySelector('select[name="icon"]');
+    const colorField = document.querySelector('input[name="color"]');
+    
+    // تحديث المعاينة عند تغيير القيم
+    if (nameField) nameField.addEventListener('input', updatePreview);
+    if (codeField) codeField.addEventListener('input', updatePreview);
+    if (descField) descField.addEventListener('input', updatePreview);
+    if (iconField) {
+        iconField.addEventListener('change', function() {
+            // تحديث فوري مع تأخير قصير للتأكد من التحديث
+            setTimeout(() => {
+                updatePreview();
+                updateSelectedButtons();
+            }, 10);
+        });
+    }
+    
+    // إضافة listener إضافي على جميع select elements للأيقونات
+    document.querySelectorAll('select[name="icon"]').forEach(select => {
+        select.addEventListener('change', function() {
+            // تحديث فوري مع إجبار
+            updatePreview();
+            updateSelectedButtons();
+            
+            // تحديث إضافي بعد تأخير قصير
+            setTimeout(() => {
+                updatePreview();
+            }, 50);
+        });
+        
+        // إضافة listener على input أيضاً
+        select.addEventListener('input', function() {
+            updatePreview();
+        });
+    });
+    if (colorField) {
+        colorField.addEventListener('input', function() {
+            updatePreview();
+            updateSelectedButtons();
+        });
+    }
+    
+    // أزرار الأيقونات
+    document.querySelectorAll('.icon-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const icon = this.dataset.icon;
+            
+            // تحديث جميع select elements للأيقونات
+            const iconSelects = document.querySelectorAll('select[name="icon"]');
+            iconSelects.forEach(select => {
+                select.value = icon;
+            });
+            
+            // تحديث iconField إذا وُجد
+            if (iconField) {
+                iconField.value = icon;
+            }
+            
+            // إزالة selected من جميع الأزرار
+            document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('selected'));
+            // إضافة selected للزر المختار
+            this.classList.add('selected');
+            
+            // تحديث فوري
+            setTimeout(() => {
+                updatePreview();
+                updateSelectedButtons();
+            }, 10);
+        });
+    });
+    
+    // أزرار الألوان
+    document.querySelectorAll('.color-btn').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            const color = this.dataset.color;
+            if (colorField) {
+                // إزالة selected من جميع الأزرار
+                document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+                // إضافة selected للزر المختار
+                this.classList.add('selected');
+                
+                colorField.value = color;
+                updatePreview();
+            }
+        });
+    });
+    
+    // إرسال النموذج
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        submitForm();
+    });
+    
+    function updatePreview() {
+        // حل جذري - جلب القيم مباشرة
+        const name = nameField?.value || 'اسم النوع';
+        const code = codeField?.value || 'code';
+        const description = descField?.value || 'وصف النوع';
+        
+        // حل جذري نهائي للحصول على الأيقونة
+        let icon = 'fas fa-truck'; // القيمة الافتراضية
+        
+        
+        // البحث المباشر في DOM عن select الأيقونة
+        const iconSelect = document.querySelector('select[name="icon"]');
+        if (iconSelect) {
+            
+            if (iconSelect.value && iconSelect.value !== '') {
+                icon = iconSelect.value;
+            } else {
+                // محاولة الحصول على القيمة من الخيار المحدد
+                const selectedOption = iconSelect.options[iconSelect.selectedIndex];
+                if (selectedOption && selectedOption.value) {
+                    icon = selectedOption.value;
+                }
+            }
+        } else {
+        }
+        
+        // محاولة إضافية من iconField
+        if (iconField && iconField.value && iconField.value !== '') {
+            icon = iconField.value;
+        }
+        
+        
+        const color = colorField?.value || '#007bff';
+        
+        
+        // 1. selectedIconPreview - بجانب القائمة
+        const selectedIconPreview = document.getElementById('selectedIconPreview');
+        if (selectedIconPreview) {
+            const iconElement = selectedIconPreview.querySelector('i');
+            if (iconElement) {
+                iconElement.className = icon;
+            } else {
+                console.warn('❌ لم يتم العثور على عنصر i داخل selectedIconPreview');
+            }
+        } else {
+            console.warn('❌ لم يتم العثور على selectedIconPreview');
+        }
+        
+        // 2. previewIconSmall - في الجدول
+        const iconSmall = document.getElementById('previewIconSmall');
+        const iconClass = document.getElementById('previewIconClass');
+        if (iconSmall && iconClass) {
+            iconSmall.style.backgroundColor = color;
+            iconClass.className = icon;
+        } else {
+            console.warn('❌ لم يتم العثور على previewIconSmall أو previewIconClass');
+        }
+        
+        // 3. previewIconClassLarge - في البطاقة الكبيرة
+        const iconLarge = document.getElementById('previewIconLarge');
+        const iconClassLarge = document.getElementById('previewIconClassLarge');
+        if (iconLarge && iconClassLarge) {
+            iconLarge.style.backgroundColor = color;
+            iconClassLarge.className = icon;
+        } else {
+            console.warn('❌ لم يتم العثور على previewIconLarge أو previewIconClassLarge');
+        }
+        
+        // 4. previewBadge - الشارة
+        const badge = document.getElementById('previewBadge');
+        if (badge) {
+            badge.style.backgroundColor = color;
+            const badgeIcon = badge.querySelector('i');
+            const badgeText = badge.querySelector('span');
+            if (badgeIcon) {
+                badgeIcon.className = icon;
+            }
+            if (badgeText) badgeText.textContent = name;
+        } else {
+            console.warn('❌ لم يتم العثور على previewBadge');
+        }
+        
+        // تحديث النصوص
+        const previewName = document.getElementById('previewName');
+        if (previewName) previewName.textContent = name;
+        
+        const previewNameLarge = document.getElementById('previewNameLarge');
+        if (previewNameLarge) previewNameLarge.textContent = name;
+        
+        const previewCode = document.getElementById('previewCode');
+        if (previewCode) previewCode.textContent = code;
+        
+        const previewDescription = document.getElementById('previewDescription');
+        if (previewDescription) previewDescription.textContent = description;
+        
+        // تحديث معاينة اللون
+        const colorPreview = document.getElementById('colorPreview');
+        if (colorPreview) {
+            colorPreview.style.backgroundColor = color;
+        }
+    }
+    
+    function submitForm() {
+        const submitBtn = document.getElementById('submitBtn');
+        const originalText = submitBtn.innerHTML;
+        
+        // إزالة رسائل الخطأ السابقة
+        document.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+        
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الحفظ...';
+        
+        const formData = new FormData(form);
+        
+        fetch(form.action, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                if (typeof toastr !== 'undefined') {
+                    toastr.success(data.message);
+                }
+                const modal = bootstrap.Modal.getInstance(document.getElementById('typeModal'));
+                if (modal) modal.hide();
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                if (data.errors) {
+                    // إظهار أخطاء النموذج
+                    Object.keys(data.errors).forEach(fieldName => {
+                        const field = document.getElementById(`id_${fieldName}`);
+                        if (field) {
+                            field.classList.add('is-invalid');
+                            let errorDiv = field.parentNode.querySelector('.invalid-feedback');
+                            if (!errorDiv) {
+                                errorDiv = document.createElement('div');
+                                errorDiv.className = 'invalid-feedback d-block';
+                                field.parentNode.appendChild(errorDiv);
+                            }
+                            errorDiv.textContent = data.errors[fieldName][0];
+                        }
+                    });
+                }
+                if (typeof toastr !== 'undefined') {
+                    toastr.error(data.message || 'يرجى تصحيح الأخطاء أدناه');
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            if (typeof toastr !== 'undefined') {
+                toastr.error('حدث خطأ في الاتصال');
+            }
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    }
+    
+    // دالة لتحديد الأيقونة واللون المختارين
+    function updateSelectedButtons() {
+        // تحديد الأيقونة المختارة
+        const currentIcon = iconField?.value;
+        document.querySelectorAll('.icon-btn').forEach(btn => {
+            btn.classList.remove('selected');
+            if (btn.dataset.icon === currentIcon) {
+                btn.classList.add('selected');
+            }
+        });
+        
+        // تحديد اللون المختار
+        const currentColor = colorField?.value;
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.classList.remove('selected');
+            if (btn.dataset.color === currentColor) {
+                btn.classList.add('selected');
+            }
+        });
+    }
+    
+    // حل جذري - تشخيص شامل وتحديث فوري
+    setTimeout(() => {
+        
+        // تأكد من وجود قيم افتراضية
+        const iconSelect = document.querySelector('select[name="icon"]');
+        if (iconSelect && !iconSelect.value) {
+            iconSelect.value = 'fas fa-truck';
+        }
+        
+        if (colorField && !colorField.value) {
+            colorField.value = '#007bff';
+        }
+        
+        // تحديث فوري
+        updatePreview();
+        updateSelectedButtons();
+        
+    }, 200);
+    
+    // تحديث دوري للتأكد من تزامن المعاينة
+    setInterval(() => {
+        const iconSelect = document.querySelector('select[name="icon"]');
+        if (iconSelect && iconSelect.value) {
+            const currentPreviewIcon = document.querySelector('#selectedIconPreview i')?.className;
+            if (currentPreviewIcon !== iconSelect.value) {
+                updatePreview();
+            }
+        }
+    }, 1000);
+})();
+</script>

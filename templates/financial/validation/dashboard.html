@@ -1,0 +1,557 @@
+{% extends "base.html" %}
+{% load static %}
+{% load humanize %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 20px;
+    }
+    
+    .chart-container-large {
+        position: relative;
+        height: 400px;
+        margin-bottom: 20px;
+    }
+    
+    .filter-section {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    
+    .entity-badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        font-weight: 500;
+    }
+    
+    .failure-count-badge {
+        background: var(--danger-color);
+        color: white;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header -->
+    {% include "shared/page_header.html" with title=title subtitle="عرض إحصائيات وتحليلات محاولات التحقق المرفوضة" icon="fas fa-chart-line" breadcrumb_items=breadcrumb_items %}
+    
+    <!-- Filter Section -->
+    <div class="filter-section">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="days" class="form-label">
+                    <i class="fas fa-calendar-alt me-1"></i>
+                    الفترة الزمنية
+                </label>
+                <select name="days" id="days" class="form-select" onchange="this.form.submit()">
+                    <option value="7" {% if days == 7 %}selected{% endif %}>آخر 7 أيام</option>
+                    <option value="30" {% if days == 30 %}selected{% endif %}>آخر 30 يوم</option>
+                    <option value="60" {% if days == 60 %}selected{% endif %}>آخر 60 يوم</option>
+                    <option value="90" {% if days == 90 %}selected{% endif %}>آخر 90 يوم</option>
+                </select>
+            </div>
+            <div class="col-md-8 text-end">
+                <span class="text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    عرض البيانات لآخر {{ days }} يوم
+                </span>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Stats Cards -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            الإحصائيات السريعة
+        </h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-danger">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-exclamation-triangle"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المحاولات المرفوضة</div>
+                        <div class="stats-card-value">{{ total_failures|intcomma }}</div>
+                        <div class="stats-card-unit">محاولة</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-user-shield"></i>
+                        </div>
+                        <div class="stats-card-title">محاولات التجاوز</div>
+                        <div class="stats-card-value">{{ bypass_attempts_count|intcomma }}</div>
+                        <div class="stats-card-unit">محاولة</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-users"></i>
+                        </div>
+                        <div class="stats-card-title">المستخدمين الفريدين</div>
+                        <div class="stats-card-value">{{ unique_users_count|intcomma }}</div>
+                        <div class="stats-card-unit">مستخدم</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-chart-line"></i>
+                        </div>
+                        <div class="stats-card-title">متوسط المحاولات اليومية</div>
+                        <div class="stats-card-value">{{ avg_daily_failures }}</div>
+                        <div class="stats-card-unit">محاولة/يوم</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Charts Section -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-chart-pie me-2"></i>
+            الرسوم البيانية
+        </h5>
+        
+        <!-- Daily Failures Chart -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-calendar-day me-2"></i>
+                            المحاولات المرفوضة حسب اليوم
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container-large">
+                            <canvas id="dailyFailuresChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Distribution Charts -->
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>
+                            توزيع أنواع التحقق
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="validationTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-layer-group me-2"></i>
+                            توزيع أنواع الكيانات
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="entityTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-cubes me-2"></i>
+                            توزيع الوحدات
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="moduleChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-md-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-user-times me-2"></i>
+                            أكثر المستخدمين محاولات فاشلة
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="topUsersChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Users with Repeated Attempts -->
+    {% if users_with_repeated_attempts %}
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-user-clock me-2"></i>
+            المستخدمين ذوي المحاولات المتكررة (آخر ساعة)
+        </h5>
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    المستخدمين الذين لديهم أكثر من 3 محاولات فاشلة في آخر ساعة
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">المستخدم</th>
+                                <th class="text-center">اسم المستخدم</th>
+                                <th class="text-center">عدد المحاولات</th>
+                                <th class="text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users_with_repeated_attempts %}
+                            <tr>
+                                <td class="text-center">{{ user.full_name }}</td>
+                                <td class="text-center"><code>{{ user.user__username }}</code></td>
+                                <td class="text-center">
+                                    <span class="failure-count-badge">{{ user.attempt_count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'financial:validation_logs_list' %}?search={{ user.user__username }}&days=1" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="عرض محاولات هذا المستخدم">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Flagged Entities -->
+    {% if flagged_entities %}
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-flag me-2"></i>
+            الكيانات المعلمة للمراجعة (آخر 24 ساعة)
+        </h5>
+        <div class="card">
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <i class="fas fa-flag me-2"></i>
+                    الكيانات التي لديها أكثر من 5 محاولات فاشلة في آخر 24 ساعة
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">نوع الكيان</th>
+                                <th class="text-center">اسم الكيان</th>
+                                <th class="text-center">معرف الكيان</th>
+                                <th class="text-center">عدد المحاولات الفاشلة</th>
+                                <th class="text-center">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for entity in flagged_entities %}
+                            <tr>
+                                <td class="text-center">
+                                    <span class="entity-badge bg-light text-dark">
+                                        {{ entity.entity_type_label }}
+                                    </span>
+                                </td>
+                                <td class="text-center">{{ entity.entity_name }}</td>
+                                <td class="text-center"><code>{{ entity.entity_id }}</code></td>
+                                <td class="text-center">
+                                    <span class="failure-count-badge">{{ entity.failure_count }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <a href="{% url 'financial:validation_logs_list' %}?search={{ entity.entity_name }}&days=1" 
+                                       class="btn btn-sm btn-outline-info" 
+                                       title="عرض محاولات هذا الكيان">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Top Failure Reasons -->
+    {% if top_failure_reasons %}
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-list-ol me-2"></i>
+            أكثر أسباب الفشل شيوعاً
+        </h5>
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th class="text-center">سبب الفشل</th>
+                                <th class="text-center">عدد المحاولات</th>
+                                <th class="text-center">النسبة المئوية</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for reason in top_failure_reasons %}
+                            <tr>
+                                <td class="text-center">{{ reason.failure_reason_ar|default:reason.failure_reason }}</td>
+                                <td class="text-center">{{ reason.count|intcomma }}</td>
+                                <td class="text-center">
+                                    {% widthratio reason.count total_failures 100 %}%
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Chart.js default configuration
+    Chart.defaults.font.family = 'Cairo, sans-serif';
+    Chart.defaults.color = '#666';
+    
+    // Color palette
+    const colors = {
+        primary: 'rgb(13, 110, 253)',
+        success: 'rgb(25, 135, 84)',
+        danger: 'rgb(220, 53, 69)',
+        warning: 'rgb(255, 193, 7)',
+        info: 'rgb(13, 202, 240)',
+        secondary: 'rgb(108, 117, 125)',
+    };
+    
+    const chartColors = [
+        colors.primary,
+        colors.success,
+        colors.danger,
+        colors.warning,
+        colors.info,
+        colors.secondary,
+        'rgb(255, 99, 132)',
+        'rgb(54, 162, 235)',
+        'rgb(255, 205, 86)',
+        'rgb(75, 192, 192)',
+    ];
+    
+    // 1. Daily Failures Chart (Line Chart)
+    const dailyFailuresCtx = document.getElementById('dailyFailuresChart').getContext('2d');
+    new Chart(dailyFailuresCtx, {
+        type: 'line',
+        data: {
+            labels: {{ daily_failures_labels|safe }},
+            datasets: [{
+                label: 'المحاولات المرفوضة',
+                data: {{ daily_failures_data|safe }},
+                borderColor: colors.danger,
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.4,
+                fill: true,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: true,
+                    position: 'top',
+                },
+                tooltip: {
+                    mode: 'index',
+                    intersect: false,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+    
+    // 2. Validation Type Chart (Pie Chart)
+    const validationTypeCtx = document.getElementById('validationTypeChart').getContext('2d');
+    new Chart(validationTypeCtx, {
+        type: 'pie',
+        data: {
+            labels: {{ validation_type_chart_labels|safe }},
+            datasets: [{
+                data: {{ validation_type_chart_data|safe }},
+                backgroundColor: chartColors,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+    
+    // 3. Entity Type Chart (Doughnut Chart)
+    const entityTypeCtx = document.getElementById('entityTypeChart').getContext('2d');
+    new Chart(entityTypeCtx, {
+        type: 'doughnut',
+        data: {
+            labels: {{ entity_type_chart_labels|safe }},
+            datasets: [{
+                data: {{ entity_type_chart_data|safe }},
+                backgroundColor: chartColors,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+    
+    // 4. Module Chart (Bar Chart)
+    const moduleCtx = document.getElementById('moduleChart').getContext('2d');
+    new Chart(moduleCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ module_chart_labels|safe }},
+            datasets: [{
+                label: 'عدد المحاولات',
+                data: {{ module_chart_data|safe }},
+                backgroundColor: colors.primary,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+    
+    // 5. Top Users Chart (Horizontal Bar Chart)
+    const topUsersCtx = document.getElementById('topUsersChart').getContext('2d');
+    new Chart(topUsersCtx, {
+        type: 'bar',
+        data: {
+            labels: {{ top_users_labels|safe }},
+            datasets: [{
+                label: 'عدد المحاولات',
+                data: {{ top_users_data|safe }},
+                backgroundColor: colors.warning,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false,
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

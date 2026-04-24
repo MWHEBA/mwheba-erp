@@ -1,0 +1,253 @@
+/* تنسيق التقارير الشاملة */
+
+.report-section {
+    margin-bottom: 2rem;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--bs-white);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.report-header {
+    background: var(--bs-light);
+    padding: 1rem 1.5rem;
+    border-bottom: 1px solid var(--bs-border-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: background-color 0.2s ease;
+}
+
+.report-header:hover {
+    background: var(--bs-gray-100);
+}
+
+.report-content {
+    padding: 1.5rem;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    background: var(--bs-white);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+    padding: 1rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.stat-value {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: var(--bs-primary);
+    margin-bottom: 0.25rem;
+    line-height: 1.2;
+}
+
+.stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    font-weight: 500;
+}
+
+
+.table-responsive {
+    max-height: 400px;
+    overflow-y: auto;
+    border-radius: 6px;
+    border: 1px solid var(--bs-border-color);
+}
+
+.table {
+    margin-bottom: 0;
+}
+
+.table th {
+    background: var(--bs-light);
+    border-bottom: 2px solid var(--bs-border-color);
+    font-weight: 600;
+    color: var(--bs-dark);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+}
+
+.table td {
+    vertical-align: middle;
+}
+
+.progress-bar-container {
+    background: var(--bs-gray-200);
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 80px;
+}
+
+.progress-bar {
+    height: 100%;
+    background: var(--bs-success);
+    transition: width 0.3s ease;
+    border-radius: 4px;
+}
+
+.progress-bar.warning {
+    background: var(--bs-warning);
+}
+
+.progress-bar.danger {
+    background: var(--bs-danger);
+}
+
+.report-toggle {
+    cursor: pointer;
+    user-select: none;
+    border-radius: 8px 8px 0 0;
+}
+
+.report-toggle:hover {
+    background: var(--bs-gray-100);
+}
+
+.collapse-icon {
+    transition: transform 0.3s ease;
+    color: var(--bs-secondary);
+}
+
+.collapsed .collapse-icon {
+    transform: rotate(-90deg);
+}
+
+/* تحسينات للفلاتر */
+
+.form-label {
+    font-weight: 500;
+    color: var(--bs-dark);
+    margin-bottom: 0.5rem;
+}
+
+.form-select,
+.form-control {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 6px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-select:focus,
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* تحسينات للأزرار */
+.btn {
+    border-radius: 6px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+}
+
+/* تحسينات للبطاقات الإحصائية */
+.stat-card.success .stat-value {
+    color: var(--bs-success);
+}
+
+.stat-card.warning .stat-value {
+    color: var(--bs-warning);
+}
+
+.stat-card.danger .stat-value {
+    color: var(--bs-danger);
+}
+
+.stat-card.info .stat-value {
+    color: var(--bs-info);
+}
+
+/* تحسينات للجداول */
+.table-striped > tbody > tr:nth-of-type(odd) > td {
+    background-color: rgba(var(--bs-primary-rgb), 0.02);
+}
+
+.table tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+/* تحسينات responsive */
+@media (max-width: 768px) {
+    .stats-grid {
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1.25rem;
+    }
+
+    
+    .report-content {
+        padding: 1rem;
+    }
+    
+    .table-responsive {
+        max-height: 300px;
+    }
+}
+
+@media (max-width: 576px) {
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+    
+    .report-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .report-header h5 {
+        font-size: 1rem;
+    }
+}
+
+/* تحسينات للطباعة */
+@media print {
+
+    
+    .report-section {
+        break-inside: avoid;
+        margin-bottom: 1rem;
+        box-shadow: none;
+        border: 1px solid #000;
+    }
+    
+    .report-header {
+        background: #f8f9fa !important;
+        -webkit-print-color-adjust: exact;
+    }
+    
+    .table {
+        font-size: 0.875rem;
+    }
+    
+    .stat-card {
+        border: 1px solid #000;
+    }
+}

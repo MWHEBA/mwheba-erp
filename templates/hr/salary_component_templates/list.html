@@ -1,0 +1,177 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/hr/salary-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    <!-- Container واحد للكارتين -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="row g-0">
+                <!-- المستحقات -->
+                <div class="col-md-6 border-end">
+                    <div class="p-3 border-bottom bg-light">
+                        <h6 class="mb-0 text-success">
+                            <i class="fas fa-plus-circle me-2"></i>المستحقات
+                        </h6>
+                    </div>
+                    <div class="p-3">
+                    {% if earnings %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40">#</th>
+                                    <th>الاسم</th>
+                                    <th>الصيغة</th>
+                                    <th>المبلغ</th>
+                                    <th width="100" class="text-center">الحالة</th>
+                                    <th width="120" class="text-center">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for template in earnings %}
+                                <tr>
+                                    <td>{{ template.order }}</td>
+                                    <td>
+                                        <strong>{{ template.name }}</strong>
+                                        {% if template.description %}
+                                        <br><small class="text-muted">{{ template.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if template.formula %}
+                                        <code class="text-primary">{{ template.formula }}</code>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if template.default_amount %}
+                                        <span class="text-success">{{ template.default_amount }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if template.is_active %}
+                                        <span class="badge bg-success">نشط</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">غير نشط</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'hr:salary_component_template_form_edit' template.pk %}" 
+                                           class="btn btn-sm btn-outline-primary" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'hr:salary_component_template_delete' template.pk %}" 
+                                           class="btn btn-sm btn-outline-danger" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">لا توجد قوالب مستحقات</p>
+                    {% endif %}
+                    </div>
+                </div>
+
+                <!-- الاستقطاعات -->
+                <div class="col-md-6">
+                    <div class="p-3 border-bottom bg-light">
+                        <h6 class="mb-0 text-danger">
+                            <i class="fas fa-minus-circle me-2"></i>الاستقطاعات
+                        </h6>
+                    </div>
+                    <div class="p-3">
+                    {% if deductions %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th width="40">#</th>
+                                    <th>الاسم</th>
+                                    <th>الصيغة</th>
+                                    <th>المبلغ</th>
+                                    <th width="100" class="text-center">الحالة</th>
+                                    <th width="120" class="text-center">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for template in deductions %}
+                                <tr>
+                                    <td>{{ template.order }}</td>
+                                    <td>
+                                        <strong>{{ template.name }}</strong>
+                                        {% if template.description %}
+                                        <br><small class="text-muted">{{ template.description }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if template.formula %}
+                                        <code class="text-primary">{{ template.formula }}</code>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if template.default_amount %}
+                                        <span class="text-danger">{{ template.default_amount }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if template.is_active %}
+                                        <span class="badge bg-success">نشط</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">غير نشط</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="{% url 'hr:salary_component_template_form_edit' template.pk %}" 
+                                           class="btn btn-sm btn-outline-primary" title="تعديل">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a href="{% url 'hr:salary_component_template_delete' template.pk %}" 
+                                           class="btn btn-sm btn-outline-danger" title="حذف">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted text-center py-4">لا توجد قوالب استقطاعات</p>
+                    {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

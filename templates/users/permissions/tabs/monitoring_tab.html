@@ -1,0 +1,156 @@
+<!-- Monitoring Tab -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h5 class="mb-0">المراقبة والأمان</h5>
+    <div class="btn-group btn-group-sm">
+        <input type="radio" class="btn-check" name="daysFilter" id="days7" value="7" {% if days_filter == 7 %}checked{% endif %}>
+        <label class="btn btn-outline-primary" for="days7">7 أيام</label>
+        
+        <input type="radio" class="btn-check" name="daysFilter" id="days30" value="30" {% if days_filter == 30 %}checked{% endif %}>
+        <label class="btn btn-outline-primary" for="days30">30 يوم</label>
+        
+        <input type="radio" class="btn-check" name="daysFilter" id="days90" value="90" {% if days_filter == 90 %}checked{% endif %}>
+        <label class="btn btn-outline-primary" for="days90">90 يوم</label>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Permission Changes -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-history me-2 text-primary"></i>
+                    تغييرات الصلاحيات الأخيرة
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                {% if recent_changes %}
+                    {% for change in recent_changes %}
+                    <div class="activity-item">
+                        <div class="activity-icon 
+                            {% if change.operation == 'CREATE' %}create
+                            {% elif change.operation == 'UPDATE_PERMISSIONS' %}update
+                            {% elif change.operation == 'ASSIGN_ROLE' %}assign
+                            {% elif change.operation == 'ADD_CUSTOM_PERMISSION' %}assign
+                            {% elif change.operation == 'REMOVE_CUSTOM_PERMISSION' %}delete
+                            {% else %}update{% endif %}">
+                            {% if change.operation == 'CREATE' %}
+                                <i class="fas fa-plus"></i>
+                            {% elif change.operation == 'UPDATE_PERMISSIONS' %}
+                                <i class="fas fa-edit"></i>
+                            {% elif change.operation == 'ASSIGN_ROLE' %}
+                                <i class="fas fa-user-tag"></i>
+                            {% elif change.operation == 'ADD_CUSTOM_PERMISSION' %}
+                                <i class="fas fa-key"></i>
+                            {% elif change.operation == 'REMOVE_CUSTOM_PERMISSION' %}
+                                <i class="fas fa-key"></i>
+                            {% else %}
+                                <i class="fas fa-cog"></i>
+                            {% endif %}
+                        </div>
+                        <div class="activity-content flex-grow-1">
+                            <h6>
+                                {% if change.operation == 'CREATE' %}
+                                    إنشاء دور جديد
+                                {% elif change.operation == 'UPDATE_PERMISSIONS' %}
+                                    تحديث صلاحيات الدور
+                                {% elif change.operation == 'ASSIGN_ROLE' %}
+                                    تعيين دور لمستخدم
+                                {% elif change.operation == 'ADD_CUSTOM_PERMISSION' %}
+                                    إضافة صلاحية مخصصة
+                                {% elif change.operation == 'REMOVE_CUSTOM_PERMISSION' %}
+                                    إزالة صلاحية مخصصة
+                                {% else %}
+                                    {{ change.operation }}
+                                {% endif %}
+                            </h6>
+                            <small class="text-muted">
+                                بواسطة {{ change.user }} • 
+                                {{ change.timestamp|timesince }} مضت
+                                {% if change.details %}
+                                    {% if change.details.target_user_id %}
+                                        • المستخدم: {{ change.details.target_user_id }}
+                                    {% endif %}
+                                    {% if change.details.assigned_role_id %}
+                                        • الدور: {{ change.details.assigned_role_id }}
+                                    {% endif %}
+                                {% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                    
+                    <!-- Pagination for changes -->
+                    {% if recent_changes.has_other_pages %}
+                    <div class="p-3 border-top">
+                        <nav aria-label="صفحات التغييرات">
+                            <ul class="pagination pagination-sm justify-content-center mb-0">
+                                {% if recent_changes.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?tab=monitoring&page={{ recent_changes.previous_page_number }}&days={{ days_filter }}">السابق</a>
+                                    </li>
+                                {% endif %}
+                                
+                                <li class="page-item active">
+                                    <span class="page-link">{{ recent_changes.number }} من {{ recent_changes.paginator.num_pages }}</span>
+                                </li>
+                                
+                                {% if recent_changes.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?tab=monitoring&page={{ recent_changes.next_page_number }}&days={{ days_filter }}">التالي</a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
+                {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <p class="text-muted">لا توجد تغييرات في الفترة المحددة</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Events -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent">
+                <h6 class="card-title mb-0">
+                    <i class="fas fa-shield-alt me-2 text-danger"></i>
+                    أحداث الأمان
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if security_events %}
+                    {% for event in security_events %}
+                    <div class="d-flex align-items-start mb-3 pb-3 border-bottom">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="bg-danger-subtle text-danger rounded-circle d-flex align-items-center justify-content-center" 
+                                 style="width: 32px; height: 32px;">
+                                <i class="fas fa-exclamation-triangle fa-sm"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1 fs-6">{{ event.operation }}</h6>
+                            <small class="text-muted">
+                                {{ event.timestamp|timesince }} مضت
+                                {% if event.user %}• {{ event.user.get_full_name }}{% endif %}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-shield-check fa-2x text-success mb-2"></i>
+                        <p class="text-muted mb-0">لا توجد أحداث أمان</p>
+                        <small class="text-muted">النظام آمن</small>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+    </div>
+</div>

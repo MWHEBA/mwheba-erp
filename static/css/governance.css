@@ -1,0 +1,692 @@
+/* Governance System Styles */
+
+/* Health Score Circle */
+.health-score-circle {
+    width: 200px;
+    height: 200px;
+    margin: 20px auto;
+    border-radius: 50%;
+    background-color: var(--bs-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 8px solid var(--bs-primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.health-score-circle .score-value {
+    font-size: 3rem;
+    font-weight: bold;
+    color: var(--bs-primary);
+    line-height: 1;
+}
+
+.health-score-circle .score-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    margin-top: 8px;
+}
+
+/* Health Metrics */
+.health-metric {
+    text-align: center;
+    padding: 15px;
+}
+
+.health-metric .metric-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+}
+
+.health-metric .metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--bs-dark);
+    margin-bottom: 5px;
+}
+
+.health-metric .metric-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+}
+
+/* Status Items */
+.status-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.status-item:last-child {
+    border-bottom: none;
+}
+
+/* Stats Grid */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 15px;
+}
+
+.stat-box {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: var(--bs-light);
+    border-radius: 8px;
+    border: 1px solid var(--bs-border-color);
+}
+
+.stat-box .stat-icon {
+    width: 50px;
+    height: 50px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 1.5rem;
+    margin-left: 15px;
+    flex-shrink: 0;
+}
+
+.stat-box .stat-icon.bg-primary {
+    background-color: var(--bs-primary);
+}
+
+.stat-box .stat-icon.bg-success {
+    background-color: var(--bs-success);
+}
+
+.stat-box .stat-icon.bg-info {
+    background-color: var(--bs-info);
+}
+
+.stat-box .stat-icon.bg-warning {
+    background-color: var(--bs-warning);
+}
+
+.stat-box .stat-icon.bg-danger {
+    background-color: var(--bs-danger);
+}
+
+.stat-box .stat-details {
+    flex: 1;
+}
+
+.stat-box .stat-value {
+    font-size: 1.75rem;
+    font-weight: bold;
+    color: var(--bs-dark);
+    line-height: 1;
+    text-align: center;
+}
+
+.stat-box .stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+    margin-top: 5px;
+}
+
+/* Network Stats */
+.network-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.network-stats .stat-item {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: var(--bs-light);
+    border-radius: 8px;
+    border: 1px solid var(--bs-border-color);
+}
+
+.network-stats .stat-icon {
+    font-size: 2rem;
+    margin-left: 15px;
+}
+
+.network-stats .stat-info {
+    flex: 1;
+}
+
+.network-stats .stat-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: var(--bs-dark);
+    text-align: center;
+}
+
+.network-stats .stat-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+}
+
+/* Service Status */
+.service-status {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.service-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    background-color: var(--bs-light);
+    border-radius: 6px;
+    border: 1px solid var(--bs-border-color);
+}
+
+.service-item .service-name {
+    font-weight: 500;
+    color: var(--bs-dark);
+}
+
+.service-item .service-indicator {
+    flex-shrink: 0;
+}
+
+/* Exception Analysis */
+.exception-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.exception-item {
+    padding: 8px 0;
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+.exception-item:last-child {
+    border-bottom: none;
+}
+
+.exceptions-list {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.exception-detail-item {
+    background-color: var(--bs-light);
+    transition: all 0.2s ease;
+}
+
+.exception-detail-item:hover {
+    background-color: rgba(var(--bs-danger-rgb), 0.05);
+    border-color: var(--bs-danger) !important;
+}
+
+.exception-message code {
+    font-size: 0.875rem;
+    color: var(--bs-danger);
+    word-break: break-word;
+}
+
+.exception-location {
+    padding-top: 8px;
+    border-top: 1px solid var(--bs-border-color);
+    margin-bottom: 8px;
+}
+
+.exception-actions {
+    padding-top: 8px;
+    border-top: 1px solid var(--bs-border-color);
+}
+
+.exception-actions .btn {
+    transition: all 0.2s ease;
+}
+
+.exception-actions .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Section Collapsible Headers */
+.section-title[data-bs-toggle="collapse"] {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.section-title[data-bs-toggle="collapse"]:hover {
+    opacity: 0.8;
+}
+
+.section-title .fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+.section-title[aria-expanded="true"] .fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+/* Metric Boxes */
+.metric-box {
+    padding: 15px;
+    text-align: center;
+    border-radius: 8px;
+    background-color: var(--bs-light);
+    margin-bottom: 10px;
+}
+
+.metric-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    font-size: 0.875rem;
+    color: var(--bs-secondary);
+}
+
+/* Health Indicators */
+.health-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 8px;
+}
+
+.health-good {
+    background-color: var(--bs-success);
+}
+
+.health-warning {
+    background-color: var(--bs-warning);
+}
+
+.health-critical {
+    background-color: var(--bs-danger);
+}
+
+/* Progress Bars in Tables */
+.table .progress {
+    margin: 0;
+}
+
+/* Template Items */
+.template-item {
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid var(--bs-border-color);
+}
+
+.template-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: var(--bs-primary);
+}
+
+/* Notification Type Badges */
+.notification-type-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1;
+}
+
+/* Permissions Matrix */
+.permissions-matrix {
+    font-size: 0.9rem;
+}
+
+.permissions-matrix th {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    min-width: 40px;
+    padding: 8px 4px;
+    text-align: center;
+}
+
+.permissions-matrix td {
+    text-align: center;
+    padding: 8px;
+    vertical-align: middle;
+}
+
+.permission-checkbox {
+    transform: scale(1.2);
+    cursor: pointer;
+}
+
+.role-header {
+    background-color: var(--bs-light);
+    font-weight: bold;
+    color: var(--bs-dark);
+}
+
+.permission-category {
+    background-color: var(--bs-primary);
+    color: white;
+    font-weight: bold;
+}
+
+/* Report Builder */
+.report-builder {
+    min-height: 400px;
+}
+
+.field-selector {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 10px;
+}
+
+.selected-fields {
+    min-height: 200px;
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 8px;
+    padding: 15px;
+    background-color: var(--bs-light);
+}
+
+.field-item {
+    cursor: pointer;
+    padding: 8px 12px;
+    margin: 2px 0;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.field-item:hover {
+    background-color: var(--bs-primary);
+    color: white;
+}
+
+.selected-field {
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 5px 10px;
+    margin: 2px;
+    border-radius: 15px;
+    display: inline-block;
+    font-size: 0.875rem;
+}
+
+.selected-field .fas {
+    cursor: pointer;
+    margin-left: 5px;
+}
+
+.selected-field .fas:hover {
+    opacity: 0.7;
+}
+
+/* Chart Preview */
+.chart-preview {
+    min-height: 250px;
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bs-light);
+    color: var(--bs-secondary);
+}
+
+/* Notification Preview */
+.notification-preview {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 15px;
+    background-color: var(--bs-light);
+    min-height: 200px;
+}
+
+.notification-preview-content h6 {
+    color: var(--bs-primary);
+    border-bottom: 1px solid var(--bs-border-color);
+    padding-bottom: 8px;
+    margin-bottom: 12px;
+}
+
+/* Gauge Metrics */
+.metric-gauge {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto;
+}
+
+.gauge-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.gauge-inner {
+    width: 80%;
+    height: 80%;
+    background: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.gauge-inner strong {
+    font-size: 1.2rem;
+    color: var(--bs-dark);
+}
+
+.gauge-inner small {
+    font-size: 0.75rem;
+    color: var(--bs-secondary);
+    text-transform: uppercase;
+}
+
+/* Filter Items */
+.filter-item {
+    background-color: var(--bs-light);
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 10px;
+    margin-top: 8px;
+}
+
+/* Alert Customizations */
+.alert {
+    border-radius: 8px;
+    border: none;
+}
+
+.alert-success {
+    background-color: rgba(var(--bs-success-rgb), 0.1);
+    color: var(--bs-success);
+}
+
+.alert-warning {
+    background-color: rgba(var(--bs-warning-rgb), 0.1);
+    color: var(--bs-warning);
+}
+
+.alert-info {
+    background-color: rgba(var(--bs-info-rgb), 0.1);
+    color: var(--bs-info);
+}
+
+.alert-danger {
+    background-color: rgba(var(--bs-danger-rgb), 0.1);
+    color: var(--bs-danger);
+}
+
+/* Button Enhancements */
+.btn-outline-primary:hover,
+.btn-outline-success:hover,
+.btn-outline-info:hover,
+.btn-outline-warning:hover,
+.btn-outline-danger:hover,
+.btn-outline-secondary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Table Enhancements */
+.table-hover tbody tr:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.05);
+}
+
+/* Card Enhancements */
+.card {
+    border: 1px solid var(--bs-border-color);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: box-shadow 0.2s ease;
+}
+
+.card:hover {
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: var(--bs-light);
+    border-bottom: 1px solid var(--bs-border-color);
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .permissions-matrix th {
+        writing-mode: horizontal-tb;
+        text-orientation: initial;
+        min-width: auto;
+        padding: 8px;
+    }
+    
+    .metric-gauge {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .gauge-inner strong {
+        font-size: 1rem;
+    }
+    
+    .selected-fields {
+        min-height: 150px;
+    }
+    
+    .chart-preview {
+        min-height: 200px;
+    }
+    
+    /* Health Score Responsive */
+    .health-score-circle {
+        width: 150px;
+        height: 150px;
+    }
+    
+    .health-score-circle .score-value {
+        font-size: 2rem;
+    }
+    
+    .health-metric .metric-icon {
+        font-size: 1.5rem;
+    }
+    
+    .health-metric .metric-value {
+        font-size: 1.25rem;
+    }
+    
+    /* Stats Grid Responsive */
+    .stats-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .stat-box {
+        padding: 12px;
+    }
+    
+    .stat-box .stat-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1.25rem;
+        margin-left: 10px;
+    }
+    
+    .stat-box .stat-value {
+        font-size: 1.5rem;
+    }
+}
+
+/* Loading States */
+.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid var(--bs-primary);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Status Indicators */
+.status-online {
+    color: var(--bs-success);
+}
+
+.status-warning {
+    color: var(--bs-warning);
+}
+
+.status-offline {
+    color: var(--bs-danger);
+}
+
+/* Form Enhancements */
+.form-control:focus,
+.form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+/* Utility Classes */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+.user-select-none {
+    user-select: none;
+}

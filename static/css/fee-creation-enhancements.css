@@ -1,0 +1,202 @@
+/* تحسينات صفحة إنشاء الرسوم */
+
+/* تحسين عرض الحسابات التلقائية */
+#calculatedValues .alert-info {
+    background: var(--info-soft);
+    border: 1px solid var(--info-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+}
+
+#calculatedValues .h6 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: 0;
+}
+
+/* تحسين عرض جدول الأقساط */
+#installmentSchedule .card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-md);
+}
+
+#installmentSchedule .card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+}
+
+#installmentSchedule .table {
+    margin-bottom: 0;
+}
+
+#installmentSchedule .table thead th {
+    background-color: var(--gray-700);
+    color: var(--white);
+    font-weight: 600;
+    border: none;
+    padding: 12px 8px;
+}
+
+#installmentSchedule .table tbody td {
+    padding: 10px 8px;
+    vertical-align: middle;
+}
+
+#installmentSchedule .table tbody tr:hover {
+    background-color: var(--gray-50);
+}
+
+/* تحسين الحقول المالية */
+.financial-details .card {
+    border: 1px solid var(--info-soft);
+    background: var(--gray-50);
+}
+
+.financial-details .card-header {
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: 8px 8px 0 0;
+}
+
+/* تحسين الـ tooltips */
+.form-label .fa-info-circle {
+    color: var(--primary-color);
+    cursor: help;
+    transition: color 0.2s ease;
+}
+
+.form-label .fa-info-circle:hover {
+    color: var(--primary-dark);
+}
+
+/* تحسين الـ input groups */
+.input-group-text {
+    background-color: var(--info-soft);
+    border-color: var(--primary-color);
+    color: var(--primary-dark);
+    font-weight: 500;
+}
+
+/* تحسين الأزرار */
+.btn-primary {
+    background: var(--primary-color);
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
+/* تحسين البطاقات الجانبية */
+.col-lg-4 .card {
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.3s ease;
+}
+
+.col-lg-4 .card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.col-lg-4 .card-header {
+    background: var(--gray-50);
+    border-bottom: 1px solid var(--border-color);
+    border-radius: 12px 12px 0 0;
+}
+
+/* تحسين الرسائل التوضيحية */
+.form-text {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-top: 4px;
+}
+
+.form-text small {
+    font-size: 0.8rem;
+    color: var(--text-light);
+    font-style: italic;
+}
+
+/* تحسين الحقول المطلوبة */
+.form-label .text-danger {
+    color: var(--danger-color) !important;
+    font-weight: bold;
+}
+
+/* تحسين حالات الخطأ */
+.is-invalid {
+    border-color: var(--danger-color) !important;
+    box-shadow: 0 0 0 0.2rem var(--danger-soft) !important;
+}
+
+.invalid-feedback {
+    color: var(--danger-color);
+    font-weight: 500;
+}
+
+/* تحسين الـ responsive */
+@media (max-width: 768px) {
+    #calculatedValues .row > div {
+        margin-bottom: 10px;
+    }
+    
+    #installmentSchedule .table {
+        font-size: 0.875rem;
+    }
+    
+    .col-lg-4 {
+        margin-top: 20px;
+    }
+}
+
+/* تحسين الانيميشن */
+#calculatedValues, #installmentSchedule {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* تحسين الألوان حسب نوع القسط */
+#installmentSchedule .table tbody tr:first-child {
+    background-color: var(--success-soft);
+}
+
+#installmentSchedule .table tbody tr:last-child {
+    background-color: var(--warning-soft);
+}
+
+/* تحسين عرض المبالغ */
+.text-success.fw-bold {
+    color: var(--success-color) !important;
+    font-size: 1.05rem;
+}
+
+.text-primary.h6 {
+    color: var(--primary-color) !important;
+}
+
+.text-info.h6 {
+    color: var(--info-color) !important;
+}
+
+.text-warning.h6 {
+    color: var(--warning-color) !important;
+}

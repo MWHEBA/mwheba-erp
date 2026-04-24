@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load pricing_filters %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+  .installment-badge {
+      font-size: 0.75rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.25rem;
+      background: var(--color-info-light);
+      color: var(--color-info);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  {% csrf_token %}
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- فلاتر البحث -->
+  <div class="section-container mb-3">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label">اسم الموظف / الرقم الوظيفي</label>
+        <input type="text" name="search" class="form-control" placeholder="ابحث..." value="{{ current_search }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">شهر بدء الخصم</label>
+        <input type="month" name="month" class="form-control" value="{{ current_month }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">الحالة</label>
+        <select name="status" class="form-select">
+          <option value="">كل الحالات</option>
+          <option value="pending"     {% if current_status == 'pending' %}selected{% endif %}>قيد الانتظار</option>
+          <option value="approved"    {% if current_status == 'approved' %}selected{% endif %}>معتمدة</option>
+          <option value="paid"        {% if current_status == 'paid' %}selected{% endif %}>مدفوعة</option>
+          <option value="in_progress" {% if current_status == 'in_progress' %}selected{% endif %}>قيد الخصم</option>
+          <option value="completed"   {% if current_status == 'completed' %}selected{% endif %}>مكتملة</option>
+          <option value="rejected"    {% if current_status == 'rejected' %}selected{% endif %}>مرفوضة</option>
+          <option value="cancelled"   {% if current_status == 'cancelled' %}selected{% endif %}>ملغاة</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex gap-2">
+        <button type="submit" class="btn btn-primary w-100"><i class="fas fa-search me-1"></i>بحث</button>
+        <a href="{% url 'hr:advance_list' %}" class="btn btn-outline-secondary"><i class="fas fa-times"></i></a>
+      </div>
+    </form>
+  </div>
+
+  <div class="section-container">
+    <div class="card">
+      <div class="card-header">
+        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>قائمة السلف</h5>
+      </div>
+      <div class="card-body">
+        {% if advances %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="advancesTable">
+                <thead>
+                    <tr>
+                        <th class="text-center">الموظف</th>
+                        <th class="text-center">المبلغ الإجمالي</th>
+                        <th class="text-center">الأقساط</th>
+                        <th class="text-center">قيمة القسط</th>
+                        <th class="text-center">التقدم</th>
+                        <th class="text-center">المتبقي</th>
+                        <th class="text-center">بدء الخصم</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for advance in advances %}
+                    <tr style="cursor: pointer;">
+                        <td class="text-center">
+                            <strong>{{ advance.employee.get_full_name_ar }}</strong><br>
+                            <small class="text-muted">{{ advance.employee.employee_number }}</small>
+                        </td>
+                        <td class="text-center">
+                            <strong>{{ advance.amount|remove_trailing_zeros }}</strong> جنيه
+                        </td>
+                        <td class="text-center">
+                            <span class="installment-badge">
+                                {{ advance.paid_installments }}/{{ advance.installments_count }}
+                            </span>
+                        </td>
+                        <td class="text-center">
+                            {{ advance.installment_amount|remove_trailing_zeros }} جنيه
+                        </td>
+                        <td class="text-center">
+                            {% if advance.installments_count %}
+                                {% widthratio advance.paid_installments advance.installments_count 100 as pct %}
+                            {% else %}
+                                {% with pct=0 %}{% endwith %}
+                            {% endif %}
+                            <div class="progress" style="height: 8px;">
+                                <div class="progress-bar bg-success"
+                                     role="progressbar"
+                                     style="width: {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%;"
+                                     aria-valuenow="{% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}"
+                                     aria-valuemin="0" aria-valuemax="100">
+                                </div>
+                            </div>
+                            <small class="text-muted">
+                                {% if advance.installments_count %}{% widthratio advance.paid_installments advance.installments_count 100 %}{% else %}0{% endif %}%
+                            </small>
+                        </td>
+                        <td class="text-center">
+                            {{ advance.remaining_amount|remove_trailing_zeros }} جنيه
+                        </td>
+                        <td class="text-center">
+                            {% if advance.deduction_start_month %}
+                                {{ advance.deduction_start_month|date:"Y-m" }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if advance.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">قيد الانتظار</span>
+                            {% elif advance.status == 'approved' %}
+                                <span class="badge bg-primary">معتمدة</span>
+                            {% elif advance.status == 'rejected' %}
+                                <span class="badge bg-danger">مرفوضة</span>
+                            {% elif advance.status == 'paid' %}
+                                <span class="badge bg-info">مدفوعة</span>
+                            {% elif advance.status == 'in_progress' %}
+                                <span class="badge bg-success">قيد الخصم</span>
+                            {% elif advance.status == 'completed' %}
+                                <span class="badge bg-secondary">مكتملة</span>
+                            {% elif advance.status == 'cancelled' %}
+                                <span class="badge bg-secondary">ملغاة</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center col-actions">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{% url 'hr:advance_detail' advance.pk %}" class="btn btn-info action-view" title="عرض"><i class="fas fa-eye"></i></a>
+                                {% if advance.status == 'pending' %}
+                                <button type="button" class="btn btn-success btn-approve" data-id="{{ advance.pk }}" title="اعتماد"><i class="fas fa-check"></i></button>
+                                <button type="button" class="btn btn-danger btn-reject" data-id="{{ advance.pk }}" title="رفض"><i class="fas fa-times"></i></button>
+                                {% endif %}
+                                {% if advance.status == 'approved' %}
+                                <button type="button" class="btn btn-warning btn-pay" data-id="{{ advance.pk }}" title="صرف السلفة"><i class="fas fa-money-bill-wave"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+          {% include 'partials/empty_state.html' with message="لا توجد سلف" icon="hand-holding-usd" %}
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال صرف السلفة -->
+<div class="modal fade" id="payModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="fas fa-money-bill-wave me-2"></i>صرف السلفة</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">حساب الصرف (الخزينة/البنك) <span class="text-danger">*</span></label>
+          <select id="modal-payment-account" class="form-select" required>
+            <option value="">اختر الحساب</option>
+            {% for acc in payment_accounts %}
+            <option value="{{ acc.code }}" {% if default_payment_account and acc.code == default_payment_account.code %}selected{% elif not default_payment_account and acc.is_cash_account and forloop.first %}selected{% endif %}>{{ acc.name }} ({{ acc.code }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">تاريخ الصرف</label>
+          <input type="date" id="modal-payment-date" class="form-control" value="{% now 'Y-m-d' %}">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+        <button type="button" class="btn btn-info" id="btn-confirm-pay">
+          <i class="fas fa-check me-1"></i>تأكيد الصرف
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/global-table.js' %}"></script>
+<script>
+const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]') ? document.querySelector('[name=csrfmiddlewaretoken]').value : '{{ csrf_token }}';
+let currentPayId = null;
+
+function advanceAction(id, action) {
+    const isApprove = action === 'approve';
+    Swal.fire({
+        title: isApprove ? 'اعتماد السلفة؟' : 'رفض السلفة؟',
+        icon: isApprove ? 'question' : 'warning',
+        showCancelButton: true,
+        confirmButtonText: isApprove ? 'نعم، اعتماد' : 'نعم، رفض',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: isApprove ? '#198754' : '#dc3545',
+    }).then((result) => {
+        if (!result.isConfirmed) return;
+        fetch(`/hr/advances/${id}/${action}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': CSRF_TOKEN, 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(r => r.json()).then(data => {
+            if (data.success) { toastr.success(data.message); setTimeout(() => location.reload(), 800); }
+            else { toastr.error(data.message || 'حدث خطأ'); }
+        }).catch(() => toastr.error('حدث خطأ في الاتصال'));
+    });
+}
+
+function advancePay(id) {
+    currentPayId = id;
+    new bootstrap.Modal(document.getElementById('payModal')).show();
+}
+
+$(document).ready(function() {
+    if ($('#advancesTable').length) {
+        initGlobalTable('advancesTable', {ordering: true, order: [[3, 'desc']], responsive: true, columnDefs: [{ targets: [4, 6], orderable: false, className: 'text-center' }]});
+    }
+    $('#advancesTable tbody').on('click', 'tr', function(e) {
+        if ($(e.target).closest('.col-actions').length > 0) return;
+        var viewButton = $(this).find('.action-view');
+        if (viewButton.length > 0) window.location.href = viewButton.attr('href');
+    });
+    $(document).on('click', '.btn-approve', function() { advanceAction($(this).data('id'), 'approve'); });
+    $(document).on('click', '.btn-reject',  function() { advanceAction($(this).data('id'), 'reject');  });
+    $(document).on('click', '.btn-pay',     function() { advancePay($(this).data('id')); });
+
+    document.getElementById('btn-confirm-pay').addEventListener('click', function() {
+        const account = document.getElementById('modal-payment-account').value;
+        const date = document.getElementById('modal-payment-date').value;
+        if (!account) { toastr.warning('يجب اختيار حساب الصرف'); return; }
+
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', CSRF_TOKEN);
+        formData.append('payment_account', account);
+        formData.append('payment_date', date || '');
+
+        fetch(`/hr/advances/${currentPayId}/pay/`, {
+            method: 'POST',
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            body: formData
+        }).then(r => r.json()).then(data => {
+            bootstrap.Modal.getInstance(document.getElementById('payModal')).hide();
+            if (data.success) { toastr.success(data.message); setTimeout(() => location.reload(), 800); }
+            else { toastr.error(data.message || 'حدث خطأ'); }
+        }).catch(() => toastr.error('حدث خطأ في الاتصال'));
+    });
+});
+</script>
+{% endblock %}

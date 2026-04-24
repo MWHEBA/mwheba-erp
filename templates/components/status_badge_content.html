@@ -1,0 +1,69 @@
+{% if status_value == 'active' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-success {{ badge_class }}">
+        {{ label_value|default:'نشط' }}
+    </span>
+{% elif status_value == 'inactive' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-secondary {{ badge_class }}">
+        {{ label_value|default:'غير نشط' }}
+    </span>
+{% elif status_value == 'pending' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-warning {{ badge_class }}">
+        {{ label_value|default:'معلق' }}
+    </span>
+{% elif status_value == 'processing' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-info {{ badge_class }}">
+        {{ label_value|default:'قيد المعالجة' }}
+    </span>
+{% elif status_value == 'completed' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-success {{ badge_class }}">
+        {{ label_value|default:'مكتمل' }}
+    </span>
+{% elif status_value == 'cancelled' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-danger {{ badge_class }}">
+        {{ label_value|default:'ملغي' }}
+    </span>
+{% elif status_value == 'paid' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-success {{ badge_class }}">
+        {{ label_value|default:'مدفوع' }}
+    </span>
+{% elif status_value == 'unpaid' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-warning {{ badge_class }}">
+        {{ label_value|default:'غير مدفوع' }}
+    </span>
+{% elif status_value == 'overdue' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-danger {{ badge_class }}">
+        {{ label_value|default:'متأخر' }}
+    </span>
+{% elif status_value == 'draft' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-secondary {{ badge_class }}">
+        {{ label_value|default:'مسودة' }}
+    </span>
+{% elif status_value == 'published' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-success {{ badge_class }}">
+        {{ label_value|default:'منشور' }}
+    </span>
+{% elif status_value == 'new' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-info {{ badge_class }}">
+        {{ label_value|default:'جديد' }}
+    </span>
+{% elif status_value == 'under_review' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-warning {{ badge_class }}">
+        {{ label_value|default:'قيد المراجعة' }}
+    </span>
+{% elif status_value == 'accepted' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-success {{ badge_class }}">
+        {{ label_value|default:'مقبول' }}
+    </span>
+{% elif status_value == 'rejected' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-danger {{ badge_class }}">
+        {{ label_value|default:'مرفوض' }}
+    </span>
+{% elif status_value == 'converted' %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-primary {{ badge_class }}">
+        {{ label_value|default:'تم التحويل' }}
+    </span>
+{% else %}
+    <span class="badge {% if size %}badge-{{ size }}{% endif %} {% if pill|default:True %}rounded-pill{% endif %} bg-secondary {{ badge_class }}">
+        {{ label_value|default:status_display|default:status_value|title }}
+    </span>
+{% endif %}

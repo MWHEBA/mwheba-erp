@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" %}
+
+    <div class="section-container">
+        {% if penalties %}
+        <div class="table-responsive">
+            <table class="table table-hover" id="penalty-table">
+                <thead>
+                    <tr>
+                        <th class="text-center">الترتيب</th>
+                        <th class="text-center">اسم الجزاء</th>
+                        <th class="text-center">الحد الأقصى للدقائق</th>
+                        <th class="text-center">قيمة الجزاء (أيام)</th>
+                        <th class="text-center">الحالة</th>
+                        <th class="text-center">الإجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in penalties %}
+                    <tr>
+                        <td class="text-center">{{ p.order }}</td>
+                        <td class="text-center">{{ p.name }}</td>
+                        <td class="text-center">
+                            {% if p.max_minutes == 0 %}
+                                <span class="badge bg-secondary">نطاق مفتوح</span>
+                            {% else %}
+                                {{ p.max_minutes }} دقيقة
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-warning text-dark">{{ p.penalty_days }} يوم</span>
+                        </td>
+                        <td class="text-center">
+                            {% if p.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                            {% else %}
+                                <span class="badge bg-danger">معطل</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <a href="{% url 'hr:penalty_update' p.pk %}" class="btn btn-sm btn-outline-primary">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                            <form method="post" action="{% url 'hr:penalty_toggle_active' p.pk %}" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-sm {% if p.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %}"
+                                        title="{% if p.is_active %}تعطيل{% else %}تفعيل{% endif %}">
+                                    <i class="fas {% if p.is_active %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                                </button>
+                            </form>
+                            <button type="button" class="btn btn-sm btn-outline-danger"
+                                onclick="deletePenalty({{ p.pk }}, '{{ p.name }}')">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            <form id="delete-penalty-{{ p.pk }}" method="post"
+                                  action="{% url 'hr:penalty_delete' p.pk %}" style="display:none;">
+                                {% csrf_token %}
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="fas fa-gavel fa-3x mb-3"></i>
+            <p>لا توجد نطاقات جزاءات مضافة بعد</p>
+            <a href="{% url 'hr:penalty_create' %}" class="btn btn-primary">
+                <i class="fas fa-plus me-2"></i>إضافة نطاق جديد
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deletePenalty(pk, name) {
+    Swal.fire({
+        title: 'هل أنت متأكد؟',
+        text: 'سيتم حذف نطاق الجزاء "' + name + '"',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: 'var(--danger-color)',
+        cancelButtonColor: 'var(--secondary-color)',
+        confirmButtonText: 'نعم، احذف',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            document.getElementById('delete-penalty-' + pk).submit();
+        }
+    });
+}
+</script>
+{% endblock %}

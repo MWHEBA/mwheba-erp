@@ -1,0 +1,324 @@
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load pricing_filters %}
+
+<!-- مودال الإيراد السريع / التعديل -->
+<div class="modal fade" id="quickIncomeModal" tabindex="-1" aria-labelledby="quickIncomeModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header {% if journal_entry %}bg-primary{% else %}bg-success{% endif %} text-white">
+        <h5 class="modal-title" id="quickIncomeModalLabel">
+          <i class="fas {% if journal_entry %}fa-edit{% else %}fa-plus-circle{% endif %} me-2"></i>
+          {% if journal_entry %}
+            {% trans "تعديل إيراد" %}
+          {% else %}
+            {% trans "إضافة إيراد جديد" %}
+          {% endif %}
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      
+      <form id="quickIncomeForm" method="post" action="{% if journal_entry %}{% url 'financial:income_edit' journal_entry.id %}{% else %}{% url 'financial:income_create' %}{% endif %}">
+        <div class="modal-body">
+          {% csrf_token %}
+          
+          <!-- رسائل الخطأ -->
+          <div id="quickIncomeErrors" class="alert alert-danger d-none" role="alert">
+            <ul class="mb-0" id="quickIncomeErrorsList"></ul>
+          </div>
+          
+          <div class="row">
+            <!-- وصف الإيراد -->
+            <div class="col-12 mb-3">
+              <label for="quick_income_description" class="form-label">
+                <i class="fas fa-edit me-1"></i>
+                {% trans "وصف الإيراد" %} <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control" id="quick_income_description" name="description" 
+                     value="{% if journal_entry %}{{ journal_entry.description }}{% endif %}"
+                     placeholder="{% trans 'أدخل وصف الإيراد' %}" required>
+            </div>
+            
+            <!-- المبلغ -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_amount" class="form-label">
+                <i class="fas fa-money-bill me-1"></i>
+                {% trans "المبلغ" %} <span class="text-danger">*</span>
+              </label>
+              <div class="input-group">
+                <input type="number" class="form-control" id="quick_income_amount" name="amount" 
+                       value="{% if income_amount %}{{ income_amount }}{% endif %}"
+                       placeholder="0" step="any" min="0.01" required>
+              </div>
+            </div>
+            
+            <!-- تاريخ الإيراد -->
+            <div class="col-md-6 mb-3">
+              <label class="form-label">
+                <i class="fas fa-calendar me-1"></i>
+                {% trans "تاريخ الإيراد" %} <span class="text-danger">*</span>
+              </label>
+              <input type="text" class="form-control" id="quick_income_date" name="income_date" 
+                     value="{% if journal_entry %}{{ journal_entry.date|date:'Y-m-d' }}{% endif %}"
+                     data-date-picker placeholder="اختر التاريخ" required>
+            </div>
+            
+            <!-- التصنيف المالي -->
+            <div class="col-md-6 mb-3">
+              <label for="quick_income_financial_category" class="form-label">
+                <i class="fas fa-folder me-1"></i>
+                {% trans "التصنيف المالي" %} <span class="text-danger">*</span>
+              </label>
+              <select class="form-select" id="quick_income_financial_category" name="financial_category" required>
+                <option value="">{% trans "اختر التصنيف المالي" %}</option>
+                <!-- سيتم تحميل الخيارات ديناميكياً -->
+              </select>
+            </div>
+            
+            <!-- الخزينة -->
+            <div class="col-md-6 mb-3">
+              {% include "components/payment_account_select.html" with field_name="receipt_account" field_id="quick_receiving_account" label="الخزينة" required=True %}
+            </div>
+            
+            <!-- ملاحظات -->
+            <div class="col-12 mb-3">
+              <label for="quick_income_notes" class="form-label">
+                <i class="fas fa-sticky-note me-1"></i>
+                {% trans "ملاحظات" %}
+              </label>
+              <textarea class="form-control" id="quick_income_notes" name="notes" rows="2" 
+                        placeholder="{% trans 'ملاحظات إضافية (اختياري)' %}">{% if journal_entry %}{{ journal_entry.notes }}{% endif %}</textarea>
+            </div>
+          </div>
+        </div>
+        
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            <i class="fas fa-times me-1"></i>
+            {% trans "إلغاء" %}
+          </button>
+          <button type="submit" class="btn {% if journal_entry %}btn-primary{% else %}btn-success{% endif %}" id="quickIncomeSubmitBtn">
+            <i class="fas fa-save me-1"></i>
+            {% if journal_entry %}
+              {% trans "حفظ التعديلات" %}
+            {% else %}
+              {% trans "حفظ الإيراد" %}
+            {% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+// دالة فتح مودال الإيراد السريع
+function openQuickIncomeModal() {
+  // تحميل التصنيفات المالية
+  loadIncomeFinancialCategories();
+  
+  // إظهار المودال
+  const modal = new bootstrap.Modal(document.getElementById('quickIncomeModal'));
+  modal.show();
+  
+  // تهيئة datepicker بالتاريخ الحالي بعد فتح المودال
+  setTimeout(() => {
+    const dateInput = document.getElementById('quick_income_date');
+    // استخدام التوقيت المحلي للمتصفح
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    const todayStr = `${year}-${month}-${day}`;
+    
+    // تعيين القيمة
+    dateInput.value = todayStr;
+    
+    // إذا كان datepicker مهيأ، حدث القيمة
+    if (dateInput._flatpickr) {
+      dateInput._flatpickr.setDate(todayStr);
+    }
+    
+    // التركيز على حقل الوصف
+    document.getElementById('quick_income_description').focus();
+  }, 300);
+}
+
+// تحميل التصنيفات المالية للإيرادات
+function loadIncomeFinancialCategories(selectedId = null) {
+  fetch('/financial/api/financial-categories/?type=income')
+    .then(response => response.json())
+    .then(data => {
+      const categorySelect = document.getElementById('quick_income_financial_category');
+      if (!categorySelect) {
+        console.error('Element quick_income_financial_category not found!');
+        return;
+      }
+      
+      categorySelect.innerHTML = '<option value="">{% trans "اختر التصنيف المالي" %}</option>';
+      
+      // الـ API بيرجع object فيه categories array
+      const categories = data.categories || [];
+      
+      categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = `${category.name} (${category.code})`;
+        if (selectedId && category.id == selectedId) {
+          option.selected = true;
+        }
+        categorySelect.appendChild(option);
+        
+        // إضافة التصنيفات الفرعية إن وجدت
+        if (category.subcategories && category.subcategories.length > 0) {
+          category.subcategories.forEach(subcat => {
+            const subOption = document.createElement('option');
+            subOption.value = subcat.id;
+            subOption.textContent = `  ↳ ${subcat.name} (${subcat.code})`;
+            if (selectedId && subcat.id == selectedId) {
+              subOption.selected = true;
+            }
+            categorySelect.appendChild(subOption);
+          });
+        }
+      });
+      
+    })
+    .catch(error => {
+      console.error('Error loading financial categories:', error);
+      // استخدام التصنيفات الافتراضية في حالة الخطأ
+      const categorySelect = document.getElementById('quick_income_financial_category');
+      categorySelect.innerHTML = `
+        <option value="">{% trans "اختر التصنيف المالي" %}</option>
+        <option value="1">{% trans "إيرادات عامة" %}</option>
+        <option value="2">{% trans "إيرادات خدمات" %}</option>
+        <option value="3">{% trans "إيرادات أخرى" %}</option>
+      `;
+    });
+}
+
+// معالجة إرسال النموذج
+document.getElementById('quickIncomeForm').addEventListener('submit', function(e) {
+  e.preventDefault();
+  submitQuickIncome();
+});
+
+// دالة إرسال الإيراد السريع
+function submitQuickIncome() {
+  const form = document.getElementById('quickIncomeForm');
+  const formData = new FormData(form);
+  const submitBtn = document.getElementById('quickIncomeSubmitBtn');
+  const originalText = submitBtn.innerHTML;
+  
+  // تعطيل الزر وإظهار مؤشر التحميل
+  submitBtn.disabled = true;
+  submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>{% trans "جاري الحفظ..." %}';
+  
+  // إخفاء رسائل الخطأ السابقة
+  hideQuickIncomeErrors();
+  
+  fetch(form.action, {
+    method: 'POST',
+    body: formData,
+    headers: {
+      'X-Requested-With': 'XMLHttpRequest',
+      'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+    }
+  })
+  .then(response => {
+    // التحقق من نوع المحتوى
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      // إذا لم يكن JSON، فهناك خطأ في الخادم
+      throw new Error('Server returned HTML instead of JSON');
+    }
+  })
+  .then(data => {
+    if (data.success) {
+      // إغلاق المودال
+      const modal = bootstrap.Modal.getInstance(document.getElementById('quickIncomeModal'));
+      modal.hide();
+      
+      // عرض رسالة النجاح
+      showSuccessToast(data.message);
+      
+      // إعادة تحميل الصفحة بعد ثانية
+      setTimeout(() => {
+        location.reload();
+      }, 1000);
+    } else {
+      // عرض الأخطاء
+      showQuickIncomeErrors(data.errors || {}, data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Error:', error);
+    showQuickIncomeErrors({}, '{% trans "حدث خطأ في الشبكة. يرجى المحاولة مرة أخرى." %}');
+  })
+  .finally(() => {
+    // إعادة تفعيل الزر
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalText;
+  });
+}
+
+// عرض أخطاء الإيراد السريع
+function showQuickIncomeErrors(errors, message) {
+  const errorDiv = document.getElementById('quickIncomeErrors');
+  const errorsList = document.getElementById('quickIncomeErrorsList');
+  
+  errorsList.innerHTML = '';
+  
+  if (message) {
+    const li = document.createElement('li');
+    li.textContent = message;
+    errorsList.appendChild(li);
+  }
+  
+  for (const [field, fieldErrors] of Object.entries(errors)) {
+    fieldErrors.forEach(error => {
+      const li = document.createElement('li');
+      li.textContent = `${field}: ${error}`;
+      errorsList.appendChild(li);
+    });
+  }
+  
+  errorDiv.classList.remove('d-none');
+}
+
+// إخفاء أخطاء الإيراد السريع
+function hideQuickIncomeErrors() {
+  document.getElementById('quickIncomeErrors').classList.add('d-none');
+}
+
+// عرض رسالة نجاح - using unified toastr system
+function showSuccessToast(message) {
+  if (typeof toastr !== 'undefined') {
+    toastr.success(message);
+  }
+}
+
+// إضافة معالج Enter للحفظ في المودال
+document.getElementById('quickIncomeModal').addEventListener('keydown', function(event) {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    // تجاهل Enter في textarea
+    if (event.target.tagName.toLowerCase() === 'textarea') {
+      return;
+    }
+    
+    event.preventDefault();
+    document.getElementById('quickIncomeForm').dispatchEvent(new Event('submit'));
+  }
+});
+
+// تحميل القيم المحفوظة في حالة التعديل
+{% if journal_entry and financial_category %}
+// انتظار تحميل العناصر في DOM ثم تحميل التصنيفات
+setTimeout(function() {
+  // تحميل التصنيفات مع القيم المحددة
+  loadIncomeFinancialCategories({{ financial_category.id }});
+}, 100);
+{% endif %}
+</script>

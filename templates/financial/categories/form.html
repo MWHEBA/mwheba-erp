@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% load static %}
+{% load widget_tweaks %}
+
+{% block title %}{{ title|default:"نموذج التصنيف" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% include "shared/page_header.html" with title=title icon="fas fa-tags" header_buttons=header_buttons %}
+    
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="section-container">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                    <div class="alert alert-danger">
+                        {{ form.non_field_errors }}
+                    </div>
+                    {% endif %}
+                    
+                    <!-- المعلومات الأساسية -->
+                    <div class="mb-4">
+                        <h5 class="section-title mb-3">
+                            <i class="fas fa-info-circle me-2"></i>المعلومات الأساسية
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.code.id_for_label }}" class="form-label">
+                                    الرمز <span class="text-danger">*</span>
+                                </label>
+                                {% render_field form.code class="form-control" placeholder="مثال: tuition" %}
+                                {% if form.code.errors %}
+                                    <div class="text-danger small mt-1">{{ form.code.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">رمز فريد بالإنجليزية (مثال: tuition, transportation)</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.display_order.id_for_label }}" class="form-label">
+                                    ترتيب العرض
+                                </label>
+                                {% render_field form.display_order class="form-control" %}
+                                {% if form.display_order.errors %}
+                                    <div class="text-danger small mt-1">{{ form.display_order.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">الأصغر يظهر أولاً</small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    الاسم بالعربية <span class="text-danger">*</span>
+                                </label>
+                                {% render_field form.name class="form-control" placeholder="مثال: الرسوم الأساسية" %}
+                                {% if form.name.errors %}
+                                    <div class="text-danger small mt-1">{{ form.name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                الوصف
+                            </label>
+                            {% render_field form.description class="form-control" rows="3" %}
+                            {% if form.description.errors %}
+                                <div class="text-danger small mt-1">{{ form.description.errors.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- الحسابات المحاسبية -->
+                    <div class="mb-4">
+                        <h5 class="section-title mb-3">
+                            <i class="fas fa-calculator me-2"></i>الحسابات المحاسبية
+                        </h5>
+                        
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            يجب تحديد حساب الإيرادات أو حساب المصروفات على الأقل
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.default_revenue_account.id_for_label }}" class="form-label">
+                                    <i class="fas fa-arrow-up text-success me-1"></i>
+                                    حساب الإيرادات الافتراضي
+                                </label>
+                                {% render_field form.default_revenue_account class="form-select" %}
+                                {% if form.default_revenue_account.errors %}
+                                    <div class="text-danger small mt-1">{{ form.default_revenue_account.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">الحساب المحاسبي للإيرادات من هذا التصنيف</small>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.default_expense_account.id_for_label }}" class="form-label">
+                                    <i class="fas fa-arrow-down text-danger me-1"></i>
+                                    حساب المصروفات الافتراضي
+                                </label>
+                                {% render_field form.default_expense_account class="form-select" %}
+                                {% if form.default_expense_account.errors %}
+                                    <div class="text-danger small mt-1">{{ form.default_expense_account.errors.0 }}</div>
+                                {% endif %}
+                                <small class="form-text text-muted">الحساب المحاسبي للمصروفات من هذا التصنيف</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- الإعدادات -->
+                    <div class="mb-4">
+                        <h5 class="section-title mb-3">
+                            <i class="fas fa-cog me-2"></i>الإعدادات
+                        </h5>
+                        
+                        <div class="form-check form-switch">
+                            {% render_field form.is_active class="form-check-input" %}
+                            <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                نشط ومتاح للاستخدام
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Buttons -->
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'financial:category_list' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times me-1"></i> إلغاء
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> حفظ
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تحسين عرض select2 للحسابات المحاسبية
+    if (typeof $.fn.select2 !== 'undefined') {
+        $('#id_default_revenue_account, #id_default_expense_account').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'اختر حساب...',
+            allowClear: true,
+            dir: 'rtl'
+        });
+    }
+});
+</script>
+{% endblock %}

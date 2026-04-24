@@ -1,0 +1,423 @@
+{% comment %}
+========================================
+MODAL المركزي - Corporate ERP
+========================================
+
+مكون النافذة المنبثقة للاستخدام في مختلف أجزاء التطبيق
+
+الاستخدام:
+{% include "components/modal.html" with id="my-modal" title="عنوان النافذة" content="محتوى النافذة" %}
+
+المعلمات:
+- id: معرف فريد للنافذة (مطلوب)
+- title: عنوان النافذة (اختياري)
+- content: محتوى النافذة (اختياري)
+- size: حجم النافذة (sm/md/lg/xl/fullscreen) (اختياري، افتراضي md)
+- style: نمط النافذة (default/primary/success/danger/warning/info) (اختياري، افتراضي default)
+- centered: محاذاة النافذة للوسط (اختياري، افتراضي True)
+- scrollable: جعل النافذة قابلة للتمرير (اختياري، افتراضي False)
+- fade: تأثير الظهور والاختفاء (اختياري، افتراضي True)
+- backdrop: نوع الخلفية (true/false/static) (اختياري، افتراضي true)
+- keyboard: إغلاق بمفتاح Escape (اختياري، افتراضي True)
+- focus: التركيز التلقائي (اختياري، افتراضي True)
+
+Header Parameters:
+- show_header: إظهار رأس النافذة (اختياري، افتراضي True)
+- header_class: فئات CSS إضافية للرأس (اختياري)
+- title_icon: أيقونة العنوان (اختياري)
+- show_close_button: إظهار زر الإغلاق (اختياري، افتراضي True)
+
+Footer Parameters:
+- show_footer: إظهار تذييل النافذة (اختياري، افتراضي False)
+- footer: محتوى تذييل مخصص (اختياري)
+- footer_class: فئات CSS إضافية للتذييل (اختياري)
+- close_text: نص زر الإغلاق (اختياري، افتراضي "إغلاق")
+- close_class: فئة زر الإغلاق (اختياري، افتراضي "btn-secondary")
+
+Form Parameters:
+- form_modal: هل النافذة تحتوي على نموذج (اختياري، افتراضي False)
+- form_id: معرف النموذج (اختياري)
+- form_action: عنوان النموذج (اختياري)
+- form_method: طريقة النموذج (اختياري، افتراضي POST)
+- form_enctype: نوع تشفير النموذج (اختياري)
+- submit_text: نص زر الإرسال (اختياري، افتراضي "حفظ")
+- submit_class: فئة زر الإرسال (اختياري، افتراضي "btn-primary")
+- submit_icon: أيقونة زر الإرسال (اختياري)
+
+Action Buttons:
+- action_buttons: قائمة أزرار إضافية للتذييل (اختياري)
+
+أمثلة:
+
+1. نافذة بسيطة:
+{% include "components/modal.html" with id="simple-modal" title="رسالة" content="هذه رسالة بسيطة" %}
+
+2. نافذة كبيرة مع نمط النجاح:
+{% include "components/modal.html" with id="success-modal" title="تم بنجاح" size="lg" style="success" %}
+
+3. نافذة نموذج:
+{% include "components/modal.html" with id="form-modal" title="إضافة عنصر" form_modal=True form_action="/add/" %}
+
+4. نافذة مع أزرار مخصصة:
+{% include "components/modal.html" with id="custom-modal" title="تأكيد" action_buttons=buttons %}
+
+5. نافذة ملء الشاشة:
+{% include "components/modal.html" with id="fullscreen-modal" title="عرض كامل" size="fullscreen" %}
+
+========================================
+{% endcomment %}
+
+{% load static %}
+
+<div class="modal {% if fade|default:True %}fade{% endif %} modal-{{ style|default:'default' }}" 
+     id="{{ id }}" 
+     tabindex="-1" 
+     role="dialog" 
+     aria-labelledby="{% if show_header|default:True %}{{ id }}-title{% endif %}" 
+     aria-hidden="true"
+     {% if backdrop == 'static' or backdrop == False %}data-bs-backdrop="{% if backdrop == False %}false{% else %}static{% endif %}"{% endif %}
+     {% if not keyboard|default:True %}data-bs-keyboard="false"{% endif %}
+     {% if not focus|default:True %}data-bs-focus="false"{% endif %}>
+    
+    <div class="modal-dialog 
+                {% if size == 'sm' %}modal-sm
+                {% elif size == 'lg' %}modal-lg
+                {% elif size == 'xl' %}modal-xl
+                {% elif size == 'fullscreen' %}modal-fullscreen
+                {% endif %}
+                {% if centered|default:True %}modal-dialog-centered{% endif %}
+                {% if scrollable|default:False %}modal-dialog-scrollable{% endif %}" 
+         role="document">
+        
+        {% if form_modal %}
+            <form id="{{ form_id|default:id }}-form" 
+                  method="{{ form_method|default:'post' }}" 
+                  action="{{ form_action|default:'#' }}" 
+                  {% if form_enctype %}enctype="{{ form_enctype }}"{% endif %} 
+                  class="modal-content">
+                {% csrf_token %}
+        {% else %}
+            <div class="modal-content">
+        {% endif %}
+            
+            <!-- Modal Header -->
+            {% if show_header|default:True %}
+                <div class="modal-header {{ header_class }}">
+                    <h5 class="modal-title d-flex align-items-center" id="{{ id }}-title">
+                        {% if title_icon %}
+                            <i class="{{ title_icon }} me-2" aria-hidden="true"></i>
+                        {% endif %}
+                        {{ title|default:"نافذة منبثقة" }}
+                    </h5>
+                    {% if show_close_button|default:True %}
+                        <button type="button" 
+                                class="btn-close" 
+                                data-bs-dismiss="modal" 
+                                aria-label="إغلاق النافذة"
+                                title="إغلاق">
+                        </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+            <!-- Modal Body -->
+            <div class="modal-body">
+                {% if content %}
+                    {{ content|safe }}
+                {% else %}
+                    <!-- Slot for custom content -->
+                    {% block modal_content %}
+                        <p class="text-muted">لا يوجد محتوى لعرضه.</p>
+                    {% endblock %}
+                {% endif %}
+            </div>
+            
+            <!-- Modal Footer -->
+            {% if show_footer|default:False or form_modal or action_buttons %}
+                <div class="modal-footer {{ footer_class }}">
+                    {% if footer %}
+                        {{ footer|safe }}
+                    {% elif form_modal %}
+                        <!-- Form Modal Buttons -->
+                        <button type="button" 
+                                class="btn {{ close_class|default:'btn-secondary' }}" 
+                                data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1" aria-hidden="true"></i>
+                            {{ close_text|default:"إغلاق" }}
+                        </button>
+                        <button type="submit" 
+                                class="btn {{ submit_class|default:'btn-primary' }}"
+                                form="{{ form_id|default:id }}-form">
+                            {% if submit_icon %}
+                                <i class="{{ submit_icon }} me-1" aria-hidden="true"></i>
+                            {% else %}
+                                <i class="fas fa-save me-1" aria-hidden="true"></i>
+                            {% endif %}
+                            {{ submit_text|default:"حفظ" }}
+                        </button>
+                    {% elif action_buttons %}
+                        <!-- Custom Action Buttons -->
+                        {% for button in action_buttons %}
+                            {% if button.type == 'submit' %}
+                                <button type="submit" 
+                                        class="btn {{ button.class|default:'btn-primary' }}"
+                                        {% if button.form %}form="{{ button.form }}"{% endif %}
+                                        {% if button.id %}id="{{ button.id }}"{% endif %}
+                                        {% if button.onclick %}onclick="{{ button.onclick }}"{% endif %}
+                                        {% if button.disabled %}disabled{% endif %}
+                                        {% if button.title %}title="{{ button.title }}"{% endif %}>
+                                    {% if button.icon %}<i class="{{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                    {{ button.text }}
+                                </button>
+                            {% elif button.type == 'link' %}
+                                <a href="{{ button.url|default:'#' }}" 
+                                   class="btn {{ button.class|default:'btn-primary' }}"
+                                   {% if button.id %}id="{{ button.id }}"{% endif %}
+                                   {% if button.target %}target="{{ button.target }}"{% endif %}
+                                   {% if button.title %}title="{{ button.title }}"{% endif %}>
+                                    {% if button.icon %}<i class="{{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                    {{ button.text }}
+                                </a>
+                            {% else %}
+                                <button type="button" 
+                                        class="btn {{ button.class|default:'btn-secondary' }}"
+                                        {% if button.id %}id="{{ button.id }}"{% endif %}
+                                        {% if button.onclick %}onclick="{{ button.onclick }}"{% endif %}
+                                        {% if button.dismiss %}data-bs-dismiss="modal"{% endif %}
+                                        {% if button.disabled %}disabled{% endif %}
+                                        {% if button.title %}title="{{ button.title }}"{% endif %}>
+                                    {% if button.icon %}<i class="{{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
+                                    {{ button.text }}
+                                </button>
+                            {% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <!-- Default Close Button -->
+                        <button type="button" 
+                                class="btn {{ close_class|default:'btn-secondary' }}" 
+                                data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1" aria-hidden="true"></i>
+                            {{ close_text|default:"إغلاق" }}
+                        </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+            
+        {% if form_modal %}
+            </form>
+        {% else %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Styles -->
+<style>
+/* Base Modal Styles */
+.modal {
+    --modal-zindex: 1055;
+    --modal-width: 500px;
+    --modal-padding: 1rem;
+    --modal-margin: 0.5rem;
+    --modal-color: var(--bs-modal-color);
+    --modal-bg: var(--bs-modal-bg);
+    --modal-border-color: var(--bs-modal-border-color);
+    --modal-border-width: var(--bs-modal-border-width);
+    --modal-border-radius: var(--bs-modal-border-radius);
+    --modal-box-shadow: var(--bs-modal-box-shadow);
+    --modal-inner-border-radius: var(--bs-modal-inner-border-radius);
+    --modal-header-padding-x: var(--bs-modal-header-padding-x);
+    --modal-header-padding-y: var(--bs-modal-header-padding-y);
+    --modal-header-margin-y: var(--bs-modal-header-margin-y);
+    --modal-header-border-color: var(--bs-modal-header-border-color);
+    --modal-header-border-width: var(--bs-modal-header-border-width);
+    --modal-title-line-height: var(--bs-modal-title-line-height);
+    --modal-footer-gap: var(--bs-modal-footer-gap);
+    --modal-footer-bg: var(--bs-modal-footer-bg);
+    --modal-footer-border-color: var(--bs-modal-footer-border-color);
+    --modal-footer-border-width: var(--bs-modal-footer-border-width);
+}
+
+/* Modal Style Variations */
+.modal-primary .modal-header {
+    background-color: var(--primary-color);
+    color: white;
+    border-bottom-color: var(--primary-color);
+}
+
+.modal-primary .modal-title {
+    color: white;
+}
+
+.modal-primary .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.modal-success .modal-header {
+    background-color: var(--bs-success);
+    color: white;
+    border-bottom-color: var(--bs-success);
+}
+
+.modal-success .modal-title {
+    color: white;
+}
+
+.modal-success .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.modal-danger .modal-header {
+    background-color: var(--bs-danger);
+    color: white;
+    border-bottom-color: var(--bs-danger);
+}
+
+.modal-danger .modal-title {
+    color: white;
+}
+
+.modal-danger .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+.modal-warning .modal-header {
+    background-color: var(--bs-warning);
+    color: var(--bs-dark);
+    border-bottom-color: var(--bs-warning);
+}
+
+.modal-warning .modal-title {
+    color: var(--bs-dark);
+}
+
+.modal-info .modal-header {
+    background-color: var(--bs-info);
+    color: white;
+    border-bottom-color: var(--bs-info);
+}
+
+.modal-info .modal-title {
+    color: white;
+}
+
+.modal-info .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Enhanced Modal Header */
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--modal-header-padding-y) var(--modal-header-padding-x);
+    border-bottom: var(--modal-header-border-width) solid var(--modal-header-border-color);
+    border-top-left-radius: var(--modal-inner-border-radius);
+    border-top-right-radius: var(--modal-inner-border-radius);
+}
+
+.modal-title {
+    margin-bottom: 0;
+    line-height: var(--modal-title-line-height);
+    font-weight: 600;
+}
+
+/* Enhanced Modal Body */
+.modal-body {
+    position: relative;
+    flex: 1 1 auto;
+    padding: var(--modal-padding);
+}
+
+/* Enhanced Modal Footer */
+.modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    padding: calc(var(--modal-padding) - var(--modal-footer-gap) * 0.5) var(--modal-padding) var(--modal-padding);
+    background-color: var(--modal-footer-bg);
+    border-top: var(--modal-footer-border-width) solid var(--modal-footer-border-color);
+    border-bottom-right-radius: var(--modal-inner-border-radius);
+    border-bottom-left-radius: var(--modal-inner-border-radius);
+    gap: var(--modal-footer-gap);
+}
+
+/* RTL Support */
+[dir="rtl"] .modal-footer {
+    justify-content: flex-start;
+}
+
+/* Responsive Design */
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 0.25rem;
+        max-width: calc(100% - 0.5rem);
+    }
+    
+    .modal-header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .modal-body {
+        padding: 1rem;
+    }
+    
+    .modal-footer {
+        padding: 0.75rem 1rem 1rem;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .modal-footer .btn {
+        margin-bottom: 0.5rem;
+    }
+    
+    .modal-footer .btn:last-child {
+        margin-bottom: 0;
+    }
+}
+
+/* Accessibility Enhancements */
+.modal-header .btn-close:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.modal-footer .btn:focus {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+/* Animation Enhancements */
+.modal.fade .modal-dialog {
+    transition: transform 0.3s ease-out;
+    transform: translate(0, -50px);
+}
+
+.modal.show .modal-dialog {
+    transform: none;
+}
+
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+    .modal-content {
+        border-width: 2px;
+    }
+    
+    .modal-header {
+        border-bottom-width: 2px;
+    }
+    
+    .modal-footer {
+        border-top-width: 2px;
+    }
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+    .modal.fade .modal-dialog {
+        transition: none;
+    }
+}
+</style> 

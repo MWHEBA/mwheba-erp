@@ -1,0 +1,604 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load utils_extras %}
+{% load crispy_forms_tags %}
+{% load custom_filters %}
+
+{% block title %}{{ bundle.name }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+
+<style>
+    .component-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        transition: all 0.3s ease;
+    }
+    
+    .component-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        border-color: var(--bs-primary);
+    }
+    
+    .component-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 1px solid #e9ecef;
+    }
+    
+    .component-name {
+        font-weight: 600;
+        color: #495057;
+        margin: 0;
+    }
+    
+    .availability-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+    
+    .availability-available {
+        background: #d4edda;
+        color: #155724;
+    }
+    
+    .availability-unavailable {
+        background: #f8d7da;
+        color: #721c24;
+    }
+    
+    .stock-progress {
+        height: 8px;
+        background: #e9ecef;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 0.5rem 0;
+    }
+    
+    .stock-progress-bar {
+        height: 100%;
+        transition: width 0.3s ease;
+    }
+    
+    .stock-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    
+    .bundle-summary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 12px;
+        padding: 2rem;
+        margin-bottom: 2rem;
+    }
+    
+    .bundle-summary h3 {
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .summary-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+    
+    .summary-stat {
+        text-align: center;
+        padding: 1rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
+        backdrop-filter: blur(10px);
+    }
+    
+    .summary-stat-value {
+        font-size: 2rem;
+        font-weight: bold;
+        margin-bottom: 0.5rem;
+    }
+    
+    .summary-stat-label {
+        font-size: 0.875rem;
+        opacity: 0.9;
+    }
+    
+    .component-grid {
+        display: grid;
+        gap: 1rem;
+    }
+    
+    .component-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 1rem;
+        margin-top: 1rem;
+    }
+    
+    .detail-item {
+        text-align: center;
+        padding: 0.75rem;
+        background: #f8f9fa;
+        border-radius: 6px;
+    }
+    
+    .detail-value {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 0.25rem;
+    }
+    
+    .detail-label {
+        font-size: 0.75rem;
+        color: #6c757d;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 3rem 1rem;
+        color: #6c757d;
+    }
+    
+    .empty-state i {
+        font-size: 4rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+    
+    .bundle-info-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid #f8f9fa;
+    }
+    
+    .info-row:last-child {
+        border-bottom: none;
+    }
+    
+    .info-label {
+        color: #6c757d;
+        font-weight: 500;
+    }
+    
+    .info-value {
+        color: #212529;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- CSRF Token للاستخدام في JavaScript -->
+    {% csrf_token %}
+    
+    <!-- Page Header المركزي -->
+    {% include "shared/page_header.html" %}
+
+    <!-- إحصائيات سريعة -->
+    <div class="section-container">
+        <h5 class="section-title">
+            <i class="fas fa-chart-bar me-2"></i>
+            إحصائيات المخزون
+        </h5>
+        <div class="row">
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-primary">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-cubes"></i>
+                        </div>
+                        <div class="stats-card-title">المخزون المحسوب</div>
+                        <div class="stats-card-value">{{ calculated_stock|smart_float }}</div>
+                        <div class="stats-card-unit">وحدة</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-info">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-puzzle-piece"></i>
+                        </div>
+                        <div class="stats-card-title">إجمالي المكونات</div>
+                        <div class="stats-card-value">{{ components_count|smart_float }}</div>
+                        <div class="stats-card-unit">مكون</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-success">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                        <div class="stats-card-title">المكونات المتاحة</div>
+                        <div class="stats-card-value">{{ available_components|smart_float }}</div>
+                        <div class="stats-card-unit">مكون</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="stats-card stats-card-warning">
+                    <div class="stats-card-header"></div>
+                    <div class="stats-card-body">
+                        <div class="stats-card-icon">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                        <div class="stats-card-title">نسبة التوفر</div>
+                        <div class="stats-card-value">{{ availability_percentage|smart_float }}</div>
+                        <div class="stats-card-unit">%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <!-- العمود الأيسر - تفاصيل المكونات -->
+        <div class="col-md-8">
+            <!-- قسم المكونات -->
+            <div class="section-container">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="section-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        مكونات العنصر المجمع
+                        <span class="badge bg-primary ms-2">{{ components_count|smart_float }} مكون</span>
+                    </h5>
+                </div>
+                
+                {% if components_data %}
+                <div class="component-grid">
+                    {% for comp_data in components_data %}
+                    <div class="component-card">
+                        <div class="component-header">
+                            <h6 class="component-name">
+                                <i class="fas fa-box me-2"></i>
+                                {{ comp_data.product.name }}
+                                {% if comp_data.alternatives_count > 0 %}
+                                <span class="badge bg-info ms-2" title="يوجد {{ comp_data.alternatives_count }} بديل">
+                                    <i class="fas fa-exchange-alt me-1"></i>{{ comp_data.alternatives_count }} بديل
+                                </span>
+                                {% endif %}
+                            </h6>
+                            <span class="availability-badge availability-{{ comp_data.availability_class }}">
+                                {{ comp_data.availability_status }}
+                            </span>
+                        </div>
+                        
+                        <div class="component-details">
+                            <div class="detail-item">
+                                <div class="detail-value">{{ comp_data.current_stock|smart_float }}</div>
+                                <div class="detail-label">المخزون الحالي</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">{{ comp_data.required_quantity|smart_float }}</div>
+                                <div class="detail-label">الكمية المطلوبة</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-value">{{ comp_data.possible_bundles|smart_float }}</div>
+                                <div class="detail-label">وحدات ممكنة</div>
+                            </div>
+                        </div>
+                        
+                        <!-- شريط تقدم المخزون -->
+                        <div class="stock-progress">
+                            <div class="stock-progress-bar bg-{{ comp_data.availability_class }}" 
+                                 style="width: {% if comp_data.stock_ratio > 100 %}100{% else %}{{ comp_data.stock_ratio|smart_float }}{% endif %}%"></div>
+                        </div>
+                        
+                        <div class="stock-info">
+                            <span>
+                                <strong>{{ comp_data.product.sku }}</strong> • 
+                                {{ comp_data.product.category.name }}
+                            </span>
+                            <span>
+                                {% if comp_data.stock_ratio >= 100 %}
+                                <i class="fas fa-check-circle text-success me-1"></i>
+                                متوفر بكثرة
+                                {% elif comp_data.stock_ratio >= 50 %}
+                                <i class="fas fa-exclamation-triangle text-warning me-1"></i>
+                                متوفر محدود
+                                {% else %}
+                                <i class="fas fa-times-circle text-danger me-1"></i>
+                                غير متوفر
+                                {% endif %}
+                            </span>
+                        </div>
+                        
+                        <!-- البدائل المتاحة -->
+                        {% if comp_data.alternatives %}
+                        <div class="mt-3 pt-3 border-top">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small class="text-muted fw-bold">
+                                    <i class="fas fa-exchange-alt me-1"></i>البدائل المتاحة:
+                                </small>
+                                <button class="btn btn-sm btn-outline-primary" type="button" 
+                                        data-bs-toggle="collapse" 
+                                        data-bs-target="#alternatives-{{ comp_data.component.id }}" 
+                                        aria-expanded="false">
+                                    <i class="fas fa-chevron-down"></i>
+                                </button>
+                            </div>
+                            <div class="collapse" id="alternatives-{{ comp_data.component.id }}">
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>المنتج البديل</th>
+                                                <th class="text-center">المخزون</th>
+                                                <th class="text-center">فرق السعر</th>
+                                                <th class="text-center">افتراضي</th>
+                                                <th class="text-center">الحالة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for alt in comp_data.alternatives %}
+                                            <tr>
+                                                <td>
+                                                    <strong>{{ alt.alternative_product.name }}</strong>
+                                                    <br><small class="text-muted">{{ alt.alternative_product.sku }}</small>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge {% if alt.alternative_product.current_stock > 0 %}bg-success{% else %}bg-danger{% endif %}">
+                                                        {{ alt.alternative_product.current_stock|smart_float }}
+                                                    </span>
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if alt.price_adjustment > 0 %}
+                                                    <span class="text-primary">+{{ alt.price_adjustment|smart_float }} ج.م</span>
+                                                    {% elif alt.price_adjustment < 0 %}
+                                                    <span class="text-success">{{ alt.price_adjustment|smart_float }} ج.م</span>
+                                                    {% else %}
+                                                    <span class="text-muted">--</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if alt.is_default %}
+                                                    <i class="fas fa-check-circle text-success"></i>
+                                                    {% else %}
+                                                    <i class="fas fa-circle text-muted" style="font-size: 0.5rem;"></i>
+                                                    {% endif %}
+                                                </td>
+                                                <td class="text-center">
+                                                    {% if alt.is_active %}
+                                                    <span class="badge bg-success">نشط</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">غير نشط</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="empty-state">
+                    <i class="fas fa-puzzle-piece"></i>
+                    <h5>لا توجد مكونات</h5>
+                    <p>لم يتم تحديد أي مكونات لهذا العنصر المجمع بعد</p>
+                    <a href="{% url 'product:product_edit' bundle.pk %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>إضافة مكونات
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- العمود الأيمن - معلومات إضافية -->
+        <div class="col-md-4">
+            <!-- معلومات العنصر المجمع -->
+            <div class="bundle-info-card">
+                <h5><i class="fas fa-info-circle me-2"></i>معلومات العنصر</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">كود المنتج</span>
+                    <span class="info-value">{{ bundle.sku }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">التصنيف</span>
+                    <span class="info-value">{{ bundle.category.name }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">وحدة القياس</span>
+                    <span class="info-value">{{ bundle.unit.name }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">سعر التكلفة</span>
+                    <span class="info-value">{{ bundle.cost_price|smart_float }} ج.م</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">سعر البيع</span>
+                    <span class="info-value">{{ bundle.selling_price|smart_float }} ج.م</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">هامش الربح</span>
+                    <span class="info-value">{{ bundle.profit_margin|smart_float }}%</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">الحالة</span>
+                    <span class="info-value">
+                        {% if bundle.is_active %}
+                        <span class="badge bg-success">نشط</span>
+                        {% else %}
+                        <span class="badge bg-danger">غير نشط</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- ملخص المخزون -->
+            <div class="bundle-info-card">
+                <h5><i class="fas fa-warehouse me-2"></i>ملخص المخزون</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">المخزون المحسوب</span>
+                    <span class="info-value text-primary">{{ calculated_stock|smart_float }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">عدد المكونات</span>
+                    <span class="info-value">{{ components_count|smart_float }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">المكونات المتاحة</span>
+                    <span class="info-value">
+                        <span class="text-success">{{ available_components|smart_float }}</span> / 
+                        {{ total_components|smart_float }}
+                    </span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">نسبة التوفر</span>
+                    <span class="info-value">
+                        {% if availability_percentage >= 100 %}
+                        <span class="text-success">{{ availability_percentage|smart_float }}%</span>
+                        {% elif availability_percentage >= 50 %}
+                        <span class="text-warning">{{ availability_percentage|smart_float }}%</span>
+                        {% else %}
+                        <span class="text-danger">{{ availability_percentage|smart_float }}%</span>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+            
+            <!-- معلومات إضافية -->
+            <div class="bundle-info-card">
+                <h5><i class="fas fa-calendar me-2"></i>معلومات إضافية</h5>
+                
+                <div class="info-row">
+                    <span class="info-label">تاريخ الإنشاء</span>
+                    <span class="info-value">{{ bundle.created_at|date:"Y-m-d" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">آخر تحديث</span>
+                    <span class="info-value">{{ bundle.updated_at|date:"Y-m-d" }}</span>
+                </div>
+                
+                <div class="info-row">
+                    <span class="info-label">أنشئ بواسطة</span>
+                    <span class="info-value">{{ bundle.created_by.get_full_name|default:bundle.created_by.username }}</span>
+                </div>
+                
+                {% if bundle.description %}
+                <div class="info-row">
+                    <span class="info-label">الوصف</span>
+                    <span class="info-value">{{ bundle.description }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            <!-- إجراءات سريعة -->
+            <div class="bundle-info-card">
+                <h5><i class="fas fa-tools me-2"></i>إجراءات سريعة</h5>
+                
+                <div class="d-grid gap-2">
+                    <a href="{% url 'product:product_edit' bundle.pk %}" class="btn btn-primary">
+                        <i class="fas fa-edit me-2"></i>تعديل العنصر
+                    </a>
+                    
+                    <a href="{% url 'product:bundle_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list me-2"></i>قائمة العناصر المجمعة
+                    </a>
+                    
+                    <a href="{% url 'product:product_list' %}" class="btn btn-outline-info">
+                        <i class="fas fa-boxes me-2"></i>جميع العناصر
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // تحريك البطاقات عند التحميل
+    $('.component-card').each(function(index) {
+        $(this).css({
+            'opacity': '0',
+            'transform': 'translateY(20px)'
+        });
+        
+        setTimeout(() => {
+            $(this).css({
+                'opacity': '1',
+                'transform': 'translateY(0)',
+                'transition': 'all 0.5s ease'
+            });
+        }, index * 100);
+    });
+    
+    // تحريك أشرطة التقدم
+    setTimeout(() => {
+        $('.stock-progress-bar').each(function() {
+            const width = $(this).css('width');
+            $(this).css('width', '0%');
+            setTimeout(() => {
+                $(this).css({
+                    'width': width,
+                    'transition': 'width 1s ease'
+                });
+            }, 100);
+        });
+    }, 500);
+    
+    // إضافة تفاعل مع بطاقات المكونات
+    $('.component-card').hover(
+        function() {
+            $(this).find('.component-name').css('color', 'var(--bs-primary)');
+        },
+        function() {
+            $(this).find('.component-name').css('color', '#495057');
+        }
+    );
+});
+</script>
+{% endblock %}

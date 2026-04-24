@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}IP محظور{% endblock %}
+
+{% block extra_css %}
+<style>
+.blocked-container {
+    min-height: 70vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+}
+
+.blocked-card {
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    padding: 3rem;
+    text-align: center;
+    max-width: 600px;
+    margin: 2rem;
+    border: 3px solid #dc3545;
+}
+
+.blocked-icon {
+    font-size: 5rem;
+    color: #dc3545;
+    margin-bottom: 1.5rem;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.blocked-title {
+    color: #dc3545;
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.blocked-message {
+    color: #495057;
+    font-size: 1.2rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+    font-weight: 500;
+}
+
+.retry-info {
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin: 2rem 0;
+    color: #856404;
+}
+
+.retry-timer {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #dc3545;
+    margin: 1rem 0;
+}
+
+.security-warning {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    color: #721c24;
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+.contact-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    color: #0c5460;
+}
+
+.contact-info h4 {
+    color: #0c5460;
+    margin-bottom: 1rem;
+}
+
+.contact-info p {
+    margin-bottom: 0.5rem;
+}
+
+.blocked-details {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid #dee2e6;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="blocked-container">
+    <div class="blocked-card">
+        <div class="blocked-icon">
+            <i class="fas fa-ban"></i>
+        </div>
+        
+        <h1 class="blocked-title">{{ title|default:"IP محظور" }}</h1>
+        
+        <p class="blocked-message">
+            {{ message|default:"تم حظر عنوان IP الخاص بك مؤقتاً بسبب محاولات أمنية مشبوهة" }}
+        </p>
+        
+        <div class="retry-info">
+            <h4><i class="fas fa-clock"></i> معلومات الحظر</h4>
+            <p>مدة الحظر: <strong>{{ retry_after|default:5 }} دقيقة</strong></p>
+            <div class="retry-timer" id="countdown">
+                جاري حساب الوقت المتبقي...
+            </div>
+        </div>
+        
+        <div class="security-warning">
+            <h4><i class="fas fa-exclamation-triangle"></i> تحذير أمني</h4>
+            <p>
+                تم اكتشاف محاولات متكررة لانتهاك الأمان من عنوان IP الخاص بك.
+                هذا الإجراء تم اتخاذه لحماية النظام والمستخدمين الآخرين.
+            </p>
+            <p>
+                <strong>الأسباب المحتملة:</strong>
+            </p>
+            <ul style="text-align: right; margin-top: 1rem;">
+                <li>محاولات تسجيل دخول متكررة بكلمات مرور خاطئة</li>
+                <li>إرسال طلبات بدون رموز الأمان المطلوبة (CSRF)</li>
+                <li>محاولة الوصول لصفحات غير مصرح بها</li>
+                <li>سلوك مشبوه أو آلي</li>
+            </ul>
+        </div>
+        
+        <div class="contact-info">
+            <h4><i class="fas fa-headset"></i> هل تحتاج مساعدة؟</h4>
+            <p>إذا كنت تعتقد أن هذا خطأ، يرجى الاتصال بالدعم الفني:</p>
+            <p><i class="fas fa-envelope"></i> البريد الإلكتروني: support@company.com</p>
+            <p><i class="fas fa-phone"></i> الهاتف: +20 123 456 789</p>
+            <p><i class="fas fa-clock"></i> ساعات العمل: 9:00 ص - 5:00 م</p>
+        </div>
+        
+        <div class="blocked-details">
+            <p><strong>رقم المرجع:</strong> {{ request.META.REMOTE_ADDR|default:"N/A" }}</p>
+            <p><strong>الوقت:</strong> <span id="current-time"></span></p>
+            <p><strong>كود الخطأ:</strong> IP_BLOCKED_CSRF</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// عرض الوقت الحالي
+function updateCurrentTime() {
+    const now = new Date();
+    document.getElementById('current-time').textContent = now.toLocaleString('ar-EG');
+}
+
+// تحديث العد التنازلي
+let retryAfter = {{ retry_after|default:5 }} * 60; // بالثواني
+
+function updateCountdown() {
+    const minutes = Math.floor(retryAfter / 60);
+    const seconds = retryAfter % 60;
+    
+    const countdownElement = document.getElementById('countdown');
+    if (retryAfter > 0) {
+        countdownElement.innerHTML = `
+            <i class="fas fa-hourglass-half"></i>
+            ${minutes}:${seconds.toString().padStart(2, '0')} دقيقة متبقية
+        `;
+        retryAfter--;
+    } else {
+        countdownElement.innerHTML = `
+            <i class="fas fa-check-circle" style="color: #28a745;"></i>
+            يمكنك المحاولة الآن
+        `;
+        // إضافة زر للمحاولة مرة أخرى
+        if (!document.getElementById('retry-button')) {
+            const retryButton = document.createElement('button');
+            retryButton.id = 'retry-button';
+            retryButton.className = 'btn btn-success mt-3';
+            retryButton.innerHTML = '<i class="fas fa-redo"></i> المحاولة مرة أخرى';
+            retryButton.onclick = () => window.location.reload();
+            countdownElement.appendChild(retryButton);
+        }
+    }
+}
+
+// تشغيل التحديثات
+updateCurrentTime();
+updateCountdown();
+
+// تحديث كل ثانية
+setInterval(updateCurrentTime, 1000);
+setInterval(updateCountdown, 1000);
+
+// منع النقر بالزر الأيمن والاختصارات
+document.addEventListener('contextmenu', e => e.preventDefault());
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}
