@@ -41,6 +41,10 @@ urlpatterns = [
     path("roles/", lambda request: redirect('users:permissions_dashboard', permanent=True)),
     path("users/<int:user_id>/permissions/", lambda request, user_id: redirect('users:user_permissions_detail', user_id=user_id, permanent=True)),
     
+    # Login As (للـ superuser فقط)
+    path("<int:user_id>/login-as/", views.login_as_user, name="login_as_user"),
+    path("stop-impersonation/", views.stop_impersonation, name="stop_impersonation"),
+
     # مسارات API
     path("api/login/", api.LoginAPIView.as_view(), name="api_login"),
     path("api/register/", api.RegisterAPIView.as_view(), name="api_register"),

@@ -67,6 +67,42 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    
+    <!-- Dynamic CSS Variables from Database - تجاوز متغيرات الـ CSS بالقيم المحفوظة -->
+    {% if settings %}
+    <style id="dynamic-css-vars">
+        :root {
+            {% if settings.color_primary %}--primary-color: {{ settings.color_primary }};
+            --primary-rgb: {{ settings.color_primary|slice:"1:3"|default:"04" }}, {{ settings.color_primary|slice:"3:5"|default:"57" }}, {{ settings.color_primary|slice:"5:7"|default:"8d" }};
+            --primary-soft: {{ settings.color_primary }}1a;
+            --primary-soft-2: {{ settings.color_primary }}0d;{% endif %}
+            {% if settings.color_primary_dark %}--primary-dark: {{ settings.color_primary_dark }};{% endif %}
+            {% if settings.color_primary_light %}--primary-light: {{ settings.color_primary_light }};{% endif %}
+            {% if settings.color_primary_hover %}--primary-hover: {{ settings.color_primary_hover }};
+            --primary-active: {{ settings.color_primary_hover }};{% endif %}
+            {% if settings.color_success %}--success-color: {{ settings.color_success }};
+            --status-active: {{ settings.color_success }};{% endif %}
+            {% if settings.color_success_dark %}--success-dark: {{ settings.color_success_dark }};{% endif %}
+            {% if settings.color_warning %}--warning-color: {{ settings.color_warning }};
+            --status-pending: {{ settings.color_warning }};{% endif %}
+            {% if settings.color_warning_dark %}--warning-dark: {{ settings.color_warning_dark }};{% endif %}
+            {% if settings.color_danger %}--danger-color: {{ settings.color_danger }};
+            --status-cancelled: {{ settings.color_danger }};{% endif %}
+            {% if settings.color_danger_dark %}--danger-dark: {{ settings.color_danger_dark }};{% endif %}
+            {% if settings.color_info %}--info-color: {{ settings.color_info }};{% endif %}
+            {% if settings.color_info_dark %}--info-dark: {{ settings.color_info_dark }};{% endif %}
+            {% if settings.color_bg_body %}--bg-body: {{ settings.color_bg_body }};
+            --content-bg: {{ settings.color_bg_body }};{% endif %}
+            {% if settings.color_text %}--text-color: {{ settings.color_text }};{% endif %}
+            {% if settings.color_bg_card %}--bg-card: {{ settings.color_bg_card }};
+            --card-bg: {{ settings.color_bg_card }};{% endif %}
+            {% if settings.color_border %}--border-color: {{ settings.color_border }};{% endif %}
+            {% if settings.color_sidebar_bg %}--sidebar-bg: {{ settings.color_sidebar_bg }};{% endif %}
+            {% if settings.color_header_bg %}--header-bg: {{ settings.color_header_bg }};{% endif %}
+        }
+    </style>
+    {% endif %}
+
     <link rel="stylesheet" href="{% static 'css/bootstrap-overrides.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
     <link rel="stylesheet" href="{% static 'css/footer.css' %}">
@@ -100,6 +136,24 @@
             {% endif %}
 
             <div class="content-wrapper">
+                {% if request.session.is_impersonating %}
+                <div class="impersonation-bar d-flex align-items-center justify-content-between py-2 px-3" role="status">
+                    <div>
+                        <i class="fas fa-user-secret me-2"></i>
+                        <strong>وضع الانتحال:</strong> أنت تتصفح النظام بهوية <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>
+                    </div>
+                    <a href="{% url 'users:stop_impersonation' %}" class="btn btn-sm btn-warning">
+                        <i class="fas fa-sign-out-alt me-1"></i> الرجوع لحسابي
+                    </a>
+                </div>
+                <style>
+                .impersonation-bar {
+                    background-color: #fff3cd;
+                    border-bottom: 2px solid #ffc107;
+                    color: #664d03;
+                }
+                </style>
+                {% endif %}
                 {% block messages %}{% include 'components/messages.html' %}{% endblock %}
                 {% block content %}{% endblock %}
             </div>

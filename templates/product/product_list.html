@@ -18,15 +18,49 @@
     z-index: 100;
     background: var(--primary-color, #0d6efd);
     color: #fff;
-    padding: 10px 16px;
-    border-radius: 8px;
-    margin-bottom: 12px;
-    align-items: center;
-    gap: 12px;
+    padding: 8px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
     box-shadow: 0 2px 8px rgba(0,0,0,0.15);
 }
-#bulk-toolbar.visible { display: flex; }
-#bulk-toolbar .bulk-count { font-weight: 600; font-size: 0.95rem; }
+#bulk-toolbar.visible { display: flex; align-items: center; justify-content: space-between; }
+.bulk-count { font-weight: 500; }
+
+/* تنسيق التصنيفات السريعة */
+.category-quick-filter {
+    transition: all 0.2s ease;
+    border-radius: 20px;
+    font-weight: 500;
+}
+.category-quick-filter:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+.subcategory-arrow {
+    transition: transform 0.3s ease;
+}
+#subcategory-filters {
+    background: rgba(var(--bs-light-rgb), 0.3);
+    border-radius: 8px;
+    padding: 10px;
+    border-left: 3px solid var(--bs-primary);
+}
+.subcategory-quick-filter {
+    transition: all 0.2s ease;
+    border-radius: 15px;
+    font-size: 0.85em;
+}
+.subcategory-quick-filter:hover {
+    transform: translateY(-1px);
+}
+
+/* override الـ CSS العام اللي بيكسر الـ grid على الموبايل */
+@media (max-width: 767px) {
+    .filter-section .row.g-2 {
+        flex-direction: row !important;
+        flex-wrap: wrap !important;
+    }
+}
 </style>
 {% endblock %}
 
@@ -40,7 +74,7 @@
     <!-- تصفية وبحث -->
     <div class="section-container mb-4">
         <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection"
-            aria-expanded="{% if current_search or current_status and current_status != 'active' or current_category or current_product_type or current_min_price or current_max_price or current_in_stock %}true{% else %}false{% endif %}"
+            aria-expanded="false"
             style="cursor: pointer;">
             <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
             {% if current_search or current_category or current_product_type or current_min_price or current_max_price or current_in_stock %}
@@ -48,19 +82,19 @@
             {% endif %}
             <i class="fas fa-chevron-down float-end"></i>
         </h5>
-        <div class="collapse {% if current_search or current_category or current_product_type or current_min_price or current_max_price or current_in_stock %}show{% endif %}" id="filterSection">
+        <div class="collapse" id="filterSection">
             <div class="filter-section mb-4">
-                <form method="GET" action="{% url 'product:product_list' %}" class="d-flex flex-wrap gap-2 align-items-end">
+                <form method="GET" action="{% url 'product:product_list' %}" class="row g-2 align-items-end">
                     <!-- بحث -->
-                    <div class="flex-grow-1" style="min-width: 200px;">
+                    <div class="col-12 col-md">
                         <label for="search" class="form-label">{% trans "بحث" %}</label>
                         <input type="text" class="form-control" id="search" name="search"
                                value="{{ current_search }}" placeholder="اسم المنتج أو الكود...">
                     </div>
                     <!-- التصنيف -->
-                    <div class="flex-shrink-0" style="min-width: 150px;">
+                    <div class="col-6 col-md-auto">
                         <label for="category" class="form-label">التصنيف</label>
-                        <select class="form-select" id="category" name="category">
+                        <select class="form-select" id="category" name="category" style="min-width:140px;">
                             <option value="">جميع التصنيفات</option>
                             {% for cat in categories %}
                                 <option value="{{ cat.pk }}" {% if current_category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
@@ -68,29 +102,31 @@
                         </select>
                     </div>
                     <!-- نوع المنتج -->
-                    <div class="flex-shrink-0" style="min-width: 140px;">
+                    <div class="col-6 col-md-auto">
                         <label for="product_type" class="form-label">نوع المنتج</label>
-                        <select class="form-select" id="product_type" name="product_type">
+                        <select class="form-select" id="product_type" name="product_type" style="min-width:130px;">
                             <option value="">جميع الأنواع</option>
                             <option value="regular" {% if current_product_type == 'regular' %}selected{% endif %}>عادي</option>
                             <option value="bundle" {% if current_product_type == 'bundle' %}selected{% endif %}>مجمع</option>
                         </select>
                     </div>
                     <!-- الحالة -->
-                    <div class="flex-shrink-0" style="min-width: 120px;">
+                    <div class="col-12 col-md-auto">
                         <label for="status" class="form-label">الحالة</label>
-                        <select class="form-select" id="status" name="status">
-                            <option value="">الكل</option>
-                            <option value="active" {% if current_status == 'active' %}selected{% endif %}>نشط</option>
+                        <select class="form-select" id="status" name="status" style="min-width:110px;">
+                            <option value="all" {% if current_status == 'all' %}selected{% endif %}>الكل</option>
+                            <option value="active" {% if current_status == 'active' or not current_status %}selected{% endif %}>نشط</option>
                             <option value="inactive" {% if current_status == 'inactive' %}selected{% endif %}>غير نشط</option>
                         </select>
                     </div>
                     <!-- أزرار -->
-                    <div class="flex-shrink-0 d-flex gap-2 align-self-end">
-                        <button type="submit" class="btn btn-primary">
+                    <div class="col-6 col-md-auto">
+                        <button type="submit" class="btn btn-primary w-100">
                             <i class="fas fa-search me-1"></i>{% trans "بحث" %}
                         </button>
-                        <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary w-100">
                             <i class="fas fa-times me-1"></i>مسح
                         </a>
                     </div>
@@ -113,11 +149,23 @@
                 {% if not cat.parent %}
                 <button type="button"
                         data-category="{{ cat.pk }}"
+                        data-children-count="{{ cat.has_children }}"
                         class="btn btn-sm category-quick-filter {% if current_category == cat.pk|stringformat:'s' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
                     {{ cat.name }}
+                    {% if cat.has_children > 0 %}
+                        <i class="fas fa-chevron-down ms-1 subcategory-arrow" style="font-size: 0.7em;"></i>
+                    {% endif %}
                 </button>
                 {% endif %}
             {% endfor %}
+        </div>
+        
+        <!-- التصنيفات الفرعية (مخفية افتراضياً) -->
+        <div id="subcategory-filters" class="mt-2" style="display: none;">
+            <div class="d-flex flex-wrap align-items-center gap-2 ps-3">
+                <span class="text-muted small me-1"><i class="fas fa-arrow-left me-1"></i>التصنيفات الفرعية:</span>
+                <div id="subcategory-buttons" class="d-flex flex-wrap gap-2"></div>
+            </div>
         </div>
     </div>
     {% endif %}
@@ -232,7 +280,8 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
 const BULK_EDIT_URL = "{% url 'product:product_bulk_edit' %}";
-const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const SUBCATEGORIES_URL = "{% url 'product:get_subcategories' %}";
+const CSRF_TOKEN = $('[name=csrfmiddlewaretoken]').val() || document.querySelector('[name=csrfmiddlewaretoken]')?.value;
 
 // ===== Table Init =====
 function initTable() {
@@ -265,11 +314,15 @@ function initTable() {
 $(document).ready(function() {
     initTable();
 
+    // مخزن مستقل للـ category المحدد (يدعم التصنيفات الفرعية اللي مش في الـ select)
+    let _activeCategoryId = $('#category').val() || '';
+    let _activeParentCategoryId = '';  // الأب المحدد حالياً (لإبقائه منور لما تختار فرعي)
+
     let debounceTimer;
     function doSearch() {
         const params = new URLSearchParams({
             search:       $('#search').val(),
-            category:     $('#category').val(),
+            category:     _activeCategoryId,
             product_type: $('#product_type').val(),
             status:       $('#status').val(),
             page: 1
@@ -287,11 +340,12 @@ $(document).ready(function() {
                 );
                 history.replaceState(null, '', '?' + params.toString());
                 initTable();
-                // تحديث حالة أزرار التصنيف
-                const activeCat = $('#category').val();
+                // تحديث حالة أزرار التصنيف الرئيسية
                 $('.category-quick-filter').each(function() {
                     const btnCat = String($(this).data('category') || '');
-                    if (btnCat === String(activeCat)) {
+                    // الأب يفضل منور لو هو المحدد أو لو فيه فرعي محدد تحته
+                    const isActive = btnCat === String(_activeCategoryId) || btnCat === String(_activeParentCategoryId);
+                    if (isActive) {
                         $(this).removeClass('btn-outline-secondary btn-outline-primary').addClass('btn-primary');
                     } else {
                         $(this).removeClass('btn-primary').addClass(btnCat === '' ? 'btn-outline-primary' : 'btn-outline-secondary');
@@ -307,23 +361,88 @@ $(document).ready(function() {
     });
 
     $('#category, #product_type, #status').on('change', function() {
+        // لما الـ select يتغير يدوياً، حدّث _activeCategoryId
+        if (this.id === 'category') {
+            _activeCategoryId = $(this).val() || '';
+            _activeParentCategoryId = _activeCategoryId;  // الـ select بيحتوي أباء فقط
+        }
         doSearch();
     });
 
     // أزرار الفلترة السريعة للتصنيفات
     $(document).on('click', '.category-quick-filter', function() {
         const catId = $(this).data('category');
-        // تحديث الـ select في الفورم
+        const childrenCount = parseInt($(this).data('children-count') || 0);
+        const hasChildren = childrenCount > 0;
+        
+        // تحديث المصدر المستقل + الـ select (للـ select نحدده بالأب فقط)
+        _activeCategoryId = catId || '';
+        _activeParentCategoryId = catId || '';  // لما تضغط أب، هو الأب والمحدد في نفس الوقت
         $('#category').val(catId);
+        
         // تحديث حالة الأزرار
         $('.category-quick-filter').removeClass('btn-primary').addClass('btn-outline-secondary');
         $(this).removeClass('btn-outline-secondary btn-outline-primary').addClass('btn-primary');
         if (!catId) {
-            // زرار "الكل" يكون outline-primary للباقيين
             $('.category-quick-filter:not(:first)').removeClass('btn-primary').addClass('btn-outline-secondary');
+            $('#subcategory-filters').slideUp(200);
+            $('.subcategory-arrow').removeClass('fa-chevron-up').addClass('fa-chevron-down');
         }
+        
+        if (catId && hasChildren) {
+            loadSubcategories(catId);
+            $(this).find('.subcategory-arrow').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        } else if (catId && !hasChildren) {
+            $('#subcategory-filters').slideUp(200);
+            $('.subcategory-arrow').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        }
+        
         doSearch();
     });
+    
+    // معالج التصنيفات الفرعية
+    $(document).on('click', '.subcategory-quick-filter', function(e) {
+        e.stopPropagation();
+        const subCatId = $(this).data('category');
+        
+        // تحديث المصدر المستقل فقط (الـ select مش بيحتوي على التصنيفات الفرعية)
+        _activeCategoryId = subCatId || '';
+        // _activeParentCategoryId يفضل كما هو عشان الأب يفضل منور
+        
+        // تحديث حالة أزرار التصنيفات الفرعية
+        $('.subcategory-quick-filter').removeClass('btn-primary').addClass('btn-outline-info');
+        $(this).removeClass('btn-outline-info').addClass('btn-primary');
+        
+        doSearch();
+    });
+    
+    // دالة تحميل التصنيفات الفرعية
+    function loadSubcategories(parentCategoryId) {
+        $.ajax({
+            url: SUBCATEGORIES_URL,
+            data: { parent_id: parentCategoryId },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success: function(data) {
+                const buttonsContainer = $('#subcategory-buttons');
+                buttonsContainer.empty();
+                
+                if (data.subcategories && data.subcategories.length > 0) {
+                    buttonsContainer.append(
+                        `<button type="button" data-category="${parentCategoryId}" class="btn btn-sm btn-outline-info subcategory-quick-filter"><i class="fas fa-list me-1"></i>الكل</button>`
+                    );
+                    data.subcategories.forEach(function(subcat) {
+                        buttonsContainer.append(
+                            `<button type="button" data-category="${subcat.id}" class="btn btn-sm btn-outline-info subcategory-quick-filter">${subcat.name}</button>`
+                        );
+                    });
+                    $('#subcategory-filters').slideDown(200);
+                }
+            },
+            error: function(xhr) {
+                console.error('Error loading subcategories:', xhr.status, xhr.responseText);
+            }
+        });
+    }
 
     $('form').on('submit', function(e) {
         e.preventDefault();

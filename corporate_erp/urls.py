@@ -15,13 +15,14 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.contrib.auth.views import LoginView, LogoutView
 from django.views.generic import RedirectView
 from django.contrib.auth.decorators import login_required
+from django.views.static import serve
 from users.logout_views import CustomLogoutView
 from users.views import CustomLoginView
 from core.health_check import health_check, readiness_check
@@ -106,3 +107,15 @@ if settings.DEBUG:
         urlpatterns += [
             path("__debug__/", include(debug_toolbar.urls)),
         ]
+
+# ✅ CRITICAL: خدمة media files عبر Django في جميع البيئات
+# django.conf.urls.static.static() بترجع list فاضية لما DEBUG=False
+# لذلك نستخدم re_path مع django.views.static.serve مباشرة
+# هذا ضروري على cPanel لأن MEDIA_ROOT خارج document root
+urlpatterns += [
+    re_path(
+        r'^media/(?P<path>.*)$',
+        serve,
+        {'document_root': settings.MEDIA_ROOT, 'show_indexes': False},
+    ),
+]

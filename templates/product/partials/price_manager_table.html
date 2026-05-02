@@ -1,0 +1,64 @@
+{% load utils_extras %}
+<div class="table-responsive">
+    <table class="table table-hover table-bordered table-sm mb-0" id="price-table">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center" style="width:40px">
+                    <input type="checkbox" id="select-all" title="تحديد الكل">
+                </th>
+                <th>الاسم</th>
+                <th class="text-center" style="width:90px">SKU</th>
+                <th class="text-center" style="width:130px">سعر التكلفة</th>
+                <th class="text-center" style="width:130px">سعر البيع</th>
+                <th class="text-center" style="width:85px">هامش %</th>
+                <th class="text-center" style="width:95px">ضريبة %</th>
+                <th class="text-center" style="width:95px">خصم %</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr data-id="{{ item.pk }}">
+                <td class="text-center align-middle">
+                    <input type="checkbox" class="row-select" value="{{ item.pk }}">
+                </td>
+                <td class="align-middle" style="background:rgba(var(--bs-secondary-rgb),0.06);">{{ item.name }}</td>
+                <td class="text-center align-middle" style="background:rgba(var(--bs-secondary-rgb),0.06);">
+                    <small class="text-muted">{{ item.sku|default:"—" }}</small>
+                </td>
+                <td class="text-center align-middle" style="background:rgba(var(--bs-secondary-rgb),0.06);">
+                    <span class="text-muted" style="font-size:0.875rem;">{{ item.cost_price|smart_float }}</span>
+                </td>
+                <td class="text-center align-middle">
+                    <input type="text" inputmode="decimal" class="price-cell"
+                           data-field="selling_price" data-id="{{ item.pk }}"
+                           data-raw="{{ item.selling_price }}"
+                           value="{{ item.selling_price|smart_float }}" step="0.01" min="0">
+                </td>
+                <td class="text-center align-middle profit-cell" data-id="{{ item.pk }}"
+                    style="background:rgba(var(--bs-secondary-rgb),0.06);">
+                    {{ item.profit_margin|smart_float }}%
+                </td>
+                <td class="text-center align-middle">
+                    <input type="text" inputmode="decimal" class="price-cell"
+                           data-field="tax_rate" data-id="{{ item.pk }}"
+                           data-raw="{{ item.tax_rate }}"
+                           value="{{ item.tax_rate|smart_float }}" step="0.1" min="0" max="100">
+                </td>
+                <td class="text-center align-middle">
+                    <input type="text" inputmode="decimal" class="price-cell"
+                           data-field="discount_rate" data-id="{{ item.pk }}"
+                           data-raw="{{ item.discount_rate }}"
+                           value="{{ item.discount_rate|smart_float }}" step="0.1" min="0" max="100">
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="8" class="text-center text-muted py-4">
+                    <i class="fas fa-inbox me-2 opacity-50"></i>
+                    لا توجد عناصر
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>

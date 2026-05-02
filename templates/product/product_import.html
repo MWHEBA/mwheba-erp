@@ -1,0 +1,506 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<style>
+.upload-zone {
+    border: 2px dashed var(--bs-border-color);
+    border-radius: 12px;
+    padding: 2.5rem 2rem;
+    text-align: center;
+    background: var(--bs-light);
+    transition: border-color .25s, background .25s;
+    cursor: pointer;
+    position: relative;
+    min-height: 160px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+}
+.upload-zone input[type="file"] {
+    position: absolute; inset: 0;
+    opacity: 0; cursor: pointer;
+    width: 100%; height: 100%;
+}
+.upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--bs-primary);
+    background: var(--bs-primary-bg-subtle);
+}
+.upload-zone.has-file {
+    border-color: var(--bs-success);
+    background: var(--bs-success-bg-subtle);
+}
+.upload-zone-icon { font-size: 2.5rem; color: var(--bs-primary); margin-bottom: .75rem; pointer-events: none; }
+.upload-zone-text { color: var(--bs-secondary); font-size: .95rem; pointer-events: none; }
+.file-badge {
+    display: inline-flex; align-items: center; gap: .5rem;
+    background: var(--bs-success-bg-subtle);
+    border: 1px solid var(--bs-success-border-subtle);
+    color: var(--bs-success-text-emphasis);
+    border-radius: 8px; padding: .5rem 1rem;
+    font-size: .875rem; font-weight: 500; margin-top: .75rem;
+}
+.result-stat {
+    text-align: center; padding: 1.25rem 1rem;
+    border-radius: 10px; border: 1px solid var(--bs-border-color);
+}
+.result-stat .stat-number { font-size: 2rem; font-weight: 700; line-height: 1; }
+.result-stat .stat-label  { font-size: .8rem; color: var(--bs-secondary); margin-top: .25rem; }
+.result-stat.created { background: var(--bs-success-bg-subtle); border-color: var(--bs-success-border-subtle); }
+.result-stat.created .stat-number { color: var(--bs-success); }
+.result-stat.updated { background: var(--bs-info-bg-subtle);    border-color: var(--bs-info-border-subtle); }
+.result-stat.updated .stat-number { color: var(--bs-info); }
+.result-stat.skipped { background: var(--bs-warning-bg-subtle); border-color: var(--bs-warning-border-subtle); }
+.result-stat.skipped .stat-number { color: var(--bs-warning); }
+.result-stat.errors  { background: var(--bs-danger-bg-subtle);  border-color: var(--bs-danger-border-subtle); }
+.result-stat.errors  .stat-number { color: var(--bs-danger); }
+.col-guide {
+    background: var(--bs-light); border-radius: 8px;
+    padding: .6rem .9rem; font-size: .82rem;
+    border: 1px solid var(--bs-border-color);
+}
+.col-guide .col-name { font-weight: 600; font-family: monospace; }
+.col-guide.required { border-right: 3px solid var(--bs-success); }
+.col-guide.optional { border-right: 3px solid var(--bs-info); }
+.preview-table th, .preview-table td { vertical-align: middle; font-size: .85rem; }
+.action-badge-new    { background: var(--bs-success-bg-subtle); color: var(--bs-success-text-emphasis); border: 1px solid var(--bs-success-border-subtle); }
+.action-badge-update { background: var(--bs-info-bg-subtle);    color: var(--bs-info-text-emphasis);    border: 1px solid var(--bs-info-border-subtle); }
+.action-badge-skip   { background: var(--bs-warning-bg-subtle); color: var(--bs-warning-text-emphasis); border: 1px solid var(--bs-warning-border-subtle); }
+.action-badge-error  { background: var(--bs-danger-bg-subtle);  color: var(--bs-danger-text-emphasis);  border: 1px solid var(--bs-danger-border-subtle); }
+.action-badge { display: inline-block; padding: .2rem .6rem; border-radius: 6px; font-size: .78rem; font-weight: 600; }
+.preview-row-error td { background: var(--bs-danger-bg-subtle) !important; }
+.section-title[data-bs-toggle="collapse"] { cursor: pointer; transition: all 0.2s ease; }
+.section-title[data-bs-toggle="collapse"]:hover { opacity: 0.8; }
+.section-title .fa-chevron-down { transition: transform 0.3s ease; }
+.section-title[aria-expanded="true"] .fa-chevron-down { transform: rotate(180deg); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+    {% include "shared/page_header.html" %}
+
+    {% if import_result %}
+    <!-- نتائج الاستيراد -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-chart-bar me-2"></i>نتائج الاستيراد</h5>
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="result-stat created">
+                    <div class="stat-number">{{ import_result.created }}</div>
+                    <div class="stat-label">منتج جديد</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat updated">
+                    <div class="stat-number">{{ import_result.updated }}</div>
+                    <div class="stat-label">منتج محدّث</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat skipped">
+                    <div class="stat-number">{{ import_result.skipped }}</div>
+                    <div class="stat-label">تم تخطيه</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat errors">
+                    <div class="stat-number">{{ row_errors|length }}</div>
+                    <div class="stat-label">أخطاء</div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex gap-2 flex-wrap">
+            <a href="{% url 'product:product_list' %}" class="btn btn-success">
+                <i class="fas fa-boxes me-2"></i>عرض المنتجات
+            </a>
+            <a href="{% url 'product:product_import' %}" class="btn btn-outline-primary">
+                <i class="fas fa-redo me-2"></i>استيراد ملف آخر
+            </a>
+        </div>
+    </div>
+
+    {% if row_errors %}
+    <div class="section-container">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#errorsSection" aria-expanded="false">
+            <i class="fas fa-exclamation-triangle me-2 text-danger"></i>
+            تفاصيل الأخطاء <span class="badge bg-danger ms-2">{{ row_errors|length }}</span>
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse" id="errorsSection">
+            <div class="table-responsive mt-3">
+                <table class="table table-hover table-sm">
+                    <thead>
+                        <tr>
+                            <th class="text-center" style="width:70px;">السطر</th>
+                            <th class="text-center">المنتج</th>
+                            <th class="text-start">الخطأ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for err in row_errors %}
+                        <tr>
+                            <td class="text-center"><span class="badge bg-secondary">{{ err.row }}</span></td>
+                            <td class="text-center">{{ err.data|default:"-" }}</td>
+                            <td class="text-start text-danger">{{ err.message }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% elif preview %}
+    <!-- معاينة البيانات -->
+    <div class="section-container mb-4">
+        <h5 class="section-title"><i class="fas fa-eye me-2"></i>معاينة البيانات — {{ filename }}</h5>
+
+        {% if selected_warehouse_id %}
+        {% for wh in warehouses %}{% if wh.pk|stringformat:"s" == selected_warehouse_id|stringformat:"s" %}
+        <div class="alert alert-info d-flex align-items-center gap-2 mb-3 py-2">
+            <i class="fas fa-warehouse"></i>
+            <span>المخزن المحدد: <strong>{{ wh.name }}</strong></span>
+        </div>
+        {% endif %}{% endfor %}
+        {% endif %}
+
+        <div class="row g-3 mb-4">
+            <div class="col-6 col-md-3">
+                <div class="result-stat created">
+                    <div class="stat-number">{{ preview.valid_count }}</div>
+                    <div class="stat-label">منتج جديد</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat updated">
+                    <div class="stat-number">{{ preview.update_count }}</div>
+                    <div class="stat-label">سيتم تحديثه</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat skipped">
+                    <div class="stat-number">{{ preview.skip_count }}</div>
+                    <div class="stat-label">سيتم تخطيه</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3">
+                <div class="result-stat errors">
+                    <div class="stat-number">{{ preview.error_count }}</div>
+                    <div class="stat-label">أخطاء</div>
+                </div>
+            </div>
+        </div>
+
+        {% if preview.error_count > 0 %}
+        <div class="alert alert-warning d-flex gap-2 align-items-start mb-4">
+            <i class="fas fa-exclamation-triangle mt-1"></i>
+            <div>
+                يوجد <strong>{{ preview.error_count }}</strong> سطر به أخطاء وسيتم تخطيه تلقائياً.
+                يمكنك المتابعة أو إلغاء الاستيراد وتصحيح الملف.
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="table-responsive">
+            <table class="table table-hover table-sm preview-table">
+                <thead class="table-light">
+                    <tr>
+                        <th class="text-center" style="width:60px;">السطر</th>
+                        <th class="text-center" style="width:90px;">الإجراء</th>
+                        <th>اسم المنتج</th>
+                        <th class="text-center">التصنيف</th>
+                        <th class="text-center">الوحدة</th>
+                        <th class="text-center">سعر التكلفة</th>
+                        <th class="text-center">سعر البيع</th>
+                        <th class="text-center">الكمية</th>
+                        <th class="text-center">الكود</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview_rows_page %}
+                    <tr {% if row.action == 'error' %}class="preview-row-error"{% endif %}>
+                        <td class="text-center"><span class="badge bg-secondary">{{ row.row }}</span></td>
+                        <td class="text-center">
+                            {% if row.action == 'new' %}
+                                <span class="action-badge action-badge-new"><i class="fas fa-plus me-1"></i>جديد</span>
+                            {% elif row.action == 'update' %}
+                                <span class="action-badge action-badge-update"><i class="fas fa-sync me-1"></i>تحديث</span>
+                            {% elif row.action == 'skip' %}
+                                <span class="action-badge action-badge-skip"><i class="fas fa-forward me-1"></i>تخطي</span>
+                            {% else %}
+                                <span class="action-badge action-badge-error"><i class="fas fa-times me-1"></i>خطأ</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {{ row.name }}
+                            {% if row.issues %}
+                            <div class="text-danger small mt-1">
+                                {% for issue in row.issues %}<div><i class="fas fa-times-circle me-1"></i>{{ issue }}</div>{% endfor %}
+                            </div>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">{{ row.category }}</td>
+                        <td class="text-center">{{ row.unit }}</td>
+                        <td class="text-center">{{ row.cost_price }}</td>
+                        <td class="text-center">{{ row.selling_price }}</td>
+                        <td class="text-center">
+                            {% if row.initial_quantity > 0 %}
+                                <span class="badge bg-success">{{ row.initial_quantity }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center"><code>{{ row.sku }}</code></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if preview_rows_page.paginator.num_pages > 1 %}
+        <nav aria-label="معاينة الصفحات">
+            <ul class="pagination justify-content-center">
+                {% if preview_rows_page.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page=1">الأولى</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.previous_page_number }}">السابقة</a></li>
+                {% endif %}
+                <li class="page-item active">
+                    <span class="page-link">
+                        صفحة {{ preview_rows_page.number }} من {{ preview_rows_page.paginator.num_pages }}
+                        <small class="text-muted">({{ preview_rows_page.start_index }}-{{ preview_rows_page.end_index }} من {{ preview_rows_page.paginator.count }})</small>
+                    </span>
+                </li>
+                {% if preview_rows_page.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.next_page_number }}">التالية</a></li>
+                <li class="page-item"><a class="page-link" href="?page={{ preview_rows_page.paginator.num_pages }}">الأخيرة</a></li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+
+    <div class="d-flex justify-content-between align-items-center">
+        <a href="{% url 'product:product_import' %}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-right me-2"></i>إلغاء والعودة
+        </a>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="confirm">
+            <button type="submit" class="btn btn-success px-5" id="confirm-btn"
+                    {% if preview.valid_count == 0 and preview.update_count == 0 %}disabled{% endif %}>
+                <i class="fas fa-check me-2"></i>
+                تأكيد الاستيراد
+                {% if preview.valid_count > 0 or preview.update_count > 0 %}
+                ({{ preview.valid_count|add:preview.update_count }} منتج)
+                {% endif %}
+            </button>
+        </form>
+    </div>
+
+    {% else %}
+
+    {% if import_error %}
+    <div class="alert alert-danger d-flex align-items-start gap-3 mb-4">
+        <i class="fas fa-times-circle fa-lg mt-1"></i>
+        <div>
+            <strong>فشل في معالجة الملف</strong>
+            <div class="mt-1">{{ import_error }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" id="import-form">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="upload">
+
+        <div class="row g-4">
+            <div class="col-lg-8">
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-cloud-upload-alt me-2"></i>رفع الملف</h5>
+                    <div class="upload-zone" id="upload-zone">
+                        <input type="file" name="import_file" id="import_file" accept=".xlsx,.xls,.csv">
+                        <div class="upload-zone-icon">
+                            <i class="fas fa-file-excel" id="upload-icon"></i>
+                        </div>
+                        <div class="upload-zone-text">
+                            <strong>اسحب الملف هنا أو اضغط للاختيار</strong>
+                            <div class="mt-1"><small>يدعم: Excel (.xlsx, .xls) و CSV — الحد الأقصى 5 ميجابايت</small></div>
+                        </div>
+                        <div class="file-badge d-none" id="file-badge">
+                            <i class="fas fa-check-circle"></i>
+                            <span id="file-name-text"></span>
+                            <small id="file-size-text" class="text-muted"></small>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-sliders-h me-2"></i>إعدادات الاستيراد</h5>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">
+                            <i class="fas fa-warehouse me-1 text-primary"></i>المخزن
+                            <span class="text-danger">*</span>
+                        </label>
+                        <select name="warehouse_id" class="form-select" required>
+                            <option value="">-- اختر المخزن --</option>
+                            {% for wh in warehouses %}
+                            <option value="{{ wh.pk }}">{{ wh.name }}{% if wh.location %} — {{ wh.location }}{% endif %}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="form-text text-muted">سيتم إضافة الكميات الافتتاحية لهذا المخزن</div>
+                    </div>
+                    <div class="form-check p-3 border rounded">
+                        <input class="form-check-input" type="checkbox" name="update_existing" id="update_existing">
+                        <label class="form-check-label" for="update_existing">
+                            <strong><i class="fas fa-sync-alt me-2 text-warning"></i>تحديث المنتجات الموجودة</strong>
+                            <div class="text-muted small mt-1">
+                                إذا وُجد منتج بنفس الكود أو الاسم والتصنيف، سيتم تحديث بياناته بدلاً من تخطيه
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center">
+                    <a href="{% url 'product:product_list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-right me-2"></i>إلغاء
+                    </a>
+                    <button type="submit" class="btn btn-primary px-4" id="submit-btn">
+                        <i class="fas fa-search me-2"></i>معاينة البيانات
+                    </button>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="section-container mb-4">
+                    <h5 class="section-title"><i class="fas fa-table me-2"></i>أعمدة الملف</h5>
+                    <p class="text-muted small mb-3">
+                        <span class="badge bg-success me-1">مطلوب</span>
+                        <span class="badge bg-info me-1">اختياري</span>
+                    </p>
+                    <div class="d-flex flex-column gap-2">
+                        <div class="col-guide required"><div class="col-name">اسم المنتج</div><div class="text-muted">اسم المنتج كاملاً</div></div>
+                        <div class="col-guide required"><div class="col-name">التصنيف</div><div class="text-muted">اسم تصنيف موجود في النظام</div></div>
+                        <div class="col-guide required"><div class="col-name">وحدة القياس</div><div class="text-muted">مثل: قطعة، كيلو، لتر</div></div>
+                        <div class="col-guide required"><div class="col-name">سعر التكلفة</div><div class="text-muted">رقم موجب</div></div>
+                        <div class="col-guide required"><div class="col-name">سعر البيع</div><div class="text-muted">رقم موجب</div></div>
+                        <div class="col-guide optional"><div class="col-name">كود المنتج</div><div class="text-muted">يُولَّد تلقائياً إن تُرك فارغاً</div></div>
+                        <div class="col-guide optional"><div class="col-name">الباركود</div><div class="text-muted">رقم الباركود</div></div>
+                        <div class="col-guide optional"><div class="col-name">الوصف</div><div class="text-muted">وصف تفصيلي</div></div>
+                        <div class="col-guide optional"><div class="col-name">الحد الأدنى للمخزون</div><div class="text-muted">رقم صحيح (افتراضي: 0)</div></div>
+                        <div class="col-guide optional"><div class="col-name">نشط (نعم/لا)</div><div class="text-muted">افتراضي: نعم</div></div>
+                        <div class="col-guide optional"><div class="col-name">خدمة (نعم/لا)</div><div class="text-muted">افتراضي: لا</div></div>
+                        <div class="col-guide optional"><div class="col-name">نوع المنتج</div><div class="text-muted">general, stationery, uniform, educational...</div></div>
+                        <div class="col-guide optional"><div class="col-name">الكمية</div><div class="text-muted">الكمية الافتتاحية في المخزن</div></div>
+                    </div>
+                    <div class="mt-3">
+                        <a href="{% url 'product:product_import_template' %}" class="btn btn-outline-info w-100">
+                            <i class="fas fa-download me-2"></i>تحميل قالب Excel
+                        </a>
+                    </div>
+                </div>
+
+                <div class="section-container">
+                    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#notesCollapse"
+                        aria-expanded="false">
+                        <i class="fas fa-lightbulb me-2 text-warning"></i>نصائح
+                        <i class="fas fa-chevron-down float-end"></i>
+                    </h5>
+                    <div class="collapse" id="notesCollapse">
+                        <ul class="list-unstyled small text-muted mt-2 mb-0">
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>تأكد من أن التصنيفات ووحدات القياس موجودة في النظام</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>ستظهر معاينة كاملة قبل الحفظ الفعلي</li>
+                            <li class="mb-2"><i class="fas fa-check text-success me-2"></i>المنتجات المكررة تُتخطى ما لم تفعّل خيار التحديث</li>
+                            <li><i class="fas fa-check text-success me-2"></i>يمكن استخدام الأعمدة بالعربي أو الإنجليزي</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    const zone    = document.getElementById('upload-zone');
+    const input   = document.getElementById('import_file');
+    const badge   = document.getElementById('file-badge');
+    const nameEl  = document.getElementById('file-name-text');
+    const sizeEl  = document.getElementById('file-size-text');
+    const form    = document.getElementById('import-form');
+    const btn     = document.getElementById('submit-btn');
+    const confirmBtn = document.getElementById('confirm-btn');
+
+    function fmt(b) {
+        if (b < 1024) return b + ' B';
+        if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+        return (b/1048576).toFixed(2) + ' MB';
+    }
+    function showFile(f) {
+        zone.classList.add('has-file');
+        badge.classList.remove('d-none');
+        nameEl.textContent = f.name;
+        sizeEl.textContent = '(' + fmt(f.size) + ')';
+    }
+
+    if (input) {
+        input.addEventListener('change', function () { if (this.files[0]) showFile(this.files[0]); });
+    }
+    if (zone) {
+        zone.addEventListener('dragover',  function(e){ e.preventDefault(); zone.classList.add('dragover'); });
+        zone.addEventListener('dragleave', function()  { zone.classList.remove('dragover'); });
+        zone.addEventListener('drop', function(e) {
+            e.preventDefault(); zone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length) { try { input.files = files; } catch(_){} showFile(files[0]); }
+        });
+    }
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            if (!input || !input.files || !input.files[0]) {
+                e.preventDefault();
+                toastr.warning('يرجى اختيار ملف للاستيراد');
+                return;
+            }
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري التحليل...';
+            }
+        });
+    }
+    const confirmForm = confirmBtn ? confirmBtn.closest('form') : null;
+    if (confirmForm) {
+        confirmForm.addEventListener('submit', function() {
+            if (confirmBtn) {
+                confirmBtn.disabled = true;
+                confirmBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>جاري الاستيراد...';
+                setTimeout(function() {
+                    if (confirmBtn.disabled) {
+                        confirmBtn.disabled = false;
+                        confirmBtn.innerHTML = '<i class="fas fa-check me-2"></i>تأكيد الاستيراد';
+                        toastr.warning('استغرق الطلب وقتاً طويلاً، يمكنك المحاولة مجدداً');
+                    }
+                }, 30000);
+            }
+        });
+    }
+
+    document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(function(el) {
+        el.addEventListener('click', function() {
+            const exp = this.getAttribute('aria-expanded') === 'true';
+            this.setAttribute('aria-expanded', String(!exp));
+        });
+    });
+})();
+</script>
+{% endblock %}

@@ -298,14 +298,24 @@ def payroll_print(request, pk):
         month=payroll.month
     ).first()
     
+    # جلب بيانات الشركة من الإعدادات
+    from core.models import SystemSetting
+    from django.conf import settings as django_settings
+    company_name = SystemSetting.get_setting('company_name', 'Corporate ERP')
+    company_logo_path = SystemSetting.get_setting('company_logo', None)
+    company_logo_url = None
+    if company_logo_path:
+        media_url = getattr(django_settings, 'MEDIA_URL', '/media/')
+        company_logo_url = f"{media_url}{company_logo_path}"
+
     context = {
         'payroll': payroll,
         'payroll_lines_earnings': payroll_lines_earnings,
         'payroll_lines_deductions': payroll_lines_deductions,
         'insurable_salary_line': insurable_salary_line,
         'attendance_summary': attendance_summary,
-        'company_name': 'Corporate ERP',
-        'company_logo': None,
+        'company_name': company_name,
+        'company_logo': company_logo_url,
         'correct_net_salary': payroll.correct_net_salary,
         'correct_gross_salary': payroll.correct_gross_salary,
     }

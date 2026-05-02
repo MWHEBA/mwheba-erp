@@ -1,0 +1,88 @@
+[
+  {"model": "product.category", "pk": 100, "fields": {"name": "خلاطات وشاور", "code": "MIX", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 101, "fields": {"name": "حنفيات",        "code": "TAP", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 102, "fields": {"name": "محابس",         "code": "VLV", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 103, "fields": {"name": "توصيلات",       "code": "CON", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 104, "fields": {"name": "قطع غيار",      "code": "SRV", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 105, "fields": {"name": "سباكة عامة",    "code": "PLM", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 106, "fields": {"name": "فلاتر",         "code": "FLT", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 107, "fields": {"name": "إكسسوارات",     "code": "ACC", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 108, "fields": {"name": "أدوات",         "code": "TLS", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 109, "fields": {"name": "مواد مساعدة",   "code": "AUX", "parent": null, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 201, "fields": {"name": "خلاط",          "code": "MIX-01", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 202, "fields": {"name": "كعب خلاط",      "code": "MIX-02", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 203, "fields": {"name": "محول خلاط",     "code": "MIX-03", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 204, "fields": {"name": "عمود دفن",      "code": "MIX-04", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 205, "fields": {"name": "مشتمل دفن",     "code": "MIX-05", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 206, "fields": {"name": "شاور",          "code": "MIX-06", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 207, "fields": {"name": "سماعة",         "code": "MIX-07", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 208, "fields": {"name": "يد هاند",       "code": "MIX-08", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 209, "fields": {"name": "قلب هاند",      "code": "MIX-09", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 210, "fields": {"name": "هد",            "code": "MIX-10", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 211, "fields": {"name": "محبس زاوية",    "code": "VLV-01", "parent": 102, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 212, "fields": {"name": "محبس بلي",      "code": "VLV-02", "parent": 102, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 213, "fields": {"name": "محبس لاكور",    "code": "VLV-03", "parent": 102, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 214, "fields": {"name": "محبس فلتر",     "code": "VLV-04", "parent": 102, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 215, "fields": {"name": "شيك بلف",       "code": "VLV-05", "parent": 102, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 216, "fields": {"name": "وصلة",          "code": "CON-01", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 217, "fields": {"name": "جلبة",          "code": "CON-02", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 218, "fields": {"name": "نبل",           "code": "CON-03", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 219, "fields": {"name": "كوع",           "code": "CON-04", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 220, "fields": {"name": "تي",            "code": "CON-05", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 221, "fields": {"name": "بوش",           "code": "CON-06", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 222, "fields": {"name": "قنطرة",         "code": "CON-07", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 223, "fields": {"name": "صامولة",        "code": "CON-08", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 224, "fields": {"name": "بلبلة",         "code": "CON-09", "parent": 103, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 225, "fields": {"name": "قلب",               "code": "SRV-01", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 226, "fields": {"name": "أوكرة",             "code": "SRV-02", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 227, "fields": {"name": "شمعة",              "code": "SRV-03", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 228, "fields": {"name": "مسمار",             "code": "SRV-04", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 229, "fields": {"name": "كرنك",              "code": "SRV-05", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 230, "fields": {"name": "سيفون",             "code": "PLM-01", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 231, "fields": {"name": "خزان",              "code": "PLM-02", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 232, "fields": {"name": "شطاف",              "code": "PLM-03", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 233, "fields": {"name": "أوتوماتيك موتور",   "code": "PLM-04", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 234, "fields": {"name": "طبة",               "code": "PLM-05", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 235, "fields": {"name": "غطاء بلاطة",        "code": "ACC-01", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 236, "fields": {"name": "غطاء",              "code": "ACC-02", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 237, "fields": {"name": "علاقة",             "code": "ACC-03", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 238, "fields": {"name": "إكسسوار",           "code": "ACC-04", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 239, "fields": {"name": "عمود فوط",          "code": "ACC-05", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 240, "fields": {"name": "وش",                "code": "ACC-06", "parent": 107, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 241, "fields": {"name": "طاسة",              "code": "TLS-01", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 242, "fields": {"name": "حلة",               "code": "TLS-02", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 243, "fields": {"name": "صبانة",             "code": "TLS-03", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 244, "fields": {"name": "مليجة",             "code": "TLS-04", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 245, "fields": {"name": "قفيز",              "code": "TLS-05", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 246, "fields": {"name": "ماكينة قاعدة",      "code": "TLS-06", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 247, "fields": {"name": "مسطرة",             "code": "TLS-07", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 248, "fields": {"name": "تفلون",             "code": "AUX-01", "parent": 109, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 249, "fields": {"name": "سليكون",            "code": "AUX-02", "parent": 109, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 250, "fields": {"name": "عازل",              "code": "AUX-03", "parent": 109, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 251, "fields": {"name": "تفون",              "code": "AUX-04", "parent": 109, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 252, "fields": {"name": "محول مسطرة",        "code": "MIX-11", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 253, "fields": {"name": "طابق بانيو",        "code": "MIX-12", "parent": 100, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 254, "fields": {"name": "حنفية بولي",        "code": "TAP-01", "parent": 101, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 255, "fields": {"name": "حنفية بليه",        "code": "TAP-02", "parent": 101, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 256, "fields": {"name": "حنفية بلاستيك",     "code": "TAP-03", "parent": 101, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 257, "fields": {"name": "حنفية استالس",      "code": "TAP-04", "parent": 101, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+  {"model": "product.category", "pk": 258, "fields": {"name": "حنفية اسناسير",     "code": "TAP-05", "parent": 101, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 259, "fields": {"name": "قلب عبدو",          "code": "SRV-06", "parent": 104, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 260, "fields": {"name": "هد شطاف",           "code": "PLM-06", "parent": 105, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 261, "fields": {"name": "نتره فلتر",         "code": "FLT-01", "parent": 106, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}},
+
+  {"model": "product.category", "pk": 262, "fields": {"name": "سيدلي قاعدة",       "code": "TLS-08", "parent": 108, "description": null, "is_active": true, "created_at": "2026-01-01T00:00:00Z", "updated_at": "2026-01-01T00:00:00Z"}}
+]

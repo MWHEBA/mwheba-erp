@@ -1,0 +1,47 @@
+/* ============================================================
+   Price Manager — Inline Editable Table Styles
+   ============================================================ */
+
+.price-cell {
+    border: 1px solid transparent;
+    background: transparent;
+    text-align: center;
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: 4px;
+    font-size: 0.875rem;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.price-cell:focus {
+    border-color: var(--bs-primary);
+    background: var(--bs-white);
+    outline: none;
+    box-shadow: none;
+}
+
+.price-cell.pm-saving {
+    border-color: var(--bs-warning);
+    background: rgba(var(--bs-warning-rgb), 0.06);
+}
+
+.price-cell.pm-saved {
+    border-color: var(--bs-success);
+    background: rgba(var(--bs-success-rgb), 0.08);
+}
+
+.price-cell.pm-error {
+    border-color: var(--bs-danger);
+    background: rgba(var(--bs-danger-rgb), 0.08);
+}
+
+/* إخفاء أسهم input[type=number] */
+.price-cell::-webkit-inner-spin-button,
+.price-cell::-webkit-outer-spin-button {
+    opacity: 0.4;
+}
+
+/* تمييز الصف عند التحديد */
+#price-table tbody tr:has(.row-select:checked) {
+    background-color: rgba(var(--bs-primary-rgb), 0.04);
+}

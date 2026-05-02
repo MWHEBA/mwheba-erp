@@ -134,6 +134,37 @@ class ProductForm(forms.ModelForm):
         # تحديث label حقل is_service
         self.fields['is_service'].label = "خدمة (وليس منتج)"
         self.fields['is_service'].help_text = "الخدمات لا تحتاج مخزون (مثل: كورسات، مواصلات، رسوم)"
+
+        # بناء خيارات التصنيف مجمعة (رئيسي > فرعي)
+        self.fields['category'].widget.attrs.update({'class': 'form-select'})
+        self.grouped_category_choices = self._build_grouped_category_choices()
+
+    def _build_grouped_category_choices(self):
+        """بناء قائمة التصنيفات مجمعة: الرئيسية كـ optgroup والفرعية تحتها"""
+        parents = Category.objects.filter(parent__isnull=True, is_active=True).order_by('name')
+        groups = []
+        orphans = []  # فرعية بدون أب نشط
+
+        for parent in parents:
+            children = list(
+                Category.objects.filter(parent=parent, is_active=True).order_by('name')
+            )
+            if children:
+                groups.append((parent, children))
+            else:
+                # رئيسي بدون أبناء - يُضاف كخيار مباشر
+                orphans.append(parent)
+
+        # تصنيفات فرعية بدون أب رئيسي نشط
+        standalone = list(
+            Category.objects.filter(
+                parent__isnull=False, is_active=True
+            ).exclude(
+                parent__in=parents
+            ).order_by('name')
+        )
+
+        return {'groups': groups, 'orphans': orphans, 'standalone': standalone}
     
     def clean_unit(self):
         """التحقق من وحدة القياس وإنشاء واحدة افتراضية للخدمات إذا لزم الأمر"""

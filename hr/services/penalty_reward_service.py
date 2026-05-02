@@ -32,7 +32,6 @@ class PenaltyRewardService:
         pr = PenaltyReward(
             employee=employee,
             category=data['category'],
-            date=data['date'],
             month=data['month'],
             calculation_method=data['calculation_method'],
             value=Decimal(str(data['value'])),

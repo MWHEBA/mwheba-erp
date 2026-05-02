@@ -107,7 +107,47 @@
                                         <div class="card-body">
                                             <div class="row">
                                                 <div class="col-md-6 mb-3">
-                                                    {{ form.category|as_crispy_field }}
+                                                    <label class="form-label" for="{{ form.category.id_for_label }}">
+                                                        التصنيف{% if form.category.field.required %} <span class="text-danger">*</span>{% endif %}
+                                                    </label>
+                                                    <select name="{{ form.category.html_name }}"
+                                                            id="{{ form.category.id_for_label }}"
+                                                            class="form-select{% if form.category.errors %} is-invalid{% endif %}">
+                                                        <option value="">--- اختر التصنيف ---</option>
+                                                        {% for parent, children in form.grouped_category_choices.groups %}
+                                                        <optgroup label="📁 {{ parent.name }}">
+                                                            {% for child in children %}
+                                                            <option value="{{ child.pk }}"
+                                                                {% if form.category.value|stringformat:"s" == child.pk|stringformat:"s" %}selected{% endif %}>
+                                                                ↳ {{ child.name }}{% if child.code %} ({{ child.code }}){% endif %}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </optgroup>
+                                                        {% endfor %}
+                                                        {% if form.grouped_category_choices.orphans %}
+                                                        <optgroup label="── تصنيفات رئيسية ──">
+                                                            {% for cat in form.grouped_category_choices.orphans %}
+                                                            <option value="{{ cat.pk }}"
+                                                                {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                                                📁 {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </optgroup>
+                                                        {% endif %}
+                                                        {% if form.grouped_category_choices.standalone %}
+                                                        <optgroup label="── أخرى ──">
+                                                            {% for cat in form.grouped_category_choices.standalone %}
+                                                            <option value="{{ cat.pk }}"
+                                                                {% if form.category.value|stringformat:"s" == cat.pk|stringformat:"s" %}selected{% endif %}>
+                                                                {{ cat.name }}{% if cat.code %} ({{ cat.code }}){% endif %}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </optgroup>
+                                                        {% endif %}
+                                                    </select>
+                                                    {% if form.category.errors %}
+                                                    <div class="invalid-feedback d-block">{{ form.category.errors.0 }}</div>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="col-md-6 mb-3" id="unit-field">
                                                     {{ form.unit|as_crispy_field }}

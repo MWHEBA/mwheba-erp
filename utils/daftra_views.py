@@ -169,3 +169,41 @@ def sync_suppliers_old(request):
             'message': f'خطأ في المزامنة: {str(e)}',
             'error': str(e)
         })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def test_daftra_connection(request):
+    """اختبار الاتصال بـ Daftra API بالإعدادات المُدخلة"""
+    try:
+        body = json.loads(request.body)
+        domain = body.get('domain', '').strip()
+        api_key = body.get('api_key', '').strip()
+
+        if not domain or not api_key:
+            return JsonResponse({'success': False, 'message': 'النطاق ومفتاح API مطلوبان'})
+
+        import requests as req
+        url = f'https://{domain}.daftra.com/api2/clients'
+        headers = {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'APIKEY': api_key,
+        }
+        response = req.get(url, headers=headers, params={'limit': 1, 'page': 1}, timeout=10)
+
+        if response.status_code == 200:
+            data = response.json()
+            if data.get('code') == 200:
+                return JsonResponse({'success': True, 'message': 'تم الاتصال بدفترة بنجاح ✅'})
+            else:
+                return JsonResponse({'success': False, 'message': f'رد غير متوقع من دفترة: {data.get("message", "")}'})
+        elif response.status_code == 401:
+            return JsonResponse({'success': False, 'message': 'مفتاح API غير صحيح (401 Unauthorized)'})
+        elif response.status_code == 404:
+            return JsonResponse({'success': False, 'message': f'النطاق غير موجود: {domain}.daftra.com'})
+        else:
+            return JsonResponse({'success': False, 'message': f'خطأ في الاتصال: HTTP {response.status_code}'})
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'message': f'فشل الاتصال: {str(e)}'})

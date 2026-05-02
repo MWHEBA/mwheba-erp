@@ -43,7 +43,7 @@ class PenaltyReward(models.Model):
     )
 
     # التاريخ
-    date = models.DateField(verbose_name='التاريخ')
+    date = models.DateField(verbose_name='التاريخ', auto_now_add=True)
     month = models.DateField(
         verbose_name='شهر التطبيق',
         help_text='الشهر الذي سيتم فيه تطبيق الجزاء/المكافأة على الراتب'

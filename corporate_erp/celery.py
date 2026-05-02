@@ -50,11 +50,11 @@ app.conf.update(
     worker_max_tasks_per_child=1000,
     
     # Result backend
-    result_backend='redis://localhost:6379/1' if not settings.DEBUG else 'cache+memcache://127.0.0.1:11211/',
+    result_backend='django-db',
     result_expires=3600,  # 1 hour
     
     # Broker configuration
-    broker_url='redis://localhost:6379/0' if not settings.DEBUG else 'memory://',
+    broker_url=os.environ.get('CELERY_BROKER_URL', 'memory://'),
     broker_transport_options={'visibility_timeout': 3600},
     
     # Beat schedule for periodic tasks

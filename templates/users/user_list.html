@@ -50,7 +50,7 @@
                 
                 <!-- استخدام الجدول الموحد -->
                 {% if users %}
-                  {% with table_id="users-table" %}
+                  {% with table_id="users-table" current_user_id=request.user.id %}
                     {% with headers=headers %}
                       {% with data=users %}
                         {% with action_buttons=action_buttons %}
@@ -276,6 +276,63 @@
 <script>
 let deleteUserId = null;
 
+// Login As User (للـ superuser فقط)
+function loginAsUser(userId) {
+    Swal.fire({
+        title: 'تسجيل الدخول كمستخدم آخر',
+        text: 'سيتم تسجيل دخولك بهوية هذا المستخدم. هل أنت متأكد؟',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f59e0b',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'نعم، ادخل كـه',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/users/${userId}/login-as/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                    'Content-Type': 'application/json'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    toastr.success(data.message);
+                    setTimeout(() => {
+                        window.location.href = data.redirect_url || '/';
+                    }, 1000);
+                } else {
+                    toastr.error(data.message);
+                }
+            })
+            .catch(() => toastr.error('حدث خطأ أثناء تنفيذ العملية'));
+        }
+    });
+}
+
+// Event delegation لأزرار Login As
+document.addEventListener('DOMContentLoaded', function() {
+    const currentUserId = '{{ request.user.id }}';
+
+    // إخفاء زر Login As في صف المستخدم الحالي
+    document.querySelectorAll('tr[data-id]').forEach(function(row) {
+        if (row.getAttribute('data-id') === currentUserId) {
+            const btn = row.querySelector('.login-as-btn');
+            if (btn) btn.style.display = 'none';
+        }
+    });
+
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.login-as-btn');
+        if (!btn) return;
+        const row = btn.closest('tr[data-id]');
+        if (!row) return;
+        const userId = row.getAttribute('data-id');
+        if (userId && userId !== currentUserId) loginAsUser(userId);
+    });
+});
 // تهيئة DataTable مع إعدادات محسّنة للأداء
 $(document).ready(function() {
     if ($.fn.DataTable && $('#users-table').length) {

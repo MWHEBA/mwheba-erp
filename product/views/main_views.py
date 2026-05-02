@@ -3,7 +3,7 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse, Http404
-from django.db.models import Q, Sum, Count, F
+from django.db.models import Q, Sum, Count, F, Prefetch
 from django.core.paginator import Paginator, PageNotAnInteger, EmptyPage
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt
@@ -49,6 +49,7 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from django.db.models import Avg, Max, Min
 from core.models import SystemSetting
+from utils.templatetags.utils_extras import currency_format
 
 # استيراد نماذج المشتريات للتحقق من الارتباطات
 try:
@@ -206,8 +207,10 @@ def product_list(request):
         max_price    = request.GET.get("max_price", "")
         in_stock     = request.GET.get("in_stock", "")
 
-        # is_active: افتراضي "active" لو مفيش أي params
-        status = request.GET.get("status", "active" if not request.GET else "")
+        # is_active: افتراضي "active" دايماً إلا لو المستخدم اختار "inactive" أو "all" صراحةً
+        status = request.GET.get("status", "active")
+        if not status:
+            status = "active"
 
         # تطبيق الفلاتر
         if search_query:
@@ -220,8 +223,28 @@ def product_list(request):
             products = products.filter(is_active=True)
         elif status == "inactive":
             products = products.filter(is_active=False)
-        if category_id:
-            products = products.filter(category_id=category_id)
+        # "all" أو أي قيمة تانية = بدون فلتر على is_active
+        # تأكد إن category_id رقم صحيح قبل الفلترة
+        try:
+            category_id_int = int(category_id) if category_id else None
+        except (ValueError, TypeError):
+            category_id_int = None
+
+        if category_id_int:
+            # فلترة بالتصنيف المحدد أو أطفاله (إذا كان رئيسي)
+            try:
+                selected_category = Category.objects.get(id=category_id_int)
+                if selected_category.parent is None:
+                    # تصنيف رئيسي - جيب المنتجات من التصنيف وأطفاله
+                    products = products.filter(
+                        models.Q(category_id=category_id_int) |
+                        models.Q(category__parent_id=category_id_int)
+                    )
+                else:
+                    # تصنيف فرعي - جيب المنتجات من التصنيف فقط
+                    products = products.filter(category_id=category_id_int)
+            except Category.DoesNotExist:
+                pass
         if product_type == "regular":
             products = products.filter(is_bundle=False)
         elif product_type == "bundle":
@@ -294,7 +317,7 @@ def product_list(request):
                 sku_html = f'<div style="font-size:0.75rem;color:var(--text-muted);"><i class="fas fa-barcode me-1" style="font-size:0.7rem;"></i>{product.sku}</div>' if product.sku else ''
                 name_html = f'<div style="font-weight:500;">{product.name}</div>{sku_html}'
                 category_html = f'<span class="badge bg-light text-dark">{product.category.name}</span>' if product.category else '-'
-                price_html = f'<span style="font-weight:600;">{product.selling_price:,.2f}</span> <small class="text-muted">ج.م</small>'
+                price_html = f'<span style="font-weight:600;">{currency_format(product.selling_price)}</span> <small class="text-muted">ج.م</small>'
 
                 stock_val = product.total_stock or 0
                 if product.is_bundle:
@@ -342,6 +365,20 @@ def product_list(request):
                 'count': paginator.count,
             })
 
+        # جلب التصنيفات الرئيسية اللي ليها تصنيفات فرعية فيها منتجات
+        categories_qs = Category.objects.filter(
+            is_active=True,
+            parent__isnull=True
+        ).filter(
+            models.Q(children__products__is_service=False) | 
+            models.Q(products__is_service=False)
+        ).prefetch_related('children').distinct().order_by('name')
+        
+        # تحويل لـ list وإضافة has_children لكل category
+        categories_with_products = list(categories_qs)
+        for category in categories_with_products:
+            category.has_children = category.children.count()
+
         context = {
             "products": page_obj,
             "page_obj": page_obj,
@@ -350,7 +387,7 @@ def product_list(request):
             "product_headers": product_headers,
             "action_buttons": action_buttons,
             "primary_key": "id",
-            "categories": Category.objects.filter(is_active=True).order_by('name'),
+            "categories": categories_with_products,
             "current_search": search_query,
             "current_status": status,
             "current_category": category_id,
@@ -362,9 +399,9 @@ def product_list(request):
             "page_subtitle": "إدارة منتجات النظام وتصنيفاتها وأسعارها",
             "page_icon": "fas fa-boxes",
             "header_buttons": [
-                {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج عادي", "class": "btn-success"},
-                {"url": reverse("product:bundle_create"), "icon": "fa-boxes", "text": "إنشاء منتج مجمع", "class": "btn-info"},
-                {"url": reverse("product:service_list"), "icon": "fa-concierge-bell", "text": "الخدمات", "class": "btn-outline-success"},
+                {"url": reverse("product:product_create"), "icon": "fa-plus", "text": "إضافة منتج", "class": "btn-success"},
+                {"url": reverse("product:product_import"), "icon": "fa-file-import", "text": "استيراد منتجات", "class": "btn-outline-primary"},
+                {"url": reverse("product:price_manager") + "?type=product", "icon": "fa-tags", "text": "تحديث الأسعار", "class": "btn-outline-warning"},
                 {"url": reverse("product:bundle_list"), "icon": "fa-list", "text": "المنتجات المجمعة", "class": "btn-outline-primary"},
             ],
             "breadcrumb_items": [
@@ -688,6 +725,12 @@ def service_list(request):
                     "icon": "fa-plus",
                     "text": "إضافة خدمة",
                     "class": "btn-success",
+                },
+                {
+                    "url": reverse("product:price_manager") + "?type=service",
+                    "icon": "fa-tags",
+                    "text": "تحديث الأسعار",
+                    "class": "btn-outline-warning",
                 },
                 {
                     "url": reverse("product:product_list"),
@@ -1471,111 +1514,60 @@ def bundle_list(request):
 
 
 @login_required
+@login_required
 def category_list(request):
     """
-    عرض قائمة تصنيفات المنتجات
+    عرض قائمة تصنيفات المنتجات — هيكل شجري واضح
     """
-    categories = Category.objects.all()
+    search_query = request.GET.get("search", "").strip()
+    status       = request.GET.get("status", "")
 
-    # بحث
-    search_query = request.GET.get("search", "")
-    if search_query:
-        categories = categories.filter(name__icontains=search_query)
+    # التصنيفات الرئيسية مع أبنائها في query واحدة
+    root_qs = Category.objects.filter(parent__isnull=True).prefetch_related(
+        Prefetch(
+            'children',
+            queryset=Category.objects.annotate(
+                products_count=Count('products', distinct=True)
+            ).order_by('name'),
+            to_attr='children_list'
+        )
+    ).annotate(
+        products_count=Count('products', distinct=True)
+    ).order_by('name')
 
-    # التصنيفات حسب الحالة
-    status = request.GET.get("status", "")
     if status == "active":
-        categories = categories.filter(is_active=True)
+        root_qs = root_qs.filter(is_active=True)
     elif status == "inactive":
-        categories = categories.filter(is_active=False)
+        root_qs = root_qs.filter(is_active=False)
 
-    # إجمالي التصنيفات والتصنيفات النشطة
-    total_categories = Category.objects.count()
+    if search_query:
+        # لو في بحث — اعرض كل التصنيفات المطابقة بدون تجميع
+        all_cats = Category.objects.filter(
+            name__icontains=search_query
+        ).select_related('parent').annotate(
+            products_count=Count('products', distinct=True)
+        ).order_by('parent__name', 'name')
+        root_categories = None
+        flat_results    = all_cats
+    else:
+        root_categories = root_qs
+        flat_results    = None
+
+    total_categories  = Category.objects.count()
     active_categories = Category.objects.filter(is_active=True).count()
-
-    # التصنيفات الرئيسية (التي ليس لها أب)
-    root_categories = categories.filter(parent__isnull=True)
-
-    # ترقيم الصفحات
-    paginator = Paginator(categories, 30)
-    page = request.GET.get("page")
-
-    try:
-        categories = paginator.page(page)
-    except PageNotAnInteger:
-        categories = paginator.page(1)
-    except EmptyPage:
-        categories = paginator.page(paginator.num_pages)
-
-    # تعريف أعمدة جدول الفئات
-    category_headers = [
-        {"key": "name", "label": "اسم الفئة", "sortable": True, "class": "text-start"},
-        {
-            "key": "description",
-            "label": "الوصف",
-            "sortable": True,
-            "class": "text-start",
-        },
-        {
-            "key": "parent.name",
-            "label": "الفئة الأب",
-            "sortable": True,
-            "class": "text-center",
-            "width": "120px",
-        },
-        {
-            "key": "products_count",
-            "label": "عدد المنتجات",
-            "sortable": True,
-            "class": "text-center",
-            "template": "components/cells/products_count.html",
-            "width": "120px",
-        },
-        {
-            "key": "is_active",
-            "label": "الحالة",
-            "sortable": True,
-            "class": "text-center",
-            "template": "components/cells/product_status.html",
-            "width": "90px",
-        },
-    ]
-
-    # أزرار الإجراءات
-    category_actions = [
-        {
-            "url": "product:category_detail",
-            "icon": "fa-eye",
-            "label": "عرض",
-            "class": "action-view",
-        },
-        {
-            "url": "product:category_edit",
-            "icon": "fa-edit",
-            "label": "تعديل",
-            "class": "action-edit",
-        },
-        {
-            "url": "product:category_delete",
-            "icon": "fa-trash",
-            "label": "حذف",
-            "class": "action-delete",
-        },
-    ]
+    total_children    = Category.objects.filter(parent__isnull=False).count()
 
     context = {
-        "categories": categories,
-        "category_headers": category_headers,
-        "category_actions": category_actions,
-        "primary_key": "id",
-        "root_categories": root_categories,
+        "root_categories":  root_categories,
+        "flat_results":     flat_results,
+        "search_query":     search_query,
+        "status":           status,
         "total_categories": total_categories,
-        "active_categories": active_categories,
-        "search_query": search_query,
-        "status": status,
-        "page_title": "تصنيفات المنتجات",
-        "page_subtitle": "إدارة التصنيفات للمنتجات وتنظيمها",
-        "page_icon": "fas fa-tags",
+        "active_categories":active_categories,
+        "total_children":   total_children,
+        "page_title":       "تصنيفات المنتجات",
+        "page_subtitle":    "إدارة التصنيفات وتنظيمها",
+        "page_icon":        "fas fa-tags",
         "header_buttons": [
             {
                 "url": reverse("product:category_create"),
@@ -1585,16 +1577,8 @@ def category_list(request):
             },
         ],
         "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {
-                "title": "المنتجات",
-                "url": reverse("product:product_list"),
-                "icon": "fas fa-boxes",
-            },
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
+            {"title": "المنتجات", "url": reverse("product:product_list"), "icon": "fas fa-boxes"},
             {"title": "التصنيفات", "active": True},
         ],
     }
@@ -5077,4 +5061,32 @@ def generate_sku_ajax(request):
         return JsonResponse({
             'success': False,
             'error': 'حدث خطأ في توليد الكود'
+        })
+
+
+def get_subcategories_ajax(request):
+    """
+    إرجاع التصنيفات الفرعية لتصنيف رئيسي معين عبر AJAX
+    """
+    parent_id = request.GET.get('parent_id')
+    
+    if not parent_id:
+        return JsonResponse({'subcategories': []})
+    
+    try:
+        # جلب التصنيفات الفرعية النشطة اللي فيها منتجات
+        subcategories = Category.objects.filter(
+            parent_id=parent_id,
+            is_active=True,
+            products__is_service=False
+        ).distinct().values('id', 'name').order_by('name')
+        
+        return JsonResponse({
+            'subcategories': list(subcategories)
+        })
+        
+    except Exception as e:
+        return JsonResponse({
+            'subcategories': [],
+            'error': str(e)
         })

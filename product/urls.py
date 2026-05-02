@@ -3,6 +3,7 @@ from .views_modules import inventory_views
 from .views import voucher_views
 from .views import transfer_views
 from .views import batch_voucher_views
+from .views import import_views
 from . import views
 
 app_name = "product"
@@ -10,6 +11,10 @@ app_name = "product"
 urlpatterns = [
     # المنتجات
     path("", views.product_list, name="product_list"),
+    
+    # استيراد المنتجات
+    path("import/", import_views.product_import, name="product_import"),
+    path("import/template/", import_views.product_import_template, name="product_import_template"),
     path("services/", views.service_list, name="service_list"),  # ✨ صفحة الخدمات
     path("bundles/", views.bundle_list, name="bundle_list"),
     path("bundles/<int:pk>/", views.bundle_detail, name="bundle_detail"),
@@ -22,6 +27,10 @@ urlpatterns = [
     path("api/bundles/charts/", views.bundle_chart_data_api, name="bundle_chart_data_api"),
     path("api/bundles/analytics/report/", views.bundle_analytics_report_api, name="bundle_analytics_report_api"),
     path("bulk-edit/", views.product_bulk_edit, name="product_bulk_edit"),
+    # مدير الأسعار
+    path("price-manager/", views.price_manager, name="price_manager"),
+    path("api/price-manager/update/", views.price_manager_update_api, name="price_manager_update"),
+    path("api/price-manager/bulk-update/", views.price_manager_bulk_update_api, name="price_manager_bulk_update"),
     path("create/", views.product_create, name="product_create"),
     path("create/modal/", views.product_create_modal, name="product_create_modal"),
     path("api/generate-sku/", views.generate_sku_ajax, name="generate_sku"),
@@ -33,6 +42,7 @@ urlpatterns = [
     # AJAX endpoints for bundle components
     path("api/available-products/", views.get_available_products_ajax, name="get_available_products_ajax"),
     path("api/product-info/<int:product_id>/", views.get_product_info_ajax, name="get_product_info_ajax"),
+    path("api/subcategories/", views.get_subcategories_ajax, name="get_subcategories"),
     path("api/add-image/", views.add_product_image, name="add_product_image"),
     path(
         "api/delete-image/<int:pk>/",

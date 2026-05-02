@@ -16,13 +16,18 @@ class PenaltyRewardForm(forms.ModelForm):
         required=True,
     )
 
+    # Override month as CharField to accept YYYY-MM from <input type="month">
+    month = forms.CharField(
+        label='شهر التطبيق',
+        required=True,
+        widget=forms.TextInput(attrs={'type': 'month', 'class': 'form-control'}),
+    )
+
     class Meta:
         model = PenaltyReward
-        fields = ['employee', 'category', 'date', 'month', 'calculation_method', 'value', 'reason']
+        fields = ['employee', 'category', 'month', 'calculation_method', 'value', 'reason']
         widgets = {
             'category': forms.Select(attrs={'class': 'form-select'}),
-            'date': forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}),
-            'month': forms.DateInput(attrs={'type': 'month', 'class': 'form-control'}),
             'calculation_method': forms.Select(attrs={'class': 'form-select'}),
             'value': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0.01'}),
             'reason': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'اذكر السبب أو التفاصيل...'}),
@@ -30,7 +35,6 @@ class PenaltyRewardForm(forms.ModelForm):
         labels = {
             'category': 'النوع',
             'date': 'التاريخ',
-            'month': 'شهر التطبيق',
             'calculation_method': 'طريقة الحساب',
             'value': 'القيمة/العدد',
             'reason': 'السبب/التفاصيل',
@@ -44,13 +48,19 @@ class PenaltyRewardForm(forms.ModelForm):
 
     def clean_month(self):
         """Convert YYYY-MM from <input type=month> to a full date YYYY-MM-01"""
-        month_raw = self.data.get('month', '')
-        if month_raw and len(month_raw) == 7:  # format: YYYY-MM
+        month_raw = self.cleaned_data.get('month', '').strip()
+        # Handle YYYY-MM format from <input type="month">
+        if month_raw and len(month_raw) == 7:
             full_date = parse_date(f"{month_raw}-01")
             if full_date:
                 return full_date
-            raise forms.ValidationError('صيغة الشهر غير صحيحة')
-        return self.cleaned_data.get('month')
+        # Handle full date string YYYY-MM-DD (e.g. when editing existing record)
+        if month_raw and len(month_raw) == 10:
+            full_date = parse_date(month_raw)
+            if full_date:
+                from datetime import date
+                return date(full_date.year, full_date.month, 1)
+        raise forms.ValidationError('صيغة الشهر غير صحيحة')
 
     def clean(self):
         cleaned_data = super().clean()

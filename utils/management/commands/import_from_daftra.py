@@ -6,7 +6,6 @@
 
 import requests
 import time
-import os
 from decimal import Decimal
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -57,12 +56,24 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.dry_run = options['dry_run']
         self.update_existing = options['update_existing']
-        self.domain = options.get('domain') or os.getenv('DAFTRA_DOMAIN', 'mwheba')
-        self.api_key = options.get('api_key') or os.getenv('DAFTRA_API_KEY', '')
         self.limit = options['limit']
-        
+
+        # قراءة الإعدادات من DB أو من الـ arguments
+        try:
+            from core.models import SystemSetting
+            db_domain = SystemSetting.get_setting('daftra_domain', '')
+            db_api_key = SystemSetting.get_setting('daftra_api_key', '')
+        except Exception:
+            db_domain = ''
+            db_api_key = ''
+
+        self.domain = options.get('domain') or db_domain
+        self.api_key = options.get('api_key') or db_api_key
+
+        if not self.domain:
+            raise CommandError('DAFTRA_DOMAIN غير موجود. أضفه في إعدادات النظام أو استخدم --domain')
         if not self.api_key:
-            raise CommandError('DAFTRA_API_KEY غير موجود. أضفه في .env أو استخدم --api-key')
+            raise CommandError('DAFTRA_API_KEY غير موجود. أضفه في إعدادات النظام أو استخدم --api-key')
         
         # الحصول على المستخدم الحالي للتسجيل
         self.current_user = User.objects.filter(is_superuser=True).first()

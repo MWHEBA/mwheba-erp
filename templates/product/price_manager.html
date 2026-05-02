@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% load static utils_extras %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
+<link rel="stylesheet" href="{% static 'css/price-manager.css' %}">
+<style>
+.category-quick-filter { transition: all 0.2s ease; border-radius: 20px; font-weight: 500; }
+.category-quick-filter:hover { transform: translateY(-1px); box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+.subcategory-arrow { transition: transform 0.3s ease; }
+#subcategory-filters { background: rgba(var(--bs-light-rgb), 0.3); border-radius: 8px; padding: 10px; border-left: 3px solid var(--bs-primary); }
+.subcategory-quick-filter { transition: all 0.2s ease; border-radius: 15px; font-size: 0.85em; }
+.subcategory-quick-filter:hover { transform: translateY(-1px); }
+@media (max-width: 767px) {
+    .filter-section .row.g-2 { flex-direction: row !important; flex-wrap: wrap !important; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    {% csrf_token %}
+
+    {% include "shared/page_header.html" with title=title icon="fas fa-tags" header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    <!-- تصفية وبحث -->
+    <div class="section-container mb-4">
+        <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection"
+            aria-expanded="false" style="cursor: pointer;">
+            <i class="fas fa-filter me-2"></i>تصفية وبحث
+            {% if selected_category or search %}
+                <span class="badge bg-primary ms-2">فعّال</span>
+            {% endif %}
+            <i class="fas fa-chevron-down float-end"></i>
+        </h5>
+        <div class="collapse" id="filterSection">
+            <div class="filter-section mb-4">
+                <form method="get" class="row g-2 align-items-end">
+                    <input type="hidden" name="type" value="{{ item_type }}">
+                    <!-- بحث -->
+                    <div class="col-12 col-md">
+                        <label for="search" class="form-label">بحث</label>
+                        <input type="text" class="form-control" id="search" name="q"
+                               value="{{ search }}" placeholder="اسم المنتج أو الكود...">
+                    </div>
+                    <!-- التصنيف -->
+                    <div class="col-6 col-md-auto">
+                        <label for="category" class="form-label">التصنيف</label>
+                        <select class="form-select" id="category" name="category" style="min-width:140px;">
+                            <option value="">جميع التصنيفات</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.pk }}" {% if selected_category == cat.pk|stringformat:"s" %}selected{% endif %}>{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <!-- أزرار -->
+                    <div class="col-12 col-md-auto">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-search me-1"></i>عرض
+                        </button>
+                    </div>
+                    <div class="col-6 col-md-auto">
+                        <a href="?type={{ item_type }}" class="btn btn-outline-secondary w-100">
+                            <i class="fas fa-times me-1"></i>مسح
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- فلاتر سريعة حسب التصنيف -->
+    {% if categories %}
+    <div class="section-container mb-3">
+        <div class="d-flex flex-wrap align-items-center gap-2" id="category-quick-filters">
+            <span class="text-muted small me-1"><i class="fas fa-tags me-1"></i>تصنيف سريع:</span>
+            <button type="button" data-category=""
+                    class="btn btn-sm category-quick-filter {% if not selected_category %}btn-primary{% else %}btn-outline-primary{% endif %}">
+                <i class="fas fa-list me-1"></i>الكل
+            </button>
+            {% for cat in categories %}
+            <button type="button"
+                    data-category="{{ cat.pk }}"
+                    data-children-count="{{ cat.has_children }}"
+                    class="btn btn-sm category-quick-filter {% if selected_category == cat.pk|stringformat:'s' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+                {{ cat.name }}
+                {% if cat.has_children > 0 %}
+                    <i class="fas fa-chevron-down ms-1 subcategory-arrow" style="font-size:0.7em;"></i>
+                {% endif %}
+            </button>
+            {% endfor %}
+        </div>
+        <!-- التصنيفات الفرعية -->
+        <div id="subcategory-filters" class="mt-2" style="display:none;">
+            <div class="d-flex flex-wrap align-items-center gap-2 ps-3">
+                <span class="text-muted small me-1"><i class="fas fa-arrow-left me-1"></i>التصنيفات الفرعية:</span>
+                <div id="subcategory-buttons" class="d-flex flex-wrap gap-2"></div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- ── أدوات التحديث الجماعي ─────────────────────────────── -->
+    <div class="section-container mb-3">
+        <div class="row g-2 align-items-end">
+            <div class="col-auto">
+                <label class="form-label form-label-sm">الحقل</label>
+                <select id="bulk-field" class="form-select form-select-sm">
+                    <option value="selling_price">سعر البيع</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label form-label-sm">العملية</label>
+                <select id="bulk-mode" class="form-select form-select-sm">
+                    <option value="percent_increase">زيادة %</option>
+                    <option value="percent_decrease">خفض %</option>
+                    <option value="fixed">سعر ثابت</option>
+                </select>
+            </div>
+            <div class="col-auto">
+                <label class="form-label form-label-sm">القيمة</label>
+                <input type="number" id="bulk-value" class="form-control form-control-sm"
+                       style="width:100px" min="0" step="0.01" placeholder="0">
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-warning btn-sm" onclick="applyBulkChange()">
+                    <i class="fas fa-bolt me-1"></i> تطبيق على المحددين
+                </button>
+            </div>
+            <div class="col-auto ms-auto">
+                <span class="text-muted small" id="selected-count">لم يتم تحديد أي عنصر</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── الجدول ────────────────────────────────────────────── -->
+    <div class="section-container">
+        <div id="price-table-container">
+            {% include "product/partials/price_manager_table.html" %}
+        </div>
+        <div id="pagination-wrapper">
+            {% if paginator and paginator.num_pages > 1 %}
+            <div class="card-footer">
+                {% include "partials/pagination.html" with page_obj=items align="center" %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const CSRF_TOKEN = document.querySelector('[name=csrfmiddlewaretoken]').value;
+const UPDATE_URL      = "{% url 'product:price_manager_update' %}";
+const BULK_UPDATE_URL = "{% url 'product:price_manager_bulk_update' %}";
+const SUBCATEGORIES_URL = "{% url 'product:get_subcategories' %}";
+
+// ── تنسيق الأرقام (smart_float في JS) ─────────────────────────
+function formatNumber(value) {
+    const num = parseFloat(String(value).replace(/,/g, ''));
+    if (isNaN(num)) return '0';
+    return num % 1 === 0
+        ? num.toLocaleString('en-US')
+        : num.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+}
+
+function parseRaw(val) {
+    return String(val).replace(/,/g, '');
+}
+
+// ── حفظ فوري عند تغيير الخلية ──────────────────────────────────
+$(document).on('change', '.price-cell', function () {
+    const $input = $(this);
+    const id     = $input.data('id');
+    const field  = $input.data('field');
+    const value  = parseRaw($input.val());
+
+    $input.removeClass('pm-saved pm-error').addClass('pm-saving');
+
+    $.ajax({
+        url: UPDATE_URL,
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ id, field, value }),
+        headers: { 'X-CSRFToken': CSRF_TOKEN },
+        success(res) {
+            $input.removeClass('pm-saving');
+            if (res.success && res.changed) {
+                $input.addClass('pm-saved');
+                $input.val(formatNumber(value));
+                $input.attr('data-raw', value);
+                setTimeout(() => $input.removeClass('pm-saved'), 1500);
+                if (res.profit_margin !== null && res.profit_margin !== undefined) {
+                    $(`.profit-cell[data-id="${id}"]`).text(formatNumber(res.profit_margin) + '%');
+                }
+                toastr.success('تم الحفظ');
+            }
+        },
+        error() {
+            $input.removeClass('pm-saving').addClass('pm-error');
+            toastr.error('فشل الحفظ — تحقق من الاتصال');
+        }
+    });
+});
+
+// عند التركيز: أظهر القيمة الخام للتعديل
+$(document).on('focus', '.price-cell', function () {
+    const raw = $(this).attr('data-raw') || parseRaw($(this).val());
+    $(this).val(raw);
+});
+
+// عند مغادرة الحقل بدون تغيير: أعد التنسيق
+$(document).on('blur', '.price-cell', function () {
+    const raw = parseRaw($(this).val());
+    if (raw !== '' && !isNaN(parseFloat(raw))) {
+        $(this).val(formatNumber(raw));
+        $(this).attr('data-raw', raw);
+    }
+});
+
+// ── تحديد الكل / إلغاء التحديد — delegated لأن الجدول بيتحمل بـ AJAX ──
+$(document).on('change', '#select-all', function () {
+    $('.row-select').prop('checked', this.checked);
+    updateSelectedCount();
+});
+
+$(document).on('change', '.row-select', function () {
+    const total   = $('.row-select').length;
+    const checked = $('.row-select:checked').length;
+    $('#select-all').prop('indeterminate', checked > 0 && checked < total);
+    $('#select-all').prop('checked', checked === total);
+    updateSelectedCount();
+});
+
+function updateSelectedCount() {
+    const n = $('.row-select:checked').length;
+    $('#selected-count').text(n ? `${n} عنصر محدد` : 'لم يتم تحديد أي عنصر');
+}
+
+function getSelectedIds() {
+    return $('.row-select:checked').map((_, el) => el.value).get();
+}
+
+// ── التصنيفات السريعة ──────────────────────────────────────────
+$(document).ready(function () {
+    let _activeCategoryId    = '{{ selected_category }}';
+    let _activeParentCategoryId = '';
+
+    function doFilter(categoryId) {
+        const params = new URLSearchParams({
+            type:     '{{ item_type }}',
+            category: categoryId,
+            q:        $('#search').val() || '',
+        });
+
+        $.ajax({
+            url: '?' + params.toString(),
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success(data) {
+                $('#price-table-container').html(data.table_html);
+                $('#pagination-wrapper').html(
+                    data.pagination_html
+                        ? '<div class="card-footer">' + data.pagination_html + '</div>'
+                        : ''
+                );
+                history.replaceState(null, '', '?' + params.toString());
+                updateSelectedCount();
+            }
+        });
+    }
+
+    $(document).on('click', '.category-quick-filter', function () {
+        const catId        = $(this).data('category');
+        const hasChildren  = parseInt($(this).data('children-count') || 0) > 0;
+
+        _activeCategoryId       = catId || '';
+        _activeParentCategoryId = catId || '';
+        $('#category').val(catId);
+
+        $('.category-quick-filter').removeClass('btn-primary').addClass('btn-outline-secondary');
+        $(this).removeClass('btn-outline-secondary btn-outline-primary').addClass('btn-primary');
+
+        if (!catId) {
+            $('#subcategory-filters').slideUp(200);
+            $('.subcategory-arrow').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        } else if (hasChildren) {
+            loadSubcategories(catId);
+            $(this).find('.subcategory-arrow').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        } else {
+            $('#subcategory-filters').slideUp(200);
+            $('.subcategory-arrow').removeClass('fa-chevron-up').addClass('fa-chevron-down');
+        }
+
+        doFilter(_activeCategoryId);
+    });
+
+    $(document).on('click', '.subcategory-quick-filter', function (e) {
+        e.stopPropagation();
+        const subCatId = $(this).data('category');
+        _activeCategoryId = subCatId || '';
+
+        $('.subcategory-quick-filter').removeClass('btn-primary').addClass('btn-outline-info');
+        $(this).removeClass('btn-outline-info').addClass('btn-primary');
+
+        doFilter(_activeCategoryId);
+    });
+
+    function loadSubcategories(parentCategoryId) {
+        $.ajax({
+            url: SUBCATEGORIES_URL,
+            data: { parent_id: parentCategoryId },
+            headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            success(data) {
+                const $btns = $('#subcategory-buttons').empty();
+                if (data.subcategories && data.subcategories.length > 0) {
+                    $btns.append(`<button type="button" data-category="${parentCategoryId}" class="btn btn-sm btn-outline-info subcategory-quick-filter"><i class="fas fa-list me-1"></i>الكل</button>`);
+                    data.subcategories.forEach(s => {
+                        $btns.append(`<button type="button" data-category="${s.id}" class="btn btn-sm btn-outline-info subcategory-quick-filter">${s.name}</button>`);
+                    });
+                    $('#subcategory-filters').slideDown(200);
+                }
+            }
+        });
+    }
+
+    // لو في تصنيف محدد مسبقاً، حمّل أطفاله
+    if (_activeCategoryId) {
+        const $activeBtn = $(`.category-quick-filter[data-category="${_activeCategoryId}"]`);
+        if ($activeBtn.data('children-count') > 0) {
+            loadSubcategories(_activeCategoryId);
+            $activeBtn.find('.subcategory-arrow').removeClass('fa-chevron-down').addClass('fa-chevron-up');
+        }
+    }
+
+    // البحث عبر الفورم
+    $('form').on('submit', function (e) {
+        e.preventDefault();
+        doFilter(_activeCategoryId);
+    });
+
+    let debounceTimer;
+    $('#search').on('input', function () {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => doFilter(_activeCategoryId), 400);
+    });
+});
+
+// ── تحديث جماعي ────────────────────────────────────────────────
+function applyBulkChange() {
+    const ids   = getSelectedIds();
+    const field = $('#bulk-field').val();
+    const mode  = $('#bulk-mode').val();
+    const value = $('#bulk-value').val();
+
+    if (!ids.length) { toastr.warning('اختر عناصر أولاً'); return; }
+    if (!value || parseFloat(value) <= 0) { toastr.warning('أدخل قيمة أكبر من صفر'); return; }
+
+    const modeLabel  = { percent_increase: 'زيادة', percent_decrease: 'خفض', fixed: 'تحديد سعر ثابت' };
+    const fieldLabel = { selling_price: 'سعر البيع', cost_price: 'سعر التكلفة' };
+
+    Swal.fire({
+        title: 'تأكيد التحديث الجماعي',
+        text: `${modeLabel[mode]} ${fieldLabel[field]} بقيمة ${value} على ${ids.length} عنصر`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#3085d6',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'نعم، طبّق',
+        cancelButtonText: 'إلغاء'
+    }).then(result => {
+        if (!result.isConfirmed) return;
+        $.ajax({
+            url: BULK_UPDATE_URL,
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ ids, field, mode, value }),
+            headers: { 'X-CSRFToken': CSRF_TOKEN },
+            success(res) {
+                if (res.success) {
+                    toastr.success(`تم تحديث ${res.updated} عنصر`);
+                    location.reload();
+                } else {
+                    toastr.error(res.error || 'فشل التحديث');
+                }
+            },
+            error() { toastr.error('فشل التحديث الجماعي'); }
+        });
+    });
+}
+</script>
+{% endblock %}

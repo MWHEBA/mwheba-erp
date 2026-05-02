@@ -118,6 +118,24 @@ def customer_list(request):
             'count': paginator.count,
         })
 
+    from core.models import SystemSetting
+    daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
+    header_buttons = [
+        {
+            "url": reverse("client:customer_add"),
+            "icon": "fa-plus",
+            "text": "إضافة عميل",
+            "class": "btn-primary",
+        },
+    ]
+    if daftra_enabled:
+        header_buttons.append({
+            "onclick": "syncWithDaftra('clients')",
+            "icon": "fa-sync",
+            "text": "مزامنة دفترة",
+            "class": "btn-outline-info",
+        })
+
     context = {
         "customers": customers,
         "page_obj": page_obj,
@@ -132,20 +150,7 @@ def customer_list(request):
         "page_subtitle": "إدارة العملاء وعرض بياناتهم ومعاملاتهم المالية",
         "page_icon": "fas fa-users",
         # أزرار الهيدر
-        "header_buttons": [
-            {
-                "url": reverse("client:customer_add"),
-                "icon": "fa-plus",
-                "text": "إضافة عميل",
-                "class": "btn-primary",
-            },
-            {
-                "onclick": "syncWithDaftra('clients')",
-                "icon": "fa-sync",
-                "text": "مزامنة دفترة",
-                "class": "btn-outline-info",
-            },
-        ],
+        "header_buttons": header_buttons,
         # البريدكرمب
         "breadcrumb_items": [
             {

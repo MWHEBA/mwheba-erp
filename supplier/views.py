@@ -161,6 +161,24 @@ def supplier_list(request):
             'count': paginator.count,
         })
 
+    from core.models import SystemSetting
+    daftra_enabled = SystemSetting.get_setting('daftra_enabled', 'false') == 'true'
+    supplier_header_buttons = [
+        {
+            "url": reverse("supplier:supplier_add"),
+            "icon": "fa-plus",
+            "text": "إضافة مورد",
+            "class": "btn-primary",
+        },
+    ]
+    if daftra_enabled:
+        supplier_header_buttons.append({
+            "onclick": "syncWithDaftra('suppliers')",
+            "icon": "fa-sync",
+            "text": "مزامنة دفترة",
+            "class": "btn-outline-info",
+        })
+
     context = {
         "suppliers": suppliers,
         "page_obj": page_obj,
@@ -179,20 +197,7 @@ def supplier_list(request):
         "page_subtitle": "إدارة الموردين وعرض بياناتهم ومعاملاتهم المالية",
         "page_icon": "fas fa-truck",
         # أزرار الهيدر
-        "header_buttons": [
-            {
-                "url": reverse("supplier:supplier_add"),
-                "icon": "fa-plus",
-                "text": "إضافة مورد",
-                "class": "btn-primary",
-            },
-            {
-                "onclick": "syncWithDaftra('suppliers')",
-                "icon": "fa-sync",
-                "text": "مزامنة دفترة",
-                "class": "btn-outline-info",
-            },
-        ],
+        "header_buttons": supplier_header_buttons,
         # البريدكرمب
         "breadcrumb_items": [
             {

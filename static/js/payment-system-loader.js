@@ -27,8 +27,8 @@
 
     // الحصول على المسار الأساسي للملفات الثابتة
     function getStaticPath() {
-        // البحث عن مسار static في الصفحة
-        const scripts = document.querySelectorAll('script[src*="static"]');
+        // محاولة 1: البحث عن مسار static في الصفحة
+        const scripts = document.querySelectorAll('script[src*="/static/"]');
         if (scripts.length > 0) {
             const src = scripts[0].src;
             const staticIndex = src.indexOf('/static/');
@@ -36,9 +36,15 @@
                 return src.substring(0, staticIndex + 8); // يتضمن /static/
             }
         }
-        
-        // المسار الافتراضي
-        return '/static/';
+
+        // محاولة 2: من meta tag
+        const metaStatic = document.querySelector('meta[name="static-url"]');
+        if (metaStatic) {
+            return metaStatic.getAttribute('content');
+        }
+
+        // المسار الافتراضي - بدون request
+        return window.location.origin + '/static/';
     }
 
     const staticBasePath = getStaticPath();

@@ -167,6 +167,15 @@ def user_list(request):
             },
         ]
 
+    # زر Login As للـ superuser فقط
+    if request.user.is_superuser:
+        action_buttons.insert(0, {
+            "label": "دخول كـ",
+            "type": "button",
+            "class": "btn-sm btn-outline-warning login-as-btn",
+            "icon": "fa-user-secret",
+        })
+
     context = {
         "users": page_obj,  # استخدام page_obj بدل users
         "page_obj": page_obj,  # للـ pagination controls
@@ -199,6 +208,7 @@ def user_list(request):
             },
             {"title": "المستخدمين", "active": True},
         ],
+        "is_superuser": request.user.is_superuser,
     }
     
     return render(request, "users/user_list.html", context)
@@ -381,6 +391,72 @@ def user_delete(request, user_id):
             'success': False,
             'message': f'حدث خطأ أثناء حذف المستخدم: {str(e)}'
         }, status=500)
+
+
+@login_required
+def login_as_user(request, user_id):
+    """
+    تسجيل الدخول كمستخدم آخر (للـ superuser فقط)
+    """
+    if not request.user.is_superuser:
+        return JsonResponse({
+            'success': False,
+            'message': 'هذه الميزة متاحة للمدير الرئيسي فقط'
+        }, status=403)
+
+    target_user = get_object_or_404(User, id=user_id)
+
+    # منع الدخول كنفسك
+    if target_user == request.user:
+        return JsonResponse({
+            'success': False,
+            'message': 'أنت بالفعل مسجل الدخول بهذا الحساب'
+        }, status=400)
+
+    # حفظ معرف المستخدم الأصلي في الـ session قبل التبديل
+    from django.contrib.auth import login as auth_login
+    original_user_id = request.session.get('original_user_id') or request.user.id
+
+    # تسجيل الدخول كالمستخدم المستهدف
+    target_user.backend = 'django.contrib.auth.backends.ModelBackend'
+    auth_login(request, target_user)
+
+    # حفظ معرف المستخدم الأصلي للرجوع لاحقاً
+    request.session['original_user_id'] = original_user_id
+    request.session['is_impersonating'] = True
+
+    return JsonResponse({
+        'success': True,
+        'message': f'تم تسجيل الدخول كـ {target_user.get_full_name() or target_user.username}',
+        'redirect_url': reverse('core:dashboard')
+    })
+
+
+@login_required
+def stop_impersonation(request):
+    """
+    إيقاف انتحال الهوية والرجوع للمستخدم الأصلي
+    """
+    original_user_id = request.session.get('original_user_id')
+    if not original_user_id:
+        return redirect('core:dashboard')
+
+    try:
+        original_user = User.objects.get(id=original_user_id)
+        from django.contrib.auth import login as auth_login
+        original_user.backend = 'django.contrib.auth.backends.ModelBackend'
+        auth_login(request, original_user)
+
+        # تنظيف الـ session
+        request.session.pop('original_user_id', None)
+        request.session.pop('is_impersonating', None)
+
+        messages.success(request, f'تم الرجوع لحسابك الأصلي: {original_user.get_full_name() or original_user.username}')
+    except User.DoesNotExist:
+        request.session.pop('original_user_id', None)
+        request.session.pop('is_impersonating', None)
+
+    return redirect('core:dashboard')
 
 
 @login_required

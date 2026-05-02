@@ -5,7 +5,6 @@
 """
 
 import requests
-import os
 import logging
 from decimal import Decimal
 from django.db import transaction
@@ -22,12 +21,23 @@ class DaftraSync:
     """فئة المزامنة مع Daftra API"""
     
     def __init__(self, domain=None, api_key=None):
-        self.domain = domain or os.getenv('DAFTRA_DOMAIN', 'mwheba')
-        self.api_key = api_key or os.getenv('DAFTRA_API_KEY', '')
+        # قراءة الإعدادات من DB فقط
+        try:
+            from core.models import SystemSetting
+            db_domain = SystemSetting.get_setting('daftra_domain', '')
+            db_api_key = SystemSetting.get_setting('daftra_api_key', '')
+        except Exception:
+            db_domain = ''
+            db_api_key = ''
+
+        self.domain = domain or db_domain
+        self.api_key = api_key or db_api_key
         self.base_url = f'https://{self.domain}.daftra.com/api2'
-        
+
+        if not self.domain:
+            raise ValueError('DAFTRA_DOMAIN غير موجود - أضفه في إعدادات النظام (الإعدادات ← النظام ← دفترة)')
         if not self.api_key:
-            raise ValueError('DAFTRA_API_KEY غير موجود في .env')
+            raise ValueError('DAFTRA_API_KEY غير موجود - أضفه في إعدادات النظام (الإعدادات ← النظام ← دفترة)')
         
     def get_headers(self):
         """إنشاء headers للـ API"""

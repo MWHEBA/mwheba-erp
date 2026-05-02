@@ -139,6 +139,11 @@
                                 <i class="fab fa-whatsapp me-1 text-success"></i> واتساب
                             </a>
                         </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="daftra-tab" data-bs-toggle="tab" data-bs-target="#daftra" type="button" role="tab">
+                                <i class="fas fa-sync me-1 text-info"></i> دفترة
+                            </button>
+                        </li>
                     </ul>
 
                     <!-- Tabs Content -->
@@ -424,6 +429,91 @@
                         </div>
                     </div>
                     
+                    <!-- Tab 5: إعدادات دفترة -->
+                    <div class="tab-pane fade" id="daftra" role="tabpanel">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h5 class="mb-3">
+                                    <i class="fas fa-sync text-info me-2"></i>
+                                    إعدادات مزامنة دفترة
+                                </h5>
+
+                                <!-- تفعيل/تعطيل دفترة -->
+                                <div class="mb-4 p-3 border rounded">
+                                    <div class="form-check form-switch d-flex align-items-center gap-3">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               id="daftra_enabled" name="daftra_enabled"
+                                               {% if settings.daftra_enabled == 'true' %}checked{% endif %}
+                                               style="width: 3em; height: 1.5em;">
+                                        <div>
+                                            <label class="form-check-label fw-bold mb-0" for="daftra_enabled">
+                                                تفعيل مزامنة دفترة
+                                            </label>
+                                            <div class="small text-muted">
+                                                عند التعطيل، تختفي أزرار المزامنة من صفحات العملاء والموردين
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="daftra-fields">
+                                    <div class="mb-3">
+                                        <label for="daftra_domain" class="form-label">
+                                            نطاق دفترة (Domain)
+                                            <i class="fas fa-question-circle help-icon" data-bs-toggle="tooltip"
+                                               title="الجزء الأول من رابط دفترة - مثال: لو الرابط mwheba.daftra.com اكتب mwheba"></i>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="text" class="form-control" id="daftra_domain" name="daftra_domain"
+                                                   value="{{ settings.daftra_domain|default:'' }}"
+                                                   placeholder="مثال: mwheba">
+                                            <span class="input-group-text text-muted">.daftra.com</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="daftra_api_key" class="form-label">
+                                            مفتاح API
+                                            <i class="fas fa-question-circle help-icon" data-bs-toggle="tooltip"
+                                               title="مفتاح API من إعدادات حساب دفترة الخاص بك"></i>
+                                        </label>
+                                        <div class="input-group">
+                                            <input type="password" class="form-control" id="daftra_api_key" name="daftra_api_key"
+                                                   autocomplete="new-password"
+                                                   value="{{ settings.daftra_api_key|default:'' }}"
+                                                   placeholder="أدخل مفتاح API">
+                                            <button class="btn btn-outline-secondary" type="button"
+                                                    onclick="toggleApiKeyVisibility()">
+                                                <i class="fas fa-eye" id="apiKeyIcon"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <button type="button" class="btn btn-outline-info" id="testDaftraBtn">
+                                        <i class="fas fa-plug me-1"></i> اختبار الاتصال بدفترة
+                                    </button>
+                                    <div id="daftraTestResult" class="mt-2"></div>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="alert alert-info border-start border-4 border-info mt-4">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-info-circle fa-lg text-info me-2 mt-1"></i>
+                                        <div>
+                                            <strong>كيفية الحصول على مفتاح API:</strong>
+                                            <ol class="mb-0 mt-2 small">
+                                                <li>سجّل دخولك على حساب دفترة</li>
+                                                <li>اذهب إلى الإعدادات ← API</li>
+                                                <li>انسخ مفتاح API وضعه هنا</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <hr class="my-4">
                     
                     <div class="text-end">
@@ -457,39 +547,38 @@ document.addEventListener('DOMContentLoaded', function() {
     
     async function updateCurrentTime() {
         try {
-            // الحصول على المنطقة الزمنية المختارة
             const selectedTimezone = timezoneSelect ? timezoneSelect.value : null;
-            
-            // بناء URL مع المنطقة الزمنية
             let url = '{% url "core:get_current_time" %}';
             if (selectedTimezone) {
                 url += `?timezone=${encodeURIComponent(selectedTimezone)}`;
             }
-            
-            
+
             const response = await fetch(url);
             const data = await response.json();
-            
-            
-            if (data.success && currentTimeElement) {
-                // استخدام الوقت من الـ server مع تنسيق بسيط
-                const serverTime = data.current_time; // "2026-01-13 02:26:20"
-                
-                // إعادة تنسيق بسيط: YYYY-MM-DD HH:MM:SS -> DD/MM/YYYY HH:MM:SS
-                const [datePart, timePart] = serverTime.split(' ');
-                const [year, month, day] = datePart.split('-');
-                const formattedTime = `${day}/${month}/${year} ${timePart}`;
-                
-                currentTimeElement.textContent = formattedTime;
-                currentTimeElement.title = `المنطقة الزمنية: ${data.timezone}`;
-                
-            } else if (currentTimeElement) {
-                currentTimeElement.textContent = 'خطأ في عرض الوقت';
+
+            if (currentTimeElement && data.success) {
+                const rawTime = data.current_time || data.time || data.datetime || null;
+                if (rawTime) {
+                    // يدعم ISO format (2026-05-02T14:30:00) وعادي (2026-05-02 14:30:00)
+                    const d = new Date(rawTime);
+                    if (!isNaN(d)) {
+                        const day   = String(d.getDate()).padStart(2, '0');
+                        const month = String(d.getMonth() + 1).padStart(2, '0');
+                        const year  = d.getFullYear();
+                        const hh    = String(d.getHours()).padStart(2, '0');
+                        const mm    = String(d.getMinutes()).padStart(2, '0');
+                        const ss    = String(d.getSeconds()).padStart(2, '0');
+                        currentTimeElement.textContent = `${day}/${month}/${year} ${hh}:${mm}:${ss}`;
+                    } else {
+                        currentTimeElement.textContent = rawTime;
+                    }
+                } else {
+                    currentTimeElement.textContent = 'خطأ في عرض الوقت';
+                }
             }
         } catch (error) {
-            console.error('Error updating time:', error); // للتشخيص
             if (currentTimeElement) {
-                currentTimeElement.textContent = 'خطأ في الاتصال';
+                currentTimeElement.textContent = '--:--:--';
             }
         }
     }
@@ -772,6 +861,78 @@ document.addEventListener('DOMContentLoaded', function() {
     // تحديث كل 10 ثواني
     setInterval(updateSystemInfo, 10000);
     {% endif %}
+
+    // ==================== Daftra Toggle ====================
+    const daftraToggle = document.getElementById('daftra_enabled');
+    const daftraFields = document.getElementById('daftra-fields');
+
+    function updateDaftraFields() {
+        if (daftraToggle && daftraFields) {
+            daftraFields.style.opacity = daftraToggle.checked ? '1' : '0.4';
+            daftraFields.querySelectorAll('input, button').forEach(el => {
+                el.disabled = !daftraToggle.checked;
+            });
+        }
+    }
+
+    if (daftraToggle) {
+        updateDaftraFields();
+        daftraToggle.addEventListener('change', updateDaftraFields);
+    }
+
+    // ==================== Daftra Test Connection ====================
+    const testDaftraBtn = document.getElementById('testDaftraBtn');
+    if (testDaftraBtn) {
+        testDaftraBtn.addEventListener('click', async function() {
+            const domain = document.getElementById('daftra_domain').value.trim();
+            const apiKey = document.getElementById('daftra_api_key').value.trim();
+            const resultDiv = document.getElementById('daftraTestResult');
+
+            if (!domain || !apiKey) {
+                resultDiv.innerHTML = '<div class="alert alert-warning"><i class="fas fa-exclamation-triangle me-2"></i>أدخل النطاق ومفتاح API أولاً</div>';
+                return;
+            }
+
+            testDaftraBtn.disabled = true;
+            testDaftraBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> جاري الاختبار...';
+            resultDiv.innerHTML = '';
+
+            try {
+                const response = await fetch('{% url "utils:daftra_test_connection" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ domain: domain, api_key: apiKey })
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.innerHTML = `<div class="alert alert-success"><i class="fas fa-check-circle me-2"></i>${data.message}</div>`;
+                } else {
+                    resultDiv.innerHTML = `<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>${data.message}</div>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = '<div class="alert alert-danger"><i class="fas fa-times-circle me-2"></i>فشل الاتصال بالخادم</div>';
+            } finally {
+                testDaftraBtn.disabled = false;
+                testDaftraBtn.innerHTML = '<i class="fas fa-plug me-1"></i> اختبار الاتصال بدفترة';
+            }
+        });
+    }
 });
+
+function toggleApiKeyVisibility() {
+    const field = document.getElementById('daftra_api_key');
+    const icon = document.getElementById('apiKeyIcon');
+    if (field.type === 'password') {
+        field.type = 'text';
+        icon.className = 'fas fa-eye-slash';
+    } else {
+        field.type = 'password';
+        icon.className = 'fas fa-eye';
+    }
+}
 </script>
 {% endblock %} 

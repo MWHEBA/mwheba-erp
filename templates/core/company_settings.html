@@ -60,6 +60,11 @@
                             <i class="fas fa-palette me-1"></i> الهوية البصرية
                         </button>
                     </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="colors-tab" data-bs-toggle="tab" data-bs-target="#colors" type="button" role="tab">
+                            <i class="fas fa-fill-drip me-1"></i> الألوان
+                        </button>
+                    </li>
                 </ul>
 
                 <!-- Tabs Content -->
@@ -318,7 +323,7 @@
                                     {% if company_logo %}
                                     <div class="mt-2" id="preview-company_logo">
                                         <div class="p-2 border rounded d-inline-block bg-light">
-                                            <img src="/media/{{ company_logo }}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;">
+                                            <img src="{{ MEDIA_URL }}{{ company_logo }}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;">
                                         </div>
                                         <div class="mt-1">
                                             <small class="text-success">
@@ -346,7 +351,7 @@
                                     {% if company_logo_light %}
                                     <div class="mt-2" id="preview-company_logo_light">
                                         <div class="p-2 border rounded d-inline-block bg-secondary">
-                                            <img src="/media/{{ company_logo_light }}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;">
+                                            <img src="{{ MEDIA_URL }}{{ company_logo_light }}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;">
                                         </div>
                                         <div class="mt-1">
                                             <small class="text-success">
@@ -374,7 +379,7 @@
                                     {% if company_logo_mini %}
                                     <div class="mt-2" id="preview-company_logo_mini">
                                         <div class="p-2 border rounded d-inline-block bg-secondary">
-                                            <img src="/media/{{ company_logo_mini }}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;">
+                                            <img src="{{ MEDIA_URL }}{{ company_logo_mini }}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;">
                                         </div>
                                         <div class="mt-1">
                                             <small class="text-success">
@@ -417,6 +422,309 @@
                             </div>
                         </div>
                     </div>
+                    <!-- Tab 5: الألوان -->
+                    <div class="tab-pane fade" id="colors" role="tabpanel">
+                        
+                        <!-- Live Preview Bar -->
+                        <div class="mb-4 p-3 rounded" id="colorPreviewBar" style="background: var(--bg-light); border: 1px solid var(--border-color);">
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <span class="fw-semibold" style="color: var(--text-medium);">معاينة مباشرة:</span>
+                                <button type="button" class="btn btn-sm" id="previewPrimary" style="background-color: var(--primary-color); color: #fff; border: none;">اللون الأساسي</button>
+                                <button type="button" class="btn btn-sm" id="previewSuccess" style="background-color: var(--success-color); color: #fff; border: none;">النجاح</button>
+                                <button type="button" class="btn btn-sm" id="previewWarning" style="background-color: var(--warning-color); color: #fff; border: none;">التحذير</button>
+                                <button type="button" class="btn btn-sm" id="previewDanger" style="background-color: var(--danger-color); color: #fff; border: none;">الخطر</button>
+                                <button type="button" class="btn btn-sm" id="previewInfo" style="background-color: var(--info-color); color: #fff; border: none;">المعلومات</button>
+                                <div class="ms-auto">
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" id="resetColorsBtn">
+                                        <i class="fas fa-undo me-1"></i> استعادة الافتراضي
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row g-4">
+                            <!-- اللون الأساسي -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-circle text-primary me-2"></i>اللون الأساسي (Primary)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">اللون الرئيسي</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_primary" name="color_primary"
+                                                    value="{{ color_primary|default:'#04578d' }}"
+                                                    data-var="--primary-color" data-preview="previewPrimary">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_primary|default:'#04578d' }}"
+                                                    data-for="color_primary" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الداكن</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_primary_dark" name="color_primary_dark"
+                                                    value="{{ color_primary_dark|default:'#033d64' }}"
+                                                    data-var="--primary-dark">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_primary_dark|default:'#033d64' }}"
+                                                    data-for="color_primary_dark" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الفاتح</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_primary_light" name="color_primary_light"
+                                                    value="{{ color_primary_light|default:'#0570b0' }}"
+                                                    data-var="--primary-light">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_primary_light|default:'#0570b0' }}"
+                                                    data-for="color_primary_light" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">عند التحويم</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_primary_hover" name="color_primary_hover"
+                                                    value="{{ color_primary_hover|default:'#0462a0' }}"
+                                                    data-var="--primary-hover">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_primary_hover|default:'#0462a0' }}"
+                                                    data-for="color_primary_hover" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- لون النجاح -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-circle text-success me-2"></i>لون النجاح (Success)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الرئيسي</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_success" name="color_success"
+                                                    value="{{ color_success|default:'#22c55e' }}"
+                                                    data-var="--success-color" data-preview="previewSuccess">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_success|default:'#22c55e' }}"
+                                                    data-for="color_success" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الداكن</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_success_dark" name="color_success_dark"
+                                                    value="{{ color_success_dark|default:'#059669' }}"
+                                                    data-var="--success-dark">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_success_dark|default:'#059669' }}"
+                                                    data-for="color_success_dark" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- لون التحذير -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-circle text-warning me-2"></i>لون التحذير (Warning)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الرئيسي</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_warning" name="color_warning"
+                                                    value="{{ color_warning|default:'#f59e0b' }}"
+                                                    data-var="--warning-color" data-preview="previewWarning">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_warning|default:'#f59e0b' }}"
+                                                    data-for="color_warning" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الداكن</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_warning_dark" name="color_warning_dark"
+                                                    value="{{ color_warning_dark|default:'#d97706' }}"
+                                                    data-var="--warning-dark">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_warning_dark|default:'#d97706' }}"
+                                                    data-for="color_warning_dark" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- لون الخطر -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-circle text-danger me-2"></i>لون الخطر (Danger)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الرئيسي</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_danger" name="color_danger"
+                                                    value="{{ color_danger|default:'#ef4444' }}"
+                                                    data-var="--danger-color" data-preview="previewDanger">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_danger|default:'#ef4444' }}"
+                                                    data-for="color_danger" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الداكن</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_danger_dark" name="color_danger_dark"
+                                                    value="{{ color_danger_dark|default:'#dc2626' }}"
+                                                    data-var="--danger-dark">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_danger_dark|default:'#dc2626' }}"
+                                                    data-for="color_danger_dark" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- لون المعلومات -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-circle text-info me-2"></i>لون المعلومات (Info)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الرئيسي</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_info" name="color_info"
+                                                    value="{{ color_info|default:'#0ea5e9' }}"
+                                                    data-var="--info-color" data-preview="previewInfo">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_info|default:'#0ea5e9' }}"
+                                                    data-for="color_info" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">الداكن</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_info_dark" name="color_info_dark"
+                                                    value="{{ color_info_dark|default:'#0284c7' }}"
+                                                    data-var="--info-dark">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_info_dark|default:'#0284c7' }}"
+                                                    data-for="color_info_dark" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ألوان الخلفية والنص -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-paint-brush me-2" style="color: var(--text-medium)"></i>الخلفية والنص</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">خلفية الصفحة</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_bg_body" name="color_bg_body"
+                                                    value="{{ color_bg_body|default:'#f9fafb' }}"
+                                                    data-var="--bg-body">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_bg_body|default:'#f9fafb' }}"
+                                                    data-for="color_bg_body" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">لون النص</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_text" name="color_text"
+                                                    value="{{ color_text|default:'#374151' }}"
+                                                    data-var="--text-color">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_text|default:'#374151' }}"
+                                                    data-for="color_text" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">خلفية البطاقات</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_bg_card" name="color_bg_card"
+                                                    value="{{ color_bg_card|default:'#ffffff' }}"
+                                                    data-var="--bg-card">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_bg_card|default:'#ffffff' }}"
+                                                    data-for="color_bg_card" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">لون الحدود</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_border" name="color_border"
+                                                    value="{{ color_border|default:'#e5e7eb' }}"
+                                                    data-var="--border-color">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_border|default:'#e5e7eb' }}"
+                                                    data-for="color_border" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- ألوان الـ Sidebar -->
+                            <div class="col-md-6">
+                                <div class="p-3 border rounded">
+                                    <h6 class="mb-3 fw-semibold"><i class="fas fa-sidebar me-2" style="color: var(--text-medium)"></i>القائمة الجانبية (Sidebar)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">خلفية الـ Sidebar</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_sidebar_bg" name="color_sidebar_bg"
+                                                    value="{{ color_sidebar_bg|default:'#ffffff' }}"
+                                                    data-var="--sidebar-bg">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_sidebar_bg|default:'#ffffff' }}"
+                                                    data-for="color_sidebar_bg" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <label class="form-label small text-muted">خلفية الهيدر</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="color" class="form-control form-control-color color-input" 
+                                                    id="color_header_bg" name="color_header_bg"
+                                                    value="{{ color_header_bg|default:'#ffffff' }}"
+                                                    data-var="--header-bg">
+                                                <input type="text" class="form-control color-hex-input" 
+                                                    value="{{ color_header_bg|default:'#ffffff' }}"
+                                                    data-for="color_header_bg" dir="ltr" maxlength="7">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div><!-- end row -->
+                    </div><!-- end tab colors -->
+
                 </div>
                 
                 <hr class="my-4">
@@ -480,7 +788,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             // Validate file size (2MB)
             if (file.size > 2 * 1024 * 1024) {
-                alert('حجم الملف كبير جداً. الحد الأقصى 2 ميجابايت.');
+                toastr.error('حجم الملف كبير جداً. الحد الأقصى 2 ميجابايت.');
                 this.value = '';
                 return;
             }
@@ -488,7 +796,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Validate file type
             const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml'];
             if (!validTypes.includes(file.type)) {
-                alert('نوع الملف غير مدعوم. يرجى استخدام PNG, JPG, أو SVG.');
+                toastr.error('نوع الملف غير مدعوم. يرجى استخدام PNG, JPG, أو SVG.');
                 this.value = '';
                 return;
             }
@@ -497,16 +805,24 @@ document.addEventListener('DOMContentLoaded', function() {
             const reader = new FileReader();
             reader.onload = function(e) {
                 let previewContainer = document.getElementById(`preview-${logoType}`);
-                if (previewContainer) {
+                if (!previewContainer) {
+                    // إنشاء container مؤقت للـ loading state
+                    previewContainer = document.createElement('div');
+                    previewContainer.className = 'mt-2';
+                    previewContainer.id = `preview-${logoType}`;
+                    const bgClass = (logoType === 'company_logo') ? 'bg-light' : 'bg-secondary';
+                    const sizeStyle = (logoType === 'company_logo_mini') ? 'max-height:50px;max-width:50px;' : 'max-height:80px;';
+                    previewContainer.innerHTML = `
+                        <div class="p-2 border rounded d-inline-block ${bgClass}">
+                            <img src="${e.target.result}" class="logo-preview" style="${sizeStyle}">
+                        </div>
+                        <div class="mt-1"><small class="text-muted"><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</small></div>`;
+                    logoInput.closest('.mb-3').after(previewContainer);
+                } else {
                     const img = previewContainer.querySelector('img');
-                    if (img) {
-                        img.src = e.target.result;
-                    }
-                    // Show loading
+                    if (img) img.src = e.target.result;
                     const statusDiv = previewContainer.querySelector('.mt-1');
-                    if (statusDiv) {
-                        statusDiv.innerHTML = '<small class="text-muted"><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</small>';
-                    }
+                    if (statusDiv) statusDiv.innerHTML = '<small class="text-muted"><i class="fas fa-spinner fa-spin"></i> جاري الرفع...</small>';
                 }
             };
             reader.readAsDataURL(file);
@@ -527,49 +843,41 @@ document.addEventListener('DOMContentLoaded', function() {
                 const data = await response.json();
                 
                 if (data.success) {
-                    // Update preview with uploaded image
+                    // إيجاد أو إنشاء الـ preview container
                     let previewContainer = document.getElementById(`preview-${logoType}`);
-                    if (previewContainer) {
-                        const img = previewContainer.querySelector('img');
-                        if (img) {
-                            img.src = data.logo_url;
-                        }
-                        const statusDiv = previewContainer.querySelector('.mt-1');
-                        if (statusDiv) {
-                            statusDiv.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small>';
-                        }
+
+                    if (!previewContainer) {
+                        // إنشاء container جديد بعد الـ input مباشرة
+                        previewContainer = document.createElement('div');
+                        previewContainer.className = 'mt-2';
+                        previewContainer.id = `preview-${logoType}`;
+                        const bgClass = (logoType === 'company_logo') ? 'bg-light' : 'bg-secondary';
+                        const sizeStyle = (logoType === 'company_logo_mini')
+                            ? 'max-height:50px;max-width:50px;'
+                            : 'max-height:80px;';
+                        previewContainer.innerHTML = `
+                            <div class="p-2 border rounded d-inline-block ${bgClass}">
+                                <img src="${data.logo_url}" class="logo-preview" style="${sizeStyle}">
+                            </div>
+                            <div class="mt-1"><small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small></div>`;
+                        logoInput.closest('.mb-3').after(previewContainer);
                     } else {
-                        // Create preview if doesn't exist
-                        const parentDiv = logoInput.closest('.mb-4');
-                        const newPreview = document.createElement('div');
-                        newPreview.className = 'mt-2';
-                        newPreview.id = `preview-${logoType}`;
-                        
-                        let imgHTML = '';
-                        if (logoType === 'company_logo_light') {
-                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-secondary"><img src="${data.logo_url}" class="logo-preview" alt="الشعار الفاتح" style="max-height: 80px;"></div>`;
-                        } else if (logoType === 'company_logo_mini') {
-                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-secondary"><img src="${data.logo_url}" class="logo-preview" alt="الشعار المصغر" style="max-height: 50px; max-width: 50px;"></div>`;
-                        } else {
-                            imgHTML = `<div class="p-2 border rounded d-inline-block bg-light"><img src="${data.logo_url}" class="logo-preview" alt="الشعار الأساسي" style="max-height: 80px;"></div>`;
-                        }
-                        
-                        newPreview.innerHTML = imgHTML + '<div class="mt-1"><small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small></div>';
-                        parentDiv.appendChild(newPreview);
+                        // تحديث الـ preview الموجود
+                        const img = previewContainer.querySelector('img');
+                        if (img) img.src = data.logo_url;
+                        const statusDiv = previewContainer.querySelector('.mt-1');
+                        if (statusDiv) statusDiv.innerHTML = '<small class="text-success"><i class="fas fa-check-circle"></i> تم الرفع</small>';
                     }
-                    
-                    // Show toast notification
-                    if (typeof toastr !== 'undefined') {
-                        toastr.success(data.message);
-                    }
+
+                    toastr.success(data.message);
                     
                 } else {
-                    alert(data.message);
+                    toastr.error(data.message);
                     logoInput.value = '';
                 }
             } catch (error) {
                 console.error('خطأ في رفع الشعار:', error);
-                alert('حدث خطأ أثناء رفع الشعار. يرجى المحاولة مرة أخرى.');
+                toastr.error('حدث خطأ أثناء رفع الشعار. يرجى المحاولة مرة أخرى.');
                 logoInput.value = '';
             }
         });
@@ -609,25 +917,131 @@ document.addEventListener('DOMContentLoaded', function() {
     const savedDraft = localStorage.getItem('company_settings_draft');
     if (savedDraft) {
         const draftData = JSON.parse(savedDraft);
-        const shouldRestore = confirm('تم العثور على مسودة محفوظة. هل تريد استعادتها؟');
-        if (shouldRestore) {
-            Object.keys(draftData).forEach(key => {
-                const input = form.querySelector(`[name="${key}"]`);
-                if (input && input.type !== 'file') {
-                    input.value = draftData[key];
-                }
-            });
-            formChanged = true;
-        } else {
-            localStorage.removeItem('company_settings_draft');
-        }
+        Swal.fire({
+            title: 'مسودة محفوظة',
+            text: 'تم العثور على مسودة محفوظة. هل تريد استعادتها؟',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، استعادة',
+            cancelButtonText: 'لا، تجاهل'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Object.keys(draftData).forEach(key => {
+                    const input = form.querySelector(`[name="${key}"]`);
+                    if (input && input.type !== 'file') {
+                        input.value = draftData[key];
+                    }
+                });
+                formChanged = true;
+            } else {
+                localStorage.removeItem('company_settings_draft');
+            }
+        });
     }
     
-    // ==================== Clear Draft on Successful Submit ====================
-    form.addEventListener('submit', function() {
-        localStorage.removeItem('company_settings_draft');
+    // ==================== Color Pickers Live Preview ====================
+    const colorInputs = document.querySelectorAll('.color-input');
+    const hexInputs = document.querySelectorAll('.color-hex-input');
+    const root = document.documentElement;
+
+    // Sync color picker → hex text + CSS var
+    colorInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const hex = this.value;
+            const cssVar = this.dataset.var;
+            const previewId = this.dataset.preview;
+
+            // Update CSS variable live
+            root.style.setProperty(cssVar, hex);
+
+            // Sync hex text input
+            const hexInput = document.querySelector(`.color-hex-input[data-for="${this.id}"]`);
+            if (hexInput) hexInput.value = hex;
+
+            // Update preview button
+            if (previewId) {
+                const btn = document.getElementById(previewId);
+                if (btn) btn.style.backgroundColor = hex;
+            }
+
+            formChanged = true;
+        });
     });
-    
+
+    // Sync hex text → color picker + CSS var
+    hexInputs.forEach(input => {
+        input.addEventListener('input', function() {
+            const hex = this.value.trim();
+            if (!/^#[0-9A-Fa-f]{6}$/.test(hex)) return;
+
+            const colorInput = document.getElementById(this.dataset.for);
+            if (colorInput) {
+                colorInput.value = hex;
+                const cssVar = colorInput.dataset.var;
+                root.style.setProperty(cssVar, hex);
+
+                const previewId = colorInput.dataset.preview;
+                if (previewId) {
+                    const btn = document.getElementById(previewId);
+                    if (btn) btn.style.backgroundColor = hex;
+                }
+            }
+            formChanged = true;
+        });
+    });
+
+    // Reset to defaults
+    const defaultColors = {
+        'color_primary':       '#04578d',
+        'color_primary_dark':  '#033d64',
+        'color_primary_light': '#0570b0',
+        'color_primary_hover': '#0462a0',
+        'color_success':       '#22c55e',
+        'color_success_dark':  '#059669',
+        'color_warning':       '#f59e0b',
+        'color_warning_dark':  '#d97706',
+        'color_danger':        '#ef4444',
+        'color_danger_dark':   '#dc2626',
+        'color_info':          '#0ea5e9',
+        'color_info_dark':     '#0284c7',
+        'color_bg_body':       '#f9fafb',
+        'color_text':          '#374151',
+        'color_bg_card':       '#ffffff',
+        'color_border':        '#e5e7eb',
+        'color_sidebar_bg':    '#ffffff',
+        'color_header_bg':     '#ffffff',
+    };
+
+    document.getElementById('resetColorsBtn')?.addEventListener('click', function() {
+        Swal.fire({
+            title: 'استعادة الألوان الافتراضية؟',
+            text: 'سيتم إعادة جميع الألوان إلى قيمها الأصلية',
+            icon: 'question',
+            showCancelButton: true,
+            confirmButtonText: 'نعم، استعادة',
+            cancelButtonText: 'إلغاء'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Object.entries(defaultColors).forEach(([id, hex]) => {
+                    const colorInput = document.getElementById(id);
+                    if (colorInput) {
+                        colorInput.value = hex;
+                        root.style.setProperty(colorInput.dataset.var, hex);
+                        const hexInput = document.querySelector(`.color-hex-input[data-for="${id}"]`);
+                        if (hexInput) hexInput.value = hex;
+                        const previewId = colorInput.dataset.preview;
+                        if (previewId) {
+                            const btn = document.getElementById(previewId);
+                            if (btn) btn.style.backgroundColor = hex;
+                        }
+                    }
+                });
+                formChanged = true;
+                toastr.info('تم استعادة الألوان الافتراضية - اضغط حفظ لتطبيقها');
+            }
+        });
+    });
+
 });
 </script>
 {% endblock %}

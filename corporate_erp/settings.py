@@ -182,6 +182,7 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
+                "django.template.context_processors.media",
                 
                 # Custom (3 فقط) - الأساسي - Memory optimization
                 "core.context_processors_optimized.global_settings",
@@ -956,8 +957,8 @@ PAGINATION_SETTINGS = {
 # ✅ PHASE 3: Static files optimization
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 if not DEBUG:
-    # Enable static files compression in production
-    STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
+WHITENOISE_MANIFEST_STRICT = False
 
 # ✅ PHASE 3: Media files optimization
 MEDIA_OPTIMIZATION = {
@@ -1318,11 +1319,12 @@ SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 SECURE_REFERRER_POLICY = "strict-origin-when-cross-origin"
 
 # ============================================================
-# PHASE 4: LOGGING CONFIGURATION FOR INTEGRATION
+# PHASE 4: LOGGING CONFIGURATION FOR INTEGRATION 
 # ============================================================
 
 # Add integration-specific loggers
 _file_handler = 'file' if DEBUG else 'main_file'
+_console_handler = ['console'] if DEBUG else []
 LOGGING['loggers'].update({
     # Daftra sync logger - ملف منفصل للمزامنة
     'utils.daftra_sync': {
@@ -1336,28 +1338,28 @@ LOGGING['loggers'].update({
         'propagate': False,
     },
     'financial.services.integration_security_service': {
-        'handlers': ['file', 'console'],
+        'handlers': [_file_handler] + _console_handler,
         'level': 'INFO',
         'propagate': False,
     },
     'core.services.api_integration_security': {
-        'handlers': ['file', 'console'],
+        'handlers': [_file_handler] + _console_handler,
         'level': 'INFO',
         'propagate': False,
     },
     'financial.services.data_reconciliation_service': {
-        'handlers': ['file', 'console'],
+        'handlers': [_file_handler] + _console_handler,
         'level': 'INFO',
         'propagate': False,
     },
     'financial.tasks.reconciliation_tasks': {
-        'handlers': ['file', 'console'],
+        'handlers': [_file_handler] + _console_handler,
         'level': 'INFO',
         'propagate': False,
     },
     'core.middleware.webhook_security_middleware': {
-        'handlers': ['file', 'console'],
-        'level': 'WARNING',  # Only log warnings and errors
+        'handlers': [_file_handler] + _console_handler,
+        'level': 'WARNING',
         'propagate': False,
     },
 })

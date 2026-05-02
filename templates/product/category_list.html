@@ -1,62 +1,110 @@
 {% extends 'base.html' %}
-{% load static %}
-{% load i18n %}
-{% load crispy_forms_tags %}
-{% load custom_filters %}
-{% load utils_extras %}
+{% load static utils_extras %}
 
 {% block title %}{{ page_title }}{% endblock %}
 
-{% block extra_css %}
-<!-- جميع الستايلات موجودة في shared-components.css و components.css -->
-{% endblock %}
-
 {% block content %}
 <div class="container-fluid">
-    <!-- Page Header المركزي -->
-    {% include "shared/page_header.html" %}
-    
-    <!-- قسم الجدول -->
-    <div class="section-container">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h5 class="section-title mb-0">
-                <i class="fas fa-list me-2"></i>قائمة التصنيفات
-                <span class="badge bg-primary ms-2">{{ categories.count|smart_float }} تصنيف</span>
-            </h5>
+
+    {% include "shared/page_header.html" with title=page_title subtitle=page_subtitle icon=page_icon header_buttons=header_buttons breadcrumb_items=breadcrumb_items %}
+
+    {% for parent in root_categories %}
+    <div class="section-container mb-3">
+
+        <!-- رأس التصنيف الرئيسي -->
+        <div class="d-flex align-items-center justify-content-between mb-2"
+             style="cursor:pointer"
+             data-bs-toggle="collapse"
+             data-bs-target="#cat-{{ parent.pk }}"
+             aria-expanded="true">
+            <div class="d-flex align-items-center gap-2">
+                <i class="fas fa-chevron-down text-muted" style="transition:transform .25s" id="icon-{{ parent.pk }}"></i>
+                <span class="fw-bold fs-6">{{ parent.name }}</span>
+                {% if parent.code %}<code class="text-muted small">{{ parent.code }}</code>{% endif %}
+                <span class="badge bg-primary">{{ parent.children_list|length }} فرعي</span>
+                {% if not parent.is_active %}<span class="badge bg-secondary">متوقف</span>{% endif %}
+            </div>
+            <a href="{% url 'product:category_edit' parent.pk %}"
+               class="btn btn-sm btn-outline-primary"
+               onclick="event.stopPropagation()">
+                <i class="fas fa-edit"></i>
+            </a>
         </div>
-        
-        <!-- استخدام الجدول الموحد -->
-        {% if categories %}
-          {% with table_id="categories-table" %}
-            {% with headers=category_headers %}
-              {% with data=categories %}
-                {% with action_buttons=category_actions %}
-                  {% with empty_message="لا توجد فئات متاحة" %}
-                    {% with clickable_rows=True row_click_url="/products/categories/0/" %}
-                      {% with show_export=True export_filename="categories" %}
-                        {% include "components/data_table.html" %}
-                      {% endwith %}
-                    {% endwith %}
-                  {% endwith %}
-                {% endwith %}
-              {% endwith %}
-            {% endwith %}
-          {% endwith %}
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد فئات متاحة" icon="tags" %}
-        {% endif %}
+
+        <!-- الأبناء -->
+        <div class="collapse show" id="cat-{{ parent.pk }}">
+            {% if parent.children_list %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width:30%">التصنيف الفرعي</th>
+                            <th class="text-center">الكود</th>
+                            <th class="text-center">المنتجات</th>
+                            <th class="text-center">الحالة</th>
+                            <th class="text-center">إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for child in parent.children_list %}
+                        <tr>
+                            <td>
+                                <i class="fas fa-circle text-primary me-2" style="font-size:.4rem;vertical-align:middle;"></i>
+                                {{ child.name }}
+                            </td>
+                            <td class="text-center">
+                                {% if child.code %}<code class="small">{{ child.code }}</code>{% else %}—{% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge {% if child.products_count %}bg-success{% else %}bg-light text-muted border{% endif %}">
+                                    {{ child.products_count }}
+                                </span>
+                            </td>
+                            <td class="text-center">
+                                {% if child.is_active %}
+                                <span class="badge bg-success">نشط</span>
+                                {% else %}
+                                <span class="badge bg-secondary">متوقف</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <a href="{% url 'product:category_edit' child.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
+                                <a href="{% url 'product:category_delete' child.pk %}" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted small mb-0 ps-3">
+                <i class="fas fa-info-circle me-1"></i> لا توجد تصنيفات فرعية
+            </p>
+            {% endif %}
+        </div>
+
     </div>
+    {% empty %}
+    <div class="text-center py-5 text-muted">
+        <i class="fas fa-tags fa-3x mb-3 d-block opacity-25"></i>
+        لا توجد تصنيفات بعد
+    </div>
+    {% endfor %}
+
 </div>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/global-table.js' %}"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    // تهيئة الجداول باستخدام النظام الموحد
-    if (typeof initializeAllTables === 'function') {
-        initializeAllTables();
-    }
+document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(el => {
+    const target = el.getAttribute('data-bs-target');
+    if (!target) return;
+    const targetId = target.replace('#cat-', '');
+    const icon = document.getElementById('icon-' + targetId);
+    const collapse = document.querySelector(target);
+    if (!collapse || !icon) return;
+    collapse.addEventListener('show.bs.collapse', () => icon.style.transform = 'rotate(0deg)');
+    collapse.addEventListener('hide.bs.collapse', () => icon.style.transform = 'rotate(-90deg)');
 });
 </script>
-{% endblock %} 
+{% endblock %}

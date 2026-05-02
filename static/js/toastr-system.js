@@ -127,11 +127,15 @@ window.mapToToastrType = function(type) {
  * تحويل رسائل Django Messages إلى Toastr
  */
 window.convertDjangoMessagesToToastr = function() {
-    // البحث عن رسائل Django في الصفحة
+    // البحث عن رسائل Django في الصفحة - فقط خارج المودالات والفورمات
     const djangoMessages = document.querySelectorAll('.messages .alert, .alert[role="alert"]');
     
     if (djangoMessages.length > 0 && typeof toastr !== 'undefined') {
         djangoMessages.forEach(alert => {
+            // تجاهل الـ alerts الموجودة داخل مودالات أو فورمات أو cards
+            if (alert.closest('.modal, form, .card, .modal-body, .modal-content')) {
+                return;
+            }
             window.convertSingleAlertToToastr(alert);
         });
         
@@ -201,14 +205,22 @@ window.setupAlertObserver = function() {
         mutations.forEach(function(mutation) {
             mutation.addedNodes.forEach(function(node) {
                 if (node.nodeType === 1) {
-                    // تحويل الـ alert الجديد
+                    // تحويل الـ alert الجديد - فقط لو مش جوه مودال أو فورم
                     if (node.classList && node.classList.contains('alert')) {
-                        window.convertSingleAlertToToastr(node);
+                        if (!node.closest('.modal, form, .card, .modal-body, .modal-content')) {
+                            window.convertSingleAlertToToastr(node);
+                        }
                     }
-                    // البحث عن alerts داخل العنصر الجديد
-                    const alerts = node.querySelectorAll && node.querySelectorAll('.alert');
-                    if (alerts && alerts.length > 0) {
-                        alerts.forEach(alert => window.convertSingleAlertToToastr(alert));
+                    // البحث عن alerts داخل العنصر الجديد - فقط لو العنصر نفسه مش مودال
+                    if (!node.classList.contains('modal') && !node.classList.contains('modal-content')) {
+                        const alerts = node.querySelectorAll && node.querySelectorAll('.alert');
+                        if (alerts && alerts.length > 0) {
+                            alerts.forEach(alert => {
+                                if (!alert.closest('.modal, form, .card, .modal-body, .modal-content')) {
+                                    window.convertSingleAlertToToastr(alert);
+                                }
+                            });
+                        }
                     }
                 }
             });
@@ -233,7 +245,7 @@ window.initAdvancedToastrMode = function() {
     }
         
     // تحويل رسائل Django فوراً
-    setTimeout(() => window.convertAllAlertsToToastr(), 100);
+    window.convertAllAlertsToToastr();
     
     // إعداد مراقب DOM
     window.setupAlertObserver();
@@ -244,15 +256,19 @@ window.initAdvancedToastrMode = function() {
 /**
  * تهيئة تلقائية عند تحميل الصفحة
  */
+
+// تطبيق الإعدادات فوراً بدون انتظار - يمنع ظهور التنسيق الافتراضي
+if (typeof toastr !== 'undefined') {
+    toastr.options = DEFAULT_TOASTR_OPTIONS;
+}
+
 document.addEventListener('DOMContentLoaded', function() {
-    // انتظار تحميل toastr إذا كان موجوداً
-    setTimeout(() => {
-        if (window.initToastr()) {
-            window.convertDjangoMessagesToToastr();
-        } else {
-            console.warn('⚠️ Toastr not available - notifications disabled');
-        }
-    }, 100);
+    // تطبيق الإعدادات مرة أخرى عند تحميل DOM للتأكد
+    if (window.initToastr()) {
+        window.convertDjangoMessagesToToastr();
+    } else {
+        console.warn('⚠️ Toastr not available - notifications disabled');
+    }
     
     // ملاحظة: تم إزالة التحويل الإضافي لجميع الـ alerts لأنه كان يسبب
     // تحويل alerts غير مرغوب فيها (مثل alerts في المودالات والفورمات)

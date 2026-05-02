@@ -535,17 +535,39 @@ def upload_company_logo(request):
                 "message": "حجم الملف كبير جداً. الحد الأقصى 2 ميجابايت"
             }, status=400)
         
-        # حذف الشعار القديم إن وُجد
+        # حذف الشعار القديم من DB إن وُجد (الحذف الفعلي للملف بيتم أسفل)
         old_logo_setting = SystemSetting.objects.filter(key=logo_type).first()
-        if old_logo_setting and old_logo_setting.value:
-            old_logo_path = old_logo_setting.value
-            if default_storage.exists(old_logo_path):
-                default_storage.delete(old_logo_path)
         
-        # حفظ الشعار الجديد
-        file_name = f"{logo_type}_{logo_file.name}"
-        file_path = os.path.join('company', file_name)
-        saved_path = default_storage.save(file_path, logo_file)
+        # حفظ الشعار الجديد باسم ثابت لكل نوع
+        ext = os.path.splitext(logo_file.name)[1].lower()  # .png / .jpg / .svg
+        file_name = f"{logo_type}{ext}"                     # company_logo.png
+        file_path = f"company/{file_name}"                  # المسار النسبي للـ DB
+
+        # بناء المسار الكامل على الـ filesystem مباشرة
+        from django.conf import settings as django_settings
+        media_root = getattr(django_settings, 'MEDIA_ROOT', '')
+        company_dir = os.path.join(media_root, 'company')
+
+        # إنشاء مجلد company لو مش موجود
+        os.makedirs(company_dir, exist_ok=True)
+
+        full_file_path = os.path.join(company_dir, file_name)
+
+        # حذف الملف القديم لو موجود (بنفس الاسم أو بامتداد مختلف)
+        for old_ext in ['.png', '.jpg', '.jpeg', '.svg']:
+            old_file = os.path.join(company_dir, f"{logo_type}{old_ext}")
+            if os.path.exists(old_file):
+                try:
+                    os.remove(old_file)
+                except Exception:
+                    pass
+
+        # الكتابة المباشرة على الـ filesystem - مضمون 100%
+        with open(full_file_path, 'wb') as dest:
+            for chunk in logo_file.chunks():
+                dest.write(chunk)
+
+        saved_path = file_path
         
         # حفظ المسار في الإعدادات
         setting, created = SystemSetting.objects.get_or_create(
@@ -560,6 +582,10 @@ def upload_company_logo(request):
             setting.value = saved_path
             setting.save()
         
+        # مسح الـ cache بعد رفع الشعار عشان التغييرات تظهر فوراً
+        from django.core.cache import cache
+        cache.delete('global_settings_dict_v2')
+
         # رسائل مخصصة حسب نوع الشعار
         messages_map = {
             'company_logo': 'تم رفع الشعار الأساسي بنجاح',
@@ -567,11 +593,15 @@ def upload_company_logo(request):
             'company_logo_mini': 'تم رفع الشعار المصغر بنجاح'
         }
         
-        # إرجاع النتيجة
+        # إرجاع النتيجة مع timestamp للـ cache-busting في المتصفح
+        from django.conf import settings as django_settings
+        import time
+        media_url = getattr(django_settings, 'MEDIA_URL', '/media/')
+        cache_bust = int(time.time())
         return JsonResponse({
             "success": True,
             "message": messages_map.get(logo_type, "تم رفع الشعار بنجاح"),
-            "logo_url": f"/media/{saved_path}",
+            "logo_url": f"{media_url}{saved_path}?v={cache_bust}",
             "logo_path": saved_path,
             "logo_type": logo_type
         })

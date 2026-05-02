@@ -167,5 +167,6 @@ def _build_policy(nonce=None):
 def should_use_nonce():
     """
     تحديد ما إذا كان يجب استخدام nonce
+    nonce معطل لأن الكود يعتمد على unsafe-inline
     """
-    return not settings.DEBUG  # استخدم nonce فقط في الإنتاج
+    return False

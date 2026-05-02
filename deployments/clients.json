@@ -1,0 +1,28 @@
+{
+  "clients": {
+    "elbaraka": {
+      "name": "El Baraka Trading",
+      "domain": "baraka.mwheba.co.uk",
+      "ssh_host": "84.247.179.163",
+      "ssh_port": "2951",
+      "ssh_user": "mwhebaco",
+      "remote_path": "/home/mwhebaco/baraka_erp",
+      "description": "ERP system for El Baraka Trading",
+      "active": true,
+      "created_date": "2026-05-02",
+      "notes": ""
+    }
+  },
+  "template": {
+    "name": "Client Name",
+    "domain": "client.domain.com",
+    "ssh_host": "server_ip",
+    "ssh_port": "22",
+    "ssh_user": "username",
+    "remote_path": "/path/to/deployment",
+    "description": "وصف العميل",
+    "active": true,
+    "created_date": "YYYY-MM-DD",
+    "notes": "ملاحظات"
+  }
+}

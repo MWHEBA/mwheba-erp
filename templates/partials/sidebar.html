@@ -10,14 +10,14 @@
             <a href="{% url 'core:dashboard' %}" class="d-flex align-items-center link-dark text-decoration-none">
                 {# الشعار الكبير (عند توسيع الـ sidebar) #}
                 {% if settings.company_logo_light %}
-                    <img src="/media/{{ settings.company_logo_light }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-large">
+                    <img src="{{ MEDIA_URL }}{{ settings.company_logo_light }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-large">
                 {% else %}
                     <img src="{% static 'img/logo-light.png' %}" alt="Logo" class="sidebar-logo-img logo-large">
                 {% endif %}
                 
                 {# الشعار المصغر (عند تصغير الـ sidebar) #}
                 {% if settings.company_logo_mini %}
-                    <img src="/media/{{ settings.company_logo_mini }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-small">
+                    <img src="{{ MEDIA_URL }}{{ settings.company_logo_mini }}" alt="{{ settings.company_name|default:'Logo' }}" class="sidebar-logo-img logo-small">
                 {% else %}
                     <img src="{% static 'img/logo-mini.png' %}" alt="Logo" class="sidebar-logo-img logo-small">
                 {% endif %}
@@ -592,6 +592,7 @@
                 </li>
 
                 <!-- المستخدمين -->
+                {% if user.is_superuser %}
                 <li class="sidebar-item">
                     <a href="#userMenu" class="sidebar-link collapsed {% if active_menu == 'users' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-user-shield sidebar-icon"></i>
@@ -631,8 +632,10 @@
                         </li>
                     </ul>
                 </li>
+                {% endif %}
 
                 <!-- الإعدادات -->
+                {% if user.is_superuser %}
                 <li class="sidebar-item">
                     <a href="#settingsMenu" class="sidebar-link collapsed {% if active_menu == 'settings' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-cogs sidebar-icon"></i>
@@ -655,12 +658,6 @@
                                 <i class="fas fa-cubes me-2"></i>{% trans "تطبيقات النظام" %}
                             </a>
                         </li>
-                        <!-- تم إزالة إعدادات التسعير -->
-                        <!-- <li>
-                            <a href="#" class="submenu-link">
-                                <i class="fas fa-calculator me-2"></i>إعدادات التسعير
-                            </a>
-                        </li> -->
                         
                         <div class="nav-divider"></div>
                         
@@ -688,6 +685,7 @@
                         </li>
                     </ul>
                 </li>
+                {% endif %}
             </ul>
         </div>
     </div>

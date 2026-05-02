@@ -4,6 +4,7 @@ from django.db.models import Sum, Count, Q, F
 from django.utils import timezone
 from django.urls import reverse
 from django.views.decorators.csrf import csrf_exempt
+from django.conf import settings
 from datetime import datetime, timedelta
 import logging
 
@@ -261,19 +262,30 @@ def company_settings(request):
             "company_email", "company_website", "company_whatsapp",
             "company_working_hours", "company_bank_name", "company_bank_account",
             "company_bank_iban", "company_bank_swift",
+            # ألوان الـ CSS
+            "color_primary", "color_primary_dark", "color_primary_light", "color_primary_hover",
+            "color_success", "color_success_dark",
+            "color_warning", "color_warning_dark",
+            "color_danger", "color_danger_dark",
+            "color_info", "color_info_dark",
+            "color_bg_body", "color_text", "color_bg_card", "color_border",
+            "color_sidebar_bg", "color_header_bg",
         ]
         
-        # حفظ كل إعداد
+        # حفظ كل إعداد (حتى لو فارغ عشان نسمح بالمسح)
         for field in settings_fields:
-            value = request.POST.get(field, "")
-            if value:
-                setting, created = SystemSetting.objects.get_or_create(
-                    key=field,
-                    defaults={"value": value}
-                )
-                if not created:
-                    setting.value = value
-                    setting.save()
+            value = request.POST.get(field, "").strip()
+            setting, created = SystemSetting.objects.get_or_create(
+                key=field,
+                defaults={"value": value}
+            )
+            if not created:
+                setting.value = value
+                setting.save()
+
+        # مسح الـ cache عشان التغييرات تظهر فوراً في جميع الصفحات
+        from django.core.cache import cache
+        cache.delete('global_settings_dict_v2')
 
         messages.success(request, "تم حفظ إعدادات الشركة بنجاح")
         return redirect("core:company_settings")
@@ -282,6 +294,13 @@ def company_settings(request):
     settings_dict = {}
     for setting in SystemSetting.objects.all():
         settings_dict[setting.key] = setting.value
+
+    # التحقق من وجود ملفات الشعارات فعلياً على الـ storage
+    from django.core.files.storage import default_storage
+    for logo_key in ['company_logo', 'company_logo_light', 'company_logo_mini']:
+        if logo_key in settings_dict and settings_dict[logo_key]:
+            if not default_storage.exists(settings_dict[logo_key]):
+                settings_dict[logo_key] = ""  # مسح المسار لو الملف مش موجود
 
     # إعداد الهيدر
     header_buttons = [
@@ -307,6 +326,48 @@ def company_settings(request):
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
         "settings": settings_dict,
+        "MEDIA_URL": settings.MEDIA_URL,  # مضمون دايماً صح
+        # نبعت كل قيمة منفصلة عشان الـ template يقدر يوصلها مباشرة
+        "company_name": settings_dict.get("company_name", ""),
+        "company_name_en": settings_dict.get("company_name_en", ""),
+        "company_tax_number": settings_dict.get("company_tax_number", ""),
+        "company_commercial_register": settings_dict.get("company_commercial_register", ""),
+        "company_country": settings_dict.get("company_country", ""),
+        "company_city": settings_dict.get("company_city", ""),
+        "company_state": settings_dict.get("company_state", ""),
+        "company_address": settings_dict.get("company_address", ""),
+        "company_phone": settings_dict.get("company_phone", ""),
+        "company_mobile": settings_dict.get("company_mobile", ""),
+        "company_email": settings_dict.get("company_email", ""),
+        "company_website": settings_dict.get("company_website", ""),
+        "company_whatsapp": settings_dict.get("company_whatsapp", ""),
+        "company_working_hours": settings_dict.get("company_working_hours", ""),
+        "company_bank_name": settings_dict.get("company_bank_name", ""),
+        "company_bank_account": settings_dict.get("company_bank_account", ""),
+        "company_bank_iban": settings_dict.get("company_bank_iban", ""),
+        "company_bank_swift": settings_dict.get("company_bank_swift", ""),
+        "company_logo": settings_dict.get("company_logo", ""),
+        "company_logo_light": settings_dict.get("company_logo_light", ""),
+        "company_logo_mini": settings_dict.get("company_logo_mini", ""),
+        # ألوان الـ CSS
+        "color_primary": settings_dict.get("color_primary", "#04578d"),
+        "color_primary_dark": settings_dict.get("color_primary_dark", "#033d64"),
+        "color_primary_light": settings_dict.get("color_primary_light", "#0570b0"),
+        "color_primary_hover": settings_dict.get("color_primary_hover", "#0462a0"),
+        "color_success": settings_dict.get("color_success", "#22c55e"),
+        "color_success_dark": settings_dict.get("color_success_dark", "#059669"),
+        "color_warning": settings_dict.get("color_warning", "#f59e0b"),
+        "color_warning_dark": settings_dict.get("color_warning_dark", "#d97706"),
+        "color_danger": settings_dict.get("color_danger", "#ef4444"),
+        "color_danger_dark": settings_dict.get("color_danger_dark", "#dc2626"),
+        "color_info": settings_dict.get("color_info", "#0ea5e9"),
+        "color_info_dark": settings_dict.get("color_info_dark", "#0284c7"),
+        "color_bg_body": settings_dict.get("color_bg_body", "#f9fafb"),
+        "color_text": settings_dict.get("color_text", "#374151"),
+        "color_bg_card": settings_dict.get("color_bg_card", "#ffffff"),
+        "color_border": settings_dict.get("color_border", "#e5e7eb"),
+        "color_sidebar_bg": settings_dict.get("color_sidebar_bg", "#ffffff"),
+        "color_header_bg": settings_dict.get("color_header_bg", "#ffffff"),
     }
 
     return render(request, "core/company_settings.html", context)
@@ -348,6 +409,22 @@ def system_settings(request):
                 if not created:
                     setting.value = value
                     setting.save()
+
+        # حفظ إعدادات دفترة (دائماً حتى لو فارغة لإتاحة المسح)
+        daftra_enabled = 'true' if request.POST.get('daftra_enabled') else 'false'
+        for field, value in [
+            ("daftra_enabled", daftra_enabled),
+            ("daftra_domain", request.POST.get("daftra_domain", "").strip()),
+            ("daftra_api_key", request.POST.get("daftra_api_key", "").strip()),
+        ]:
+            setting, created = SystemSetting.objects.get_or_create(
+                key=field,
+                defaults={"value": value, "group": "system", "data_type": "string",
+                          "description": "إعداد دفترة - " + field}
+            )
+            if not created:
+                setting.value = value
+                setting.save()
 
         messages.success(request, "تم حفظ إعدادات النظام بنجاح")
         return redirect("core:system_settings")

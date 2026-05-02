@@ -18,6 +18,7 @@ certifi==2024.7.4
 cffi==2.0.0
 chardet==5.2.0
 charset-normalizer==3.2.0
+setuptools
 click==8.1.4
 click-didyoumean==0.3.1
 click-plugins==1.1.1
@@ -77,9 +78,9 @@ django-tables2==2.7.5
 # django-taggit==6.1.0  # ✅ REMOVED: Not used in project
 # django-tailwind==3.6.0  # ✅ REMOVED: Project uses Bootstrap, not Tailwind
 # django-tinymce==5.0.0  # ✅ REMOVED: Not in INSTALLED_APPS
-django-widget-tweaks==1.4.12
+django-widget-tweaks==1.5.0
 djangorestframework==3.14.0
-djangorestframework-simplejwt==5.3.0
+djangorestframework-simplejwt==5.4.0
 drf-spectacular==0.26.5
 et-xmlfile==1.1.0
 exceptiongroup
