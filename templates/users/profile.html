@@ -294,6 +294,14 @@
                         المعلومات الأساسية
                     </h5>
                     
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <label class="form-label text-dark">اسم المستخدم</label>
+                            <input type="text" class="form-control bg-light" value="{{ user.username }}" readonly>
+                            <small class="text-muted">اسم المستخدم غير قابل للتغيير.</small>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             {{ form.first_name|as_crispy_field }}

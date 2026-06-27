@@ -296,7 +296,7 @@
                                 </div>
                                 <div class="col-6 col-md-2">
                                     <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                                    <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required>
+                                    <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="{{ item.unit_price|smart_float }}" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
                                 </div>
                                 <div class="col-6 col-md-2">
                                     <label class="form-label form-label-sm">الخصم</label>
@@ -333,7 +333,7 @@
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label form-label-sm required-field">سعر الوحدة</label>
-                                <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required>
+                                <input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" required {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}readonly{% endif %}>
                             </div>
                             <div class="col-6 col-md-2">
                                 <label class="form-label form-label-sm">الخصم</label>
@@ -929,6 +929,7 @@ function applyDuplicateData() {
 
 function applyDuplicateItems(items) {
     $('#items-container').empty();
+    var priceReadonly = {% if user.user_type == 'sales_rep' and not user.is_superuser and not user.is_admin %}'readonly'{% else %}''{% endif %};
 
     items.forEach(function(item, index) {
         var removeBtn = index > 0
@@ -952,7 +953,7 @@ function applyDuplicateItems(items) {
                 '<div class="stock-info"></div>' +
             '</div>' +
             '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + item.quantity + '" required></div>' +
-            '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">سعر الوحدة</label><input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="' + item.unit_price + '" required></div>' +
+            '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">سعر الوحدة</label><input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="' + item.unit_price + '" required ' + priceReadonly + '></div>' +
             '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + item.discount + '"></div>' +
             '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + item.total + '" readonly><span class="input-group-text px-1">{{ currency_symbol }}</span></div></div>' +
             removeBtn +

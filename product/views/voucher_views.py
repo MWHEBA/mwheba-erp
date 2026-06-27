@@ -2,7 +2,7 @@
 أذون الصرف والاستلام المخزنية
 Warehouse Issue & Receipt Vouchers Views
 """
-from django.views.generic import ListView, CreateView, DetailView, View
+from django.views.generic import ListView, CreateView, DetailView, UpdateView, View
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse, reverse_lazy
@@ -170,6 +170,10 @@ class ReceiptVoucherListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             
             if not voucher.is_approved and self.request.user.has_perm('product.change_inventorymovement'):
                 actions.append({
+                    'url': reverse('product:receipt_voucher_update', args=[voucher.pk]),
+                    'icon': 'fas fa-edit', 'label': 'تعديل', 'class': 'btn-outline-warning btn-sm'
+                })
+                actions.append({
                     'url': reverse('product:receipt_voucher_approve', args=[voucher.pk]),
                     'icon': 'fas fa-check', 'label': 'اعتماد', 'class': 'btn-outline-success btn-sm'
                 })
@@ -265,6 +269,12 @@ class ReceiptVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Deta
                 'text': 'اعتماد', 
                 'class': 'btn-success'
             })
+            header_buttons.insert(0, {
+                'url': reverse('product:receipt_voucher_update', args=[voucher.pk]),
+                'icon': 'fa-edit',
+                'text': 'تعديل',
+                'class': 'btn-warning'
+            })
         
         context.update({
             'active_menu': 'product',
@@ -278,6 +288,55 @@ class ReceiptVoucherDetailView(LoginRequiredMixin, PermissionRequiredMixin, Deta
             'unit_name': voucher.product.unit.name if voucher.product.unit else 'وحدة',
         })
         return context
+
+
+class ReceiptVoucherUpdateView(LoginRequiredMixin, PermissionRequiredMixin, UpdateView):
+    """تعديل إذن استلام (قبل الاعتماد فقط)"""
+    model = InventoryMovement
+    form_class = ReceiptVoucherForm
+    template_name = 'product/vouchers/receipt_voucher_form.html'
+    permission_required = 'product.change_inventorymovement'
+
+    def get_queryset(self):
+        # التعديل مسموح فقط على أذون الاستلام غير المعتمدة وغير المعكوسة
+        return InventoryMovement.objects.filter(
+            voucher_type='receipt',
+            is_approved=False,
+            is_reversed=False
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'active_menu': 'product',
+            'title': f'تعديل إذن استلام - {self.object.movement_number}',
+            'is_modal': False,
+            'is_edit': True,
+            'voucher': self.object,
+        })
+        return context
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': True,
+                'message': 'تم تعديل إذن الاستلام بنجاح',
+                'redirect_url': reverse('product:receipt_voucher_detail', args=[self.object.pk])
+            })
+        messages.success(self.request, 'تم تعديل إذن الاستلام بنجاح')
+        return response
+
+    def form_invalid(self, form):
+        if self.request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return JsonResponse({
+                'success': False,
+                'errors': form.errors
+            }, status=400)
+        return super().form_invalid(form)
+
+    def get_success_url(self):
+        return reverse('product:receipt_voucher_detail', args=[self.object.pk])
 
 
 class ReceiptVoucherApproveView(LoginRequiredMixin, PermissionRequiredMixin, View):

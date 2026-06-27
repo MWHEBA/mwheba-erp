@@ -165,6 +165,11 @@ urlpatterns = [
         views.journal_entries_unpost,
         name="journal_entries_unpost",
     ),
+    path(
+        "journal-entries/<int:pk>/reverse/",
+        views.journal_entries_reverse,
+        name="journal_entries_reverse",
+    ),
     # الفترات المحاسبية
     path(
         "accounting-periods/",

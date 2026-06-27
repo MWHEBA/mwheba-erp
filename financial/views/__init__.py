@@ -61,6 +61,7 @@ from .transaction_views import (
     journal_entries_delete,
     journal_entries_post,
     journal_entries_unpost,
+    journal_entries_reverse,
     transaction_list,
     transaction_detail,
     manual_journal_entry_create,

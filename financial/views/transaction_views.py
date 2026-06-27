@@ -148,6 +148,18 @@ def journal_entries_list(request):
         if category_filter:
             journal_entries_list = journal_entries_list.filter(financial_category_id=category_filter)
 
+        # فلتر نوع القيد (عكسي / معكوس / عادي)
+        reversal_filter = request.GET.get("reversal_type", "")
+        if reversal_filter == "reversal":
+            journal_entries_list = journal_entries_list.filter(is_reversal=True)
+        elif reversal_filter == "reversed":
+            journal_entries_list = journal_entries_list.filter(reversal_entries__isnull=False).distinct()
+        elif reversal_filter == "normal":
+            journal_entries_list = journal_entries_list.filter(
+                is_reversal=False,
+                reversal_entries__isnull=True
+            ).distinct()
+
         # إعداد نموذج الفلترة
         filter_form = {
             "status": status,
@@ -155,6 +167,7 @@ def journal_entries_list(request):
             "date_from": date_from,
             "date_to": date_to,
             "category": category_filter,
+            "reversal_type": reversal_filter,
         }
 
         # حساب الإحصائيات المتقدمة
@@ -185,7 +198,8 @@ def journal_entries_list(request):
         
         # تحميل القيود للصفحة الحالية فقط مع خطوطها والحسابات والمستخدمين
         journal_entries_raw = page_obj.object_list.prefetch_related(
-            'lines__account'
+            'lines__account',
+            'reversal_entries',  # تحميل القيود العكسية مسبقاً
         ).select_related('created_by', 'accounting_period')
         
         # تحضير البيانات للجدول مع المعلومات الإضافية
@@ -349,6 +363,9 @@ def journal_entries_list(request):
                 'amount': amount,
                 'status': entry.status or 'posted',
                 'created_by': _get_user_display_name(entry.created_by),
+                'is_reversal': getattr(entry, 'is_reversal', False),
+                'has_reversal': entry.reversal_entries.exists() if hasattr(entry, 'reversal_entries') else False,
+                'is_locked': getattr(entry, 'is_locked', False),
             }
             
             enhanced_entry = EnhancedEntry(entry, enhanced_data)
@@ -364,7 +381,7 @@ def journal_entries_list(request):
 
     # إعداد headers للجدول الموحد
     table_headers = [
-        {"key": "reference", "label": "رقم القيد", "sortable": True, "width": "120px"},
+        {"key": "entry_number", "label": "رقم القيد", "sortable": True, "width": "140px", "format": "html"},
         {"key": "date", "label": "التاريخ", "sortable": True, "format": "date", "width": "120px"},
         {"key": "entry_type", "label": "النوع", "sortable": False, "width": "150px", "format": "html"},
         {"key": "financial_category", "label": "التصنيف المالي", "sortable": True, "width": "150px", "format": "html"},
@@ -404,10 +421,35 @@ def journal_entries_list(request):
         # لكن للتأكد، نستخدم القيمة مباشرة من الكائن الأصلي
         display_text = entry._original.get_entry_type_display() if hasattr(entry._original, 'get_entry_type_display') else entry.entry_type
         entry_type_badge = f'<span class="badge bg-{entry.entry_type_color}"><i class="fas {entry.entry_type_icon} me-1"></i>{display_text}</span>'
-        
+
+        # تمييز رقم القيد بناءً على حالته
+        if entry.is_reversal:
+            # قيد عكسي - أيقونة تبادل
+            reference_html = (
+                f'<span class="fw-bold text-dark">{entry.reference}</span>'
+                f'<br><span class="badge bg-dark mt-1" title="قيد عكسي">'
+                f'<i class="fas fa-exchange-alt me-1"></i>عكسي</span>'
+            )
+        elif entry.has_reversal:
+            # قيد تم عكسه - خط في المنتصف + badge
+            reference_html = (
+                f'<span class="fw-bold text-muted" style="text-decoration:line-through">{entry.reference}</span>'
+                f'<br><span class="badge bg-secondary mt-1" title="تم عكس هذا القيد">'
+                f'<i class="fas fa-ban me-1"></i>معكوس</span>'
+            )
+        elif entry.is_locked:
+            # قيد مقفل
+            reference_html = (
+                f'<span class="fw-bold">{entry.reference}</span>'
+                f'<br><span class="badge bg-warning text-dark mt-1" title="القيد مقفل">'
+                f'<i class="fas fa-lock me-1"></i>مقفل</span>'
+            )
+        else:
+            reference_html = f'<span class="fw-bold">{entry.reference}</span>'
+
         row_data = {
             'id': entry.id,
-            'reference': entry.reference,
+            'entry_number': reference_html,
             'date': entry.date,
             'entry_type': entry_type_badge,
             'financial_category': category_display,
@@ -631,7 +673,21 @@ def journal_entries_detail(request, pk):
                 "text": "ترحيل القيد",
                 "class": "btn-success",
             }
-        ] if journal_entry.status == 'draft' else []),
+        ] if journal_entry.status == 'draft' else []) + ([
+            {
+                "onclick": f"unpostJournalEntry({journal_entry.pk})",
+                "icon": "fa-undo",
+                "text": "إلغاء الترحيل",
+                "class": "btn-warning",
+            }
+        ] if journal_entry.status == 'posted' and not journal_entry.is_locked else []) + ([
+            {
+                "onclick": f"reverseJournalEntry({journal_entry.pk})",
+                "icon": "fa-exchange-alt",
+                "text": "قيد عكسي",
+                "class": "btn-danger",
+            }
+        ] if journal_entry.status == 'posted' and journal_entry.is_locked and not journal_entry.reversed_entry and not journal_entry.is_reversal else []),
     }
     return render(request, "financial/transactions/journal_entries_detail.html", context)
 
@@ -731,12 +787,17 @@ def journal_entries_unpost(request, pk):
             # التحقق من أن القيد مرحل
             if journal_entry.status != 'posted':
                 return JsonResponse({"success": False, "message": "القيد غير مرحل"})
+
+            # التحقق من أن القيد غير مقفل
+            if journal_entry.is_locked:
+                return JsonResponse({"success": False, "message": "القيد مقفل ولا يمكن إلغاء ترحيله"})
             
-            # إلغاء الترحيل
+            # إلغاء الترحيل باستخدام update_fields لتجاوز validate_period_lock
             journal_entry.status = 'draft'
             journal_entry.posted_at = None
             journal_entry.posted_by = None
-            journal_entry.save()
+            journal_entry._bypass_period_lock = True
+            journal_entry.save(update_fields=['status', 'posted_at', 'posted_by'])
 
             # إرجاع JSON response
             return JsonResponse(
@@ -752,6 +813,76 @@ def journal_entries_unpost(request, pk):
     
     # GET request - إرجاع خطأ
     return JsonResponse({"success": False, "message": "يجب استخدام المودال لإلغاء الترحيل"}, status=405)
+
+
+@login_required
+def journal_entries_reverse(request, pk):
+    """إنشاء قيد عكسي للقيود المقفلة أو المرحّلة - AJAX only"""
+    journal_entry = get_object_or_404(JournalEntry, pk=pk)
+
+    if request.method == "POST":
+        try:
+            # التحقق من أن القيد مرحل
+            if journal_entry.status != 'posted':
+                return JsonResponse({"success": False, "message": "يمكن عكس القيود المرحّلة فقط"})
+
+            # التحقق من أنه لم يُعكس مسبقاً
+            if journal_entry.reversed_entry:
+                return JsonResponse({
+                    "success": False,
+                    "message": f"تم عكس هذا القيد مسبقاً - القيد العكسي: {journal_entry.reversed_entry.number}"
+                })
+
+            # التحقق من أنه ليس قيداً عكسياً
+            if journal_entry.is_reversal:
+                return JsonResponse({"success": False, "message": "لا يمكن عكس قيد عكسي"})
+
+            # استخراج سبب العكس من الطلب
+            try:
+                body = json.loads(request.body)
+                reason = body.get('reason', '').strip()
+            except (json.JSONDecodeError, AttributeError):
+                reason = request.POST.get('reason', '').strip()
+
+            if not reason:
+                return JsonResponse({"success": False, "message": "يجب إدخال سبب العكس"})
+
+            # استدعاء الدالة الموجودة
+            success, reversal_entry, message = reverse_entry_optimized(
+                entry_id=journal_entry.pk,
+                reversal_date=timezone.now().date(),
+                user=request.user,
+            )
+
+            if not success:
+                return JsonResponse({"success": False, "message": message})
+
+            # ربط القيد العكسي بالأصلي وتسجيل السبب
+            reversal_entry.original_entry = journal_entry
+            reversal_entry.is_reversal = True
+            reversal_entry.reversal_reason = reason
+            reversal_entry._bypass_period_lock = True
+            reversal_entry.save(update_fields=['original_entry', 'is_reversal', 'reversal_reason'])
+
+            # ترحيل القيد العكسي تلقائياً
+            reversal_entry._bypass_period_lock = True
+            reversal_entry.status = 'posted'
+            reversal_entry.posted_at = timezone.now()
+            reversal_entry.posted_by = request.user
+            reversal_entry.save(update_fields=['status', 'posted_at', 'posted_by'])
+
+            return JsonResponse({
+                "success": True,
+                "message": f'تم إنشاء القيد العكسي "{reversal_entry.number}" بنجاح.',
+                "reversal_pk": reversal_entry.pk,
+                "reversal_number": reversal_entry.number,
+            })
+
+        except Exception as e:
+            logger.error(f"Error in reverse entry: {str(e)}", exc_info=True)
+            return JsonResponse({"success": False, "message": f"حدث خطأ غير متوقع: {str(e)}"})
+
+    return JsonResponse({"success": False, "message": "يجب استخدام POST"}, status=405)
 
 
 @login_required
@@ -1623,16 +1754,24 @@ def reverse_entry_optimized(entry_id, reversal_date=None, user=None):
             reversal_entry.entry_type = 'reversal'
             reversal_entry.reference = f"عكس {original_entry.number}"
             reversal_entry.status = 'draft'
-            reversal_entry.accounting_period = original_entry.accounting_period
+            reversal_entry.is_reversal = True
+            reversal_entry.original_entry = original_entry
+            
+            # استخدام الفترة المحاسبية الحالية (ليس فترة القيد الأصلي المحتمل إغلاقها)
+            current_period = AccountingPeriod.get_period_for_date(reversal_entry.date)
+            if not current_period:
+                return False, None, "لا توجد فترة محاسبية مفتوحة للتاريخ الحالي"
+            reversal_entry.accounting_period = current_period
             
             if user:
                 reversal_entry.created_by = user
             
+            reversal_entry._gateway_approved = True
             reversal_entry.save()
             
             # إنشاء رقم القيد
             reversal_entry.number = f"REV-{reversal_entry.id:06d}"
-            reversal_entry.save()
+            reversal_entry.save(update_fields=['number'])
             
             # إنشاء البنود العكسية
             for original_line in original_entry.lines.all():
@@ -1644,10 +1783,6 @@ def reverse_entry_optimized(entry_id, reversal_date=None, user=None):
                 reversal_line.credit = original_line.debit
                 reversal_line.description = f"عكس: {original_line.description}"
                 reversal_line.save()
-            
-            # تحديث إجمالي القيد
-            reversal_entry.total_amount = original_entry.total_amount
-            reversal_entry.save()
             
             return True, reversal_entry, "تم إنشاء القيد العكسي بنجاح"
     

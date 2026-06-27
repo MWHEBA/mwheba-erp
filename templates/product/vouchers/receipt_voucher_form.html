@@ -1,6 +1,6 @@
 {% load crispy_forms_tags %}
 
-<form method="post" action="{% url 'product:receipt_voucher_create' %}">
+<form method="post" action="{% if is_edit %}{% url 'product:receipt_voucher_update' voucher.pk %}{% else %}{% url 'product:receipt_voucher_create' %}{% endif %}">
     {% csrf_token %}
     
     <div class="row">
@@ -73,11 +73,17 @@
     </div>
     
     <div class="modal-footer">
+        {% if is_edit %}
+        <a href="{% url 'product:receipt_voucher_detail' voucher.pk %}" class="btn btn-outline-secondary">
+            <i class="fas fa-times me-2"></i>إلغاء
+        </a>
+        {% else %}
         <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
             <i class="fas fa-times me-2"></i>إلغاء
         </button>
-        <button type="submit" class="btn btn-primary">
-            <i class="fas fa-save me-2"></i>حفظ
+        {% endif %}
+        <button type="submit" class="btn btn-{% if is_edit %}warning{% else %}primary{% endif %}">
+            <i class="fas fa-save me-2"></i>{% if is_edit %}حفظ التعديلات{% else %}حفظ{% endif %}
         </button>
     </div>
 </form>

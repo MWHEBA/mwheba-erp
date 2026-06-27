@@ -43,6 +43,22 @@
             {% endfor %}
           </select>
         </div>
+
+        <div class="col-md-3">
+          <label for="reversal_type" class="form-label">نوع القيد</label>
+          <select name="reversal_type" id="reversal_type" class="form-select">
+            <option value="" {% if not filter_form.reversal_type %}selected{% endif %}>الكل</option>
+            <option value="normal" {% if filter_form.reversal_type == "normal" %}selected{% endif %}>
+              قيود عادية فقط
+            </option>
+            <option value="reversal" {% if filter_form.reversal_type == "reversal" %}selected{% endif %}>
+              قيود عكسية فقط
+            </option>
+            <option value="reversed" {% if filter_form.reversal_type == "reversed" %}selected{% endif %}>
+              قيود تم عكسها
+            </option>
+          </select>
+        </div>
         
         <div class="col-md-3">
           <label for="date_from" class="form-label">من تاريخ</label>
@@ -99,7 +115,7 @@
           <ul class="pagination justify-content-center mb-0">
             {% if page_obj.has_previous %}
               <li class="page-item">
-                <a class="page-link" href="?page=1{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">الأول</a>
+                <a class="page-link" href="?page=1{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}{% if filter_form.reversal_type %}&reversal_type={{ filter_form.reversal_type }}{% endif %}">الأول</a>
               </li>
               <li class="page-item">
                 <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filter_form.status %}&status={{ filter_form.status }}{% endif %}{% if filter_form.search %}&search={{ filter_form.search }}{% endif %}{% if filter_form.date_from %}&date_from={{ filter_form.date_from }}{% endif %}{% if filter_form.date_to %}&date_to={{ filter_form.date_to }}{% endif %}{% if filter_form.category %}&category={{ filter_form.category }}{% endif %}">السابق</a>

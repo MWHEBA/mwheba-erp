@@ -38,7 +38,8 @@
             margin: 0;
             padding: 0;
             min-height: 100vh;
-            overflow-x: hidden;
+            min-height: 100dvh;
+            overflow: hidden;
             background-color: var(--bg-color);
         }
         
@@ -46,10 +47,13 @@
             background: url('{% static "img/auth-bg.svg" %}') no-repeat center center;
             background-size: cover;
             min-height: 100vh;
+            min-height: 100dvh; /* dynamic viewport - يطرح browser chrome */
+            height: 100dvh;
             position: relative;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            overflow: hidden;
         }
         
         .auth-container {
@@ -182,17 +186,21 @@
             }
         }
 
-        /* تصغير المساحات في الصفحة بشكل عام */
+        /* توسيط المحتوى عمودياً في الشاشة */
         .container.py-5 {
             padding-top: 2rem !important;
             padding-bottom: 2rem !important;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            overflow-y: auto; /* المحتوى أكبر من المساحة المتاحة */
         }
     </style>
 </head>
 <body>
     <div class="auth-body">
         <div class="container py-5">
-            <div class="row justify-content-center align-items-center min-vh-90">
+            <div class="row justify-content-center w-100 m-0">
                 <div class="col-12">
                     {% include 'components/messages.html' %}
                     

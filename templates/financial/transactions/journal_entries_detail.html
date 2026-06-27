@@ -436,9 +436,22 @@
                             القيد مرحل ولا يمكن تعديله أو حذفه
                         </small>
                     </div>
-                    
+
+                    {% if not journal_entry.is_locked %}
+                    <button type="button" class="btn btn-outline-warning btn-sm w-100 mb-2"
+                            onclick="unpostJournalEntry({{ journal_entry.pk }})">
+                        <i class="fas fa-undo me-2"></i>إلغاء الترحيل
+                    </button>
+                    {% else %}
+                    <div class="alert alert-secondary mb-2">
+                        <small>
+                            <i class="fas fa-lock me-2"></i>
+                            القيد مقفل - الفترة المحاسبية مغلقة
+                        </small>
+                    </div>
+                    {% endif %}
+
                     {% if journal_entry.is_reversal %}
-                    <!-- قيد عكسي - لا يمكن عكسه -->
                     <div class="alert alert-warning mb-2">
                         <small>
                             <i class="fas fa-exchange-alt me-2"></i>
@@ -446,7 +459,6 @@
                         </small>
                     </div>
                     {% elif journal_entry.reversed_entry %}
-                    <!-- تم عكس القيد مسبقاً -->
                     <div class="alert alert-success mb-2">
                         <small>
                             <i class="fas fa-check-circle me-2"></i>
@@ -457,6 +469,11 @@
                         <i class="fas fa-link me-2"></i>عرض القيد العكسي
                     </a>
                     {% else %}
+                    <!-- زر القيد العكسي - متاح دائماً للقيود المرحّلة غير المعكوسة -->
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100"
+                            onclick="reverseJournalEntry({{ journal_entry.pk }})">
+                        <i class="fas fa-exchange-alt me-2"></i>إنشاء قيد عكسي
+                    </button>
                     {% endif %}
                     {% else %}
                     <div class="alert alert-secondary mb-0">
@@ -479,11 +496,107 @@ document.addEventListener('DOMContentLoaded', function() {
     if (table && window.innerWidth < 768) {
         table.classList.add('table-sm');
     }
-    
-    // تم إزالة معالجة البحث عن المصدر - الآن رابط مباشر
 });
 
-// تم إزالة دوال البحث عن المصدر - الآن رابط مباشر
+function unpostJournalEntry(pk) {
+    Swal.fire({
+        title: 'إلغاء ترحيل القيد',
+        text: 'هل أنت متأكد من إلغاء ترحيل هذا القيد؟ سيتم إعادته لحالة المسودة.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f0ad4e',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'نعم، إلغاء الترحيل',
+        cancelButtonText: 'إلغاء'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch(`/financial/journal-entries/${pk}/unpost/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    toastr.success(data.message || 'تم إلغاء الترحيل بنجاح');
+                    setTimeout(() => location.reload(), 1000);
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء إلغاء الترحيل');
+                }
+            })
+            .catch(() => {
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            });
+        }
+    });
+}
+
+function reverseJournalEntry(pk) {
+    Swal.fire({
+        title: 'إنشاء قيد عكسي',
+        html: `
+            <p class="text-muted mb-3">سيتم إنشاء قيد جديد يعكس أثر هذا القيد تماماً ويُرحَّل تلقائياً.</p>
+            <div class="text-start">
+                <label class="form-label fw-bold">سبب العكس <span class="text-danger">*</span></label>
+                <textarea id="reversal-reason" class="form-control" rows="3"
+                          placeholder="مثال: خطأ في الحساب، تصحيح قيد سابق..."></textarea>
+            </div>
+        `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#dc3545',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: '<i class="fas fa-exchange-alt me-1"></i>إنشاء القيد العكسي',
+        cancelButtonText: 'إلغاء',
+        preConfirm: () => {
+            const reason = document.getElementById('reversal-reason').value.trim();
+            if (!reason) {
+                Swal.showValidationMessage('يجب إدخال سبب العكس');
+                return false;
+            }
+            return reason;
+        }
+    }).then((result) => {
+        if (result.isConfirmed) {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            fetch(`/financial/journal-entries/${pk}/reverse/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ reason: result.value }),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire({
+                        title: 'تم بنجاح',
+                        html: `تم إنشاء القيد العكسي <strong>${data.reversal_number}</strong> وترحيله بنجاح.`,
+                        icon: 'success',
+                        confirmButtonText: 'عرض القيد العكسي',
+                        showCancelButton: true,
+                        cancelButtonText: 'البقاء هنا',
+                    }).then((r) => {
+                        if (r.isConfirmed) {
+                            window.location.href = `/financial/journal-entries/${data.reversal_pk}/`;
+                        } else {
+                            location.reload();
+                        }
+                    });
+                } else {
+                    toastr.error(data.message || 'حدث خطأ أثناء إنشاء القيد العكسي');
+                }
+            })
+            .catch(() => {
+                toastr.error('حدث خطأ في الاتصال بالخادم');
+            });
+        }
+    });
+}
 </script>
 
 <!-- جميع الستايلات موجودة في shared-components.css و components.css -->

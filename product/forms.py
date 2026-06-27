@@ -530,7 +530,7 @@ class ReceiptVoucherForm(forms.ModelForm):
     class Meta:
         model = InventoryMovement
         fields = ['product', 'warehouse', 'quantity', 'unit_cost', 'purpose_type', 
-                  'received_by_name', 'notes']
+                  'received_by_name', 'reference_document', 'notes']
         widgets = {
             'product': forms.Select(attrs={'class': 'form-select', 'required': True}),
             'warehouse': forms.Select(attrs={'class': 'form-select', 'required': True}),
@@ -538,6 +538,7 @@ class ReceiptVoucherForm(forms.ModelForm):
             'unit_cost': forms.NumberInput(attrs={'class': 'form-control', 'min': '0', 'step': '0.01', 'required': True}),
             'purpose_type': forms.Select(attrs={'class': 'form-select', 'required': True}),
             'received_by_name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'اسم المستلم'}),
+            'reference_document': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'رقم أو اسم المستند المرجعي'}),
             'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 1, 'placeholder': 'ملاحظات إضافية'}),
         }
     
@@ -555,6 +556,7 @@ class ReceiptVoucherForm(forms.ModelForm):
         self.fields['unit_cost'].label = 'تكلفة الوحدة'
         self.fields['purpose_type'].label = 'غرض الاستلام'
         self.fields['received_by_name'].label = 'المستلم'
+        self.fields['reference_document'].label = 'المستند المرجعي'
         self.fields['notes'].label = 'ملاحظات'
 
 

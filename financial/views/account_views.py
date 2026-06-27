@@ -452,7 +452,8 @@ def quick_add_cash_bank_account(request):
 @permission_required('ادارة_الخزن_والحسابات', raise_exception=True)
 def cash_and_bank_accounts_list(request):
     """عرض قائمة الحسابات النقدية والبنكية فقط (الخزن)"""
-    # فلترة الحسابات النقدية والبنكية فقط
+    from decimal import Decimal
+    from django.db.models import Sum, Max, Q
     try:
         # محاولة استخدام الحقول المحسنة
         accounts = (
@@ -498,47 +499,52 @@ def cash_and_bank_accounts_list(request):
             account_type__name__icontains="بنك"
         ).count()
 
-    # حساب إجمالي الأرصدة من القيود المحاسبية
-    total_balance = 0
-    for account in accounts:
-        try:
-            # استخدام القيود المحاسبية فقط لجميع الحسابات
-            balance = account.get_balance(include_opening=True)
-            total_balance += balance
+    # حساب إجمالي الأرصدة من القيود المحاسبية - query واحدة لكل الحسابات
+    accounts_list = list(accounts.select_related("account_type"))
 
-            # إضافة الرصيد المحسوب للحساب كخاصية مؤقتة للعرض
-            account.calculated_balance = balance
-            
-            # حساب آخر حركة مالية للحساب
-            from ..models.journal_entry import JournalEntryLine
-            
-            # تشخيص: عد الحركات للحساب
-            movements_count = JournalEntryLine.objects.filter(account=account).count()
-            
-            last_movement = JournalEntryLine.objects.filter(
-                account=account
-            ).order_by('-journal_entry__date').first()
-            
-            if last_movement:
-                from django.utils import timezone
-                import datetime
-                d = last_movement.journal_entry.date
-                account.last_movement_date = timezone.make_aware(
-                    datetime.datetime.combine(d, datetime.time.min)
-                ) if isinstance(d, datetime.date) and not isinstance(d, datetime.datetime) else d
-            else:
-                account.last_movement_date = None
+    # جلب كل الأرصدة في query واحدة
+    account_ids = [a.id for a in accounts_list]
+    balances_qs = (
+        JournalEntryLine.objects
+        .filter(journal_entry__status="posted", account_id__in=account_ids)
+        .values("account_id")
+        .annotate(total_debit=Sum("debit"), total_credit=Sum("credit"))
+    )
+    balances_map = {
+        row["account_id"]: (
+            row["total_debit"] or Decimal("0"),
+            row["total_credit"] or Decimal("0"),
+        )
+        for row in balances_qs
+    }
 
-        except Exception as e:
-            # في حالة الخطأ، استخدم الرصيد الافتتاحي فقط
-            fallback_balance = account.opening_balance or 0
-            total_balance += fallback_balance
-            account.calculated_balance = fallback_balance
-            account.last_movement_date = None
+    # جلب آخر حركة لكل حساب في query واحدة
+    from django.db.models import Max
+    last_movement_qs = (
+        JournalEntryLine.objects
+        .filter(account_id__in=account_ids)
+        .values("account_id")
+        .annotate(last_date=Max("journal_entry__date"))
+    )
+    last_movement_map = {row["account_id"]: row["last_date"] for row in last_movement_qs}
+
+    total_balance = Decimal("0")
+    for account in accounts_list:
+        debit, credit = balances_map.get(account.id, (Decimal("0"), Decimal("0")))
+        opening = account.opening_balance or Decimal("0")
+        nature = account.account_type.nature if account.account_type else "debit"
+        if nature == "debit":
+            balance = opening + debit - credit
+        else:
+            balance = opening + credit - debit
+
+        account.calculated_balance = balance
+        total_balance += balance
+        account.last_movement_date = last_movement_map.get(account.id)
 
     context = {
-        "accounts": accounts,
-        "accounts_count": len(accounts),
+        "accounts": accounts_list,
+        "accounts_count": len(accounts_list),
         "cash_accounts_count": cash_accounts_count,
         "bank_accounts_count": bank_accounts_count,
         "total_balance": total_balance,
@@ -588,29 +594,45 @@ def chart_of_accounts_list(request):
         show_inactive = False
         hide_zero_balance = False
     else:
-        # الفلترة والبحث المبسط
         search_query = request.GET.get("search", "").strip()
         if search_query == "None":
             search_query = ""
-        type_filter = request.GET.get("type")  # parents أو فارغ
-        show_inactive = request.GET.get("show_inactive", False)  # إضافة المتغير المفقود
+        type_filter = request.GET.get("type")
+        show_inactive = request.GET.get("show_inactive", False)
         status_filter = request.GET.get("status")
-        hide_zero_balance = request.GET.get("hide_zero")  # فلتر إخفاء الحسابات الصفرية
+        hide_zero_balance = request.GET.get("hide_zero")
 
-        # استعلام محسن مع prefetch للأداء
-        accounts_query = ChartOfAccounts.objects.select_related(
-            "account_type", "parent"
-        ).prefetch_related(
-            Prefetch(
-                "children",
-                queryset=ChartOfAccounts.objects.select_related("account_type"),
+        # ============================================================
+        # STEP 1: جلب كل الأرصدة في query واحدة (بدل N queries)
+        # ============================================================
+        balances_qs = (
+            JournalEntryLine.objects
+            .filter(journal_entry__status="posted")
+            .values("account_id")
+            .annotate(
+                total_debit=Sum("debit"),
+                total_credit=Sum("credit"),
             )
         )
+        # dict: {account_id: {total_debit, total_credit}}
+        balances_map = {
+            row["account_id"]: (
+                row["total_debit"] or Decimal("0"),
+                row["total_credit"] or Decimal("0"),
+            )
+            for row in balances_qs
+        }
 
-        # عرض الحسابات النشطة فقط
-        accounts_query = accounts_query.filter(is_active=True)
+        # ============================================================
+        # STEP 2: جلب كل الحسابات في query واحدة
+        # ============================================================
+        accounts_query = (
+            ChartOfAccounts.objects
+            .select_related("account_type", "parent")
+            .filter(is_active=True)
+            .order_by("code")
+        )
 
-        # البحث النصي المحسن
         if search_query:
             search_terms = search_query.split()
             search_q = Q()
@@ -623,73 +645,53 @@ def chart_of_accounts_list(request):
                 )
             accounts_query = accounts_query.filter(search_q)
 
-        # فلترة الحسابات الصفرية (للحسابات النهائية فقط)
-        if hide_zero_balance:
-            # الحصول على IDs الحسابات النهائية ذات الرصيد الصفري
-            zero_balance_accounts = []
-            for account in accounts_query.filter(is_leaf=True):
-                balance = account.get_balance() or Decimal("0")
-                if balance == 0:
-                    zero_balance_accounts.append(account.id)
-            
-            # استبعاد الحسابات النهائية الصفرية فقط (الحسابات الأب تبقى)
-            accounts_query = accounts_query.exclude(
-                Q(id__in=zero_balance_accounts) & Q(is_leaf=True)
-            )
+        all_accounts_list = list(accounts_query)
 
-        # جلب الحسابات الرئيسية فقط (عرض شجرة)
-        if type_filter == "parents":
-            # في حالة فلتر أولياء الأمور، نعرض الحساب الأساسي فقط كـ root
-            parents_main_account = ChartOfAccounts.objects.filter(code="10300", is_active=True).first()
-            if parents_main_account:
-                root_accounts = [parents_main_account]
+        # ============================================================
+        # STEP 3: حساب الرصيد من الـ map (بدون أي query إضافية)
+        # ============================================================
+        def calc_balance_from_map(account):
+            debit, credit = balances_map.get(account.id, (Decimal("0"), Decimal("0")))
+            opening = account.opening_balance or Decimal("0")
+            nature = account.account_type.nature if account.account_type else "debit"
+            if nature == "debit":
+                return opening + debit - credit
             else:
-                root_accounts = []
-        else:
-            # العرض العادي - جميع الحسابات الرئيسية
-            root_accounts = list(accounts_query.filter(parent=None).order_by("code"))
+                return opening + credit - debit
 
-        # جلب أنواع الحسابات للفلترة
-        account_types = AccountType.objects.filter(is_active=True).order_by("code")
+        # فلتر الحسابات الصفرية
+        if hide_zero_balance:
+            excluded_ids = {
+                acc.id for acc in all_accounts_list
+                if acc.is_leaf and calc_balance_from_map(acc) == 0
+            }
+            all_accounts_list = [
+                acc for acc in all_accounts_list
+                if not (acc.is_leaf and acc.id in excluded_ids)
+            ]
 
-        # إحصائيات شاملة ومحسنة
-        all_accounts = ChartOfAccounts.objects.filter(is_active=True, is_leaf=True)
+        # ============================================================
+        # STEP 4: بناء الشجرة من الـ list (بدون أي query)
+        # ============================================================
+        # بناء dict سريع: {id: account}
+        accounts_by_id = {acc.id: acc for acc in all_accounts_list}
 
-        # حساب الأرصدة بطريقة محسنة
-        def calculate_category_balance(category):
-            return sum(
-                acc.get_balance() or Decimal("0")
-                for acc in all_accounts
-                if acc.account_type.category == category
-            )
-
-        assets_balance = calculate_category_balance("asset")
-        liabilities_balance = calculate_category_balance("liability")
-        equity_balance = calculate_category_balance("equity")
-        revenue_balance = calculate_category_balance("revenue")
-        expense_balance = calculate_category_balance("expense")
-
-        # بناء بيانات الشجرة للعرض التفاعلي
         def build_tree_data(account, level=0):
-            """بناء بيانات الشجرة بشكل تكراري"""
-            balance = account.get_balance() or Decimal("0")
+            balance = calc_balance_from_map(account)
             children_data = []
-
-            # جلب الأطفال النشطة فقط (إلا إذا كان العرض يشمل غير النشطة)
-            children_query = account.children.all()
-            if not show_inactive:
-                children_query = children_query.filter(is_active=True)
-
-            for child in children_query.order_by("code"):
+            for child in sorted(
+                [a for a in all_accounts_list if a.parent_id == account.id],
+                key=lambda x: x.code
+            ):
                 children_data.append(build_tree_data(child, level + 1))
 
             return {
                 "id": account.id,
                 "code": account.code,
                 "name": account.name,
-                "account_type": account.account_type.name,
-                "category": account.account_type.category,
-                "nature": account.account_type.nature,
+                "account_type": account.account_type.name if account.account_type else "",
+                "category": account.account_type.category if account.account_type else "",
+                "nature": account.account_type.nature if account.account_type else "debit",
                 "balance": float(balance),
                 "balance_formatted": f"{balance:,.2f}",
                 "is_leaf": account.is_leaf,
@@ -703,27 +705,66 @@ def chart_of_accounts_list(request):
                 "url_edit": f"/financial/accounts/{account.id}/edit/",
             }
 
-        # بناء بيانات الشجرة
-        tree_data = []
-        for root_account in root_accounts:
-            tree_data.append(build_tree_data(root_account))
+        # الحسابات الجذرية
+        if type_filter == "parents":
+            parents_main_account = next(
+                (a for a in all_accounts_list if a.code == "10300"), None
+            )
+            root_accounts = [parents_main_account] if parents_main_account else []
+        else:
+            root_accounts = [a for a in all_accounts_list if a.parent_id is None]
 
-        # حساب إجمالي النقدية
+        tree_data = [build_tree_data(acc) for acc in root_accounts]
+
+        # ============================================================
+        # STEP 5: الإحصائيات من الـ map (بدون queries إضافية)
+        # ============================================================
+        leaf_accounts = [a for a in all_accounts_list if a.is_leaf]
+
+        def category_balance(category):
+            return sum(
+                calc_balance_from_map(a)
+                for a in leaf_accounts
+                if a.account_type and a.account_type.category == category
+            )
+
+        assets_balance     = category_balance("asset")
+        liabilities_balance = category_balance("liability")
+        equity_balance     = category_balance("equity")
+        revenue_balance    = category_balance("revenue")
+        expense_balance    = category_balance("expense")
+
         cash_balance = sum(
-            acc.get_balance() or Decimal("0")
-            for acc in all_accounts
-            if (acc.is_cash_account or acc.is_bank_account) and acc.is_leaf
+            calc_balance_from_map(a)
+            for a in leaf_accounts
+            if a.is_cash_account or a.is_bank_account
         )
 
+        # إحصائيات عامة (count queries - سريعة جداً)
+        total_count    = ChartOfAccounts.objects.count()
+        active_count   = ChartOfAccounts.objects.filter(is_active=True).count()
+        inactive_count = total_count - active_count
+        leaf_count     = ChartOfAccounts.objects.filter(is_leaf=True).count()
+        parent_count   = total_count - leaf_count
+        cash_count     = ChartOfAccounts.objects.filter(is_cash_account=True).count()
+        bank_count     = ChartOfAccounts.objects.filter(is_bank_account=True).count()
+
+        # إحصائيات حسب النوع
+        account_types = AccountType.objects.filter(is_active=True).order_by("code")
+        type_stats = []
+        for acc_type in AccountType.objects.filter(is_active=True).order_by("category", "code"):
+            count = sum(1 for a in leaf_accounts if a.account_type_id == acc_type.id)
+            if count > 0:
+                type_stats.append({"type": acc_type, "count": count})
+
         stats = {
-            "total": ChartOfAccounts.objects.count(),
-            "active": ChartOfAccounts.objects.filter(is_active=True).count(),
-            "inactive": ChartOfAccounts.objects.filter(is_active=False).count(),
-            "leaf": ChartOfAccounts.objects.filter(is_leaf=True).count(),
-            "parent": ChartOfAccounts.objects.filter(is_leaf=False).count(),
-            "cash": ChartOfAccounts.objects.filter(is_cash_account=True).count(),
-            "bank": ChartOfAccounts.objects.filter(is_bank_account=True).count(),
-            # أرصدة حسب التصنيف
+            "total": total_count,
+            "active": active_count,
+            "inactive": inactive_count,
+            "leaf": leaf_count,
+            "parent": parent_count,
+            "cash": cash_count,
+            "bank": bank_count,
             "assets_balance": assets_balance,
             "liabilities_balance": liabilities_balance,
             "equity_balance": equity_balance,
@@ -731,24 +772,10 @@ def chart_of_accounts_list(request):
             "expense_balance": expense_balance,
             "net_assets": assets_balance - liabilities_balance,
             "cash_balance": cash_balance,
+            "by_type": type_stats,
         }
 
-        # إحصائيات حسب النوع
-        type_stats = []
-        for acc_type in AccountType.objects.filter(is_active=True).order_by(
-            "category", "code"
-        ):
-            count = all_accounts.filter(account_type=acc_type).count()
-            if count > 0:
-                type_stats.append(
-                    {
-                        "type": acc_type,
-                        "count": count,
-                    }
-                )
-
-        stats["by_type"] = type_stats
-        accounts = all_accounts.order_by("code")
+        accounts = leaf_accounts
 
     context = {
         "accounts": accounts if "accounts" in locals() else [],

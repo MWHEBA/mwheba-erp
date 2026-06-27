@@ -179,6 +179,7 @@ urlpatterns = [
     path("vouchers/receipt/", voucher_views.ReceiptVoucherListView.as_view(), name="receipt_voucher_list"),
     path("vouchers/receipt/create/", voucher_views.ReceiptVoucherCreateView.as_view(), name="receipt_voucher_create"),
     path("vouchers/receipt/<int:pk>/", voucher_views.ReceiptVoucherDetailView.as_view(), name="receipt_voucher_detail"),
+    path("vouchers/receipt/<int:pk>/edit/", voucher_views.ReceiptVoucherUpdateView.as_view(), name="receipt_voucher_update"),
     path("vouchers/receipt/<int:pk>/approve/", voucher_views.ReceiptVoucherApproveView.as_view(), name="receipt_voucher_approve"),
     
     # أذون الصرف (Issue Vouchers)

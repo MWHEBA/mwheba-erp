@@ -37,6 +37,18 @@ class CustomLoginView(LoginView):
                 return next_url
         return str(self.get_default_redirect_url())
 
+    def form_valid(self, form):
+        """
+        لو المستخدم اختار 'تذكرني' → session تفضل 30 يوم
+        لو ما اختارش → session تنتهي مع إغلاق المتصفح
+        """
+        remember_me = self.request.POST.get('remember_me')
+        if not remember_me:
+            self.request.session.set_expiry(0)
+        else:
+            self.request.session.set_expiry(60 * 60 * 24 * 30)  # 30 يوم
+        return super().form_valid(form)
+
     def form_invalid(self, form):
         """
         تعديل الدالة لضمان وجود النموذج دائمًا في السياق

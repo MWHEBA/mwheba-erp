@@ -91,12 +91,22 @@ def sale_create(request, customer_id=None):
                 unit_prices = request.POST.getlist("unit_price[]")
                 discounts = request.POST.getlist("discount[]")
                 
+                # التحقق من أن مندوب المبيعات لم يغير أسعار المنتجات
+                if request.user.user_type == "sales_rep" and not request.user.is_superuser and not request.user.is_admin:
+                    for i in range(len(product_ids)):
+                        if product_ids[i]:
+                            prod_id = int(product_ids[i])
+                            input_price = Decimal(unit_prices[i].replace(',', ''))
+                            prod_obj = Product.objects.get(pk=prod_id)
+                            if Decimal(str(input_price)) != Decimal(str(prod_obj.selling_price)):
+                                raise ValueError(f"غير مسموح لك بتغيير سعر المنتج '{prod_obj.name}'. السعر الرسمي هو {prod_obj.selling_price} ج.م")
+
                 for i in range(len(product_ids)):
                     if product_ids[i]:
                         sale_data['items'].append({
                             'product_id': int(product_ids[i]),
                             'quantity': Decimal(quantities[i]),
-                            'unit_price': Decimal(unit_prices[i]),
+                            'unit_price': Decimal(unit_prices[i].replace(',', '')),
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                         })
                 
