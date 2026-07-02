@@ -425,8 +425,14 @@ def sale_detail(request, pk):
             {
                 "url": reverse("sale:sale_print", kwargs={"pk": sale.pk}),
                 "icon": "fa-print",
-                "text": "طباعة",
+                "text": "طباعة (A4)",
                 "class": "btn-info",
+            },
+            {
+                "url": reverse("sale:sale_print_thermal", kwargs={"pk": sale.pk}),
+                "icon": "fa-receipt",
+                "text": "طباعة حرارية",
+                "class": "btn-outline-info",
             },
         ],
         "breadcrumb_items": [
@@ -650,6 +656,67 @@ def sale_print(request, pk):
     }
     
     return render(request, "sale/sale_print.html", context)
+
+
+@login_required
+def sale_print_thermal(request, pk):
+    """
+    طباعة فاتورة حرارية لمبيعات
+    """
+    import qrcode
+    import io
+    import base64
+    from core.models import SystemSetting
+    
+    sale = get_object_or_404(Sale, pk=pk)
+    items = sale.items.all()
+    
+    # جلب الإعدادات المحددة للشركة وعرض الورق
+    company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
+    company_address = SystemSetting.objects.filter(key="company_address").values_list("value", flat=True).first() or ""
+    company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
+    company_tax_number = SystemSetting.objects.filter(key="company_tax_number").values_list("value", flat=True).first() or ""
+    company_logo = SystemSetting.objects.filter(key="company_logo").values_list("value", flat=True).first() or ""
+    
+    paper_width = SystemSetting.objects.filter(key="receipt_paper_width").values_list("value", flat=True).first() or "80"
+    
+    # توليد كود الـ QR
+    qr_text = (
+        f"المؤسسة: {company_name}\n"
+        f"الرقم الضريبي: {company_tax_number}\n"
+        f"التاريخ: {sale.created_at.strftime('%Y-%m-%d %H:%M') if sale.created_at else ''}\n"
+        f"رقم الفاتورة: {sale.number}\n"
+        f"الإجمالي: {sale.total}\n"
+        f"الضريبة: {sale.tax}"
+    )
+    
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_L,
+        box_size=5,
+        border=1
+    )
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    qr_code_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+    
+    context = {
+        "sale": sale,
+        "items": items,
+        "company_name": company_name,
+        "company_address": company_address,
+        "company_phone": company_phone,
+        "company_tax_number": company_tax_number,
+        "company_logo": company_logo,
+        "paper_width": paper_width,
+        "qr_code": qr_code_base64,
+        "title": f"فاتورة حرارية - {sale.number}",
+    }
+    
+    return render(request, "sale/sale_print_thermal.html", context)
 
 
 @login_required

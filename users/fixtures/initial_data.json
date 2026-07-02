@@ -165,4 +165,25 @@
             "address": "عنوان المراجع",
             "role": 10
         }
+    },
+    {
+        "model": "users.user",
+        "pk": 9,
+        "fields": {
+            "password": "pbkdf2_sha256$600000$vo5Q8MJlteZ9lCzM9c3Tdn$ErLFiCwuZrInxaDQgZQ8cToFJYQDLbMTpYoSVYEOL9U=",
+            "last_login": "2025-01-01T00:00:00Z",
+            "is_superuser": true,
+            "username": "megroup",
+            "first_name": "مدير",
+            "last_name": "MEGroup",
+            "is_staff": true,
+            "is_active": true,
+            "date_joined": "2025-01-01T00:00:00Z",
+            "email": "megroup@system.local",
+            "phone": "+201000000008",
+            "user_type": "manager",
+            "status": "active",
+            "address": "عنوان MEGroup",
+            "role": 2
+        }
     }]

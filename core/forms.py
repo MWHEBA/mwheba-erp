@@ -432,6 +432,15 @@ class SystemSettingsForm(forms.Form):
         max_value=1440,
         widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
+    receipt_paper_width = forms.ChoiceField(
+        label='عرض ورق الفاتورة الحرارية (مم)',
+        choices=[
+            ('80', '80 مم'),
+            ('58', '58 مم')
+        ],
+        initial='80',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     
     # إعدادات الإيميل
     email_host = forms.CharField(

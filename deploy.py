@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """
 سكريپت النشر المحسن - Enhanced Deploy Script
 رفع الملفات للخادم مع مزامنة كاملة
@@ -14,6 +14,15 @@ from pathlib import Path
 import fnmatch
 import time
 
+# Reconfigure stdout/stderr to use UTF-8 on Windows or systems with narrow locales
+try:
+    if hasattr(sys.stdout, 'reconfigure'):
+        sys.stdout.reconfigure(encoding='utf-8')
+    if hasattr(sys.stderr, 'reconfigure'):
+        sys.stderr.reconfigure(encoding='utf-8')
+except Exception:
+    pass
+
 try:
     import paramiko
     PARAMIKO_AVAILABLE = True
@@ -21,7 +30,10 @@ except ImportError:
     PARAMIKO_AVAILABLE = False
 
 class DeploymentManager:
-    def __init__(self, env_file=None):
+    def __init__(self, env_file=None, force=False):
+        self.force = force
+        self.uploaded_files = []
+        
         # تحميل إعدادات من .env
         self.load_env_settings(env_file=env_file)
         
@@ -51,6 +63,7 @@ class DeploymentManager:
         self.db_name = ''
         self.db_user = ''
         self.db_password = ''
+        self.python_version = "3.11"
         
         if env_file.exists():
             try:
@@ -88,6 +101,9 @@ class DeploymentManager:
                                 self.db_user = value
                             elif key == 'DB_PASSWORD':
                                 self.db_password = value
+                            elif key == 'PYTHON_VERSION':
+                                if value:
+                                    self.python_version = value
             except Exception as e:
                 print(f"⚠️  تحذير: لا يمكن قراءة ملف .env: {e}")
 
@@ -599,6 +615,8 @@ class DeploymentManager:
                 # حفظ قائمة مفصلة في ملف
                 self._save_upload_log(uploaded_files, "رفع كامل مع تخطي")
             
+            self.uploaded_files = uploaded_files
+            
             # عرض أمثلة الملفات المتخطاة
             if skipped_examples:
                 print(f"\n📋 أمثلة الملفات المتخطاة (حجم مطابق):")
@@ -677,6 +695,7 @@ class DeploymentManager:
                 # حفظ قائمة مفصلة في ملف
                 self._save_upload_log(uploaded_files, "رفع كامل مع استبدال")
             
+            self.uploaded_files = uploaded_files
             return True
             
         except Exception as e:
@@ -820,6 +839,7 @@ class DeploymentManager:
                 # حفظ قائمة مفصلة في ملف
                 self._save_upload_log(uploaded_files, "رفع المعدل فقط")
             
+            self.uploaded_files = uploaded_files
             return True
             
         except Exception as e:
@@ -907,7 +927,6 @@ class DeploymentManager:
                 json.dump(current_hashes, f, indent=2, ensure_ascii=False)
             
             print(f"\n🎉 تم بنجاح! الطريقة المستخدمة: {method_name}")
-            is_first_deploy = not self.hash_file.exists()
             self.run_post_deploy_commands(first_deploy=is_first_deploy)
             
         return success
@@ -976,6 +995,8 @@ class DeploymentManager:
             with open(self.hash_file, 'w', encoding='utf-8') as f:
                 json.dump(previous_hashes, f, indent=2, ensure_ascii=False)
             
+            self.uploaded_files = [filename]
+            self.run_post_deploy_commands(first_deploy=False)
             return True
             
         except Exception as e:
@@ -984,17 +1005,15 @@ class DeploymentManager:
 
     def run_post_deploy_commands(self, first_deploy=False):
         """تنفيذ أوامر ما بعد الرفع على السيرفر"""
-        venv = f"/home/{self.username}/virtualenv/{Path(self.remote_path).name}/3.11/bin/python"
+        remote_app_name = Path(self.remote_path).name
+        venv = f"/home/{self.username}/virtualenv/{remote_app_name}/{self.python_version}/bin/python"
         manage = f"{self.remote_path}/manage.py"
-        pip = f"/home/{self.username}/virtualenv/{Path(self.remote_path).name}/3.11/bin/pip"
-
-        # أوامر دائمة بعد كل deploy
-        always_commands = []
+        pip = f"/home/{self.username}/virtualenv/{remote_app_name}/{self.python_version}/bin/pip"
 
         # أوامر أول deploy فقط
         setup_commands = [
             (f"{pip} install -r {self.remote_path}/requirements.txt",
-             "pip install requirements"),
+             "تثبيت متطلبات المشروع لأول مرة (pip install)"),
         ]
 
         # تحويل charset لو عندنا credentials
@@ -1006,29 +1025,18 @@ class DeploymentManager:
 
         setup_commands += [
             (f"{venv} {manage} migrate --noinput",
-             "migrate"),
+             "عمل ميجريشن لقاعدة البيانات (migrate)"),
             (f"{venv} {manage} collectstatic --noinput",
-             "collectstatic"),
+             "تجميع الملفات الثابتة (collectstatic)"),
             (f"{venv} {manage} loaddata core/fixtures/system_modules.json",
-             "loaddata system_modules"),
+             "تحميل موديولات النظام (loaddata system_modules)"),
             (f"{venv} {manage} loaddata core/fixtures/system_settings_final.json",
-             "loaddata system_settings"),
+             "تحميل إعدادات النظام (loaddata system_settings)"),
         ]
 
-        try:
-            ssh = self._create_ssh_connection()
-            print("\n⚙️  تنفيذ أوامر ما بعد الرفع...")
-
-            for cmd, label in always_commands:
-                stdin, stdout, stderr = ssh.exec_command(cmd)
-                exit_code = stdout.channel.recv_exit_status()
-                err = stderr.read().decode().strip()
-                if exit_code == 0:
-                    print(f"  ✅ {label}")
-                else:
-                    print(f"  ⚠️  {label} → {err}")
-
-            if first_deploy:
+        if first_deploy:
+            try:
+                ssh = self._create_ssh_connection()
                 print("\n🚀 أول deploy - تنفيذ إعداد النظام...")
                 for cmd, label in setup_commands:
                     print(f"  ⏳ {label}...")
@@ -1043,12 +1051,113 @@ class DeploymentManager:
                         if err:
                             print(f"     {err[-200:]}")  # آخر 200 حرف من الخطأ
 
+                # إعادة تشغيل التطبيق بعد الإعداد الأول
+                reload_cmd = f"/usr/sbin/cloudlinux-selector restart --json --interpreter python --app-root {remote_app_name}"
+                stdin, stdout, stderr = ssh.exec_command(reload_cmd, timeout=300)
+                exit_code = stdout.channel.recv_exit_status()
+                if exit_code == 0:
+                    print(f"  ✅ إعادة تشغيل تطبيق الويب (restart)")
+                else:
+                    # محاولة لمس ملف passenger_wsgi.py كبديل
+                    touch_cmd = f"touch {self.remote_path}/passenger_wsgi.py"
+                    ssh.exec_command(touch_cmd)
+                    print(f"  ✅ إعادة تشغيل تطبيق الويب (عبر touch passenger_wsgi.py)")
+
                 print("\n⚠️  لازم تعمل superuser يدوياً:")
                 print(f"  python manage.py createsuperuser")
+                ssh.close()
+            except Exception as e:
+                print(f"  ⚠️  تعذّر تنفيذ إعداد النشر الأول: {e}")
+            return
 
-            ssh.close()
-        except Exception as e:
-            print(f"  ⚠️  تعذّر تنفيذ أوامر ما بعد الرفع: {e}")
+        # للنشر المتتابع (ليس النشر الأول) - تشغيل التحديث الذكي تلقائياً
+        run_pip = False
+        run_migrate = False
+        run_collectstatic = False
+        run_reload = False
+
+        # ذكي: كشف التغييرات التلقائية
+        has_reqs = False
+        has_migrations = False
+        has_static = False
+        has_py = False
+
+        uploaded_list = getattr(self, 'uploaded_files', []) or []
+        for file_path in uploaded_list:
+            file_name = str(file_path).lower().replace('\\', '/')
+            if 'requirements.txt' in file_name:
+                has_reqs = True
+            if '/migrations/' in file_name and file_name.endswith('.py') and not file_name.endswith('__init__.py'):
+                has_migrations = True
+            if 'static/' in file_name:
+                has_static = True
+            if file_name.endswith('.py'):
+                has_py = True
+
+        run_pip = has_reqs
+        run_migrate = has_migrations
+        run_collectstatic = has_static
+        run_reload = has_py or has_migrations or has_reqs
+
+        print("\n🔍 التحديث الذكي التلقائي اكتشف:")
+        if run_pip:
+            print("   📦 تعديل في requirements.txt → سيتم تثبيت المتطلبات")
+        if run_migrate:
+            print("   🗄️  تعديل في ملفات الميجريشن → سيتم عمل الميجريشن")
+        if run_collectstatic:
+            print("   🎨 تعديل في الملفات الثابتة → سيتم عمل كولكت الستاتيك")
+        if run_reload:
+            print("   💻 تعديل في ملفات الكود (Python) → سيتم إعادة تشغيل التطبيق")
+        
+        if not (run_pip or run_migrate or run_collectstatic or run_reload):
+            print("   ⏭️  لم يتم كشف أي تغييرات تتطلب تثبيت متطلبات أو ميجريشن أو كولكت ستاتيك.")
+            print("   💻 سيتم إعادة تشغيل التطبيق للاحتياط.")
+            run_reload = True
+
+        # تجهيز قائمة الأوامر للتشغيل
+        exec_commands = []
+        if run_pip:
+            exec_commands.append((f"{pip} install -r {self.remote_path}/requirements.txt", "تثبيت متطلبات المشروع (pip install)"))
+        if run_migrate:
+            exec_commands.append((f"{venv} {manage} migrate --noinput", "عمل ميجريشن لقاعدة البيانات (migrate)"))
+        if run_collectstatic:
+            exec_commands.append((f"{venv} {manage} collectstatic --noinput", "تجميع الملفات الثابتة (collectstatic)"))
+
+        # تنفيذ الأوامر
+        if exec_commands or run_reload:
+            try:
+                ssh = self._create_ssh_connection()
+                print("\n⚙️  تنفيذ أوامر ما بعد النشر...")
+
+                for cmd, label in exec_commands:
+                    print(f"  ⏳ {label}...")
+                    stdin, stdout, stderr = ssh.exec_command(cmd, timeout=300)
+                    exit_code = stdout.channel.recv_exit_status()
+                    out = stdout.read().decode().strip()
+                    err = stderr.read().decode().strip()
+                    if exit_code == 0:
+                        print(f"  ✅ {label}")
+                    else:
+                        print(f"  ❌ {label}")
+                        if err:
+                            print(f"     {err[-200:]}")
+
+                if run_reload:
+                    print("  ⏳ إعادة تشغيل تطبيق الويب (restart)...")
+                    reload_cmd = f"/usr/sbin/cloudlinux-selector restart --json --interpreter python --app-root {remote_app_name}"
+                    stdin, stdout, stderr = ssh.exec_command(reload_cmd, timeout=120)
+                    exit_code = stdout.channel.recv_exit_status()
+                    if exit_code == 0:
+                        print(f"  ✅ إعادة تشغيل تطبيق الويب (restart)")
+                    else:
+                        # محاولة لمس ملف passenger_wsgi.py كبديل
+                        touch_cmd = f"touch {self.remote_path}/passenger_wsgi.py"
+                        ssh.exec_command(touch_cmd)
+                        print(f"  ✅ إعادة تشغيل تطبيق الويب (عبر touch passenger_wsgi.py)")
+
+                ssh.close()
+            except Exception as e:
+                print(f"  ⚠️  تعذّر تنفيذ أوامر ما بعد النشر: {e}")
 
     def show_status(self):
         print("\n📊 حالة الملفات:")
@@ -1373,7 +1482,7 @@ class MultiClientDeployment:
 
         print("\n" + "=" * 60)
 
-    def deploy(self, client_id, mode='modified'):
+    def deploy(self, client_id, mode='modified', force=False):
         """نشر للعميل المحدد"""
         if client_id not in self.clients:
             print(f"❌ العميل '{client_id}' غير موجود في القائمة")
@@ -1445,7 +1554,7 @@ application = get_wsgi_application()
             shutil.copy2(client_wsgi, original_wsgi)
             print(f"  ✅ passenger_wsgi.py → {client_id}")
 
-            deployer = DeploymentManager(env_file=env_file)
+            deployer = DeploymentManager(env_file=env_file, force=force)
             # توجيه الـ logs لمجلد العميل
             deployer._log_dir = self.deployments_dir / client_id / "deploy_logs"
             # ملف hashes خاص بكل عميل
@@ -1588,14 +1697,40 @@ def main():
             MultiClientDeployment().list_clients()
             return
 
-        if args.client:
+        target_client = args.client
+
+        # إذا لم يتم تحديد العميل ولم يكن الوضع إجبارياً، نعرض قائمة الاختيار التفاعلي
+        if not args.client and not args.force:
+            mc = MultiClientDeployment()
+            if mc.clients:
+                print("\n📋 اختر جهة النشر (Choose Deployment Target):")
+                print("1️⃣  المنصة الرئيسية (موهبة) - MWHEBA ERP")
+                
+                client_list = list(mc.clients.items())
+                for index, (client_id, info) in enumerate(client_list, start=2):
+                    num_str = f"{index}️⃣" if index <= 9 else f"{index}"
+                    print(f"{num_str}  عميل: {info.get('name', client_id)} ({client_id})")
+                print("❌ أي رقم آخر للإلغاء")
+                
+                choice = input("\n❓ اختيارك (1/...): ").strip()
+                if choice == "1":
+                    target_client = None
+                elif choice.isdigit() and 2 <= int(choice) <= len(client_list) + 1:
+                    target_client = client_list[int(choice) - 2][0]
+                else:
+                    print("❌ تم الإلغاء")
+                    return
+            else:
+                target_client = None
+
+        if target_client:
             mc = MultiClientDeployment()
             mc._pending_file = args.file  # تمرير الملف للـ deploy method
-            success = mc.deploy(args.client, args.mode)
+            success = mc.deploy(target_client, args.mode, force=args.force)
             sys.exit(0 if success else 1)
 
-        # وضع single-client (الافتراضي)
-        deploy_manager = DeploymentManager()
+        # وضع single-client (الافتراضي - موهبة)
+        deploy_manager = DeploymentManager(force=args.force)
 
         if args.mode == 'test':
             deploy_manager.test_connection()

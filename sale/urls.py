@@ -12,6 +12,7 @@ urlpatterns = [
     path("<int:pk>/edit/", views.sale_edit, name="sale_edit"),
     path("<int:pk>/delete/", views.sale_delete, name="sale_delete"),
     path("<int:pk>/print/", views.sale_print, name="sale_print"),
+    path("<int:pk>/print/thermal/", views.sale_print_thermal, name="sale_print_thermal"),
     path("<int:pk>/duplicate/", views.sale_duplicate, name="sale_duplicate"),
     path("<int:pk>/payment/", views.add_payment, name="sale_add_payment"),
     # مدفوعات المبيعات - إعادة توجيه للنظام الموحد

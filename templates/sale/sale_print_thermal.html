@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+{% load static %}
+{% load app_tags %}
+{% load custom_filters %}
+<html lang="ar" dir="rtl" style="--page-width: {{ paper_width }}mm;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="{% static 'css/variables.css' %}">
+    
+    <style>
+        /* التنسيقات العامة للشاشة (Preview Mode) */
+        body {
+            background-color: var(--gray-100);
+            color: var(--gray-800);
+            font-family: 'Tajawal', sans-serif;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .no-print {
+            display: flex;
+            flex-wrap: nowrap;
+            gap: 12px;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 600px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 600;
+            border: 1px solid transparent;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+        }
+
+        .btn-print {
+            background-color: var(--primary-color);
+            color: var(--white);
+        }
+
+        .btn-print:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-pdf {
+            background-color: var(--success-color, #10b981);
+            color: var(--white);
+        }
+
+        .btn-pdf:hover {
+            background-color: var(--success-hover, #059669);
+        }
+
+        .btn-back {
+            background-color: var(--white);
+            color: var(--secondary-color);
+            border-color: var(--gray-300);
+        }
+
+        .btn-back:hover {
+            background-color: var(--gray-50);
+            border-color: var(--gray-400);
+        }
+
+        /* حاوية الفاتورة الحرارية */
+        .receipt-container {
+            width: var(--page-width, 80mm);
+            background-color: var(--white);
+            border: 1px solid var(--gray-300);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            padding: 12px;
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ترويسة الفاتورة */
+        .receipt-header {
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .company-logo {
+            max-height: 50px;
+            width: auto;
+            margin-bottom: 8px;
+            filter: grayscale(100%);
+        }
+
+        .company-name {
+            font-size: 18px;
+            font-weight: 800;
+            color: var(--black);
+            margin: 0 0 4px 0;
+        }
+
+        .company-info {
+            font-size: 12px;
+            color: var(--gray-600);
+            margin: 2px 0;
+        }
+
+        .receipt-title {
+            font-size: 14px;
+            font-weight: 700;
+            margin: 10px 0 5px 0;
+            text-align: center;
+            border-top: 1px dashed var(--black);
+            border-bottom: 1px dashed var(--black);
+            padding: 5px 0;
+            color: var(--black);
+        }
+
+        /* تفاصيل الفاتورة */
+        .receipt-meta {
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .meta-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .meta-label {
+            color: var(--gray-600);
+        }
+
+        .meta-value {
+            font-weight: 600;
+            color: var(--black);
+        }
+
+        /* الفواصل الحرارية المشرشرة */
+        .divider {
+            border-top: 1px dashed var(--black);
+            margin: 8px 0;
+        }
+
+        /* قائمة المنتجات */
+        .receipt-items {
+            margin: 8px 0;
+        }
+
+        .receipt-item {
+            margin-bottom: 8px;
+            page-break-inside: avoid;
+        }
+
+        .item-name {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--black);
+            margin-bottom: 2px;
+        }
+
+        .item-details {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: var(--gray-700);
+        }
+
+        .item-calc {
+            direction: ltr;
+        }
+
+        .item-total {
+            font-weight: 700;
+            color: var(--black);
+        }
+
+        /* ملخص الحسابات */
+        .receipt-summary {
+            margin-top: 5px;
+            font-size: 13px;
+        }
+
+        .summary-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .summary-row.grand-total {
+            font-size: 15px;
+            font-weight: 800;
+            border-top: 1px solid var(--black);
+            padding-top: 5px;
+            margin-top: 5px;
+            color: var(--black);
+        }
+
+        /* كود الـ QR والذيل */
+        .qr-container {
+            text-align: center;
+            margin: 12px 0 8px 0;
+        }
+
+        .qr-image {
+            width: 25mm;
+            height: 25mm;
+        }
+
+        .receipt-footer {
+            text-align: center;
+            font-size: 11px;
+            color: var(--gray-600);
+            margin-top: 5px;
+        }
+
+        .footer-msg {
+            font-weight: 600;
+            margin-bottom: 6px;
+            color: var(--black);
+        }
+
+        /* تنسيقات الطباعة الخاصة بالطابعة الحرارية */
+        @media print {
+            @page {
+                size: var(--page-width, 80mm) auto;
+                margin: 0;
+            }
+
+            body {
+                background-color: var(--white);
+                padding: 0;
+                margin: 0;
+            }
+
+            * {
+                color: var(--black) !important;
+                box-shadow: none !important;
+                text-shadow: none !important;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .receipt-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 2mm 3mm !important;
+                margin: 0 !important;
+            }
+            
+            .receipt-item {
+                page-break-inside: avoid !important;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- أزرار التحكم (تخفى أثناء الطباعة) -->
+    <div class="no-print">
+        <button onclick="window.print()" class="btn btn-print">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-printer"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+            طباعة الإيصال
+        </button>
+        <button onclick="downloadPDF()" class="btn btn-pdf">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-download"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            تحميل PDF
+        </button>
+        <a href="{% url 'sale:sale_detail' sale.id %}" class="btn btn-back">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-arrow-right"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+            العودة للفاتورة
+        </a>
+    </div>
+
+    <!-- الفاتورة الحرارية -->
+    <div class="receipt-container">
+        
+        <!-- الترويسة -->
+        <div class="receipt-header">
+            {% if company_logo %}
+                <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="شعار الشركة" class="company-logo" onerror="this.style.display='none'">
+            {% endif %}
+            <h1 class="company-name">{{ company_name }}</h1>
+            {% if company_address %}
+                <p class="company-info">{{ company_address }}</p>
+            {% endif %}
+            {% if company_phone %}
+                <p class="company-info">هاتف: {{ company_phone }}</p>
+            {% endif %}
+            {% if company_tax_number %}
+                <p class="company-info">الرقم الضريبي: {{ company_tax_number }}</p>
+            {% endif %}
+        </div>
+
+        <div class="receipt-title">
+            إيصال مبيعات
+        </div>
+
+        <!-- معلومات الفاتورة -->
+        <div class="receipt-meta">
+            <div class="meta-row">
+                <span class="meta-label">رقم الفاتورة:</span>
+                <span class="meta-value">{{ sale.number }}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">التاريخ والوقت:</span>
+                <span class="meta-value">{{ sale.created_at|date:"d-m-Y H:i" }}</span>
+            </div>
+            <div class="meta-row">
+                <span class="meta-label">الكاشير:</span>
+                <span class="meta-value">{{ sale.created_by.get_full_name|default:sale.created_by.username }}</span>
+            </div>
+            {% if sale.warehouse %}
+            <div class="meta-row">
+                <span class="meta-label">الفرع:</span>
+                <span class="meta-value">{{ sale.warehouse.name }}</span>
+            </div>
+            {% endif %}
+            
+            {% if sale.customer %}
+            <div class="divider"></div>
+            <div class="meta-row">
+                <span class="meta-label">العميل:</span>
+                <span class="meta-value">{{ sale.customer.name }}</span>
+            </div>
+            {% if sale.customer.phone %}
+            <div class="meta-row">
+                <span class="meta-label">هاتف العميل:</span>
+                <span class="meta-value">{{ sale.customer.phone }}</span>
+            </div>
+            {% endif %}
+            {% endif %}
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- المنتجات -->
+        <div class="receipt-items">
+            {% for item in items %}
+            <div class="receipt-item">
+                <div class="item-name">{{ item.product.name }}</div>
+                <div class="item-details">
+                    <span class="item-calc">{{ item.quantity|remove_trailing_zeros }} × {{ item.unit_price|currency }}</span>
+                    <span class="item-total">{{ item.total|currency }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- الإجماليات -->
+        <div class="receipt-summary">
+            <div class="summary-row">
+                <span>المجموع الفرعي:</span>
+                <span>{{ sale.subtotal|currency }}</span>
+            </div>
+            {% if sale.discount > 0 %}
+            <div class="summary-row">
+                <span>الخصم:</span>
+                <span>-{{ sale.discount|currency }}</span>
+            </div>
+            {% endif %}
+            <div class="summary-row">
+                <span>الضريبة:</span>
+                <span>{{ sale.tax|currency }}</span>
+            </div>
+            <div class="summary-row grand-total">
+                <span>الإجمالي النهائي:</span>
+                <span>{{ sale.total|currency }}</span>
+            </div>
+        </div>
+
+        <div class="divider"></div>
+
+        <!-- طريقة الدفع -->
+        <div class="receipt-meta">
+            <div class="meta-row">
+                <span class="meta-label">طريقة الدفع:</span>
+                <span class="meta-value">{{ sale.get_payment_method_display }}</span>
+            </div>
+        </div>
+
+        <!-- كود الـ QR -->
+        <div class="qr-container">
+            <img src="data:image/png;base64,{{ qr_code }}" class="qr-image" alt="رمز الاستجابة السريعة">
+        </div>
+
+        <!-- ذيل الإيصال -->
+        <div class="receipt-footer">
+            <p class="footer-msg" style="margin-bottom: 4px;">شكراً لزيارتكم ونتطلع لخدمتكم دائماً</p>
+            <p style="margin: 0; line-height: 1.2;">نظام موهبة لإدارة الشركات والمخازن</p>
+            <p style="font-size: 8px; color: var(--gray-500); margin: 1px 0 0 0; line-height: 1;">01229609292</p>
+        </div>
+
+    </div>
+
+    <!-- مكتبة html2pdf.js وتوليد الـ PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        function downloadPDF() {
+            const element = document.querySelector('.receipt-container');
+            const logo = element.querySelector('.company-logo');
+            let originalSrc = '';
+            
+            // 1. إزالة الحواف والظلال مؤقتاً لتجنب ظهور ستروك في الـ PDF
+            element.style.border = 'none';
+            element.style.boxShadow = 'none';
+            
+            // تحويل اللوجو لأبيض وأسود عبر الكانفاس لتخطي قصور مكتبة html2pdf مع فلاتر CSS
+            if (logo && logo.tagName === 'IMG' && logo.complete) {
+                try {
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    canvas.width = logo.naturalWidth || logo.width;
+                    canvas.height = logo.naturalHeight || logo.height;
+                    
+                    ctx.drawImage(logo, 0, 0);
+                    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const data = imgData.data;
+                    for (let i = 0; i < data.length; i += 4) {
+                        const brightness = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                        data[i] = brightness;     // R
+                        data[i + 1] = brightness; // G
+                        data[i + 2] = brightness; // B
+                    }
+                    ctx.putImageData(imgData, 0, 0);
+                    originalSrc = logo.src;
+                    logo.src = canvas.toDataURL();
+                } catch (e) {
+                    console.log("Canvas grayscale conversion error, keeping original:", e);
+                }
+            }
+            
+            // 2. حساب الطول الفعلي للمحتوى باستخدام scrollHeight لضمان عدم حدوث أي قطع من الأسفل
+            const elementWidth = parseFloat('{{ paper_width|default:80 }}');
+            // 1 بكسل = 0.264583 مليمتر + إضافة هامش أمان 45 مم للأسفل (يعمل كذيل للفاتورة الحرارية ويمنع القطع)
+            const elementHeight = Math.ceil(element.scrollHeight * 0.264583) + 45; 
+
+            const opt = {
+                margin: [4, 4, 2, 4],
+                filename: 'receipt-{{ sale.number }}.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true, logging: false },
+                jsPDF: { unit: 'mm', format: [elementWidth + 8, elementHeight], orientation: 'portrait' },
+                pagebreak: { mode: 'avoid-all' }
+            };
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                // إرجاع الاستايلات واللوجو لأصلها بعد الحفظ
+                element.style.border = '';
+                element.style.boxShadow = '';
+                if (originalSrc && logo) {
+                    logo.src = originalSrc;
+                }
+            });
+        }
+    </script>
+
+</body>
+</html>

@@ -28,7 +28,7 @@
 
     <!-- معلومات النظام -->
     {% if system_info %}
-    <div class="row mb-4">
+    <div class="row mb-4" id="system-info-container">
         <div class="col-md-3">
             <div class="card border-0 shadow-sm">
                 <div class="card-body text-center">
@@ -283,6 +283,16 @@
                                         {% endif %}
                                         <small class="form-text text-muted">
                                             <i class="fas fa-info-circle"></i> هذه الملاحظات ستظهر أسفل جميع الفواتير المطبوعة
+                                        </small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.receipt_paper_width.label_tag }}
+                                        {{ form.receipt_paper_width }}
+                                        {% if form.receipt_paper_width.errors %}
+                                            <div class="text-danger small mt-1">{{ form.receipt_paper_width.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> حدد عرض الورق الافتراضي لطباعة الفواتير الحرارية (80 مم أو 58 مم)
                                         </small>
                                     </div>
                                     
@@ -827,40 +837,41 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     // ==================== Auto-refresh System Info ====================
-    {% if system_info %}
-    async function updateSystemInfo() {
-        try {
-            const response = await fetch('{% url "core:get_system_info" %}');
-            const data = await response.json();
-            
-            if (data.success) {
-                // تحديث CPU (العمود الأول)
-                const cpuCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(1) h4');
-                if (cpuCard) cpuCard.textContent = data.data.cpu;
+    const systemInfoContainer = document.getElementById('system-info-container');
+    if (systemInfoContainer) {
+        async function updateSystemInfo() {
+            try {
+                const response = await fetch('{% url "core:get_system_info" %}');
+                const data = await response.json();
                 
-                // تحديث Memory (العمود الثاني)
-                const memoryCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) h4');
-                if (memoryCard) memoryCard.textContent = data.data.memory;
-                
-                const memorySmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) small');
-                if (memorySmall) memorySmall.textContent = `${data.data.memory_used} / ${data.data.memory_total} GB`;
-                
-                // تحديث Disk (العمود الثالث)
-                const diskCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) h4');
-                if (diskCard) diskCard.textContent = data.data.disk;
-                
-                const diskSmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) small');
-                if (diskSmall) diskSmall.textContent = `${data.data.disk_used} / ${data.data.disk_total} GB`;
-                
+                if (data.success) {
+                    // تحديث CPU (العمود الأول)
+                    const cpuCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(1) h4');
+                    if (cpuCard) cpuCard.textContent = data.data.cpu;
+                    
+                    // تحديث Memory (العمود الثاني)
+                    const memoryCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) h4');
+                    if (memoryCard) memoryCard.textContent = data.data.memory;
+                    
+                    const memorySmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(2) small');
+                    if (memorySmall) memorySmall.textContent = `${data.data.memory_used} / ${data.data.memory_total} GB`;
+                    
+                    // تحديث Disk (العمود الثالث)
+                    const diskCard = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) h4');
+                    if (diskCard) diskCard.textContent = data.data.disk;
+                    
+                    const diskSmall = document.querySelector('.row.mb-4 .col-md-3:nth-child(3) small');
+                    if (diskSmall) diskSmall.textContent = `${data.data.disk_used} / ${data.data.disk_total} GB`;
+                    
+                }
+            } catch (error) {
+                console.error('❌ خطأ في تحديث معلومات النظام:', error);
             }
-        } catch (error) {
-            console.error('❌ خطأ في تحديث معلومات النظام:', error);
         }
+        
+        // تحديث كل 10 ثواني
+        setInterval(updateSystemInfo, 10000);
     }
-    
-    // تحديث كل 10 ثواني
-    setInterval(updateSystemInfo, 10000);
-    {% endif %}
 
     // ==================== Daftra Toggle ====================
     const daftraToggle = document.getElementById('daftra_enabled');

@@ -11,6 +11,18 @@
       "active": true,
       "created_date": "2026-05-02",
       "notes": ""
+    },
+    "megroup": {
+      "name": "MEGroup",
+      "domain": "system.megroup-eg.com",
+      "ssh_host": "84.247.179.163",
+      "ssh_port": "2951",
+      "ssh_user": "megroupe",
+      "remote_path": "/home/megroupe/megroup_erp",
+      "description": "ERP system for MEGroup",
+      "active": true,
+      "created_date": "2026-07-02",
+      "notes": ""
     }
   },
   "template": {

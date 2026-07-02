@@ -379,7 +379,9 @@ def system_settings(request):
     عرض وتعديل إعدادات النظام
     """
     from core.models import SystemSetting
+    from core.forms import SystemSettingsForm
     from django.contrib import messages
+    from django.core.cache import cache
     
     # التحقق من صلاحيات المستخدم
     if not request.user.is_admin and not request.user.is_superuser:
@@ -389,50 +391,99 @@ def system_settings(request):
             {"title": "غير مصرح", "message": "ليس لديك صلاحية للوصول إلى هذه الصفحة"},
         )
 
+    # جلب الإعدادات الحالية
+    settings_dict = {}
+    for setting in SystemSetting.objects.all():
+        settings_dict[setting.key] = setting.value
+
+    # تهيئة البيانات الافتراضية للفورم
+    initial_data = {
+        'language': settings_dict.get('language', 'ar'),
+        'timezone': settings_dict.get('system_timezone', 'Africa/Cairo'),
+        'date_format': settings_dict.get('date_format', 'd/m/Y'),
+        'default_currency': settings_dict.get('currency_symbol', 'ج.م'),
+        'default_tax_rate': settings_dict.get('default_tax_rate', '14'),
+        'invoice_notes': settings_dict.get('invoice_notes', ''),
+        'maintenance_mode': settings_dict.get('maintenance_mode') == 'true',
+        'session_timeout': int(settings_dict.get('session_timeout', 60)) if settings_dict.get('session_timeout') else 60,
+        'enable_two_factor': settings_dict.get('enable_two_factor') == 'true',
+        'password_policy': settings_dict.get('password_policy', 'medium'),
+        'failed_login_attempts': int(settings_dict.get('failed_login_attempts', 5)) if settings_dict.get('failed_login_attempts') else 5,
+        'account_lockout_time': int(settings_dict.get('account_lockout_time', 15)) if settings_dict.get('account_lockout_time') else 15,
+        'email_host': settings_dict.get('email_host', ''),
+        'email_port': int(settings_dict.get('email_port', 587)) if settings_dict.get('email_port') else None,
+        'email_username': settings_dict.get('email_username', ''),
+        'email_password': settings_dict.get('email_password', ''),
+        'email_encryption': settings_dict.get('email_encryption', 'tls'),
+        'email_from': settings_dict.get('email_from', ''),
+        'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
+    }
+
     # معالجة حفظ الإعدادات عند POST
     if request.method == "POST":
-        # قائمة الحقول المطلوب حفظها
-        settings_fields = [
-            "site_name", "site_name_en", "system_timezone",
-            "date_format", "time_format", "currency_symbol",
-            "items_per_page", "session_timeout",
-        ]
-        
-        # حفظ كل إعداد
-        for field in settings_fields:
-            value = request.POST.get(field, "")
-            if value:
+        form = SystemSettingsForm(request.POST)
+        if form.is_valid():
+            # حفظ كل حقول الفورم
+            for key, value in form.cleaned_data.items():
+                db_key = key
+                if key == 'timezone':
+                    db_key = 'system_timezone'
+                elif key == 'default_currency':
+                    db_key = 'currency_symbol'
+                
+                # تحويل القيم المنطقية وغيرها إلى نصوص مناسبة لقاعدة البيانات
+                if isinstance(value, bool):
+                    db_value = 'true' if value else 'false'
+                elif value is None:
+                    db_value = ''
+                else:
+                    db_value = str(value)
+                
+                setting, created = SystemSetting.objects.get_or_create(
+                    key=db_key,
+                    defaults={"value": db_value}
+                )
+                if not created:
+                    setting.value = db_value
+                    setting.save()
+
+            # حفظ الحقول الإضافية غير الموجودة في الفورم مباشرة
+            for field in ["site_name", "site_name_en", "time_format", "items_per_page"]:
+                val = request.POST.get(field)
+                if val is not None:
+                    setting, created = SystemSetting.objects.get_or_create(
+                        key=field,
+                        defaults={"value": val}
+                    )
+                    if not created:
+                        setting.value = val
+                        setting.save()
+
+            # حفظ إعدادات دفترة
+            daftra_enabled = 'true' if request.POST.get('daftra_enabled') else 'false'
+            for field, value in [
+                ("daftra_enabled", daftra_enabled),
+                ("daftra_domain", request.POST.get("daftra_domain", "").strip()),
+                ("daftra_api_key", request.POST.get("daftra_api_key", "").strip()),
+            ]:
                 setting, created = SystemSetting.objects.get_or_create(
                     key=field,
-                    defaults={"value": value}
+                    defaults={"value": value, "group": "system", "data_type": "string",
+                              "description": "إعداد دفترة - " + field}
                 )
                 if not created:
                     setting.value = value
                     setting.save()
 
-        # حفظ إعدادات دفترة (دائماً حتى لو فارغة لإتاحة المسح)
-        daftra_enabled = 'true' if request.POST.get('daftra_enabled') else 'false'
-        for field, value in [
-            ("daftra_enabled", daftra_enabled),
-            ("daftra_domain", request.POST.get("daftra_domain", "").strip()),
-            ("daftra_api_key", request.POST.get("daftra_api_key", "").strip()),
-        ]:
-            setting, created = SystemSetting.objects.get_or_create(
-                key=field,
-                defaults={"value": value, "group": "system", "data_type": "string",
-                          "description": "إعداد دفترة - " + field}
-            )
-            if not created:
-                setting.value = value
-                setting.save()
+            # حذف الكاش لتحديث الإعدادات العامة فوراً
+            cache.delete('global_settings_dict_v2')
 
-        messages.success(request, "تم حفظ إعدادات النظام بنجاح")
-        return redirect("core:system_settings")
-
-    # جلب الإعدادات الحالية
-    settings_dict = {}
-    for setting in SystemSetting.objects.all():
-        settings_dict[setting.key] = setting.value
+            messages.success(request, "تم حفظ إعدادات النظام بنجاح")
+            return redirect("core:system_settings")
+        else:
+            messages.error(request, "حدث خطأ أثناء حفظ الإعدادات، يرجى التحقق من الحقول")
+    else:
+        form = SystemSettingsForm(initial=initial_data)
 
     # إعداد الهيدر
     header_buttons = [
@@ -458,6 +509,7 @@ def system_settings(request):
         "header_buttons": header_buttons,
         "breadcrumb_items": breadcrumb_items,
         "settings": settings_dict,
+        "form": form,
     }
 
     return render(request, "core/system_settings.html", context)
