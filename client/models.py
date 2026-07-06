@@ -194,6 +194,17 @@ class CustomerPayment(models.Model):
         _("رقم المرجع"), max_length=50, blank=True, null=True
     )
     notes = models.TextField(_("ملاحظات"), blank=True, null=True)
+    
+    # ربط بأمر الشغل
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر الشغل المرتبط"),
+        related_name="payments",
+    )
+
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     created_by = models.ForeignKey(
         "users.User",

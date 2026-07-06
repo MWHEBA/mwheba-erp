@@ -10,7 +10,11 @@
     <title>{% block title %}{{ SITE_NAME }}{% endblock %}</title>
     
     <!-- Favicon -->
-    <link rel="icon" href="{% static 'img/logo-icon.ico' %}" type="image/x-icon">
+    {% if settings.company_logo_mini %}
+        <link rel="icon" href="{{ MEDIA_URL }}{{ settings.company_logo_mini }}" type="image/x-icon">
+    {% else %}
+        <link rel="icon" href="{% static 'img/logo-icon.ico' %}" type="image/x-icon">
+    {% endif %}
     
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token }}">
@@ -67,41 +71,6 @@
     
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{% static 'css/variables.css' %}">
-    
-    <!-- Dynamic CSS Variables from Database - تجاوز متغيرات الـ CSS بالقيم المحفوظة -->
-    {% if settings %}
-    <style id="dynamic-css-vars">
-        :root {
-            {% if settings.color_primary %}--primary-color: {{ settings.color_primary }};
-            --primary-rgb: {{ settings.color_primary|slice:"1:3"|default:"04" }}, {{ settings.color_primary|slice:"3:5"|default:"57" }}, {{ settings.color_primary|slice:"5:7"|default:"8d" }};
-            --primary-soft: {{ settings.color_primary }}1a;
-            --primary-soft-2: {{ settings.color_primary }}0d;{% endif %}
-            {% if settings.color_primary_dark %}--primary-dark: {{ settings.color_primary_dark }};{% endif %}
-            {% if settings.color_primary_light %}--primary-light: {{ settings.color_primary_light }};{% endif %}
-            {% if settings.color_primary_hover %}--primary-hover: {{ settings.color_primary_hover }};
-            --primary-active: {{ settings.color_primary_hover }};{% endif %}
-            {% if settings.color_success %}--success-color: {{ settings.color_success }};
-            --status-active: {{ settings.color_success }};{% endif %}
-            {% if settings.color_success_dark %}--success-dark: {{ settings.color_success_dark }};{% endif %}
-            {% if settings.color_warning %}--warning-color: {{ settings.color_warning }};
-            --status-pending: {{ settings.color_warning }};{% endif %}
-            {% if settings.color_warning_dark %}--warning-dark: {{ settings.color_warning_dark }};{% endif %}
-            {% if settings.color_danger %}--danger-color: {{ settings.color_danger }};
-            --status-cancelled: {{ settings.color_danger }};{% endif %}
-            {% if settings.color_danger_dark %}--danger-dark: {{ settings.color_danger_dark }};{% endif %}
-            {% if settings.color_info %}--info-color: {{ settings.color_info }};{% endif %}
-            {% if settings.color_info_dark %}--info-dark: {{ settings.color_info_dark }};{% endif %}
-            {% if settings.color_bg_body %}--bg-body: {{ settings.color_bg_body }};
-            --content-bg: {{ settings.color_bg_body }};{% endif %}
-            {% if settings.color_text %}--text-color: {{ settings.color_text }};{% endif %}
-            {% if settings.color_bg_card %}--bg-card: {{ settings.color_bg_card }};
-            --card-bg: {{ settings.color_bg_card }};{% endif %}
-            {% if settings.color_border %}--border-color: {{ settings.color_border }};{% endif %}
-            {% if settings.color_sidebar_bg %}--sidebar-bg: {{ settings.color_sidebar_bg }};{% endif %}
-            {% if settings.color_header_bg %}--header-bg: {{ settings.color_header_bg }};{% endif %}
-        }
-    </style>
-    {% endif %}
 
     <link rel="stylesheet" href="{% static 'css/bootstrap-overrides.css' %}">
     <link rel="stylesheet" href="{% static 'css/main.css' %}">
@@ -120,6 +89,92 @@
     <link href="{% static 'css/select2-enhancements.css' %}" rel="stylesheet">
     
     {% block extra_css %}{% endblock %}
+    
+    <!-- متغيرات الـ CSS الديناميكية من قاعدة البيانات - بيتم حقنها باستخدام JS عشان نتجنب أي أخطاء تحقق في المحرر وكمان بنصلح كود الـ RGB -->
+    {% if settings %}
+    <script id="dynamic-css-vars-js">
+        (function() {
+            const primary = "{{ settings.color_primary|default:'' }}";
+            const primaryDark = "{{ settings.color_primary_dark|default:'' }}";
+            const primaryLight = "{{ settings.color_primary_light|default:'' }}";
+            const primaryHover = "{{ settings.color_primary_hover|default:'' }}";
+            const success = "{{ settings.color_success|default:'' }}";
+            const successDark = "{{ settings.color_success_dark|default:'' }}";
+            const warning = "{{ settings.color_warning|default:'' }}";
+            const warningDark = "{{ settings.color_warning_dark|default:'' }}";
+            const danger = "{{ settings.color_danger|default:'' }}";
+            const dangerDark = "{{ settings.color_danger_dark|default:'' }}";
+            const info = "{{ settings.color_info|default:'' }}";
+            const infoDark = "{{ settings.color_info_dark|default:'' }}";
+            const bgBody = "{{ settings.color_bg_body|default:'' }}";
+            const text = "{{ settings.color_text|default:'' }}";
+            const bgCard = "{{ settings.color_bg_card|default:'' }}";
+            const border = "{{ settings.color_border|default:'' }}";
+            const sidebarBg = "{{ settings.color_sidebar_bg|default:'' }}";
+            const headerBg = "{{ settings.color_header_bg|default:'' }}";
+
+            let css = ':root {';
+            if (primary && primary.startsWith('#')) {
+                css += `--primary-color: ${primary};`;
+                let hex = primary;
+                if (hex.length === 4) {
+                    hex = '#' + hex[1] + hex[1] + hex[2] + hex[2] + hex[3] + hex[3];
+                }
+                if (hex.length === 7) {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    if (!isNaN(r) && !isNaN(g) && !isNaN(b)) {
+                        css += `--primary-rgb: ${r}, ${g}, ${b};`;
+                    }
+                }
+                css += `--primary-soft: ${primary}1a;`;
+                css += `--primary-soft-2: ${primary}0d;`;
+            }
+            if (primaryDark) css += `--primary-dark: ${primaryDark};`;
+            if (primaryLight) css += `--primary-light: ${primaryLight};`;
+            if (primaryHover) {
+                css += `--primary-hover: ${primaryHover};`;
+                css += `--primary-active: ${primaryHover};`;
+            }
+            if (success) {
+                css += `--success-color: ${success};`;
+                css += `--status-active: ${success};`;
+            }
+            if (successDark) css += `--success-dark: ${successDark};`;
+            if (warning) {
+                css += `--warning-color: ${warning};`;
+                css += `--status-pending: ${warning};`;
+            }
+            if (warningDark) css += `--warning-dark: ${warningDark};`;
+            if (danger) {
+                css += `--danger-color: ${danger};`;
+                css += `--status-cancelled: ${danger};`;
+            }
+            if (dangerDark) css += `--danger-dark: ${dangerDark};`;
+            if (info) css += `--info-color: ${info};`;
+            if (infoDark) css += `--info-dark: ${infoDark};`;
+            if (bgBody) {
+                css += `--bg-body: ${bgBody};`;
+                css += `--content-bg: ${bgBody};`;
+            }
+            if (text) css += `--text-color: ${text};`;
+            if (bgCard) {
+                css += `--bg-card: ${bgCard};`;
+                css += `--card-bg: ${bgCard};`;
+            }
+            if (border) css += `--border-color: ${border};`;
+            if (sidebarBg) css += `--sidebar-bg: ${sidebarBg};`;
+            if (headerBg) css += `--header-bg: ${headerBg};`;
+            css += '}';
+
+            const style = document.createElement('style');
+            style.id = 'dynamic-css-vars';
+            style.textContent = css;
+            document.head.appendChild(style);
+        })();
+    </script>
+    {% endif %}
 </head>
 <body data-user-authenticated="{% if user.is_authenticated %}true{% else %}false{% endif %}">
     <div class="wrapper">

@@ -282,6 +282,81 @@ class ActivityLog(models.Model):
         verbose_name = _("سجل النشاطات")
         verbose_name_plural = _("سجلات النشاطات")
         ordering = ["-timestamp"]
+        indexes = [
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['user', 'timestamp']),
+            models.Index(fields=['action', 'timestamp']),
+        ]
 
     def __str__(self):
         return f"{self.user} - {self.action} - {self.timestamp}"
+
+    @property
+    def description(self):
+        if isinstance(self.extra_data, dict):
+            return self.extra_data.get('description') or self.extra_data.get('details') or self.action
+        return self.action
+
+    @property
+    def action_class(self):
+        action_lower = self.action.strip()
+        if action_lower.startswith('إنشاء'):
+            return 'bg-success-soft'
+        elif action_lower.startswith('تعديل'):
+            return 'bg-warning-soft'
+        elif action_lower.startswith('حذف'):
+            return 'bg-danger-soft'
+        elif 'دخول' in action_lower and 'فشل' not in action_lower:
+            return 'bg-info-soft'
+        elif 'خروج' in action_lower:
+            return 'bg-secondary-soft'
+        elif 'فشل' in action_lower:
+            return 'bg-danger-soft'
+        return 'bg-primary-soft'
+
+    @property
+    def action_icon(self):
+        action_lower = self.action.strip()
+        if action_lower.startswith('إنشاء'):
+            return 'fas fa-plus-circle'
+        elif action_lower.startswith('تعديل'):
+            return 'fas fa-edit'
+        elif action_lower.startswith('حذف'):
+            return 'fas fa-trash-alt'
+        elif 'دخول' in action_lower and 'فشل' not in action_lower:
+            return 'fas fa-sign-in-alt'
+        elif 'خروج' in action_lower:
+            return 'fas fa-sign-out-alt'
+        elif 'فشل' in action_lower:
+            return 'fas fa-exclamation-triangle'
+        return 'fas fa-info-circle'
+
+    @property
+    def model_name_ar(self):
+        model_translations = {
+            'Customer': 'العملاء',
+            'Supplier': 'الموردين',
+            'Product': 'المنتجات',
+            'Sale': 'المبيعات',
+            'Purchase': 'المشتريات',
+            'User': 'المستخدمين',
+            'Role': 'الأدوار والصلاحيات',
+            'Warehouse': 'المخازن',
+            'Stock': 'المخزون',
+            'StockMovement': 'حركات المخزون',
+            'SerialNumber': 'الأرقام التسلسلية',
+            'SupplierProductPrice': 'أسعار المنتجات من الموردين',
+            'PriceHistory': 'سجل الأسعار',
+            'BatchVoucher': 'أذونات دفعات المنتجات',
+            'BatchVoucherItem': 'بنود أذونات الدفعات',
+            'Category': 'التصنيفات',
+            'Unit': 'وحدات القياس',
+            'StockTransfer': 'تحويلات المخزون',
+            'StockSnapshot': 'لقطات المخزون',
+            'InventoryAdjustment': 'تسويات المخزون',
+            'StockReservation': 'حجوزات المخزون',
+            'ProductBatch': 'تشغيلات المنتجات',
+            'LocationZone': 'مناطق المواقع بالمخزن',
+            'ProductLocation': 'موقع المنتج بالمخزن',
+        }
+        return model_translations.get(self.model_name, self.model_name)

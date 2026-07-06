@@ -1,0 +1,440 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- لوحة مركز التكلفة والربحية (Cost Center & Metrics) -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#costCenterMetricsCollapse" aria-expanded="false" style="cursor: pointer;">
+      <i class="fas fa-chart-bar me-2"></i>{% trans "لوحة مركز التكلفة والربحية" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="costCenterMetricsCollapse">
+      <div class="row p-4 g-3">
+      <!-- إجمالي الإيرادات -->
+      <div class="col-md-3 col-sm-6">
+        <div class="stats-card stats-card-primary">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-file-invoice-dollar"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي الإيرادات" %}</div>
+            <div class="stats-card-value">{{ total_revenue|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+            <div class="text-muted small mt-2">
+              <span>{% trans "الفواتير:" %} {{ sales_total|smart_float:2 }}</span> |
+              <span>{% trans "مباشر:" %} {{ incomes_direct_total|smart_float:2 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- إجمالي التكاليف -->
+      <div class="col-md-3 col-sm-6">
+        <div class="stats-card stats-card-danger">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-calculator"></i>
+            </div>
+            <div class="stats-card-title">{% trans "إجمالي التكاليف" %}</div>
+            <div class="stats-card-value">{{ total_cost|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+            <div class="text-muted small mt-2">
+              <span>{% trans "المشتريات:" %} {{ purchases_total|smart_float:2 }}</span> |
+              <span>{% trans "مباشر:" %} {{ expenses_direct_total|smart_float:2 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- صافي الأرباح وهامش الربح -->
+      <div class="col-md-3 col-sm-6">
+        <div class="stats-card {% if net_profit >= 0 %}stats-card-success{% else %}stats-card-danger{% endif %}">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-chart-line"></i>
+            </div>
+            <div class="stats-card-title">{% trans "صافي الأرباح" %}</div>
+            <div class="stats-card-value">{{ net_profit|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+            <div class="stats-card-trend {% if net_profit >= 0 %}up{% else %}down{% endif %} mt-2">
+              {% if net_profit >= 0 %}
+              <i class="fas fa-arrow-up me-1"></i>{% trans "ربح إيجابي" %} ({{ profit_margin|floatformat:1 }}%)
+              {% else %}
+              <i class="fas fa-arrow-down me-1"></i>{% trans "خسارة" %} ({{ profit_margin|floatformat:1 }}%)
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- الدفعات المقدمة (الحصالة المدمجة) -->
+      <div class="col-md-3 col-sm-6">
+        <div class="stats-card stats-card-warning">
+          <div class="stats-card-header"></div>
+          <div class="stats-card-body">
+            <div class="stats-card-icon">
+              <i class="fas fa-piggy-bank"></i>
+            </div>
+            <div class="stats-card-title">{% trans "الدفعات المقدمة" %}</div>
+            <div class="stats-card-value">{{ remaining_deposit|smart_float:2 }}</div>
+            <div class="stats-card-unit">{% currency_symbol %}</div>
+            <div class="text-muted small mt-2">
+              <span>{% trans "المقبوض:" %} {{ total_deposits|smart_float:2 }}</span> |
+              <span>{% trans "المستهلك:" %} {{ total_allocated|smart_float:2 }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div>
+  </div>
+
+  <!-- تبويبات المستندات المرتبطة -->
+  <div class="section-container mb-4">
+    <div class="card-header bg-white border-0 pt-3 px-3 pb-0">
+      <ul class="nav nav-tabs card-header-tabs border-bottom" id="workOrderTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active fw-semibold px-3" id="quotations-tab" data-bs-toggle="tab" data-bs-target="#quotations" type="button" role="tab" aria-controls="quotations" aria-selected="true">
+            <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ quotations.count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab" aria-controls="sales" aria-selected="false">
+            <i class="fas fa-file-invoice-dollar me-2"></i>{% trans "فواتير المبيعات" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ sales.count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="purchases-tab" data-bs-toggle="tab" data-bs-target="#purchases" type="button" role="tab" aria-controls="purchases" aria-selected="false">
+            <i class="fas fa-file-invoice me-2"></i>{% trans "فواتير المشتريات" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ purchases.count }}</span>
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link fw-semibold px-3" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab" aria-controls="transactions" aria-selected="false">
+            <i class="fas fa-exchange-alt me-2"></i>{% trans "المعاملات المالية المباشرة" %}
+            <span class="badge rounded-pill bg-light text-secondary border ms-1">{{ financial_transactions.count }}</span>
+          </button>
+        </li>
+      </ul>
+    </div>
+    
+    <div class="card-body p-3">
+      <div class="tab-content" id="workOrderTabsContent">
+        <!-- عروض الأسعار -->
+        <div class="tab-pane fade show active" id="quotations" role="tabpanel" aria-labelledby="quotations-tab">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0">{% trans "عروض الأسعار المرتبطة" %}</h6>
+            <a href="{% url 'sale:quotation_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إنشاء عرض سعر" %}
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle text-center table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم العرض" %}</th>
+                  <th>{% trans "التاريخ" %}</th>
+                  <th>{% trans "تاريخ الانتهاء" %}</th>
+                  <th>{% trans "الإجمالي" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th>{% trans "عرض" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for q in quotations %}
+                <tr>
+                  <td class="fw-bold">{{ q.number }}</td>
+                  <td>{{ q.date|date:"Y-m-d" }}</td>
+                  <td>{{ q.valid_until|date:"Y-m-d"|default:"-" }}</td>
+                  <td>{{ q.total|smart_float:2 }} {% currency_symbol %}</td>
+                  <td>
+                    <span class="badge rounded-pill {% if q.status == 'accepted' %}bg-success{% elif q.status == 'sent' %}bg-info{% elif q.status == 'draft' %}bg-secondary{% else %}bg-danger{% endif %}">
+                      {{ q.get_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{% url 'sale:quotation_detail' q.id %}" class="btn btn-sm btn-outline-info">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="6" class="text-muted py-3">{% trans "لا يوجد عروض أسعار مرتبطة حالياً." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- فواتير المبيعات -->
+        <div class="tab-pane fade" id="sales" role="tabpanel" aria-labelledby="sales-tab">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0">{% trans "فواتير المبيعات المرتبطة" %}</h6>
+            <a href="{% url 'sale:sale_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إنشاء فاتورة مبيعات" %}
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle text-center table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم الفاتورة" %}</th>
+                  <th>{% trans "التاريخ" %}</th>
+                  <th>{% trans "طريقة الدفع" %}</th>
+                  <th>{% trans "الإجمالي" %}</th>
+                  <th>{% trans "المتبقي" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th>{% trans "عرض" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in sales %}
+                <tr>
+                  <td class="fw-bold">{{ s.number }}</td>
+                  <td>{{ s.date|date:"Y-m-d" }}</td>
+                  <td>{{ s.get_payment_method_display }}</td>
+                  <td>{{ s.total|smart_float:2 }} {% currency_symbol %}</td>
+                  <td>{{ s.amount_due|smart_float:2 }} {% currency_symbol %}</td>
+                  <td>
+                    <span class="badge rounded-pill {% if s.payment_status == 'paid' %}bg-success{% elif s.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                      {{ s.get_payment_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{% url 'sale:sale_detail' s.id %}" class="btn btn-sm btn-outline-info">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-muted py-3">{% trans "لا يوجد فواتير مبيعات مرتبطة حالياً." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- فواتير المشتريات -->
+        <div class="tab-pane fade" id="purchases" role="tabpanel" aria-labelledby="purchases-tab">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="fw-bold mb-0">{% trans "فواتير المشتريات المرتبطة" %}</h6>
+            <a href="{% url 'purchase:purchase_create' %}?work_order={{ work_order.id }}" class="btn btn-sm btn-primary">
+              <i class="fas fa-plus me-1"></i>{% trans "إنشاء فاتورة مشتريات" %}
+            </a>
+          </div>
+          <div class="table-responsive">
+            <table class="table align-middle text-center table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "رقم الفاتورة" %}</th>
+                  <th>{% trans "المورد" %}</th>
+                  <th>{% trans "التاريخ" %}</th>
+                  <th>{% trans "الإجمالي" %}</th>
+                  <th>{% trans "المتبقي" %}</th>
+                  <th>{% trans "الحالة" %}</th>
+                  <th>{% trans "عرض" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for p in purchases %}
+                <tr>
+                  <td class="fw-bold">{{ p.number }}</td>
+                  <td>{{ p.supplier.name }}</td>
+                  <td>{{ p.date|date:"Y-m-d" }}</td>
+                  <td>{{ p.total|smart_float:2 }} {% currency_symbol %}</td>
+                  <td>{{ p.amount_due|smart_float:2 }} {% currency_symbol %}</td>
+                  <td>
+                    <span class="badge rounded-pill {% if p.payment_status == 'paid' %}bg-success{% elif p.payment_status == 'partial' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                      {{ p.get_payment_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <a href="{% url 'purchase:purchase_detail' p.id %}" class="btn btn-sm btn-outline-info">
+                      <i class="fas fa-eye"></i>
+                    </a>
+                  </td>
+                </tr>
+                {% empty %}
+                <tr>
+                  <td colspan="7" class="text-muted py-3">{% trans "لا يوجد فواتير مشتريات مرتبطة حالياً." %}</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- المعاملات المالية المباشرة -->
+        <div class="tab-pane fade" id="transactions" role="tabpanel" aria-labelledby="transactions-tab">
+          <div class="row g-3 mb-3">
+            <div class="col-md-6">
+              <h6 class="fw-bold mb-3">{% trans "المصروفات المباشرة" %}</h6>
+              <div class="table-responsive">
+                <table class="table align-middle text-center table-hover table-sm">
+                  <thead class="table-light">
+                    <tr>
+                      <th>{% trans "العنوان" %}</th>
+                      <th>{% trans "التاريخ" %}</th>
+                      <th>{% trans "المبلغ" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for t in expenses_direct %}
+                    <tr>
+                      <td>{{ t.title }}</td>
+                      <td>{{ t.date|date:"Y-m-d" }}</td>
+                      <td class="text-danger fw-bold">{{ t.net_amount|smart_float:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-muted py-2">{% trans "لا يوجد مصروفات مباشرة." %}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6 class="fw-bold mb-3">{% trans "الإيرادات المباشرة" %}</h6>
+              <div class="table-responsive">
+                <table class="table align-middle text-center table-hover table-sm">
+                  <thead class="table-light">
+                    <tr>
+                      <th>{% trans "العنوان" %}</th>
+                      <th>{% trans "التاريخ" %}</th>
+                      <th>{% trans "المبلغ" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for t in incomes_direct %}
+                    <tr>
+                      <td>{{ t.title }}</td>
+                      <td>{{ t.date|date:"Y-m-d" }}</td>
+                      <td class="text-success fw-bold">{{ t.net_amount|smart_float:2 }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                      <td colspan="3" class="text-muted py-2">{% trans "لا يوجد إيرادات مباشرة." %}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- مودال تسجيل دفعة مقدمة -->
+<div class="modal fade" id="recordDepositModal" tabindex="-1" aria-labelledby="recordDepositModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="{% url 'work_order:work_order_record_deposit' work_order.id %}">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold" id="recordDepositModalLabel">{% trans "تسجيل دفعة مقدمة (عربون)" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <!-- مبلغ الدفعة -->
+            <div class="col-md-6">
+              <label for="amount" class="form-label small fw-bold">{% trans "مبلغ الدفعة" %} <span class="text-danger">*</span></label>
+              <input type="number" step="0.01" min="0.01" class="form-control" id="amount" name="amount" required>
+            </div>
+            <!-- حساب الدفع -->
+            <div class="col-md-6">
+              <label for="payment_method" class="form-label small fw-bold">{% trans "حساب الدفع (الخزينة/البنك)" %} <span class="text-danger">*</span></label>
+              <select class="form-select" id="payment_method" name="payment_method" required>
+                {% for account in cash_accounts %}
+                <option value="{{ account.code }}" {% if forloop.first %}selected{% endif %}>{{ account.name }} ({{ account.code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <!-- تاريخ الدفع -->
+            <div class="col-md-6">
+              <label for="payment_date" class="form-label small fw-bold">{% trans "تاريخ الدفع" %}</label>
+              <input type="text" class="form-control" id="payment_date" name="payment_date" data-date-picker placeholder="YYYY-MM-DD" value="{% now 'Y-m-d' %}">
+            </div>
+            <!-- رقم المرجع -->
+            <div class="col-md-6">
+              <label for="reference_number" class="form-label small fw-bold">{% trans "رقم المرجع" %}</label>
+              <input type="text" class="form-control" id="reference_number" name="reference_number">
+            </div>
+            <!-- ملاحظات -->
+            <div class="col-12">
+              <label for="notes" class="form-label small fw-bold">{% trans "ملاحظات" %}</label>
+              <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="submit" class="btn btn-warning text-dark fw-bold">{% trans "تسجيل الدفعة" %}</button>
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Actions Modal -->
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionsModalLabel">
+          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group">
+          <!-- تعديل أمر الشغل -->
+          <a href="{% url 'work_order:work_order_edit' work_order.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-edit fa-2x text-warning"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "تعديل أمر الشغل" %}</div>
+              <small class="text-muted">{% trans "تعديل التواريخ والملاحظات والتكلفة التقديرية" %}</small>
+            </div>
+          </a>
+          
+          <!-- حذف أمر الشغل -->
+          <a href="{% url 'work_order:work_order_delete' work_order.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-trash fa-2x text-danger"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "حذف أمر الشغل" %}</div>
+              <small class="text-muted">{% trans "حذف أمر الشغل نهائياً من النظام" %}</small>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

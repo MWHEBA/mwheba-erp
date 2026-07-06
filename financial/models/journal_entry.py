@@ -223,6 +223,16 @@ class JournalEntry(models.Model):
         help_text=_("التصنيف الفرعي للقيد (للتحليل التفصيلي)")
     )
 
+    # ربط بأمر الشغل (مركز التكلفة)
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر الشغل المرتبط"),
+        related_name="journal_entries",
+    )
+
     # معلومات الترحيل
     posted_at = models.DateTimeField(_("تاريخ الترحيل"), null=True, blank=True)
     posted_by = models.ForeignKey(

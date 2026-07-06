@@ -324,7 +324,7 @@
                 <span class="meta-label">الكاشير:</span>
                 <span class="meta-value">{{ sale.created_by.get_full_name|default:sale.created_by.username }}</span>
             </div>
-            {% if sale.warehouse %}
+            {% if not is_service_invoice and sale.warehouse %}
             <div class="meta-row">
                 <span class="meta-label">الفرع:</span>
                 <span class="meta-value">{{ sale.warehouse.name }}</span>

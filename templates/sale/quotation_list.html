@@ -1,0 +1,315 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ page_title|default:"عروض الأسعار" }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + .75rem + 2px);
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+  
+  <!-- إحصائيات سريعة -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#overviewCollapse" aria-expanded="true" style="cursor: pointer;">
+      <i class="fas fa-chart-bar me-2"></i>{% trans "نظرة عامة" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse show" id="overviewCollapse">
+      <div class="row p-4 g-3">
+        <!-- إجمالي عروض الأسعار -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-primary">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-file-signature"></i>
+              </div>
+              <div class="stats-card-title">{% trans "إجمالي عروض الأسعار" %}</div>
+              <div class="stats-card-value">{{ total_quotes_count }}</div>
+              <div class="stats-card-unit">{% trans "عرض" %}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- مسودات -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-secondary">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-file-alt"></i>
+              </div>
+              <div class="stats-card-title">{% trans "مسودات" %}</div>
+              <div class="stats-card-value">{{ draft_count }}</div>
+              <div class="stats-card-unit">{% trans "عرض" %}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- أُرسلت للعميل -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-info">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-paper-plane"></i>
+              </div>
+              <div class="stats-card-title">{% trans "أُرسلت للعميل" %}</div>
+              <div class="stats-card-value">{{ sent_count }}</div>
+              <div class="stats-card-unit">{% trans "عرض" %}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- مقبولة -->
+        <div class="col-md-3 col-sm-6">
+          <div class="stats-card stats-card-success">
+            <div class="stats-card-header"></div>
+            <div class="stats-card-body">
+              <div class="stats-card-icon">
+                <i class="fas fa-check-circle"></i>
+              </div>
+              <div class="stats-card-title">{% trans "مقبولة" %}</div>
+              <div class="stats-card-value">{{ accepted_count }}</div>
+              <div class="stats-card-unit">{% trans "عرض" %}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="GET" action="" class="row g-3">
+          <div class="col-md-3">
+            <label for="customer" class="form-label">{% trans "العميل" %}</label>
+            <select class="form-select select2-filter" id="customer" name="customer">
+              <option value="">{% trans "جميع العملاء" %}</option>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"i" %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select class="form-select" id="status" name="status">
+              <option value="">{% trans "الكل" %}</option>
+              <option value="draft" {% if request.GET.status == 'draft' %}selected{% endif %}>{% trans "مسودة" %}</option>
+              <option value="sent" {% if request.GET.status == 'sent' %}selected{% endif %}>{% trans "تم الإرسال" %}</option>
+              <option value="accepted" {% if request.GET.status == 'accepted' %}selected{% endif %}>{% trans "مقبول" %}</option>
+              <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>{% trans "مرفوض" %}</option>
+              <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>{% trans "منتهي الصلاحية" %}</option>
+            </select>
+          </div>
+          <div class="col-md-2">
+            <label for="date_from" class="form-label">{% trans "من تاريخ" %}</label>
+            <input type="text" class="form-control" id="date_from" name="date_from" data-date-picker placeholder="من تاريخ" value="{{ request.GET.date_from }}">
+          </div>
+          <div class="col-md-2">
+            <label for="date_to" class="form-label">{% trans "إلى تاريخ" %}</label>
+            <input type="text" class="form-control" id="date_to" name="date_to" data-date-picker placeholder="إلى تاريخ" value="{{ request.GET.date_to }}">
+          </div>
+          <div class="col-md-2 d-flex gap-2 align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+            </button>
+            <a href="{% url 'sale:quotation_list' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-undo"></i>
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  
+  <!-- قائمة عروض الأسعار -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "قائمة عروض الأسعار" %}</h5>
+    <div id="quotations-table-container">
+      {% if quotations %}
+      <div class="table-responsive">
+        <table id="quotations-table" class="transaction-table table-hover table-striped text-center" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>{% trans "رقم العرض" %}</th>
+              <th>{% trans "العميل" %}</th>
+              <th>{% trans "التاريخ" %}</th>
+              <th>{% trans "صالح حتى" %}</th>
+              <th>{% trans "المبلغ" %}</th>
+              <th>{% trans "الحالة" %}</th>
+              <th>{% trans "الفاتورة الناتجة" %}</th>
+              <th class="col-actions text-center">{% trans "الإجراءات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for quote in quotations %}
+            <tr data-id="{{ quote.id }}">
+              <td>{{ forloop.counter }}</td>
+              <td>
+                <div class="transaction-ref text-center">
+                  <span class="badge invoice-number"><i class="fas fa-file-invoice me-1"></i> {{ quote.number }}</span>
+                </div>
+              </td>
+              <td class="fw-bold text-start">{{ quote.customer.name }}</td>
+              <td>{{ quote.date|date:"Y-m-d" }}</td>
+              <td>{{ quote.valid_until|date:"Y-m-d"|default:"-" }}</td>
+              <td>
+                <span class="transaction-amount text-center d-block fw-bold">
+                  <span class="currency-symbol">{% currency_symbol %}</span> {{ quote.total|smart_float:2 }}
+                </span>
+              </td>
+              <td>
+                {% if quote.status == 'draft' %}
+                  <span class="badge bg-secondary">{% trans "مسودة" %}</span>
+                {% elif quote.status == 'sent' %}
+                  <span class="badge bg-info text-white">{% trans "تم الإرسال" %}</span>
+                {% elif quote.status == 'accepted' %}
+                  <span class="badge bg-success">{% trans "مقبول" %}</span>
+                {% elif quote.status == 'rejected' %}
+                  <span class="badge bg-danger">{% trans "مرفوض" %}</span>
+                {% elif quote.status == 'expired' %}
+                  <span class="badge bg-warning text-dark">{% trans "منتهي الصلاحية" %}</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if quote.converted_to_sale %}
+                  <a href="{% url 'sale:sale_detail' quote.converted_to_sale.pk %}" class="btn btn-xs btn-outline-success">
+                    <i class="fas fa-file-invoice-dollar me-1"></i>{{ quote.converted_to_sale.number }}
+                  </a>
+                {% else %}
+                  <span class="text-muted">-</span>
+                {% endif %}
+              </td>
+              <td class="col-actions text-center">
+                <div class="btn-group">
+                  <a href="{% url 'sale:quotation_detail' quote.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  {% if not quote.converted_to_sale %}
+                  <a href="{% url 'sale:quotation_edit' quote.id %}" class="btn btn-sm btn-outline-warning" title="{% trans 'تعديل' %}">
+                    <i class="fas fa-edit"></i>
+                  </a>
+                  <a href="{% url 'sale:quotation_delete' quote.id %}" class="btn btn-sm btn-outline-danger" title="{% trans 'حذف' %}">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                  {% endif %}
+                  <a href="{% url 'sale:quotation_print' quote.id %}" target="_blank" class="btn btn-sm btn-outline-dark" title="{% trans 'طباعة' %}">
+                    <i class="fas fa-print"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- إضافة زر تصدير البيانات -->
+      <div class="d-flex justify-content-end mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="quotations-table" data-filename="quotations.csv">
+          <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="quotations-table" data-filename="quotations.xlsx">
+          <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+        </button>
+      </div>
+      
+      {% else %}
+      <div class="text-center py-5">
+        <i class="fas fa-file-signature fa-3x text-muted mb-3"></i>
+        <p class="text-muted">{% trans "لا توجد عروض أسعار متاحة." %}</p>
+        <a href="{% url 'sale:quotation_create' %}" class="btn btn-primary btn-sm">
+          <i class="fas fa-plus me-1"></i>{% trans "إضافة عرض سعر جديد" %}
+        </a>
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- Django Pagination -->
+    <div id="pagination-wrapper">
+      {% if paginator.num_pages > 1 %}
+      <div class="card-footer bg-white border-0 py-3 mt-3">
+        {% include 'partials/pagination.html' with page_obj=page_obj align='center' %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  function initTableEvents() {
+    // جعل الصف كامل قابل للنقر للانتقال للتفاصيل
+    $('#quotations-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      var itemId = $(this).data('id');
+      if (itemId && itemId !== '0') {
+        window.location.href = "{% url 'sale:quotation_detail' 0 %}".replace('0', itemId);
+      }
+    }).css('cursor', 'pointer');
+  }
+
+  $(document).ready(function() {
+    $('.select2-filter').select2({ width: '100%', language: "ar", dir: "rtl" });
+    initTableEvents();
+    
+    // ضبط حجم الجدول عند تحميل الصفحة وعند تغيير حجم النافذة
+    function adjustTableSize() {
+      $('.table-responsive').css('max-height', '100%').css('overflow-y', 'visible');
+      $('#quotations-table').css('width', '100%');
+    }
+    
+    adjustTableSize();
+    $(window).resize(adjustTableSize);
+
+    // تصدير الجدول إلى CSV
+    $('.btn-export-table').on('click', function() {
+      const tableId = $(this).data('table');
+      const filename = $(this).data('filename');
+      exportTableToCSV(tableId, filename);
+    });
+    
+    // تصدير الجدول إلى Excel
+    $('.btn-export-excel').on('click', function() {
+      const tableId = $(this).data('table');
+      const filename = $(this).data('filename');
+      exportTableToExcel(tableId, filename);
+    });
+  });
+</script>
+{% endblock %}

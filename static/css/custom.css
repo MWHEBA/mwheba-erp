@@ -606,3 +606,8 @@ code, kbd, pre, samp {
         animation: none;
     }
 }
+
+/* إخفاء أيقونة ملحق الألوان المتصفح */
+.colorpick-eyedropper-input-trigger {
+    display: none !important;
+}

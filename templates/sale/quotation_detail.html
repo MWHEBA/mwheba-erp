@@ -1,0 +1,634 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load custom_filters %}
+{% load utils_extras %}
+{% load app_tags %}
+{% load module_tags %}
+
+{% block title %}{{ quotation.number }} - {% trans "تفاصيل عرض السعر" %}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/variables.css' %}">
+<style>
+    /* الحاوية الرئيسية لعرض السعر - نمط وثيقة مبيعات موحدة */
+    .quotation-container {
+        background-color: var(--white);
+        border-radius: var(--border-radius-lg);
+        box-shadow: var(--shadow-md);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    /* رأس صفحة عرض السعر */
+    .quotation-header {
+        position: relative;
+        background-color: var(--gray-50);
+        color: var(--text-dark);
+        padding: var(--spacing-6);
+        border: 1px solid var(--border-color);
+        border-radius: var(--border-radius);
+        margin-bottom: var(--spacing-5);
+        overflow: hidden;
+    }
+    
+    /* عناصر معلومات سريعة في رأس الصفحة */
+    .info-item {
+        display: flex;
+        align-items: center;
+    }
+    
+    .info-item i {
+        font-size: var(--font-size-lg);
+        width: 20px;
+    }
+    
+    /* بطاقة الملخص المالي السريع */
+    .total-summary {
+        background-color: var(--white);
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius-md);
+        border: 1px solid var(--border-color);
+    }
+    
+    /* رقم عرض السعر */
+    .quotation-number {
+        font-size: var(--font-size-2xl);
+        font-weight: var(--font-weight-bold);
+        margin-bottom: var(--spacing-1);
+    }
+    
+    /* حالة عرض السعر */
+    .quotation-status {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: var(--border-radius-full);
+        font-size: var(--font-size-sm);
+        font-weight: var(--font-weight-semibold);
+        margin-inline-start: var(--spacing-3);
+    }
+    
+    /* شارات الحالات المختلفة */
+    .status-draft {
+        background-color: var(--secondary-soft);
+        color: var(--secondary-dark);
+        border: 1px solid var(--border-color);
+    }
+    
+    .status-sent {
+        background-color: var(--info-soft);
+        color: var(--info-dark);
+        border: 1px solid var(--info-color);
+    }
+    
+    .status-accepted {
+        background-color: var(--success-soft);
+        color: var(--success-dark);
+        border: 1px solid var(--success-color);
+    }
+    
+    .status-rejected {
+        background-color: var(--danger-soft);
+        color: var(--danger-dark);
+        border: 1px solid var(--danger-color);
+    }
+    
+    .status-expired {
+        background-color: var(--warning-soft);
+        color: var(--warning-dark);
+        border: 1px solid var(--warning-color);
+    }
+    
+    .status-converted {
+        background-color: var(--success-soft);
+        color: var(--success-color);
+        border: 1px solid var(--success-color);
+    }
+    
+    /* جسم عرض السعر الداخلي */
+    .quotation-body {
+        padding: var(--spacing-6);
+    }
+    
+    /* بطاقة الطرف المرتبط (العميل / عرض السعر) */
+    .quotation-party {
+        padding: var(--spacing-4);
+        border-radius: var(--border-radius);
+        background-color: var(--gray-50);
+        border-inline-start: 4px solid var(--primary-color);
+        height: 100%;
+    }
+    
+    /* عناوين الأقسام الفرعية */
+    .party-title {
+        font-size: var(--font-size-lg);
+        font-weight: var(--font-weight-semibold);
+        color: var(--primary-color);
+        margin-bottom: var(--spacing-3);
+        border-bottom: 1px dashed var(--gray-300);
+        padding-bottom: var(--spacing-2);
+    }
+    
+    /* أسطر بيانات الأطراف */
+    .party-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: var(--spacing-2);
+        margin-bottom: var(--spacing-2);
+        padding-bottom: var(--spacing-1);
+        border-bottom: 1px solid var(--gray-100);
+    }
+    
+    .party-label {
+        font-weight: var(--font-weight-semibold);
+        color: var(--gray-600);
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+    
+    .party-value {
+        font-size: var(--font-size-base);
+        text-align: end;
+    }
+    
+    /* قسم بنود الجدول */
+    .quotation-items {
+        margin-top: var(--spacing-6);
+        margin-bottom: var(--spacing-6);
+    }
+    
+    .quotation-items table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+    
+    .quotation-items table thead th {
+        background-color: var(--gray-100);
+        padding: var(--spacing-3);
+        font-weight: var(--font-weight-semibold);
+        text-align: right;
+        border-bottom: 2px solid var(--primary-color);
+        border-top: 1px solid var(--gray-200);
+        color: var(--gray-700);
+    }
+    
+    .quotation-items table tbody tr {
+        transition: var(--transition-all);
+        font-size: var(--font-size-base);
+        line-height: var(--line-height-normal);
+    }
+    
+    .quotation-items table tbody tr td {
+        padding: 15px 10px;
+        vertical-align: middle;
+    }
+    
+    .quotation-items table tbody tr:hover {
+        background-color: var(--gray-50);
+    }
+    
+    /* صندوق ملخص المبالغ */
+    .quotation-summary {
+        background-color: var(--gray-50);
+        border-radius: var(--border-radius);
+        padding: var(--spacing-4);
+        margin-top: var(--spacing-6);
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--gray-200);
+    }
+    
+    .quotation-summary::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        inset-inline-start: 0;
+        height: 100%;
+        width: 6px;
+        background-color: var(--primary-color);
+    }
+    
+    .summary-row {
+        display: flex;
+        justify-content: space-between;
+        padding: var(--spacing-2) 0;
+        border-bottom: 1px dashed var(--gray-300);
+    }
+    
+    .summary-row:last-child {
+        border-bottom: none;
+        margin-top: var(--spacing-3);
+        padding-top: var(--spacing-3);
+        border-top: 2px solid var(--gray-300);
+        font-weight: var(--font-weight-bold);
+        font-size: var(--font-size-xl);
+        color: var(--primary-color);
+    }
+    
+    .summary-label {
+        font-weight: var(--font-weight-semibold);
+        color: var(--gray-600);
+    }
+    
+    .summary-value {
+        font-weight: var(--font-weight-semibold);
+    }
+    
+    /* شريط الإجراءات في أسفل الصفحة */
+    .action-bar {
+        background-color: var(--gray-50);
+        padding: 1.5rem;
+        margin-top: var(--spacing-5);
+        border-radius: var(--border-radius);
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 1rem;
+        border: 1px solid var(--gray-200);
+    }
+    
+    .action-bar-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+    }
+    
+    .action-button {
+        padding: 0.75rem 1.25rem;
+        border-radius: var(--border-radius);
+        font-weight: var(--font-weight-semibold);
+        border: none;
+        cursor: pointer;
+        transition: var(--transition-all);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        font-size: var(--font-size-base);
+        text-decoration: none;
+        color: var(--white);
+        min-width: 18%;
+    }
+    
+    .btn-edit {
+        background-color: var(--warning-color);
+        color: var(--white);
+    }
+    
+    .btn-delete {
+        background-color: var(--danger-color);
+        color: var(--white);
+    }
+    
+    .btn-print {
+        background-color: var(--info-color);
+        color: var(--white);
+    }
+    
+    .btn-work-order {
+        background-color: var(--primary-color);
+        color: var(--white);
+    }
+    
+    .action-button:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-md);
+        color: var(--white);
+        text-decoration: none;
+    }
+    
+    /* قسم الملاحظات والشروط */
+    .quotation-notes {
+        margin-top: var(--spacing-6);
+        padding: var(--spacing-4);
+        background-color: var(--gray-50);
+        border-radius: var(--border-radius);
+        border-inline-start: 4px solid var(--primary-color);
+    }
+    
+    .notes-title {
+        font-weight: var(--font-weight-semibold);
+        color: var(--gray-700);
+        margin-bottom: var(--spacing-2);
+    }
+    
+    .notes-content {
+        color: var(--gray-600);
+        line-height: var(--line-height-relaxed);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي الموحد للنظام -->
+  {% include "shared/page_header.html" %}
+
+  <div class="row">
+    <div class="col-12">
+      <div class="quotation-container">
+        <!-- ترويسة عرض السعر (الرقم والحالة والملخص السريع) -->
+        <div class="quotation-header">
+          <div class="row g-4">
+            <div class="col-lg-7">
+              <div class="d-flex align-items-center">
+                <div>
+                  <h4 class="quotation-number mb-1">{{ quotation.number }}</h4>
+                  <small class="text-muted">{% trans "عرض سعر للعميل" %}</small>
+                </div>
+                <span class="quotation-status 
+                  {% if quotation.converted_to_sale %}status-converted
+                  {% elif quotation.status == 'draft' %}status-draft
+                  {% elif quotation.status == 'sent' %}status-sent
+                  {% elif quotation.status == 'accepted' %}status-accepted
+                  {% elif quotation.status == 'rejected' %}status-rejected
+                  {% elif quotation.status == 'expired' %}status-expired
+                  {% else %}status-draft{% endif %}">
+                  {% if quotation.converted_to_sale %}
+                    {% trans "محول لفاتورة" %}
+                  {% else %}
+                    {{ quotation.get_status_display }}
+                  {% endif %}
+                </span>
+                {% if quotation.converted_to_sale %}
+                <span class="badge bg-success ms-2">
+                  <i class="fas fa-link me-1"></i>
+                  <a href="{% url 'sale:sale_detail' quotation.converted_to_sale.id %}" class="text-white text-decoration-none">
+                    {{ quotation.converted_to_sale.number }}
+                  </a>
+                </span>
+                {% endif %}
+              </div>
+            </div>
+            
+            <div class="col-lg-5">
+              <div class="total-summary">
+                <div class="text-end">
+                  <div class="row g-3">
+                    <div class="col-6">
+                      <div class="info-item">
+                        <i class="fas fa-calendar-alt text-primary me-2"></i>
+                        <div>
+                          <small class="text-muted d-block">{% trans "تاريخ العرض" %}</small>
+                          <span class="fw-medium">{{ quotation.date|date:"d-m-Y" }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="info-item">
+                        <i class="fas fa-money-bill-wave text-success me-2"></i>
+                        <div>
+                          <small class="text-muted d-block">{% trans "الإجمالي الكلي" %}</small>
+                          <span class="fw-medium text-primary">{{ quotation.total|smart_float:2 }} {% currency_symbol %}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- جسم عرض السعر -->
+        <div class="quotation-body">
+          <div class="row g-4 mb-4">
+            <!-- بطاقة معلومات العميل -->
+            <div class="col-md-6">
+              <div class="quotation-party">
+                <div class="party-title">
+                  <i class="fas fa-user me-2"></i> {% trans "معلومات العميل" %}
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "العميل:" %}</div>
+                  <div class="party-value">
+                    <a href="{% url 'client:customer_detail' quotation.customer.id %}" class="text-primary fw-bold text-decoration-none">
+                      <i class="fas fa-user-circle me-1"></i> {{ quotation.customer.name }}
+                    </a>
+                  </div>
+                </div>
+
+                <div class="party-info">
+                  <div class="party-label">{% trans "الهاتف:" %}</div>
+                  <div class="party-value">{{ quotation.customer.phone|default:"-" }}</div>
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "البريد الإلكتروني:" %}</div>
+                  <div class="party-value">{{ quotation.customer.email|default:"-" }}</div>
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "العنوان:" %}</div>
+                  <div class="party-value text-muted">{{ quotation.customer.address|default:"-" }}</div>
+                </div>
+              </div>
+            </div>
+            
+            <!-- بطاقة معلومات عرض السعر الفنية -->
+            <div class="col-md-6">
+              <div class="quotation-party">
+                <div class="party-title">
+                  <i class="fas fa-file-signature me-2"></i> {% trans "تفاصيل عرض السعر" %}
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "صالح حتى:" %}</div>
+                  <div class="party-value fw-bold text-warning">{{ quotation.valid_until|date:"d-m-Y"|default:"-" }}</div>
+                </div>
+                <div class="party-info">
+                  <div class="party-label">{% trans "المُنشئ:" %}</div>
+                  <div class="party-value">{{ quotation.created_by.username }}</div>
+                </div>
+                {% if quotation.warehouse %}
+                <div class="party-info">
+                  <div class="party-label">{% trans "المخزن الافتراضي:" %}</div>
+                  <div class="party-value">{{ quotation.warehouse.name }}</div>
+                </div>
+                {% endif %}
+                <div class="party-info">
+                  <div class="party-label">{% trans "تاريخ الإنشاء:" %}</div>
+                  <div class="party-value">{{ quotation.created_at|date:"d-m-Y h:i A" }}</div>
+                </div>
+                {% if quotation.work_order %}
+                <div class="party-info">
+                  <div class="party-label">{% trans "أمر الشغل المرتبط:" %}</div>
+                  <div class="party-value">
+                    <a href="{% url 'work_order:work_order_detail' quotation.work_order.id %}" class="text-info fw-bold text-decoration-none">
+                      <i class="fas fa-briefcase me-1"></i> {{ quotation.work_order.number }}
+                    </a>
+                  </div>
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+          <!-- شروط وأحكام عرض السعر وملاحظاته -->
+          {% if quotation.notes %}
+          <div class="quotation-notes">
+            <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "الشروط والأحكام والملاحظات" %}</div>
+            <div class="notes-content" style="white-space: pre-line;">{{ quotation.notes }}</div>
+          </div>
+          {% endif %}
+          
+          <!-- جدول بنود عرض السعر -->
+          <div class="quotation-items">
+            <div class="party-title border-0 pb-0 mb-3">
+              <i class="fas fa-boxes me-2"></i> {% trans "بنود عرض السعر" %}
+            </div>
+            <div class="table-responsive">
+              <table class="table align-middle text-center mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th class="text-start">{% trans "المنتج / الخدمة" %}</th>
+                    <th>{% trans "سعر الوحدة" %}</th>
+                    <th>{% trans "الكمية" %}</th>
+                    <th>{% trans "الخصم" %}</th>
+                    <th>{% trans "الإجمالي" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in items %}
+                  <tr>
+                    <td>{{ forloop.counter }}</td>
+                    <td class="text-start">
+                      <div class="fw-bold">{{ item.product.name }}</div>
+                      <small class="text-muted">{{ item.product.sku }}</small>
+                    </td>
+                    <td>{{ item.unit_price|smart_float:2 }} {% currency_symbol %}</td>
+                    <td class="fw-bold">{{ item.quantity|smart_float }}</td>
+                    <td>{{ item.discount|smart_float:2 }} {% currency_symbol %}</td>
+                    <td class="fw-bold text-success">{{ item.total|smart_float:2 }} {% currency_symbol %}</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          <!-- ملخص المبالغ والنسب الكلية -->
+          <div class="quotation-summary">
+            <div class="summary-row">
+              <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
+              <div class="summary-value">{{ quotation.subtotal|smart_float:2 }} {% currency_symbol %}</div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-label">{% trans "الخصم الإجمالي:" %}</div>
+              <div class="summary-value text-danger">{{ quotation.discount|smart_float:2 }} {% currency_symbol %}</div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-label">{% trans "الضريبة (14%):" %}</div>
+              <div class="summary-value">{{ quotation.tax|smart_float:2 }} {% currency_symbol %}</div>
+            </div>
+            <div class="summary-row">
+              <div class="summary-label">{% trans "الإجمالي الكلي:" %}</div>
+              <div class="summary-value text-success font-weight-bold">{{ quotation.total|smart_float:2 }} {% currency_symbol %}</div>
+            </div>
+          </div>
+          
+          <!-- شريط الإجراءات والتحويل المتكامل -->
+          <div class="action-bar">
+            <!-- استمارة التحويل لفاتورة مبيعات آجل (إذا لم يتم تحويلها مسبقاً) -->
+            {% if not quotation.converted_to_sale %}
+            <div class="p-3 bg-white border rounded mb-2">
+              <form method="post" action="{% url 'sale:quotation_convert_to_sale' quotation.id %}">
+                {% csrf_token %}
+                <div class="row align-items-end g-3">
+                  <div class="col-md-8 text-start">
+                    <label class="form-label small text-muted fw-bold">{% trans "مخزن الصرف المعتمد لتحويل الفاتورة:" %} <span class="text-danger">*</span></label>
+                    <select name="warehouse" class="form-select form-select-sm" required>
+                      {% for wh in warehouses %}
+                        <option value="{{ wh.id }}" {% if forloop.first %}selected{% endif %}>{{ wh.name }}</option>
+                      {% endfor %}
+                    </select>
+                  </div>
+                  <div class="col-md-4">
+                    <button type="submit" class="btn btn-success btn-sm w-100 py-2">
+                      <i class="fas fa-exchange-alt me-1"></i>{% trans "تحويل لفاتورة مبيعات آجل" %}
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+            {% endif %}
+            
+            <!-- أزرار التحكم والإجراءات المتاحة -->
+            <div class="action-bar-buttons">
+              <!-- إعدادات وإجراءات أمر الشغل المرتبط -->
+              {% is_module_enabled 'work_orders' as work_orders_enabled %}
+              {% if quotation.work_order %}
+              <a href="{% url 'work_order:work_order_detail' quotation.work_order.id %}" class="action-button btn-work-order">
+                <i class="fas fa-eye"></i>{% trans "عرض تفاصيل أمر الشغل" %}
+              </a>
+              {% elif work_orders_enabled %}
+              <a href="{% url 'work_order:work_order_create' %}?customer_id={{ quotation.customer.id }}&quotation_id={{ quotation.id }}" class="action-button btn-work-order">
+                <i class="fas fa-tasks"></i>{% trans "إنشاء أمر شغل مرتبط" %}
+              </a>
+              {% endif %}
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Actions Modal -->
+{% if not quotation.converted_to_sale %}
+<div class="modal fade" id="actionsModal" tabindex="-1" aria-labelledby="actionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="actionsModalLabel">
+          <i class="fas fa-cog me-2"></i> {% trans "خيارات إضافية" %}
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'إغلاق' %}"></button>
+      </div>
+      <div class="modal-body">
+        <div class="list-group">
+          <!-- تعديل عرض السعر -->
+          <a href="{% url 'sale:quotation_edit' quotation.id %}" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-edit fa-2x text-warning"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "تعديل عرض السعر" %}</div>
+              <small class="text-muted">{% trans "تعديل بنود أو قيم أو تفاصيل عرض السعر" %}</small>
+            </div>
+          </a>
+          
+          <!-- حذف عرض السعر -->
+          <a href="{% url 'sale:quotation_delete' quotation.id %}" id="delete-quotation-link" class="list-group-item list-group-item-action d-flex align-items-center">
+            <div class="me-3">
+              <i class="fas fa-trash fa-2x text-danger"></i>
+            </div>
+            <div>
+              <div class="fw-bold">{% trans "حذف عرض السعر" %}</div>
+              <small class="text-muted">{% trans "حذف عرض السعر نهائياً من النظام" %}</small>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+{{ block.super }}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var deleteLink = document.getElementById('delete-quotation-link');
+        if (deleteLink) {
+            deleteLink.addEventListener('click', function(e) {
+                if (!confirm('{% trans "هل أنت متأكد من حذف عرض السعر هذا؟" %}')) {
+                    e.preventDefault();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

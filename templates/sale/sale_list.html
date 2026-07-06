@@ -50,6 +50,7 @@
             {% endfor %}
           </select>
         </div>
+        {% if allowed_item_types != 'services' %}
         <div class="col-md-2">
           <label for="warehouse" class="form-label">{% trans "المخزن" %}</label>
           <select class="form-select select2-filter" id="warehouse" name="warehouse">
@@ -61,6 +62,7 @@
             {% endfor %}
           </select>
         </div>
+        {% endif %}
         <div class="col-md-2">
           <label for="payment_status" class="form-label">{% trans "حالة الدفع" %}</label>
           <select class="form-select" id="payment_status" name="payment_status">
@@ -90,26 +92,19 @@
   
   <!-- قائمة فواتير المبيعات -->
   <div class="section-container">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="card-title mb-0"><i class="fas fa-list me-2"></i>{% trans "قائمة فواتير المبيعات" %}</h5>
-      </div>
-      <div class="card-body">
-        {% if sales %}
-        <div id="sales-table-container">
-        <!-- استخدام قالب الجدول الموحد -->
-          {% with table_id="sales-table" %}
-            {% with headers=sale_headers %}
-              {% with data=sales %}
-                {% with empty_message="لا توجد فواتير مبيعات متاحة" %}
-                  {% with table_class="hover" %}
-                    {% with primary_key="id" %}
-                      {% with clickable_rows=True row_click_url="/sales/0/" %}
-                        {% with show_currency=True %}
-                          {% with disable_pagination=True show_search=False show_length_menu=False sortable=False %}
-                            {% include "components/data_table.html" %}
-                          {% endwith %}
-                        {% endwith %}
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "قائمة فواتير المبيعات" %}</h5>
+    <div id="sales-table-container">
+    <!-- استخدام قالب الجدول الموحد -->
+      {% with table_id="sales-table" %}
+        {% with headers=sale_headers %}
+          {% with data=sales %}
+            {% with empty_message="لا توجد فواتير مبيعات متاحة" %}
+              {% with table_class="hover" %}
+                {% with primary_key="id" %}
+                  {% with clickable_rows=True row_click_url="/sales/0/" %}
+                    {% with show_currency=True %}
+                      {% with disable_pagination=True show_search=False show_length_menu=False sortable=False %}
+                        {% include "components/data_table.html" %}
                       {% endwith %}
                     {% endwith %}
                   {% endwith %}
@@ -117,31 +112,29 @@
               {% endwith %}
             {% endwith %}
           {% endwith %}
-        </div>
-        
-        <!-- إضافة زر تصدير البيانات -->
-        <div class="d-flex justify-content-end mt-3">
-          <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="sales-table" data-filename="sales.csv">
-            <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
-          </button>
-          <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="sales-table" data-filename="sales.xlsx">
-            <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
-          </button>
-        </div>
-        
-        {% else %}
-          {% include 'partials/empty_state.html' with message="لا توجد فواتير مبيعات متاحة" icon="shopping-bag" %}
-        {% endif %}
+        {% endwith %}
+      {% endwith %}
+    </div>
+    
+    {% if sales %}
+    <!-- إضافة زر تصدير البيانات -->
+    <div class="d-flex justify-content-end mt-3">
+      <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="sales-table" data-filename="sales.csv">
+        <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="sales-table" data-filename="sales.xlsx">
+        <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+      </button>
+    </div>
+    {% endif %}
 
-        <!-- Django Pagination -->
-        <div id="pagination-wrapper">
-        {% if paginator and paginator.num_pages > 1 %}
-        <div class="card-footer mt-3">
-          {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
-        </div>
-        {% endif %}
-        </div>
-      </div>
+    <!-- Django Pagination -->
+    <div id="pagination-wrapper">
+    {% if paginator and paginator.num_pages > 1 %}
+    <div class="card-footer mt-3">
+      {% include "partials/pagination.html" with page_obj=page_obj align="center" %}
+    </div>
+    {% endif %}
     </div>
   </div>
 </div>

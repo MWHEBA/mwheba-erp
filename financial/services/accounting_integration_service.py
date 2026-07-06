@@ -86,7 +86,7 @@ class AccountingIntegrationService:
                     ]
                     
                     # قيد الإيرادات (دائن)
-                    revenue_account = cls._get_category_revenue_account(category_name) or accounts["sales_revenue"]
+                    revenue_account = cls._get_fee_revenue_account(category_name) or accounts["sales_revenue"]
                     lines.append(
                         JournalEntryLineData(
                             account_code=revenue_account.code,

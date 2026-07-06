@@ -476,6 +476,9 @@ def activity_log(request):
     """
     عرض سجل النشاطات مع إمكانية الفلترة
     """
+    from django.core.paginator import Paginator
+    import datetime
+
     # التحقق من صلاحيات المستخدم
     if not request.user.is_admin and not request.user.is_superuser:
         return render(
@@ -501,23 +504,36 @@ def activity_log(request):
     date_from = request.GET.get('date_from')
     date_to = request.GET.get('date_to')
     if date_from:
-        activities = activities.filter(timestamp__date__gte=date_from)
+        try:
+            dt_from = datetime.datetime.strptime(date_from, '%Y-%m-%d')
+            activities = activities.filter(timestamp__gte=dt_from)
+        except ValueError:
+            pass
     if date_to:
-        activities = activities.filter(timestamp__date__lte=date_to)
+        try:
+            dt_to = datetime.datetime.strptime(date_to, '%Y-%m-%d') + datetime.timedelta(days=1)
+            activities = activities.filter(timestamp__lt=dt_to)
+        except ValueError:
+            pass
     
-    # ترتيب وتحديد العدد
-    activities = activities.order_by("-timestamp")[:100]
+    # ترتيب
+    activities = activities.order_by("-timestamp")
+    
+    # ترقيم الصفحات
+    paginator = Paginator(activities, 50)
+    page_number = request.GET.get('page', 1)
+    page_obj = paginator.get_page(page_number)
     
     # جلب قائمة المستخدمين للفلترة
     users = User.objects.filter(is_active=True).order_by('username')
 
     context = {
-        "activities": activities,
+        "page_obj": page_obj,
         "users": users,
-        "selected_user": user_filter,
-        "selected_action": action_filter,
-        "date_from": date_from,
-        "date_to": date_to,
+        "selected_user": user_filter or '',
+        "selected_action": action_filter or '',
+        "date_from": date_from or '',
+        "date_to": date_to or '',
         "page_title": "سجل النشاطات",
         "page_subtitle": "عرض آخر النشاطات التي تمت في النظام",
         "page_icon": "fas fa-history",

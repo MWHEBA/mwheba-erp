@@ -73,20 +73,12 @@
     transition: color 0.3s ease;
 }
 
-.supplier-type-card.selected .supplier-type-icon {
-    /* اللون سيتم تحديده من JavaScript */
-}
-
 .supplier-type-title {
     font-size: 1.1rem;
     font-weight: 600;
     color: #858796;
     margin: 0;
     transition: color 0.3s ease;
-}
-
-.supplier-type-card.selected .supplier-type-title {
-    /* اللون سيتم تحديده من JavaScript */
 }
 
 .help-text {
@@ -130,10 +122,15 @@
                             <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="{{ form.code.id_for_label }}" class="form-label">كود المورد</label>
-                                    <input type="text" class="form-control bg-light" id="{{ form.code.id_for_label }}" 
-                                           value="{% if supplier %}{{ supplier.code }}{% else %}سيتم التوليد التلقائي عند الحفظ (SUP001, SUP002, SUP003, ...){% endif %}" 
-                                           readonly disabled>
-                                    <div class="help-text">يتم إنشاء الكود تلقائياً عند الحفظ</div>
+                                    <div class="input-group">
+                                        {{ form.code }}
+                                        <button class="btn btn-outline-secondary" type="button" id="toggle-supplier-code">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                    </div>
+                                    {% if form.code.errors %}
+                                        <div class="text-danger small">{{ form.code.errors.0 }}</div>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -251,7 +248,7 @@
                             <div class="supplier-types-grid {% if supplier %}disabled-grid{% endif %}">
                                 {% for type in form.fields.primary_type.queryset %}
                                     <div class="supplier-type-card {% if form.instance.primary_type.id == type.id %}active{% endif %}" 
-                                         onclick="{% if not supplier %}selectSupplierType(this, {{ type.id }}){% endif %}"
+                                         onclick="selectSupplierType(this)"
                                          data-type-id="{{ type.id }}"
                                          data-icon="{{ type.settings.icon|default:type.icon }}"
                                          data-color="{{ type.settings.color|default:type.color }}"
@@ -279,7 +276,8 @@
                     </div>
 
 <script>
-function selectSupplierType(card, typeId) {
+function selectSupplierType(card) {
+    const typeId = card.getAttribute('data-type-id');
     // إزالة active من جميع البطاقات
     document.querySelectorAll('.supplier-type-card').forEach(c => {
         c.classList.remove('active');
@@ -510,29 +508,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    /* تلقائية إنشاء كود للمورد إذا كانت الصفحة إضافة مورد جديد */
-    {% if not supplier %}
-        const nameField = document.getElementById('{{ form.name.id_for_label }}');
-        const codeField = document.getElementById('{{ form.code.id_for_label }}');
-        
-        if (nameField && codeField) {
-            nameField.addEventListener('blur', function() {
-                if (!codeField.value.trim()) {
-                    const name = this.value.trim();
-                    if (name) {
-                        /* أخذ أول 3 أحرف من الاسم وإضافة تاريخ */
-                        let code = name.substring(0, 3).toUpperCase();
-                        const date = new Date();
-                        const dateStr = date.getFullYear().toString().substr(-2) + 
-                                       (date.getMonth() + 1).toString().padStart(2, '0') +
-                                       date.getDate().toString().padStart(2, '0');
-                        code += dateStr;
-                        codeField.value = code;
-                    }
-                }
-            });
-        }
-    {% endif %}
+
     
     /* تحديد حالة الكروت المحددة مسبقاً */
     document.querySelectorAll('.supplier-type-card').forEach(function(card) {
@@ -548,6 +524,26 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         }
     });
+
+    /* إضافة مستمع لتفعيل تعديل كود المورد */
+    const toggleBtn = document.getElementById('toggle-supplier-code');
+    const codeInput = document.getElementById('{{ form.code.id_for_label }}');
+    if (toggleBtn && codeInput) {
+        toggleBtn.addEventListener('click', function() {
+            if (codeInput.hasAttribute('readonly')) {
+                codeInput.removeAttribute('readonly');
+                codeInput.focus();
+                toggleBtn.innerHTML = '<i class="fas fa-lock"></i>';
+                toggleBtn.classList.remove('btn-outline-secondary');
+                toggleBtn.classList.add('btn-outline-primary');
+            } else {
+                codeInput.setAttribute('readonly', 'readonly');
+                toggleBtn.innerHTML = '<i class="fas fa-edit"></i>';
+                toggleBtn.classList.remove('btn-outline-primary');
+                toggleBtn.classList.add('btn-outline-secondary');
+            }
+        });
+    }
 });
 
 /* دالة تحميل الأيقونات والألوان */

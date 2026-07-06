@@ -468,6 +468,7 @@
                             <div class="party-title">
                                 <i class="fas fa-file-invoice me-2"></i> {% trans "معلومات الفاتورة" %}
                             </div>
+                            {% if not is_service_invoice %}
                             <div class="party-info">
                                 <div class="party-label">{% trans "المخزن:" %}</div>
                                 <div class="party-value">
@@ -476,6 +477,7 @@
                                     </a>
                                 </div>
                             </div>
+                            {% endif %}
                             <div class="party-info">
                                 <div class="party-label">{% trans "طريقة الدفع:" %}</div>
                                 <div class="party-value">{{ sale.get_payment_method_display }}</div>
@@ -765,6 +767,9 @@
 {% endblock %}
 
 {% block extra_js %}
+{% if show_post_alert %}
+<div id="django-post-alert-data" class="d-none" data-payment-id="{{ show_post_alert.payment_id }}"></div>
+{% endif %}
 <script>
     $(document).ready(function() {
         // إصلاح مشكلة القوائم المنسدلة في بوتستراب 5
@@ -847,14 +852,16 @@
     });
     
     // عرض SweetAlert للترحيل بعد حفظ الدفعة
-    {% if show_post_alert %}
     document.addEventListener('DOMContentLoaded', function() {
-        showPostAfterSaveAlert(
-            '',
-            '/sales/payments/{{ show_post_alert.payment_id }}/post/',
-            'الدفعة'
-        );
+        var postAlertData = document.getElementById('django-post-alert-data');
+        if (postAlertData) {
+            var paymentId = postAlertData.getAttribute('data-payment-id');
+            showPostAfterSaveAlert(
+                '',
+                '/sales/payments/' + paymentId + '/post/',
+                'الدفعة'
+            );
+        }
     });
-    {% endif %}
 </script>
 {% endblock %} 

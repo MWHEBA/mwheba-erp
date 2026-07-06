@@ -61,6 +61,16 @@ class SalePayment(PaymentAuditMixin, models.Model):
         verbose_name=_("المعاملة المالية"),
     )
 
+    # ربط بدفعة العميل المقدمة (العربون)
+    customer_payment = models.ForeignKey(
+        "client.CustomerPayment",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("دفعة العميل المقدمة"),
+        related_name="allocations",
+    )
+
     # حقل للإشارة إلى حركة الخزن المرتبطة (تم إزالة CashMovement)
     # cash_movement = models.ForeignKey('financial.CashMovement', on_delete=models.SET_NULL,
     #                                  null=True, blank=True, verbose_name=_('حركة الخزن'))

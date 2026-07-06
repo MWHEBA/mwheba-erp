@@ -81,6 +81,22 @@
                             </a>
                         </li>
                         
+                        <!-- عروض الأسعار -->
+                        {% if settings.enable_quotations %}
+                        <div class="nav-divider"></div>
+                        <li class="submenu-title">عروض الأسعار</li>
+                        <li>
+                            <a href="{% url 'sale:quotation_list' %}" class="submenu-link">
+                                <i class="fas fa-file-signature me-2"></i>{% trans "عروض الأسعار" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'sale:quotation_create' %}" class="submenu-link">
+                                <i class="fas fa-plus-square me-2"></i>{% trans "إضافة عرض سعر" %}
+                            </a>
+                        </li>
+                        {% endif %}
+                        
                         <div class="nav-divider"></div>
                         
                         <!-- المرتجعات -->
@@ -88,6 +104,30 @@
                         <li>
                             <a href="{% url 'sale:sale_return_list' %}" class="submenu-link">
                                 <i class="fas fa-undo-alt me-2"></i>{% trans "مرتجعات المبيعات" %}
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endif %}
+
+                <!-- أوامر الشغل (Work Orders) -->
+                {% is_module_enabled 'work_orders' as work_orders_enabled %}
+                {% if work_orders_enabled %}
+                <li class="sidebar-item">
+                    <a href="#workOrderMenu" class="sidebar-link collapsed {% if active_menu == 'work_orders' %}active{% endif %}" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-tasks sidebar-icon"></i>
+                        <span class="sidebar-text">{% trans "أوامر الشغل" %}</span>
+                        <i class="fas fa-chevron-down sidebar-arrow"></i>
+                    </a>
+                    <ul class="collapse list-unstyled submenu {% if active_menu == 'work_orders' %}show{% endif %}" id="workOrderMenu">
+                        <li>
+                            <a href="{% url 'work_order:work_order_list' %}" class="submenu-link">
+                                <i class="fas fa-list me-2"></i>{% trans "قائمة أوامر الشغل" %}
+                            </a>
+                        </li>
+                        <li>
+                            <a href="{% url 'work_order:work_order_create' %}" class="submenu-link">
+                                <i class="fas fa-plus me-2"></i>{% trans "إضافة أمر شغل" %}
                             </a>
                         </li>
                     </ul>

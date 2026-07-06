@@ -13,6 +13,10 @@
         max-height: 150px;
         padding: 0.5rem;
     }
+    /* إخفاء أيقونة ملحق الألوان للمتصفح */
+    .colorpick-eyedropper-input-trigger {
+        display: none !important;
+    }
 </style>
 {% endblock %}
 
@@ -92,7 +96,9 @@
                                         اسم الشركة بالإنجليزية
                                     </div>
                                 </div>
-                                
+                            </div>
+                            
+                            <div class="col-md-6">
                                 <div class="mb-3">
                                     <label for="company_tax_number" class="form-label">الرقم الضريبي <span class="text-danger">*</span></label>
                                     <input type="text" class="form-control" id="company_tax_number" name="company_tax_number" 
@@ -110,38 +116,6 @@
                                     <div class="help-text">
                                         <i class="fas fa-info-circle"></i>
                                         رقم السجل التجاري للشركة
-                                    </div>
-                                </div>
-                            </div>
-                            
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="company_country" class="form-label">الدولة <span class="text-danger">*</span></label>
-                                    <input type="text" class="form-control" id="company_country" name="company_country" 
-                                        value="{{ company_country }}">
-                                    <div class="help-text">
-                                        <i class="fas fa-info-circle"></i>
-                                        الدولة التي تعمل فيها الشركة
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="company_city" class="form-label">المدينة</label>
-                                    <input type="text" class="form-control" id="company_city" name="company_city" 
-                                        value="{{ company_city }}">
-                                    <div class="help-text">
-                                        <i class="fas fa-info-circle"></i>
-                                        المدينة
-                                    </div>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="company_state" class="form-label">المحافظة</label>
-                                    <input type="text" class="form-control" id="company_state" name="company_state" 
-                                        value="{{ company_state }}">
-                                    <div class="help-text">
-                                        <i class="fas fa-info-circle"></i>
-                                        المحافظة
                                     </div>
                                 </div>
                                 
@@ -164,12 +138,30 @@
                     <div class="tab-pane fade" id="contact" role="tabpanel">
                         <div class="row">
                             <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="company_country" class="form-label">الدولة <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="company_country" name="company_country" 
+                                            value="{{ company_country }}">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="company_state" class="form-label">المحافظة</label>
+                                        <input type="text" class="form-control" id="company_state" name="company_state" 
+                                            value="{{ company_state }}">
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="company_city" class="form-label">المدينة</label>
+                                        <input type="text" class="form-control" id="company_city" name="company_city" 
+                                            value="{{ company_city }}">
+                                    </div>
+                                </div>
+
                                 <div class="mb-3">
-                                    <label for="company_address" class="form-label">عنوان الشركة <span class="text-danger">*</span></label>
-                                    <textarea class="form-control" id="company_address" name="company_address" rows="3">{{ company_address }}</textarea>
+                                    <label for="company_address" class="form-label">العنوان بالتفصيل <span class="text-danger">*</span></label>
+                                    <textarea class="form-control" id="company_address" name="company_address" rows="2">{{ company_address }}</textarea>
                                     <div class="help-text">
                                         <i class="fas fa-info-circle"></i>
-                                        العنوان الكامل للشركة
+                                        العنوان الكامل للشركة (اسم الشارع، رقم المبنى، الحي)
                                     </div>
                                 </div>
                                 

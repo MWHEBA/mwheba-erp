@@ -48,12 +48,14 @@ class BlockedIPMiddleware(MiddlewareMixin):
     @staticmethod
     def get_client_ip(request):
         """Extract client IP from request"""
+        if not request or not hasattr(request, 'META'):
+            return '127.0.0.1'
         x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
         if x_forwarded_for:
             ip = x_forwarded_for.split(',')[0].strip()
         else:
             ip = request.META.get('REMOTE_ADDR')
-        return ip
+        return ip or '127.0.0.1'
 
 
 class SessionTrackingMiddleware(MiddlewareMixin):

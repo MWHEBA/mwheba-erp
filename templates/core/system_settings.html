@@ -104,13 +104,13 @@
                                 transition: all 0.3s ease;
                             }
                             #settingsTabs .nav-link:hover {
-                                color: #0e3178;
-                                border-bottom-color: rgba(1, 87, 138, 0.3);
+                                color: var(--primary-color);
+                                border-bottom-color: rgba(var(--primary-rgb, 4, 87, 141), 0.3);
                             }
                             #settingsTabs .nav-link.active {
-                                color: #0e3178;
+                                color: var(--primary-color);
                                 background-color: transparent;
-                                border-bottom-color: #0e3178;
+                                border-bottom-color: var(--primary-color);
                                 font-weight: 600;
                             }
                         </style>
@@ -293,6 +293,28 @@
                                         {% endif %}
                                         <small class="form-text text-muted">
                                             <i class="fas fa-info-circle"></i> حدد عرض الورق الافتراضي لطباعة الفواتير الحرارية (80 مم أو 58 مم)
+                                        </small>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ form.sale_invoice_item_types.label_tag }}
+                                        {{ form.sale_invoice_item_types }}
+                                        {% if form.sale_invoice_item_types.errors %}
+                                            <div class="text-danger small mt-1">{{ form.sale_invoice_item_types.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> حدد أنواع العناصر المسموح ببيعها في فواتير المبيعات (منتجات، خدمات، أو كلاهما)
+                                        </small>
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <div class="form-check form-switch mb-2">
+                                            {{ form.enable_quotations }}
+                                            <label class="form-check-label fw-bold" for="{{ form.enable_quotations.id_for_label }}">
+                                                تفعيل عروض الأسعار
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> تفعيل إمكانية إنشاء عروض أسعار للعملاء وإدارتها وتحويلها لفواتير مبيعات
                                         </small>
                                     </div>
                                     

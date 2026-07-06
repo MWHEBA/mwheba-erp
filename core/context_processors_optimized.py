@@ -55,8 +55,8 @@ def global_settings(request):
                 
                 settings_dict[key] = value
             
-            # Cache لمدة 5 دقائق
-            cache.set(cache_key, settings_dict, 300)
+            # Cache لمدة 15 ثانية (لتفادي تأخير التحديث بين العمليات المتعددة)
+            cache.set(cache_key, settings_dict, 15)
             
         except Exception as e:
             logger.error(f"Error loading global settings: {e}")

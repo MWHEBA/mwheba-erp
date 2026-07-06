@@ -272,20 +272,33 @@ def company_settings(request):
             "color_sidebar_bg", "color_header_bg",
         ]
         
-        # حفظ كل إعداد (حتى لو فارغ عشان نسمح بالمسح)
+        # تحسين الأداء: جلب جميع الإعدادات الحالية بطلب واحد لتجنب استعلامات قاعدة البيانات المتكررة
+        existing_settings = {s.key: s for s in SystemSetting.objects.filter(key__in=settings_fields)}
+        
+        # حفظ كل إعداد فقط إذا تم تعديله
         for field in settings_fields:
             value = request.POST.get(field, "").strip()
-            setting, created = SystemSetting.objects.get_or_create(
-                key=field,
-                defaults={"value": value}
-            )
-            if not created:
-                setting.value = value
-                setting.save()
+            
+            if field in existing_settings:
+                setting = existing_settings[field]
+                # حفظ التعديل فقط إذا كانت القيمة مختلفة أو غير نشط
+                if setting.value != value or not setting.is_active:
+                    setting.value = value
+                    setting.is_active = True
+                    setting.save()
+            else:
+                SystemSetting.objects.create(
+                    key=field,
+                    value=value,
+                    is_active=True
+                )
 
         # مسح الـ cache عشان التغييرات تظهر فوراً في جميع الصفحات
-        from django.core.cache import cache
-        cache.delete('global_settings_dict_v2')
+        try:
+            from django.core.cache import cache
+            cache.delete('global_settings_dict_v2')
+        except Exception as e:
+            logger.error(f"Error clearing global settings cache: {e}")
 
         messages.success(request, "تم حفظ إعدادات الشركة بنجاح")
         return redirect("core:company_settings")
@@ -417,13 +430,16 @@ def system_settings(request):
         'email_encryption': settings_dict.get('email_encryption', 'tls'),
         'email_from': settings_dict.get('email_from', ''),
         'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
+        'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
+        'enable_quotations': settings_dict.get('enable_quotations') == 'true',
     }
 
     # معالجة حفظ الإعدادات عند POST
     if request.method == "POST":
         form = SystemSettingsForm(request.POST)
         if form.is_valid():
-            # حفظ كل حقول الفورم
+            # تجميع الحقول والبيانات لحفظها بشكل محسن
+            target_settings = {}
             for key, value in form.cleaned_data.items():
                 db_key = key
                 if key == 'timezone':
@@ -439,44 +455,63 @@ def system_settings(request):
                 else:
                     db_value = str(value)
                 
-                setting, created = SystemSetting.objects.get_or_create(
-                    key=db_key,
-                    defaults={"value": db_value}
-                )
-                if not created:
-                    setting.value = db_value
-                    setting.save()
+                target_settings[db_key] = db_value
 
             # حفظ الحقول الإضافية غير الموجودة في الفورم مباشرة
             for field in ["site_name", "site_name_en", "time_format", "items_per_page"]:
                 val = request.POST.get(field)
                 if val is not None:
-                    setting, created = SystemSetting.objects.get_or_create(
-                        key=field,
-                        defaults={"value": val}
-                    )
-                    if not created:
-                        setting.value = val
-                        setting.save()
+                    target_settings[field] = val
 
             # حفظ إعدادات دفترة
             daftra_enabled = 'true' if request.POST.get('daftra_enabled') else 'false'
-            for field, value in [
-                ("daftra_enabled", daftra_enabled),
-                ("daftra_domain", request.POST.get("daftra_domain", "").strip()),
-                ("daftra_api_key", request.POST.get("daftra_api_key", "").strip()),
-            ]:
-                setting, created = SystemSetting.objects.get_or_create(
-                    key=field,
-                    defaults={"value": value, "group": "system", "data_type": "string",
-                              "description": "إعداد دفترة - " + field}
-                )
-                if not created:
-                    setting.value = value
-                    setting.save()
+            target_settings["daftra_enabled"] = daftra_enabled
+            target_settings["daftra_domain"] = request.POST.get("daftra_domain", "").strip()
+            target_settings["daftra_api_key"] = request.POST.get("daftra_api_key", "").strip()
+
+            # جلب جميع الإعدادات الحالية بطلب واحد لتجنب الاستعلامات المتكررة
+            all_keys = list(target_settings.keys())
+            existing_settings = {s.key: s for s in SystemSetting.objects.filter(key__in=all_keys)}
+
+            # حفظ التعديلات فقط
+            for db_key, db_value in target_settings.items():
+                if db_key in existing_settings:
+                    setting = existing_settings[db_key]
+                    if setting.value != db_value or not setting.is_active:
+                        setting.value = db_value
+                        setting.is_active = True
+                        setting.save()
+                else:
+                    # بناء الديفلتس لإعدادات دفترة أو إعدادات عامة أو المبيعات
+                    if db_key.startswith("daftra_"):
+                        group_val = "system"
+                        desc_val = f"إعداد دفترة - {db_key}"
+                    elif db_key == "sale_invoice_item_types":
+                        group_val = "sales"
+                        desc_val = "أنواع بنود فاتورة المبيعات المسموحة"
+                    elif db_key == "enable_quotations":
+                        group_val = "sales"
+                        desc_val = "تفعيل ميزة عروض الأسعار"
+                    else:
+                        group_val = "general"
+                        desc_val = ""
+                    
+                    data_type_val = "string"
+                    
+                    SystemSetting.objects.create(
+                        key=db_key,
+                        value=db_value,
+                        group=group_val,
+                        data_type=data_type_val,
+                        description=desc_val,
+                        is_active=True
+                    )
 
             # حذف الكاش لتحديث الإعدادات العامة فوراً
-            cache.delete('global_settings_dict_v2')
+            try:
+                cache.delete('global_settings_dict_v2')
+            except Exception as e:
+                logger.error(f"Error clearing global settings cache: {e}")
 
             messages.success(request, "تم حفظ إعدادات النظام بنجاح")
             return redirect("core:system_settings")
@@ -692,11 +727,12 @@ def whatsapp_settings(request):
             str_value = str(value).lower() if isinstance(value, bool) else str(value)
             setting, _ = SystemSetting.objects.get_or_create(
                 key=key,
-                defaults={"value": str_value, "data_type": data_type, "group": "whatsapp"}
+                defaults={"value": str_value, "data_type": data_type, "group": "whatsapp", "is_active": True}
             )
             setting.value = str_value
             setting.data_type = data_type
             setting.group = "whatsapp"
+            setting.is_active = True
             setting.save()
 
         messages.success(request, "تم حفظ إعدادات WhatsApp بنجاح ✅")

@@ -109,6 +109,16 @@ class Purchase(models.Model):
         help_text=_("بيانات إضافية خاصة بالخدمة (JSON)")
     )
 
+    # ربط بأمر الشغل
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر الشغل المرتبط"),
+        related_name="purchases",
+    )
+
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)
     created_by = models.ForeignKey(

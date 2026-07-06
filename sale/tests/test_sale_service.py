@@ -39,8 +39,7 @@ def customer(db, user, chart_of_accounts):
         phone='01234567890',
         email='customer@test.com',
         client_type='individual',
-        user=user,
-        create_financial_account=True
+        user=user
     )
     
     return customer

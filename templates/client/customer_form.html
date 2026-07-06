@@ -90,6 +90,45 @@
 
 {% block extra_js %}
 <script>
-    // لا حاجة لتوليد الكود يدوياً - الكود يتولد تلقائياً من الباك إند
+    document.addEventListener('DOMContentLoaded', function() {
+        const codeInput = document.getElementById('id_code');
+        if (codeInput) {
+            // Create an input-group wrapper
+            const wrapper = document.createElement('div');
+            wrapper.className = 'input-group';
+            
+            // Insert wrapper before codeInput in DOM
+            codeInput.parentNode.insertBefore(wrapper, codeInput);
+            
+            // Move codeInput into the wrapper
+            wrapper.appendChild(codeInput);
+            
+            // Create edit button
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-outline-secondary';
+            button.id = 'toggle-customer-code';
+            button.innerHTML = '<i class="fas fa-edit"></i>';
+            
+            // Append button to wrapper
+            wrapper.appendChild(button);
+            
+            // Add click listener
+            button.addEventListener('click', function() {
+                if (codeInput.hasAttribute('readonly')) {
+                    codeInput.removeAttribute('readonly');
+                    codeInput.focus();
+                    button.innerHTML = '<i class="fas fa-lock"></i>';
+                    button.classList.remove('btn-outline-secondary');
+                    button.classList.add('btn-outline-primary');
+                } else {
+                    codeInput.setAttribute('readonly', 'readonly');
+                    button.innerHTML = '<i class="fas fa-edit"></i>';
+                    button.classList.remove('btn-outline-primary');
+                    button.classList.add('btn-outline-secondary');
+                }
+            });
+        }
+    });
 </script>
 {% endblock %} 

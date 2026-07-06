@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load crispy_forms_tags %}
@@ -14,6 +14,9 @@
 <link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
 <style>
     /* جميع الستايلات موجودة في shared-components.css و components.css */
+    .swal2-container {
+        z-index: 100000 !important;
+    }
     
     .item-row {
         position: relative;
@@ -118,6 +121,27 @@
 
 {% block content %}
 <div class="container-fluid">
+    <div id="django-purchase-form-data" class="d-none"
+         data-purchase-id="{{ purchase.id|default:0 }}"
+         data-has-financial-category="{% if purchase.id and form.financial_category.value %}true{% else %}false{% endif %}"
+         data-is-duplicate="{% if is_duplicate %}true{% else %}false{% endif %}"
+         data-is-service-invoice="{% if is_service_invoice %}true{% else %}false{% endif %}"
+         data-currency-symbol="{{ currency_symbol }}"
+         data-financial-category-required="{% if form.financial_category.field.required %}true{% else %}false{% endif %}"
+    ></div>
+    
+    <script type="application/json" id="duplicate-data-json">
+      {
+        "items": {% if duplicate_items %}{{ duplicate_items|safe }}{% else %}[]{% endif %},
+        "invoiceType": "{{ duplicate_invoice_type|default:'' }}",
+        "paymentMethod": "{{ duplicate_payment_method|default:'' }}",
+        "financialCategoryId": "{{ duplicate_financial_category_id|default:'' }}",
+        "supplierId": "{{ selected_supplier.id|default:'' }}",
+        "warehouseId": "{% if default_warehouse %}{{ default_warehouse.id }}{% endif %}",
+        "discount": "{{ form.initial.discount|default:'0' }}"
+      }
+    </script>
+
     <!-- Page Header المركزي -->
     {% include "shared/page_header.html" %}
 
@@ -187,7 +211,14 @@
                     <h6 class="text-muted mb-3 fw-medium" id="supplier-section-title">المورد والمخزن</h6>
                     <div class="row g-4">
                         <div class="col-12 col-lg-6">
-                            <label class="form-label text-dark">المورد <span class="text-danger">*</span></label>
+                            <label class="form-label text-dark d-flex justify-content-between align-items-center w-100">
+                                <span>المورد <span class="text-danger">*</span></span>
+                                {% if not purchase.id %}
+                                <button type="button" class="btn btn-link btn-sm p-0 text-decoration-none" id="btn-add-supplier-modal" style="color: var(--bs-primary); font-size: 0.85rem;">
+                                    <i class="fas fa-plus-circle me-1"></i>مورد جديد
+                                </button>
+                                {% endif %}
+                            </label>
                             {% if purchase.id %}
                                 <input type="text" class="form-control bg-light" value="{{ purchase.supplier.name }}" readonly>
                                 <input type="hidden" name="supplier" value="{{ purchase.supplier.id }}">
@@ -255,7 +286,7 @@
                                     {% if form.financial_category.field.required %}<span class="text-danger">*</span>{% endif %}
                                 </label>
                                 <div class="d-flex align-items-center gap-2">
-                                    <select {% if is_duplicate and duplicate_financial_category_id %}name="financial_category"{% else %}name="financial_category_manual"{% endif %} id="{{ form.financial_category.id_for_label }}" class="form-control flex-grow-1" {% if form.financial_category.field.required %}required{% endif %}>
+                                    <select {% if is_duplicate and duplicate_financial_category_id %}name="financial_category" {% if form.financial_category.field.required %}required{% endif %}{% else %}name="financial_category_manual"{% endif %} id="{{ form.financial_category.id_for_label }}" class="form-control flex-grow-1">
                                         {% for value, label in form.financial_category.field.choices %}
                                             <option value="{{ value }}"
                                                 {% if form.financial_category.value == value %}selected
@@ -466,7 +497,7 @@
 </div>
 
 <!-- ===== مودال إضافة منتج جديد ===== -->
-<div class="modal fade" id="newProductModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="newProductModal" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header py-2 px-3">
@@ -483,15 +514,25 @@
                 <div class="row g-3">
                     <div class="col-6">
                         <label class="form-label">التصنيف <span class="text-danger">*</span></label>
-                        <select id="np-category" class="form-select">
-                            <option value="">جاري التحميل...</option>
-                        </select>
+                        <div class="input-group">
+                            <select id="np-category" class="form-select">
+                                <option value="">جاري التحميل...</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" id="btn-add-category-quick" title="إضافة تصنيف جديد">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
                     <div class="col-6">
                         <label class="form-label">الوحدة <span class="text-danger">*</span></label>
-                        <select id="np-unit" class="form-select">
-                            <option value="">جاري التحميل...</option>
-                        </select>
+                        <div class="input-group">
+                            <select id="np-unit" class="form-select">
+                                <option value="">جاري التحميل...</option>
+                            </select>
+                            <button class="btn btn-outline-secondary" type="button" id="btn-add-unit-quick" title="إضافة وحدة جديدة">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div class="row g-3 mt-1">
@@ -515,6 +556,15 @@
     </div>
 </div>
 
+<!-- ===== Supplier Modal Container ===== -->
+<div class="modal fade" id="supplierModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow" id="supplier-modal-content">
+            <!-- سيتم تحميل المحتوى بالـ AJAX -->
+        </div>
+    </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -526,6 +576,75 @@
         $('#id_warehouse').select2({ placeholder: "اختر المخزن", width: '100%', allowClear: true });
         $('#id_financial_category').select2({ placeholder: "اختر التصنيف المالي", width: '100%', allowClear: true });
 
+        // حل مشكلة عدم القدرة على الكتابة في حقول SweetAlert عند فتحها من داخل مودال
+        window.addEventListener('focusin', function(e) {
+            if (e.target && e.target.closest && e.target.closest('.swal2-container, .swal2-popup, .select2-container')) {
+                e.stopImmediatePropagation();
+            }
+        }, true);
+
+        // ===== إضافة مورد جديد AJAX =====
+        var supplierModalEl = document.getElementById('supplierModal');
+        var supplierModal = supplierModalEl ? new bootstrap.Modal(supplierModalEl) : null;
+
+        $('#btn-add-supplier-modal').on('click', function() {
+            if (!supplierModal) return;
+            
+            // 1. ضع مؤشر تحميل داخل المودال وافتحه فوراً
+            $('#supplier-modal-content').html(
+                '<div class="modal-body text-center py-5">' +
+                '  <div class="spinner-border text-primary" role="status"></div>' +
+                '  <div class="mt-2 text-muted">جاري تحميل النموذج...</div>' +
+                '</div>'
+            );
+            supplierModal.show();
+            
+            // 2. تحميل محتوى المودال بالـ AJAX في الخلفية
+            $.ajax({
+                url: "{% url 'supplier:supplier_create_modal' %}",
+                type: "GET",
+                success: function(response) {
+                    if (response.html) {
+                        $('#supplier-modal-content').html(response.html);
+                    } else {
+                        toastr.error('فشل في تحميل نموذج إضافة المورد');
+                        supplierModal.hide();
+                    }
+                },
+                error: function() {
+                    toastr.error('حدث خطأ أثناء تحميل النموذج');
+                    supplierModal.hide();
+                }
+            });
+        });
+
+        // تعريف دالة الاستدعاء عند الحفظ الناجح للمورد من داخل المودال
+        window.refreshSupplierTable = function(response) {
+            if (response && response.success && response.supplier_id) {
+                // إضافة الخيار الجديد للـ select وتحديده
+                var newOption = new Option(response.supplier_name, response.supplier_id, true, true);
+                $('#id_supplier').append(newOption).trigger('change');
+                
+                // إغلاق المودال
+                supplierModal.hide();
+                
+                // إظهار إشعار نجاح
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'تمت العملية بنجاح',
+                        text: response.message || 'تمت إضافة المورد وتحديده بنجاح.',
+                        timer: 2000,
+                        showConfirmButton: false
+                    });
+                } else if (typeof toastr !== 'undefined') {
+                    toastr.success(response.message || 'تمت إضافة المورد وتحديده بنجاح.');
+                }
+            } else {
+                location.reload();
+            }
+        };
+
         // ===== smartFloat =====
         function smartFloat(value) {
             var num = parseFloat(String(value).replace(/,/g, ''));
@@ -536,6 +655,8 @@
         }
 
         // ===== التصنيف المالي: toggle =====
+        const isFinancialCategoryRequired = $('#django-purchase-form-data').data('financial-category-required') === true;
+
         $('#toggle-category-btn').on('click', function() {
             const autoVal = $('#financial_category_auto_value').val();
             if (autoVal) $('#id_financial_category').val(autoVal).trigger('change');
@@ -543,22 +664,29 @@
             $('#financial-category-manual').show();
             $('#financial_category_auto_value').prop('disabled', true);
             $('#id_financial_category').attr('name', 'financial_category');
+            if (isFinancialCategoryRequired) {
+                $('#id_financial_category').prop('required', true);
+            }
         });
         $('#reset-category-btn').on('click', function() {
             $('#financial-category-manual').hide();
             $('#financial-category-auto').show();
             $('#financial_category_auto_value').prop('disabled', false);
             $('#id_financial_category').attr('name', 'financial_category_manual');
+            $('#id_financial_category').prop('required', false);
         });
-        {% if purchase.id and form.financial_category.value %}
-        (function() {
-            if (window._duplicateData) return;
-            $('#financial-category-auto').hide();
-            $('#financial-category-manual').show();
-            $('#financial_category_auto_value').prop('disabled', true);
-            $('#id_financial_category').attr('name', 'financial_category');
-        })();
-        {% endif %}
+        if ($('#django-purchase-form-data').data('has-financial-category') === true) {
+            (function() {
+                if (window._duplicateData) return;
+                $('#financial-category-auto').hide();
+                $('#financial-category-manual').show();
+                $('#financial_category_auto_value').prop('disabled', true);
+                $('#id_financial_category').attr('name', 'financial_category');
+                if (isFinancialCategoryRequired) {
+                    $('#id_financial_category').prop('required', true);
+                }
+            })();
+        }
 
         // ===== نوع الفاتورة =====
         $('#id_invoice_type').on('change', function() {
@@ -591,7 +719,7 @@
         window._stockData = {};
         window._allProducts = [];
         window._activePickerRow = null;
-        var isServiceInvoice = {{ is_service_invoice|yesno:"true,false" }};
+        var isServiceInvoice = $('#django-purchase-form-data').data('is-service-invoice') === true;
 
         var initialWarehouseId = $('#id_warehouse').val();
         if (initialWarehouseId) loadProductsForWarehouse(initialWarehouseId);
@@ -711,7 +839,7 @@
                     '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + priceField + '" data-stock="' + p.stock + '" data-name="' + p.name + '">' +
                         '<div class="product-name">' + p.name + '</div>' +
                         '<div class="product-footer">' +
-                            '<span class="product-price">' + smartFloat(priceField) + ' {{ currency_symbol }}</span>' +
+                            '<span class="product-price">' + smartFloat(priceField) + ' ' + ($('#django-purchase-form-data').data('currency-symbol') || 'ج.م') + '</span>' +
                             stockLabel +
                         '</div>' +
                     '</div>' +
@@ -937,6 +1065,98 @@
             });
         });
 
+        $('#btn-add-category-quick').on('click', function() {
+            Swal.fire({
+                title: 'إضافة تصنيف جديد',
+                input: 'text',
+                inputPlaceholder: 'أدخل اسم التصنيف الجديد',
+                showCancelButton: true,
+                confirmButtonText: 'حفظ',
+                cancelButtonText: 'إلغاء',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'يجب كتابة اسم التصنيف!';
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var categoryName = result.value.trim();
+                    $.ajax({
+                        url: '{% url "product:category_create" %}',
+                        method: 'POST',
+                        data: {
+                            name: categoryName,
+                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                toastr.success(response.message || 'تم إضافة التصنيف بنجاح');
+                                var newOption = $('<option>').val(response.category_id).text('📁 ' + response.category_name);
+                                $('#np-category').append(newOption).val(response.category_id);
+                            } else {
+                                var errorMsg = '';
+                                if (response.errors) {
+                                    for (var field in response.errors) {
+                                        errorMsg += response.errors[field].join(', ') + ' ';
+                                    }
+                                }
+                                toastr.error(errorMsg || 'حدث خطأ أثناء الحفظ');
+                            }
+                        },
+                        error: function() {
+                            toastr.error('حدث خطأ في الاتصال بالخادم');
+                        }
+                    });
+                }
+            });
+        });
+
+        $('#btn-add-unit-quick').on('click', function() {
+            Swal.fire({
+                title: 'إضافة وحدة قياس جديدة',
+                input: 'text',
+                inputPlaceholder: 'أدخل اسم الوحدة الجديدة (مثال: متر، كيلو)',
+                showCancelButton: true,
+                confirmButtonText: 'حفظ',
+                cancelButtonText: 'إلغاء',
+                inputValidator: (value) => {
+                    if (!value) {
+                        return 'يجب كتابة اسم الوحدة!';
+                    }
+                }
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    var unitName = result.value.trim();
+                    $.ajax({
+                        url: '{% url "product:unit_create" %}',
+                        method: 'POST',
+                        data: {
+                            name: unitName,
+                            csrfmiddlewaretoken: $('[name=csrfmiddlewaretoken]').val()
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                toastr.success(response.message || 'تم إضافة الوحدة بنجاح');
+                                var newOption = $('<option>').val(response.unit_id).text(response.unit_name);
+                                $('#np-unit').append(newOption).val(response.unit_id);
+                            } else {
+                                var errorMsg = '';
+                                if (response.errors) {
+                                    for (var field in response.errors) {
+                                        errorMsg += response.errors[field].join(', ') + ' ';
+                                    }
+                                }
+                                toastr.error(errorMsg || 'حدث خطأ أثناء الحفظ');
+                            }
+                        },
+                        error: function() {
+                            toastr.error('حدث خطأ في الاتصال بالخادم');
+                        }
+                    });
+                }
+            });
+        });
+
     });
 </script>
 
@@ -946,80 +1166,111 @@
 <!-- Category Suggestion Script -->
 <script src="{% static 'js/financial/category-suggestion.js' %}"></script>
 
-{% if is_duplicate %}
 <script>
-window._duplicateData = {
-    items: {{ duplicate_items|safe }},
-    invoiceType: "{{ duplicate_invoice_type }}",
-    paymentMethod: "{{ duplicate_payment_method }}",
-    financialCategoryId: "{{ duplicate_financial_category_id|default:'' }}",
-    supplierId: "{{ selected_supplier.id }}",
-    warehouseId: "{% if default_warehouse %}{{ default_warehouse.id }}{% endif %}",
-    discount: "{{ form.initial.discount|default:'0' }}"
-};
-if (window._duplicateData.financialCategoryId) {
-    window._disableCategorySuggestion = true;
-}
-$(window).on('load', function() { setTimeout(applyDuplicateData, 400); });
+    (function() {
+        const purchaseDataEl = $('#django-purchase-form-data');
+        const isDuplicate = purchaseDataEl.data('is-duplicate') === true;
 
-function applyDuplicateData() {
-    var d = window._duplicateData;
-    $('#id_invoice_type').val(d.invoiceType).trigger('change');
-    if (d.invoiceType === 'cash' && d.paymentMethod) {
-        setTimeout(function() { $('#id_payment_method').val(d.paymentMethod).trigger('change'); }, 150);
-    }
-    if (d.financialCategoryId) {
-        $('#financial_category_auto_value').prop('disabled', true);
-        $('#id_financial_category').attr('name', 'financial_category');
-    }
-    if (d.discount && parseFloat(d.discount) > 0) {
-        $('#id_discount').val(d.discount).trigger('input');
-    }
-    if (d.items.length > 0) {
-        var loadAndApply = function() {
-            if (window._allProducts && window._allProducts.length > 0) {
-                applyDuplicateItems(d.items);
-            } else {
-                setTimeout(loadAndApply, 200);
+        if (isDuplicate) {
+            const duplicateDataJson = document.getElementById('duplicate-data-json');
+            if (duplicateDataJson) {
+                try {
+                    window._duplicateData = JSON.parse(duplicateDataJson.textContent);
+                } catch(e) {
+                    console.error("Error parsing duplicate data JSON", e);
+                }
             }
-        };
-        loadAndApply();
-    }
-}
 
-function applyDuplicateItems(items) {
-    $('#items-container').empty();
-    items.forEach(function(item, index) {
-        var removeBtn = index > 0
-            ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
-            : '';
-        var productName = 'منتج #' + item.product_id;
-        var productStock = 0;
-        var productPrice = item.unit_price;
-        if (window._allProducts) {
-            var found = window._allProducts.find(function(p) { return String(p.id) === String(item.product_id); });
-            if (found) { productName = found.name; productStock = found.stock; productPrice = found.cost_price || found.selling_price; }
+            if (window._duplicateData && window._duplicateData.financialCategoryId) {
+                window._disableCategorySuggestion = true;
+            }
+
+            $(window).on('load', function() {
+                setTimeout(applyDuplicateData, 400);
+            });
         }
-        var $row = $('<div class="item-row row g-2 align-items-center">' +
-            '<div class="col-12 col-md-4" style="position:relative;">' +
-                '<label class="form-label form-label-sm required-field">المنتج</label>' +
-                '<button type="button" class="product-picker-btn"><span class="selected-text">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
-                '<input type="hidden" name="product[]" class="product-id-input" value="' + item.product_id + '" data-price="' + productPrice + '" data-stock="' + productStock + '" required>' +
-                '<div class="stock-info"></div>' +
-            '</div>' +
-            '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + item.quantity + '" required></div>' +
-            '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">سعر الوحدة</label><input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="' + item.unit_price + '" required></div>' +
-            '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + item.discount + '"></div>' +
-            '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + item.total + '" readonly><span class="input-group-text px-1">{{ currency_symbol }}</span></div></div>' +
-            removeBtn +
-        '</div>');
-        $('#items-container').append($row);
-        if (productStock > 0) window.renderStockInfo($row, productStock);
-    });
-    window.bindEventHandlers();
-    window.calculateTotals();
-}
+
+        function applyDuplicateData() {
+            var d = window._duplicateData;
+            if (!d) return;
+
+            // 1. نوع الفاتورة
+            $('#id_invoice_type').val(d.invoiceType).trigger('change');
+
+            // 2. طريقة الدفع
+            if (d.invoiceType === 'cash' && d.paymentMethod) {
+                setTimeout(function() {
+                    $('#id_payment_method').val(d.paymentMethod).trigger('change');
+                }, 150);
+            }
+
+            // 3. التصنيف المالي
+            if (d.financialCategoryId) {
+                $('#financial_category_auto_value').prop('disabled', true);
+                $('#id_financial_category').attr('name', 'financial_category');
+                if (isFinancialCategoryRequired) {
+                    $('#id_financial_category').prop('required', true);
+                }
+            }
+
+            // 4. الخصم الإجمالي
+            if (d.discount && parseFloat(d.discount) > 0) {
+                $('#id_discount').val(d.discount).trigger('input');
+            }
+
+            // 5. بنود الفاتورة - تنتظر تحميل المنتجات أولاً
+            if (d.items && d.items.length > 0) {
+                var loadAndApply = function() {
+                    if (window._allProducts && window._allProducts.length > 0) {
+                        applyDuplicateItems(d.items);
+                    } else {
+                        setTimeout(loadAndApply, 200);
+                    }
+                };
+                loadAndApply();
+            }
+        }
+
+        function applyDuplicateItems(items) {
+            $('#items-container').empty();
+            const currencySymbol = $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
+
+            items.forEach(function(item, index) {
+                var removeBtn = index > 0
+                    ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
+                    : '';
+
+                // إيجاد اسم المنتج من الـ _allProducts
+                var productName = 'منتج #' + item.product_id;
+                var productStock = 0;
+                var productPrice = item.unit_price;
+                if (window._allProducts) {
+                    var found = window._allProducts.find(function(p) { return String(p.id) === String(item.product_id); });
+                    if (found) { productName = found.name; productStock = found.stock; productPrice = found.cost_price || found.selling_price; }
+                }
+
+                var $row = $('<div class="item-row row g-2 align-items-center">' +
+                    '<div class="col-12 col-md-4" style="position:relative;">' +
+                        '<label class="form-label form-label-sm required-field">المنتج</label>' +
+                        '<button type="button" class="product-picker-btn"><span class="selected-text">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                        '<input type="hidden" name="product[]" class="product-id-input" value="' + item.product_id + '" data-price="' + productPrice + '" data-stock="' + productStock + '" required>' +
+                        '<div class="stock-info"></div>' +
+                    '</div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + item.quantity + '" required></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">سعر الوحدة</label><input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="' + item.unit_price + '" required></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + item.discount + '"></div>' +
+                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + item.total + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
+                    removeBtn +
+                '</div>');
+
+                $('#items-container').append($row);
+                if (productStock > 0) window.renderStockInfo($row, productStock);
+            });
+
+            window.bindEventHandlers();
+            window.calculateTotals();
+        }
+    })();
 </script>
-{% endif %}
 
 {% endblock %}

@@ -30,7 +30,7 @@
     
     .login-header h3 {
         margin-bottom: 0.5rem;
-        color: #0e3178;
+        color: var(--primary-color, #0e3178);
         font-weight: 700;
         font-size: 1.5rem;
     }
@@ -53,7 +53,7 @@
     }
     
     .input-group:focus-within {
-        box-shadow: 0 2px 15px rgba(1, 87, 138, 0.1);
+        box-shadow: 0 2px 15px rgba(var(--primary-rgb, 4, 87, 141), 0.1);
     }
     
     .input-group-text {
@@ -71,7 +71,7 @@
     }
     
     .form-control:focus {
-        border-color: #0e3178;
+        border-color: var(--primary-color, #0e3178);
         box-shadow: none;
     }
     
@@ -95,7 +95,7 @@
     }
     
     .toggle-password:hover {
-        color: #0e3178;
+        color: var(--primary-color, #0e3178);
     }
     
     .form-check {
@@ -110,13 +110,13 @@
         height: 42px;
         font-weight: 600;
         letter-spacing: 0.5px;
-        box-shadow: 0 4px 10px rgba(1, 87, 138, 0.25);
+        box-shadow: 0 4px 10px rgba(var(--primary-rgb, 4, 87, 141), 0.25);
         transition: all 0.3s ease;
     }
     
     .btn-primary:hover {
         transform: translateY(-2px);
-        box-shadow: 0 6px 15px rgba(1, 87, 138, 0.35);
+        box-shadow: 0 6px 15px rgba(var(--primary-rgb, 4, 87, 141), 0.35);
     }
     
     .forgot-password {
@@ -130,12 +130,12 @@
     
     .forgot-password:hover {
         background-color: #f8f9fc;
-        color: #0e3178;
+        color: var(--primary-color, #0e3178);
         text-decoration: none;
     }
     
     .auth-body {
-        background: #f8f9fc;
+        background: var(--bg-body, #f8f9fc);
     }
 
     .welcome-message {

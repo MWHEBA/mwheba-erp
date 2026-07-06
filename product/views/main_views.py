@@ -1592,11 +1592,28 @@ def category_create(request):
     إضافة فئة منتجات جديدة
     """
     if request.method == "POST":
-        form = CategoryForm(request.POST)
+        post_data = request.POST.copy()
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if 'is_active' not in post_data:
+                post_data['is_active'] = 'true'
+        form = CategoryForm(post_data)
         if form.is_valid():
             category = form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'تم إضافة التصنيف "{category.name}" بنجاح',
+                    'category_id': category.id,
+                    'category_name': category.name
+                })
             messages.success(request, f'تم إضافة التصنيف "{category.name}" بنجاح')
             return redirect("product:category_list")
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
     else:
         form = CategoryForm()
 
@@ -1860,11 +1877,30 @@ def unit_create(request):
     إضافة وحدة قياس جديدة
     """
     if request.method == "POST":
-        form = UnitForm(request.POST)
+        post_data = request.POST.copy()
+        if "name" in post_data and not post_data.get("symbol"):
+            post_data["symbol"] = post_data["name"][:10]
+        if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            if 'is_active' not in post_data:
+                post_data['is_active'] = 'true'
+        form = UnitForm(post_data)
         if form.is_valid():
             unit = form.save()
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': True,
+                    'message': f'تم إضافة وحدة القياس "{unit.name}" بنجاح',
+                    'unit_id': unit.id,
+                    'unit_name': unit.name
+                })
             messages.success(request, f'تم إضافة وحدة القياس "{unit.name}" بنجاح')
             return redirect("product:unit_list")
+        else:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({
+                    'success': False,
+                    'errors': form.errors
+                })
     else:
         form = UnitForm()
 
@@ -3890,7 +3926,14 @@ def get_products_for_invoice(request):
         elif product_type == "purchase":
             qs = Product.objects.filter(is_active=True, is_service=False, is_bundle=False)
         else:  # sale
-            qs = Product.objects.filter(is_active=True, is_service=False, is_bundle=False)
+            from core.models import SystemSetting
+            allowed_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
+            if allowed_types == 'products':
+                qs = Product.objects.filter(is_active=True, is_service=False, is_bundle=False)
+            elif allowed_types == 'services':
+                qs = Product.objects.filter(is_active=True, is_service=True)
+            else:  # both
+                qs = Product.objects.filter(is_active=True, is_bundle=False)
 
         # جلب بيانات المخزون
         stock_map = {}
@@ -3900,11 +3943,26 @@ def get_products_for_invoice(request):
                 product__in=qs
             ).values("product_id", "quantity")
             stock_map = {str(s["product_id"]): float(s["quantity"]) for s in stocks}
+        else:
+            # حساب إجمالي الكمية لكل منتج في جميع المخازن النشطة
+            from django.db.models import Sum
+            stocks = Stock.objects.filter(
+                product__in=qs,
+                warehouse__is_active=True
+            ).values("product_id").annotate(total_qty=Sum("quantity"))
+            stock_map = {str(s["product_id"]): float(s["total_qty"] or 0) for s in stocks}
 
-        # فلترة حسب المخزون لو مش show_all
-        if not show_all and warehouse_id and product_type != "service":
+        # فلترة حسب المخزون لو مش show_all (الخدمات تظهر دائماً)
+        if not show_all and product_type != "service":
+            from django.db.models import Q
+            from core.models import SystemSetting
+            allowed_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
             product_ids_with_stock = [pid for pid, qty in stock_map.items() if qty > 0]
-            qs = qs.filter(id__in=product_ids_with_stock)
+            
+            if product_type == "sale" and allowed_types == "both":
+                qs = qs.filter(Q(is_service=True) | Q(id__in=product_ids_with_stock))
+            else:
+                qs = qs.filter(id__in=product_ids_with_stock)
 
         products = []
         for p in qs.select_related('category').order_by("name"):
@@ -3914,6 +3972,7 @@ def get_products_for_invoice(request):
                 "selling_price": float(p.selling_price) if hasattr(p, 'selling_price') and p.selling_price else 0,
                 "cost_price": float(p.cost_price) if hasattr(p, 'cost_price') and p.cost_price else 0,
                 "stock": stock_map.get(str(p.id), 0),
+                "is_service": p.is_service,
                 "category_id": p.category_id,
                 "category_name": p.category.name if p.category else "",
             })

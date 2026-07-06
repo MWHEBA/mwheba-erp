@@ -27,20 +27,40 @@ def sale_create(request, customer_id=None):
     إنشاء فاتورة مبيعات جديدة
     ✅ محدث: يستخدم SaleService مع الحوكمة الكاملة
     """
+    # جلب نوع البنود المسموح بها من الإعدادات
+    from core.models import SystemSetting
+    allowed_item_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
+
     # جلب المخزن الافتراضي
     default_warehouse = Warehouse.objects.filter(is_active=True).order_by("name").first()
 
-    # افتراضياً: المنتجات اللي ليها stock في المخزن الافتراضي فقط
+    # بناء الفلتر للخدمات والمنتجات حسب الإعداد
+    from django.db import models
+    products_filter = models.Q(is_active=True, is_bundle=False)
+    if allowed_item_types == 'products':
+        products_filter &= models.Q(is_service=False)
+    elif allowed_item_types == 'services':
+        products_filter &= models.Q(is_service=True)
+
+    # افتراضياً: المنتجات المادية اللي ليها stock في المخزن الافتراضي فقط (الخدمات تظهر دائماً)
     if default_warehouse:
         from product.models import Stock
         products_with_stock = Stock.objects.filter(
             warehouse=default_warehouse, quantity__gt=0
         ).values_list("product_id", flat=True)
-        products = Product.objects.filter(
-            is_active=True, is_service=False, is_bundle=False, id__in=products_with_stock
-        ).order_by("name")
+        
+        if allowed_item_types == 'both':
+            products = Product.objects.filter(
+                products_filter & (models.Q(is_service=True) | models.Q(id__in=products_with_stock))
+            ).order_by("name")
+        elif allowed_item_types == 'products':
+            products = Product.objects.filter(
+                products_filter & models.Q(id__in=products_with_stock)
+            ).order_by("name")
+        else:  # services
+            products = Product.objects.filter(products_filter).order_by("name")
     else:
-        products = Product.objects.filter(is_active=True, is_service=False, is_bundle=False).order_by("name")
+        products = Product.objects.filter(products_filter).order_by("name")
     
     # التحقق من وجود العميل إذا تم تمرير معرفه
     selected_customer = None
@@ -50,6 +70,17 @@ def sale_create(request, customer_id=None):
         except Customer.DoesNotExist:
             messages.error(request, "العميل المحدد غير موجود أو غير نشط")
             return redirect("sale:sale_list")
+
+    # قراءة أمر الشغل إذا تم تمريره
+    work_order_id = request.GET.get('work_order')
+    selected_work_order = None
+    if work_order_id:
+        from work_order.models import WorkOrder
+        try:
+            selected_work_order = WorkOrder.objects.get(id=work_order_id)
+            selected_customer = selected_work_order.customer
+        except WorkOrder.DoesNotExist:
+            pass
 
     if request.method == "POST":
         form = SaleForm(request.POST)
@@ -64,6 +95,7 @@ def sale_create(request, customer_id=None):
                     'discount': Decimal(request.POST.get("discount", "0")),
                     'tax': Decimal(request.POST.get("tax", "0")),
                     'notes': form.cleaned_data.get('notes', ''),
+                    'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
                     'items': []
                 }
                 
@@ -146,6 +178,8 @@ def sale_create(request, customer_id=None):
         }
         if selected_customer:
             initial_data["customer"] = selected_customer
+        if selected_work_order:
+            initial_data["work_order"] = selected_work_order
         
         warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
         if warehouses.exists():
@@ -179,13 +213,18 @@ def sale_create(request, customer_id=None):
 
     # جلب التصنيفات للفلترة في مودال اختيار المنتج
     from product.models import Category
-    product_categories = Category.objects.filter(
-        is_active=True, products__is_active=True, products__is_service=False, products__is_bundle=False
-    ).distinct().order_by("name")
+    category_filter = models.Q(is_active=True, products__is_active=True, products__is_bundle=False)
+    if allowed_item_types == 'products':
+        category_filter &= models.Q(products__is_service=False)
+    elif allowed_item_types == 'services':
+        category_filter &= models.Q(products__is_service=True)
+        
+    product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
     context = {
         "products": products,
         "product_categories": product_categories,
+        "allowed_item_types": allowed_item_types,
         "form": form,
         "next_sale_number": next_sale_number,
         "customers": customers,
@@ -204,14 +243,18 @@ def sale_create(request, customer_id=None):
             }
         ] if selected_customer else []),
         "breadcrumb_items": [
-            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
-            {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fas fa-shopping-cart"},
-        ] + ([{
-            "title": selected_customer.name,
-            "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}),
-            "icon": "fas fa-user",
-        }] if selected_customer else []) + [
-            {"title": "إضافة فاتورة", "active": True},
+            {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
+            *([
+                {"title": _("أوامر الشغل"), "url": reverse("work_order:work_order_list"), "icon": "fa-briefcase"},
+                {"title": selected_work_order.number, "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}), "icon": "fa-file-alt"},
+            ] if selected_work_order else [
+                {"title": _("المبيعات"), "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
+            ] + ([{
+                "title": selected_customer.name,
+                "url": reverse("client:customer_detail", kwargs={"pk": selected_customer.pk}),
+                "icon": "fa-user",
+            }] if selected_customer else [])),
+            {"title": _("إضافة فاتورة مبيعات"), "active": True, "icon": "fa-plus-circle"},
         ],
     }
 
@@ -392,12 +435,14 @@ def sale_detail(request, pk):
     items = sale.items.all()
     payments = sale.payments.all().order_by('-payment_date')
     returns = sale.returns.filter(status='confirmed').order_by('-date')
+    is_service_invoice = all(item.product.is_service for item in items)
 
     context = {
         "sale": sale,
         "items": items,
         "payments": payments,
         "returns": returns,
+        "is_service_invoice": is_service_invoice,
         "statistics": statistics,
         "title": f"تفاصيل فاتورة مبيعات - {sale.number}",
         "page_title": f"فاتورة مبيعات {sale.number}",
@@ -544,8 +589,11 @@ def sale_list(request):
     returned_sales_count = Sale.objects.filter(returns__status="confirmed").distinct().count()
     total_amount = Sale.objects.aggregate(Sum("total"))["total__sum"] or 0
 
+    from core.models import SystemSetting
+    allowed_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
+
     customers = Customer.objects.filter(id__in=Sale.objects.values('customer_id')).order_by("name")
-    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name") if allowed_types != 'services' else Warehouse.objects.none()
 
     # إعداد headers للجدول الموحد
     sale_headers = [
@@ -566,12 +614,16 @@ def sale_list(request):
             'format': 'datetime_12h',
         },
         {'key': 'customer', 'label': 'العميل', 'sortable': True, 'width': '20%', 'class': 'fw-bold'},
-        {'key': 'warehouse', 'label': 'المخزن', 'sortable': True, 'width': '12%'},
+    ]
+    if allowed_types != 'services':
+        sale_headers.append({'key': 'warehouse', 'label': 'المخزن', 'sortable': True, 'width': '12%'})
+        
+    sale_headers.extend([
         {'key': 'total', 'label': 'الإجمالي', 'sortable': True, 'class': 'text-center', 'format': 'currency'},
         {'key': 'amount_due', 'label': 'المتبقي', 'sortable': True, 'class': 'text-center', 'format': 'currency', 'variant': 'text-danger'},
         {'key': 'payment_status', 'label': 'حالة الدفع', 'sortable': True, 'class': 'text-center', 'format': 'html'},
         {'key': 'actions', 'label': 'الإجراءات', 'width': '1%', 'class': 'text-center text-nowrap'}
-    ]
+    ])
 
     if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
         from django.template.loader import render_to_string
@@ -618,6 +670,7 @@ def sale_list(request):
         "total_amount": total_amount,
         "customers": customers,
         "warehouses": warehouses,
+        "allowed_item_types": allowed_types,
         "page_title": "فواتير المبيعات",
         "page_subtitle": "قائمة بجميع فواتير المبيعات في النظام",
         "page_icon": "fas fa-shopping-cart",
@@ -646,13 +699,30 @@ def sale_print(request, pk):
     """
     sale = get_object_or_404(Sale, pk=pk)
     items = sale.items.all()
+    from core.models import SystemSetting
     
+    # جلب الإعدادات المحددة للشركة
+    company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
+    company_address = SystemSetting.objects.filter(key="company_address").values_list("value", flat=True).first() or ""
+    company_phone = SystemSetting.objects.filter(key="company_phone").values_list("value", flat=True).first() or ""
+    company_tax_number = SystemSetting.objects.filter(key="company_tax_number").values_list("value", flat=True).first() or ""
+    company_logo = SystemSetting.objects.filter(key="company_logo").values_list("value", flat=True).first() or ""
+    company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
+    company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
+    
+    is_service_invoice = all(item.product.is_service for item in items)
     context = {
         "sale": sale,
         "items": items,
-        "company_name": "اسم الشركة",
-        "company_address": "عنوان الشركة",
-        "company_phone": "رقم الهاتف",
+        "company_name": company_name,
+        "company_address": company_address,
+        "company_phone": company_phone,
+        "company_tax_number": company_tax_number,
+        "company_logo": company_logo,
+        "company_email": company_email,
+        "company_website": company_website,
+        "title": f"فاتورة مبيعات - {sale.number}",
+        "is_service_invoice": is_service_invoice,
     }
     
     return render(request, "sale/sale_print.html", context)
@@ -703,6 +773,7 @@ def sale_print_thermal(request, pk):
     img.save(buffer, format="PNG")
     qr_code_base64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
     
+    is_service_invoice = all(item.product.is_service for item in items)
     context = {
         "sale": sale,
         "items": items,
@@ -714,6 +785,7 @@ def sale_print_thermal(request, pk):
         "paper_width": paper_width,
         "qr_code": qr_code_base64,
         "title": f"فاتورة حرارية - {sale.number}",
+        "is_service_invoice": is_service_invoice,
     }
     
     return render(request, "sale/sale_print_thermal.html", context)
@@ -963,22 +1035,46 @@ def sale_duplicate(request, pk):
     import json
     original = get_object_or_404(Sale, pk=pk)
 
-    # جلب المنتجات اللي ليها stock في مخزن الفاتورة الأصلية
+    # جلب نوع البنود المسموح بها من الإعدادات
+    from core.models import SystemSetting
+    allowed_item_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
+
+    # جلب المنتجات اللي ليها stock في مخزن الفاتورة الأصلية (الخدمات تظهر دائماً)
+    from django.db import models
+    products_filter = models.Q(is_active=True, is_bundle=False)
+    if allowed_item_types == 'products':
+        products_filter &= models.Q(is_service=False)
+    elif allowed_item_types == 'services':
+        products_filter &= models.Q(is_service=True)
+
     from product.models import Stock as StockModel
     products_with_stock = StockModel.objects.filter(
         warehouse=original.warehouse, quantity__gt=0
     ).values_list("product_id", flat=True)
-    products = Product.objects.filter(
-        is_active=True, is_service=False, is_bundle=False, id__in=products_with_stock
-    ).order_by("name")
+    
+    if allowed_item_types == 'both':
+        products = Product.objects.filter(
+            products_filter & (models.Q(is_service=True) | models.Q(id__in=products_with_stock))
+        ).order_by("name")
+    elif allowed_item_types == 'products':
+        products = Product.objects.filter(
+            products_filter & models.Q(id__in=products_with_stock)
+        ).order_by("name")
+    else:  # services
+        products = Product.objects.filter(products_filter).order_by("name")
+        
     customers = Customer.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
 
     # جلب التصنيفات
     from product.models import Category
-    product_categories = Category.objects.filter(
-        is_active=True, products__is_active=True, products__is_service=False, products__is_bundle=False
-    ).distinct().order_by("name")
+    category_filter = models.Q(is_active=True, products__is_active=True, products__is_bundle=False)
+    if allowed_item_types == 'products':
+        category_filter &= models.Q(products__is_service=False)
+    elif allowed_item_types == 'services':
+        category_filter &= models.Q(products__is_service=True)
+        
+    product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
     # رقم الفاتورة الجديد
     next_sale_number = None
@@ -1014,6 +1110,7 @@ def sale_duplicate(request, pk):
             "unit_price": float(item.unit_price),
             "discount": float(item.discount),
             "total": float(item.total),
+            "is_service": item.product.is_service,
         }
         for item in original.items.all()
     ])
@@ -1032,6 +1129,7 @@ def sale_duplicate(request, pk):
         "form": form,
         "products": products,
         "product_categories": product_categories,
+        "allowed_item_types": allowed_item_types,
         "customers": customers,
         "warehouses": warehouses,
         "next_sale_number": next_sale_number,
@@ -1064,3 +1162,16 @@ def sale_duplicate(request, pk):
     }
 
     return render(request, "sale/sale_form.html", context)
+
+
+# استيراد واجهات عروض الأسعار لتسهيل الوصول إليها
+from .quotation_views import (
+    quotation_list,
+    quotation_create,
+    quotation_edit,
+    quotation_detail,
+    quotation_delete,
+    quotation_print,
+    quotation_convert_to_sale,
+    check_product_stock
+)

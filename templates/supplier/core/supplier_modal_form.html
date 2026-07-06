@@ -1,19 +1,25 @@
 {% load static %}
 {% load i18n %}
 
-<div class="modal-header">
-    <h5 class="modal-title">
-        <i class="fas fa-truck me-2"></i>
+<div id="django-supplier-modal-data" class="d-none"
+     data-is-new="{% if not form.instance.pk %}true{% else %}false{% endif %}"
+     data-placeholder-primary-type="{% trans 'اختر نوع المورد' %}"
+     data-error-save-msg="{% trans 'حدث خطأ أثناء حفظ البيانات' %}"
+></div>
+
+<div class="modal-header py-2 px-3 border-bottom">
+    <h5 class="modal-title" style="color: var(--bs-white); font-weight: 600;">
+        <i class="fas fa-truck me-2 text-white"></i>
         {% if form.instance.pk %}
             {% trans "تعديل مورد" %}
         {% else %}
             {% trans "إضافة مورد جديد" %}
         {% endif %}
     </h5>
-    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
 </div>
 
-<form method="post" id="supplier-modal-form">
+<form method="post" id="supplier-modal-form" action="{% url 'supplier:supplier_create_modal' %}">
     {% csrf_token %}
     
     <div class="modal-body">
@@ -29,11 +35,15 @@
             
             <div class="col-md-6 mb-3">
                 <label for="{{ form.code.id_for_label }}" class="form-label">كود المورد</label>
-                {{ form.code }}
+                <div class="input-group">
+                    {{ form.code }}
+                    <button class="btn btn-outline-secondary" type="button" id="toggle-supplier-code-modal">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                </div>
                 {% if form.code.errors %}
                     <div class="text-danger small">{{ form.code.errors.0 }}</div>
                 {% endif %}
-                <div class="form-text">سيتم إنشاء الكود تلقائياً إذا تُرك فارغاً</div>
             </div>
             
             <div class="col-md-6 mb-3">
@@ -118,30 +128,25 @@ $(document).ready(function() {
     // تنشيط Select2 للقوائم المنسدلة في المودال
     $('#id_primary_type').select2({
         theme: 'bootstrap-5',
-        placeholder: "{% trans 'اختر نوع المورد' %}",
+        placeholder: $('#django-supplier-modal-data').data('placeholder-primary-type'),
         allowClear: false,
+        width: '100%',
         dropdownParent: $('#supplierModal')
     });
     
-    // توليد كود تلقائي للمورد الجديد
-    {% if not form.instance.pk %}
-    $('#id_name').on('blur', function() {
-        const nameField = $(this);
-        const codeField = $('#id_code');
-        
-        if (!codeField.val().trim() && nameField.val().trim()) {
-            const name = nameField.val().trim();
-            // أخذ أول 3 أحرف من الاسم وإضافة تاريخ
-            let code = name.substring(0, 3).toUpperCase();
-            const date = new Date();
-            const dateStr = date.getFullYear().toString().substr(-2) + 
-                           (date.getMonth() + 1).toString().padStart(2, '0') +
-                           date.getDate().toString().padStart(2, '0');
-            code += dateStr;
-            codeField.val(code);
+
+    // تفعيل تعديل كود المورد في المودال
+    $('#toggle-supplier-code-modal').on('click', function() {
+        const codeInput = $('#id_code');
+        if (codeInput.attr('readonly')) {
+            codeInput.removeAttr('readonly');
+            codeInput.focus();
+            $(this).html('<i class="fas fa-lock"></i>').removeClass('btn-outline-secondary').addClass('btn-outline-primary');
+        } else {
+            codeInput.attr('readonly', 'readonly');
+            $(this).html('<i class="fas fa-edit"></i>').removeClass('btn-outline-primary').addClass('btn-outline-secondary');
         }
     });
-    {% endif %}
     
     // معالجة إرسال النموذج
     $('#supplier-modal-form').on('submit', function(e) {
@@ -160,7 +165,7 @@ $(document).ready(function() {
                     $('#supplierModal').modal('hide');
                     // إعادة تحميل الصفحة أو تحديث الجدول
                     if (typeof refreshSupplierTable === 'function') {
-                        refreshSupplierTable();
+                        refreshSupplierTable(response);
                     } else {
                         location.reload();
                     }
@@ -180,7 +185,7 @@ $(document).ready(function() {
             },
             error: function(xhr, status, error) {
                 console.error('Error:', error);
-                showErrorMessage('{% trans "حدث خطأ أثناء حفظ البيانات" %}');
+                showErrorMessage($('#django-supplier-modal-data').data('error-save-msg'));
             }
         });
     });
@@ -188,12 +193,29 @@ $(document).ready(function() {
 
 // دوال مساعدة لعرض الرسائل
 function showSuccessMessage(message) {
-    // يمكن استبدالها بنظام الإشعارات المستخدم في المشروع
-    alert(message);
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'success',
+            title: 'تمت العملية بنجاح',
+            text: message,
+            timer: 2000,
+            showConfirmButton: false
+        });
+    } else {
+        alert(message);
+    }
 }
 
 function showErrorMessage(message) {
-    alert(message);
+    if (typeof Swal !== 'undefined') {
+        Swal.fire({
+            icon: 'error',
+            title: 'خطأ',
+            text: message
+        });
+    } else {
+        alert(message);
+    }
 }
 
 function displayFormErrors(errors) {

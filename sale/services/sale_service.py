@@ -74,6 +74,7 @@ class SaleService:
                 status='confirmed',
                 created_by=user,
                 financial_category_id=data.get('financial_category_id'),
+                work_order_id=data.get('work_order_id'),
             )
             
             logger.info(f"✅ تم إنشاء فاتورة المبيعات: {sale.number}")
@@ -228,9 +229,11 @@ class SaleService:
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
             
-            # حساب تكلفة البضاعة المباعة
+            # حساب تكلفة البضاعة المباعة (فقط للمنتجات المادية)
             cost_of_goods_sold = Decimal('0')
             for item in sale.items.all():
+                if item.product.is_service:
+                    continue
                 if not item.product.cost_price or item.product.cost_price == 0:
                     logger.warning(f"⚠️ المنتج '{item.product.name}' ليس له سعر تكلفة - سيتم استخدام 0")
                 cost_of_goods_sold += (item.product.cost_price or Decimal('0')) * item.quantity
@@ -245,6 +248,14 @@ class SaleService:
                 error_msg = "❌ حساب إيرادات المبيعات (40100) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
+
+            # محاولة جلب حساب إيرادات الخدمات (40200) - والارتداد لـ (40100) لو مش موجود
+            try:
+                services_revenue_account = ChartOfAccounts.objects.get(code='40200', is_active=True)
+                logger.info(f"✅ حساب إيرادات الخدمات: {services_revenue_account.code} - {services_revenue_account.name}")
+            except ChartOfAccounts.DoesNotExist:
+                services_revenue_account = sales_revenue_account
+                logger.warning("⚠️ حساب إيرادات الخدمات (40200) غير موجود، سيتم استخدام حساب إيرادات المبيعات العام")
             
             try:
                 cogs_account = ChartOfAccounts.objects.get(code='50100', is_active=True)
@@ -261,6 +272,26 @@ class SaleService:
                 error_msg = "❌ حساب المخزون (10400) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
                 logger.error(error_msg)
                 raise ValidationError(error_msg)
+
+            # تقسيم الإجمالي النهائي بين المنتجات والخدمات بالتناسب مع الـ subtotal لكل فئة
+            physical_subtotal = Decimal('0')
+            service_subtotal = Decimal('0')
+            for item in sale.items.all():
+                if item.product.is_service:
+                    service_subtotal += item.total
+                else:
+                    physical_subtotal += item.total
+                    
+            total_items_subtotal = physical_subtotal + service_subtotal
+            if total_items_subtotal > 0:
+                physical_ratio = physical_subtotal / total_items_subtotal
+                service_ratio = service_subtotal / total_items_subtotal
+            else:
+                physical_ratio = Decimal('1')
+                service_ratio = Decimal('0')
+                
+            physical_revenue_total = (sale.total * physical_ratio).quantize(Decimal('0.01'))
+            service_revenue_total = (sale.total - physical_revenue_total).quantize(Decimal('0.01'))
             
             # إعداد بيانات القيد باستخدام JournalEntryLineData
             lines = [
@@ -270,29 +301,49 @@ class SaleService:
                     debit=sale.total,
                     credit=Decimal('0'),
                     description=f'مبيعات - فاتورة {sale.number}'
-                ),
-                # دائن: إيرادات المبيعات
-                JournalEntryLineData(
-                    account_code=sales_revenue_account.code,
-                    debit=Decimal('0'),
-                    credit=sale.total,
-                    description=f'مبيعات - فاتورة {sale.number}'
-                ),
-                # مدين: تكلفة البضاعة المباعة
-                JournalEntryLineData(
-                    account_code=cogs_account.code,
-                    debit=cost_of_goods_sold,
-                    credit=Decimal('0'),
-                    description=f'تكلفة مبيعات - فاتورة {sale.number}'
-                ),
-                # دائن: المخزون
-                JournalEntryLineData(
-                    account_code=inventory_account.code,
-                    debit=Decimal('0'),
-                    credit=cost_of_goods_sold,
-                    description=f'تكلفة مبيعات - فاتورة {sale.number}'
                 )
             ]
+
+            # دائن: إيرادات المنتجات المادية
+            if physical_revenue_total > 0:
+                lines.append(
+                    JournalEntryLineData(
+                        account_code=sales_revenue_account.code,
+                        debit=Decimal('0'),
+                        credit=physical_revenue_total,
+                        description=f'مبيعات منتجات - فاتورة {sale.number}'
+                    )
+                )
+
+            # دائن: إيرادات الخدمات
+            if service_revenue_total > 0:
+                lines.append(
+                    JournalEntryLineData(
+                        account_code=services_revenue_account.code,
+                        debit=Decimal('0'),
+                        credit=service_revenue_total,
+                        description=f'مبيعات خدمات - فاتورة {sale.number}'
+                    )
+                )
+
+            # مدين ودائن قيد التكلفة (فقط للمنتجات المادية وعندما تكون التكلفة أكبر من صفر)
+            if cost_of_goods_sold > 0:
+                lines.append(
+                    JournalEntryLineData(
+                        account_code=cogs_account.code,
+                        debit=cost_of_goods_sold,
+                        credit=Decimal('0'),
+                        description=f'تكلفة مبيعات - فاتورة {sale.number}'
+                    )
+                )
+                lines.append(
+                    JournalEntryLineData(
+                        account_code=inventory_account.code,
+                        debit=Decimal('0'),
+                        credit=cost_of_goods_sold,
+                        description=f'تكلفة مبيعات - فاتورة {sale.number}'
+                    )
+                )
             
             # إنشاء القيد عبر AccountingGateway (مع الحوكمة الكاملة)
             gateway = AccountingGateway()
@@ -328,6 +379,10 @@ class SaleService:
             movement_service = MovementService()
             
             for item in sale.items.all():
+                # تخطي الخدمات - لا تولد حركات مخزنية
+                if item.product.is_service:
+                    logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة المخزون")
+                    continue
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
                 movement = movement_service.process_movement(
                     product_id=item.product.id,
@@ -606,43 +661,91 @@ class SaleService:
                     credit_account_code = '10300'  # حساب العملاء الرئيسي
                     logger.warning(f"استخدام حساب العملاء الرئيسي للعميل {sale.customer.name}")
             
-            # حساب تكلفة البضاعة المرتجعة
+            # حساب تكلفة البضاعة المرتجعة (فقط للمنتجات المادية)
             cost_of_goods_returned = sum(
                 item.product.cost_price * item.quantity
                 for item in sale_return.items.all()
+                if not item.product.is_service
             )
             
+            # تقسيم الإرجاع بالتناسب بين المنتجات والخدمات
+            physical_return = Decimal('0')
+            service_return = Decimal('0')
+            for item in sale_return.items.all():
+                if item.product.is_service:
+                    service_return += item.total
+                else:
+                    physical_return += item.total
+                    
+            total_items_return = physical_return + service_return
+            if total_items_return > 0:
+                physical_ratio = physical_return / total_items_return
+                service_ratio = service_return / total_items_return
+            else:
+                physical_ratio = Decimal('1')
+                service_ratio = Decimal('0')
+                
+            physical_return_total = (sale_return.total * physical_ratio).quantize(Decimal('0.01'))
+            service_return_total = (sale_return.total - physical_return_total).quantize(Decimal('0.01'))
+            
             # إعداد بيانات القيد باستخدام JournalEntryLineData
-            lines = [
-                # مدين: إيرادات المبيعات (عكس)
-                JournalEntryLineData(
-                    account_code='40100',
-                    debit=sale_return.total,
-                    credit=Decimal('0'),
-                    description=f'مرتجع - فاتورة {sale.number}'
-                ),
-                # دائن: العملاء/الخزينة/البنك (عكس)
+            lines = []
+
+            # مدين: إيرادات المبيعات (عكس) للرصيد المادي
+            if physical_return_total > 0:
+                lines.append(
+                    JournalEntryLineData(
+                        account_code='40100',
+                        debit=physical_return_total,
+                        credit=Decimal('0'),
+                        description=f'عكس مبيعات منتجات - مرتجع {sale_return.number}'
+                    )
+                )
+
+            # مدين: إيرادات الخدمات (عكس) للرصيد الخدمي
+            if service_return_total > 0:
+                try:
+                    services_revenue_account_code = ChartOfAccounts.objects.get(code='40200', is_active=True).code
+                except ChartOfAccounts.DoesNotExist:
+                    services_revenue_account_code = '40100'
+                
+                lines.append(
+                    JournalEntryLineData(
+                        account_code=services_revenue_account_code,
+                        debit=service_return_total,
+                        credit=Decimal('0'),
+                        description=f'عكس مبيعات خدمات - مرتجع {sale_return.number}'
+                    )
+                )
+
+            # دائن: العملاء/الخزينة/البنك (عكس)
+            lines.append(
                 JournalEntryLineData(
                     account_code=credit_account_code,
                     debit=Decimal('0'),
                     credit=sale_return.total,
                     description=f'مرتجع - فاتورة {sale.number}'
-                ),
-                # مدين: المخزون (إرجاع)
-                JournalEntryLineData(
-                    account_code='10400',
-                    debit=cost_of_goods_returned,
-                    credit=Decimal('0'),
-                    description=f'مرتجع - فاتورة {sale.number}'
-                ),
-                # دائن: تكلفة البضاعة المباعة (عكس)
-                JournalEntryLineData(
-                    account_code='50100',
-                    debit=Decimal('0'),
-                    credit=cost_of_goods_returned,
-                    description=f'مرتجع - فاتورة {sale.number}'
                 )
-            ]
+            )
+
+            # قيد تكلفة ومخزون للمرتجع (فقط للمنتجات المادية وعند وجود تكلفة بضاعة مرتجعة)
+            if cost_of_goods_returned > 0:
+                lines.append(
+                    JournalEntryLineData(
+                        account_code='10400',
+                        debit=cost_of_goods_returned,
+                        credit=Decimal('0'),
+                        description=f'إرجاع مخزون - مرتجع {sale_return.number}'
+                    )
+                )
+                lines.append(
+                    JournalEntryLineData(
+                        account_code='50100',
+                        debit=Decimal('0'),
+                        credit=cost_of_goods_returned,
+                        description=f'عكس تكلفة البضاعة - مرتجع {sale_return.number}'
+                    )
+                )
             
             # إنشاء القيد عبر AccountingGateway
             gateway = AccountingGateway()
@@ -678,6 +781,10 @@ class SaleService:
             movement_service = MovementService()
             
             for item in sale_return.items.all():
+                # تخطي الخدمات - لا تولد حركات إرجاع مخزنية
+                if item.product.is_service:
+                    logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة إرجاع المخزون")
+                    continue
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
                 movement = movement_service.process_movement(
                     product_id=item.product.id,

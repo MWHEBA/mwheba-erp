@@ -225,7 +225,7 @@ class PaymentEditService:
         تسجيل تغيير الدفعة
         يحفظ في ActivityLog لتتبع التغييرات
         """
-        from core.models import ActivityLog
+        from users.models import ActivityLog
         
         log_entry = {
             "payment_id": payment.id,
@@ -249,6 +249,9 @@ class PaymentEditService:
         
         # حفظ في ActivityLog للتتبع
         try:
+            from core.middleware.current_user import get_current_request
+            from utils.logs import get_client_ip
+
             action_description = {
                 'edited': 'تعديل دفعة',
                 'unposted': 'إلغاء ترحيل دفعة',
@@ -262,11 +265,22 @@ class PaymentEditService:
             if log_entry.get("changes"):
                 details += f" - التغييرات: {len(log_entry['changes'])} حقل"
             
+            request = get_current_request()
+            ip_address = get_client_ip(request) if request else None
+            user_agent = request.META.get('HTTP_USER_AGENT', '') if request else None
+
             ActivityLog.objects.create(
                 user=user,
                 action=action_description,
-                details=details,
-                ip_address=None  # يمكن إضافته من request إذا توفر
+                model_name=payment.__class__.__name__,
+                object_id=payment.id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                extra_data={
+                    'description': details,
+                    'changes': log_entry.get('changes'),
+                    'reason': reason
+                }
             )
         except Exception as e:
             logger.error(f"فشل حفظ سجل النشاط: {e}")

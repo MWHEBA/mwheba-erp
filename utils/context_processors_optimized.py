@@ -23,15 +23,30 @@ def common_variables(request):
     company_info = cache.get(cache_key)
     
     if company_info is None:
-        company_info = {
-            'name': "موهبة ERP",
-            'slogan': "نظام إدارة المبيعات والمخزون",
-            'logo': settings.STATIC_URL + "img/logo.png",
-            'address': "القاهرة، مصر",
-            'phone': "+201234567890",
-            'email': "info@mwheba-erp.com",
-            'website': "www.mwheba-erp.com",
-        }
+        try:
+            from core.models import SystemSetting
+            company_info = {
+                'name': SystemSetting.get_setting('company_name', "موهبة ERP"),
+                'slogan': SystemSetting.get_setting('company_slogan', "نظام إدارة المبيعات والمخزون"),
+                'logo': settings.STATIC_URL + "img/logo.png",
+                'address': SystemSetting.get_setting('company_address', "القاهرة، مصر"),
+                'phone': SystemSetting.get_setting('company_phone', "+201234567890"),
+                'email': SystemSetting.get_setting('company_email', "info@mwheba-erp.com"),
+                'website': SystemSetting.get_setting('company_website', "www.mwheba-erp.com"),
+            }
+            db_logo = SystemSetting.get_setting('company_logo')
+            if db_logo:
+                company_info['logo'] = settings.MEDIA_URL + db_logo
+        except Exception:
+            company_info = {
+                'name': "موهبة ERP",
+                'slogan': "نظام إدارة المبيعات والمخزون",
+                'logo': settings.STATIC_URL + "img/logo.png",
+                'address': "القاهرة، مصر",
+                'phone': "+201234567890",
+                'email': "info@mwheba-erp.com",
+                'website': "www.mwheba-erp.com",
+            }
         # Cache لمدة ساعة
         cache.set(cache_key, company_info, 3600)
     

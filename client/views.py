@@ -355,6 +355,81 @@ def customer_detail(request, pk):
     pricing_orders = []
     pricing_orders_count = 0
 
+    # جلب عروض الأسعار المرتبطة بالعميل إذا كانت الميزة مفعلة
+    from core.models import SystemSetting
+    enable_quotations = SystemSetting.get_setting('enable_quotations', 'false') == 'true'
+    quotations = []
+    quotations_count = 0
+    quotations_headers = []
+    quotations_action_buttons = []
+    
+    if enable_quotations:
+        from sale.models import Quotation
+        quotations = Quotation.objects.filter(customer=customer).order_by("-date", "-number")
+        quotations_count = quotations.count()
+        
+        quotations_headers = [
+            {
+                "key": "id",
+                "label": "#",
+                "sortable": True,
+                "class": "text-center",
+                "width": "60px",
+            },
+            {
+                "key": "date",
+                "label": "التاريخ",
+                "sortable": True,
+                "class": "text-center",
+                "format": "date",
+            },
+            {
+                "key": "number",
+                "label": "رقم العرض",
+                "sortable": True,
+                "class": "text-center",
+                "format": "reference",
+                "variant": "highlight-code",
+                "app": "sale",
+            },
+            {
+                "key": "valid_until",
+                "label": "صلاحية العرض",
+                "sortable": True,
+                "class": "text-center",
+                "format": "date",
+            },
+            {
+                "key": "total",
+                "label": "الإجمالي",
+                "sortable": True,
+                "class": "text-center",
+                "format": "currency",
+            },
+            {
+                "key": "status",
+                "label": "الحالة",
+                "sortable": True,
+                "class": "text-center",
+                "format": "status",
+            },
+        ]
+        
+        quotations_action_buttons = [
+            {
+                "url": "sale:quotation_detail",
+                "icon": "fa-eye",
+                "class": "action-view",
+                "label": "عرض عرض السعر",
+            },
+            {
+                "url": "sale:quotation_edit",
+                "icon": "fa-edit",
+                "class": "action-edit",
+                "label": "تعديل",
+            },
+        ]
+
     # حساب إجمالي المبيعات
     total_sales = invoices.aggregate(total=Sum("total"))["total"] or 0
 
@@ -869,6 +944,13 @@ def customer_detail(request, pk):
         "pricing_orders_headers": pricing_orders_headers,  # أعمدة جدول طلبات التسعير
         "pricing_orders_action_buttons": pricing_orders_action_buttons,  # أزرار إجراءات طلبات التسعير
         "primary_key": "id",  # المفتاح الأساسي للجداول
+        "enable_quotations": enable_quotations,
+        "quotations": quotations,
+        "quotations_count": quotations_count,
+        "quotations_headers": quotations_headers,
+        "quotations_action_buttons": quotations_action_buttons,
+        "quotations_clickable": True,
+        "quotations_click_url": "sale:quotation_detail",
         # إعدادات الصفوف القابلة للنقر
         "invoices_clickable": True,
         "invoices_click_url": "sale:sale_detail",
@@ -1088,3 +1170,68 @@ def customer_create_account(request, pk):
     
     # إعادة توجيه للصفحة العادية
     return redirect("client:customer_change_account", pk=customer.pk)
+
+
+@login_required
+def customer_add_ajax(request):
+    """
+    إضافة عميل جديد عبر AJAX وتوليد الكود تلقائياً
+    """
+    if request.method == "POST":
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            try:
+                customer = customer_service.create_customer(
+                    name=form.cleaned_data['name'],
+                    code=form.cleaned_data['code'],
+                    user=request.user,
+                    phone=form.cleaned_data.get('phone', ''),
+                    email=form.cleaned_data.get('email', ''),
+                    address=form.cleaned_data.get('address', ''),
+                    credit_limit=form.cleaned_data.get('credit_limit', 0),
+                    tax_number=form.cleaned_data.get('tax_number', ''),
+                    notes=form.cleaned_data.get('notes', '')
+                )
+                return JsonResponse({
+                    'success': True,
+                    'customer': {
+                        'id': customer.pk,
+                        'name': customer.name,
+                        'phone': customer.phone,
+                        'code': customer.code
+                    },
+                    'message': _('تم إضافة العميل بنجاح')
+                })
+            except Exception as e:
+                return JsonResponse({
+                    'success': False,
+                    'message': f"خطأ في إضافة العميل: {str(e)}"
+                })
+        else:
+            errors = {}
+            for field, field_errors in form.errors.items():
+                errors[field] = [str(err) for err in field_errors]
+            return JsonResponse({
+                'success': False,
+                'errors': errors,
+                'message': 'يرجى تصحيح الأخطاء في النموذج.'
+            })
+    
+    # GET request - return next generated code
+    last_customer = Customer.objects.filter(
+        code__startswith='CUST'
+    ).order_by('-id').first()
+    new_number = 1
+    if last_customer and last_customer.code:
+        try:
+            digits = ''.join(filter(str.isdigit, last_customer.code))
+            if digits:
+                new_number = int(digits) + 1
+        except Exception:
+            pass
+    code = f'CUST{new_number:04d}'
+    return JsonResponse({
+        'success': True,
+        'code': code
+    })
+

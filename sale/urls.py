@@ -40,4 +40,15 @@ urlpatterns = [
     path(
         "returns/<int:pk>/cancel/", views.sale_return_cancel, name="sale_return_cancel"
     ),
+    
+    # عروض الأسعار (Quotations)
+    path("quotations/", views.quotation_list, name="quotation_list"),
+    path("quotations/create/", views.quotation_create, name="quotation_create"),
+    path("quotations/create/customer/<int:customer_id>/", views.quotation_create, name="quotation_create_for_customer"),
+    path("quotations/<int:pk>/", views.quotation_detail, name="quotation_detail"),
+    path("quotations/<int:pk>/edit/", views.quotation_edit, name="quotation_edit"),
+    path("quotations/<int:pk>/delete/", views.quotation_delete, name="quotation_delete"),
+    path("quotations/<int:pk>/print/", views.quotation_print, name="quotation_print"),
+    path("quotations/<int:pk>/convert/", views.quotation_convert_to_sale, name="quotation_convert_to_sale"),
+    path("quotations/api/check-stock/", views.check_product_stock, name="check_product_stock"),
 ]

@@ -1061,13 +1061,18 @@ def user_update_custom_permissions(request, user_id):
             
             # Log the change
             from .models import ActivityLog
+            from utils.logs import get_client_ip
             ActivityLog.objects.create(
                 user=request.user,
-                action='update_user_custom_permissions',
-                description=f'تحديث الصلاحيات المخصصة للمستخدم {user.get_full_name()}',
-                details={
+                action='تحديث صلاحيات مخصصة',
+                model_name='User',
+                object_id=user.id,
+                ip_address=get_client_ip(request),
+                user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                extra_data={
+                    'description': f'تحديث الصلاحيات المخصصة للمستخدم {user.get_full_name() or user.username}',
                     'target_user_id': user.id,
-                    'target_user_name': user.get_full_name(),
+                    'target_user_name': user.get_full_name() or user.username,
                     'custom_permissions_count': len(custom_permissions),
                     'permission_ids': permission_ids
                 }

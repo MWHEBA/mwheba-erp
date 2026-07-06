@@ -119,9 +119,9 @@ If custom_filters is available, it will be used for JSON parsing.
                         {% if title %}{{ title }}{% elif page_title %}{{ page_title }}{% endif %}
                     </h1>
                     {% if subtitle %}
-                        <p class="header-subtitle">{{ subtitle }}</p>
+                        <p class="header-subtitle">{{ subtitle|safe }}</p>
                     {% elif page_subtitle %}
-                        <p class="header-subtitle">{{ page_subtitle }}</p>
+                        <p class="header-subtitle">{{ page_subtitle|safe }}</p>
                     {% endif %}
                     {% if description %}
                         <p class="header-description">{{ description }}</p>
@@ -142,7 +142,7 @@ If custom_filters is available, it will be used for JSON parsing.
                                     </a>
                                 {% elif badge.onclick %}
                                     <button type="button" class="badge {{ badge.class|default:'bg-secondary' }} me-2 border-0" 
-                                            style="cursor: pointer;{% if badge.style %} {{ badge.style }}{% endif %}" 
+                                            {% if badge.style %}style="cursor: pointer; {{ badge.style }}"{% else %}style="cursor: pointer;"{% endif %}
                                             onclick="{{ badge.onclick }}"
                                             {% if badge.title %}title="{{ badge.title }}"{% endif %}
                                             aria-label="{{ badge.text }}">
@@ -184,7 +184,7 @@ If custom_filters is available, it will be used for JSON parsing.
                         <div class="d-flex flex-wrap align-items-center me-3" role="group" aria-label="أنواع الخدمات">
                             {% for type_badge in supplier_types_badges %}
                                 <span class="badge me-1 mb-1" 
-                                      style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 12px; background-color: {{ type_badge.color }}; color: white;"
+                                      style="font-size: 0.75rem; padding: 0.25rem 0.5rem; border-radius: 12px; --type-color: {{ type_badge.color|default:'#6c757d' }}; background-color: var(--type-color); color: white;"
                                       {% if type_badge.title %}title="{{ type_badge.title }}"{% endif %}>
                                     {% if type_badge.icon %}<i class="{{ type_badge.icon }} me-1" aria-hidden="true"></i>{% endif %}
                                     {{ type_badge.text }}
@@ -213,10 +213,31 @@ If custom_filters is available, it will be used for JSON parsing.
                                                 {% if button.icon %}<i class="fas {{ button.icon }} me-1" aria-hidden="true"></i>{% endif %}
                                                 {{ button.text }}
                                             </button>
-                                            <ul class="dropdown-menu dropdown-menu-end">
+                                            <ul class="dropdown-menu dropdown-menu-end{% if button.chic_dropdown %} p-2{% endif %}"{% if button.chic_dropdown %} style="min-width: 320px; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); border: 1px solid #e9ecef;"{% endif %}>
                                                 {% for item in button.items %}
                                                     {% if item.divider %}
-                                                        <li><hr class="dropdown-divider"></li>
+                                                        <li><hr class="dropdown-divider{% if button.chic_dropdown %} my-2{% endif %}"></li>
+                                                    {% elif button.chic_dropdown %}
+                                                        <li>
+                                                            <a class="dropdown-item p-2 rounded mb-1 d-flex align-items-center" 
+                                                               href="{{ item.url|default:'#' }}"
+                                                               {% if item.title %}title="{{ item.title }}"{% endif %}
+                                                               {% if item.target %}target="{{ item.target }}"{% endif %}
+                                                               {% if item.data_toggle %}data-bs-toggle="{{ item.data_toggle }}"{% endif %}
+                                                               {% if item.data_target %}data-bs-target="{{ item.data_target }}"{% endif %}
+                                                               style="border: 1px solid #e9ecef; transition: all 0.2s; white-space: normal;">
+                                                                <div class="me-3 d-flex align-items-center justify-content-center rounded {{ item.icon_class|default:'text-primary bg-primary-subtle' }}" 
+                                                                     style="width: 36px; height: 36px; flex-shrink: 0;">
+                                                                    <i class="fas {{ item.icon }} fa-md"></i>
+                                                                </div>
+                                                                <div class="text-start flex-grow-1">
+                                                                    <div class="fw-bold text-dark" style="font-size: 0.85rem;">{{ item.text }}</div>
+                                                                    {% if item.desc %}
+                                                                        <small class="text-muted d-block mt-0.5" style="font-size: 0.75rem; line-height: 1.2;">{{ item.desc }}</small>
+                                                                    {% endif %}
+                                                                </div>
+                                                            </a>
+                                                        </li>
                                                     {% elif item.onclick %}
                                                         <li>
                                                             <a class="dropdown-item {{ item.class }}" 

@@ -576,11 +576,12 @@ def upload_company_logo(request):
                 'value': saved_path,
                 'group': 'general',
                 'data_type': 'string',
+                'is_active': True,
             }
         )
-        if not created:
-            setting.value = saved_path
-            setting.save()
+        setting.value = saved_path
+        setting.is_active = True
+        setting.save()
         
         # مسح الـ cache بعد رفع الشعار عشان التغييرات تظهر فوراً
         from django.core.cache import cache

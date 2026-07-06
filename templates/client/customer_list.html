@@ -68,7 +68,7 @@
       </div>
       <div class="card-body">
         <div id="customers-table-container">
-        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True %}
+        {% include "components/data_table.html" with table_id="customers-table" data=customers headers=headers primary_key="id" table_class="hover clickable-rows" empty_message="لا يوجد عملاء متاحين" show_search=False show_length_menu=False disable_pagination=True show_currency=True clickable_rows=True row_click_url="/customers/0/detail/" %}
         </div>
         
         <!-- تصدير البيانات -->
@@ -112,9 +112,12 @@
         autoWidth: true, responsive: true
       });
     }
-    $('#customers-table tbody').off('click', 'tr').on('click', 'tr', function() {
-      const match = $(this).html().match(/customer\/(\d+)/);
-      if (match) window.location.href = '/client/customer/' + match[1] + '/';
+    $('#customers-table tbody').off('click', 'tr').on('click', 'tr', function(e) {
+      if ($(e.target).closest('.col-actions, .btn, a, button').length > 0) return;
+      const itemId = $(this).data('id');
+      if (itemId && itemId !== '0') {
+        window.location.href = '/customers/' + itemId + '/detail/';
+      }
     }).css('cursor', 'pointer');
   }
 

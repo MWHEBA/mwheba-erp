@@ -315,6 +315,16 @@ def purchase_create(request, supplier_id=None):
     selected_supplier = None
     is_service_invoice = False
     
+    # قراءة أمر الشغل إذا تم تمريره
+    work_order_id = request.GET.get('work_order') or request.POST.get('work_order')
+    selected_work_order = None
+    if work_order_id:
+        from work_order.models import WorkOrder
+        try:
+            selected_work_order = WorkOrder.objects.get(id=work_order_id)
+        except WorkOrder.DoesNotExist:
+            pass
+    
     if supplier_id:
         try:
             selected_supplier = Supplier.objects.get(id=supplier_id, is_active=True)
@@ -365,6 +375,9 @@ def purchase_create(request, supplier_id=None):
                     # التأكد من عدم وجود مخزن للفواتير الخدمية
                     if purchase.is_service:
                         purchase.warehouse = None
+                    
+                    if selected_work_order:
+                        purchase.work_order = selected_work_order
                     
                     purchase.save()
 
@@ -469,6 +482,8 @@ def purchase_create(request, supplier_id=None):
         # إضافة المورد المحدد إلى البيانات الافتراضية
         if selected_supplier:
             initial_data["supplier"] = selected_supplier
+        if selected_work_order:
+            initial_data["work_order"] = selected_work_order
             
         form = PurchaseForm(initial=initial_data)
 
@@ -519,22 +534,18 @@ def purchase_create(request, supplier_id=None):
             },
         ] if selected_supplier else []),
         "breadcrumb_items": [
-            {
-                "title": "الرئيسية",
-                "url": reverse("core:dashboard"),
-                "icon": "fas fa-home",
-            },
-            {
-                "title": "المشتريات",
-                "url": reverse("purchase:purchase_list"),
-                "icon": "fas fa-shopping-bag",
-            },
-        ] + ([{
-            "title": selected_supplier.name,
-            "url": reverse("supplier:supplier_detail", kwargs={"pk": selected_supplier.pk}),
-            "icon": "fas fa-truck",
-        }] if selected_supplier else []) + [
-            {"title": "إضافة فاتورة", "active": True},
+            {"title": _("الرئيسية"), "url": reverse("core:dashboard"), "icon": "fa-home"},
+            *([
+                {"title": _("أوامر الشغل"), "url": reverse("work_order:work_order_list"), "icon": "fa-briefcase"},
+                {"title": selected_work_order.number, "url": reverse("work_order:work_order_detail", kwargs={"pk": selected_work_order.pk}), "icon": "fa-file-alt"},
+            ] if selected_work_order else [
+                {"title": _("المشتريات"), "url": reverse("purchase:purchase_list"), "icon": "fa-shopping-bag"},
+            ] + ([{
+                "title": selected_supplier.name,
+                "url": reverse("supplier:supplier_detail", kwargs={"pk": selected_supplier.pk}),
+                "icon": "fa-truck",
+            }] if selected_supplier else [])),
+            {"title": _("إضافة فاتورة مشتريات"), "active": True, "icon": "fa-plus-circle"},
         ],
     }
 

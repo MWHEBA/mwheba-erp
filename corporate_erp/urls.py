@@ -32,6 +32,12 @@ urlpatterns = [
     path('health/', health_check, name='health_check'),
     path('ready/', readiness_check, name='readiness_check'),
     
+    # Favicon redirect
+    path(
+        "favicon.ico",
+        RedirectView.as_view(url=settings.STATIC_URL + "img/favicon.ico", permanent=True),
+    ),
+    
     path("admin/", admin.site.urls),
     # روابط المصادقة
     path("login/", CustomLoginView.as_view(), name="login"),
@@ -43,6 +49,7 @@ urlpatterns = [
     path("users/", include("users.urls")),
     path("customers/", include("client.urls")),
     path("sales/", include("sale.urls")),
+    path("work-orders/", include("work_order.urls")),
     path("supplier/", include("supplier.urls")),
     path("products/", include("product.urls")),
     path("printing-pricing/", include("printing_pricing.urls")),  # نظام تسعير المطبوعات

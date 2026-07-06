@@ -306,6 +306,7 @@ class CustomerViewsPermissionsTest(TestCase):
         views = [
             ('client:customer_list', {}),
             ('client:customer_add', {}),
+            ('client:customer_add_ajax', {}),
             ('client:customer_edit', {'pk': self.customer.pk}),
             ('client:customer_delete', {'pk': self.customer.pk}),
             ('client:customer_detail', {'pk': self.customer.pk}),
@@ -378,3 +379,64 @@ class CustomerViewsIntegrationTest(TestCase):
         # 5. التحقق من عدم ظهوره في القائمة
         response = self.client.get(reverse('client:customer_list'))
         self.assertNotContains(response, 'عميل دورة الحياة المحدث')
+
+
+class CustomerAddAjaxViewTest(TestCase):
+    """اختبارات إضافة العميل عبر AJAX"""
+    
+    def setUp(self):
+        """إعداد بيانات الاختبار"""
+        self.client = DjangoClient()
+        self.user = User.objects.create_user(
+            username='testuser',
+            password='test123'
+        )
+        self.client.login(username='testuser', password='test123')
+
+    def test_customer_add_ajax_get(self):
+        """اختبار جلب الكود التلقائي عبر GET"""
+        response = self.client.get(reverse('client:customer_add_ajax'))
+        self.assertEqual(response.status_code, 200)
+        self.assertJSONEqual(
+            str(response.content, encoding='utf8'),
+            {
+                'success': True,
+                'code': 'CUST0001'  # أول كود لأن الجدول فارغ في الاختبار
+            }
+        )
+
+    def test_customer_add_ajax_post_success(self):
+        """اختبار إضافة العميل بنجاح عبر POST"""
+        data = {
+            'name': 'عميل أجاكس جديد',
+            'code': 'CUST0001',
+            'phone': '01234567890',
+            'email': 'ajax@example.com',
+            'credit_limit': '5000.00',
+            'is_active': 'true'
+        }
+        response = self.client.post(reverse('client:customer_add_ajax'), data)
+        self.assertEqual(response.status_code, 200)
+        
+        resp_data = response.json()
+        self.assertTrue(resp_data['success'])
+        self.assertEqual(resp_data['customer']['name'], 'عميل أجاكس جديد')
+        self.assertEqual(resp_data['customer']['code'], 'CUST0001')
+        
+        # التأكد من حفظه في قاعدة البيانات
+        self.assertTrue(Customer.objects.filter(code='CUST0001').exists())
+
+    def test_customer_add_ajax_post_validation_error(self):
+        """اختبار إضافة عميل ببيانات غير صالحة (مثلاً بدون اسم)"""
+        data = {
+            'name': '',  # اسم فارغ وهو حقل مطلوب
+            'code': 'CUST0001'
+        }
+        response = self.client.post(reverse('client:customer_add_ajax'), data)
+        self.assertEqual(response.status_code, 200)
+        
+        resp_data = response.json()
+        self.assertFalse(resp_data['success'])
+        self.assertIn('name', resp_data['errors'])
+        self.assertFalse(Customer.objects.filter(code='CUST0001').exists())
+

@@ -124,6 +124,44 @@ window.mapToToastrType = function(type) {
 };
 
 /**
+ * دالة مساعدة للتحقق مما إذا كان التنبيه يقع داخل حاوية يجب تجاهلها (مثل مودال أو فورم أو كارد)
+ */
+window.isAlertInsideIgnoredContainer = function(alert) {
+    if (!alert) return false;
+    
+    // 1. استخدام closest بشكل صريح ومستقل لتجنب أي مشاكل في معالجة الاستعلامات المركبة
+    if (alert.closest('.modal') || 
+        alert.closest('.modal-content') || 
+        alert.closest('.modal-body') || 
+        alert.closest('.modal-dialog') || 
+        alert.closest('form') || 
+        alert.closest('.card') || 
+        alert.closest('.card-body')) {
+        return true;
+    }
+    
+    // 2. التحقق الاحتياطي عبر التكرار اليدوي للآباء لضمان التوافق الكامل
+    let parent = alert.parentElement;
+    while (parent) {
+        if (parent.classList && (
+            parent.classList.contains('modal') || 
+            parent.classList.contains('modal-content') || 
+            parent.classList.contains('modal-body') || 
+            parent.classList.contains('card') || 
+            parent.classList.contains('card-body')
+        )) {
+            return true;
+        }
+        if (parent.tagName === 'FORM') {
+            return true;
+        }
+        parent = parent.parentElement;
+    }
+    
+    return false;
+};
+
+/**
  * تحويل رسائل Django Messages إلى Toastr
  */
 window.convertDjangoMessagesToToastr = function() {
@@ -133,7 +171,7 @@ window.convertDjangoMessagesToToastr = function() {
     if (djangoMessages.length > 0 && typeof toastr !== 'undefined') {
         djangoMessages.forEach(alert => {
             // تجاهل الـ alerts الموجودة داخل مودالات أو فورمات أو cards
-            if (alert.closest('.modal, form, .card, .modal-body, .modal-content')) {
+            if (window.isAlertInsideIgnoredContainer(alert)) {
                 return;
             }
             window.convertSingleAlertToToastr(alert);
@@ -207,7 +245,7 @@ window.setupAlertObserver = function() {
                 if (node.nodeType === 1) {
                     // تحويل الـ alert الجديد - فقط لو مش جوه مودال أو فورم
                     if (node.classList && node.classList.contains('alert')) {
-                        if (!node.closest('.modal, form, .card, .modal-body, .modal-content')) {
+                        if (!window.isAlertInsideIgnoredContainer(node)) {
                             window.convertSingleAlertToToastr(node);
                         }
                     }
@@ -216,7 +254,7 @@ window.setupAlertObserver = function() {
                         const alerts = node.querySelectorAll && node.querySelectorAll('.alert');
                         if (alerts && alerts.length > 0) {
                             alerts.forEach(alert => {
-                                if (!alert.closest('.modal, form, .card, .modal-body, .modal-content')) {
+                                if (!window.isAlertInsideIgnoredContainer(alert)) {
                                     window.convertSingleAlertToToastr(alert);
                                 }
                             });

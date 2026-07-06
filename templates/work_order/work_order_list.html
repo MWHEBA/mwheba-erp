@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/select2.min.css' %}">
+<style>
+  .select2-container--default .select2-selection--single {
+    height: calc(1.5em + .75rem + 2px);
+    border: 1px solid #ced4da;
+    border-radius: .25rem;
+  }
+  .select2-container--default .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + .75rem + 2px);
+  }
+  /* تحسينات المودال والملاحظات */
+  #workOrderModal textarea {
+    resize: vertical;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+  <!-- Page Header المركزي -->
+  {% include "shared/page_header.html" %}
+
+  <!-- تصفية وبحث -->
+  <div class="section-container mb-4">
+    <h5 class="section-title" data-bs-toggle="collapse" data-bs-target="#filterSection" aria-expanded="false" style="cursor: pointer;">
+      <i class="fas fa-filter me-2"></i>{% trans "تصفية وبحث" %}
+      <i class="fas fa-chevron-down float-end"></i>
+    </h5>
+    <div class="collapse" id="filterSection">
+      <div class="filter-section mb-4">
+        <form method="GET" action="" class="row g-3">
+          <div class="col-md-5">
+            <label for="customer" class="form-label">{% trans "العميل" %}</label>
+            <select class="form-select select2-filter" id="customer" name="customer">
+              <option value="">{% trans "جميع العملاء" %}</option>
+              {% for customer in customers %}
+              <option value="{{ customer.id }}" {% if request.GET.customer == customer.id|stringformat:"i" %}selected{% endif %}>
+                {{ customer.name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="status" class="form-label">{% trans "الحالة" %}</label>
+            <select class="form-select" id="status" name="status">
+              <option value="">{% trans "الكل" %}</option>
+              {% for code, name in status_choices %}
+              <option value="{{ code }}" {% if request.GET.status == code %}selected{% endif %}>
+                {{ name }}
+              </option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-md-3 d-flex gap-2 align-items-end">
+            <button type="submit" class="btn btn-primary w-100">
+              <i class="fas fa-search me-1"></i>{% trans "بحث" %}
+            </button>
+            <a href="{% url 'work_order:work_order_list' %}" class="btn btn-outline-secondary">
+              <i class="fas fa-undo"></i>
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- قائمة أوامر الشغل -->
+  <div class="section-container">
+    <h5 class="section-title"><i class="fas fa-list me-2"></i>{% trans "قائمة أوامر الشغل" %}</h5>
+    <div id="work-orders-table-container">
+      {% if work_orders %}
+      <div class="table-responsive">
+        <table id="work-orders-table" class="transaction-table table-hover table-striped text-center" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>{% trans "رقم أمر الشغل" %}</th>
+              <th class="text-start">{% trans "العميل" %}</th>
+              <th>{% trans "تاريخ البدء" %}</th>
+              <th>{% trans "التسليم المتوقع" %}</th>
+              <th>{% trans "التكلفة التقديرية" %}</th>
+              <th>{% trans "الحالة" %}</th>
+              <th class="col-actions text-center">{% trans "الإجراءات" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for order in work_orders %}
+            <tr class="clickable-row" data-href="{% url 'work_order:work_order_detail' order.id %}" style="cursor: pointer;">
+              <td>{{ forloop.counter }}</td>
+              <td class="fw-bold text-primary">{{ order.number }}</td>
+              <td class="fw-bold text-start" onclick="event.stopPropagation();">
+                <a href="{% url 'client:customer_detail' pk=order.customer.id %}" class="text-decoration-none text-dark hover-primary d-flex align-items-center">
+                  <i class="fas fa-user-tie text-muted me-2"></i>
+                  <span>{{ order.customer.name }}</span>
+                </a>
+              </td>
+              <td>{{ order.start_date|date:"Y-m-d"|default:"-" }}</td>
+              <td>{{ order.delivery_date|date:"Y-m-d"|default:"-" }}</td>
+              <td class="fw-bold text-success">{{ order.estimated_cost|smart_float:2 }} {% currency_symbol %}</td>
+              <td>
+                <span class="badge rounded-pill {% if order.status == 'completed' %}bg-success{% elif order.status == 'in_progress' %}bg-primary{% elif order.status == 'pending' %}bg-warning text-dark{% elif order.status == 'cancelled' %}bg-danger{% else %}bg-secondary{% endif %}">
+                  {{ order.get_status_display }}
+                </span>
+              </td>
+              <td onclick="event.stopPropagation();" class="col-actions text-center">
+                <div class="btn-group">
+                  <a href="{% url 'work_order:work_order_detail' order.id %}" class="btn btn-sm btn-outline-primary" title="{% trans 'عرض' %}">
+                    <i class="fas fa-eye"></i>
+                  </a>
+                  <!-- زر التعديل بالمودال -->
+                  <button type="button" 
+                          class="btn btn-sm btn-outline-warning btn-edit-order" 
+                          data-id="{{ order.id }}" 
+                          data-customer="{{ order.customer.id }}" 
+                          data-start-date="{{ order.start_date|date:'Y-m-d' }}" 
+                          data-delivery-date="{{ order.delivery_date|date:'Y-m-d' }}" 
+                          data-estimated-cost="{{ order.estimated_cost|stringformat:'.2f'|default:'' }}" 
+                          data-notes="{{ order.notes|default:'' }}" 
+                          title="{% trans 'تعديل' %}">
+                    <i class="fas fa-edit"></i>
+                  </button>
+                  <a href="{% url 'work_order:work_order_delete' order.id %}" class="btn btn-sm btn-outline-danger" title="{% trans 'حذف' %}">
+                    <i class="fas fa-trash"></i>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- إضافة زر تصدير البيانات -->
+      <div class="d-flex justify-content-end mt-3">
+        <button type="button" class="btn btn-sm btn-outline-secondary btn-export-table me-2" data-table="work-orders-table" data-filename="work_orders.csv">
+          <i class="fas fa-file-csv me-1"></i>{% trans "تصدير CSV" %}
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-success btn-export-excel" data-table="work-orders-table" data-filename="work_orders.xlsx">
+          <i class="fas fa-file-excel me-1"></i>{% trans "تصدير Excel" %}
+        </button>
+      </div>
+
+      {% else %}
+        <div class="empty-table-notice text-center py-5" style="border: 2px dashed #ccc; background-color: #f8f9fa; border-radius: 0.5rem;">
+            <div class="empty-state-icon mb-3">
+                <i class="fas fa-briefcase fa-sm text-muted" style="opacity: 0.5;"></i>
+            </div>
+            <h4 class="empty-state-title text-muted mb-2">{% trans "لا توجد أوامر شغل مسجلة حالياً." %}</h4>
+            <p class="text-muted">{% trans "لم يتم العثور على أي بيانات لعرضها في هذا الجدول" %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- مودال إنشاء/تعديل أمر الشغل -->
+<div class="modal fade" id="workOrderModal" tabindex="-1" aria-labelledby="workOrderModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="workOrderForm" method="POST" action="{% url 'work_order:work_order_create' %}">
+        {% csrf_token %}
+        <div class="modal-header" style="background-color: var(--primary-color); color: white;">
+          <h5 class="modal-title fw-bold" id="workOrderModalLabel">{% trans "إنشاء أمر شغل جديد" %}</h5>
+          <button type="button" class="btn-close btn-close-white ms-0" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-12">
+              <label class="form-label fw-bold">{{ form.customer.label }} <span class="text-danger">*</span></label>
+              {{ form.customer }}
+            </div>
+            
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.start_date.label }}</label>
+              {{ form.start_date }}
+            </div>
+            
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.delivery_date.label }}</label>
+              {{ form.delivery_date }}
+            </div>
+            
+            <div class="col-md-12">
+              <label class="form-label fw-bold">{{ form.estimated_cost.label }}</label>
+              {{ form.estimated_cost }}
+            </div>
+            
+            <div class="col-md-12">
+              <label class="form-label fw-bold">{{ form.notes.label }}</label>
+              {{ form.notes }}
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% trans "إلغاء" %}</button>
+          <button type="submit" class="btn btn-primary px-4"><i class="fas fa-save me-1"></i>{% trans "حفظ" %}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- مكتبة SheetJS لتصدير البيانات إلى Excel بدعم كامل للغة العربية -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<!-- استخدام مكتبة DataTables من ملف datatables.min.js الموجود -->
+<script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/select2.min.js' %}"></script>
+<script>
+  $(document).ready(function() {
+    // 1. تهيئة Select2 للفلتر
+    $('.select2-filter').select2({
+      width: '100%',
+      language: "ar",
+      dir: "rtl"
+    });
+
+    // 2. تهيئة Select2 للعميل داخل المودال مع دعم dropdownParent
+    var modalCustomerSelect = $('#workOrderModal .select2-init');
+    modalCustomerSelect.select2({
+      dropdownParent: $('#workOrderModal'),
+      width: '100%',
+      language: "ar",
+      dir: "rtl"
+    });
+    
+    // 3. جعل الصفوف قابلة للنقر
+    $('.clickable-row').click(function() {
+      window.location = $(this).data('href');
+    });
+
+    // 4. معالجة فتح المودال للإضافة (ريست الفورم)
+    var workOrderModalEl = document.getElementById('workOrderModal');
+    var workOrderModal = new bootstrap.Modal(workOrderModalEl);
+    
+    workOrderModalEl.addEventListener('show.bs.modal', function (event) {
+      var button = event.relatedTarget;
+      // إذا كان الحدث ناجم عن زر "تعديل"
+      if (button && button.classList.contains('btn-edit-order')) {
+        var id = button.getAttribute('data-id');
+        var customer = button.getAttribute('data-customer');
+        var startDate = button.getAttribute('data-start-date');
+        var deliveryDate = button.getAttribute('data-delivery-date');
+        var estimatedCost = button.getAttribute('data-estimated-cost');
+        var notes = button.getAttribute('data-notes');
+        
+        // تعديل خصائص المودال
+        $('#workOrderModalLabel').text('{% trans "تعديل أمر الشغل" %}');
+        $('#workOrderForm').attr('action', '/work-orders/' + id + '/edit/');
+        
+        // تعبئة البيانات
+        modalCustomerSelect.val(customer).trigger('change');
+        $('#id_start_date').val(startDate);
+        $('#id_delivery_date').val(deliveryDate);
+        $('#id_estimated_cost').val(estimatedCost);
+        $('#id_notes').val(notes);
+      } else {
+        // وضع الإضافة الافتراضي
+        $('#workOrderModalLabel').text('{% trans "إنشاء أمر شغل جديد" %}');
+        
+        // التحقق من وجود معلمات بالرابط
+        var urlParams = new URLSearchParams(window.location.search);
+        var customerId = urlParams.get('customer_id');
+        var quotationId = urlParams.get('quotation_id');
+        
+        var actionUrl = '{% url "work_order:work_order_create" %}';
+        if (quotationId) {
+          actionUrl += '?quotation_id=' + quotationId;
+        }
+        $('#workOrderForm').attr('action', actionUrl);
+        
+        // تصفير الاستمارة
+        if (customerId) {
+          modalCustomerSelect.val(customerId).trigger('change');
+        } else {
+          modalCustomerSelect.val('').trigger('change');
+        }
+        
+        // تعيين تاريخ اليوم كافتراضي للبدء
+        var today = new Date().toISOString().split('T')[0];
+        $('#id_start_date').val(today);
+        $('#id_delivery_date').val('');
+        $('#id_estimated_cost').val('');
+        $('#id_notes').val('');
+      }
+    });
+
+    // 5. فتح المودال تلقائياً في حال تمرير معلمة الإضافة (customer_id / quotation_id) أو التعديل (edit_id) في الرابط
+    var urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has('customer_id') || urlParams.has('quotation_id')) {
+      workOrderModal.show();
+    } else if (urlParams.has('edit_id')) {
+      var editId = urlParams.get('edit_id');
+      var editButton = $('.btn-edit-order[data-id="' + editId + '"]');
+      if (editButton.length > 0) {
+        // فتح المودال مع تمرير الزر كـ relatedTarget لتهيئة البيانات
+        workOrderModal.show(editButton[0]);
+      }
+    }
+
+    // 6. تهيئة منتقي التاريخ للحقول داخل المودال (إذا كان معتمد على bootstrap datepicker)
+    // نضمن بقاء تهيئة منتقي التاريخ سليمة بعد عرض المودال
+    $('#workOrderModal').on('shown.bs.modal', function() {
+      // إجبار إعادة تهيئة حقول التاريخ إذا لزم الأمر
+    });
+  });
+</script>
+{% endblock %}

@@ -211,7 +211,7 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
     background-color: var(--white);
     border-radius: 1rem;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15), 
-                0 0.25rem 0.5rem rgba(1, 87, 138, 0.1);
+                0 0.25rem 0.5rem rgba(var(--primary-rgb, 4, 87, 141), 0.1);
     overflow: hidden;
     transition: all 0.3s ease;
     position: relative;
@@ -223,7 +223,7 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 
 .auth-container:hover {
     box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15), 
-                0 0.5rem 1rem rgba(1, 87, 138, 0.2);
+                0 0.5rem 1rem rgba(var(--primary-rgb, 4, 87, 141), 0.2);
     transform: translateY(-5px);
 }
 
@@ -295,7 +295,7 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
     background-color: var(--white);
     border-color: var(--primary-light);
     outline: 0;
-    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb, 4, 87, 141), 0.25);
 }
 
 .input-with-icon {
@@ -360,7 +360,7 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 
 .auth-button:hover {
     background-color: var(--primary-dark);
-    box-shadow: 0 4px 12px rgba(1, 87, 138, 0.25);
+    box-shadow: 0 4px 12px rgba(var(--primary-rgb, 4, 87, 141), 0.25);
     transform: translateY(-2px);
 }
 
@@ -444,7 +444,7 @@ i.fas.fa-eye, i.fas.fa-eye-slash {
 .form-check-input:focus {
     border-color: var(--primary-light);
     outline: 0;
-    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25);
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb, 4, 87, 141), 0.25);
 }
 
 .form-check-label {
@@ -522,7 +522,7 @@ a.text-muted:hover {
 
 /* تأثير الحقول عند التركيز */
 .form-control:focus {
-    box-shadow: 0 0 0 0.25rem rgba(1, 87, 138, 0.25), 
+    box-shadow: 0 0 0 0.25rem rgba(var(--primary-rgb, 4, 87, 141), 0.25), 
                 0 5px 15px rgba(0, 0, 0, 0.05);
     transform: translateY(-2px);
 }

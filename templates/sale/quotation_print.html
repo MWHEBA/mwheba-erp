@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load custom_filters %}
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.rtl.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- CSS Variables -->
+    {% if settings %}
+    <style id="dynamic-css-vars">
+        :root {
+            --primary-color: {{ settings.color_primary|default:'#01578a' }};
+            --primary-dark: {{ settings.color_primary_dark|default:'#003d62' }};
+            --primary-light: {{ settings.color_primary_light|default:'#e0f0f8' }};
+            --primary-hover: {{ settings.color_primary_hover|default:'#026fae' }};
+        }
+    </style>
+    {% endif %}
+    
+    <style>
+        @media print {
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+            body {
+                font-size: 12pt;
+                background-color: #fff;
+            }
+            .print-header, .no-print {
+                display: none !important;
+            }
+            .container-fluid {
+                width: 100%;
+                max-width: 100%;
+                padding: 0;
+                margin: 0;
+            }
+        }
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: #f5f5f5;
+            padding: 0;
+            margin: 0;
+        }
+        
+        .print-header {
+            background-color: var(--primary-color, #01578a);
+            color: #fff;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .invoice-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+        
+        .company-info {
+            border-bottom: 2px solid var(--primary-color, #01578a);
+            padding-bottom: 15px;
+            margin-bottom: 15px;
+        }
+        
+        .company-logo {
+            max-height: 70px;
+            margin-bottom: 10px;
+        }
+        
+        .company-name {
+            font-size: 22px;
+            font-weight: bold;
+            color: var(--primary-color, #01578a);
+        }
+        
+        .invoice-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary-color, #01578a);
+            text-align: center;
+            margin: 15px 0;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .invoice-details {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .detail-group {
+            flex-basis: 24%;
+            margin-bottom: 10px;
+        }
+        
+        .detail-label {
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        .items-table th {
+            background-color: #f5f5f5;
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: right;
+            font-size: 14px;
+        }
+        
+        .items-table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+            font-size: 16px;
+            vertical-align: middle;
+        }
+        
+        .items-table .product-name {
+            font-weight: bold;
+        }
+        
+        .items-table .product-qty {
+            font-weight: bold;
+        }
+        
+        .summary-table {
+            width: 350px;
+            margin-right: auto;
+            margin-left: 0;
+            border-collapse: collapse;
+        }
+        
+        .summary-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        
+        .summary-table .total-row {
+            font-weight: bold;
+            background-color: #f5f5f5;
+        }
+        
+        .signature-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 50px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .signature-box {
+            flex-basis: 30%;
+            text-align: center;
+        }
+        
+        .signature-title {
+            font-weight: bold;
+            margin-bottom: 40px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="print-header">
+        <h2 class="m-0">{% trans "طباعة عرض السعر" %}</h2>
+        <div>
+            <button onclick="window.print()" class="btn btn-light">
+                <i class="fas fa-print"></i> {% trans "طباعة" %}
+            </button>
+            <a href="{% url 'sale:quotation_detail' quotation.id %}" class="btn btn-light ms-2">
+                <i class="fas fa-arrow-right"></i> {% trans "العودة" %}
+            </a>
+        </div>
+    </div>
+    
+    <div class="container-fluid">
+        <div class="invoice-container">
+            <div class="company-info">
+                <div class="row align-items-center">
+                    <div class="col-md-6">
+                        {% if company_logo %}
+                            <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="شعار الشركة" class="company-logo">
+                        {% else %}
+                            <img src="{% static 'img/logo.png' %}" alt="شعار الشركة" class="company-logo" onerror="this.style.display='none'">
+                        {% endif %}
+                        <div class="company-name">{{ company_name }}</div>
+                        {% if company_address %}<div>{{ company_address }}</div>{% endif %}
+                        {% if company_phone %}<div>الهاتف: {{ company_phone }}</div>{% endif %}
+                    </div>
+                    <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                        {% if company_email %}<div>البريد الإلكتروني: {{ company_email }}</div>{% endif %}
+                        {% if company_website %}<div>الموقع الإلكتروني: {{ company_website }}</div>{% endif %}
+                        {% if company_tax_number %}<div>الرقم الضريبي: {{ company_tax_number }}</div>{% endif %}
+                    </div>
+                </div>
+            </div>
+            
+            <div class="invoice-title">
+                {% trans "عرض سعر رقم:" %} {{ quotation.number }}
+            </div>
+            
+            <div class="invoice-details">
+                <div class="detail-group">
+                    <div class="detail-label">{% trans "العميل:" %}</div>
+                    <div>{{ quotation.customer.name }}</div>
+                    {% if quotation.customer.phone %}
+                    <div>{{ quotation.customer.phone }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="detail-group">
+                    <div class="detail-label">{% trans "تاريخ عرض السعر:" %}</div>
+                    <div>{{ quotation.date|date:"d-m-Y" }}</div>
+                    
+                    {% if quotation.valid_until %}
+                    <div class="detail-label mt-2">{% trans "صالح حتى:" %}</div>
+                    <div>{{ quotation.valid_until|date:"d-m-Y" }}</div>
+                    {% endif %}
+                </div>
+                
+                <div class="detail-group">
+                    <div class="detail-label">{% trans "حالة العرض:" %}</div>
+                    <div>{{ quotation.get_status_display }}</div>
+                </div>
+                
+                <div class="detail-group">
+                    <div class="detail-label">{% trans "أنشئ بواسطة:" %}</div>
+                    <div>{{ quotation.created_by.get_full_name|default:quotation.created_by.username }}</div>
+                    
+                    <div class="detail-label mt-2">{% trans "تاريخ الإنشاء:" %}</div>
+                    <div>{{ quotation.created_at|date:"d-m-Y H:i" }}</div>
+                </div>
+            </div>
+            
+            {% if quotation.notes %}
+            <div class="mb-3 border-top pt-3">
+                <div class="detail-label">{% trans "شروط وملاحظات:" %}</div>
+                <div style="white-space: pre-line;">{{ quotation.notes }}</div>
+            </div>
+            {% endif %}
+            
+            <table class="items-table table table-bordered">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>{% trans "البيان / البند" %}</th>
+                        <th style="width: 100px;">{% trans "الكمية" %}</th>
+                        <th style="width: 150px;">{% trans "سعر الوحدة" %}</th>
+                        <th style="width: 120px;">{% trans "الخصم" %}</th>
+                        <th style="width: 150px;">{% trans "الإجمالي" %}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td class="product-name">
+                            {{ item.product.name }}
+                            <div class="small text-muted">{{ item.product.sku }}</div>
+                        </td>
+                        <td class="product-qty">{{ item.quantity|smart_float }}</td>
+                        <td>{{ item.unit_price|smart_float:2 }} {% currency_symbol %}</td>
+                        <td>{{ item.discount|smart_float:2 }} {% currency_symbol %}</td>
+                        <td class="fw-bold text-success">{{ item.total|smart_float:2 }} {% currency_symbol %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            
+            <div class="row mt-4">
+                <div class="col-md-6">
+                </div>
+                <div class="col-md-6">
+                    <table class="summary-table">
+                        <tr>
+                            <td>{% trans "المجموع الفرعي" %}</td>
+                            <td class="text-end">{{ quotation.subtotal|smart_float:2 }} {% currency_symbol %}</td>
+                        </tr>
+                        {% if quotation.discount > 0 %}
+                        <tr>
+                            <td class="text-danger">{% trans "إجمالي الخصم" %}</td>
+                            <td class="text-end text-danger">-{{ quotation.discount|smart_float:2 }} {% currency_symbol %}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td>{% trans "الضريبة (14%)" %}</td>
+                            <td class="text-end">+{{ quotation.tax|smart_float:2 }} {% currency_symbol %}</td>
+                        </tr>
+                        <tr class="total-row">
+                            <td class="fw-bold">{% trans "الإجمالي النهائي" %}</td>
+                            <td class="text-end fw-bold text-success">{{ quotation.total|smart_float:2 }} {% currency_symbol %}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="signature-section">
+                <div class="signature-box">
+                    <div class="signature-title">{% trans "المستلم (العميل)" %}</div>
+                    <div>__________________</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-title">{% trans "المبيعات" %}</div>
+                    <div>{{ quotation.created_by.get_full_name|default:quotation.created_by.username }}</div>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-title">{% trans "الختم والتوقيع" %}</div>
+                    <div>__________________</div>
+                </div>
+            </div>
+            
+            <div class="footer">
+                {% trans "نشكركم على تعاملكم معنا ونرحب بكم دائماً" %}
+            </div>
+        </div>
+    </div>
+</body>
+</html>

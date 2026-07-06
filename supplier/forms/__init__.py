@@ -38,7 +38,7 @@ class SupplierForm(forms.ModelForm):
             "code": forms.TextInput(
                 attrs={
                     "class": "form-control", 
-                    "placeholder": "سيتم التوليد التلقائي عند الحفظ (SUP001, SUP002, SUP003, ...)"
+                    "readonly": "readonly"
                 }
             ),
             "primary_type": forms.Select(
@@ -116,8 +116,28 @@ class SupplierForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Make code field optional
-        self.fields['code'].required = False
+        # توليد كود تلقائي للمورد الجديد
+        if not self.instance.pk:
+            last_supplier = Supplier.objects.filter(
+                code__startswith='SUP'
+            ).order_by('-id').first()
+            if last_supplier and last_supplier.code:
+                try:
+                    # Extract the numeric part of the code
+                    digits = ''.join(filter(str.isdigit, last_supplier.code))
+                    if digits:
+                        new_number = int(digits) + 1
+                    else:
+                        new_number = 1
+                except Exception:
+                    new_number = 1
+            else:
+                new_number = 1
+            
+            self.initial['code'] = f'SUP{new_number:03d}'
+        
+        # Make code field required (consistent with customer)
+        self.fields['code'].required = True
 
         # تحديث queryset لـ primary_type لعرض الأنواع النشطة فقط
         from ..models import SupplierType

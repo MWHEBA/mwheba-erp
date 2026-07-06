@@ -869,3 +869,8 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     color: #dc3545;
     font-weight: 500;
 }
+
+/* إخفاء أيقونة ملحق الألوان المتصفح */
+.colorpick-eyedropper-input-trigger {
+    display: none !important;
+}

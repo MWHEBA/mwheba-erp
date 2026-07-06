@@ -24,17 +24,49 @@ def common_variables(request):
         if not app.startswith("django.") and not app.startswith("crispy_")
     ]
 
+    # بيانات المؤسسة - يمكن cache لمدة طويلة
+    cache_key = 'company_info_v1'
+    company_info = cache.get(cache_key)
+    
+    if company_info is None:
+        try:
+            from core.models import SystemSetting
+            company_info = {
+                'name': SystemSetting.get_setting('company_name', "موهبة ERP"),
+                'slogan': SystemSetting.get_setting('company_slogan', "نظام إدارة المبيعات والمخزون"),
+                'logo': settings.STATIC_URL + "img/logo.png",
+                'address': SystemSetting.get_setting('company_address', "القاهرة، مصر"),
+                'phone': SystemSetting.get_setting('company_phone', "+201234567890"),
+                'email': SystemSetting.get_setting('company_email', "info@mwheba-erp.com"),
+                'website': SystemSetting.get_setting('company_website', "www.mwheba-erp.com"),
+            }
+            db_logo = SystemSetting.get_setting('company_logo')
+            if db_logo:
+                company_info['logo'] = settings.MEDIA_URL + db_logo
+        except Exception:
+            company_info = {
+                'name': "موهبة ERP",
+                'slogan': "نظام إدارة المبيعات والمخزون",
+                'logo': settings.STATIC_URL + "img/logo.png",
+                'address': "القاهرة، مصر",
+                'phone': "+201234567890",
+                'email': "info@mwheba-erp.com",
+                'website': "www.mwheba-erp.com",
+            }
+        # Cache لمدة ساعة
+        cache.set(cache_key, company_info, 3600)
+
     return {
         "current_date": current_date,
         "current_year": current_date.year,
         "currency_symbol": currency_symbol,
-        "company_name": "موهبة ERP",
-        "company_slogan": "نظام إدارة المبيعات والمخزون",
-        "company_logo": settings.STATIC_URL + "img/logo.png",
-        "company_address": "القاهرة، مصر",
-        "company_phone": "+201234567890",
-        "company_email": "info@mwheba-erp.com",
-        "company_website": "www.mwheba-erp.com",
+        "company_name": company_info['name'],
+        "company_slogan": company_info['slogan'],
+        "company_logo": company_info['logo'],
+        "company_address": company_info['address'],
+        "company_phone": company_info['phone'],
+        "company_email": company_info['email'],
+        "company_website": company_info['website'],
         "main_models": {},  # counts أُزيلت - لا تُستخدم في أي template
         "installed_apps": installed_apps,
         "debug": settings.DEBUG,

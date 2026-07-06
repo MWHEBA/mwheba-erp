@@ -441,6 +441,21 @@ class SystemSettingsForm(forms.Form):
         initial='80',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    sale_invoice_item_types = forms.ChoiceField(
+        label='أنواع بنود فاتورة المبيعات المسموحة',
+        choices=[
+            ('both', 'المنتجات والخدمات معاً'),
+            ('products', 'المنتجات فقط'),
+            ('services', 'الخدمات فقط')
+        ],
+        initial='both',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    enable_quotations = forms.BooleanField(
+        label='تفعيل عروض الأسعار',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
     
     # إعدادات الإيميل
     email_host = forms.CharField(

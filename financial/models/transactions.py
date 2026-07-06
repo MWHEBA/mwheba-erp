@@ -152,6 +152,16 @@ class FinancialTransaction(models.Model):
         _("المبلغ الصافي"), max_digits=15, decimal_places=2, default=0
     )
 
+    # ربط بأمر الشغل
+    work_order = models.ForeignKey(
+        "work_order.WorkOrder",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name=_("أمر الشغل المرتبط"),
+        related_name="financial_transactions",
+    )
+
     # التتبع
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
     updated_at = models.DateTimeField(_("تاريخ التحديث"), auto_now=True)

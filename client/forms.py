@@ -65,14 +65,17 @@ class CustomerForm(forms.ModelForm):
         if not self.instance.pk:
             # الحصول على آخر كود
             last_customer = Customer.objects.filter(
-                code__startswith='CUST',
-                code__regex=r'^CUST\d+$'
-            ).order_by('-code').first()
+                code__startswith='CUST'
+            ).order_by('-id').first()
             if last_customer and last_customer.code:
                 try:
-                    last_number = int(last_customer.code.replace('CUST', ''))
-                    new_number = last_number + 1
-                except (ValueError, IndexError):
+                    # Extract the numeric part of the code
+                    digits = ''.join(filter(str.isdigit, last_customer.code))
+                    if digits:
+                        new_number = int(digits) + 1
+                    else:
+                        new_number = 1
+                except Exception:
                     new_number = 1
             else:
                 new_number = 1

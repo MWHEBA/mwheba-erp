@@ -1,7 +1,7 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Q
-from .models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
+from .models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem, Quotation
 from client.models import Customer
 from product.models import Product, Stock, Warehouse
 from django.db import models
@@ -52,6 +52,7 @@ class SaleForm(forms.ModelForm):
             "payment_method",
             "financial_category",
             "notes",
+            "work_order",
         ]
         widgets = {
             "date": forms.TextInput(attrs={
@@ -64,6 +65,13 @@ class SaleForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        
+        from work_order.models import WorkOrder
+        self.fields['work_order'] = forms.ModelChoiceField(
+            queryset=WorkOrder.objects.all(),
+            required=False,
+            widget=forms.HiddenInput()
+        )
 
         # تعيين تاريخ اليوم كافتراضي بالتنسيق الصحيح
         if not self.initial.get("date"):
@@ -554,3 +562,57 @@ class SaleReturnItemForm(forms.ModelForm):
                 )
 
         return quantity
+
+
+class QuotationForm(forms.ModelForm):
+    """
+    نموذج إنشاء وتعديل عرض سعر
+    """
+    customer = forms.ModelChoiceField(
+        queryset=Customer.objects.filter(is_active=True), label="العميل",
+        widget=forms.Select(attrs={"class": "form-control select2", "id": "id_customer"})
+    )
+
+    class Meta:
+        model = Quotation
+        fields = [
+            "customer",
+            "date",
+            "valid_until",
+            "discount",
+            "tax_active",
+            "notes",
+            "work_order",
+        ]
+        widgets = {
+            "date": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ عرض السعر..."
+            }),
+            "valid_until": forms.TextInput(attrs={
+                "class": "form-control",
+                "data-date-picker": True,
+                "placeholder": "اختر تاريخ انتهاء الصلاحية..."
+            }),
+            "notes": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        from work_order.models import WorkOrder
+        self.fields['work_order'] = forms.ModelChoiceField(
+            queryset=WorkOrder.objects.all(),
+            required=False,
+            widget=forms.HiddenInput()
+        )
+        if not self.initial.get("date"):
+            self.initial["date"] = timezone.now().date().strftime("%Y-%m-%d")
+        if not self.initial.get("status"):
+            self.initial["status"] = "draft"
+        
+        # تعيين أول مخزن بشكل افتراضي
+        warehouses = Warehouse.objects.filter(is_active=True)
+        if warehouses.exists() and not self.initial.get("warehouse"):
+            self.initial["warehouse"] = warehouses.first().pk
