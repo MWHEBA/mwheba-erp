@@ -2062,14 +2062,6 @@ window.toggleCategoryUserPermissions = function(categoryKey) {
 
 // دالة showAlert موحدة - تستخدم النظام الموحد للإشعارات
 function showAlert(message, type = 'info') {
-    if (typeof toastr !== 'undefined') {
-        if (type === 'success') toastr.success(message);
-        else if (type === 'error' || type === 'danger') toastr.error(message);
-        else if (type === 'warning') toastr.warning(message);
-        else toastr.info(message);
-    }
-}
-    
     // البديل: استخدام toastr مباشرة
     if (typeof toastr !== 'undefined') {
         switch(type) {

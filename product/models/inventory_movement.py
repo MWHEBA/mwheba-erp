@@ -177,6 +177,15 @@ class InventoryMovement(models.Model):
         null=True,
     )
 
+    batch_voucher = models.ForeignKey(
+        "BatchVoucher",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="inventory_movements",
+        verbose_name=_("الإذن الجماعي"),
+    )
+
     # حقول أذون الصرف والاستلام
     voucher_type = models.CharField(
         _("نوع الإذن"),

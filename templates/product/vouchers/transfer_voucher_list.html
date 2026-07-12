@@ -3,6 +3,8 @@
 {% load utils_extras %}
 
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <style>
@@ -144,6 +146,13 @@
 {% block extra_js %}
 <script src="{% static 'js/global-table.js' %}"></script>
 <script src="{% static 'js/product-select2.js' %}"></script>
+<script id="warehouses-data" type="application/json">
+[
+    {% for warehouse in warehouses %}
+    {"id": "{{ warehouse.id }}", "name": "{{ warehouse.name|escapejs }}"}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+]
+</script>
 <script>
 $(document).ready(function() {
     // تهيئة الجدول
@@ -209,6 +218,14 @@ $(document).ready(function() {
                 fromWarehouseSelect.html(options);
                 fromWarehouseSelect.data('all-warehouses', data.warehouses);
                 fromWarehouseSelect.data('unit', data.unit);
+
+                // التركيز على حقل الكمية وتظليلها للكتابة
+                setTimeout(function() {
+                    var $qtyInput = $('#id_quantity');
+                    if ($qtyInput.length) {
+                        $qtyInput.focus().select();
+                    }
+                }, 100);
             },
             error: function() {
                 fromWarehouseSelect.html('<option value="">حدث خطأ في تحميل المخازن</option>');
@@ -237,11 +254,7 @@ $(document).ready(function() {
             return;
         }
         
-        const allWarehouses = [
-            {% for warehouse in warehouses %}
-            {id: '{{ warehouse.id }}', name: '{{ warehouse.name }}'}{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
+        const allWarehouses = JSON.parse(document.getElementById('warehouses-data').textContent);
         
         let options = '<option value="">--- اختر المخزن ---</option>';
         allWarehouses.forEach(function(warehouse) {

@@ -804,8 +804,17 @@
             }
             calculateRowTotal($row);
 
+            // إغلاق المودال
             bootstrap.Modal.getInstance(document.getElementById('productPickerModal')).hide();
             window._activePickerRow = null;
+
+            // التركيز على حقل الكمية وتظليلها للكتابة
+            setTimeout(function() {
+                var $qtyInput = $row.find('.quantity');
+                if ($qtyInput.length) {
+                    $qtyInput.focus().select();
+                }
+            }, 300);
         });
 
         // ===== إضافة بند =====

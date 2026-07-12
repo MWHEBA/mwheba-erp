@@ -156,78 +156,33 @@ class SaleService:
             logger.info(f"   - طريقة الدفع: {sale.payment_method}")
             logger.info(f"   - الإجمالي: {sale.total}")
             
-            # تحديد حساب المدين حسب طريقة الدفع
-            # payment_method ممكن يكون: 'cash', 'bank_transfer', 'credit', أو account code مباشرة (مثل '10100')
-            payment_method = sale.payment_method
-            
-            if payment_method == 'credit':
-                # فاتورة آجلة - حساب العميل
-                # حساب العميل - التأكد من وجود الحساب المحاسبي
-                if not sale.customer.financial_account:
-                    # استدعاء الـ signal لإنشاء الحساب (Single Source of Truth)
-                    logger.warning(
-                        f"⚠️ العميل '{sale.customer.name}' (ID: {sale.customer.id}) ليس لديه حساب محاسبي. "
-                        f"سيتم إنشاؤه تلقائياً عبر signal."
-                    )
-                    sale.customer.save()  # Trigger post_save signal
-                    sale.customer.refresh_from_db()
-                    
-                    # التحقق من نجاح الإنشاء
-                    if not sale.customer.financial_account:
-                        from django.core.exceptions import ValidationError
-                        error_msg = (
-                            f"❌ فشل إنشاء حساب محاسبي للعميل '{sale.customer.name}' (ID: {sale.customer.id}). "
-                            f"يرجى التأكد من:\n"
-                            f"1. وجود حساب العملاء الرئيسي (10300)\n"
-                            f"2. تفعيل AUTO_CREATE_CUSTOMER_ACCOUNTS في settings\n"
-                            f"3. عدم وجود أخطاء في CustomerService.create_financial_account_for_customer()"
-                        )
-                        logger.error(error_msg)
-                        raise ValidationError(error_msg)
+            # تحديد حساب المدين: يجب دائماً مدين حساب العميل في قيد الفاتورة
+            # لضمان عدم حدوث تكرار لمديونية الخزينة (Double-Debit) وتكامل الحسابات
+            if not sale.customer.financial_account:
+                # استدعاء الـ signal لإنشاء الحساب (Single Source of Truth)
+                logger.warning(
+                    f"⚠️ العميل '{sale.customer.name}' (ID: {sale.customer.id}) ليس لديه حساب محاسبي. "
+                    f"سيتم إنشاؤه تلقائياً عبر signal."
+                )
+                sale.customer.save()  # Trigger post_save signal
+                sale.customer.refresh_from_db()
                 
-                debit_account = sale.customer.financial_account
-                logger.info(f"✅ استخدام حساب العميل: {debit_account.code} - {debit_account.name}")
-            elif payment_method == 'cash':
-                # نقدي - الخزينة الافتراضية
-                try:
-                    debit_account = ChartOfAccounts.objects.get(code='10100', is_active=True)
-                    logger.info(f"✅ استخدام الخزينة الافتراضية: {debit_account.code} - {debit_account.name}")
-                except ChartOfAccounts.DoesNotExist:
+                # التحقق من نجاح الإنشاء
+                if not sale.customer.financial_account:
                     from django.core.exceptions import ValidationError
-                    error_msg = "❌ الحساب النقدي (10100) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
+                    error_msg = (
+                        f"❌ فشل إنشاء حساب محاسبي للعميل '{sale.customer.name}' (ID: {sale.customer.id}). "
+                        f"يرجى التأكد من:\n"
+                        f"1. وجود حساب العملاء الرئيسي (10300)\n"
+                        f"2. تفعيل AUTO_CREATE_CUSTOMER_ACCOUNTS في settings\n"
+                        f"3. عدم وجود أخطاء في CustomerService.create_financial_account_for_customer()"
+                    )
                     logger.error(error_msg)
                     raise ValidationError(error_msg)
-            elif payment_method == 'bank_transfer':
-                # تحويل بنكي - البنك الافتراضي
-                try:
-                    debit_account = ChartOfAccounts.objects.get(code='10200', is_active=True)
-                    logger.info(f"✅ استخدام البنك الافتراضي: {debit_account.code} - {debit_account.name}")
-                except ChartOfAccounts.DoesNotExist:
-                    from django.core.exceptions import ValidationError
-                    error_msg = "❌ الحساب البنكي (10200) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
-            elif payment_method and (payment_method.isdigit() or len(payment_method) == 5):
-                # account code مباشرة (مثل '10100' أو '10200')
-                try:
-                    debit_account = ChartOfAccounts.objects.get(code=payment_method, is_active=True)
-                    logger.info(f"✅ استخدام الحساب المحدد: {debit_account.code} - {debit_account.name}")
-                except ChartOfAccounts.DoesNotExist:
-                    from django.core.exceptions import ValidationError
-                    error_msg = f"❌ الحساب المحاسبي '{payment_method}' غير موجود أو غير نشط في دليل الحسابات."
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
-            else:
-                # افتراضي: الخزينة
-                logger.warning(f"⚠️ طريقة دفع غير معروفة '{payment_method}' - استخدام الخزينة الافتراضية")
-                try:
-                    debit_account = ChartOfAccounts.objects.get(code='10100', is_active=True)
-                    logger.info(f"✅ استخدام الخزينة الافتراضية: {debit_account.code} - {debit_account.name}")
-                except ChartOfAccounts.DoesNotExist:
-                    from django.core.exceptions import ValidationError
-                    error_msg = "❌ الحساب النقدي (10100) غير موجود في دليل الحسابات. يرجى إنشاؤه أولاً."
-                    logger.error(error_msg)
-                    raise ValidationError(error_msg)
+            
+            debit_account = sale.customer.financial_account
+            logger.info(f"✅ استخدام حساب العميل للمديونية: {debit_account.code} - {debit_account.name}")
+
             
             # حساب تكلفة البضاعة المباعة (فقط للمنتجات المادية)
             cost_of_goods_sold = Decimal('0')
@@ -817,6 +772,7 @@ class SaleService:
             user: المستخدم
         """
         try:
+            customer = sale.customer
             # 1. حذف القيد المحاسبي
             if sale.journal_entry:
                 try:
@@ -832,8 +788,9 @@ class SaleService:
             
             # 2. حذف حركات المخزون
             from product.models import StockMovement
+            item_ids = list(sale.items.values_list('id', flat=True))
             movements = StockMovement.objects.filter(
-                reference_number__contains=f'SALE-{sale.number}'
+                reference_number__in=[f"SALE_ITEM_{item_id}" for item_id in item_ids]
             )
             movements_count = movements.count()
             movements.delete()
@@ -841,35 +798,16 @@ class SaleService:
             if movements_count > 0:
                 logger.info(f"✅ تم حذف {movements_count} حركة مخزون للفاتورة: {sale.number}")
             
-            # 3. تحديث رصيد العميل
-            if sale.payment_method == 'credit':
-                customer = sale.customer
-                customer.balance -= sale.total
-                customer.save(update_fields=['balance'])
-                logger.info(f"✅ تم تحديث رصيد العميل: {customer.name}")
-            
-            # 4. حذف الفاتورة
+            # 3. حذف الفاتورة (سيقوم الـ cascade بحذف الدفعات التلقائية المربوطة بها)
             sale_number = sale.number
             sale.delete()
-            
             logger.info(f"✅ تم حذف الفاتورة بنجاح: {sale_number}")
-            
-        except Exception as e:
-            logger.error(f"❌ خطأ في حذف الفاتورة {sale.number}: {str(e)}")
-            raise
-            
-            # 3. تحديث رصيد العميل
-            if sale.payment_method == 'credit':
-                customer = sale.customer
-                customer.balance -= sale.total
-                customer.save(update_fields=['balance'])
-                logger.info(f"✅ تم تحديث رصيد العميل: {customer.name}")
-            
-            # 4. حذف الفاتورة
-            sale_number = sale.number
-            sale.delete()
-            
-            logger.info(f"✅ تم حذف الفاتورة بنجاح: {sale_number}")
+
+            # 4. إعادة حساب رصيد العميل بعد حذف الفاتورة والدفعات المرتبطة
+            if customer:
+                from sale.signals import recalculate_customer_balance
+                recalculate_customer_balance(customer)
+                logger.info(f"✅ تم إعادة حساب رصيد العميل: {customer.name}")
             
         except Exception as e:
             logger.error(f"❌ خطأ في حذف الفاتورة {sale.number}: {str(e)}")

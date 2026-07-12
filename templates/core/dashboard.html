@@ -147,8 +147,12 @@
         left: 0;
         bottom: -50%;
         height: 200%;
+        max-width: 60%;
+        object-fit: contain;
+        object-position: left center;
         z-index: 1;
         opacity: 0.03;
+        pointer-events: none;
     }
     
     /* Academic Year Badge */
@@ -354,7 +358,11 @@
 <div class="container-fluid">
     <!-- بانر الترحيب -->
     <div class="welcome-banner">
-        <img src="{% static light_logo %}" alt="{{ site_name }}" class="welcome-img">
+        {% if settings.company_logo_light %}
+            <img src="{{ MEDIA_URL }}{{ settings.company_logo_light }}" alt="{{ SITE_NAME }}" class="welcome-img">
+        {% else %}
+            <img src="{% static 'img/logo-mini.png' %}" alt="{{ SITE_NAME }}" class="welcome-img">
+        {% endif %}
         <div class="welcome-content">
             <h1 class="welcome-title">مرحباً بك، {{ request.user.first_name|default:request.user.username }}</h1>
             <p class="welcome-subtitle">أهلاً بك في لوحة التحكم الخاصة بنظام Corporate ERP</p>

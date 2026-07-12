@@ -290,6 +290,7 @@ class StockMovement(models.Model):
         ("transfer", _("تحويل")),
         ("adjustment", _("جرد")),
         ("opening", _("رصيد")),
+        ("batch_voucher", _("إذن جماعي")),
         ("other", _("أخرى")),
     )
 

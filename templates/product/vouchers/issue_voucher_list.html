@@ -223,6 +223,15 @@ function initializeModalForm() {
                         if (stockAvailability) stockAvailability.style.display = 'none';
                         if (warehouseStockInfo) warehouseStockInfo.innerHTML = '';
                     }
+
+                    // التركيز على حقل الكمية وتظليلها للكتابة
+                    setTimeout(() => {
+                        const qtyInput = form.querySelector('[name="quantity"]');
+                        if (qtyInput) {
+                            qtyInput.focus();
+                            qtyInput.select();
+                        }
+                    }, 100);
                 })
                 .catch(error => console.error('Error fetching warehouses:', error));
         });

@@ -40,6 +40,7 @@ class SourceLinkageService:
         'sale.SaleReturn',  # Added for sale returns
         'purchase.Purchase',  # Added for purchase invoices
         'purchase.PurchaseReturn',  # Added for purchase returns
+        'product.BatchVoucher',  # Added for batch vouchers
         # Note: 'financial.ManualAdjustment' will be added when the model is implemented
     }
     

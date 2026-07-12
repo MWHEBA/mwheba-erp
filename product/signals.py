@@ -704,23 +704,36 @@ if InventoryMovement:
         # تسجيل الحركة في StockMovement
         try:
             # التحقق من عدم وجود حركة مسجلة مسبقاً
+            movement_type_mapping = {
+                'transfer_out': 'transfer',
+                'transfer_in': 'transfer',
+                'adjustment_in': 'adjustment',
+                'adjustment_out': 'adjustment',
+                'damaged': 'out',
+                'expired': 'out',
+                'lost': 'out',
+                'found': 'in',
+            }
+            mapped_type = movement_type_mapping.get(instance.movement_type, instance.movement_type)
+
             existing_movement = StockMovement.objects.filter(
                 product=instance.product,
                 warehouse=instance.warehouse,
-                movement_type=instance.movement_type,
+                movement_type=mapped_type,
                 quantity=instance.quantity,
-                reference=instance.movement_number
+                reference_number=instance.movement_number
             ).first()
             
             if not existing_movement:
                 StockMovement.objects.create(
                     product=instance.product,
                     warehouse=instance.warehouse,
-                    movement_type=instance.movement_type,
+                    movement_type=mapped_type,
                     quantity=instance.quantity,
                     unit_cost=instance.unit_cost,
-                    total_cost=instance.total_cost,
-                    reference=instance.movement_number,
+                    reference_number=instance.movement_number,
+                    document_type=instance.document_type,
+                    document_number=instance.document_number,
                     notes=f'{instance.get_voucher_type_display()} - {instance.get_purpose_type_display() if instance.purpose_type else ""}',
                     created_by=instance.approved_by
                 )

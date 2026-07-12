@@ -1,4 +1,4 @@
-﻿"""
+"""
 اختبارات موحدة لنظام المنتجات المجمعة
 Unified Tests for Bundle Product System
 
@@ -342,7 +342,7 @@ class BundleFinancialIntegrationTest(TransactionTestCase):
             name='المخزن الرئيسي',
             code='MAIN',
             is_active=True,
-            created_by=self.user
+            manager=self.user
         )
         
         self.book = Product.objects.create(

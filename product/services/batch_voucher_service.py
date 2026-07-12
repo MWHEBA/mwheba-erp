@@ -234,6 +234,12 @@ class BatchVoucherService:
             item.inventory_movement = movement
             item.save(update_fields=['inventory_movement'])
             
+            # تحديث سعر التكلفة العام للمنتج إذا كان إذن استلام وبقيمة أكبر من الصفر
+            if batch_voucher.voucher_type == 'receipt' and item.unit_cost > 0:
+                product = item.product
+                product.cost_price = Decimal(str(item.unit_cost))
+                product.save(update_fields=['cost_price'])
+            
             # للتحويل: إنشاء حركة الدخول للمخزن الهدف
             if batch_voucher.voucher_type == 'transfer':
                 movement_in_number = serial.get_next_number()
@@ -327,8 +333,7 @@ class BatchVoucherService:
             date=batch_voucher.voucher_date.date() if hasattr(batch_voucher.voucher_date, 'date') else batch_voucher.voucher_date,
             description=f'{batch_voucher.get_voucher_type_display()} - {batch_voucher.voucher_number}',
             reference=batch_voucher.voucher_number,
-            entry_type='inventory',
-            auto_post=True
+            entry_type='inventory'
         )
         
         # ربط القيد بالإذن

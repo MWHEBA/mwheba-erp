@@ -21,6 +21,20 @@ class BaseCalculator(ABC):
         self.errors = []
         self.warnings = []
         self.calculation_details = {}
+
+    def _get_decimal(self, data, key, default=Decimal('0.00')):
+        """
+        Safely gets a decimal value from a dictionary.
+        """
+        if not data:
+            return default
+        val = data.get(key)
+        if val is None:
+            return default
+        try:
+            return Decimal(str(val))
+        except Exception:
+            return default
     
     def calculate(self, calculation_type, parameters=None):
         """
@@ -357,8 +371,16 @@ class BaseCalculator(ABC):
             
             # إضافات وخصومات
             discount_percentage = Decimal(str(parameters.get('discount_percentage', '0')))
+            if discount_percentage < 0 or discount_percentage > 100:
+                raise ValueError(_('نسبة الخصم يجب أن تكون بين 0 و 100%'))
+
             tax_percentage = Decimal(str(parameters.get('tax_percentage', '0')))
+            if tax_percentage < 0 or tax_percentage > 100:
+                raise ValueError(_('نسبة الضريبة يجب أن تكون بين 0 و 100%'))
+
             rush_fee = Decimal(str(parameters.get('rush_fee', '0')))
+            if rush_fee < 0:
+                raise ValueError(_('رسوم الاستعجال لا يمكن أن تكون سالبة'))
             
             discount_amount = subtotal * (discount_percentage / 100)
             after_discount = subtotal - discount_amount

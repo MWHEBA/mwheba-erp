@@ -21,10 +21,32 @@ class SaleForm(forms.ModelForm):
         queryset=Warehouse.objects.filter(is_active=True), label="المخزن"
     )
 
+    # نوع الفاتورة
+    invoice_type = forms.ChoiceField(
+        label="نوع الفاتورة",
+        choices=[
+            ("credit", "آجل بالكامل"),
+            ("cash", "نقدي بالكامل"),
+            ("credit_with_downpayment", "أجل مع دفعة مقدمة"),
+        ],
+        initial="credit",
+        widget=forms.Select(attrs={"class": "form-control", "id": "id_invoice_type"}),
+    )
+
+    # مبلغ الدفعة المقدمة
+    down_payment_amount = forms.DecimalField(
+        label="مبلغ الدفعة المقدمة",
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={"class": "form-control", "id": "id_down_payment_amount", "min": "0"}),
+    )
+
     # حقل طريقة الدفع - ديناميكي يدعم account codes
     payment_method = forms.ChoiceField(
-        label="طريقة الدفع",
-        help_text="اختر طريقة الدفع (نقدي/آجل) أو حساب محدد",
+        label="حساب الدفع (الخزينة/البنك)",
+        help_text="اختر حساب الخزينة أو البنك للمعاملة النقدية أو الدفعة المقدمة",
         required=False,  # سيتم التحقق منه في clean() حسب نوع الفاتورة
         widget=forms.Select(
             attrs={"class": "form-control", "id": "id_payment_method"}
@@ -82,14 +104,12 @@ class SaleForm(forms.ModelForm):
         if warehouses.exists() and not self.initial.get("warehouse"):
             self.initial["warehouse"] = warehouses.first().pk
 
-        # إعداد خيارات طريقة الدفع
+        # إعداد خيارات طريقة الدفع (حسابات الخزائن والبنوك)
         payment_choices = [
-            ('', 'اختر طريقة الدفع'),
-            ('cash', 'نقدي'),
-            ('credit', 'آجل'),
+            ('', 'اختر حساب الدفع (الخزينة/البنك)'),
         ]
         
-        # إضافة حسابات الدفع من النظام المالي (للفواتير النقدية فقط)
+        # إضافة حسابات الدفع من النظام المالي
         try:
             from financial.models import ChartOfAccounts
             payment_accounts = ChartOfAccounts.objects.filter(
@@ -104,13 +124,28 @@ class SaleForm(forms.ModelForm):
         
         self.fields['payment_method'].choices = payment_choices
         
-        # تعيين "آجل" كافتراضي
-        if not self.initial.get("payment_method"):
-            self.initial["payment_method"] = "credit"
-        
-        # Handle old values when editing
-        if self.instance and self.instance.pk and self.instance.payment_method:
-            self.initial['payment_method'] = self.instance.payment_method
+        # تعيين نوع الفاتورة والقيم الافتراضية عند التعديل أو الإنشاء
+        if self.instance and self.instance.pk:
+            # حالة التعديل
+            if self.instance.payment_method == 'credit':
+                self.initial['invoice_type'] = 'credit'
+                self.initial['payment_method'] = ''
+            else:
+                if self.instance.payment_status == 'paid':
+                    self.initial['invoice_type'] = 'cash'
+                    self.initial['payment_method'] = self.instance.payment_method
+                else:
+                    self.initial['invoice_type'] = 'credit_with_downpayment'
+                    self.initial['payment_method'] = self.instance.payment_method
+                    # استخراج مبلغ الدفعة الأولى المرتبطة بالفاتورة كدفعة مقدمة
+                    first_payment = self.instance.payments.filter(status='posted').first()
+                    if first_payment:
+                        self.initial['down_payment_amount'] = first_payment.amount
+        else:
+            # حالة الإنشاء الجديد
+            self.initial['invoice_type'] = 'credit'
+            self.initial['payment_method'] = ''
+            self.initial['down_payment_amount'] = 0
 
         # إعداد خيارات التصنيف المالي (إيرادات)
         try:
@@ -138,18 +173,26 @@ class SaleForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+        invoice_type = cleaned_data.get('invoice_type')
         payment_method = cleaned_data.get('payment_method')
+        down_payment_amount = cleaned_data.get('down_payment_amount') or 0
         
-        # التحقق من payment_method: مطلوب فقط للفواتير النقدية
-        # الـ view بيبعت invoice_type في الـ POST data
-        # لكن في الـ form validation مش موجود، فهنعتمد على القيمة نفسها
-        if payment_method and payment_method not in ['', 'credit']:
-            # فاتورة نقدية - payment_method لازم يكون موجود
-            pass
-        elif not payment_method or payment_method == '':
-            # لو فاضي، نفترض إنه آجل ونحط 'credit'
+        # التحقق من حساب الدفع حسب نوع الفاتورة
+        if invoice_type == 'cash':
+            if not payment_method or payment_method == '':
+                raise ValidationError({'payment_method': 'يجب اختيار حساب دفع (خزينة/بنك) للفاتورة النقدية.'})
+        
+        elif invoice_type == 'credit_with_downpayment':
+            if not payment_method or payment_method == '':
+                raise ValidationError({'payment_method': 'يجب اختيار حساب دفع (خزينة/بنك) للدفعة المقدمة.'})
+            if down_payment_amount <= 0:
+                raise ValidationError({'down_payment_amount': 'يجب أن يكون مبلغ الدفعة المقدمة أكبر من الصفر.'})
+        
+        elif invoice_type == 'credit':
+            # مسح البيانات غير المطلوبة للفاتورة الآجلة بالكامل
             cleaned_data['payment_method'] = 'credit'
-        
+            cleaned_data['down_payment_amount'] = 0
+            
         return cleaned_data
 
     def clean_financial_category(self):

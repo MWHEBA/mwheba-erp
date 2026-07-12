@@ -184,16 +184,25 @@
                         </div>
 
                         <div class="col-6 col-lg-3 col-md-6">
-                            <label class="form-label text-dark">نوع الفاتورة <span class="text-danger">*</span></label>
+                            <label class="form-label text-dark">
+                                <i class="fas fa-file-invoice-dollar me-1"></i>نوع الفاتورة <span class="text-danger">*</span>
+                            </label>
                             <select name="invoice_type" id="id_invoice_type" class="form-control" required>
-                                <option value="">اختر نوع الفاتورة</option>
-                                <option value="cash" {% if form.payment_method.value and form.payment_method.value != 'credit' %}selected{% endif %}>نقدي</option>
-                                <option value="credit" {% if form.payment_method.value == 'credit' %}selected{% endif %}>آجل</option>
+                                <option value="credit" {% if form.invoice_type.value == 'credit' %}selected{% endif %}>آجل بالكامل</option>
+                                <option value="cash" {% if form.invoice_type.value == 'cash' %}selected{% endif %}>نقدي بالكامل</option>
+                                <option value="credit_with_downpayment" {% if form.invoice_type.value == 'credit_with_downpayment' %}selected{% endif %}>أجل مع دفعة مقدمة</option>
                             </select>
                         </div>
 
                         <div class="col-6 col-lg-3 col-md-6" id="payment-method-field" style="display: none;">
-                            {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="طريقة الدفع" required=False selected_value=form.payment_method.value %}
+                            {% include "components/payment_account_select.html" with field_name="payment_method" field_id="id_payment_method" label="حساب الدفع (الخزينة/البنك)" required=False selected_value=form.payment_method.value %}
+                        </div>
+
+                        <div class="col-6 col-lg-3 col-md-6" id="down-payment-field" style="display: none;">
+                            <label class="form-label text-dark">
+                                <i class="fas fa-hand-holding-usd me-1"></i>مبلغ الدفعة المقدمة <span class="text-danger">*</span>
+                            </label>
+                            <input type="number" step="0.01" name="down_payment_amount" id="id_down_payment_amount" class="form-control" value="{{ form.down_payment_amount.value|default:'0' }}" min="0">
                         </div>
                     </div>
                 </div>
@@ -767,16 +776,26 @@
             const invoiceType = $(this).val();
             const paymentMethodField = $('#payment-method-field');
             const paymentMethodSelect = $('#id_payment_method');
+            const downPaymentField = $('#down-payment-field');
+            const downPaymentInput = $('#id_down_payment_amount');
+            
             if (invoiceType === 'cash') {
                 paymentMethodField.show();
                 paymentMethodSelect.prop('required', true);
-            } else if (invoiceType === 'credit') {
-                paymentMethodField.hide();
-                paymentMethodSelect.val('credit').trigger('change');
-                paymentMethodSelect.prop('required', false);
+                downPaymentField.hide();
+                downPaymentInput.prop('required', false);
+            } else if (invoiceType === 'credit_with_downpayment') {
+                paymentMethodField.show();
+                paymentMethodSelect.prop('required', true);
+                downPaymentField.show();
+                downPaymentInput.prop('required', true);
             } else {
+                // credit (آجل بالكامل)
                 paymentMethodField.hide();
+                paymentMethodSelect.val('').trigger('change');
                 paymentMethodSelect.prop('required', false);
+                downPaymentField.hide();
+                downPaymentInput.prop('required', false);
             }
         });
 
@@ -784,10 +803,21 @@
             if (window._duplicateData) return;
             const paymentMethodValue = $('#id_payment_method').val();
             const invoiceTypeSelect = $('#id_invoice_type');
+            
+            // تحديد نوع الفاتورة بناءً على القيمة المحملة مسبقاً
             if (paymentMethodValue === 'credit' || paymentMethodValue === '') {
                 invoiceTypeSelect.val('credit').trigger('change');
+            } else if (paymentMethodValue === 'credit_with_downpayment') {
+                invoiceTypeSelect.val('credit_with_downpayment').trigger('change');
             } else {
-                invoiceTypeSelect.val('cash').trigger('change');
+                // لو فيه كود حساب، فده معناه نقدي أو دفعة مقدمة
+                // نتحقق لو قيمة الدفعة المقدمة أكبر من صفر
+                const downPaymentVal = parseFloat($('#id_down_payment_amount').val()) || 0;
+                if (downPaymentVal > 0) {
+                    invoiceTypeSelect.val('credit_with_downpayment').trigger('change');
+                } else {
+                    invoiceTypeSelect.val('cash').trigger('change');
+                }
             }
         })();
 
@@ -1057,6 +1087,14 @@
             // إغلاق المودال
             bootstrap.Modal.getInstance(document.getElementById('productPickerModal')).hide();
             window._activePickerRow = null;
+
+            // التركيز على حقل الكمية وتظليلها للكتابة
+            setTimeout(function() {
+                var $qtyInput = $row.find('.quantity');
+                if ($qtyInput.length) {
+                    $qtyInput.focus().select();
+                }
+            }, 300);
         });
 
         // ===== إضافة بند =====

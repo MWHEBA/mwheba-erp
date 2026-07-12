@@ -50,6 +50,12 @@ class BaseAPIView(LoginRequiredMixin, View):
         
         return super().dispatch(request, *args, **kwargs)
     
+    def has_order_permission(self, request, order):
+        """التحقق من صلاحية الوصول لطلب معين لمنع ثغرات IDOR"""
+        if request.user.is_superuser or getattr(request.user, 'is_staff', False):
+            return True
+        return order.created_by == request.user
+    
     def handle_exception(self, e, context=""):
         """معالجة موحدة للأخطاء مع رسائل مفصلة"""
         error_message = str(e)
@@ -125,6 +131,14 @@ class CalculateCostAPIView(BaseAPIView):
             
             # جلب الطلب
             order = get_object_or_404(PrintingOrder, pk=data['order_id'], is_active=True)
+            
+            # التحقق من الصلاحية (IDOR)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({
+                    'success': False,
+                    'error': _('غير مصرح لك بإجراء هذه العملية على هذا الطلب'),
+                    'error_code': 'FORBIDDEN'
+                }, status=403)
             
             # أنواع الحسابات المطلوبة
             calculation_types = data['calculation_types']
@@ -399,6 +413,14 @@ class OrderSummaryAPIView(BaseAPIView):
         """جلب ملخص شامل للطلب"""
         try:
             order = get_object_or_404(PrintingOrder, pk=order_id, is_active=True)
+            
+            # التحقق من الصلاحية (IDOR)
+            if not self.has_order_permission(request, order):
+                return JsonResponse({
+                    'success': False,
+                    'error': _('غير مصرح لك بإجراء هذه العملية على هذا الطلب'),
+                    'error_code': 'FORBIDDEN'
+                }, status=403)
             
             # معلومات أساسية
             order_info = {
@@ -1645,6 +1667,13 @@ class SaveOrderServiceSupplierAPIView(BaseAPIView):
                 # تحديث OrderService موجود
                 try:
                     order_svc = OrderService.objects.get(id=order_service_id)
+                    # التحقق من الصلاحية (IDOR)
+                    if not self.has_order_permission(request, order_svc.order):
+                        return JsonResponse({
+                            'success': False,
+                            'error': _('غير مصرح لك بتعديل هذا الطلب'),
+                            'error_code': 'FORBIDDEN'
+                        }, status=403)
                     order_svc.supplier_service = svc
                     order_svc.supplier_info    = snapshot
                     if data.get('unit_price') is not None:
@@ -1663,6 +1692,13 @@ class SaveOrderServiceSupplierAPIView(BaseAPIView):
                     return JsonResponse({'success': False, 'error': 'order_id أو order_service_id مطلوب'}, status=400)
                 try:
                     order = PrintingOrder.objects.get(id=order_id)
+                    # التحقق من الصلاحية (IDOR)
+                    if not self.has_order_permission(request, order):
+                        return JsonResponse({
+                            'success': False,
+                            'error': _('غير مصرح لك بإضافة خدمات لهذا الطلب'),
+                            'error_code': 'FORBIDDEN'
+                        }, status=403)
                 except PrintingOrder.DoesNotExist:
                     return JsonResponse({'success': False, 'error': 'الطلب غير موجود'}, status=404)
 

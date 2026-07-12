@@ -172,6 +172,15 @@ function initializeModalForm() {
                             warehouseSelect.value = data.warehouses[0].id;
                         }
                     }
+                    
+                    // التركيز على حقل الكمية وتظليلها للكتابة
+                    setTimeout(() => {
+                        const qtyInput = form.querySelector('[name="quantity"]');
+                        if (qtyInput) {
+                            qtyInput.focus();
+                            qtyInput.select();
+                        }
+                    }, 100);
                 })
                 .catch(error => console.error('Error fetching warehouses:', error));
         });

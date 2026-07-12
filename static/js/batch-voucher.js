@@ -535,7 +535,7 @@ function approveBatchVoucher(voucherId) {
     }).then((result) => {
         if (result.isConfirmed) {
             // Get button element
-            const btn = event.target.closest('button');
+            const btn = (typeof event !== 'undefined') ? event.target.closest('button') : null;
             if (btn) {
                 // Show loading
                 btn.disabled = true;
@@ -546,7 +546,7 @@ function approveBatchVoucher(voucherId) {
             // Create and submit form
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/products/batch-vouchers/${voucherId}/approve/`;
+            form.action = `/products/vouchers/batch/${voucherId}/approve/`;
             
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
             if (csrfToken) {
@@ -594,7 +594,7 @@ function deleteBatchVoucher(voucherId) {
     }).then((result) => {
         if (result.isConfirmed) {
             // Get button element
-            const btn = event.target.closest('button');
+            const btn = (typeof event !== 'undefined') ? event.target.closest('button') : null;
             if (btn) {
                 // Show loading
                 btn.disabled = true;
@@ -605,7 +605,7 @@ function deleteBatchVoucher(voucherId) {
             // Create and submit form
             const form = document.createElement('form');
             form.method = 'POST';
-            form.action = `/products/batch-vouchers/${voucherId}/delete/`;
+            form.action = `/products/vouchers/batch/${voucherId}/delete/`;
             
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
             if (csrfToken) {

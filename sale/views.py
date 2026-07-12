@@ -99,17 +99,18 @@ def sale_create(request, customer_id=None):
                     'items': []
                 }
                 
-                # معالجة نوع الفاتورة (نقدي/آجل)
-                invoice_type = request.POST.get("invoice_type", "")
+                # معالجة نوع الفاتورة
+                invoice_type = form.cleaned_data.get("invoice_type", "credit")
+                payment_method = form.cleaned_data.get("payment_method", "")
+                down_payment_amount = form.cleaned_data.get("down_payment_amount") or Decimal('0')
+
                 if invoice_type == "credit":
-                    # فاتورة آجلة: تعيين payment_method كـ credit
                     sale_data['payment_method'] = "credit"
                 elif invoice_type == "cash":
-                    # فاتورة نقدية: استخدام payment_method من الفورم (account code)
-                    payment_method = form.cleaned_data.get('payment_method', '')
                     sale_data['payment_method'] = payment_method if payment_method else "cash"
+                elif invoice_type == "credit_with_downpayment":
+                    sale_data['payment_method'] = "credit_with_downpayment"
                 else:
-                    # افتراضي: آجل
                     sale_data['payment_method'] = "credit"
 
                 # التصنيف المالي
@@ -142,28 +143,40 @@ def sale_create(request, customer_id=None):
                             'discount': Decimal(discounts[i] if discounts[i] else '0'),
                         })
                 
-                # إنشاء الفاتورة عبر SaleService (مع الحوكمة الكاملة)
-                sale = SaleService.create_sale(data=sale_data, user=request.user)
-                
-                # معالجة الدفعة التلقائية للفواتير النقدية
-                if invoice_type == "cash" and sale.payment_method not in ["credit", ""]:
-                    # payment_method هو account code (مثل 10100)
-                    payment_account_code = sale.payment_method
-                    if payment_account_code:
-                        try:
+                # إنشاء الفاتورة مع معالجة الدفعة في وحدة تزامنية قواعد بيانات (Atomic Transaction)
+                from django.db import transaction
+                sale = None
+                with transaction.atomic():
+                    # إنشاء الفاتورة عبر SaleService (مع الحوكمة الكاملة)
+                    sale = SaleService.create_sale(data=sale_data, user=request.user)
+                    
+                    # معالجة الدفعة التلقائية حسب نوع الفاتورة
+                    if invoice_type == "cash":
+                        if payment_method:
                             payment_data = {
                                 'amount': sale.total,
-                                'payment_method': payment_account_code,
+                                'payment_method': payment_method,
                                 'payment_date': sale.date,
-                                'notes': 'دفعة تلقائية - فاتورة نقدية'
+                                'notes': 'دفعة تلقائية كاملة - فاتورة نقدية'
                             }
                             SaleService.process_payment(sale, payment_data, request.user)
-                            logger.info(f"✅ تم إنشاء دفعة تلقائية للفاتورة النقدية: {sale.number}")
-                        except Exception as e:
-                            logger.error(f"❌ خطأ في إنشاء الدفعة التلقائية: {str(e)}")
-                            messages.warning(request, f"تم إنشاء الفاتورة لكن فشل إنشاء الدفعة التلقائية: {str(e)}")
-                    else:
-                        messages.warning(request, "تحذير: لم يتم اختيار حساب دفع للفاتورة النقدية")
+                            logger.info(f"✅ تم إنشاء دفعة تلقائية كاملة للفاتورة النقدية: {sale.number}")
+                        else:
+                            raise ValueError("لم يتم اختيار حساب دفع للفاتورة النقدية")
+                            
+                    elif invoice_type == "credit_with_downpayment" and down_payment_amount > 0:
+                        # التحقق من أن مبلغ الدفعة أقل من إجمالي الفاتورة
+                        if down_payment_amount >= sale.total:
+                            raise ValueError(f"مبلغ الدفعة المقدمة ({down_payment_amount} ج.م) يجب أن يكون أقل من إجمالي الفاتورة ({sale.total} ج.م)")
+                            
+                        payment_data = {
+                            'amount': down_payment_amount,
+                            'payment_method': payment_method,
+                            'payment_date': sale.date,
+                            'notes': f'دفعة مقدمة تلقائية مع الفاتورة - المتبقي: {sale.total - down_payment_amount} ج.م'
+                        }
+                        SaleService.process_payment(sale, payment_data, request.user)
+                        logger.info(f"✅ تم إنشاء دفعة مقدمة للفاتورة: {sale.number}")
                 
                 messages.success(request, "تم إنشاء فاتورة المبيعات بنجاح")
                 return redirect("sale:sale_detail", pk=sale.pk)
@@ -1097,7 +1110,12 @@ def sale_duplicate(request, pk):
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 
     # تحديد نوع الفاتورة
-    invoice_type = "credit" if original.payment_method == "credit" else "cash"
+    if original.payment_method == "credit":
+        invoice_type = "credit"
+    elif original.payment_method == "credit_with_downpayment":
+        invoice_type = "credit_with_downpayment"
+    else:
+        invoice_type = "cash"
 
     # التصنيف المالي بصيغة cat_X
     financial_category_id = f"cat_{original.financial_category.id}" if original.financial_category else None

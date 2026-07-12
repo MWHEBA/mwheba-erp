@@ -3,6 +3,8 @@
 {% load utils_extras %}
 
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/print-voucher.css' %}">
@@ -279,5 +281,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/batch-voucher.js' %}"></script>
+<script src="{% static 'js/batch-voucher.js' %}?v=1.1"></script>
 {% endblock %}

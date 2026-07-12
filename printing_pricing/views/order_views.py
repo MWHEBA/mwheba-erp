@@ -1,6 +1,7 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.urls import reverse_lazy, reverse
 from django.http import JsonResponse, HttpResponseRedirect
@@ -28,6 +29,8 @@ class OrderListView(LoginRequiredMixin, ListView):
         queryset = PrintingOrder.objects.select_related('customer').filter(
             is_active=True
         )
+        if not (self.request.user.is_superuser or self.request.user.is_staff):
+            queryset = queryset.filter(created_by=self.request.user)
         
         # تطبيق البحث
         search_form = OrderSearchForm(self.request.GET)
@@ -109,11 +112,14 @@ class OrderDetailView(LoginRequiredMixin, DetailView):
     
     def get_queryset(self):
         """تحسين الاستعلام"""
-        return PrintingOrder.objects.select_related(
+        queryset = PrintingOrder.objects.select_related(
             'customer', 'created_by', 'updated_by'
         ).prefetch_related(
             'materials', 'services', 'calculations'
         )
+        if not (self.request.user.is_superuser or self.request.user.is_staff):
+            queryset = queryset.filter(created_by=self.request.user)
+        return queryset
     
     def get_context_data(self, **kwargs):
         """إضافة بيانات إضافية"""
@@ -196,6 +202,12 @@ class OrderUpdateView(LoginRequiredMixin, UpdateView):
     form_class = PrintingOrderForm
     template_name = 'printing_pricing/orders/order_form.html'
     
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if not (self.request.user.is_superuser or self.request.user.is_staff):
+            queryset = queryset.filter(created_by=self.request.user)
+        return queryset
+    
     def form_valid(self, form):
         """معالجة النموذج الصحيح"""
         # تحديث المستخدم
@@ -222,6 +234,12 @@ class OrderDeleteView(LoginRequiredMixin, DeleteView):
     model = PrintingOrder
     template_name = 'printing_pricing/orders/order_detail.html'
     success_url = reverse_lazy('printing_pricing:order_list')
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if not (self.request.user.is_superuser or self.request.user.is_staff):
+            queryset = queryset.filter(created_by=self.request.user)
+        return queryset
 
     def get(self, request, *args, **kwargs):
         """GET request يعمل redirect للقائمة - الحذف يتم بـ POST فقط"""
@@ -251,6 +269,13 @@ def dashboard_redirect(request):
 
 # دوال مساعدة للعمليات السريعة
 
+def _has_order_permission(user, order):
+    if user.is_superuser or getattr(user, 'is_staff', False):
+        return True
+    return order.created_by == user
+
+
+@login_required
 def calculate_order_cost(request, pk):
     """
     حساب تكلفة الطلب عبر AJAX
@@ -260,6 +285,10 @@ def calculate_order_cost(request, pk):
     
     try:
         order = get_object_or_404(PrintingOrder, pk=pk, is_active=True)
+        
+        # التحقق من الصلاحية (IDOR)
+        if not _has_order_permission(request.user, order):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك بحساب تكلفة هذا الطلب')}, status=403)
         
         # هنا سيتم استدعاء خدمات الحساب لاحقاً
         # من services/calculators/
@@ -279,6 +308,7 @@ def calculate_order_cost(request, pk):
         })
 
 
+@login_required
 def approve_order(request, pk):
     """
     اعتماد الطلب
@@ -288,6 +318,20 @@ def approve_order(request, pk):
     
     try:
         order = get_object_or_404(PrintingOrder, pk=pk, is_active=True)
+        
+        # التحقق من الصلاحية (IDOR)
+        if not _has_order_permission(request.user, order):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك باعتماد هذا الطلب')}, status=403)
+        
+        # التحقق من صحة واكتمال الطلب قبل الاعتماد
+        from ..services.validators.order_validator import OrderValidator
+        validator = OrderValidator()
+        validation_result = validator.validate_order_for_approval(order)
+        if not validation_result['success']:
+            return JsonResponse({
+                'success': False,
+                'error': _('لا يمكن اعتماد الطلب: ') + ', '.join(validation_result.get('errors', []))
+            }, status=400)
         
         # تحديث حالة الطلب
         old_status, new_status = order.update_status('approved', request.user)
@@ -311,6 +355,7 @@ def approve_order(request, pk):
         })
 
 
+@login_required
 def duplicate_order(request, pk):
     """
     نسخ الطلب
@@ -320,6 +365,10 @@ def duplicate_order(request, pk):
     
     try:
         original_order = get_object_or_404(PrintingOrder, pk=pk, is_active=True)
+        
+        # التحقق من الصلاحية (IDOR)
+        if not _has_order_permission(request.user, original_order):
+            return JsonResponse({'success': False, 'error': _('غير مصرح لك بنسخ هذا الطلب')}, status=403)
         
         # إنشاء نسخة جديدة
         new_order = PrintingOrder.objects.create(

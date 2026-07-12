@@ -272,7 +272,7 @@ class TestSaleServiceCreateSale:
         # Verify stock movement created
         from product.models import StockMovement
         movements = StockMovement.objects.filter(
-            reference_number__contains=f'SALE-{sale.number}'
+            reference_number__contains='SALE_ITEM'
         )
         assert movements.count() == 1
         assert movements.first().movement_type == 'out'
@@ -419,7 +419,7 @@ class TestSaleServiceCreateReturn:
         # Verify stock movement created (return to warehouse)
         from product.models import StockMovement
         movements = StockMovement.objects.filter(
-            reference_number__contains=f'RETURN-{sale_return.number}'
+            reference_number__contains='RETURN_ITEM'
         )
         assert movements.count() == 1
         assert movements.first().movement_type == 'in'
@@ -467,7 +467,7 @@ class TestSaleServiceDeleteSale:
         # Verify stock movements deleted
         from product.models import StockMovement
         movements = StockMovement.objects.filter(
-            reference_number__contains=f'SALE-{sale_number}'
+            notes__contains=sale_number
         )
         assert movements.count() == 0
 
@@ -508,3 +508,117 @@ class TestSaleServiceStatistics:
         assert stats['is_fully_paid'] is False
         assert stats['items_count'] == 1
         assert stats['returns_count'] == 0
+
+
+@pytest.mark.django_db
+class TestSaleDownPaymentAndAccountingUnified:
+    """Test Down Payment workflow and corrected unified accounting logic"""
+
+    def test_cash_sale_unified_accounting(self, user, customer, warehouse, product, chart_of_accounts):
+        """
+        Verify that a Cash sale:
+        1. Correctly debits the Customer's financial account in the Sales Invoice journal entry.
+        2. Correctly updates customer.balance dynamically (recalculated).
+        """
+        # Create a Cash sale
+        sale_data = {
+            'date': timezone.now().date(),
+            'customer_id': customer.id,
+            'warehouse_id': warehouse.id,
+            'payment_method': '10100',  # Cash account code
+            'discount': Decimal('0'),
+            'tax': Decimal('0'),
+            'notes': 'Test cash sale unified',
+            'items': [
+                {
+                    'product_id': product.id,
+                    'quantity': Decimal('3'),
+                    'unit_price': Decimal('100.00'),
+                    'discount': Decimal('0'),
+                }
+            ]
+        }
+        
+        # 1. Create sale
+        sale = SaleService.create_sale(data=sale_data, user=user)
+        
+        # Verify the invoice journal entry debits the Customer financial account (not Treasury)
+        assert sale.journal_entry is not None
+        debit_line = sale.journal_entry.lines.get(account__code=customer.financial_account.code)
+        assert debit_line.debit == Decimal('300.00')
+        
+        # Recalculate customer balance check (invoice total added)
+        customer.refresh_from_db()
+        assert customer.balance == Decimal('300.00')
+
+        # 2. Process automatic payment for cash sale
+        payment_data = {
+            'amount': sale.total,
+            'payment_method': '10100',
+            'payment_date': sale.date,
+            'notes': 'Automatic cash payment'
+        }
+        payment = SaleService.process_payment(sale, payment_data, user)
+        
+        # Verify the payment journal entry: Debit Cash (10100), Credit Customer
+        assert payment.financial_transaction is not None
+        pay_debit = payment.financial_transaction.lines.get(debit__gt=0)
+        pay_credit = payment.financial_transaction.lines.get(credit__gt=0)
+        assert pay_debit.account.code == '10100'
+        assert pay_credit.account.code == customer.financial_account.code
+        assert pay_debit.debit == Decimal('300.00')
+        
+        # Verify customer's net balance cache in database is now recalculated to 0
+        customer.refresh_from_db()
+        assert customer.balance == Decimal('0.00')
+
+    def test_credit_with_downpayment_workflow(self, user, customer, warehouse, product, chart_of_accounts):
+        """
+        Verify that credit sale with down payment:
+        1. Debits customer for full invoice amount.
+        2. Records down payment (debiting Cash, crediting Customer).
+        3. Updates customer.balance correctly to the remaining balance.
+        """
+        # Create a Credit sale
+        sale_data = {
+            'date': timezone.now().date(),
+            'customer_id': customer.id,
+            'warehouse_id': warehouse.id,
+            'payment_method': 'credit',  # Bill terms
+            'discount': Decimal('0'),
+            'tax': Decimal('0'),
+            'notes': 'Test credit with downpayment',
+            'items': [
+                {
+                    'product_id': product.id,
+                    'quantity': Decimal('5'),
+                    'unit_price': Decimal('100.00'),
+                    'discount': Decimal('0'),
+                }
+            ]
+        }
+        
+        # 1. Create sale
+        sale = SaleService.create_sale(data=sale_data, user=user)
+        
+        # Verify customer balance is 500
+        customer.refresh_from_db()
+        assert customer.balance == Decimal('500.00')
+
+        # 2. Process down payment (150 EGP)
+        payment_data = {
+            'amount': Decimal('150.00'),
+            'payment_method': '10100',  # Treasury
+            'payment_date': sale.date,
+            'notes': 'Down payment'
+        }
+        payment = SaleService.process_payment(sale, payment_data, user)
+        
+        # Verify customer balance recalculated to 350
+        customer.refresh_from_db()
+        assert customer.balance == Decimal('350.00')
+        
+        # 3. Delete payment and check balance goes back to 500
+        payment.delete()
+        customer.refresh_from_db()
+        assert customer.balance == Decimal('500.00')

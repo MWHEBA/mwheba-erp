@@ -158,6 +158,16 @@
                                         <span class="badge bg-secondary">جرد</span>
                                     {% elif movement.document_type == 'opening' %}
                                         <span class="badge bg-dark">رصيد افتتاحي</span>
+                                    {% elif movement.document_type == 'batch_voucher' %}
+                                        {% if movement.movement_type == 'in' %}
+                                            <span class="badge bg-info">استلام جماعي</span>
+                                        {% elif movement.movement_type == 'out' %}
+                                            <span class="badge bg-warning">صرف جماعي</span>
+                                        {% elif movement.movement_type == 'transfer' %}
+                                            <span class="badge bg-primary">تحويل جماعي</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">إذن جماعي</span>
+                                        {% endif %}
                                     {% elif movement.document_type == 'other' %}
                                         <span class="badge bg-secondary">أخرى</span>
                                     {% else %}

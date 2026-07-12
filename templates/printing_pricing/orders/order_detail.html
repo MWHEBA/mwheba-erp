@@ -88,23 +88,7 @@
     </div>
   </div>
   {% endif %}
-</div>
-{% endblock %}
 
-{% block extra_js %}
-<script src="{% static 'js/printing_pricing/order-detail.js' %}"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    if (typeof PrintingPricing !== 'undefined' && PrintingPricing.OrderDetail) {
-        PrintingPricing.OrderDetail.init({
-            orderId: {{ object.pk }},
-            orderNumber: '{{ object.order_number }}',
-            status: '{{ object.status }}'
-        });
-    }
-});
-</script>
-{% endblock %}
         <div class="pp-card mb-4">
             <div class="pp-card-header">
                 <h5 class="pp-card-title">
@@ -354,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', function() {
     if (typeof PrintingPricing !== 'undefined' && PrintingPricing.OrderDetail) {
         PrintingPricing.OrderDetail.init({
-            orderId: {{ object.pk }},
+            orderId: parseInt("{{ object.pk }}", 10),
             orderNumber: '{{ object.order_number }}',
             status: '{{ object.status }}'
         });

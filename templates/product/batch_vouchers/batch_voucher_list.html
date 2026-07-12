@@ -3,6 +3,8 @@
 {% load utils_extras %}
 
 {% block title %}{{ title }}{% endblock %}
+
+{% block extra_css %}
 <link rel="stylesheet" href="{% static 'css/shared-components.css' %}">
 <link rel="stylesheet" href="{% static 'css/unified-components.css' %}">
 {% endblock %}
@@ -122,6 +124,18 @@
                                 <i class="fas fa-edit"></i>
                             </a>
                             {% endif %}
+                            {% if voucher.can_approve and perms.product.approve_batchvoucher %}
+                            <button onclick="approveBatchVoucher('{{ voucher.pk }}')" 
+                                    class="btn btn-sm btn-outline-success" title="اعتماد">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            {% endif %}
+                            {% if voucher.can_delete and perms.product.delete_batchvoucher %}
+                            <button onclick="deleteBatchVoucher('{{ voucher.pk }}')" 
+                                    class="btn btn-sm btn-outline-danger" title="حذف">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                            {% endif %}
                         </td>
                     </tr>
                     {% empty %}
@@ -170,6 +184,7 @@
 
 {% block extra_js %}
 <script src="{% static 'js/global-table.js' %}"></script>
+<script src="{% static 'js/batch-voucher.js' %}?v=1.1"></script>
 <script>
 $(document).ready(function() {
     if (typeof GlobalTableManager !== 'undefined' && $('#batch-vouchers-table tbody tr').length > 1) {

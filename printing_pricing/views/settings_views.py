@@ -5,11 +5,23 @@ Views for managing settings in the new system
 import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth.mixins import LoginRequiredMixin as DjangoLoginRequiredMixin
+from django.contrib.auth.mixins import UserPassesTestMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import render
+
+class StaffRequiredMixin(UserPassesTestMixin):
+    """Mixin to ensure only staff/admin users can access system settings."""
+    raise_exception = True
+
+    def test_func(self):
+        return self.request.user.is_authenticated and (self.request.user.is_staff or self.request.user.is_superuser)
+
+# Override LoginRequiredMixin locally so all views in this file inherit StaffRequiredMixin automatically
+class LoginRequiredMixin(StaffRequiredMixin):
+    pass
 from django.utils.translation import gettext_lazy as _
 from django.http import JsonResponse
 from django.core.paginator import Paginator
@@ -1063,6 +1075,9 @@ class PieceSizeDeleteView(AjaxDeleteMixin, LoginRequiredMixin, DeleteView):
 @login_required
 def settings_home(request):
     """الصفحة الرئيسية للإعدادات"""
+    if not (request.user.is_staff or request.user.is_superuser):
+        from django.core.exceptions import PermissionDenied
+        raise PermissionDenied(_("غير مصرح لك بالوصول إلى هذه الصفحة."))
     from django.urls import reverse
     
     context = {

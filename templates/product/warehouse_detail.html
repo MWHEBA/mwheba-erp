@@ -361,6 +361,16 @@
                     placeholder: "{% trans 'اختر المنتج' %}",
                     allowClear: true
                 });
+                
+                $(productSelect).on('change', function() {
+                    setTimeout(() => {
+                        const qtyInput = document.querySelector('#quantity');
+                        if (qtyInput) {
+                            qtyInput.focus();
+                            qtyInput.select();
+                        }
+                    }, 100);
+                });
             } catch (e) {
                 console.warn('Select2 initialization failed:', e);
             }
