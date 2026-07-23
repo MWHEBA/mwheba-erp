@@ -305,6 +305,16 @@
                                             <i class="fas fa-info-circle"></i> حدد أنواع العناصر المسموح ببيعها في فواتير المبيعات (منتجات، خدمات، أو كلاهما)
                                         </small>
                                     </div>
+                                    <div class="mb-3">
+                                        {{ form.invoice_product_code_display.label_tag }}
+                                        {{ form.invoice_product_code_display }}
+                                        {% if form.invoice_product_code_display.errors %}
+                                            <div class="text-danger small mt-1">{{ form.invoice_product_code_display.errors }}</div>
+                                        {% endif %}
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle"></i> حدد طريقة عرض أكواد المنتجات في شاشات تفاصيل الفواتير والطباعة الورقية/الحرارية وعروض الأسعار
+                                        </small>
+                                    </div>
                                     
                                     <div class="mb-3">
                                         <div class="form-check form-switch mb-2">

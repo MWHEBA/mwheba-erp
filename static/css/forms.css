@@ -874,3 +874,16 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
 .colorpick-eyedropper-input-trigger {
     display: none !important;
 }
+
+/* ========================================
+   12. PRODUCT CODE INPUT VALIDATION ICON POSITIONING (موضع صح كود المنتج على الشمال)
+   ======================================== */
+.product-code-input.is-valid,
+.product-code-input.is-invalid,
+.form-control.product-code-input.is-valid,
+.form-control.product-code-input.is-invalid {
+    background-position: left calc(0.375em + 0.1875rem) center !important;
+    padding-left: calc(1.5em + 0.75rem) !important;
+    padding-right: 0.5rem !important;
+}
+

@@ -3969,6 +3969,8 @@ def get_products_for_invoice(request):
             products.append({
                 "id": p.id,
                 "name": p.name,
+                "code": p.sku,
+                "barcode": p.barcode,
                 "selling_price": float(p.selling_price) if hasattr(p, 'selling_price') and p.selling_price else 0,
                 "cost_price": float(p.cost_price) if hasattr(p, 'cost_price') and p.cost_price else 0,
                 "stock": stock_map.get(str(p.id), 0),

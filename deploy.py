@@ -179,6 +179,13 @@ class DeploymentManager:
         for file_path in self.project_root.rglob('*'):
             if file_path.is_file() and not self.is_ignored(file_path):
                 files.append(file_path)
+        
+        # Ensure .htaccess is included since rglob('*') might skip hidden files
+        htaccess_path = self.project_root / '.htaccess'
+        if htaccess_path.exists() and htaccess_path.is_file() and not self.is_ignored(htaccess_path):
+            if htaccess_path not in files:
+                files.append(htaccess_path)
+                
         return files
 
     def _create_ssh_connection(self):

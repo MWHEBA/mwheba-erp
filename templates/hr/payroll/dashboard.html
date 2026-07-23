@@ -6,11 +6,6 @@
 
 {% block extra_css %}
 <style>
-
-    .card-body
-    {
-        padding: 30px;
-    }
     .dashboard-container {
         padding: 2rem;
         max-width: 1400px;
@@ -111,7 +106,7 @@
 
     .progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, var(--primary-color), var(--info-color));
+        background: var(--primary-color);
         transition: width 0.5s ease;
     }
 
@@ -367,13 +362,16 @@
     </div>
 
     <!-- Progress Section -->
-    <div class="progress-section">
+    <div class="progress-section" id="payroll-config" 
+         data-remaining="{{ remaining_employees_count|default:0 }}" 
+         data-payrolls="{{ payrolls_count|default:0 }}" 
+         data-should-refresh="{% if remaining_employees_count > 0 and payrolls_count > 0 %}true{% else %}false{% endif %}">
         <div class="progress-header">
             <h2 class="progress-title">تقدم المعالجة</h2>
             <span class="progress-percentage">{{ processing_percentage|floatformat:1 }}%</span>
         </div>
         <div class="progress-bar-container">
-            <div class="progress-bar" style="width: {{ processing_percentage }}%"></div>
+            <div class="progress-bar" id="payroll-progress-bar" data-percentage="{{ processing_percentage|default:0 }}"></div>
         </div>
         <div class="progress-info">
             <span>{{ payrolls_count|default:0 }} من {{ total_employees|default:0 }} موظف</span>
@@ -487,15 +485,26 @@
         });
     }
 
+    // Read configuration from HTML data attributes
+    const configEl = document.getElementById('payroll-config');
+    const shouldRefresh = configEl ? configEl.getAttribute('data-should-refresh') === 'true' : false;
+    const totalEmployees = configEl ? parseInt(configEl.getAttribute('data-remaining') || '0', 10) : 0;
+
+    // Set progress bar width on load to avoid CSS syntax validation errors
+    const progressBar = document.getElementById('payroll-progress-bar');
+    if (progressBar) {
+        const percentage = progressBar.getAttribute('data-percentage');
+        progressBar.style.width = percentage + '%';
+    }
+
     // Auto-refresh progress every 30 seconds if processing
-    {% if remaining_employees_count > 0 and payrolls_count > 0 %}
-    setTimeout(function() {
-        location.reload();
-    }, 30000);
-    {% endif %}
+    if (shouldRefresh) {
+        setTimeout(function() {
+            location.reload();
+        }, 30000);
+    }
 
     let visibleCount = 20;
-    const totalEmployees = {{ remaining_employees_count|default:0 }};
     const batchSize = 20;
 
     function showMoreEmployees() {

@@ -431,6 +431,7 @@ def system_settings(request):
         'email_from': settings_dict.get('email_from', ''),
         'receipt_paper_width': settings_dict.get('receipt_paper_width', '80'),
         'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
+        'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
         'enable_quotations': settings_dict.get('enable_quotations') == 'true',
     }
 
@@ -489,6 +490,9 @@ def system_settings(request):
                     elif db_key == "sale_invoice_item_types":
                         group_val = "sales"
                         desc_val = "أنواع بنود فاتورة المبيعات المسموحة"
+                    elif db_key == "invoice_product_code_display":
+                        group_val = "sales"
+                        desc_val = "عرض كود/موديل المنتج في الفواتير والطباعة"
                     elif db_key == "enable_quotations":
                         group_val = "sales"
                         desc_val = "تفعيل ميزة عروض الأسعار"

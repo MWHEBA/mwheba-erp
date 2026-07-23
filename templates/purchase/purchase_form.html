@@ -323,7 +323,11 @@
                         {% if purchase.id and purchase.items.exists %}
                             {% for item in purchase.items.all %}
                             <div class="item-row row g-2 align-items-center">
-                                <div class="col-12 col-md-4" style="position:relative;">
+                                <div class="col-12 col-md-2">
+                                    <label class="form-label form-label-sm">الكود / الباركود</label>
+                                    <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="{{ item.product.sku|default:'' }}">
+                                </div>
+                                <div class="col-12 col-md-3" style="position:relative;">
                                     <label class="form-label form-label-sm required-field">المنتج</label>
                                     <button type="button" class="product-picker-btn">
                                         <span class="selected-text">{{ item.product.name }}</span>
@@ -332,7 +336,7 @@
                                     <input type="hidden" name="product[]" class="product-id-input" value="{{ item.product.id }}" data-price="{{ item.product.cost_price }}" data-stock="{{ item.product.stock|default:0 }}" required>
                                     <div class="stock-info"></div>
                                 </div>
-                                <div class="col-6 col-md-2">
+                                <div class="col-6 col-md-1">
                                     <label class="form-label form-label-sm required-field">الكمية</label>
                                     <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="{{ item.quantity|smart_float }}" required>
                                 </div>
@@ -360,7 +364,11 @@
                             {% endfor %}
                         {% else %}
                         <div class="item-row row g-2 align-items-center">
-                            <div class="col-12 col-md-4" style="position:relative;">
+                            <div class="col-12 col-md-2">
+                                <label class="form-label form-label-sm">الكود / الباركود</label>
+                                <input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود">
+                            </div>
+                            <div class="col-12 col-md-3" style="position:relative;">
                                 <label class="form-label form-label-sm required-field product-header">المنتج</label>
                                 <button type="button" class="product-picker-btn">
                                     <span class="placeholder-text">اختر المنتج</span>
@@ -369,7 +377,7 @@
                                 <input type="hidden" name="product[]" class="product-id-input" required>
                                 <div class="stock-info"></div>
                             </div>
-                            <div class="col-6 col-md-2">
+                            <div class="col-6 col-md-1">
                                 <label class="form-label form-label-sm required-field">الكمية</label>
                                 <input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="1" required>
                             </div>
@@ -742,37 +750,182 @@
             loadProductsForWarehouse($('#id_warehouse').val());
         });
 
-        function loadProductsForWarehouse(warehouseId) {
-            var showAll = $('#show-all-products').is(':checked');
+        function loadStockForExistingRows() {
+            var warehouseId = $('#id_warehouse').val() || '';
+            var invoiceId = $('#django-purchase-form-data').data('purchase-id') || '0';
+            var productIds = [];
+            $('#items-container .product-id-input').each(function() {
+                var val = $(this).val();
+                if (val) productIds.push(val);
+            });
+            if (productIds.length === 0) return;
+
             var productType = isServiceInvoice ? 'service' : 'purchase';
             $.ajax({
-                url: '/products/api/products-for-invoice/',
+                url: '/products/api/invoice-product-lookup/',
                 method: 'GET',
-                data: { warehouse: warehouseId || '', show_all: showAll, type: productType },
-                success: function(data) {
-                    if (data.error) return;
-                    window._stockData = {};
-                    window._allProducts = data.products;
-                    data.products.forEach(function(p) {
-                        window._stockData[String(p.id)] = p.stock;
+                data: {
+                    product_ids: productIds.join(','),
+                    warehouse_id: warehouseId,
+                    invoice_id: invoiceId,
+                    type: productType
+                },
+                success: function(response) {
+                    var products = response.products || [];
+                    products.forEach(function(p) {
+                        var $row = $('#items-container .product-id-input[value="' + p.id + '"]').closest('.item-row');
+                        var price = isServiceInvoice ? p.selling_price : p.cost_price;
+                        $row.find('.product-id-input')
+                            .attr('data-price', price)
+                            .attr('data-stock', p.stock)
+                            .attr('data-is-service', p.is_service);
+                        $row.find('.product-code-input').val(p.code);
+                        if (p.is_service) {
+                            $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+                        } else {
+                            renderStockInfo($row, p.stock);
+                        }
                     });
-                    updateExistingRowsStock();
-                    updateCategoryTabs();
-                    bindEventHandlers();
                 }
             });
         }
 
-        function updateExistingRowsStock() {
-            $('#items-container .item-row').each(function() {
-                var $row = $(this);
-                var productId = $row.find('.product-id-input').val();
-                if (!productId) return;
-                var stock = window._stockData[String(productId)] || 0;
-                $row.find('.product-id-input').attr('data-stock', stock);
-                renderStockInfo($row, stock);
-            });
-        }
+        // استدعاء عند فتح الصفحة
+        loadStockForExistingRows();
+
+        $('#id_warehouse').on('change', function() {
+            var warehouseId = $(this).val();
+            // مسح بنود الفاتورة عند تغيير المخزن
+            $('#items-container .item-row:not(:first)').remove();
+            var firstRow = $('#items-container .item-row:first');
+            firstRow.find('.product-picker-btn').html('<span class="placeholder-text">اختر المنتج</span><i class="fas fa-th-large text-muted small"></i>');
+            firstRow.find('.product-id-input').val('').removeData();
+            firstRow.find('.product-code-input').removeClass('is-valid is-invalid').val('');
+            firstRow.find('input:not([type=hidden]):not(.product-code-input)').val('');
+            firstRow.find('.quantity').val('1');
+            firstRow.find('.stock-info').html('');
+            calculateTotals();
+        });
+
+        $('#show-all-products').on('change', function() {
+            if ($('#productPickerModal').hasClass('show')) {
+                loadModalProducts();
+            }
+        });
+
+        // ===== البحث الفوري بكود المنتج / الباركود =====
+        var lookupTimeout = null;
+        $(document).on('input', '.product-code-input', function() {
+            var $input = $(this);
+            var query = $input.val().trim();
+            var $row = $input.closest('.item-row');
+            
+            $input.removeClass('is-valid is-invalid');
+            
+            if (query === '') {
+                $row.find('.product-picker-btn').html('<span class="placeholder-text">اختر المنتج</span><i class="fas fa-th-large text-muted small"></i>');
+                $row.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
+                $row.find('.unit-price').val('');
+                $row.find('.stock-info').html('');
+                calculateRowTotal($row);
+                return;
+            }
+            
+            clearTimeout(lookupTimeout);
+            lookupTimeout = setTimeout(function() {
+                var warehouseId = $('#id_warehouse').val() || '';
+                var invoiceId = $('#django-purchase-form-data').data('purchase-id') || '0';
+                var productType = isServiceInvoice ? 'service' : 'purchase';
+                
+                $.ajax({
+                    url: '/products/api/invoice-product-lookup/',
+                    method: 'GET',
+                    data: {
+                        q: query,
+                        exact: 'true',
+                        warehouse_id: warehouseId,
+                        invoice_id: invoiceId,
+                        type: productType
+                    },
+                    success: function(response) {
+                        if (response.products && response.products.length > 0) {
+                            var found = response.products[0];
+                            var price = isServiceInvoice ? found.selling_price : found.cost_price;
+                            $input.addClass('is-valid');
+                            $row.find('.product-picker-btn').html('<span class="selected-text">' + found.name + '</span><i class="fas fa-th-large text-muted small"></i>');
+                            $row.find('.product-id-input')
+                                .val(found.id)
+                                .attr('data-price', price)
+                                .attr('data-stock', found.stock)
+                                .attr('data-is-service', found.is_service);
+                            $row.find('.unit-price').val(price !== '' ? smartFloat(price) : '');
+                            
+                            var isService = found.is_service === true || found.is_service === "true";
+                            if (isService) {
+                                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+                            } else {
+                                renderStockInfo($row, found.stock);
+                            }
+                            calculateRowTotal($row);
+                            
+                            var $qtyInput = $row.find('.quantity');
+                            if ($qtyInput.length) {
+                                $qtyInput.focus().select();
+                            }
+                        }
+                    }
+                });
+            }, 300);
+        });
+
+        $(document).on('blur', '.product-code-input', function() {
+            var $input = $(this);
+            var query = $input.val().trim();
+            var $row = $input.closest('.item-row');
+            
+            if (query !== '' && !$input.hasClass('is-valid')) {
+                var warehouseId = $('#id_warehouse').val() || '';
+                var invoiceId = $('#django-purchase-form-data').data('purchase-id') || '0';
+                var productType = isServiceInvoice ? 'service' : 'purchase';
+                
+                $.ajax({
+                    url: '/products/api/invoice-product-lookup/',
+                    method: 'GET',
+                    data: {
+                        q: query,
+                        exact: 'true',
+                        warehouse_id: warehouseId,
+                        invoice_id: invoiceId,
+                        type: productType
+                    },
+                    success: function(response) {
+                        if (response.products && response.products.length > 0) {
+                            var found = response.products[0];
+                            var price = isServiceInvoice ? found.selling_price : found.cost_price;
+                            $input.addClass('is-valid');
+                            $row.find('.product-picker-btn').html('<span class="selected-text">' + found.name + '</span><i class="fas fa-th-large text-muted small"></i>');
+                            $row.find('.product-id-input')
+                                .val(found.id)
+                                .attr('data-price', price)
+                                .attr('data-stock', found.stock)
+                                .attr('data-is-service', found.is_service);
+                            $row.find('.unit-price').val(price !== '' ? smartFloat(price) : '');
+                            
+                            var isService = found.is_service === true || found.is_service === "true";
+                            if (isService) {
+                                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+                            } else {
+                                renderStockInfo($row, found.stock);
+                            }
+                            calculateRowTotal($row);
+                        } else {
+                            $input.addClass('is-invalid');
+                            toastr.warning('كود المنتج غير صحيح أو غير متوفر في هذا المخزن');
+                        }
+                    }
+                });
+            }
+        });
 
         function renderStockInfo($row, stock) {
             if (stock <= 0) {
@@ -789,85 +942,140 @@
         var _activeCategory = 'all';
         var _searchTerm = '';
 
+        // فتح المودال عند الضغط على زر الاختيار
         $(document).on('click', '.product-picker-btn', function() {
             window._activePickerRow = $(this).closest('.item-row');
             _activeCategory = 'all';
             _searchTerm = '';
             $('#picker-search').val('');
+            
+            // تفعيل التاب "الكل" افتراضياً
             $('#categoryTabs .nav-link').removeClass('active');
             $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
-            renderProductsGrid();
+            
+            loadModalProducts();
             new bootstrap.Modal(document.getElementById('productPickerModal')).show();
         });
 
+        // تركيز المؤشر تلقائياً على حقل البحث عند فتح المودال
+        $('#productPickerModal').on('shown.bs.modal', function () {
+            $('#picker-search').focus().select();
+        });
+
+        // تبديل التصنيف
         $('#categoryTabs').on('click', '.nav-link', function(e) {
             e.preventDefault();
             $('#categoryTabs .nav-link').removeClass('active');
             $(this).addClass('active');
             _activeCategory = $(this).data('category');
-            renderProductsGrid();
+            loadModalProducts();
         });
 
+        // البحث
         $('#picker-search').on('input', function() {
             _searchTerm = $(this).val().trim().toLowerCase();
-            renderProductsGrid();
+            loadModalProducts();
         });
 
-        function renderProductsGrid() {
-            var products = window._allProducts || [];
-            if (_activeCategory !== 'all') {
-                products = products.filter(function(p) { return String(p.category_id) === String(_activeCategory); });
-            }
-            if (_searchTerm) {
-                products = products.filter(function(p) { return p.name.toLowerCase().indexOf(_searchTerm) !== -1; });
-            }
-            var $grid = $('#products-grid');
-            $grid.empty();
-            if (products.length === 0) {
-                $grid.html('<div class="no-results"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>لا توجد منتجات</div>');
-                return;
-            }
-            products.forEach(function(p) {
-                var priceField = isServiceInvoice ? p.selling_price : p.cost_price;
-                var stockClass = p.stock <= 0 ? 'out-of-stock' : '';
-                var stockLabel = p.stock <= 0
-                    ? '<span class="product-stock low-stock">غير متوفر</span>'
-                    : (p.stock <= 5
-                        ? '<span class="product-stock low-stock">مخزون: ' + p.stock + '</span>'
-                        : '<span class="product-stock">مخزون: ' + p.stock + '</span>');
-                var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
-                    '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + priceField + '" data-stock="' + p.stock + '" data-name="' + p.name + '">' +
-                        '<div class="product-name">' + p.name + '</div>' +
-                        '<div class="product-footer">' +
-                            '<span class="product-price">' + smartFloat(priceField) + ' ' + ($('#django-purchase-form-data').data('currency-symbol') || 'ج.م') + '</span>' +
-                            stockLabel +
-                        '</div>' +
-                    '</div>' +
-                '</div>');
-                $grid.append($card);
-            });
-        }
-
-        function updateCategoryTabs() {
-            var allProducts = window._allProducts || [];
+        function updateCategoryTabs(products) {
             var activeCatIds = {};
-            allProducts.forEach(function(p) {
-                if (p.category_id) activeCatIds[String(p.category_id)] = true;
+            (products || []).forEach(function(p) {
+                if (p.category_id) {
+                    activeCatIds[String(p.category_id)] = true;
+                }
             });
+
             $('#categoryTabs .nav-link[data-category]').each(function() {
-                var catId = String($(this).data('category'));
-                if (catId === 'all') return;
+                var $tab = $(this);
+                var catId = String($tab.data('category'));
+                if (catId === 'all') {
+                    $tab.parent().show();
+                    return;
+                }
                 if (activeCatIds[catId]) {
-                    $(this).parent().show();
+                    $tab.parent().show();
                 } else {
-                    $(this).parent().hide();
-                    if ($(this).hasClass('active')) {
-                        $(this).removeClass('active');
+                    $tab.parent().hide();
+                    if ($tab.hasClass('active')) {
+                        $tab.removeClass('active');
                         $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
                         _activeCategory = 'all';
                     }
                 }
             });
+        }
+
+        var modalSearchTimeout = null;
+        function loadModalProducts() {
+            var warehouseId = $('#id_warehouse').val() || '';
+            var invoiceId = $('#django-purchase-form-data').data('purchase-id') || '0';
+            var showAll = $('#show-all-products').is(':checked');
+            
+            clearTimeout(modalSearchTimeout);
+            modalSearchTimeout = setTimeout(function() {
+                var $grid = $('#products-grid');
+                $grid.html('<div class="no-results"><span class="spinner-border spinner-border-sm me-2"></span>جاري البحث...</div>');
+                
+                var productType = isServiceInvoice ? 'service' : 'purchase';
+                $.ajax({
+                    url: '/products/api/invoice-product-lookup/',
+                    method: 'GET',
+                    data: {
+                        q: _searchTerm,
+                        exact: 'false',
+                        warehouse_id: warehouseId,
+                        invoice_id: invoiceId,
+                        type: productType,
+                        show_all: showAll
+                    },
+                    success: function(response) {
+                        var rawProducts = response.products || [];
+                        updateCategoryTabs(rawProducts);
+
+                        var products = rawProducts;
+                        // فلترة بالتصنيف محلياً
+                        if (_activeCategory !== 'all') {
+                            products = products.filter(function(p) {
+                                return String(p.category_id) === String(_activeCategory);
+                            });
+                        }
+                        
+                        $grid.empty();
+                        if (products.length === 0) {
+                            $grid.html('<div class="no-results"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>لا توجد نتائج</div>');
+                            return;
+                        }
+                        
+                        products.forEach(function(p) {
+                            var priceField = isServiceInvoice ? p.selling_price : p.cost_price;
+                            var isService = p.is_service === true || p.is_service === "true" || p.is_service === "True" || p.is_service === 1;
+                            var stockClass = (!isService && p.stock <= 0) ? 'out-of-stock' : '';
+                            var stockLabel = '';
+                            if (isService) {
+                                stockLabel = '<span class="product-stock text-success"><i class="fas fa-tools"></i> خدمة</span>';
+                            } else {
+                                stockLabel = p.stock <= 0
+                                    ? '<span class="product-stock low-stock">غير متوفر</span>'
+                                    : (p.stock <= 5
+                                        ? '<span class="product-stock low-stock">مخزون: ' + p.stock + '</span>'
+                                        : '<span class="product-stock">مخزون: ' + p.stock + '</span>');
+                            }
+
+                            const currencySymbol = $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
+                            var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
+                                '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + priceField + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '">' +
+                                    '<div class="product-name">' + p.name + '</div>' +
+                                    '<div class="product-footer">' +
+                                        '<span class="product-price">' + smartFloat(priceField) + ' ' + currencySymbol + '</span>' +
+                                        stockLabel +
+                                    '</div>' +
+                                '</div>' +
+                            '</div>');
+                            $grid.append($card);
+                        });
+                    }
+                });
+            }, 300);
         }
 
         $(document).on('click', '.product-card', function() {
@@ -876,12 +1084,26 @@
             var productName = $card.data('name');
             var price = $card.data('price');
             var stock = $card.data('stock');
+            var isService = $card.data('is-service');
+            var code = $card.data('code') || '';
+
             if (!window._activePickerRow) return;
             var $row = window._activePickerRow;
+
             $row.find('.product-picker-btn').html('<span class="selected-text">' + productName + '</span><i class="fas fa-th-large text-muted small"></i>');
-            $row.find('.product-id-input').val(productId).attr('data-price', price).attr('data-stock', stock);
+            $row.find('.product-code-input').val(code).removeClass('is-invalid').addClass('is-valid');
+            $row.find('.product-id-input')
+                .val(productId)
+                .attr('data-price', price)
+                .attr('data-stock', stock)
+                .attr('data-is-service', isService);
             $row.find('.unit-price').val(price !== '' ? smartFloat(price) : '');
-            renderStockInfo($row, stock);
+            
+            if (isService === true || isService === "true") {
+                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+            } else {
+                renderStockInfo($row, stock);
+            }
             calculateRowTotal($row);
             bootstrap.Modal.getInstance(document.getElementById('productPickerModal')).hide();
             window._activePickerRow = null;
@@ -899,8 +1121,9 @@
         $("#add-item").click(function() {
             var newRow = $(".item-row:first").clone();
             newRow.find('.product-picker-btn').html('<span class="placeholder-text">اختر المنتج</span><i class="fas fa-th-large text-muted small"></i>');
-            newRow.find('.product-id-input').val('').removeAttr('data-price data-stock');
-            newRow.find('input:not([type=hidden])').val('');
+            newRow.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
+            newRow.find('.product-code-input').removeClass('is-valid is-invalid').val('');
+            newRow.find('input:not([type=hidden]):not(.product-code-input)').val('');
             newRow.find('.quantity').val('1');
             newRow.find('.stock-info').html('');
             if (newRow.find('.remove-item').length === 0) {

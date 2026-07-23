@@ -4,6 +4,7 @@ from .views import voucher_views
 from .views import transfer_views
 from .views import batch_voucher_views
 from .views import import_views
+from .views import invoice_lookup
 from . import views
 
 app_name = "product"
@@ -83,6 +84,7 @@ urlpatterns = [
     ),
     path("api/stock/", views.get_stock_by_warehouse, name="get_stock_by_warehouse"),
     path("api/products-for-invoice/", views.get_products_for_invoice, name="get_products_for_invoice"),
+    path("api/invoice-product-lookup/", invoice_lookup.invoice_product_lookup, name="invoice_product_lookup"),
     # مسارات حركات المخزون
     path("stock-movements/", views.stock_movement_list, name="stock_movement_list"),
     path(

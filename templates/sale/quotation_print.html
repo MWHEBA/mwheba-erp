@@ -271,6 +271,9 @@
                 <thead class="table-light">
                     <tr>
                         <th style="width: 50px;">#</th>
+                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                        <th>{% trans "الكود / الباركود" %}</th>
+                        {% endif %}
                         <th>{% trans "البيان / البند" %}</th>
                         <th style="width: 100px;">{% trans "الكمية" %}</th>
                         <th style="width: 150px;">{% trans "سعر الوحدة" %}</th>
@@ -282,9 +285,22 @@
                     {% for item in items %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
+                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                        <td style="font-size: 14px; color: #555;">
+                            {% if settings.invoice_product_code_display == 'sku' %}
+                                {{ item.product.sku|default:"-" }}
+                            {% elif settings.invoice_product_code_display == 'barcode' %}
+                                {{ item.product.barcode|default:"-" }}
+                            {% elif settings.invoice_product_code_display == 'both' %}
+                                {% if item.product.sku %}{{ item.product.sku }}{% endif %}
+                                {% if item.product.sku and item.product.barcode %} - {% endif %}
+                                {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
+                                {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td class="product-name">
                             {{ item.product.name }}
-                            <div class="small text-muted">{{ item.product.sku }}</div>
                         </td>
                         <td class="product-qty">{{ item.quantity|smart_float }}</td>
                         <td>{{ item.unit_price|smart_float:2 }} {% currency_symbol %}</td>

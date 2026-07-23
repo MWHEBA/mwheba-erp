@@ -302,6 +302,9 @@
                 <thead>
                     <tr>
                         <th>#</th>
+                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                        <th>الكود / الباركود</th>
+                        {% endif %}
                         <th>المنتج</th>
                         <th>الكمية</th>
                         <th>سعر الوحدة</th>
@@ -313,6 +316,20 @@
                     {% for item in purchase.items.all %}
                     <tr>
                         <td>{{ forloop.counter }}</td>
+                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                        <td style="font-size: 14px; color: #555;">
+                            {% if settings.invoice_product_code_display == 'sku' %}
+                                {{ item.product.sku|default:"-" }}
+                            {% elif settings.invoice_product_code_display == 'barcode' %}
+                                {{ item.product.barcode|default:"-" }}
+                            {% elif settings.invoice_product_code_display == 'both' %}
+                                {% if item.product.sku %}{{ item.product.sku }}{% endif %}
+                                {% if item.product.sku and item.product.barcode %} - {% endif %}
+                                {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
+                                {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                            {% endif %}
+                        </td>
+                        {% endif %}
                         <td class="product-name">{{ item.product.name }}</td>
                         <td class="product-qty">{{ item.quantity }}</td>
                         <td>{{ item.unit_price|currency }}</td>

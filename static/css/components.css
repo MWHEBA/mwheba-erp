@@ -161,7 +161,6 @@
 }
 
 .table-responsive {
-    margin-bottom: var(--spacing-3);
     border-radius: var(--border-radius);
     overflow: hidden;
 }

@@ -352,7 +352,23 @@
         <div class="receipt-items">
             {% for item in items %}
             <div class="receipt-item">
-                <div class="item-name">{{ item.product.name }}</div>
+                <div class="item-name">
+                    {{ item.product.name }}
+                    {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                        <span style="font-size: 9px; font-weight: normal; color: #555; display: block; margin-top: 1px;">
+                        {% if settings.invoice_product_code_display == 'sku' %}
+                            كود: {{ item.product.sku|default:"-" }}
+                        {% elif settings.invoice_product_code_display == 'barcode' %}
+                            باركود: {{ item.product.barcode|default:"-" }}
+                        {% elif settings.invoice_product_code_display == 'both' %}
+                            {% if item.product.sku %}{{ item.product.sku }}{% endif %}
+                            {% if item.product.sku and item.product.barcode %} - {% endif %}
+                            {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
+                            {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                        {% endif %}
+                        </span>
+                    {% endif %}
+                </div>
                 <div class="item-details">
                     <span class="item-calc">{{ item.quantity|remove_trailing_zeros }} × {{ item.unit_price|currency }}</span>
                     <span class="item-total">{{ item.total|currency }}</span>

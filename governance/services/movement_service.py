@@ -288,7 +288,14 @@ class MovementService:
             stock_record = self._get_or_create_stock_record(product_id, warehouse.id)
             
             # Create StockMovement record
-            movement_date = movement_date or timezone.now()
+            if movement_date is not None:
+                from datetime import date
+                if isinstance(movement_date, date) and not isinstance(movement_date, datetime):
+                    movement_date = datetime.combine(movement_date, datetime.min.time())
+                if timezone.is_naive(movement_date):
+                    movement_date = timezone.make_aware(movement_date)
+            else:
+                movement_date = timezone.now()
             
             # Set unit cost - use provided unit_cost or get from product
             if unit_cost is None:

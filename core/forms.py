@@ -451,6 +451,17 @@ class SystemSettingsForm(forms.Form):
         initial='both',
         widget=forms.Select(attrs={'class': 'form-select'})
     )
+    invoice_product_code_display = forms.ChoiceField(
+        label='عرض كود/موديل المنتج في الفواتير والطباعة',
+        choices=[
+            ('sku', 'كود المنتج فقط (SKU)'),
+            ('barcode', 'الباركود فقط'),
+            ('both', 'الكود والباركود معاً'),
+            ('none', 'إخفاء كود المنتج والباركود')
+        ],
+        initial='sku',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
     enable_quotations = forms.BooleanField(
         label='تفعيل عروض الأسعار',
         required=False,

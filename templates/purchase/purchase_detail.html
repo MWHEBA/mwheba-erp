@@ -1,4 +1,4 @@
-﻿{% extends 'base.html' %}
+{% extends 'base.html' %}
 {% load static %}
 {% load i18n %}
 {% load utils_extras %}
@@ -545,6 +545,9 @@
                                 <thead>
                                     <tr>
                                         <th style="width: 50px;" class="text-center">#</th>
+                                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                                        <th class="text-center">{% trans "الكود / الباركود" %}</th>
+                                        {% endif %}
                                         <th class="text-center">{{ purchase.is_service_invoice|yesno:"الخدمة,المنتج" }}</th>
                                         <th style="width: 100px;" class="text-center">{% trans "الكمية" %}</th>
                                         <th style="width: 150px;" class="text-center">{% trans "سعر الوحدة" %}</th>
@@ -556,6 +559,20 @@
                                     {% for item in purchase.items.all %}
                                     <tr>
                                         <td class="text-center">{{ forloop.counter }}</td>
+                                        {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                                        <td class="text-muted small text-center">
+                                            {% if settings.invoice_product_code_display == 'sku' %}
+                                                {{ item.product.sku|default:"-" }}
+                                            {% elif settings.invoice_product_code_display == 'barcode' %}
+                                                {{ item.product.barcode|default:"-" }}
+                                            {% elif settings.invoice_product_code_display == 'both' %}
+                                                {% if item.product.sku %}{{ item.product.sku }}{% endif %}
+                                                {% if item.product.sku and item.product.barcode %} - {% endif %}
+                                                {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
+                                                {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
                                         <td class="text-center">
                                             <span class="fw-bold">{{ item.product.name }}</span>
                                             {% if item.product.is_service %}
@@ -735,7 +752,7 @@
                                                 <a href="{% url 'purchase:edit_payment' payment.id %}" class="btn btn-sm btn-outline-secondary" title="تعديل الدفعة">
                                                     <i class="fas fa-edit"></i>
                                                 </a>
-                                                <button type="button" class="btn btn-sm btn-danger" onclick="confirmDeletePayment({{ payment.id }})" title="حذف الدفعة">
+                                                <button type="button" class="btn btn-sm btn-danger btn-delete-payment" data-payment-id="{{ payment.id }}" title="حذف الدفعة">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                                 {% elif payment.status == 'posted' %}
@@ -923,9 +940,11 @@
             form.submit();
         }
     }
-    
+</script>
+
+{% if show_post_alert %}
+<script>
     // عرض SweetAlert للترحيل بعد حفظ الدفعة
-    {% if show_post_alert %}
     document.addEventListener('DOMContentLoaded', function() {
         showPostAfterSaveAlert(
             '',
@@ -933,7 +952,18 @@
             'الدفعة'
         );
     });
-    {% endif %}
+</script>
+{% endif %}
+
+<script>
+    // معالجة حذف الدفعة باستخدام JQuery
+    $(document).on('click', '.btn-delete-payment', function(e) {
+        e.preventDefault();
+        var paymentId = $(this).data('payment-id');
+        if (paymentId) {
+            confirmDeletePayment(paymentId);
+        }
+    });
     
     // معالجة ترحيل الدفعة باستخدام AJAX
     $('.btn-post-payment-ajax').on('click', function(e) {
