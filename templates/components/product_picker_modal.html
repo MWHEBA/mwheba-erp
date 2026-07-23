@@ -1,0 +1,67 @@
+{% load i18n %}
+<!-- مودال اختيار المنتج / الخدمة الموحد -->
+<div class="modal fade" id="productPickerModal" tabindex="-1" aria-labelledby="productPickerModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content" style="border-radius: var(--border-radius, 8px);">
+            <div class="modal-header border-bottom pb-3" style="background-color: var(--gray-50, #f8f9fa);">
+                <div class="d-flex align-items-center justify-content-between w-100 me-3">
+                    <h5 class="modal-title fw-bold" id="productPickerModalLabel">
+                        <i class="fas fa-boxes me-2 text-primary"></i>{% trans "اختر المنتج / الخدمة" %}
+                    </h5>
+                    <!-- خيارات التصفية بنوع البند -->
+                    <div class="btn-group btn-group-sm" role="group" id="pickerTypeGroup">
+                        <input type="radio" class="btn-check" name="picker-type" id="type-all" value="all" checked>
+                        <label class="btn btn-outline-secondary" for="type-all">{% trans "الكل" %}</label>
+
+                        <input type="radio" class="btn-check" name="picker-type" id="type-products" value="products">
+                        <label class="btn btn-outline-secondary" for="type-products">{% trans "المنتجات" %}</label>
+
+                        <input type="radio" class="btn-check" name="picker-type" id="type-services" value="services">
+                        <label class="btn btn-outline-secondary" for="type-services">{% trans "الخدمات" %}</label>
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-3">
+                <div class="row g-3 mb-3 align-items-center">
+                    <!-- حقل البحث -->
+                    <div class="col-md-7 col-12">
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text bg-white"><i class="fas fa-search text-muted"></i></span>
+                            <input type="text" id="picker-search" class="form-control" placeholder="{% trans 'ابحث باسم المنتج، الكود، أو الباركود...' %}" autocomplete="off">
+                        </div>
+                    </div>
+                    <!-- خيار إظهار المنتجات بدون مخزون -->
+                    <div class="col-md-5 col-12 text-md-end">
+                        <div class="form-check form-switch d-inline-block">
+                            <input class="form-check-input" type="checkbox" id="show-all-products" role="switch">
+                            <label class="form-check-label small text-muted show-all-label" for="show-all-products" style="white-space: nowrap;">
+                                {% trans "إظهار المنتجات بدون مخزون" %}
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويبات التصنيفات -->
+                <ul class="nav nav-pills nav-fill mb-3 gap-1" id="categoryTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link active btn-sm" data-category="all" href="javascript:void(0)">{% trans "جميع التصنيفات" %}</a>
+                    </li>
+                    {% for category in categories %}
+                    <li class="nav-item" role="presentation">
+                        <a class="nav-link btn-sm" data-category="{{ category.id }}" href="javascript:void(0)">{{ category.name }}</a>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                <!-- شبكة المنتجات -->
+                <div id="products-grid" class="row g-2 overflow-auto p-1" style="max-height: 420px; min-height: 200px;">
+                    <div class="no-results text-center py-5 text-muted">
+                        <span class="spinner-border spinner-border-sm me-2"></span>{% trans "جاري التحميل..." %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
