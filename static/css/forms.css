@@ -809,12 +809,75 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
 
 .item-row {
     position: relative;
-    background-color: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
+    background-color: var(--gray-50, #f8f9fa);
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: var(--border-radius, 6px);
     margin-bottom: 22px;
     padding: 10px 14px;
     align-items: flex-start;
+}
+
+.total-section {
+    background-color: var(--gray-50, #f8f9fa);
+    border: 1px solid var(--border-color, #e9ecef);
+    border-radius: var(--border-radius, 6px);
+    padding: 20px;
+    margin-top: 24px;
+}
+
+.totals-box {
+    background: var(--card-bg, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: var(--border-radius, 8px);
+    padding: 20px;
+    margin-top: 20px;
+}
+
+.totals-box .total-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color, #dee2e6);
+}
+
+.totals-box .total-item:last-child {
+    border-bottom: none;
+    font-weight: bold;
+    font-size: 1.1em;
+}
+
+.add-more-btn {
+    margin-top: 12px;
+}
+
+#items-container .quantity,
+#items-container .unit-price,
+#items-container .unit-cost,
+#items-container .item-discount,
+#items-container .item-total {
+    text-align: center;
+}
+
+#items-container .select2-container .select2-selection--single {
+    height: calc(1.5em + 0.5rem + 2px) !important;
+    padding: 0rem 0.5rem !important;
+    font-size: 0.875rem;
+    line-height: 1.5;
+}
+
+#items-container .select2-container .select2-selection--single .select2-selection__rendered {
+    line-height: calc(1.5em + 0.5rem) !important;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+#items-container .select2-container .select2-selection--single .select2-selection__arrow {
+    height: calc(1.5em + 0.5rem) !important;
+}
+
+#warehouse-field:not(:visible) .warehouse-required,
+#warehouse-field[style*="display: none"] .warehouse-required {
+    display: none;
 }
 
 .item-row .col-md-4,
