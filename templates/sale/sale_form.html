@@ -797,47 +797,10 @@
             }
         });
 
-        $('#id_warehouse').on('change', function() {
-            var warehouseId = $(this).val();
-            // مسح بنود الفاتورة عند تغيير المخزن
-            $('#items-container .item-row:not(:first)').remove();
-            var firstRow = $('#items-container .item-row:first');
-            // تحديث الـ hidden input
-            $row.find('.product-id-input')
-                .val(productId)
-                .attr('data-price', price)
-                .attr('data-stock', stock)
-                .attr('data-is-service', isService);
-            // تعبئة السعر
-            $row.find('.unit-price').val(price !== '' ? smartFloat(price) : '');
-            // stock info
-            if (isService === true || isService === "true") {
-                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
-            } else {
-                renderStockInfo($row, stock);
-            }
-            calculateRowTotal($row);
-
-            // إغلاق المودال
-            bootstrap.Modal.getInstance(document.getElementById('productPickerModal')).hide();
-            window._activePickerRow = null;
-
-            // التركيز على حقل الكمية وتظليلها للكتابة
-            setTimeout(function() {
-                var $qtyInput = $row.find('.quantity');
-                if ($qtyInput.length) {
-                    $qtyInput.focus().select();
-                }
-            }, 300);
-        });
-
         // ===== إضافة بند =====
         $("#add-item").click(function() {
             var newRow = $(".item-row:first").clone();
-
-            // reset المحتوى
-            newRow.find('.product-picker-btn').html('<span class="placeholder-text">' + placeholderText + '</span><i class="fas fa-th-large text-muted small"></i>');
-            newRow.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
+            ProductPicker.resetRow(newRow);
             newRow.find('.product-code-input').removeClass('is-valid is-invalid').val('');
             newRow.find('input:not([type=hidden]):not(.product-code-input)').val('');
             newRow.find('.quantity').val('1');

@@ -536,23 +536,6 @@
             });
         });
 
-        // ===== تحميل بيانات المخزون والأكواد عند التعديل أو التكرار =====
-        window._stockData = {};
-        window._activePickerRow = null;
-
-        function loadStockForExistingRows() {
-            var warehouseId = $('#id_warehouse').val() || '';
-            var invoiceId = $('#django-sales-form-data').data('sale-id') || '0';
-            var productIds = [];
-            $('#items-container .product-id-input').each(function() {
-                var val = $(this).val();
-                if (val) productIds.push(val);
-            });
-            if (productIds.length === 0) return;
-
-            $.ajax({
-                url: '/products/api/invoice-product-lookup/',
-                method: 'GET',
         // ===== تهيئة مكون اختيار المنتجات والبحث الموحد =====
         ProductPicker.init({
             type: 'sale',
