@@ -887,3 +887,114 @@ html[dir="rtl"] .form-floating > .form-select ~ label {
     padding-right: 0.5rem !important;
 }
 
+/* ========================================
+   13. UNIFIED PRODUCT PICKER COMPONENT STYLES
+   ======================================== */
+.product-picker-btn {
+    width: 100%;
+    min-height: 31px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+    background-color: var(--bs-body-bg, #fff);
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: var(--border-radius-sm, 4px);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-align: right;
+    cursor: pointer;
+    transition: border-color 0.15s ease-in-out;
+}
+
+.product-picker-btn:hover {
+    border-color: var(--primary, #0d6efd);
+}
+
+.product-picker-btn .placeholder-text {
+    color: var(--text-muted, #6c757d);
+}
+
+.product-picker-btn .selected-text {
+    color: var(--text-color, #212529);
+    font-weight: 500;
+}
+
+#productPickerModal .category-tabs {
+    min-height: 2.5rem;
+    border-bottom: 2px solid var(--border-color, #e9ecef);
+    margin-bottom: 1rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+}
+
+#productPickerModal .category-tabs .nav-link {
+    color: var(--text-muted, #6c757d);
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+}
+
+#productPickerModal .category-tabs .nav-link.active {
+    color: var(--primary, #0d6efd);
+    border-bottom-color: var(--primary, #0d6efd);
+    font-weight: 600;
+}
+
+#productPickerModal .category-tabs .nav-link:hover {
+    color: var(--primary, #0d6efd);
+}
+
+#productPickerModal .product-card {
+    border: 1px solid var(--border-color, #dee2e6);
+    border-radius: var(--border-radius, 8px);
+    padding: 0.75rem;
+    cursor: pointer;
+    background: var(--bs-body-bg, #fff);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+}
+
+#productPickerModal .product-card:hover {
+    border-color: var(--primary, #0d6efd);
+    box-shadow: var(--shadow-sm, 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075));
+}
+
+#productPickerModal .product-card.out-of-stock {
+    opacity: 0.6;
+    background-color: var(--gray-100, #f8f9fa);
+}
+
+#productPickerModal .product-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-color, #212529);
+}
+
+#productPickerModal .product-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+}
+
+#productPickerModal .product-price {
+    font-weight: 700;
+    color: var(--primary, #0d6efd);
+}
+
+#productPickerModal .product-stock {
+    color: var(--text-muted, #6c757d);
+}
+
+#productPickerModal .product-stock.low-stock {
+    color: var(--danger, #dc3545);
+}
+
+

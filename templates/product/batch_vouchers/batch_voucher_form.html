@@ -223,38 +223,11 @@
 </div>
 
 <!-- Product Picker Modal -->
-<div class="modal fade" id="productPickerModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-header py-2 px-3">
-                <h6 class="modal-title mb-0"><i class="fas fa-th-large me-2 text-primary"></i>اختر المنتج</h6>
-                <div class="picker-search-wrapper mx-3" style="width: 30vw">
-                    <i class="fas fa-search search-icon"></i>
-                    <input type="text" id="picker-search" class="form-control form-control-sm" placeholder="ابحث عن منتج...">
-                </div>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <div class="px-3 pt-2">
-                <ul class="nav category-tabs" id="categoryTabs">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#" data-category="all">الكل</a>
-                    </li>
-                    {% for cat in product_categories %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="#" data-category="{{ cat.id }}">{{ cat.name }}</a>
-                    </li>
-                    {% endfor %}
-                </ul>
-            </div>
-            <div class="modal-body pt-2">
-                <div class="row g-2" id="products-grid"></div>
-            </div>
-        </div>
-    </div>
-</div>
+{% include 'components/product_picker_modal.html' %}
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'js/product_picker.js' %}"></script>
 <script>
 $(document).ready(function () {
 
@@ -371,118 +344,23 @@ $(document).ready(function () {
         }
     }
 
-    // ===== Product Picker Modal =====
-    var _activeCategory = 'all';
-    var _searchTerm = '';
-
-    $(document).on('click', '.product-picker-btn', function () {
-        window._activePickerRow = $(this).closest('.item-row');
-        _activeCategory = 'all';
-        _searchTerm = '';
-        $('#picker-search').val('');
-        $('#categoryTabs .nav-link').removeClass('active');
-        $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
-        renderProductsGrid();
-        new bootstrap.Modal(document.getElementById('productPickerModal')).show();
-    });
-
-    $('#categoryTabs').on('click', '.nav-link', function (e) {
-        e.preventDefault();
-        $('#categoryTabs .nav-link').removeClass('active');
-        $(this).addClass('active');
-        _activeCategory = $(this).data('category');
-        renderProductsGrid();
-    });
-
-    $('#picker-search').on('input', function () {
-        _searchTerm = $(this).val().trim().toLowerCase();
-        renderProductsGrid();
-    });
-
-    function renderProductsGrid() {
-        var products = window._allProducts || [];
-        if (_activeCategory !== 'all') {
-            products = products.filter(function (p) { return String(p.category_id) === String(_activeCategory); });
+    // ===== Product Picker Component Initialization =====
+    ProductPicker.init({
+        type: 'purchase',
+        priceField: 'cost_price',
+        getWarehouseId: function() { return $('#id_warehouse').val() || ''; },
+        getInvoiceId: function() { return '0'; },
+        onProductSelect: function($row, product, matchType) {
+            $row.find('.unit-cost').val(product.price !== '' ? product.price : 0);
+            renderStockInfo($row, product.stock);
+            calculateRowTotal($row);
         }
-        if (_searchTerm) {
-            products = products.filter(function (p) { return p.name.toLowerCase().indexOf(_searchTerm) !== -1; });
-        }
-        var $grid = $('#products-grid');
-        $grid.empty();
-        if (!products.length) {
-            $grid.html('<div class="no-results"><i class="fas fa-box-open fa-2x mb-2 d-block"></i>لا توجد منتجات</div>');
-            return;
-        }
-        products.forEach(function (p) {
-            var stockClass = p.stock <= 0 ? 'out-of-stock' : '';
-            var stockLabel = p.stock <= 0
-                ? '<span class="product-stock low-stock">غير متوفر</span>'
-                : (p.stock <= 5
-                    ? '<span class="product-stock low-stock">مخزون: ' + p.stock + '</span>'
-                    : '<span class="product-stock">مخزون: ' + p.stock + '</span>');
-            $grid.append(
-                '<div class="col-md-3 col-sm-4 col-6">' +
-                '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-cost="' + p.cost_price + '" data-stock="' + p.stock + '" data-name="' + p.name + '">' +
-                '<div class="product-name">' + p.name + '</div>' +
-                '<div class="product-footer">' +
-                '<span class="product-price" style="font-size:.8rem;color:var(--bs-success);">' + smartFloat(p.cost_price) + '</span>' +
-                stockLabel +
-                '</div></div></div>'
-            );
-        });
-    }
-
-    function updateCategoryTabs() {
-        var activeCats = {};
-        (window._allProducts || []).forEach(function (p) { if (p.category_id) activeCats[String(p.category_id)] = true; });
-        $('#categoryTabs .nav-link[data-category]').each(function () {
-            var cid = String($(this).data('category'));
-            if (cid === 'all') return;
-            if (activeCats[cid]) { $(this).parent().show(); }
-            else {
-                $(this).parent().hide();
-                if ($(this).hasClass('active')) {
-                    $(this).removeClass('active');
-                    $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
-                    _activeCategory = 'all';
-                }
-            }
-        });
-    }
-
-    // اختيار منتج من المودال
-    $(document).on('click', '.product-card', function () {
-        if (!window._activePickerRow) return;
-        var $row = window._activePickerRow;
-        var productId = $(this).data('id');
-        var productName = $(this).data('name');
-        var cost = $(this).data('cost');
-        var stock = $(this).data('stock');
-
-        $row.find('.product-picker-btn').html('<span class="selected-text">' + productName + '</span><i class="fas fa-th-large text-muted small"></i>');
-        $row.find('.product-id-input').val(productId).attr('data-stock', stock);
-        $row.find('.unit-cost').val(cost !== '' ? cost : 0);
-        renderStockInfo($row, stock);
-        calculateRowTotal($row);
-
-        bootstrap.Modal.getInstance(document.getElementById('productPickerModal')).hide();
-        window._activePickerRow = null;
-
-        // التركيز على حقل الكمية وتظليلها للكتابة
-        setTimeout(function() {
-            var $qtyInput = $row.find('.quantity');
-            if ($qtyInput.length) {
-                $qtyInput.focus().select();
-            }
-        }, 300);
     });
 
     // ===== إضافة بند =====
     $('#add-item').on('click', function () {
         var $newRow = $('#items-container .item-row:first').clone();
-        $newRow.find('.product-picker-btn').html('<span class="placeholder-text">اختر المنتج</span><i class="fas fa-th-large text-muted small"></i>');
-        $newRow.find('.product-id-input').val('').removeAttr('data-stock');
-        $newRow.find('.quantity').val('1');
+        ProductPicker.resetRow($newRow);
         $newRow.find('.unit-cost').val('0');
         $newRow.find('.item-total').val('0');
         $newRow.find('.stock-info').html('');
