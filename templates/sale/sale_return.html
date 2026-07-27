@@ -180,7 +180,10 @@
                                             <small class="text-muted">{{ item.product.sku }}</small>
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                         </td>
-                                        <td>{{ item.quantity }}</td>
+                                        <td>
+                                            {{ item.quantity|smart_float }}
+                                            {% if item.product.unit %}<small class="text-muted">({{ item.product.unit.name }})</small>{% endif %}
+                                        </td>
                                         <td>{{ item.unit_price|currency }}</td>
                                         <td>
                                             <input type="number" name="return_quantity" class="form-control form-control-sm" 

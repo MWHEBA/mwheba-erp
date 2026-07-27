@@ -463,14 +463,6 @@
             </div>
           </div>
           
-          <!-- شروط وأحكام عرض السعر وملاحظاته -->
-          {% if quotation.notes %}
-          <div class="quotation-notes">
-            <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "الشروط والأحكام والملاحظات" %}</div>
-            <div class="notes-content" style="white-space: pre-line;">{{ quotation.notes }}</div>
-          </div>
-          {% endif %}
-          
           <!-- جدول بنود عرض السعر -->
           <div class="quotation-items">
             <div class="party-title border-0 pb-0 mb-3">
@@ -498,14 +490,13 @@
                     {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
                     <td class="text-muted small">
                         {% if settings.invoice_product_code_display == 'sku' %}
-                            {{ item.product.sku|default:"-" }}
+                            {{ item.product.code|default:item.product.sku|default:"-" }}
                         {% elif settings.invoice_product_code_display == 'barcode' %}
-                            {{ item.product.barcode|default:"-" }}
+                            {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
                         {% elif settings.invoice_product_code_display == 'both' %}
-                            {% if item.product.sku %}{{ item.product.sku }}{% endif %}
-                            {% if item.product.sku and item.product.barcode %} - {% endif %}
-                            {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
-                            {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                            {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{% endif %}
+                            {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{ item.product.barcode }}{% endif %}
+                            {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                         {% endif %}
                     </td>
                     {% endif %}
@@ -513,9 +504,14 @@
                       <div class="fw-bold">{{ item.product.name }}</div>
                     </td>
                     <td>{{ item.unit_price|smart_float:2 }} {% currency_symbol %}</td>
-                    <td class="fw-bold">{{ item.quantity|smart_float }}</td>
-                    <td>{{ item.discount|smart_float:2 }} {% currency_symbol %}</td>
-                    <td class="fw-bold text-success">{{ item.total|smart_float:2 }} {% currency_symbol %}</td>
+                    <td class="fw-bold">
+                      {{ item.quantity|smart_float }}
+                      {% if item.product.unit %}
+                      <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
+                      {% endif %}
+                    </td>
+                    <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
+                    <td class="fw-bold text-success">{{ item.total|currency }}</td>
                   </tr>
                   {% endfor %}
                 </tbody>
@@ -527,21 +523,29 @@
           <div class="quotation-summary">
             <div class="summary-row">
               <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-              <div class="summary-value">{{ quotation.subtotal|smart_float:2 }} {% currency_symbol %}</div>
+              <div class="summary-value">{{ quotation.subtotal|currency }}</div>
             </div>
             <div class="summary-row">
               <div class="summary-label">{% trans "الخصم الإجمالي:" %}</div>
-              <div class="summary-value text-danger">{{ quotation.discount|smart_float:2 }} {% currency_symbol %}</div>
+              <div class="summary-value text-danger">{% if quotation.discount and quotation.discount > 0 %}{{ quotation.discount|currency }}{% else %}-{% endif %}</div>
             </div>
             <div class="summary-row">
-              <div class="summary-label">{% trans "الضريبة (14%):" %}</div>
-              <div class="summary-value">{{ quotation.tax|smart_float:2 }} {% currency_symbol %}</div>
+              <div class="summary-label">{% trans "الضريبة:" %}</div>
+              <div class="summary-value">{% if quotation.tax and quotation.tax > 0 %}{{ quotation.tax|currency }}{% else %}-{% endif %}</div>
             </div>
             <div class="summary-row">
               <div class="summary-label">{% trans "الإجمالي الكلي:" %}</div>
-              <div class="summary-value text-success font-weight-bold">{{ quotation.total|smart_float:2 }} {% currency_symbol %}</div>
+              <div class="summary-value text-success font-weight-bold">{{ quotation.total|currency }}</div>
             </div>
           </div>
+
+          <!-- شروط وأحكام عرض السعر وملاحظاته -->
+          {% if quotation.notes %}
+          <div class="quotation-notes mt-4">
+            <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "الشروط والأحكام والملاحظات" %}</div>
+            <div class="notes-content">{{ quotation.notes|safe }}</div>
+          </div>
+          {% endif %}
           
           <!-- شريط الإجراءات والتحويل المتكامل -->
           <div class="action-bar">

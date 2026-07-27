@@ -31,6 +31,7 @@
         width: 40%;
         background-color: #f8f9fa;
     }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -163,9 +164,14 @@
                                 {% for item in purchase_return.items.all %}
                                 <tr>
                                     <td class="text-center">{{ item.product.name }}</td>
-                                    <td class="text-center">{{ item.quantity|smart_float }}</td>
+                                    <td class="text-center fw-bold">
+                                        {{ item.quantity|smart_float }}
+                                        {% if item.product.unit %}
+                                        <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
+                                        {% endif %}
+                                    </td>
                                     <td class="text-center">{{ item.unit_price|currency }}</td>
-                                    <td class="text-center">{{ item.discount|currency }}</td>
+                                    <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
                                     <td class="text-center">{{ item.total|currency }}</td>
                                     <td class="text-center">{{ item.reason }}</td>
                                 </tr>

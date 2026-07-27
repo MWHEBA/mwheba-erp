@@ -240,100 +240,203 @@
                         <!-- Tab 2: إعدادات الفواتير والمالية -->
                         <div class="tab-pane fade" id="invoice" role="tabpanel">
                             <div class="row">
+                                <!-- العمود الأول: إعدادات العملة، الضريبة، والخصائص -->
                                 <div class="col-md-6">
-                                    <h5 class="mb-3">
-                                        <i class="fas fa-money-bill-wave text-primary me-2"></i>
-                                        إعدادات العملة
-                                    </h5>
-                                    
-                                    <div class="mb-3">
-                                        {{ form.default_currency.label_tag }}
-                                        {{ form.default_currency }}
-                                        {% if form.default_currency.errors %}
-                                            <div class="text-danger small mt-1">{{ form.default_currency.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> رمز العملة المستخدم في النظام (مثال: ج.م، $، درهم)
-                                        </small>
+                                    <!-- 1. إعدادات العملة والضريبة -->
+                                    <div class="card mb-4 border-0 shadow-sm bg-light">
+                                        <div class="card-body">
+                                            <h5 class="mb-3 text-primary">
+                                                <i class="fas fa-coins me-2"></i>
+                                                إعدادات العملة والضريبة
+                                            </h5>
+                                            
+                                            <div class="mb-3">
+                                                {{ form.default_currency.label_tag }}
+                                                {{ form.default_currency }}
+                                                {% if form.default_currency.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.default_currency.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> رمز العملة بالعربي المستخدم في النظام (مثال: ج.م، ر.س)
+                                                </small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                {{ form.default_currency_en.label_tag }}
+                                                {{ form.default_currency_en }}
+                                                {% if form.default_currency_en.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.default_currency_en.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> رمز العملة بالإنجليزية المستخدم في القوالب الإنجليزية (مثال: EGP, SAR, USD)
+                                                </small>
+                                            </div>
+                                            
+                                            <div class="mb-0">
+                                                {{ form.default_tax_rate.label_tag }}
+                                                {{ form.default_tax_rate }}
+                                                {% if form.default_tax_rate.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.default_tax_rate.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> نسبة الضريبة المضافة الافتراضية (مثال: 14 للضريبة 14%)
+                                                </small>
+                                            </div>
+                                        </div>
                                     </div>
-                                    
-                                    <div class="mb-3">
-                                        {{ form.default_tax_rate.label_tag }}
-                                        {{ form.default_tax_rate }}
-                                        {% if form.default_tax_rate.errors %}
-                                            <div class="text-danger small mt-1">{{ form.default_tax_rate.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> نسبة الضريبة المضافة الافتراضية (مثال: 14 للضريبة 14%)
-                                        </small>
+
+                                    <!-- 2. خصائص الفواتير والعروض -->
+                                    <div class="card mb-4 border-0 shadow-sm bg-light">
+                                        <div class="card-body">
+                                            <h5 class="mb-3 text-primary">
+                                                <i class="fas fa-sliders-h me-2"></i>
+                                                خصائص المبيعات والفواتير
+                                            </h5>
+
+                                            <div class="mb-3">
+                                                {{ form.sale_invoice_item_types.label_tag }}
+                                                {{ form.sale_invoice_item_types }}
+                                                {% if form.sale_invoice_item_types.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.sale_invoice_item_types.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> حدد أنواع العناصر المسموح ببيعها في فواتير المبيعات
+                                                </small>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                {{ form.invoice_product_code_display.label_tag }}
+                                                {{ form.invoice_product_code_display }}
+                                                {% if form.invoice_product_code_display.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.invoice_product_code_display.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> طريقة عرض أكواد المنتجات في تفاصيل الفواتير والطباعة
+                                                </small>
+                                            </div>
+
+                                            <div class="mb-0">
+                                                <div class="form-check form-switch mb-1">
+                                                    {{ form.enable_quotations }}
+                                                    <label class="form-check-label fw-bold" for="{{ form.enable_quotations.id_for_label }}">
+                                                        تفعيل عروض الأسعار
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> تفعيل إمكانية إنشاء عروض أسعار للعملاء وإدارتها وتحويلها لفواتير مبيعات
+                                                </small>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 
+                                <!-- العمود الثاني: إعدادات الطباعة والحراري -->
                                 <div class="col-md-6">
-                                    <h5 class="mb-3">
-                                        <i class="fas fa-file-invoice text-primary me-2"></i>
-                                        إعدادات الفواتير
-                                    </h5>
-                                    
-                                    <div class="mb-3">
-                                        {{ form.invoice_notes.label_tag }}
-                                        {{ form.invoice_notes }}
-                                        {% if form.invoice_notes.errors %}
-                                            <div class="text-danger small mt-1">{{ form.invoice_notes.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> هذه الملاحظات ستظهر أسفل جميع الفواتير المطبوعة
-                                        </small>
-                                    </div>
-                                    <div class="mb-3">
-                                        {{ form.receipt_paper_width.label_tag }}
-                                        {{ form.receipt_paper_width }}
-                                        {% if form.receipt_paper_width.errors %}
-                                            <div class="text-danger small mt-1">{{ form.receipt_paper_width.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> حدد عرض الورق الافتراضي لطباعة الفواتير الحرارية (80 مم أو 58 مم)
-                                        </small>
-                                    </div>
-                                    <div class="mb-3">
-                                        {{ form.sale_invoice_item_types.label_tag }}
-                                        {{ form.sale_invoice_item_types }}
-                                        {% if form.sale_invoice_item_types.errors %}
-                                            <div class="text-danger small mt-1">{{ form.sale_invoice_item_types.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> حدد أنواع العناصر المسموح ببيعها في فواتير المبيعات (منتجات، خدمات، أو كلاهما)
-                                        </small>
-                                    </div>
-                                    <div class="mb-3">
-                                        {{ form.invoice_product_code_display.label_tag }}
-                                        {{ form.invoice_product_code_display }}
-                                        {% if form.invoice_product_code_display.errors %}
-                                            <div class="text-danger small mt-1">{{ form.invoice_product_code_display.errors }}</div>
-                                        {% endif %}
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> حدد طريقة عرض أكواد المنتجات في شاشات تفاصيل الفواتير والطباعة الورقية/الحرارية وعروض الأسعار
-                                        </small>
-                                    </div>
-                                    
-                                    <div class="mb-3">
-                                        <div class="form-check form-switch mb-2">
-                                            {{ form.enable_quotations }}
-                                            <label class="form-check-label fw-bold" for="{{ form.enable_quotations.id_for_label }}">
-                                                تفعيل عروض الأسعار
-                                            </label>
+                                    <div class="card mb-4 border-0 shadow-sm bg-light">
+                                        <div class="card-body">
+                                            <h5 class="mb-3 text-primary">
+                                                <i class="fas fa-print me-2"></i>
+                                                إعدادات الطباعة والطباعة الحرارية
+                                            </h5>
+
+                                            <!-- 1. تفعيل الطباعة الحرارية -->
+                                            <div class="mb-3 p-3 bg-white rounded border">
+                                                <div class="form-check form-switch mb-1">
+                                                    {{ form.enable_thermal_printing }}
+                                                    <label class="form-check-label fw-bold" for="{{ form.enable_thermal_printing.id_for_label }}">
+                                                        تفعيل الطباعة الحرارية للفواتير
+                                                    </label>
+                                                </div>
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> إظهار أزرار وروابط الطباعة الحرارية في الفواتير (الافتراضي: معطل)
+                                                </small>
+                                            </div>
+
+                                            <!-- 2. عرض ورق الطباعة الحرارية -->
+                                            <div class="mb-3" id="receiptPaperWidthContainer">
+                                                {{ form.receipt_paper_width.label_tag }}
+                                                {{ form.receipt_paper_width }}
+                                                {% if form.receipt_paper_width.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.receipt_paper_width.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> حدد عرض الورق الافتراضي لطباعة الفواتير الحرارية (80 مم أو 58 مم)
+                                                </small>
+                                            </div>
+
+                                            <!-- 3. ملاحظات الفاتورة الافتراضية -->
+                                            <div class="mb-0">
+                                                 <label class="form-label text-dark fw-medium" for="id_default_sale_invoice_notes">ملاحظات وشروط فواتير المبيعات الافتراضية</label>
+                                                 {% include "partials/editor.html" with id="id_default_sale_invoice_notes" name="default_sale_invoice_notes" value=form.default_sale_invoice_notes.value|default:'' placeholder="أدخل الملاحظات والشروط الافتراضية للفواتير..." height=180 toolbar="basic" %}
+                                                 <small class="form-text text-muted d-block mb-3">
+                                                     <i class="fas fa-info-circle"></i> تظهر هذه الملاحظات والشروط تلقائياً عند إنشاء أي فاتورة مبيعات جديدة.
+                                                 </small>
+                                                 <label class="form-label text-dark fw-medium mt-2" for="id_default_quotation_notes">ملاحظات وشروط عروض الأسعار الافتراضية</label>
+                                                 {% include "partials/editor.html" with id="id_default_quotation_notes" name="default_quotation_notes" value=form.default_quotation_notes.value|default:'' placeholder="أدخل الملاحظات والشروط الافتراضية لعروض الأسعار..." height=180 toolbar="basic" %}
+                                                 <small class="form-text text-muted">
+                                                     <i class="fas fa-info-circle"></i> تظهر هذه الملاحظات والشروط تلقائياً عند إنشاء أي عرض سعر جديد.
+                                                 </small>
+                                            </div>
                                         </div>
-                                        <small class="form-text text-muted">
-                                            <i class="fas fa-info-circle"></i> تفعيل إمكانية إنشاء عروض أسعار للعملاء وإدارتها وتحويلها لفواتير مبيعات
-                                        </small>
                                     </div>
-                                    
-                                    <div class="alert alert-info border-start border-4 border-info mt-3">
+                                    <!-- 3. إعدادات نموذج الطباعة الإنجليزي ومسميات الفواتير -->
+                                    <div class="card mb-4 border-0 shadow-sm bg-light">
+                                        <div class="card-body">
+                                            <h5 class="mb-3 text-primary">
+                                                <i class="fas fa-language me-2"></i>
+                                                إعدادات نموذج الطباعة الإنجليزي (English Print Settings)
+                                            </h5>
+
+                                            <div class="mb-3">
+                                                {{ form.default_print_language.label_tag }}
+                                                {{ form.default_print_language }}
+                                                {% if form.default_print_language.errors %}
+                                                    <div class="text-danger small mt-1">{{ form.default_print_language.errors }}</div>
+                                                {% endif %}
+                                                <small class="form-text text-muted">
+                                                    <i class="fas fa-info-circle"></i> تحديد لغة النموذج الافتراضية عند فتح شاشة الطباعة
+                                                </small>
+                                            </div>
+
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.invoice_title_sale_en.label_tag }}
+                                                    {{ form.invoice_title_sale_en }}
+                                                    {% if form.invoice_title_sale_en.errors %}
+                                                        <div class="text-danger small mt-1">{{ form.invoice_title_sale_en.errors }}</div>
+                                                    {% endif %}
+                                                    <small class="form-text text-muted">عنوان الفاتورة في الطباعة الإنجليزية</small>
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    {{ form.invoice_title_quotation_en.label_tag }}
+                                                    {{ form.invoice_title_quotation_en }}
+                                                    {% if form.invoice_title_quotation_en.errors %}
+                                                        <div class="text-danger small mt-1">{{ form.invoice_title_quotation_en.errors }}</div>
+                                                    {% endif %}
+                                                    <small class="form-text text-muted">عنوان عرض السعر في الطباعة الإنجليزية</small>
+                                                </div>
+                                            </div>
+
+                                            <div class="mb-3">
+                                                <label class="form-label text-dark fw-medium" for="id_default_sale_invoice_notes_en">ملاحظات وشروط فواتير المبيعات (English Terms)</label>
+                                                {% include "partials/editor.html" with id="id_default_sale_invoice_notes_en" name="default_sale_invoice_notes_en" value=form.default_sale_invoice_notes_en.value|default:'' placeholder="Enter default sales invoice terms in English..." height=140 toolbar="basic" dir="ltr" %}
+                                                <small class="form-text text-muted">تظهر في الفواتير المطبوعة باللغة الإنجليزية</small>
+                                            </div>
+
+                                            <div class="mb-0">
+                                                <label class="form-label text-dark fw-medium" for="id_default_quotation_notes_en">ملاحظات وشروط عروض الأسعار (English Terms)</label>
+                                                {% include "partials/editor.html" with id="id_default_quotation_notes_en" name="default_quotation_notes_en" value=form.default_quotation_notes_en.value|default:'' placeholder="Enter default quotation terms in English..." height=140 toolbar="basic" dir="ltr" %}
+                                                <small class="form-text text-muted">تظهر في عروض الأسعار المطبوعة باللغة الإنجليزية</small>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="alert alert-info border-start border-4 border-info">
                                         <div class="d-flex align-items-start">
                                             <i class="fas fa-info-circle fa-lg text-info me-2 mt-1"></i>
                                             <div>
                                                 <small>
-                                                    <strong>ملاحظة:</strong> هذه الإعدادات تؤثر على جميع الفواتير الجديدة في النظام.
+                                                    <strong>ملاحظة:</strong> هذه الإعدادات تؤثر على جميع الفواتير الجديدة وعمليات الطباعة في النظام.
                                                 </small>
                                             </div>
                                         </div>
@@ -469,7 +572,6 @@
                             </div>
                             <div id="emailTestResult" class="mt-2"></div>
                         </div>
-                    </div>
                     
                     <!-- Tab 5: إعدادات دفترة -->
                     <div class="tab-pane fade" id="daftra" role="tabpanel">
@@ -555,6 +657,7 @@
                             </div>
                         </div>
                     </div>
+                    </div>
 
                     <hr class="my-4">
                     
@@ -577,6 +680,21 @@
 <script src="{% static 'js/global-table.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // ==================== Thermal Printing Paper Width Toggle ====================
+    const enableThermalCheckbox = document.getElementById('id_enable_thermal_printing');
+    const paperWidthContainer = document.getElementById('receiptPaperWidthContainer');
+
+    function togglePaperWidthVisibility() {
+        if (enableThermalCheckbox && paperWidthContainer) {
+            paperWidthContainer.style.display = enableThermalCheckbox.checked ? 'block' : 'none';
+        }
+    }
+
+    if (enableThermalCheckbox) {
+        enableThermalCheckbox.addEventListener('change', togglePaperWidthVisibility);
+        togglePaperWidthVisibility();
+    }
+
     // ==================== Initialize Tooltips ====================
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {

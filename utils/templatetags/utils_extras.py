@@ -118,28 +118,24 @@ def percentage(value, arg):
             return "0.00"
 
 
-# فلاتر إضافية للتوافق مع pricing_filters
 @register.filter
-def currency(value):
-    """تنسيق العملة"""
+def currency(value, currency_symbol=None):
+    """تنسيق العملة مع الرمز"""
     if value is None or value == '':
-        return "0.00"
+        value = 0
     try:
-        # تحويل آمن لـ Decimal
-        if isinstance(value, Decimal):
-            return f"{value:,.2f}"
-        elif isinstance(value, (int, float)):
-            value = Decimal(str(value))
-            return f"{value:,.2f}"
-        else:
-            # محاولة تحويل النص
-            value_str = str(value).strip()
-            if not value_str or value_str == 'None':
-                return "0.00"
-            value = Decimal(value_str)
-            return f"{value:,.2f}"
-    except (ValueError, TypeError, InvalidOperation):
-        return "0.00"
+        from core.utils import format_currency
+        return format_currency(value, currency_symbol=currency_symbol)
+    except Exception:
+        try:
+            symbol = f" {currency_symbol}" if currency_symbol else ""
+            if isinstance(value, Decimal):
+                return f"{value:,.2f}{symbol}"
+            elif isinstance(value, (int, float)):
+                return f"{Decimal(str(value)):,.2f}{symbol}"
+            return f"{Decimal(str(value).strip()):,.2f}{symbol}"
+        except Exception:
+            return "0.00"
 
 
 @register.filter

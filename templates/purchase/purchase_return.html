@@ -156,7 +156,10 @@
                                             <input type="hidden" name="item_id" value="{{ item.id }}">
                                             {{ item.product.name }}
                                         </td>
-                                        <td class="text-center">{{ item.quantity|smart_float }}</td>
+                                        <td class="text-center">
+                                            {{ item.quantity|smart_float }}
+                                            {% if item.product.unit %}<small class="text-muted">({{ item.product.unit.name }})</small>{% endif %}
+                                        </td>
                                         <td class="text-center">
                                             <input type="number" name="return_quantity" class="form-control return-quantity-input" 
                                                    min="0" max="{{ item.quantity }}" value="0">

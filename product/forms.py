@@ -1,4 +1,4 @@
-﻿from django import forms
+from django import forms
 from django.utils.translation import gettext_lazy as _
 from .models import (
     Category,
@@ -59,7 +59,7 @@ class CategoryForm(forms.ModelForm):
 class UnitForm(forms.ModelForm):
     class Meta:
         model = Unit
-        fields = ["name", "symbol", "is_active"]
+        fields = ["name", "name_en", "symbol", "is_active"]
 
 
 class ProductForm(forms.ModelForm):

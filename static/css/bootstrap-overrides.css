@@ -512,3 +512,45 @@ a:hover {
         color: var(--black) !important;
     }
 }
+
+/* ========================================
+   تخصيص محاذاة العناوين والمدخلات والخلايا في المنتصف 100%
+   ======================================== */
+#items-container .form-label,
+#items-container label {
+    text-align: center !important;
+    display: block;
+}
+
+#items-container .product-code-label,
+#items-container .product-label {
+    text-align: right !important;
+}
+
+.form-label,
+label:not(.form-check-label):not(.btn) {
+    display: block;
+}
+
+.form-control,
+.form-select,
+.input-group-text,
+select,
+textarea,
+input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]),
+.select2-container--default .select2-selection--single .select2-selection__rendered,
+.select2-results__option,
+.product-picker-btn,
+.product-picker-btn .placeholder-text,
+.product-picker-btn .selected-text,
+.table td,
+.table th,
+table td,
+table th {
+    text-align: center !important;
+    text-align-last: center !important;
+}
+
+.product-picker-btn {
+    justify-content: center !important;
+}

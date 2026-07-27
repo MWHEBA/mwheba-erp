@@ -1156,8 +1156,19 @@
     border-radius: var(--border-radius) !important;
 }
 
+.tox-pop,
+.tox-pop__dialog {
+    display: none !important;
+}
+
 .tox-statusbar {
     border-top: 1px solid var(--border-color) !important;
+    direction: ltr !important;
+}
+
+.tox-statusbar__wordcount {
+    margin-right: auto !important;
+    direction: rtl !important;
 }
 
 .tox-edit-area__iframe {

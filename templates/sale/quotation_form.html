@@ -73,8 +73,8 @@
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h6 class="text-muted fw-medium mb-0 text-truncate" style="max-width: 50%;">{% trans "بنود عرض السعر" %}</h6>
                         <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
-                            <input class="form-check-input" type="checkbox" id="show-all-products" role="switch">
-                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
+                            <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
+                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="page-show-all-products">{% trans "إظهار المنتجات بدون مخزون" %}</label>
                         </div>
                     </div>
                     
@@ -163,47 +163,84 @@
                         <i class="fa fa-plus me-1"></i> {% trans "إضافة بند" %}
                     </button>
 
-                    <div class="row total-section mt-4">
-                        <div class="col-lg-5 col-md-6">
-                            <label class="form-label text-dark">{% trans "ملاحظات وشروط عرض السعر" %}</label>
-                            <textarea name="notes" id="id_notes" class="form-control" rows="4" placeholder="أضف شروط الدفع، التوصيل، أو أي تفاصيل أخرى..." style="max-height: 100px; resize: none;">{{ form.notes.value|default:'' }}</textarea>
+                    <div class="row total-section mt-4 g-4">
+                        <div class="col-lg-8 col-md-12">
+                            <!-- التبويبات الموحدة -->
+                            <ul class="nav nav-tabs border-bottom-0" id="quoteTotalSectionTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active fw-medium" id="quote-discount-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-discount" type="button" role="tab" aria-controls="quote-tab-discount" aria-selected="true">
+                                        <i class="fas fa-percent me-1 text-primary"></i> {% trans "الخصم والتسوية" %}
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link fw-medium" id="quote-notes-tab" data-bs-toggle="tab" data-bs-target="#quote-tab-notes" type="button" role="tab" aria-controls="quote-tab-notes" aria-selected="false">
+                                        <i class="fas fa-sticky-note me-1 text-primary"></i> {% trans "الملاحظات والشروط" %}
+                                    </button>
+                                </li>
+                            </ul>
+                            <div class="tab-content p-3 bg-light border rounded-bottom" id="quoteTotalSectionTabsContent">
+                                <!-- تبويب الخصم والتسوية -->
+                                <div class="tab-pane fade show active" id="quote-tab-discount" role="tabpanel" aria-labelledby="quote-discount-tab">
+                                    <div class="row align-items-center g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label text-dark fw-medium">{% trans "خصم على كامل عرض السعر" %}</label>
+                                            <div class="input-group">
+                                                <input type="number" step="0.01" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
+                                                <select name="discount_type" id="id_discount_type" class="form-select px-2 text-center" style="max-width: 85px;">
+                                                    <option value="fixed" {% if form.discount_type.value == 'fixed' or not form.discount_type.value %}selected{% endif %}>{{ currency_symbol }}</option>
+                                                    <option value="percentage" {% if form.discount_type.value == 'percentage' %}selected{% endif %}>%</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 pt-md-4">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
+                                                <label class="form-check-label text-dark fw-medium small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- تبويب الملاحظات والشروط -->
+                                <div class="tab-pane fade" id="quote-tab-notes" role="tabpanel" aria-labelledby="quote-notes-tab">
+                                    {% include "partials/editor.html" with id="id_notes" name="notes" value=form.notes.value|default:'' placeholder="أضف شروط الدفع، التوصيل، أو أي تفاصيل أخرى..." height=180 toolbar="basic" %}
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="col-lg-3 col-md-6 mt-3 mt-md-0 text-center">
-                            <div class="mb-3">
-                                <label class="form-label text-dark">{% trans "خصم على كامل عرض السعر" %}</label>
-                                <input type="number" name="discount" id="id_discount" class="form-control text-center" value="{{ form.discount.value|default:'0' }}" min="0" placeholder="0.00">
-                            </div>
-                            <div class="form-check form-switch d-inline-block text-start mt-2">
-                                <input class="form-check-input" type="checkbox" name="tax_active" id="id_tax_active" role="switch" {% if form.instance.tax_active or form.instance.tax_active is None %}checked{% endif %}>
-                                <label class="form-check-label text-dark small" for="id_tax_active">{% trans "تفعيل ضريبة القيمة المضافة (14%)" %}</label>
-                            </div>
-                        </div>
-
-                        <div class="col-lg-4 col-md-12 mt-3 mt-lg-0">
-                            <div class="row mb-2">
-                                <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
-                                <div class="col-6 text-end">
-                                    <span id="subtotal">0</span>
+                        <div class="col-lg-4 col-md-12">
+                            <!-- رأس ملخص الإجماليات المتناسق -->
+                            <ul class="nav nav-tabs border-bottom-0" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <span class="nav-link active fw-medium" style="cursor: default;">
+                                        <i class="fas fa-calculator me-1 text-primary"></i> {% trans "الملخص المالي" %}
+                                    </span>
+                                </li>
+                            </ul>
+                            <div class="p-3 bg-light border rounded-bottom">
+                                <div class="row mb-2">
+                                    <div class="col-6 text-end"><strong>{% trans "المجموع الفرعي:" %}</strong></div>
+                                    <div class="col-6 text-end">
+                                        <span id="subtotal">0</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
-                                <div class="col-6 text-end text-danger">
-                                    <span id="discount-total">0</span>
+                                <div class="row mb-2">
+                                    <div class="col-6 text-end"><strong>{% trans "الخصم الإجمالي:" %}</strong></div>
+                                    <div class="col-6 text-end text-danger">
+                                        <span id="discount-total">0</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="row mb-2">
-                                <div class="col-6 text-end"><strong>{% trans "الضريبة (14%):" %}</strong></div>
-                                <div class="col-6 text-end">
-                                    <span id="tax-total">0</span>
+                                <div class="row mb-2">
+                                    <div class="col-6 text-end"><strong>{% trans "الضريبة (14%):" %}</strong></div>
+                                    <div class="col-6 text-end">
+                                        <span id="tax-total">0</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <hr>
-                            <div class="row">
-                                <div class="col-6 text-end"><strong class="h5">{% trans "الإجمالي الكلي:" %}</strong></div>
-                                <div class="col-6 text-end">
-                                    <span id="grand-total" class="h5 fw-bold text-success">0</span>
+                                <hr class="my-2">
+                                <div class="row">
+                                    <div class="col-6 text-end"><strong class="fs-6 text-dark">{% trans "الإجمالي الكلي:" %}</strong></div>
+                                    <div class="col-6 text-end">
+                                        <span id="grand-total" class="fs-6 fw-bold text-success">0</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -463,32 +500,6 @@
             }
         });
 
-        // ===== إضافة بند =====
-        $("#add-item").click(function() {
-            var newRow = $(".item-row:first").clone();
-            ProductPicker.resetRow(newRow);
-
-            newRow.find('.product-picker-btn').html('<span class="placeholder-text">' + placeholderText + '</span><i class="fas fa-th-large text-muted small"></i>');
-            newRow.find('.product-id-input').val('').removeAttr('data-price data-stock data-is-service');
-            newRow.find('.product-code-input').removeClass('is-valid is-invalid').val('');
-            newRow.find('input:not([type=hidden]):not(.product-code-input)').val('');
-            newRow.find('.quantity').val('1');
-            newRow.find('.stock-info').html('');
-
-            if (newRow.find('.remove-item').length === 0) {
-                newRow.append('<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>');
-            }
-
-            $("#items-container").append(newRow);
-            bindEventHandlers();
-        });
-
-        // ===== حذف بند =====
-        $(document).on('click', '.remove-item', function() {
-            $(this).closest('.item-row').remove();
-            calculateTotals();
-        });
-
         // ===== ربط الأحداث وعمليات الحساب =====
         function bindEventHandlers() {
             $('.quantity, .unit-price, .item-discount').off('input').on('input', function() {
@@ -512,7 +523,7 @@
                 }
             });
 
-            $('#id_discount').off('input').on('input', calculateTotals);
+            $('#id_discount, #id_discount_type').off('input change').on('input change', calculateTotals);
             $('#id_tax_active').off('change').on('change', calculateTotals);
         }
 
@@ -530,8 +541,28 @@
             $('.item-total').each(function() {
                 subtotal += parseFloat($(this).val().replace(/,/g, '')) || 0;
             });
-            var discount = parseFloat($('#id_discount').val()) || 0;
-            var netSubtotal = Math.max(0, subtotal - discount);
+            
+            var discountInput = parseFloat($('#id_discount').val()) || 0;
+            var discountType = $('#id_discount_type').val() || 'fixed';
+            var discountTotal = 0;
+
+            if (discountType === 'percentage') {
+                $('#id_discount').attr('max', '100');
+                if (discountInput > 100) {
+                    discountInput = 100;
+                    $('#id_discount').val(100);
+                }
+                discountTotal = (subtotal * discountInput) / 100;
+            } else {
+                $('#id_discount').removeAttr('max');
+                if (subtotal > 0 && discountInput > subtotal) {
+                    discountInput = subtotal;
+                    $('#id_discount').val(subtotal);
+                }
+                discountTotal = discountInput;
+            }
+
+            var netSubtotal = Math.max(0, subtotal - discountTotal);
             
             var tax = 0;
             if ($('#id_tax_active').is(':checked')) {
@@ -541,10 +572,18 @@
 
             const currencySymbol = $('#django-sales-form-data').data('currency-symbol') || 'ج.م';
             $('#subtotal').text(smartFloat(subtotal) + ' ' + currencySymbol);
-            $('#discount-total').text(smartFloat(discount) + ' ' + currencySymbol);
+
+            var discountText = smartFloat(discountTotal) + ' ' + currencySymbol;
+            if (discountType === 'percentage' && discountInput > 0) {
+                discountText += ' (' + discountInput + '%)';
+            }
+            $('#discount-total').text(discountText);
             $('#tax-total').text(smartFloat(tax) + ' ' + currencySymbol);
             $('#grand-total').text(smartFloat(grandTotal) + ' ' + currencySymbol);
         }
+
+        window.calculateRowTotal = calculateRowTotal;
+        window.calculateTotals = calculateTotals;
 
         bindEventHandlers();
         $('.item-row').each(function() { calculateRowTotal($(this)); });
@@ -552,6 +591,9 @@
 
         // ===== التحقق قبل الإرسال =====
         $('#quotation-form').on('submit', function(e) {
+            if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.sanitizeTrailingEmptyRows === 'function') {
+                ProductPicker.sanitizeTrailingEmptyRows();
+            }
             var isValid = true;
             var missingProduct = false;
 

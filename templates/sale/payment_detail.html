@@ -421,7 +421,7 @@
                     
                     <!-- أزرار الإجراءات -->
                     <div class="action-buttons">
-                        {% if financial_info.can_edit %}
+                        {% if financial_info.can_edit or payment.status == 'draft' %}
                         <a href="{% url 'sale:edit_payment' payment.id %}" class="btn btn-primary">
                             <i class="fas fa-edit me-1"></i>تعديل الدفعة
                         </a>
@@ -444,11 +444,14 @@
                             <i class="fas fa-arrow-left me-1"></i>العودة للفاتورة
                         </a>
                         
-                        {% if financial_info.can_delete %}
-                        <a href="#" class="btn btn-outline-danger"
-                           onclick="return confirm('هل تريد حذف هذه الدفعة؟ لا يمكن التراجع عن هذا الإجراء.')">
-                            <i class="fas fa-trash me-1"></i>حذف الدفعة
-                        </a>
+                        {% if payment.can_delete or payment.status == 'draft' or financial_info.can_delete %}
+                        <form method="post" action="{% url 'sale:delete_payment' payment.id %}" class="d-inline"
+                              onsubmit="return confirm('هل تريد حذف هذه الدفعة نهائياً؟ لا يمكن التراجع عن هذا الإجراء.');">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="fas fa-trash me-1"></i>حذف الدفعة
+                            </button>
+                        </form>
                         {% endif %}
                     </div>
                 </div>

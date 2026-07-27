@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """
 النماذج الأساسية للمنتجات
 يحتوي على: Category, Unit, Product, ProductImage, ProductVariant
@@ -127,6 +127,7 @@ class Unit(models.Model):
     """
 
     name = models.CharField(_("اسم الوحدة"), max_length=50)
+    name_en = models.CharField(_("اسم الوحدة بالإنجليزية"), max_length=50, blank=True, null=True)
     symbol = models.CharField(_("الرمز"), max_length=10)
     is_active = models.BooleanField(_("نشط"), default=True)
     created_at = models.DateTimeField(_("تاريخ الإنشاء"), auto_now_add=True)
@@ -139,6 +140,11 @@ class Unit(models.Model):
 
     def __str__(self):
         return f"{self.name} ({self.symbol})"
+
+    def get_name(self, lang="ar"):
+        if lang == "en" and self.name_en:
+            return self.name_en
+        return self.name
 
 
 class Product(models.Model):

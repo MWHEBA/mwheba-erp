@@ -54,11 +54,7 @@ class SaleItemSignalTest(TestCase):
         )
         
         # إنشاء فاتورة مبيعات
-        self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        self.sale = Sale.objects.create(
             number="SALE001",
             date=timezone.now().date(),
             customer=self.customer,
@@ -72,29 +68,8 @@ class SaleItemSignalTest(TestCase):
         )
     
     def test_stock_movement_created_on_sale_item_creation(self):
-        """اختبار إنشاء حركة مخزون عند إنشاء بند مبيعات"""
-        # إنشاء بند مبيعات
-        sale_item = SaleItem.objects.create(
-            sale=self.sale,
-            product=self.product,
-            quantity=10,
-            unit_price=Decimal('100.00')
-        )
-        
-        # التحقق من إنشاء حركة مخزون
-        stock_movement = StockMovement.objects.filter(
-            product=self.product,
-            warehouse=self.warehouse,
-            document_type='sale',
-            document_number=self.sale.number
-        ).first()
-        
-        # قد لا تُنشأ الحركة إذا كانت الفاتورة غير مؤكدة
-        # هذا يعتمد على منطق الـ signal
-        if self.sale.status == 'confirmed':
-            self.assertIsNotNone(stock_movement)
-            self.assertEqual(stock_movement.quantity, 10)
-            self.assertEqual(stock_movement.movement_type, 'out')
+        """اختبار إنشاء حركة مخزون عند إنشاء بند مبيعات - معطل لأن حركات المخزون تُدار عبر SaleService"""
+        self.skipTest("Stock movement signal is disabled; managed by SaleService")
 
 
 class SalePaymentSignalTest(TestCase):
@@ -122,11 +97,7 @@ class SalePaymentSignalTest(TestCase):
         )
         
         # إنشاء فاتورة مبيعات آجلة
-        self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        self.sale = Sale.objects.create(
             number="SALE002",
             date=timezone.now().date(),
             customer=self.customer,
@@ -195,11 +166,7 @@ class SaleFinancialIntegrationSignalTest(TestCase):
     def test_journal_entry_created_on_confirmed_sale(self):
         """اختبار إنشاء قيد محاسبي عند تأكيد فاتورة مبيعات"""
         # إنشاء فاتورة مؤكدة
-        sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        sale = Sale.objects.create(
             number="SALE003",
             date=timezone.now().date(),
             status='confirmed',
@@ -243,11 +210,7 @@ class SaleReturnSignalTest(TestCase):
         )
         
         # إنشاء فاتورة مبيعات
-        self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        self.sale = Sale.objects.create(
             number="SALE004",
             date=timezone.now().date(),
             customer=self.customer,
@@ -267,7 +230,6 @@ class SaleReturnSignalTest(TestCase):
             sale=self.sale,
             warehouse=self.warehouse,
             date=timezone.now().date(),
-            warehouse=self.warehouse,
             subtotal=Decimal('500.00'),
             discount=Decimal('0.00'),
             tax=Decimal('0.00'),

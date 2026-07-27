@@ -255,6 +255,13 @@ class Purchase(models.Model):
         is_new = self.pk is None
         super().save(*args, **kwargs)
 
+    @property
+    def has_item_discounts(self):
+        """
+        فحص ما إذا كان هناك أي خصم على أي بند من بنود الفاتورة
+        """
+        return any(item.discount and item.discount > 0 for item in self.items.all())
+
         # تحديث حالة الدفع بعد الحفظ
         self.update_payment_status()
 
@@ -378,9 +385,9 @@ class Purchase(models.Model):
                         supplier.balance += self.amount_due
                         supplier.save(update_fields=["balance"])
 
-        # تحديث حالة الدفع في قاعدة البيانات
-        if old_status != new_status:
-            Purchase.objects.filter(pk=self.pk).update(payment_status=new_status)
+        # تحديث حالة الدفع في الذاكرة وفي قاعدة البيانات
+        self.payment_status = new_status
+        Purchase.objects.filter(pk=self.pk).update(payment_status=new_status)
 
         # احفظ القيم الحالية للاستخدام في المرة التالية
         self._original_payment_method = self.payment_method
@@ -443,6 +450,8 @@ class Purchase(models.Model):
             return 'نقداً'
         elif self.payment_method == 'credit':
             return 'آجل'
+        elif self.payment_method == 'credit_with_downpayment':
+            return 'آجل مع دفعة مقدمة'
         elif self.payment_method == 'bank_transfer':
             return 'تحويل بنكي'
 

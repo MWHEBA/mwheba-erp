@@ -297,6 +297,83 @@ class ChartOfAccounts(models.Model):
 
         return balance
 
+    @classmethod
+    def get_balances_bulk(cls, date_from=None, date_to=None, include_opening=True, account_ids=None):
+        """
+        حساب أرصدة الحسابات دفعة واحدة باستعلام SQL موحد يمنع مشاكل N+1 Queries
+        مع إجراء التجميع الشجري الصاعد في الذاكرة (Memory Roll-up Aggregation) للحسابات الأمهات.
+        """
+        from .journal_entry import JournalEntryLine
+        from django.db.models import Sum, Q
+        from decimal import Decimal
+        from datetime import date
+
+        # 1. فلترة الحركات الحسابية
+        query = Q(journal_entry__status="posted")
+        if date_from:
+            query &= Q(journal_entry__date__gte=date_from)
+        if date_to:
+            query &= Q(journal_entry__date__lte=date_to)
+        if account_ids:
+            query &= Q(account_id__in=account_ids)
+
+        # 2. تجميع الحركات دفعة واحدة بـ SQL Group By
+        totals_qs = (
+            JournalEntryLine.objects.filter(query)
+            .values("account_id")
+            .annotate(
+                sum_debit=Sum("debit"),
+                sum_credit=Sum("credit")
+            )
+        )
+        totals_map = {row["account_id"]: row for row in totals_qs}
+
+        # 3. جلب كافة الحسابات المحددة أو النشطة
+        acc_qs = cls.objects.all().select_related("account_type", "parent")
+        if account_ids:
+            acc_qs = acc_qs.filter(id__in=account_ids)
+
+        accounts = list(acc_qs)
+
+        # 4. حساب أرصدة الحسابات الفرعية أولاً
+        balances = {}
+        for acc in accounts:
+            row = totals_map.get(acc.id, {})
+            period_debit = row.get("sum_debit") or Decimal("0")
+            period_credit = row.get("sum_credit") or Decimal("0")
+
+            opening_balance = Decimal("0")
+            if include_opening and acc.opening_balance:
+                opening_date = acc.opening_balance_date or date(2020, 1, 1)
+                if (not date_from or opening_date >= date_from) and (not date_to or opening_date <= date_to):
+                    opening_balance = acc.opening_balance
+
+            nature = acc.nature
+            if nature == "debit":
+                balance = opening_balance + period_debit - period_credit
+            else:
+                balance = opening_balance + period_credit - period_debit
+
+            balances[acc.id] = {
+                "account": acc,
+                "opening_balance": opening_balance,
+                "period_debit": period_debit,
+                "period_credit": period_credit,
+                "balance": balance,
+            }
+
+        # 5. التجميع الشجري الصاعد في الذاكرة للحسابات الأمهات (Roll-up Aggregation)
+        # نرتب الحسابات حسب عمق الشجرة (من الأسفل للأعلى)
+        for acc in sorted(accounts, key=lambda a: getattr(a, 'code', ''), reverse=True):
+            if acc.parent_id and acc.parent_id in balances:
+                parent_data = balances[acc.parent_id]
+                child_data = balances[acc.id]
+                parent_data["period_debit"] += child_data["period_debit"]
+                parent_data["period_credit"] += child_data["period_credit"]
+                parent_data["balance"] += child_data["balance"]
+
+        return balances
+
     def get_descendants(self, include_self=False):
         """
         جلب جميع الأحفاد (الحسابات الفرعية) بشكل تكراري

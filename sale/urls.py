@@ -28,6 +28,11 @@ urlpatterns = [
         views.unpost_payment_only,
         name="unpost_payment_only",
     ),
+    path(
+        "payments/<int:payment_id>/delete/",
+        views.delete_payment,
+        name="delete_payment",
+    ),
     # مرتجعات المبيعات
     path("returns/", views.sale_return_list, name="sale_return_list"),
     path("<int:pk>/return/", views.sale_return, name="sale_return"),

@@ -200,12 +200,13 @@ def handle_deleted_purchase_item(sender, instance, **kwargs):
 @receiver(post_save, sender=PurchasePayment)
 def update_payment_status_on_payment(sender, instance, created, **kwargs):
     """
-    تحديث حالة الدفع عند تسجيل دفعة
+    تحديث حالة الدفع عند تسجيل دفعة أو تعديلها أو ترحيلها
     """
-    if created:
+    if instance.purchase:
         instance.purchase.update_payment_status()
 
-        # تحديث رصيد المورد
+    if created:
+        # تحديث رصيد المورد عند إضافة الدفعة لأول مرة
         supplier = instance.purchase.supplier
         if supplier:
             supplier.balance -= instance.amount

@@ -562,14 +562,13 @@
                                         {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
                                         <td class="text-muted small text-center">
                                             {% if settings.invoice_product_code_display == 'sku' %}
-                                                {{ item.product.sku|default:"-" }}
+                                                {{ item.product.code|default:item.product.sku|default:"-" }}
                                             {% elif settings.invoice_product_code_display == 'barcode' %}
-                                                {{ item.product.barcode|default:"-" }}
+                                                {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
                                             {% elif settings.invoice_product_code_display == 'both' %}
-                                                {% if item.product.sku %}{{ item.product.sku }}{% endif %}
-                                                {% if item.product.sku and item.product.barcode %} - {% endif %}
-                                                {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
-                                                {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                                                {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{% endif %}
+                                                {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{ item.product.barcode }}{% endif %}
+                                                {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                                             {% endif %}
                                         </td>
                                         {% endif %}
@@ -579,10 +578,15 @@
                                                 <span class="badge bg-info ms-2">خدمة</span>
                                             {% endif %}
                                         </td>
-                                        <td class="fw-bold text-center">{{ item.quantity|smart_float }}</td>
-                                        <td class="text-center">{{ item.unit_price|smart_float }} {% currency_symbol %}</td>
-                                        <td class="text-center">{{ item.discount|smart_float }} {% currency_symbol %}</td>
-                                        <td class="fw-bold text-center">{{ item.total|smart_float }} {% currency_symbol %}</td>
+                                        <td class="fw-bold text-center">
+                                            {{ item.quantity|smart_float }}
+                                            {% if item.product.unit %}
+                                            <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="text-center">{{ item.unit_price|currency }}</td>
+                                        <td class="text-center">{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
+                                        <td class="fw-bold text-center">{{ item.total|currency }}</td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -593,23 +597,27 @@
                     <div class="invoice-summary">
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المجموع الفرعي:" %}</div>
-                            <div class="summary-value">{{ purchase.subtotal|smart_float }} {% currency_symbol %}</div>
+                            <div class="summary-value">{{ purchase.subtotal|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الخصم:" %}</div>
-                            <div class="summary-value">{{ purchase.discount|smart_float }} {% currency_symbol %}</div>
+                            <div class="summary-value">{% if purchase.discount and purchase.discount > 0 %}{{ purchase.discount|currency }}{% else %}-{% endif %}</div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "الضريبة:" %}</div>
+                            <div class="summary-value">{% if purchase.tax and purchase.tax > 0 %}{{ purchase.tax|currency }}{% else %}-{% endif %}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الإجمالي:" %}</div>
-                            <div class="summary-value">{{ purchase.total|smart_float }} {% currency_symbol %}</div>
+                            <div class="summary-value">{{ purchase.total|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المدفوع:" %}</div>
-                            <div class="summary-value">{{ purchase.amount_paid|smart_float }} {% currency_symbol %}</div>
+                            <div class="summary-value">{{ purchase.amount_paid|currency }}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "المتبقي:" %}</div>
-                            <div class="summary-value">{{ purchase.amount_due|smart_float }} {% currency_symbol %}</div>
+                            <div class="summary-value">{{ purchase.amount_due|currency }}</div>
                         </div>
                     </div>
                     

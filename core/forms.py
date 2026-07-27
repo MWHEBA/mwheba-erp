@@ -379,6 +379,13 @@ class SystemSettingsForm(forms.Form):
         initial='ج.م',
         widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'ج.م'})
     )
+    default_currency_en = forms.CharField(
+        label='رمز العملة بالإنجليزية (English Currency Code)',
+        max_length=10,
+        initial='EGP',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'EGP'})
+    )
     default_tax_rate = forms.DecimalField(
         label='نسبة الضريبة الافتراضية (%)',
         min_value=0,
@@ -390,6 +397,49 @@ class SystemSettingsForm(forms.Form):
         label='ملاحظات الفاتورة الافتراضية',
         required=False,
         widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    default_sale_invoice_notes = forms.CharField(
+        label='ملاحظات وشروط فواتير المبيعات الافتراضية',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    default_quotation_notes = forms.CharField(
+        label='ملاحظات وشروط عروض الأسعار الافتراضية',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    default_print_language = forms.ChoiceField(
+        label='لغة الطباعة الافتراضية للفواتير وعروض الأسعار',
+        choices=[('ar', 'العربية (Arabic)'), ('en', 'الإنجليزية (English)')],
+        initial='ar',
+        widget=forms.Select(attrs={'class': 'form-select'})
+    )
+    company_address_en = forms.CharField(
+        label='عنوان المؤسسة بالإنجليزية (English Address)',
+        required=False,
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g. Cairo, Egypt'})
+    )
+    default_sale_invoice_notes_en = forms.CharField(
+        label='ملاحظات وشروط فواتير المبيعات بالإنجليزية (English Terms)',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    default_quotation_notes_en = forms.CharField(
+        label='ملاحظات وشروط عروض الأسعار بالإنجليزية (English Terms)',
+        required=False,
+        widget=forms.Textarea(attrs={'class': 'form-control', 'rows': 3})
+    )
+    invoice_title_sale_en = forms.CharField(
+        label='عنوان فاتورة المبيعات بالإنجليزية (English Sale Title)',
+        required=False,
+        initial='TAX INVOICE',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TAX INVOICE'})
+    )
+    invoice_title_quotation_en = forms.CharField(
+        label='عنوان عرض السعر بالإنجليزية (English Quotation Title)',
+        required=False,
+        initial='QUOTATION',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'QUOTATION'})
     )
     
     # إعدادات النظام
@@ -467,6 +517,12 @@ class SystemSettingsForm(forms.Form):
         required=False,
         widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
     )
+    enable_thermal_printing = forms.BooleanField(
+        label='تفعيل الطباعة الحرارية للفواتير',
+        required=False,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+
     
     # إعدادات الإيميل
     email_host = forms.CharField(

@@ -37,10 +37,15 @@
         "items": {% if duplicate_items %}{{ duplicate_items|safe }}{% else %}[]{% endif %},
         "invoiceType": "{{ duplicate_invoice_type|default:'' }}",
         "paymentMethod": "{{ duplicate_payment_method|default:'' }}",
+        "downPaymentAmount": "{{ duplicate_down_payment_amount|default:'0' }}",
         "financialCategoryId": "{{ duplicate_financial_category_id|default:'' }}",
         "supplierId": "{{ selected_supplier.id|default:'' }}",
         "warehouseId": "{% if default_warehouse %}{{ default_warehouse.id }}{% endif %}",
-        "discount": "{{ form.initial.discount|default:'0' }}"
+        "discount": "{{ duplicate_discount|default:'0' }}",
+        "discountType": "{{ duplicate_discount_type|default:'fixed' }}",
+        "adjustmentName": "{{ duplicate_adjustment_name|default:''|escapejs }}",
+        "adjustmentType": "{{ duplicate_adjustment_type|default:'add' }}",
+        "adjustmentAmount": "{{ duplicate_adjustment_amount|default:'0' }}"
       }
     </script>
 
@@ -215,8 +220,8 @@
                                     <span id="items-title">بنود الفاتورة</span>
                                 </h6>
                         <div class="form-check form-switch mb-0" title="إظهار المنتجات التي ليس لها مخزون في المخزن المحدد">
-                            <input class="form-check-input" type="checkbox" id="show-all-products" role="switch" checked>
-                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="show-all-products">إظهار المنتجات بدون مخزون</label>
+                            <input class="form-check-input show-all-products-toggle" type="checkbox" id="page-show-all-products" role="switch">
+                            <label class="form-check-label small text-muted show-all-label" style="margin-bottom: unset; white-space: nowrap;" for="page-show-all-products">إظهار المنتجات بدون مخزون</label>
                         </div>
                     </div>
                     
@@ -611,23 +616,6 @@
             }
         });
 
-        // ===== إضافة بند =====
-        $("#add-item").click(function() {
-            var newRow = $(".item-row:first").clone();
-            ProductPicker.resetRow(newRow);
-            if (newRow.find('.remove-item').length === 0) {
-                newRow.append('<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>');
-            }
-            $("#items-container").append(newRow);
-            bindEventHandlers();
-        });
-
-        // ===== حذف بند =====
-        $(document).on('click', '.remove-item, .remove-btn', function() {
-            $(this).closest('.item-row').remove();
-            calculateTotals();
-        });
-
         // ===== ربط الأحداث =====
         function bindEventHandlers() {
             $('.quantity, .unit-price, .item-discount').off('input').on('input', function() {
@@ -682,6 +670,9 @@
 
         // ===== التحقق قبل الإرسال =====
         $('#purchase-form').on('submit', function(e) {
+            if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.sanitizeTrailingEmptyRows === 'function') {
+                ProductPicker.sanitizeTrailingEmptyRows();
+            }
             var isValid = true;
             if ($('.item-row').length < 1) {
                 Swal.fire({ icon: 'error', title: 'خطأ', text: 'يجب إضافة بند واحد على الأقل للفاتورة' });
@@ -915,80 +906,56 @@
             if (!d) return;
 
             // 1. نوع الفاتورة
-            $('#id_invoice_type').val(d.invoiceType).trigger('change');
+            if (d.invoiceType) {
+                $('#id_invoice_type').val(d.invoiceType).trigger('change');
+            }
 
-            // 2. طريقة الدفع
-            if (d.invoiceType === 'cash' && d.paymentMethod) {
+            // 2. طريقة الدفع والدفعة المقدمة
+            if ((d.invoiceType === 'cash' || d.invoiceType === 'credit_with_downpayment') && d.paymentMethod) {
                 setTimeout(function() {
                     $('#id_payment_method').val(d.paymentMethod).trigger('change');
                 }, 150);
+            }
+            if (d.invoiceType === 'credit_with_downpayment' && d.downPaymentAmount && parseFloat(d.downPaymentAmount) > 0) {
+                $('#id_down_payment_amount').val(d.downPaymentAmount).trigger('input');
             }
 
             // 3. التصنيف المالي
             if (d.financialCategoryId) {
                 $('#financial_category_auto_value').prop('disabled', true);
                 $('#id_financial_category').attr('name', 'financial_category');
-                if (isFinancialCategoryRequired) {
+                if (typeof isFinancialCategoryRequired !== 'undefined' && isFinancialCategoryRequired) {
                     $('#id_financial_category').prop('required', true);
                 }
             }
 
-            // 4. الخصم الإجمالي
+            // 4. الخصم والتسوية
+            if (d.discountType && $('#id_discount_type').length) {
+                $('#id_discount_type').val(d.discountType).trigger('change');
+            }
             if (d.discount && parseFloat(d.discount) > 0) {
                 $('#id_discount').val(d.discount).trigger('input');
             }
+            if (d.adjustmentName && $('#id_adjustment_name').length) {
+                $('#id_adjustment_name').val(d.adjustmentName);
+            }
+            if (d.adjustmentType && $('#id_adjustment_type').length) {
+                $('#id_adjustment_type').val(d.adjustmentType);
+            }
+            if (d.adjustmentAmount && parseFloat(d.adjustmentAmount) > 0 && $('#id_adjustment_amount').length) {
+                $('#id_adjustment_amount').val(d.adjustmentAmount).trigger('input');
+            }
 
-            // 5. بنود الفاتورة - تنتظر تحميل المنتجات أولاً
+            // 5. بنود الفاتورة
             if (d.items && d.items.length > 0) {
-                var loadAndApply = function() {
-                    if (window._allProducts && window._allProducts.length > 0) {
-                        applyDuplicateItems(d.items);
-                    } else {
-                        setTimeout(loadAndApply, 200);
-                    }
-                };
-                loadAndApply();
+                applyDuplicateItems(d.items);
             }
         }
 
         function applyDuplicateItems(items) {
-            $('#items-container').empty();
-            const currencySymbol = $('#django-purchase-form-data').data('currency-symbol') || 'ج.م';
-
-            items.forEach(function(item, index) {
-                var removeBtn = index > 0
-                    ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
-                    : '';
-
-                // إيجاد اسم المنتج من الـ _allProducts
-                var productName = 'منتج #' + item.product_id;
-                var productStock = 0;
-                var productPrice = item.unit_price;
-                if (window._allProducts) {
-                    var found = window._allProducts.find(function(p) { return String(p.id) === String(item.product_id); });
-                    if (found) { productName = found.name; productStock = found.stock; productPrice = found.cost_price || found.selling_price; }
-                }
-
-                var $row = $('<div class="item-row row g-2 align-items-center">' +
-                    '<div class="col-12 col-md-4" style="position:relative;">' +
-                        '<label class="form-label form-label-sm required-field">المنتج</label>' +
-                        '<button type="button" class="product-picker-btn"><span class="selected-text">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
-                        '<input type="hidden" name="product[]" class="product-id-input" value="' + item.product_id + '" data-price="' + productPrice + '" data-stock="' + productStock + '" required>' +
-                        '<div class="stock-info"></div>' +
-                    '</div>' +
-                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + item.quantity + '" required></div>' +
-                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">سعر الوحدة</label><input type="text" inputmode="decimal" name="unit_price[]" class="form-control form-control-sm unit-price" value="' + item.unit_price + '" required></div>' +
-                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + item.discount + '"></div>' +
-                    '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + item.total + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
-                    removeBtn +
-                '</div>');
-
-                $('#items-container').append($row);
-                if (productStock > 0) window.renderStockInfo($row, productStock);
-            });
-
-            window.bindEventHandlers();
-            window.calculateTotals();
+            if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.renderItems === 'function') {
+                ProductPicker.renderItems('#items-container', items, { type: 'purchase' });
+            }
         }
     })();
 </script>

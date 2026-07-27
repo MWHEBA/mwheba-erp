@@ -20,7 +20,7 @@ class SalePayment(PaymentAuditMixin, models.Model):
 
     sale = models.ForeignKey(
         "sale.Sale",
-        on_delete=models.CASCADE,
+        on_delete=models.PROTECT,
         verbose_name=_("الفاتورة"),
         related_name="payments",
     )
@@ -130,6 +130,7 @@ class SalePayment(PaymentAuditMixin, models.Model):
             'bank_transfer': _("تحويل بنكي"),
             'check': _("شيك"),
             'credit': _("آجل"),
+            'credit_with_downpayment': _("آجل مع دفعة مقدمة"),
             'credit_card': _("بطاقة ائتمان"),
             'debit_card': _("بطاقة خصم"),
         }
@@ -258,6 +259,23 @@ class SalePayment(PaymentAuditMixin, models.Model):
             if self.financial_transaction:
                 journal_entry = self.financial_transaction
                 journal_entry_number = journal_entry.number
+
+                # التحقق من أن الفترة المحاسبية مفتوحة
+                if (
+                    journal_entry.accounting_period
+                    and not journal_entry.accounting_period.can_post_entries()
+                ):
+                    return {
+                        "success": False,
+                        "message": "لا يمكن إلغاء ترحيل الدفعة لأن الفترة المحاسبية مغلقة",
+                    }
+
+                # فك قفل القيد وتغيير حالته إلى مسودة للسماح بالحذف
+                journal_entry.is_locked = False
+                journal_entry.status = "draft"
+                journal_entry._bypass_period_lock = True
+                journal_entry.save(update_fields=["is_locked", "status"])
+
                 # حذف بنود القيد
                 journal_entry.lines.all().delete()
                 # حذف القيد نفسه

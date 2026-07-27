@@ -328,7 +328,7 @@ def purchase_create(request, supplier_id=None):
     if supplier_id:
         try:
             selected_supplier = Supplier.objects.get(id=supplier_id, is_active=True)
-            # تحديد نوع الفاتورة من إعدادات نوع المورد (ديناميكي)
+            # تحديد نوع الفاتورة من إعدادات نوع المورد
             if selected_supplier.primary_type and hasattr(selected_supplier.primary_type, 'settings') and selected_supplier.primary_type.settings:
                 is_service_invoice = selected_supplier.primary_type.settings.is_service_provider
             else:
@@ -1041,6 +1041,7 @@ def purchase_print(request, pk):
         "title": f"طباعة فاتورة المشتريات - {purchase.number}",
         "today": today,
         "year": year,
+        "has_item_discounts": purchase.has_item_discounts,
     }
 
     return render(request, "purchase/purchase_print.html", context)
@@ -1058,11 +1059,14 @@ def purchase_duplicate(request, pk):
     is_service_invoice = original.is_service_invoice
     selected_supplier = original.supplier
 
-    # فلترة المنتجات حسب نوع المورد
+    # فلترة المنتجات حسب نوع المورد مع تضمين المنتجات في الفاتورة الأصلية
+    original_item_product_ids = list(original.items.values_list("product_id", flat=True))
+
+    from django.db import models
     if is_service_invoice:
-        products = Product.objects.filter(is_active=True, is_service=True).order_by("name")
+        products = Product.objects.filter(models.Q(is_active=True, is_service=True) | models.Q(id__in=original_item_product_ids)).order_by("name")
     else:
-        products = Product.objects.filter(is_active=True, is_service=False, is_bundle=False).order_by("name")
+        products = Product.objects.filter(models.Q(is_active=True, is_service=False, is_bundle=False) | models.Q(id__in=original_item_product_ids)).order_by("name")
 
     suppliers = Supplier.objects.filter(is_active=True).order_by("name")
     warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
@@ -1082,29 +1086,65 @@ def purchase_duplicate(request, pk):
     last_purchase = Purchase.objects.order_by("-id").first()
     next_purchase_number = f"PUR{(last_purchase.id + 1 if last_purchase else 1):04d}"
 
-    # تحضير بيانات البنود للـ template (float عشان JSON serialization)
+    # تحديد نوع الفاتورة وحساب الدفع والدفعة المقدمة
+    first_payment = original.payments.order_by("id").first()
+    payment_account_code = ""
+    if first_payment:
+        payment_account_code = first_payment.payment_method or (
+            first_payment.financial_account.code if first_payment.financial_account else ""
+        )
+
+    down_payment_amount = 0
+
+    if original.payment_method == "credit":
+        invoice_type = "credit"
+    elif original.payment_method == "credit_with_downpayment":
+        invoice_type = "credit_with_downpayment"
+        if first_payment:
+            down_payment_amount = float(first_payment.amount)
+    else:
+        invoice_type = "cash"
+        if not payment_account_code and original.payment_method not in ["cash", "bank_transfer", "check"]:
+            payment_account_code = original.payment_method
+
+    # بيانات الخصم والتسوية
+    discount_val = float(original.discount) if getattr(original, 'discount', 0) else 0
+    discount_type = getattr(original, 'discount_type', 'fixed') or "fixed"
+
+    adj_name = getattr(original, 'adjustment_name', '') or ""
+    adj_amount = float(getattr(original, 'adjustment_amount', 0)) if getattr(original, 'adjustment_amount', 0) else 0
+    adj_type = "subtract" if adj_amount < 0 else "add"
+    abs_adj_amount = abs(adj_amount)
+
+    # تحضير بيانات البنود للـ template متضمنة الاسم والكود
     import json
     duplicate_items = json.dumps([
         {
             "product_id": item.product.id,
-            "quantity": item.quantity,
+            "code": getattr(item.product, 'code', None) or getattr(item.product, 'sku', '') or getattr(item.product, 'barcode', '') or "",
+            "name": item.product.name,
+            "quantity": float(item.quantity),
             "unit_price": float(item.unit_price),
             "discount": float(item.discount),
             "total": float(item.total),
+            "is_service": item.product.is_service,
         }
         for item in original.items.all()
     ])
-
-    # تحديد نوع الفاتورة (نقدي/آجل)
-    invoice_type = "credit" if original.payment_method == "credit" else "cash"
 
     form = PurchaseForm(initial={
         "date": timezone.now().date(),
         "supplier": original.supplier,
         "warehouse": original.warehouse,
-        "discount": original.discount,
+        "discount": discount_val,
+        "discount_type": discount_type,
+        "adjustment_name": adj_name,
+        "adjustment_type": adj_type,
+        "adjustment_amount": abs_adj_amount,
         "notes": original.notes,
-        "payment_method": original.payment_method,
+        "payment_method": payment_account_code,
+        "invoice_type": invoice_type,
+        "down_payment_amount": down_payment_amount,
         "financial_category": original.financial_category,
     })
 
@@ -1124,8 +1164,14 @@ def purchase_duplicate(request, pk):
         "duplicate_from": original.number,
         "duplicate_items": duplicate_items,
         "duplicate_invoice_type": invoice_type,
-        "duplicate_payment_method": original.payment_method,
+        "duplicate_payment_method": payment_account_code,
+        "duplicate_down_payment_amount": down_payment_amount,
         "duplicate_financial_category_id": f"cat_{original.financial_category.id}" if original.financial_category else None,
+        "duplicate_discount": discount_val,
+        "duplicate_discount_type": discount_type,
+        "duplicate_adjustment_name": adj_name,
+        "duplicate_adjustment_type": adj_type,
+        "duplicate_adjustment_amount": abs_adj_amount,
         "page_title": f"نسخ فاتورة - {original.number}",
         "page_subtitle": f"نسخة من فاتورة {original.number} | {original.supplier.name}",
         "page_icon": "fas fa-copy",

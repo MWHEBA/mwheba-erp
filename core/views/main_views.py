@@ -256,9 +256,9 @@ def company_settings(request):
     if request.method == "POST":
         # قائمة الحقول المطلوب حفظها
         settings_fields = [
-            "company_name", "company_name_en", "company_tax_number",
-            "company_commercial_register", "company_country", "company_city",
-            "company_state", "company_address", "company_phone", "company_mobile",
+            "company_name", "company_name_en", "company_address_en", "company_tax_number",
+            "company_commercial_register", "company_country",
+            "company_address", "company_phone", "company_mobile",
             "company_email", "company_website", "company_whatsapp",
             "company_working_hours", "company_bank_name", "company_bank_account",
             "company_bank_iban", "company_bank_swift",
@@ -346,9 +346,8 @@ def company_settings(request):
         "company_tax_number": settings_dict.get("company_tax_number", ""),
         "company_commercial_register": settings_dict.get("company_commercial_register", ""),
         "company_country": settings_dict.get("company_country", ""),
-        "company_city": settings_dict.get("company_city", ""),
-        "company_state": settings_dict.get("company_state", ""),
         "company_address": settings_dict.get("company_address", ""),
+        "company_address_en": settings_dict.get("company_address_en", ""),
         "company_phone": settings_dict.get("company_phone", ""),
         "company_mobile": settings_dict.get("company_mobile", ""),
         "company_email": settings_dict.get("company_email", ""),
@@ -415,8 +414,17 @@ def system_settings(request):
         'timezone': settings_dict.get('system_timezone', 'Africa/Cairo'),
         'date_format': settings_dict.get('date_format', 'd/m/Y'),
         'default_currency': settings_dict.get('currency_symbol', 'ج.م'),
+        'default_currency_en': settings_dict.get('currency_symbol_en', 'EGP'),
         'default_tax_rate': settings_dict.get('default_tax_rate', '14'),
+        'default_print_language': settings_dict.get('default_print_language', 'ar'),
+        'company_address_en': settings_dict.get('company_address_en', ''),
         'invoice_notes': settings_dict.get('invoice_notes', ''),
+        'default_sale_invoice_notes': settings_dict.get('default_sale_invoice_notes', settings_dict.get('invoice_notes', '')),
+        'default_sale_invoice_notes_en': settings_dict.get('default_sale_invoice_notes_en', ''),
+        'default_quotation_notes': settings_dict.get('default_quotation_notes', ''),
+        'default_quotation_notes_en': settings_dict.get('default_quotation_notes_en', ''),
+        'invoice_title_sale_en': settings_dict.get('invoice_title_sale_en', 'TAX INVOICE'),
+        'invoice_title_quotation_en': settings_dict.get('invoice_title_quotation_en', 'QUOTATION'),
         'maintenance_mode': settings_dict.get('maintenance_mode') == 'true',
         'session_timeout': int(settings_dict.get('session_timeout', 60)) if settings_dict.get('session_timeout') else 60,
         'enable_two_factor': settings_dict.get('enable_two_factor') == 'true',
@@ -433,6 +441,7 @@ def system_settings(request):
         'sale_invoice_item_types': settings_dict.get('sale_invoice_item_types', 'both'),
         'invoice_product_code_display': settings_dict.get('invoice_product_code_display', 'sku'),
         'enable_quotations': settings_dict.get('enable_quotations') == 'true',
+        'enable_thermal_printing': settings_dict.get('enable_thermal_printing') == 'true',
     }
 
     # معالجة حفظ الإعدادات عند POST
@@ -447,6 +456,8 @@ def system_settings(request):
                     db_key = 'system_timezone'
                 elif key == 'default_currency':
                     db_key = 'currency_symbol'
+                elif key == 'default_currency_en':
+                    db_key = 'currency_symbol_en'
                 
                 # تحويل القيم المنطقية وغيرها إلى نصوص مناسبة لقاعدة البيانات
                 if isinstance(value, bool):
@@ -496,6 +507,15 @@ def system_settings(request):
                     elif db_key == "enable_quotations":
                         group_val = "sales"
                         desc_val = "تفعيل ميزة عروض الأسعار"
+                    elif db_key == "enable_thermal_printing":
+                        group_val = "sales"
+                        desc_val = "تفعيل إمكانية الطباعة الحرارية للفواتير"
+                    elif db_key == "default_sale_invoice_notes":
+                        group_val = "sales"
+                        desc_val = "ملاحظات وشروط فواتير المبيعات الافتراضية"
+                    elif db_key == "default_quotation_notes":
+                        group_val = "sales"
+                        desc_val = "ملاحظات وشروط عروض الأسعار الافتراضية"
                     else:
                         group_val = "general"
                         desc_val = ""
@@ -514,6 +534,9 @@ def system_settings(request):
             # حذف الكاش لتحديث الإعدادات العامة فوراً
             try:
                 cache.delete('global_settings_dict_v2')
+                cache.delete('company_info_v1')
+                cache.delete('default_currency_symbol')
+                cache.delete('default_currency_symbol_en')
             except Exception as e:
                 logger.error(f"Error clearing global settings cache: {e}")
 

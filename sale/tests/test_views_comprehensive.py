@@ -84,11 +84,7 @@ class SaleViewsTestCase(TestCase):
         
         # إنشاء فاتورة مبيعات للاختبار
         if self.customer and self.warehouse:
-            self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            self.sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
@@ -128,11 +124,7 @@ class SaleListViewTest(SaleViewsTestCase):
         
         # إنشاء فواتير متعددة للاختبار
         for i in range(15):
-            Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            Sale.objects.create(
                 number=f'SAL{i+100}',
                 date=timezone.now().date(),
                 customer=self.customer,
@@ -520,3 +512,17 @@ class SaleFormValidationViewsTest(SaleViewsTestCase):
                 self.assertContains(response, 'خطأ', status_code=200)
         except Exception:
             self.skipTest("Payment validation test not available")
+
+    def test_sale_duplicate_view(self):
+        """اختبار نسخ الفاتورة ونقل كافة البيانات والتفاصيل بنسبة 100%"""
+        if not self.sale:
+            self.skipTest("Sale not available")
+        
+        url = reverse('sale:sale_duplicate', kwargs={'pk': self.sale.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['is_duplicate'])
+        self.assertEqual(response.context['duplicate_from'], self.sale.number)
+        self.assertIn('duplicate_items', response.context)
+        self.assertIn('duplicate_invoice_type', response.context)
+

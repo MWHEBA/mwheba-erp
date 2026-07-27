@@ -329,7 +329,17 @@ class AccountingGateway:
                     # Return existing journal entry
                     entry_id = existing_data.get('journal_entry_id')
                     if entry_id:
-                        return JournalEntry.objects.get(id=entry_id)
+                        existing_entry = JournalEntry.objects.filter(id=entry_id).first()
+                        if existing_entry:
+                            if existing_entry.status == 'draft':
+                                existing_entry.status = 'posted'
+                                existing_entry.posted_at = timezone.now()
+                                existing_entry.posted_by = user
+                                existing_entry._bypass_period_lock = True
+                                existing_entry.save(update_fields=['status', 'posted_at', 'posted_by'])
+                                self._enforce_posting_controls(existing_entry)
+                            return existing_entry
+                        logger.warning(f"Idempotency record found for {idempotency_key} but JournalEntry {entry_id} was deleted. Re-creating.")
                     else:
                         raise IdempotencyError(
                             operation_type='journal_entry',

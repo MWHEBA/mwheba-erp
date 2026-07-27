@@ -165,20 +165,33 @@
                                 <button type="submit" class="btn btn-primary">
                                     <i class="fas fa-save"></i> حفظ التعديلات
                                 </button>
-                                <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary">
+                                <a href="{% url 'sale:sale_detail' sale.pk %}" class="btn btn-secondary me-2">
                                     <i class="fas fa-times"></i> إلغاء
                                 </a>
                             </div>
                             
-                            {% if permissions.can_unpost and payment.is_posted %}
-                                <div>
+                            <div>
+                                {% if permissions.can_unpost and payment.is_posted %}
                                     <button type="button" class="btn btn-warning" data-toggle="modal" data-target="#unpostModal">
                                         <i class="fas fa-undo"></i> إلغاء الترحيل
                                     </button>
-                                </div>
-                            {% endif %}
+                                {% endif %}
+                                
+                                {% if payment.can_delete or payment.status == 'draft' %}
+                                    <button type="button" class="btn btn-outline-danger ms-2" 
+                                            onclick="if(confirm('هل تريد حذف هذه الدفعة نهائياً؟')) document.getElementById('deletePaymentForm').submit();">
+                                        <i class="fas fa-trash"></i> حذف الدفعة
+                                    </button>
+                                {% endif %}
+                            </div>
                         </div>
                     </form>
+                    
+                    {% if payment.can_delete or payment.status == 'draft' %}
+                    <form id="deletePaymentForm" method="post" action="{% url 'sale:delete_payment' payment.pk %}" style="display:none;">
+                        {% csrf_token %}
+                    </form>
+                    {% endif %}
                 </div>
             </div>
         </div>

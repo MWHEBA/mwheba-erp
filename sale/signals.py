@@ -40,9 +40,9 @@ def recalculate_customer_balance(customer):
 @receiver(post_save, sender=SalePayment)
 def update_payment_status_and_balance_on_payment(sender, instance, created, **kwargs):
     """
-    تحديث حالة الدفع ورصيد العميل عند تسجيل دفعة أو تعديلها
+    تحديث حالة الدفع ورصيد العميل عند تسجيل دفعة أو تعديلها أو ترحيلها
     """
-    if created:
+    if instance.sale:
         instance.sale.update_payment_status()
     
     if instance.sale and instance.sale.customer:

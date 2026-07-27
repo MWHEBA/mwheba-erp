@@ -25,11 +25,11 @@ class SaleForm(forms.ModelForm):
     invoice_type = forms.ChoiceField(
         label="نوع الفاتورة",
         choices=[
+            ("credit_with_downpayment", "أجل مع دفعة مقدمة"),
             ("credit", "آجل بالكامل"),
             ("cash", "نقدي بالكامل"),
-            ("credit_with_downpayment", "أجل مع دفعة مقدمة"),
         ],
-        initial="credit",
+        initial="credit_with_downpayment",
         widget=forms.Select(attrs={"class": "form-control", "id": "id_invoice_type"}),
     )
 
@@ -63,6 +63,39 @@ class SaleForm(forms.ModelForm):
         ),
     )
 
+    # نوع الخصم والتسوية
+    discount_type = forms.ChoiceField(
+        label="نوع الخصم",
+        choices=[("fixed", "العملة"), ("percentage", "%")],
+        initial="fixed",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_discount_type"}),
+    )
+
+    adjustment_name = forms.CharField(
+        label="اسم/بيان التسوية",
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={"class": "form-control", "id": "id_adjustment_name", "placeholder": "مثال: مصاريف شحن / تغليف / تسوية"}),
+    )
+
+    adjustment_type = forms.ChoiceField(
+        label="نوع التسوية",
+        choices=[("add", "إضافة (+)"), ("subtract", "خصم (-)")],
+        initial="add",
+        required=False,
+        widget=forms.Select(attrs={"class": "form-select", "id": "id_adjustment_type"}),
+    )
+
+    adjustment_amount = forms.DecimalField(
+        label="مبلغ التسوية",
+        max_digits=12,
+        decimal_places=2,
+        required=False,
+        initial=0,
+        widget=forms.NumberInput(attrs={"class": "form-control", "id": "id_adjustment_amount", "min": "0", "placeholder": "0.00"}),
+    )
+
     class Meta:
         model = Sale
         fields = [
@@ -71,6 +104,9 @@ class SaleForm(forms.ModelForm):
             "date",
             "number",
             "discount",
+            "discount_type",
+            "adjustment_name",
+            "adjustment_amount",
             "payment_method",
             "financial_category",
             "notes",
@@ -143,7 +179,7 @@ class SaleForm(forms.ModelForm):
                         self.initial['down_payment_amount'] = first_payment.amount
         else:
             # حالة الإنشاء الجديد
-            self.initial['invoice_type'] = 'credit'
+            self.initial['invoice_type'] = 'credit_with_downpayment'
             self.initial['payment_method'] = ''
             self.initial['down_payment_amount'] = 0
 
@@ -540,8 +576,25 @@ class SalePaymentEditForm(forms.ModelForm):
         if amount is None or amount <= 0:
             raise ValidationError("المبلغ يجب أن يكون أكبر من صفر")
 
-        # لا نتحقق من المبلغ المتبقي في حالة التعديل
-        # لأن المستخدم قد يريد تعديل مبلغ موجود
+        from decimal import Decimal
+
+        sale = getattr(self, 'sale', None)
+        if not sale and self.instance and hasattr(self.instance, 'sale') and self.instance.sale_id:
+            sale = self.instance.sale
+
+        if sale:
+            if self.instance and self.instance.pk:
+                remaining = sale.amount_due + (self.instance.amount or Decimal('0'))
+            else:
+                remaining = sale.amount_due
+
+            if remaining < Decimal('0'):
+                remaining = Decimal('0.00')
+
+            if amount > remaining:
+                raise ValidationError(
+                    f"المبلغ المدخل ({amount}) يتجاوز المبلغ المتبقي على الفاتورة ({remaining:.2f} ج.م)"
+                )
 
         return amount
 

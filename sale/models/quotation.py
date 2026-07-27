@@ -109,3 +109,10 @@ class Quotation(models.Model):
             self.number = f"{serial.prefix}{next_number:04d}"
 
         super().save(*args, **kwargs)
+
+    @property
+    def has_item_discounts(self):
+        """
+        فحص ما إذا كان هناك أي خصم على أي بند من بنود عرض السعر
+        """
+        return any(item.discount and item.discount > 0 for item in self.items.all())

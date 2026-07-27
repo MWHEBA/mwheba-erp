@@ -202,7 +202,12 @@ def quotation_create(request, customer_id=None):
                 logger.error(f"Error creating quotation: {str(e)}")
                 messages.error(request, _("حدث خطأ أثناء حفظ عرض السعر: {}").format(str(e)))
     else:
-        initial_data = {}
+        default_quote_notes = SystemSetting.get_setting('default_quotation_notes', '')
+        if not default_quote_notes:
+            default_quote_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
+        initial_data = {
+            "notes": default_quote_notes
+        }
         if selected_customer:
             initial_data["customer"] = selected_customer
         if selected_work_order:
@@ -446,11 +451,17 @@ def quotation_detail(request, pk):
 
     # أزرار الهيدر
     header_buttons = [
+        *([{
+            "url": reverse("sale:quotation_edit", kwargs={"pk": quotation.pk}),
+            "icon": "fa-edit",
+            "text": _("تعديل"),
+            "class": "btn-outline-secondary",
+        }] if not quotation.converted_to_sale else []),
         {
             "url": reverse("sale:quotation_print", kwargs={"pk": quotation.pk}),
             "icon": "fa-print",
             "text": _("طباعة"),
-            "class": "btn-outline-secondary",
+            "class": "btn-info",
             "target": "_blank",
         }
     ]
@@ -528,7 +539,17 @@ def quotation_print(request, pk):
 
     quotation = get_object_or_404(Quotation, pk=pk)
     items = quotation.items.all()
+    from core.models import SystemSetting
     
+    # تحديد لغة الطباعة والاتجاه
+    default_lang = SystemSetting.get_default_print_language()
+    print_lang = request.GET.get('lang', default_lang).lower()
+    if print_lang not in ['ar', 'en']:
+        print_lang = 'ar'
+    
+    is_english = (print_lang == 'en')
+    print_dir = 'ltr' if is_english else 'rtl'
+
     # جلب إعدادات الشركة
     company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
     company_address = SystemSetting.objects.filter(key="company_address").values_list("value", flat=True).first() or ""
@@ -538,17 +559,57 @@ def quotation_print(request, pk):
     company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
     company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
 
+    if is_english:
+        company_name_active = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or company_name
+        company_address_active = SystemSetting.get_company_address_en() or company_address
+        invoice_title_active = SystemSetting.get_invoice_title_quotation_en()
+        default_notes = SystemSetting.get_quotation_notes_en()
+        currency_symbol_active = quotation.currency if (hasattr(quotation, 'currency') and quotation.currency and quotation.currency != 'ج.م') else SystemSetting.get_currency_symbol_en()
+        status_map = {
+            'draft': 'DRAFT',
+            'sent': 'SENT',
+            'approved': 'APPROVED',
+            'rejected': 'REJECTED',
+            'expired': 'EXPIRED',
+            'converted': 'CONVERTED'
+        }
+    else:
+        company_name_active = company_name
+        company_address_active = company_address
+        invoice_title_active = "عرض سعر"
+        default_notes = SystemSetting.get_setting('default_quotation_notes', '')
+        currency_symbol_active = getattr(quotation, 'currency', None) or SystemSetting.get_currency_symbol()
+        status_map = {
+            'draft': 'مسودة',
+            'sent': 'تم الإرسال',
+            'approved': 'مقبول',
+            'rejected': 'مرفوض',
+            'expired': 'منتهي',
+            'converted': 'تم التحويل'
+        }
+
+    status_code = getattr(quotation, 'status', 'draft')
+    translated_status = status_map.get(str(status_code).lower(), str(status_code))
+
     context = {
         "quotation": quotation,
         "items": items,
-        "company_name": company_name,
-        "company_address": company_address,
+        "company_name": company_name_active,
+        "company_address": company_address_active,
         "company_phone": company_phone,
         "company_tax_number": company_tax_number,
         "company_logo": company_logo,
         "company_email": company_email,
         "company_website": company_website,
-        "title": f"عرض سعر - {quotation.number}",
+        "title": f"{invoice_title_active} - {quotation.number}",
+        "document_title": invoice_title_active,
+        "print_lang": print_lang,
+        "print_dir": print_dir,
+        "is_english": is_english,
+        "currency_symbol_active": currency_symbol_active,
+        "default_notes": default_notes,
+        "translated_status": translated_status,
+        "has_item_discounts": quotation.has_item_discounts,
     }
     return render(request, "sale/quotation_print.html", context)
 

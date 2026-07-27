@@ -37,6 +37,7 @@
     padding: var(--table-cell-padding);
     vertical-align: middle;
     border-bottom: var(--table-border);
+    text-align: center !important;
 }
 
 .table th {

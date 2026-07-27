@@ -60,46 +60,32 @@ class TrialBalanceService:
                 'code'
             )
             
-            # حساب أرصدة الحسابات
+            # حساب أرصدة الحسابات دفعة واحدة بدون N+1 Queries
+            acc_ids = [a.id for a in accounts_query]
+            bulk_balances = ChartOfAccounts.get_balances_bulk(
+                date_from=date_from,
+                date_to=date_to,
+                account_ids=acc_ids
+            )
+            
             accounts_data = []
             total_debit = Decimal('0')
             total_credit = Decimal('0')
             
             for account in accounts_query:
-                # حساب الرصيد الافتتاحي
-                opening_balance = Decimal('0')
-                if date_from:
-                    opening_balance = LedgerService.get_opening_balance(account, date_from)
+                b_info = bulk_balances.get(account.id, {})
+                opening_balance = b_info.get('opening_balance', Decimal('0'))
+                period_debit = b_info.get('period_debit', Decimal('0'))
+                period_credit = b_info.get('period_credit', Decimal('0'))
+                closing_balance = b_info.get('balance', Decimal('0'))
                 
-                # حساب الحركة خلال الفترة
-                query = Q(account=account, journal_entry__status='posted')
-                
-                if date_from:
-                    query &= Q(journal_entry__date__gte=date_from)
-                if date_to:
-                    query &= Q(journal_entry__date__lte=date_to)
-                
-                totals = JournalEntryLine.objects.filter(query).aggregate(
-                    period_debit=Coalesce(Sum('debit'), Decimal('0')),
-                    period_credit=Coalesce(Sum('credit'), Decimal('0'))
-                )
-                
-                period_debit = totals['period_debit']
-                period_credit = totals['period_credit']
-                
-                # حساب الرصيد الختامي حسب طبيعة الحساب
                 if account.account_type.nature == 'debit':
-                    # حسابات مدينة (أصول، مصروفات)
-                    closing_balance = opening_balance + period_debit - period_credit
                     debit_balance = closing_balance if closing_balance > 0 else Decimal('0')
                     credit_balance = abs(closing_balance) if closing_balance < 0 else Decimal('0')
                 else:
-                    # حسابات دائنة (خصوم، إيرادات، حقوق ملكية)
-                    closing_balance = opening_balance + period_credit - period_debit
                     credit_balance = closing_balance if closing_balance > 0 else Decimal('0')
                     debit_balance = abs(closing_balance) if closing_balance < 0 else Decimal('0')
                 
-                # إضافة الحساب إذا كان له رصيد أو حركة
                 if (opening_balance != 0 or period_debit > 0 or period_credit > 0 or 
                     debit_balance > 0 or credit_balance > 0):
                     

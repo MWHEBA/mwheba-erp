@@ -80,6 +80,55 @@ class SystemSetting(models.Model):
         الحصول على رمز العملة من الإعدادات
         """
         return cls.get_setting('default_currency', 'ج.م')
+
+    @classmethod
+    def get_currency_symbol_en(cls):
+        """
+        الحصول على رمز العملة بالإنجليزية من الإعدادات
+        """
+        return cls.get_setting('currency_symbol_en', 'EGP')
+
+    @classmethod
+    def get_default_print_language(cls):
+        """
+        الحصول على لغة الطباعة الافتراضية
+        """
+        return cls.get_setting('default_print_language', 'ar')
+
+    @classmethod
+    def get_company_address_en(cls):
+        """
+        الحصول على عنوان الشركة بالإنجليزية
+        """
+        return cls.get_setting('company_address_en', '')
+
+    @classmethod
+    def get_sale_invoice_notes_en(cls):
+        """
+        الحصول على الشروط والأحكام الإنجليزية لفواتير المبيعات
+        """
+        return cls.get_setting('default_sale_invoice_notes_en', '')
+
+    @classmethod
+    def get_quotation_notes_en(cls):
+        """
+        الحصول على الشروط والأحكام الإنجليزية لعروض الأسعار
+        """
+        return cls.get_setting('default_quotation_notes_en', '')
+
+    @classmethod
+    def get_invoice_title_sale_en(cls):
+        """
+        الحصول على عنوان فاتورة المبيعات بالإنجليزية
+        """
+        return cls.get_setting('invoice_title_sale_en', 'TAX INVOICE')
+
+    @classmethod
+    def get_invoice_title_quotation_en(cls):
+        """
+        الحصول على عنوان عرض السعر بالإنجليزية
+        """
+        return cls.get_setting('invoice_title_quotation_en', 'QUOTATION')
     
     @classmethod
     def get_site_name(cls):

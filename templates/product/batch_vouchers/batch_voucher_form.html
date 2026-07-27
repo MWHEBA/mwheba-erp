@@ -298,31 +298,6 @@ $(document).ready(function () {
         }
     });
 
-    // ===== إضافة بند =====
-    $('#add-item').on('click', function () {
-        var $newRow = $('#items-container .item-row:first').clone();
-        ProductPicker.resetRow($newRow);
-        $newRow.find('.unit-cost').val('0');
-        $newRow.find('.item-total').val('0');
-        $newRow.find('.stock-info').html('');
-        // إضافة زر الحذف لو مش موجود
-        if ($newRow.find('.remove-item').length === 0) {
-            $newRow.append('<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>');
-        }
-        $('#items-container').append($newRow);
-        calculateTotals();
-    });
-
-    // ===== حذف بند =====
-    $(document).on('click', '.remove-item', function () {
-        if ($('#items-container .item-row').length > 1) {
-            $(this).closest('.item-row').remove();
-            calculateTotals();
-        } else {
-            toastr.warning('يجب الاحتفاظ بصف واحد على الأقل');
-        }
-    });
-
     // ===== حساب الإجماليات =====
     function calculateRowTotal($row) {
         var qty = parseFloat($row.find('.quantity').val().replace(/,/g, '')) || 0;
@@ -344,6 +319,9 @@ $(document).ready(function () {
         $('#total-value').text(smartFloat(totalVal) + ' {{ currency_symbol }}');
     }
 
+    window.calculateRowTotal = calculateRowTotal;
+    window.calculateTotals = calculateTotals;
+
     $(document).on('input', '.quantity', function () {
         var $row = $(this).closest('.item-row');
         calculateRowTotal($row);
@@ -362,6 +340,9 @@ $(document).ready(function () {
 
     // ===== Validation & Submit =====
     $('#batch-voucher-form').on('submit', function (e) {
+        if (typeof ProductPicker !== 'undefined' && typeof ProductPicker.sanitizeTrailingEmptyRows === 'function') {
+            ProductPicker.sanitizeTrailingEmptyRows();
+        }
         var vt = $('#id_voucher_type').val();
         var warehouse = $('#id_warehouse').val();
         var errors = [];

@@ -1783,6 +1783,7 @@ def unit_list(request):
     # تعريف أعمدة جدول الوحدات
     unit_headers = [
         {"key": "name", "label": "اسم الوحدة", "sortable": True, "class": "text-start"},
+        {"key": "name_en", "label": "الاسم (English)", "sortable": True, "class": "text-start"},
         {
             "key": "symbol",
             "label": "الرمز",

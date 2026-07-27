@@ -439,12 +439,20 @@
         return false;
       }
       
-      // تأكيد إذا كان المبلغ أكبر من المستحق
+      // التحقق الصارم: حظر إذا كان المبلغ أكبر من المبلغ المستحق
       if (amount > INVOICE_DATA.amountDue) {
-        if (!confirm('{% trans "المبلغ المدخل أكبر من المبلغ المستحق. هل تريد الاستمرار؟" %}')) {
-          e.preventDefault();
-          return false;
-        }
+        e.preventDefault();
+        amountField.addClass('is-invalid');
+        amountField.parent().parent().find('.invalid-feedback').remove();
+        amountField.parent().parent().append('<div class="invalid-feedback d-block">{% trans "المبلغ المدخل يتجاوز المبلغ المتبقي على الفاتورة" %}</div>');
+        return false;
+      }
+      
+      // منع النقر المزدوج عند الإرسال
+      const $submitBtn = $(this).find('button[type="submit"]');
+      if ($submitBtn.length) {
+        $submitBtn.prop('disabled', true);
+        $submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> {% trans "جاري المعالجة..." %}');
       }
       
       return true;

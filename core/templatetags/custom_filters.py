@@ -367,13 +367,17 @@ def has_module_access(context, module_name):
 
 
 @register.filter
-def currency(value, decimals=2):
+def currency(value, arg=None):
     """
-    تنسيق الرقم كعملة باستخدام العملة الافتراضية من إعدادات الشركة
-    استخدام: {{ amount|currency }} أو {{ amount|currency:0 }}
+    تنسيق الرقم كعملة مع دعم رمز عملة مخصص أو عدد منازل عشرية
+    استخدام: {{ amount|currency }} أو {{ amount|currency:"EGP" }} أو {{ amount|currency:0 }}
     """
     from core.utils import format_currency
-    return format_currency(value, decimal_places=decimals)
+    if arg is not None:
+        if isinstance(arg, int) or (isinstance(arg, str) and arg.isdigit()):
+            return format_currency(value, decimal_places=int(arg))
+        return format_currency(value, currency_symbol=str(arg))
+    return format_currency(value)
 
 
 @register.simple_tag

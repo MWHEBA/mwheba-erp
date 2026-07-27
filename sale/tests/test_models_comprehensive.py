@@ -61,11 +61,7 @@ class SaleModelTest(TestCase):
         if not self.customer or not self.warehouse:
             self.skipTest("Required models not available")
         
-        sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        sale = Sale.objects.create(
             number='SAL001',
             date=timezone.now().date(),
             customer=self.customer,
@@ -90,11 +86,7 @@ class SaleModelTest(TestCase):
         if not self.customer or not self.warehouse:
             self.skipTest("Required models not available")
         
-        sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        sale = Sale.objects.create(
             number='SAL002',
             date=timezone.now().date(),
             customer=self.customer,
@@ -103,6 +95,7 @@ class SaleModelTest(TestCase):
             discount=Decimal('100.00'),
             tax=Decimal('285.00'),
             total=Decimal('2185.00'),
+            payment_method='cash',
             created_by=self.user
         )
         
@@ -119,17 +112,14 @@ class SaleModelTest(TestCase):
         statuses = ['draft', 'confirmed', 'cancelled', 'delivered']
         
         for status in statuses:
-            sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            sale = Sale.objects.create(
                 number=f'SAL00{statuses.index(status) + 3}',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('500.00'),
                 total=Decimal('500.00'),
+                payment_method="cash",
                 status=status,
                 created_by=self.user
             )
@@ -144,17 +134,14 @@ class SaleModelTest(TestCase):
         payment_statuses = ['paid', 'partially_paid', 'unpaid']
         
         for payment_status in payment_statuses:
-            sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            sale = Sale.objects.create(
                 number=f'SAL00{payment_statuses.index(payment_status) + 7}',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('750.00'),
                 total=Decimal('750.00'),
+                payment_method="cash",
                 payment_status=payment_status,
                 created_by=self.user
             )
@@ -167,33 +154,27 @@ class SaleModelTest(TestCase):
             self.skipTest("Required models not available")
         
         # إنشاء فاتورة أولى
-        Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+        Sale.objects.create(
             number='SAL999',
             date=timezone.now().date(),
             customer=self.customer,
             warehouse=self.warehouse,
             subtotal=Decimal('100.00'),
             total=Decimal('100.00'),
+            payment_method="cash",
             created_by=self.user
         )
         
         # محاولة إنشاء فاتورة برقم مكرر
         with self.assertRaises(IntegrityError):
-            Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            Sale.objects.create(
                 number='SAL999',  # رقم مكرر
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('200.00'),
                 total=Decimal('200.00'),
+                payment_method="cash",
                 created_by=self.user
             )
 
@@ -237,17 +218,14 @@ class SaleItemModelTest(TestCase):
                 created_by=self.user
             )
             
-            self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            self.sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('1000.00'),
                 total=Decimal('1000.00'),
+                payment_method='cash',
                 created_by=self.user
             )
         except Exception:
@@ -318,17 +296,14 @@ class SalePaymentModelTest(TestCase):
                 manager=self.user
             )
             
-            self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            self.sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('2000.00'),
                 total=Decimal('2000.00'),
+                payment_method='cash',
                 payment_status='unpaid',
                 created_by=self.user
             )
@@ -400,17 +375,14 @@ class SaleReturnModelTest(TestCase):
                 manager=self.user
             )
             
-            self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            self.sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('1500.00'),
                 total=Decimal('1500.00'),
+                payment_method='cash',
                 created_by=self.user
             )
         except Exception:
@@ -422,7 +394,6 @@ class SaleReturnModelTest(TestCase):
             sale=self.sale,
             warehouse=self.warehouse,
             date=timezone.now().date(),
-            warehouse=self.warehouse,
             subtotal=Decimal('300.00'),
             discount=Decimal('0.00'),
             tax=Decimal('0.00'),
@@ -444,8 +415,7 @@ class SaleReturnModelTest(TestCase):
             return_obj = SaleReturn.objects.create(
                 sale=self.sale,
                 warehouse=self.warehouse,
-            date=timezone.now().date(),
-                warehouse=self.warehouse,
+                date=timezone.now().date(),
                 subtotal=Decimal('100.00'),
                 discount=Decimal('0.00'),
                 tax=Decimal('0.00'),
@@ -464,7 +434,6 @@ class SaleReturnModelTest(TestCase):
             sale=self.sale,
             warehouse=self.warehouse,
             date=timezone.now().date(),
-            warehouse=self.warehouse,
             subtotal=Decimal('500.00'),
             discount=Decimal('0.00'),
             tax=Decimal('0.00'),
@@ -514,17 +483,14 @@ class SaleReturnItemModelTest(TestCase):
                 created_by=self.user
             )
             
-            self.sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            self.sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=self.customer,
                 warehouse=self.warehouse,
                 subtotal=Decimal('1000.00'),
                 total=Decimal('1000.00'),
+                payment_method='cash',
                 created_by=self.user
             )
             
@@ -602,17 +568,14 @@ class SaleBusinessLogicTest(TestCase):
                 manager=self.user
             )
             
-            sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            sale = Sale.objects.create(
                 number='SAL001',
                 date=timezone.now().date(),
                 customer=customer,
                 warehouse=warehouse,
                 subtotal=Decimal('1000.00'),
                 total=Decimal('1000.00'),
+                payment_method='cash',
                 status='draft',
                 payment_status='unpaid',
                 created_by=self.user
@@ -667,11 +630,7 @@ class SaleBusinessLogicTest(TestCase):
             )
             
             # محاولة إنشاء فاتورة تتجاوز حد الائتمان
-            sale = Sale.objects.create(,
-            subtotal=Decimal("100.00",
-            payment_method="cash",
-            ),
-            payment_method="cash"
+            sale = Sale.objects.create(
                 number='SAL002',
                 date=timezone.now().date(),
                 customer=customer,

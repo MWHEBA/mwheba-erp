@@ -12,10 +12,14 @@ def common_variables(request):
 
     # currency_symbol مع cache - بدلاً من DB query في كل request
     currency_symbol = cache.get('default_currency_symbol')
-    if currency_symbol is None:
+    currency_symbol_en = cache.get('default_currency_symbol_en')
+    if currency_symbol is None or currency_symbol_en is None:
+        from core.models import SystemSetting
         from core.utils import get_default_currency
         currency_symbol = get_default_currency()
+        currency_symbol_en = SystemSetting.get_currency_symbol_en()
         cache.set('default_currency_symbol', currency_symbol, 3600)
+        cache.set('default_currency_symbol_en', currency_symbol_en, 3600)
 
     # installed_apps - لا تحتاج DB
     installed_apps = [
@@ -60,6 +64,7 @@ def common_variables(request):
         "current_date": current_date,
         "current_year": current_date.year,
         "currency_symbol": currency_symbol,
+        "currency_symbol_en": currency_symbol_en,
         "company_name": company_info['name'],
         "company_slogan": company_info['slogan'],
         "company_logo": company_info['logo'],

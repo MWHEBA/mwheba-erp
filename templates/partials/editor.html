@@ -29,6 +29,9 @@
     <textarea id="{{ id }}" 
              name="{{ name }}" 
              class="form-control tinymce-editor" 
+             dir="{{ dir|default:'rtl' }}"
+             data-dir="{{ dir|default:'rtl' }}"
+             {% if dir == 'ltr' %}style="direction: ltr; text-align: left;"{% endif %}
              {% if required %}required{% endif %}
              {% if readonly %}readonly{% endif %}
              {% if disabled %}disabled{% endif %}
@@ -48,12 +51,21 @@
         if (typeof tinymce !== 'undefined') {
             initEditor();
         } else {
-            // تحميل TinyMCE إذا لم يكن محملاً
+            if (!window._tinymceLoadCallbacks) {
+                window._tinymceLoadCallbacks = [];
+            }
+            window._tinymceLoadCallbacks.push(initEditor);
+
             if (!document.getElementById('tinymce-js')) {
                 const script = document.createElement('script');
                 script.id = 'tinymce-js';
                 script.src = 'https://cdn.jsdelivr.net/npm/tinymce@6.4.2/tinymce.min.js';
-                script.onload = initEditor;
+                script.onload = function() {
+                    if (window._tinymceLoadCallbacks) {
+                        window._tinymceLoadCallbacks.forEach(function(cb) { cb(); });
+                        window._tinymceLoadCallbacks = [];
+                    }
+                };
                 document.head.appendChild(script);
             }
         }
@@ -62,7 +74,20 @@
             const $editor = $('#{{ id }}');
             const toolbarType = $editor.data('toolbar') || 'full';
             const height = parseInt($editor.data('height') || 300);
+            const directionality = $editor.data('dir') || 'rtl';
             
+            if (typeof tinymce !== 'undefined' && tinymce.addI18n) {
+                tinymce.addI18n('ar', {
+                    '{0} characters': '{0} أحرف',
+                    'Characters: {0}': 'الأحرف: {0}',
+                    'Characters': 'أحرف',
+                    'characters': 'أحرف',
+                    'character': 'حرف',
+                    '{0} words': '{0} كلمات',
+                    'Words: {0}': 'الكلمات: {0}'
+                });
+            }
+
             let toolbarOptions;
             
             if (toolbarType === 'basic') {
@@ -75,25 +100,90 @@
                     'removeformat | code | fullscreen';
             }
             
+            if (typeof tinymce !== 'undefined' && tinymce.get('{{ id }}')) {
+                tinymce.remove('#{{ id }}');
+            }
+
             tinymce.init({
                 selector: '#{{ id }}',
-                plugins: 'preview importcss searchreplace autolink autosave directionality code visualblocks visualchars fullscreen image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap quickbars emoticons',
+                plugins: 'autoresize preview importcss searchreplace autolink autosave directionality code visualblocks visualchars fullscreen image link media table charmap pagebreak nonbreaking anchor insertdatetime advlist lists wordcount help charmap emoticons',
                 toolbar: toolbarOptions,
-                height: height,
+                min_height: height,
+                max_height: 500,
+                autoresize_bottom_margin: 10,
                 menubar: toolbarType === 'full',
                 toolbar_mode: 'sliding',
-                contextmenu: 'link image table',
+                quickbars_insert_toolbar: false,
+                quickbars_selection_toolbar: false,
+                contextmenu: false,
                 branding: false,
                 promotion: false,
                 language: 'ar',
-                directionality: 'rtl',
+                language_url: 'https://cdn.jsdelivr.net/npm/tinymce-i18n@23.7.24/langs6/ar.js',
+                directionality: directionality,
+                content_style: directionality === 'ltr' ? 'body { direction: ltr !important; text-align: left !important; }' : 'body { direction: rtl !important; text-align: right !important; }',
                 entity_encoding: 'raw',
                 convert_urls: false,
                 relative_urls: false,
-                remove_script_host: false,
+                resize: false,
+                elementpath: false,
                 setup: function (editor) {
-                    editor.on('change', function () {
+                    editor.on('init', function () {
+                        if (directionality === 'ltr') {
+                            try {
+                                editor.getBody().dir = 'ltr';
+                                editor.getBody().style.direction = 'ltr';
+                                editor.getBody().style.textAlign = 'left';
+                            } catch(e) {}
+                        }
+                        try {
+                            var win = editor.getWin();
+                            if (win && win.Element && win.Element.prototype) {
+                                win.Element.prototype.scrollIntoView = function() {};
+                            }
+                        } catch(err) {}
+                    });
+
+                    editor.on('change input blur', function () {
                         editor.save();
+                    });
+
+                    // استبدال كلمة "رموز" بكلمة "أحرف" في شريط حالة المحرر
+                    var fixCharacterWord = function () {
+                        setTimeout(function () {
+                            if (editor.getContainer()) {
+                                var $statusbar = $(editor.getContainer()).find('.tox-statusbar__wordcount, .tox-statusbar');
+                                $statusbar.find('*').addBack().contents().filter(function () {
+                                    return this.nodeType === 3;
+                                }).each(function () {
+                                    if (this.nodeValue) {
+                                        this.nodeValue = this.nodeValue.replace(/رموز/g, 'أحرف').replace(/رمز/g, 'حرف');
+                                    }
+                                });
+                            }
+                        }, 20);
+                    };
+
+                    editor.on('init NodeChange keyup setContent input', fixCharacterWord);
+
+                    // تجميد التمرير الخارجي تماماً عند الضغط على Enter
+                    editor.on('keydown', function(e) {
+                        if (e.keyCode === 13) {
+                            var currentY = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop || 0;
+                            var currentX = window.pageXOffset || document.documentElement.scrollLeft || document.body.scrollLeft || 0;
+                            
+                            var freezeScroll = function() {
+                                window.scrollTo(currentX, currentY);
+                            };
+                            
+                            if (window.requestAnimationFrame) {
+                                window.requestAnimationFrame(freezeScroll);
+                            }
+                            setTimeout(freezeScroll, 0);
+                            setTimeout(freezeScroll, 10);
+                            setTimeout(freezeScroll, 50);
+                            setTimeout(freezeScroll, 120);
+                        }
                     });
                     
                     // تعطيل المحرر إذا كان الحقل معطلاً أو للقراءة فقط
@@ -101,7 +191,7 @@
                         editor.settings.readonly = true;
                     }
                 },
-                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 16px; direction: rtl; }'
+                content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; font-size: 14px; direction: rtl; margin: 8px; overflow-y: auto; } p { margin: 0 0 6px 0; line-height: 1.5; }'
             });
             
             // تخصيص المحرر للعمل مع الفورم المنبثقة

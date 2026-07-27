@@ -384,37 +384,12 @@ class JournalEntry(models.Model):
 
     def generate_entry_number(self):
         """
-        توليد رقم القيد تلقائياً - نظام مبسط
-        التنسيق: JE-0001 (رقم تسلسلي بسيط)
+        توليد رقم القيد تلقائياً باستخدام المولد الذري الموحد SerialNumber
+        التنسيق: JE-0001 (رقم تسلسلي بسيط وبأداء O(1))
         """
-        # البحث عن أعلى رقم في النظام
-        entries = JournalEntry.objects.filter(
-            number__startswith="JE-"
-        ).exclude(pk=self.pk if self.pk else None)
-
-        max_number = 0
-        for entry in entries:
-            try:
-                # استخراج الرقم من نهاية اسم القيد
-                number_part = entry.number.split("-")[-1]
-                current_number = int(number_part)
-                if current_number > max_number:
-                    max_number = current_number
-            except (ValueError, IndexError):
-                continue
-
-        new_number = max_number + 1
-
-        # التأكد من عدم تكرار الرقم
-        while True:
-            candidate_number = f"JE-{new_number:04d}"
-            if (
-                not JournalEntry.objects.filter(number=candidate_number)
-                .exclude(pk=self.pk if self.pk else None)
-                .exists()
-            ):
-                return candidate_number
-            new_number += 1
+        from product.models import SerialNumber
+        entry_year = self.date.year if self.date else timezone.now().year
+        return SerialNumber.get_next_sequence("journal_entry", prefix="JE-", year=entry_year)
 
     @property
     def total_debit(self):

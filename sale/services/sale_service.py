@@ -12,6 +12,7 @@ from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 import logging
 
 from sale.models import Sale, SaleItem, SalePayment, SaleReturn, SaleReturnItem
@@ -46,20 +47,18 @@ class SaleService:
         """
         try:
             # Validation: التحقق من صحة البيانات
-            items_data = data.get('items', [])
-            if not items_data:
-                raise ValueError("يجب إضافة بند واحد على الأقل للفاتورة")
+            # 0. قفل المنتجات والمخزون والعميل بترتيب منظم لمنع الـ Deadlocks وسباق التزامن
+            product_ids = sorted([int(item['product_id']) for item in items_data if item.get('product_id')])
+            if product_ids:
+                from product.models import Product, Stock
+                list(Product.objects.filter(id__in=product_ids).order_by('id').select_for_update())
+                if data.get('warehouse_id'):
+                    list(Stock.objects.filter(product_id__in=product_ids, warehouse_id=data['warehouse_id']).order_by('id').select_for_update())
             
-            for item_data in items_data:
-                unit_price = Decimal(str(item_data.get('unit_price', 0)))
-                quantity = Decimal(str(item_data.get('quantity', 0)))
-                
-                if unit_price <= 0:
-                    raise ValueError(f"سعر المنتج يجب أن يكون أكبر من صفر (السعر المدخل: {unit_price})")
-                
-                if quantity <= 0:
-                    raise ValueError(f"الكمية يجب أن تكون أكبر من صفر (الكمية المدخلة: {quantity})")
-            
+            if data.get('customer_id'):
+                from client.models import Customer
+                list(Customer.objects.filter(id=data['customer_id']).select_for_update())
+
             # 1. إنشاء الفاتورة
             sale = Sale.objects.create(
                 date=data.get('date', timezone.now().date()),
@@ -68,6 +67,9 @@ class SaleService:
                 payment_method=data.get('payment_method', 'credit'),
                 subtotal=Decimal('0'),
                 discount=Decimal(data.get('discount', 0)),
+                discount_type=data.get('discount_type', 'fixed'),
+                adjustment_name=data.get('adjustment_name'),
+                adjustment_amount=Decimal(data.get('adjustment_amount', 0)),
                 tax=Decimal(data.get('tax', 0)),
                 total=Decimal('0'),
                 notes=data.get('notes', ''),
@@ -130,13 +132,113 @@ class SaleService:
         subtotal = sum(item.total for item in items)
         
         sale.subtotal = subtotal
-        sale.total = subtotal - sale.discount + sale.tax
+        sale.total = max(Decimal('0'), subtotal - sale.discount + sale.tax + sale.adjustment_amount)
         sale.save(update_fields=['subtotal', 'total'])
         
         logger.info(f"✅ تم حساب إجماليات الفاتورة: {sale.number} - الإجمالي: {sale.total}")
 
     @staticmethod
-    def _create_sale_journal_entry(sale, user):
+    @transaction.atomic
+    def update_sale(sale, data, user):
+        """
+        تعديل فاتورة مبيعات مع إعادة تسوية حركات المخزن والقيد المحاسبي بالحوكمة
+        """
+        if sale.status == 'cancelled':
+            raise ValidationError("لا يمكن تعديل فاتورة ملغية")
+        
+        if sale.is_fully_paid:
+            raise ValidationError("لا يمكن تعديل فاتورة مدفوعة بالكامل")
+            
+        if sale.returns.filter(status='confirmed').exists():
+            raise ValidationError("لا يمكن تعديل فاتورة تمت عليها عمليات مرتجع مؤكدة")
+
+        items_data = data.get('items', [])
+        if not items_data:
+            raise ValidationError("يجب أن تحتوي الفاتورة على بند واحد على الأقل")
+
+        # 1. إلغاء حركات المخزن القديمة للبنود الفيزيائية
+        movement_service = MovementService()
+        for item in sale.items.all():
+            if not item.product.is_service:
+                try:
+                    movement_service.process_movement(
+                        product_id=item.product.id,
+                        quantity_change=item.quantity,  # موجب لاستعادة الكمية المصروفة
+                        movement_type='in',
+                        source_reference=f"SALE_EDIT_RESTORE_{item.id}",
+                        idempotency_key=f'sale_{sale.id}_item_{item.id}_restore_{int(timezone.now().timestamp())}',
+                        user=user,
+                        unit_cost=item.product.cost_price,
+                        notes=f'تعديل فاتورة رقم {sale.number} - استرجاع كمية سابقة',
+                        movement_date=sale.date,
+                        warehouse_id=sale.warehouse_id
+                    )
+                except Exception as e:
+                    logger.warning(f"⚠️ يتعذر استرجاع حركات مخزن البند {item.id}: {e}")
+
+        # 2. تحديث بيانات الفاتورة الأساسية
+        sale.date = data.get('date', sale.date)
+        if 'customer_id' in data:
+            sale.customer_id = data['customer_id']
+        if 'warehouse_id' in data:
+            sale.warehouse_id = data['warehouse_id']
+        if 'payment_method' in data:
+            sale.payment_method = data['payment_method']
+        if 'discount' in data:
+            sale.discount = Decimal(str(data['discount']))
+        if 'discount_type' in data:
+            sale.discount_type = data['discount_type']
+        if 'adjustment_name' in data:
+            sale.adjustment_name = data['adjustment_name']
+        if 'adjustment_amount' in data:
+            sale.adjustment_amount = Decimal(str(data['adjustment_amount']))
+        if 'tax' in data:
+            sale.tax = Decimal(str(data['tax']))
+        if 'notes' in data:
+            sale.notes = data['notes']
+        if 'financial_category_id' in data:
+            sale.financial_category_id = data['financial_category_id']
+        sale.save()
+
+        # 3. إزالة البنود القديمة وإضافة البنود الجديدة
+        sale.items.all().delete()
+        for item_data in items_data:
+            SaleService._add_sale_item(sale, item_data, user)
+
+        # 4. إعادة حساب الإجماليات
+        sale.refresh_from_db()
+        SaleService._calculate_totals(sale)
+
+        # 5. التحقق من ألا يقل الإجمالي الجديد عن الدفعات المرحّلة
+        if sale.total < sale.amount_paid:
+            raise ValidationError(f"إجمالي الفاتورة الجديد ({sale.total}) أقل من المبالغ المسددة سلفاً ({sale.amount_paid}). يرجى تسوية الدفعات أولاً.")
+
+        # 6. تحديث حالة الدفع
+        sale.update_payment_status()
+
+        # 7. توليد قيد جديد بمفتاح تحديث فريد
+        version_stamp = int(timezone.now().timestamp())
+        try:
+            journal_entry = SaleService._create_sale_journal_entry(
+                sale, user, idempotency_key=f'sale_{sale.id}_je_update_{version_stamp}'
+            )
+            if journal_entry:
+                sale.journal_entry = journal_entry
+                sale.save(update_fields=['journal_entry'])
+        except Exception as e:
+            logger.warning(f"⚠️ فشل إنشاء القيد المحاسبي المعدل للفاتورة {sale.number}: {e}")
+
+        # 8. إنشاء حركات المخزون الجديدة
+        try:
+            SaleService._create_stock_movements(sale, user, version_stamp=version_stamp)
+        except Exception as e:
+            logger.warning(f"⚠️ فشل إنشاء حركات المخزون المعدلة للفاتورة {sale.number}: {e}")
+
+        logger.info(f"✅ تم تعديل الفاتورة بنجاح: {sale.number}")
+        return sale
+
+    @staticmethod
+    def _create_sale_journal_entry(sale, user, idempotency_key=None):
         """
         إنشاء القيد المحاسبي للفاتورة عبر AccountingGateway
         
@@ -302,12 +404,13 @@ class SaleService:
             
             # إنشاء القيد عبر AccountingGateway (مع الحوكمة الكاملة)
             gateway = AccountingGateway()
+            entry_idem_key = idempotency_key if idempotency_key else f'sale_{sale.id}_journal_entry'
             journal_entry = gateway.create_journal_entry(
                 source_module='sale',
                 source_model='Sale',
                 source_id=sale.id,
                 lines=lines,
-                idempotency_key=f'sale_{sale.id}_journal_entry',
+                idempotency_key=entry_idem_key,
                 user=user,
                 entry_type='automatic',
                 description=f'فاتورة مبيعات رقم {sale.number} - {sale.customer.name}',
@@ -323,7 +426,7 @@ class SaleService:
             raise
 
     @staticmethod
-    def _create_stock_movements(sale, user):
+    def _create_stock_movements(sale, user, version_stamp=None):
         """
         إنشاء حركات المخزون للفاتورة عبر MovementService
         
@@ -339,12 +442,13 @@ class SaleService:
                     logger.info(f"ℹ️ تخطي بند الخدمة: {item.product.name} من حركة المخزون")
                     continue
                 # إنشاء الحركة عبر MovementService (مع الحوكمة الكاملة)
+                item_idem_key = f'sale_{sale.id}_item_{item.id}_mov_{version_stamp}' if version_stamp else f'sale_{sale.id}_item_{item.id}_movement'
                 movement = movement_service.process_movement(
                     product_id=item.product.id,
                     quantity_change=-item.quantity,  # Negative for outbound
                     movement_type='out',
                     source_reference=f"SALE_ITEM_{item.id}",
-                    idempotency_key=f'sale_{sale.id}_item_{item.id}_movement',
+                    idempotency_key=item_idem_key,
                     user=user,
                     unit_cost=item.product.cost_price,
                     document_number=None,
@@ -374,10 +478,26 @@ class SaleService:
             SalePayment: الدفعة المنشأة
         """
         try:
+            # 0. قفل صف الفاتورة في قاعدة البيانات والتحقق من المتبقي للتزامن
+            locked_sale = Sale.objects.select_for_update().get(pk=sale.pk)
+            amount = Decimal(payment_data['amount'])
+
+            if amount <= Decimal('0'):
+                raise ValidationError("مبلغ الدفعة يجب أن يكون أكبر من صفر")
+
+            remaining = locked_sale.amount_due
+            if remaining <= Decimal('0'):
+                raise ValidationError(f"الفاتورة {locked_sale.number} مسددة بالكامل بالفعل ولا توجد مبالغ متبقية للدفع.")
+
+            if amount > remaining:
+                raise ValidationError(f"مبلغ الدفعة ({amount} ج.م) يتجاوز المبلغ المتبقي على الفاتورة ({remaining:.2f} ج.م).")
+
+            sale = locked_sale
+
             # 1. إنشاء الدفعة
             payment = SalePayment.objects.create(
                 sale=sale,
-                amount=Decimal(payment_data['amount']),
+                amount=amount,
                 payment_method=payment_data.get('payment_method', 'cash'),
                 payment_date=payment_data.get('payment_date', timezone.now().date()),
                 notes=payment_data.get('notes', ''),

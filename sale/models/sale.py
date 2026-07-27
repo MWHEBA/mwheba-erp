@@ -47,6 +47,18 @@ class Sale(models.Model):
     discount = models.DecimalField(
         _("الخصم"), max_digits=12, decimal_places=2, default=0
     )
+    discount_type = models.CharField(
+        _("نوع الخصم"),
+        max_length=10,
+        choices=[("fixed", _("مبلغ ثابت")), ("percentage", _("نسبة مئوية"))],
+        default="fixed",
+    )
+    adjustment_name = models.CharField(
+        _("اسم التسوية"), max_length=100, blank=True, null=True
+    )
+    adjustment_amount = models.DecimalField(
+        _("مبلغ التسوية"), max_digits=12, decimal_places=2, default=0
+    )
     tax = models.DecimalField(_("الضريبة"), max_digits=12, decimal_places=2, default=0)
     total = models.DecimalField(_("الإجمالي"), max_digits=12, decimal_places=2)
     payment_method = models.CharField(
@@ -125,6 +137,7 @@ class Sale(models.Model):
             'bank_transfer': _("تحويل بنكي"),
             'check': _("شيك"),
             'credit': _("آجل"),
+            'credit_with_downpayment': _("آجل مع دفعة مقدمة"),
             'credit_card': _("بطاقة ائتمان"),
             'debit_card': _("بطاقة خصم"),
         }
@@ -148,33 +161,9 @@ class Sale(models.Model):
     def save(self, *args, **kwargs):
         # حفظ الفاتورة
         if not self.number:
-            # الحصول على الرقم التسلسلي
             from product.models import SerialNumber
-
-            # البحث عن آخر رقم مستخدم
-            last_sale = Sale.objects.order_by("-number").first()
-            if last_sale:
-                try:
-                    last_number = int(last_sale.number.replace("SALE", ""))
-                except ValueError:
-                    last_number = 0
-            else:
-                last_number = 0
-
-            # إنشاء أو تحديث الرقم التسلسلي
-            serial = SerialNumber.objects.get_or_create(
-                document_type="sale",
-                year=timezone.now().year,
-                defaults={"prefix": "SALE", "last_number": last_number},
-            )[0]
-
-            # تحديث آخر رقم إذا كان أقل من الرقم الحالي
-            if serial.last_number <= last_number:
-                serial.last_number = last_number
-                serial.save()
-
-            next_number = serial.get_next_number()
-            self.number = f"{serial.prefix}{next_number:04d}"
+            sale_year = self.date.year if self.date else timezone.now().year
+            self.number = SerialNumber.get_next_sequence("sale", prefix="SALE-", year=sale_year)
 
         super().save(*args, **kwargs)
 
@@ -222,8 +211,6 @@ class Sale(models.Model):
         """
         تحديث حالة الدفع
         """
-        old_status = self.payment_status
-
         if self.is_fully_paid:
             new_status = "paid"
         elif self.amount_paid > 0:
@@ -231,9 +218,18 @@ class Sale(models.Model):
         else:
             new_status = "unpaid"
 
-        # تحديث فقط إذا تغيرت الحالة لتجنب التكرار اللانهائي
-        if old_status != new_status:
-            Sale.objects.filter(pk=self.pk).update(payment_status=new_status)
+        # تحديث الخاصة في الذاكرة لضمان عدم حفظ القيمة القديمة لاحقاً عند calling save()
+        self.payment_status = new_status
+
+        # تحديث قاعدة البيانات مباشرة
+        Sale.objects.filter(pk=self.pk).update(payment_status=new_status)
+
+    @property
+    def has_item_discounts(self):
+        """
+        فحص ما إذا كان هناك أي خصم على أي بند من بنود الفاتورة
+        """
+        return any(item.discount and item.discount > 0 for item in self.items.all())
 
     @property
     def is_returned(self):

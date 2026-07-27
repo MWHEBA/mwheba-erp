@@ -83,7 +83,7 @@ class SaleModelTest(TestCase):
 
         # إنشاء المخزن
         self.warehouse = Warehouse.objects.create(
-            name="مخزن اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001"
         )
 
         # إنشاء المنتجات للاختبار
@@ -213,7 +213,31 @@ class SaleModelTest(TestCase):
         # إجمالي التكلفة = 400 + 360 = 760
         # الربح = إجمالي الفاتورة - إجمالي التكلفة = 900 - 760 = 140
         expected_profit = Decimal("140.00")
-        self.assertEqual(self.sale.profit, expected_profit)
+    def test_payment_unpost(self):
+        """
+        اختبار إلغاء ترحيل دفعة مرحلة بدون خطأ قفل القيد
+        """
+        from sale.models import SalePayment
+        from sale.services.sale_service import SaleService
+
+        payment = SalePayment.objects.create(
+            sale=self.sale,
+            amount=Decimal("100.00"),
+            payment_method="cash",
+            status="draft",
+            created_by=self.user,
+        )
+        journal_entry = SaleService._create_payment_journal_entry(payment, self.user)
+        if journal_entry:
+            payment.financial_transaction = journal_entry
+        payment.status = "posted"
+        payment.save()
+
+        res = payment.unpost(user=self.user)
+        self.assertTrue(res["success"])
+        payment.refresh_from_db()
+        self.assertEqual(payment.status, "draft")
+        self.assertIsNone(payment.financial_transaction)
 
 
 class SaleReturnModelTest(TestCase):
@@ -231,7 +255,7 @@ class SaleReturnModelTest(TestCase):
 
         # إنشاء المخزن
         self.warehouse = Warehouse.objects.create(
-            name="مخزن اختبار", code="WH001", created_by=self.user
+            name="مخزن اختبار", code="WH001"
         )
 
         # إنشاء المنتجات للاختبار

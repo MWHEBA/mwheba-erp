@@ -23,8 +23,223 @@
 
         init: function(userOptions) {
             this.options = $.extend({}, this.options, userOptions);
+            var savedShowAll = localStorage.getItem('mwheba_picker_show_all');
+            if (savedShowAll !== null) {
+                this.syncShowAllState(savedShowAll === 'true');
+            }
             this.bindEvents();
+            this.bindItemsContainer();
+            this.bindPreSubmitSanitation();
             this.loadInitialStock();
+        },
+
+        syncShowAllState: function(isChecked) {
+            $('.show-all-products-toggle, #show-all-products, #modal-show-all-products, #page-show-all-products').prop('checked', isChecked);
+            localStorage.setItem('mwheba_picker_show_all', isChecked ? 'true' : 'false');
+        },
+
+        renderRow: function(itemData, customOptions) {
+            itemData = itemData || {};
+            var opts = $.extend({}, this.options, customOptions || {});
+            
+            var isSalesRepOnly = $('#django-sales-form-data').data('is-sales-rep-only') === true;
+            var priceReadonly = (isSalesRepOnly && opts.type === 'sale') ? 'readonly' : '';
+            var currencySymbol = opts.currencySymbol || 'ج.م';
+            var isPurchase = (opts.type === 'purchase');
+            var isServiceType = (opts.allowedItemTypes === 'services');
+            
+            var labelProductText = isServiceType ? 'الخدمة' : (isPurchase ? 'المنتج / الخدمة' : 'المنتج / الخدمة');
+            var priceFieldName = isPurchase ? 'unit_cost[]' : 'unit_price[]';
+
+            var productId = itemData.id || itemData.product_id || '';
+            var productCode = itemData.code || itemData.sku || '';
+            var unitPrice = (itemData.price !== undefined && itemData.price !== null) ? itemData.price : (itemData.unit_price || itemData.unit_cost || 0);
+            var qty = itemData.quantity || 1;
+            var itemDisc = itemData.discount || 0;
+            var itemTotal = itemData.total !== undefined ? itemData.total : ((qty * unitPrice) - itemDisc);
+
+            var productName = itemData.name || (productId ? 'منتج #' + productId : 'اختر المنتج / الخدمة');
+            var productStock = itemData.stock || 0;
+            var productPrice = unitPrice;
+            var isService = itemData.is_service === true || itemData.is_service === "true";
+
+            if (window._allProducts && productId) {
+                var found = window._allProducts.find(function(p) { return String(p.id) === String(productId); });
+                if (found) {
+                    productName = found.name;
+                    productStock = found.stock;
+                    productPrice = opts.type === 'purchase' ? (found.cost_price || unitPrice) : found.selling_price;
+                    isService = found.is_service === true || found.is_service === "true";
+                    if (!productCode && (found.code || found.sku)) {
+                        productCode = found.code || found.sku;
+                    }
+                }
+            }
+
+            var removeBtn = (opts.showRemoveButton !== false)
+                ? '<a href="javascript:void(0)" class="remove-item" title="إزالة البند"><i class="fas fa-times-circle"></i></a>'
+                : '';
+
+            var $row = $('<div class="item-row row g-2 align-items-center">' +
+                '<div class="col-12 col-md-2">' +
+                    '<label class="form-label form-label-sm product-code-label">الكود / الباركود</label>' +
+                    '<input type="text" class="form-control form-control-sm product-code-input" placeholder="الكود / الباركود" value="' + productCode + '">' +
+                '</div>' +
+                '<div class="col-12 col-md-3" style="position:relative;">' +
+                    '<label class="form-label form-label-sm product-label required-field">' + labelProductText + '</label>' +
+                    '<button type="button" class="product-picker-btn"><span class="' + (productId ? 'selected-text' : 'placeholder-text') + '">' + productName + '</span><i class="fas fa-th-large text-muted small"></i></button>' +
+                    '<input type="hidden" name="product[]" class="product-id-input" value="' + productId + '" data-price="' + productPrice + '" data-stock="' + productStock + '" data-is-service="' + isService + '" required>' +
+                    '<div class="stock-info"></div>' +
+                '</div>' +
+                '<div class="col-6 col-md-1"><label class="form-label form-label-sm required-field">الكمية</label><input type="number" name="quantity[]" class="form-control form-control-sm quantity" min="1" step="1" value="' + qty + '" required></div>' +
+                '<div class="col-6 col-md-2"><label class="form-label form-label-sm required-field">' + (isPurchase ? 'سعر التكلفة' : 'سعر الوحدة') + '</label><input type="text" inputmode="decimal" name="' + priceFieldName + '" class="form-control form-control-sm unit-price" value="' + unitPrice + '" required ' + priceReadonly + '></div>' +
+                '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الخصم</label><input type="number" name="discount[]" class="form-control form-control-sm item-discount" min="0" value="' + itemDisc + '"></div>' +
+                '<div class="col-6 col-md-2"><label class="form-label form-label-sm">الإجمالي</label><div class="input-group input-group-sm"><input type="text" class="form-control form-control-sm item-total" value="' + itemTotal + '" readonly><span class="input-group-text px-1">' + currencySymbol + '</span></div></div>' +
+                removeBtn +
+            '</div>');
+
+            if (isService) {
+                $row.find('.stock-info').html('<span class="text-success small"><i class="fas fa-tools"></i> خدمة</span>');
+            } else if (productStock > 0 && typeof this.renderStockInfo === 'function') {
+                this.renderStockInfo($row, productStock);
+            }
+
+            return $row;
+        },
+
+        renderItems: function(container, items, customOptions) {
+            var $container = $(container);
+            $container.empty();
+            if (!items || !Array.isArray(items)) return;
+
+            var self = this;
+            items.forEach(function(item, index) {
+                var opts = $.extend({}, customOptions, { showRemoveButton: index > 0 });
+                var $row = self.renderRow(item, opts);
+                $container.append($row);
+            });
+
+            if (typeof window.bindEventHandlers === 'function') {
+                window.bindEventHandlers();
+            }
+            if (typeof window.calculateTotals === 'function') {
+                window.calculateTotals();
+            }
+        },
+
+        // إطار عمل موحد لإدارة جدول البنود (إضافة، حذف، استنساخ وتطهير صفوف)
+        bindItemsContainer: function() {
+            var self = this;
+
+            // إضافة بند جديد عند النقر على #add-item
+            $(document).off('click.productPickerAdd', '#add-item').on('click.productPickerAdd', '#add-item', function(e) {
+                e.preventDefault();
+                var $container = $('#items-container');
+                var $lastRow = $container.find('.item-row:last-child');
+                
+                // حماية من التكرار الفارغ: إذا كان الصف الأخير فارغاً، يتم توجيه مؤشر الكتابة إليه
+                if ($lastRow.length) {
+                    var lastProductId = $lastRow.find('.product-id-input').val();
+                    var lastCode = $lastRow.find('.product-code-input').val();
+                    if (!lastProductId && (!lastCode || lastCode.trim() === '')) {
+                        $lastRow.find('.product-code-input').focus();
+                        return;
+                    }
+                }
+
+                var $newRow = self.renderRow({}, { showRemoveButton: true });
+
+                // دعم تحديث Django Formset TOTAL_FORMS إن وجد
+                var $totalForms = $('#id_items-TOTAL_FORMS, input[name$="-TOTAL_FORMS"]');
+                if ($totalForms.length) {
+                    var count = $container.find('.item-row').length;
+                    $totalForms.val(count + 1);
+                }
+
+                $container.append($newRow);
+
+                if (typeof window.calculateTotals === 'function') {
+                    window.calculateTotals();
+                }
+
+                if (typeof self.options.onRowAdded === 'function') {
+                    self.options.onRowAdded($newRow);
+                }
+
+                setTimeout(function() {
+                    $newRow.find('.product-code-input').focus();
+                }, 100);
+            });
+
+            // إزالة بند عند النقر على .remove-item
+            $(document).off('click.productPickerRemove', '.remove-item').on('click.productPickerRemove', '.remove-item', function(e) {
+                e.preventDefault();
+                var $container = $('#items-container');
+                if ($container.find('.item-row').length > 1) {
+                    var $row = $(this).closest('.item-row');
+                    $row.remove();
+
+                    // تحديث TOTAL_FORMS لـ Django Formset
+                    var $totalForms = $('#id_items-TOTAL_FORMS, input[name$="-TOTAL_FORMS"]');
+                    if ($totalForms.length) {
+                        $totalForms.val($container.find('.item-row').length);
+                    }
+
+                    if (typeof window.calculateTotals === 'function') {
+                        window.calculateTotals();
+                    }
+
+                    if (typeof self.options.onRowRemoved === 'function') {
+                        self.options.onRowRemoved();
+                    }
+                } else {
+                    if (typeof toastr !== 'undefined') {
+                        toastr.warning('يجب الإبقاء على بند واحد على الأقل في الفاتورة');
+                    }
+                }
+            });
+        },
+
+        // تنظيف وتخليص جدول البنود من الصفوف الفارغة الأخيرة تلقائياً
+        sanitizeTrailingEmptyRows: function() {
+            var $container = $('#items-container');
+            if (!$container.length) return;
+            
+            var $rows = $container.find('.item-row');
+            while ($rows.length > 1) {
+                var $lastRow = $rows.last();
+                var lastProductId = $lastRow.find('.product-id-input').val();
+                var lastCode = $lastRow.find('.product-code-input').val();
+                if (!lastProductId && (!lastCode || lastCode.trim() === '')) {
+                    $lastRow.remove();
+                    $rows = $container.find('.item-row');
+                } else {
+                    break;
+                }
+            }
+
+            // تحديث TOTAL_FORMS لـ Django Formset
+            var $totalForms = $('#id_items-TOTAL_FORMS, input[name$="-TOTAL_FORMS"]');
+            if ($totalForms.length) {
+                $totalForms.val($container.find('.item-row').length);
+            }
+
+            if (typeof window.calculateTotals === 'function') {
+                window.calculateTotals();
+            }
+        },
+
+        bindPreSubmitSanitation: function() {
+            var self = this;
+
+            // تنفيذ التنظيف فوراً عند النقر على أي زر حفظ في النموذج قبل بدء التحقق
+            $(document).off('click.productPickerSanitizeSubmit', 'button[type="submit"], input[type="submit"]').on('click.productPickerSanitizeSubmit', 'button[type="submit"], input[type="submit"]', function() {
+                self.sanitizeTrailingEmptyRows();
+            });
+
+            $(document).off('submit.productPickerSanitizeForm', 'form:has(#items-container)').on('submit.productPickerSanitizeForm', 'form:has(#items-container)', function() {
+                self.sanitizeTrailingEmptyRows();
+            });
         },
 
         bindEvents: function() {
@@ -43,6 +258,12 @@
 
                 $('#categoryTabs .nav-link').removeClass('active');
                 $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
+
+                // استرجاع حالة زر "إظهار كافة المنتجات" الحالية المحفوظة ومزامنتها
+                var savedShowAll = localStorage.getItem('mwheba_picker_show_all');
+                if (savedShowAll !== null) {
+                    self.syncShowAllState(savedShowAll === 'true');
+                }
 
                 self.loadModalProducts();
                 var modalEl = document.getElementById('productPickerModal');
@@ -112,10 +333,104 @@
                 }, 300);
             });
 
-            // 7. تغيير إعداد إظهار كافة المنتجات
-            $(document).off('change.productPicker', '#show-all-products').on('change.productPicker', '#show-all-products', function() {
+            // 7. تغيير إعداد إظهار كافة المنتجات ومزامنة المفتاحين (في الشاشة والمودال)
+            $(document).off('change.productPicker', '.show-all-products-toggle, #show-all-products, #modal-show-all-products, #page-show-all-products').on('change.productPicker', '.show-all-products-toggle, #show-all-products, #modal-show-all-products, #page-show-all-products', function() {
+                var isChecked = $(this).is(':checked');
+                self.syncShowAllState(isChecked);
                 if ($('#productPickerModal').hasClass('show')) {
                     self.loadModalProducts();
+                }
+            });
+
+            // 8. ضغط Enter في حقول (الكمية، سعر الوحدة، التكلفة، أو الخصم) يضيف بنداً جديداً فوراً
+            $(document).off('keydown.enterAddItem', '#items-container .quantity, #items-container .unit-price, #items-container .unit-cost, #items-container .item-discount')
+                .on('keydown.enterAddItem', '#items-container .quantity, #items-container .unit-price, #items-container .unit-cost, #items-container .item-discount', function(e) {
+                    if (e.which === 13 || e.key === 'Enter') {
+                        e.preventDefault();
+                        $('#add-item').trigger('click');
+                    }
+                });
+
+            // 9. التنقل بالأسهم و Enter و Escape في حقل الكود / الباركود والقائمة المنسدلة
+            $(document).off('keydown.enterCodeInput keydown.codeInputNav', '.product-code-input').on('keydown.codeInputNav', '.product-code-input', function(e) {
+                var $input = $(this);
+                var $dropdown = $input.parent().find('.code-lookup-dropdown');
+
+                // التنقل بالأسهم و Enter/Escape عند وجود قائمة البحث المنسدلة
+                if ($dropdown.length > 0) {
+                    var $items = $dropdown.find('.code-lookup-item');
+                    if ($items.length > 0) {
+                        var currentIndex = $items.filter('.active').index();
+
+                        if (e.key === 'ArrowDown' || e.which === 40) {
+                            e.preventDefault();
+                            var nextIndex = (currentIndex < 0 || currentIndex >= $items.length - 1) ? 0 : currentIndex + 1;
+                            $items.removeClass('active');
+                            var $nextItem = $items.eq(nextIndex).addClass('active');
+                            if ($nextItem.length && $nextItem[0].scrollIntoView) {
+                                $nextItem[0].scrollIntoView({ block: 'nearest' });
+                            }
+                            return;
+                        }
+
+                        if (e.key === 'ArrowUp' || e.which === 38) {
+                            e.preventDefault();
+                            var prevIndex = (currentIndex <= 0) ? $items.length - 1 : currentIndex - 1;
+                            $items.removeClass('active');
+                            var $prevItem = $items.eq(prevIndex).addClass('active');
+                            if ($prevItem.length && $prevItem[0].scrollIntoView) {
+                                $prevItem[0].scrollIntoView({ block: 'nearest' });
+                            }
+                            return;
+                        }
+
+                        if (e.key === 'Escape' || e.which === 27) {
+                            e.preventDefault();
+                            $dropdown.remove();
+                            return;
+                        }
+
+                        if (e.key === 'Enter' || e.which === 13) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            var $activeItem = $items.filter('.active');
+                            if (!$activeItem.length) {
+                                $activeItem = $items.first();
+                            }
+                            if ($activeItem.length) {
+                                $activeItem.trigger('click');
+                            } else {
+                                $dropdown.remove();
+                            }
+                            return;
+                        }
+                    }
+                }
+
+                // ضغط Enter في حقل الكود عند عدم وجود القائمة المنسدلة
+                if (e.which === 13 || e.key === 'Enter') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var query = $input.val().trim();
+                    var $row = $input.closest('.item-row');
+
+                    if (query === '') {
+                        // كود فارغ -> فتح المودال فوراً بدون إرسال النموذج
+                        self._activePickerRow = $row;
+                        self._activeCategory = 'all';
+                        self._activeType = 'all';
+                        self._searchTerm = '';
+                        $('#picker-search').val('');
+                        self.loadModalProducts();
+                        var modalEl = document.getElementById('productPickerModal');
+                        if (modalEl) {
+                            var modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                            modal.show();
+                        }
+                    } else {
+                        // كود مكتوب -> مطابقة فورية ومباشرة
+                        self.performCodeLookup($row, $input, query, false, true);
+                    }
                 }
             });
 
@@ -158,65 +473,129 @@
                     window.calculateTotals();
                 }
             });
+
+            // 11. إغلاق قائمة البحث السريعة المنسدلة عند النقر خارجها
+            $(document).off('click.productPickerDismissCodeDropdown').on('click.productPickerDismissCodeDropdown', function(e) {
+                if (!$(e.target).closest('.code-lookup-wrapper').length) {
+                    $('.code-lookup-dropdown').remove();
+                }
+            });
         },
 
-        // تنفيذ طلب البحث المباشر بالكود / الباركود
-        performCodeLookup: function($row, $input, query, isBlur) {
+        // تنفيذ طلب البحث المباشر والقائمة السريعة بالكود / الباركود
+        performCodeLookup: function($row, $input, query, isBlur, isExactRequest) {
             var self = this;
             var warehouseId = self.options.getWarehouseId();
             var invoiceId = self.options.getInvoiceId();
             var lookupType = (self.options.type === 'purchase') ? 'purchase' : 'sale';
+
+            // إغلاق أي قائمة سريعة سابقة
+            $('.code-lookup-dropdown').remove();
+
+            if (query.length < 2 && !isExactRequest) {
+                return;
+            }
 
             $.ajax({
                 url: '/products/api/invoice-product-lookup/',
                 method: 'GET',
                 data: {
                     q: query,
-                    exact: 'true',
+                    exact: isExactRequest ? 'true' : 'false',
+                    show_all: 'true',
                     warehouse_id: warehouseId,
                     invoice_id: invoiceId,
                     type: lookupType
                 },
                 success: function(response) {
-                    if (response.products && response.products.length > 0) {
-                        var found = response.products[0];
-                        var price = (self.options.priceField === 'cost_price') ? found.cost_price : found.selling_price;
+                    var products = response.products || [];
+
+                    if (products.length === 0) {
+                        if (isBlur) {
+                            $input.addClass('is-invalid');
+                            if (typeof toastr !== 'undefined') {
+                                toastr.warning('كود المنتج غير صحيح أو غير متوفر في هذا المخزن');
+                            }
+                        }
+                        return;
+                    }
+
+                    // في حالة التطابق التام أو الضغط الصريح على Enter (أو نتيجة واحدة مطابقة تماماً)
+                    var exactMatch = products.find(function(p) {
+                        return (p.code && p.code.toLowerCase() === query.toLowerCase()) ||
+                               (p.barcode && p.barcode.toLowerCase() === query.toLowerCase());
+                    });
+
+                    if (isExactRequest && exactMatch) {
+                        var price = (self.options.priceField === 'cost_price') ? exactMatch.cost_price : exactMatch.selling_price;
                         var product = {
-                            id: found.id,
-                            name: found.name,
-                            code: found.code || found.sku || query,
+                            id: exactMatch.id,
+                            name: exactMatch.name,
+                            code: exactMatch.code || exactMatch.sku || query,
                             price: price,
-                            stock: found.stock,
-                            is_service: found.is_service === true || found.is_service === "true"
+                            stock: exactMatch.stock,
+                            is_service: exactMatch.is_service === true || exactMatch.is_service === "true"
                         };
 
                         $input.removeClass('is-invalid').addClass('is-valid');
-                        self.applyProductToRow($row, product, 'scan');
+                        self.applyProductToRow($row, product, 'input');
+                        return;
+                    }
 
-                        // التمرير والتنقل التلقائي عند مسح الباركود
-                        var $isLastRow = $row.is('#items-container .item-row:last-child');
-                        if ($isLastRow) {
-                            var $addButton = $('#add-item');
-                            if ($addButton.length) {
-                                $addButton.trigger('click');
-                                setTimeout(function() {
-                                    var $newLastRow = $('#items-container .item-row:last-child');
-                                    $newLastRow.find('.product-code-input').focus();
-                                }, 150);
-                            } else {
-                                var $qtyInput = $row.find('.quantity');
-                                if ($qtyInput.length) $qtyInput.focus().select();
-                            }
-                        } else {
+                    // إظهار قائمة البحث السريعة المنسدلة تحت حقل الكود
+                    var $parent = $input.parent();
+                    if (!$parent.hasClass('code-lookup-wrapper')) {
+                        $parent.addClass('code-lookup-wrapper');
+                    }
+
+                    var $dropdown = $('<ul class="code-lookup-dropdown"></ul>');
+                    products.slice(0, 8).forEach(function(p, idx) {
+                        var price = (self.options.priceField === 'cost_price') ? p.cost_price : p.selling_price;
+                        var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
+                        var activeClass = (idx === 0) ? ' active' : '';
+                        var $item = $('<li class="code-lookup-item' + activeClass + '" ' +
+                            'data-id="' + p.id + '" ' +
+                            'data-name="' + p.name + '" ' +
+                            'data-code="' + (p.code || p.sku || '') + '" ' +
+                            'data-price="' + price + '" ' +
+                            'data-stock="' + p.stock + '" ' +
+                            'data-is-service="' + p.is_service + '">' +
+                            '<div><span class="code-badge">' + (p.code || p.sku || 'بدون كود') + '</span> <strong class="ms-1">' + p.name + '</strong></div>' +
+                            '<span class="badge bg-light text-dark border">' + displayPrice + ' ' + self.options.currencySymbol + '</span>' +
+                            '</li>');
+                        $dropdown.append($item);
+                    });
+
+                    $parent.append($dropdown);
+
+                    // تفعيل العنصر الممر عليه بالماوس لمزامنة الماوس مع لوحة المفاتيح
+                    $dropdown.find('.code-lookup-item').on('mouseenter', function() {
+                        $dropdown.find('.code-lookup-item').removeClass('active');
+                        $(this).addClass('active');
+                    });
+
+                    // اختيار عنصر من القائمة السريعة عند النقر
+                    $dropdown.find('.code-lookup-item').on('mousedown click', function(e) {
+                        e.preventDefault();
+                        var $item = $(this);
+                        var selectedProduct = {
+                            id: $item.data('id'),
+                            name: $item.data('name'),
+                            code: $item.data('code'),
+                            price: $item.data('price'),
+                            stock: parseFloat($item.data('stock') || 0),
+                            is_service: $item.data('is-service') === true || $item.data('is-service') === "true"
+                        };
+
+                        $input.removeClass('is-invalid');
+                        self.applyProductToRow($row, selectedProduct, 'input');
+                        $dropdown.remove();
+
+                        setTimeout(function() {
                             var $qtyInput = $row.find('.quantity');
                             if ($qtyInput.length) $qtyInput.focus().select();
-                        }
-                    } else if (isBlur) {
-                        $input.addClass('is-invalid');
-                        if (typeof toastr !== 'undefined') {
-                            toastr.warning('كود المنتج غير صحيح أو غير متوفر في هذا المخزن');
-                        }
-                    }
+                        }, 100);
+                    });
                 }
             });
         },
@@ -225,7 +604,13 @@
         applyProductToRow: function($row, product, matchType) {
             var self = this;
             $row.find('.product-picker-btn').html('<span class="selected-text">' + product.name + '</span><i class="fas fa-th-large text-muted small"></i>');
-            $row.find('.product-code-input').val(product.code).removeClass('is-invalid').addClass('is-valid');
+            var $codeInput = $row.find('.product-code-input');
+            $codeInput.val(product.code);
+            if (matchType === 'input' || matchType === 'scan') {
+                $codeInput.removeClass('is-invalid').addClass('is-valid');
+            } else {
+                $codeInput.removeClass('is-valid is-invalid');
+            }
             
             var $idInput = $row.find('.product-id-input');
             $idInput.val(product.id)
@@ -332,9 +717,11 @@
                             }
 
                             var displayPrice = typeof smartFloat === 'function' ? smartFloat(price) : price;
+                            var codeBadge = p.code ? '<div class="product-code text-muted small font-monospace mb-1" style="font-size: 0.75rem;"><i class="fas fa-barcode me-1 opacity-75"></i>' + p.code + '</div>' : '<div class="product-code text-muted small mb-1" style="font-size: 0.75rem;">&nbsp;</div>';
                             var $card = $('<div class="col-md-3 col-sm-4 col-6">' +
                                 '<div class="product-card ' + stockClass + '" data-id="' + p.id + '" data-price="' + price + '" data-stock="' + p.stock + '" data-name="' + p.name + '" data-is-service="' + isService + '" data-code="' + (p.code || '') + '">' +
                                     '<div class="product-name">' + p.name + '</div>' +
+                                    codeBadge +
                                     '<div class="product-footer">' +
                                         '<span class="product-price">' + displayPrice + ' ' + self.options.currencySymbol + '</span>' +
                                         stockLabel +
@@ -351,27 +738,38 @@
         // تحديث إظهار وتفعيل التبويبات حسب نتائج المنتجات المتاحة
         updateCategoryTabs: function(products) {
             var self = this;
-            var activeCatIds = {};
+            var $tabs = $('#categoryTabs');
+            var catMap = {};
             (products || []).forEach(function(p) {
-                if (p.category_id) {
-                    activeCatIds[String(p.category_id)] = true;
+                if (p.category_id && p.category_name) {
+                    catMap[String(p.category_id)] = p.category_name;
                 }
             });
 
-            $('#categoryTabs .nav-link[data-category]').each(function() {
+            // إضافة التبويبات المفقودة ديناميكياً في حالة عدم وجودها مسبقاً في القالب
+            Object.keys(catMap).forEach(function(catId) {
+                if ($tabs.find('.nav-link[data-category="' + catId + '"]').length === 0) {
+                    var $li = $('<li class="nav-item" role="presentation">' +
+                        '<a class="nav-link btn-sm" data-category="' + catId + '" href="javascript:void(0)">' + catMap[catId] + '</a>' +
+                    '</li>');
+                    $tabs.append($li);
+                }
+            });
+
+            $tabs.find('.nav-link[data-category]').each(function() {
                 var $tab = $(this);
                 var catId = String($tab.data('category'));
                 if (catId === 'all') {
                     $tab.parent().show();
                     return;
                 }
-                if (activeCatIds[catId]) {
+                if (catMap[catId]) {
                     $tab.parent().show();
                 } else {
                     $tab.parent().hide();
                     if ($tab.hasClass('active')) {
                         $tab.removeClass('active');
-                        $('#categoryTabs .nav-link[data-category="all"]').addClass('active');
+                        $tabs.find('.nav-link[data-category="all"]').addClass('active');
                         self._activeCategory = 'all';
                     }
                 }
@@ -436,6 +834,10 @@
         }
     };
 
-    window.ProductPicker = ProductPicker;
+    // تصدير دالة renderStockInfo و ProductPicker عالمياً
+    window.renderStockInfo = function($row, stock) {
+        ProductPicker.renderStockInfo($row, stock);
+    };
 
+    window.ProductPicker = ProductPicker;
 })(window, jQuery);

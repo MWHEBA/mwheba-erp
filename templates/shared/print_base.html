@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+{% load static %}
+{% load i18n %}
+{% load app_tags %}
+{% load custom_filters %}
+{% load utils_extras %}
+
+<html lang="{{ print_lang|default:'ar' }}" dir="{{ print_dir|default:'rtl' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ title }}{% endblock %}</title>
+    {% if print_dir == 'ltr' %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    {% else %}
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.rtl.min.css">
+    {% endif %}
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 400;
+            src: url("{% static 'fonts/Tajawal-Regular.ttf' %}") format('truetype');
+        }
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 500;
+            src: url("{% static 'fonts/Tajawal-Medium.ttf' %}") format('truetype');
+        }
+        @font-face {
+            font-family: 'Tajawal';
+            font-style: normal;
+            font-weight: 700;
+            src: url("{% static 'fonts/Tajawal-Bold.ttf' %}") format('truetype');
+        }
+
+        :root {
+            --primary-color: {% if settings and settings.color_primary %}{{ settings.color_primary }}{% else %}#04578d{% endif %};
+            --primary-dark: {% if settings and settings.color_primary_dark %}{{ settings.color_primary_dark }}{% else %}#033d64{% endif %};
+            --primary-light: {% if settings and settings.color_primary_light %}{{ settings.color_primary_light }}{% else %}#e6f0fa{% endif %};
+            --primary-hover: {% if settings and settings.color_primary_hover %}{{ settings.color_primary_hover }}{% else %}#0462a0{% endif %};
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --bg-body: #f3f4f6;
+            --bg-white: #ffffff;
+            --bg-light: #f9fafb;
+            --border-color: #e5e7eb;
+            --border-dark: #d1d5db;
+            --summary-bg: #f8fafc;
+            --summary-highlight-bg: var(--bg-light);
+            --summary-highlight-text: var(--primary-dark);
+            --table-header-bg: var(--primary-color);
+            --table-header-text: #ffffff;
+            --print-bar-bg: var(--primary-color);
+            --print-bar-text: #ffffff;
+        }
+
+        @media print {
+            * {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+            }
+            @page {
+                size: A4;
+                margin: 0.5cm;
+            }
+            body {
+                background-color: var(--bg-white) !important;
+                font-size: 11pt;
+                color: var(--text-color);
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .invoice-container {
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                border-radius: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+                min-height: 100vh !important;
+                display: flex !important;
+                flex-direction: column !important;
+                box-sizing: border-box !important;
+            }
+            .print-footer-wrapper {
+                margin-top: auto !important;
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+            }
+            .table-header-sticky {
+                display: table-header-group;
+            }
+            tr {
+                page-break-inside: avoid;
+            }
+            .keep-together {
+                page-break-inside: avoid;
+            }
+        }
+
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+
+        .print-actions-bar {
+            background-color: var(--print-bar-bg);
+            color: var(--print-bar-text);
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .invoice-container {
+            background-color: var(--bg-white);
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin: 0 auto 30px auto;
+            max-width: 900px;
+            min-height: 275mm;
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+
+        .print-footer-wrapper {
+            margin-top: auto;
+        }
+
+        .company-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+        }
+
+        .company-logo {
+            max-height: 75px;
+            max-width: 180px;
+            object-fit: contain;
+            margin-bottom: 8px;
+        }
+
+        .company-name {
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin-bottom: 4px;
+        }
+
+        .company-meta {
+            font-size: 13px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        .company-meta bdi {
+            unicode-bidi: isolate;
+            display: inline-block;
+            direction: ltr;
+        }
+
+        .document-title-divider {
+            display: flex;
+            align-items: center;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .document-title-divider::before,
+        .document-title-divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid var(--border-dark);
+        }
+
+        .document-title-text {
+            padding: 0 15px;
+            font-size: 18px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            color: var(--text-color);
+            text-transform: uppercase;
+        }
+
+        .client-info-section {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            gap: 20px;
+        }
+
+        .party-box {
+            flex: 1;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+
+        .party-title {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+
+        .party-name {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .doc-date-box {
+            flex: 1;
+            text-align: center;
+        }
+
+        .doc-date-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .doc-date-value {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .doc-number-box {
+            flex: 1;
+            text-align: left;
+        }
+
+        .doc-number-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
+
+        .doc-number-value {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--text-color);
+        }
+
+        .items-table-wrapper {
+            border-radius: 8px;
+            overflow: hidden;
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+        }
+
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 0;
+        }
+
+        .items-table th {
+            background-color: var(--table-header-bg) !important;
+            color: var(--table-header-text) !important;
+            padding: 12px 14px;
+            font-size: 13px;
+            font-weight: 700;
+            text-align: center;
+            border-bottom: 1px solid var(--primary-dark);
+            border-left: 1px solid rgba(255, 255, 255, 0.25);
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .items-table th.col-desc {
+            text-align: right;
+        }
+
+        .items-table th:last-child {
+            border-left: none;
+        }
+
+        .items-table td {
+            padding: 12px 14px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border-color);
+            border-left: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+
+        .items-table td:last-child {
+            border-left: none;
+        }
+
+        .items-table tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .items-table tbody tr:nth-child(even) {
+            background-color: var(--bg-light);
+        }
+
+        .items-table .item-description {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .items-table .item-unit {
+            font-size: 11px;
+            color: var(--text-muted);
+            display: block;
+        }
+
+        .financial-summary-wrapper {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .summary-notes-side {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .summary-table-side {
+            width: 320px;
+        }
+
+        .summary-table {
+            width: 100%;
+            border-collapse: collapse;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .summary-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .summary-table td {
+            padding: 10px 14px;
+            font-size: 14px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .summary-table td:first-child {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .summary-table td:last-child {
+            text-align: left;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .summary-highlight-row {
+            background-color: var(--summary-highlight-bg) !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .summary-highlight-row td,
+        .summary-highlight-row td:first-child,
+        .summary-highlight-row td:last-child {
+            color: var(--summary-highlight-text) !important;
+            font-size: 15px !important;
+            font-weight: 800 !important;
+            border-top: 2px solid var(--primary-color) !important;
+            border-bottom: 2px solid var(--primary-color) !important;
+        }
+
+        .terms-section {
+            margin-top: 20px;
+            margin-bottom: 20px;
+        }
+
+        .terms-section:empty {
+            display: none;
+        }
+
+        .terms-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--text-color);
+            margin-bottom: 6px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+        }
+
+        .terms-content {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .signatures-section {
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+            margin-top: 20px;
+        }
+
+        .signatures-grid {
+            display: flex;
+            justify-content: space-between;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .signature-box {
+            flex: 1;
+        }
+
+        .signature-line {
+            border-bottom: 1px dashed var(--border-dark);
+            margin-top: 45px;
+            width: 70%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .signature-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .print-footer-note {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 11px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            padding-top: 10px;
+        }
+
+        /* LTR Direction Overrides & Corporate Typography */
+        html[dir="ltr"] body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        html[dir="ltr"] .doc-number-box {
+            text-align: right !important;
+        }
+        html[dir="ltr"] .party-box {
+            text-align: left !important;
+        }
+        html[dir="ltr"] .items-table th,
+        html[dir="ltr"] .items-table td {
+            border-left: none !important;
+            border-right: 1px solid var(--border-color) !important;
+        }
+        html[dir="ltr"] .items-table th {
+            border-right: 1px solid rgba(255, 255, 255, 0.25) !important;
+        }
+        html[dir="ltr"] .items-table th:last-child,
+        html[dir="ltr"] .items-table td:last-child {
+            border-right: none !important;
+        }
+        html[dir="ltr"] .items-table th.col-desc,
+        html[dir="ltr"] .items-table td.col-desc {
+            text-align: left !important;
+        }
+        html[dir="ltr"] .summary-table td:first-child {
+            text-align: left !important;
+        }
+        html[dir="ltr"] .summary-table td:last-child {
+            text-align: right !important;
+        }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="print-actions-bar no-print">
+        <h5 class="m-0 font-weight-bold">{% block page_title %}{{ title }}{% endblock %}</h5>
+        <div class="d-flex align-items-center gap-2">
+            <a href="?lang=ar" class="btn btn-sm {% if print_lang != 'en' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
+                <svg class="me-1" width="19" height="13" viewBox="0 0 640 480" style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                    <path fill="#ce1126" d="M0 0h640v160H0z"/>
+                    <path fill="#fff" d="M0 160h640v160H0z"/>
+                    <path fill="#000" d="M0 320h640v160H0z"/>
+                    <path fill="#c09300" d="M310 200h20v80h-20zM290 230h60v20h-60z"/>
+                </svg> عربي
+            </a>
+            <a href="?lang=en" class="btn btn-sm {% if print_lang == 'en' %}btn-light fw-bold{% else %}btn-outline-light{% endif %}">
+                <svg class="me-1" width="19" height="13" viewBox="0 0 640 480" style="border-radius: 2px; vertical-align: sub; box-shadow: 0 1px 2px rgba(0,0,0,0.3);">
+                    <path fill="#bd3d44" d="M0 0h640v480H0z"/>
+                    <path fill="#fff" d="M0 37h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0zm0 74h640v37H0z"/>
+                    <path fill="#192f5d" d="M0 0h256v259H0z"/>
+                    <circle cx="40" cy="40" r="12" fill="#fff"/>
+                    <circle cx="120" cy="40" r="12" fill="#fff"/>
+                    <circle cx="200" cy="40" r="12" fill="#fff"/>
+                    <circle cx="80" cy="90" r="12" fill="#fff"/>
+                    <circle cx="160" cy="90" r="12" fill="#fff"/>
+                    <circle cx="40" cy="140" r="12" fill="#fff"/>
+                    <circle cx="120" cy="140" r="12" fill="#fff"/>
+                    <circle cx="200" cy="140" r="12" fill="#fff"/>
+                    <circle cx="80" cy="190" r="12" fill="#fff"/>
+                    <circle cx="160" cy="190" r="12" fill="#fff"/>
+                </svg> English
+            </a>
+            <button onclick="window.print()" class="btn btn-light btn-sm fw-bold ms-2 me-2">
+                <i class="fas fa-print me-1"></i> {% if is_english %}Print{% else %}طباعة{% endif %}
+            </button>
+            {% block back_button %}
+            <a href="javascript:history.back()" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-arrow-right me-1"></i> {% if is_english %}Back{% else %}العودة{% endif %}
+            </a>
+            {% endblock %}
+        </div>
+    </div>
+
+    <div class="container-fluid p-0">
+        <div class="invoice-container">
+            <!-- Header Section: Logo & Company Information -->
+            <div class="company-header">
+                <div>
+                    {% if company_logo %}
+                        <img src="{{ MEDIA_URL }}{{ company_logo }}" alt="{{ company_name }}" class="company-logo">
+                    {% else %}
+                        <img src="{% static 'img/logo.png' %}" alt="{{ company_name }}" class="company-logo" onerror="this.style.display='none'">
+                    {% endif %}
+                    <div class="company-name">{{ company_name }}</div>
+                    <div class="company-meta">
+                        {% if company_address %}<div>{{ company_address }}</div>{% endif %}
+                        {% if company_phone %}<div>{% if is_english %}Tel:{% else %}الهاتف:{% endif %} <bdi dir="ltr">{{ company_phone }}</bdi></div>{% endif %}
+                    </div>
+                </div>
+                <div class="text-end company-meta pt-2">
+                    {% if company_tax_number %}<div class="mb-1"><strong>{% if is_english %}Tax Reg. No.:{% else %}الرقم الضريبي:{% endif %}</strong> <bdi dir="ltr">{{ company_tax_number }}</bdi></div>{% endif %}
+                    {% if company_email %}<div class="mb-1"><strong>{% if is_english %}Email:{% else %}البريد الإلكتروني:{% endif %}</strong> <bdi dir="ltr">{{ company_email }}</bdi></div>{% endif %}
+                    {% if company_website %}<div class="mb-1"><strong>{% if is_english %}Website:{% else %}الموقع الإلكتروني:{% endif %}</strong> <bdi dir="ltr">{{ company_website }}</bdi></div>{% endif %}
+                </div>
+            </div>
+
+            <!-- Title with Horizontal Side Dividers -->
+            <div class="document-title-divider">
+                <span class="document-title-text">{% block document_title %}{{ title }}{% endblock %}</span>
+            </div>
+
+            <!-- Client / Party Info, Date & Document Number -->
+            <div class="client-info-section">
+                {% block party_info %}
+                <div class="party-box">
+                    <div class="party-title">{% if is_english %}Billed To{% else %}العميل / فاتورة إلى{% endif %}</div>
+                    <div class="party-name">{{ sale.customer.name }}</div>
+                    {% if sale.customer.phone %}
+                    <div>{{ sale.customer.phone|format_phone }}</div>
+                    {% endif %}
+                </div>
+                {% endblock %}
+
+                <div class="doc-date-box">
+                    <div class="doc-date-label">{% block date_label %}{% if is_english %}Date{% else %}تاريخ الفاتورة{% endif %}{% endblock %}</div>
+                    <div class="doc-date-value">{% block date_value %}{% endblock %}</div>
+                </div>
+
+                <div class="doc-number-box">
+                    <div class="doc-number-label">{% block number_label %}{% if is_english %}Invoice No.{% else %}رقم المستند{% endif %}{% endblock %}</div>
+                    <div class="doc-number-value">{% block number_value %}{% endblock %}</div>
+                </div>
+            </div>
+
+            <!-- Items Table -->
+            <div class="items-table-wrapper">
+                <table class="items-table">
+                    <thead class="table-header-sticky">
+                        <tr>
+                            <th style="width: 40px; text-align: center;">#</th>
+                            {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
+                            <th style="width: 140px; text-align: center; white-space: nowrap;">{% if is_english %}Code / SKU{% else %}الكود / الباركود{% endif %}</th>
+                            {% endif %}
+                            <th class="col-desc">{% if is_english %}Item & Description{% else %}البند / البيان{% endif %}</th>
+                            <th style="width: 100px; text-align: center;">{% if is_english %}Qty{% else %}الكمية{% endif %}</th>
+                            <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Unit Price{% else %}سعر الوحدة{% endif %}</th>
+                            {% if has_item_discounts or sale.has_item_discounts or quotation.has_item_discounts or purchase.has_item_discounts %}
+                            <th style="width: 100px; text-align: center;">{% if is_english %}Discount{% else %}الخصم{% endif %}</th>
+                            {% endif %}
+                            <th class="col-amount" style="width: 110px; text-align: center;">{% if is_english %}Total{% else %}الإجمالي{% endif %}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% block items_rows %}{% endblock %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Financial Summary Section -->
+            <div class="financial-summary-wrapper keep-together">
+                <div class="summary-notes-side">
+                    {% block summary_notes %}
+                    {% endblock %}
+                </div>
+                <div class="summary-table-side">
+                    <table class="summary-table">
+                        {% block summary_rows %}{% endblock %}
+                    </table>
+                </div>
+            </div>
+
+            <!-- Terms & Conditions Section -->
+            <div class="terms-section keep-together">
+                {% block terms_and_conditions %}
+                {% endblock %}
+            </div>
+
+            <!-- Signatures & Footer Note -->
+            <div class="print-footer-wrapper keep-together">
+                <div class="signatures-section">
+                    <div class="signatures-grid">
+                        {% block signatures %}
+                        <div class="signature-box">
+                            <div class="signature-label">{% if is_english %}Recipient{% else %}المستلم{% endif %}</div>
+                            <div class="signature-line"></div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-label">{% if is_english %}Sales Representative{% else %}المسؤول / المبيعات{% endif %}</div>
+                            <div class="signature-line"></div>
+                        </div>
+                        <div class="signature-box">
+                            <div class="signature-label">{% if is_english %}Stamp & Signature{% else %}الختم والتوقيع{% endif %}</div>
+                            <div class="signature-line"></div>
+                        </div>
+                        {% endblock %}
+                    </div>
+                </div>
+
+                <div class="print-footer-note">
+                    &copy; {% now "Y" %} {{ company_name }}
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

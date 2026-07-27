@@ -28,7 +28,6 @@
     .info-card dt {
         font-weight: 600;
     }
-    .total-value {
 </style>
 {% endblock %}
 
@@ -210,9 +209,14 @@
                                         <br>
                                         <small class="text-muted">{{ item.product.sku }}</small>
                                     </td>
-                                    <td>{{ item.quantity|smart_float }}</td>
+                                    <td class="fw-bold">
+                                        {{ item.quantity|smart_float }}
+                                        {% if item.product.unit %}
+                                        <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
+                                        {% endif %}
+                                    </td>
                                     <td>{{ item.unit_price|currency }}</td>
-                                    <td>{{ item.discount|currency }}</td>
+                                    <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
                                     <td class="item-total">{{ item.total|currency }}</td>
                                     <td>{{ item.reason }}</td>
                                 </tr>

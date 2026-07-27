@@ -489,13 +489,6 @@
                         </div>
                     </div>
                     
-                    {% if sale.notes %}
-                    <div class="invoice-notes">
-                        <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات:" %}</div>
-                        <div class="notes-content">{{ sale.notes }}</div>
-                    </div>
-                    {% endif %}
-                    
                     <div class="invoice-items">
                         <div class="section-title">
                             <i class="fas fa-boxes"></i> {% trans "بنود الفاتورة" %}
@@ -522,21 +515,25 @@
                                         {% if settings.invoice_product_code_display and settings.invoice_product_code_display != 'none' %}
                                         <td class="text-muted small">
                                             {% if settings.invoice_product_code_display == 'sku' %}
-                                                {{ item.product.sku|default:"-" }}
+                                                {{ item.product.code|default:item.product.sku|default:"-" }}
                                             {% elif settings.invoice_product_code_display == 'barcode' %}
-                                                {{ item.product.barcode|default:"-" }}
+                                                {{ item.product.barcode|default:item.product.code|default:item.product.sku|default:"-" }}
                                             {% elif settings.invoice_product_code_display == 'both' %}
-                                                {% if item.product.sku %}{{ item.product.sku }}{% endif %}
-                                                {% if item.product.sku and item.product.barcode %} - {% endif %}
-                                                {% if item.product.barcode %}{{ item.product.barcode }}{% endif %}
-                                                {% if not item.product.sku and not item.product.barcode %}-{% endif %}
+                                                {% if item.product.code or item.product.sku %}{{ item.product.code|default:item.product.sku }}{% endif %}
+                                                {% if item.product.barcode %}{% if item.product.code or item.product.sku %} - {% endif %}{{ item.product.barcode }}{% endif %}
+                                                {% if not item.product.code and not item.product.sku and not item.product.barcode %}-{% endif %}
                                             {% endif %}
                                         </td>
                                         {% endif %}
                                         <td class="fw-bold">{{ item.product.name }}</td>
-                                        <td class="fw-bold">{{ item.quantity|smart_float }}</td>
+                                        <td class="fw-bold">
+                                            {{ item.quantity|smart_float }}
+                                            {% if item.product.unit %}
+                                            <span class="text-muted fw-normal small">({{ item.product.unit.name }})</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ item.unit_price|currency }}</td>
-                                        <td>{{ item.discount|currency }}</td>
+                                        <td>{% if item.discount and item.discount > 0 %}{{ item.discount|currency }}{% else %}-{% endif %}</td>
                                         <td class="fw-bold">{{ item.total|currency }}</td>
                                     </tr>
                                     {% endfor %}
@@ -552,7 +549,11 @@
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الخصم:" %}</div>
-                            <div class="summary-value">{{ sale.discount|currency }}</div>
+                            <div class="summary-value">{% if sale.discount and sale.discount > 0 %}{{ sale.discount|currency }}{% else %}-{% endif %}</div>
+                        </div>
+                        <div class="summary-row">
+                            <div class="summary-label">{% trans "الضريبة:" %}</div>
+                            <div class="summary-value">{% if sale.tax and sale.tax > 0 %}{{ sale.tax|currency }}{% else %}-{% endif %}</div>
                         </div>
                         <div class="summary-row">
                             <div class="summary-label">{% trans "الإجمالي:" %}</div>
@@ -567,6 +568,13 @@
                             <div class="summary-value">{{ sale.amount_due|currency }}</div>
                         </div>
                     </div>
+
+                    {% if sale.notes %}
+                    <div class="invoice-notes mt-4">
+                        <div class="notes-title"><i class="fas fa-sticky-note me-2"></i> {% trans "ملاحظات:" %}</div>
+                        <div class="notes-content">{{ sale.notes|safe }}</div>
+                    </div>
+                    {% endif %}
                     
                     <!-- بداية قسم المرتجعات -->
                     {% if sale.returns.exists %}
@@ -705,9 +713,11 @@
                                                     <i class="fas fa-edit"></i>
                                                 </a>
                                                 {% elif payment.status == 'posted' %}
+                                                {% if payment.financial_transaction %}
                                                 <a href="{% url 'financial:journal_entries_detail' payment.financial_transaction.id %}" class="btn btn-sm btn-outline-info" target="_blank" title="عرض القيد">
                                                     <i class="fas fa-book"></i>
                                                 </a>
+                                                {% endif %}
                                                 {% endif %}
                                             </div>
                                         </td>

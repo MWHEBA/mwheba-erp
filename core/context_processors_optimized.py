@@ -62,11 +62,31 @@ def global_settings(request):
             logger.error(f"Error loading global settings: {e}")
             settings_dict = {}
     
-    # تحويل maintenance_mode من string إلى boolean
+    # القيم الافتراضية للإعدادات غير المعرفة في داتابيز
+    DEFAULT_SETTINGS = {
+        'invoice_product_code_display': 'none',
+        'sale_invoice_item_types': 'both',
+        'site_name': 'موهبة ERP',
+        'enable_thermal_printing': False,
+        'color_primary': '#04578d',
+        'color_primary_dark': '#033d64',
+        'color_primary_light': '#e6f0fa',
+        'color_primary_hover': '#0462a0',
+    }
+    for def_key, def_val in DEFAULT_SETTINGS.items():
+        if def_key not in settings_dict or settings_dict[def_key] is None or settings_dict[def_key] == '':
+            settings_dict[def_key] = def_val
+
+    # تحويل maintenance_mode و enable_thermal_printing إلى boolean
     maintenance_value = settings_dict.get("maintenance_mode", False)
     if isinstance(maintenance_value, str):
         maintenance_value = maintenance_value.lower() in ["true", "1", "yes", "نعم"]
-    
+
+    thermal_value = settings_dict.get("enable_thermal_printing", False)
+    if isinstance(thermal_value, str):
+        thermal_value = thermal_value.lower() in ["true", "1", "yes", "نعم"]
+    settings_dict["enable_thermal_printing"] = thermal_value
+
     return {
         "settings": settings_dict,
         "SITE_NAME": settings_dict.get("site_name", "موهبة ERP"),

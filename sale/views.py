@@ -17,8 +17,57 @@ from sale.forms import SaleForm, SalePaymentForm, SaleReturnForm
 from sale.services import SaleService
 from product.models import Product, Warehouse, SerialNumber
 from client.models import Customer
+from core.models import SystemSetting
 
 logger = logging.getLogger(__name__)
+
+
+def _extract_posted_items(request):
+    """
+    استخراج البنود المرسلة في POST لإعادة عرضها في الواجهة في حالة وجود خطأ للنموذج
+    """
+    product_ids = request.POST.getlist("product[]")
+    quantities = request.POST.getlist("quantity[]")
+    unit_prices = request.POST.getlist("unit_price[]")
+    discounts = request.POST.getlist("discount[]")
+
+    posted_items = []
+    if product_ids:
+        valid_ids = [int(p) for p in product_ids if p and str(p).isdigit()]
+        if valid_ids:
+            prod_map = {p.id: p for p in Product.objects.filter(id__in=valid_ids).select_related("unit")}
+            for i in range(len(product_ids)):
+                if product_ids[i] and str(product_ids[i]).isdigit():
+                    p_id = int(product_ids[i])
+                    prod_obj = prod_map.get(p_id)
+                    if prod_obj:
+                        try:
+                            q = Decimal(str(quantities[i])) if i < len(quantities) and quantities[i] else Decimal("1")
+                        except (ValueError, TypeError):
+                            q = Decimal("1")
+                        try:
+                            p = Decimal(str(unit_prices[i]).replace(',', '')) if i < len(unit_prices) and unit_prices[i] else Decimal(str(prod_obj.selling_price))
+                        except (ValueError, TypeError):
+                            p = Decimal(str(prod_obj.selling_price))
+                        try:
+                            d = Decimal(str(discounts[i])) if i < len(discounts) and discounts[i] else Decimal("0")
+                        except (ValueError, TypeError):
+                            d = Decimal("0")
+                        
+                        product_code = getattr(prod_obj, 'code', None) or getattr(prod_obj, 'sku', '') or ""
+                        posted_items.append({
+                            "id": prod_obj.id,
+                            "product_id": prod_obj.id,
+                            "code": product_code,
+                            "name": prod_obj.name,
+                            "quantity": q,
+                            "unit_price": p,
+                            "price": p,
+                            "discount": d,
+                            "is_service": prod_obj.is_service,
+                            "unit": prod_obj.unit.name if prod_obj.unit else "",
+                        })
+    return posted_items
 
 
 @login_required
@@ -82,17 +131,53 @@ def sale_create(request, customer_id=None):
         except WorkOrder.DoesNotExist:
             pass
 
+    posted_items = []
     if request.method == "POST":
+        posted_items = _extract_posted_items(request)
         form = SaleForm(request.POST)
 
         if form.is_valid():
             try:
+                discount_input = Decimal(request.POST.get("discount", "0") or "0")
+                discount_type = request.POST.get("discount_type", "fixed")
+                
+                adjustment_name = request.POST.get("adjustment_name", "").strip()
+                adjustment_type = request.POST.get("adjustment_type", "add")
+                raw_adj_amount = Decimal(request.POST.get("adjustment_amount", "0") or "0")
+                adj_amount = -abs(raw_adj_amount) if adjustment_type == "subtract" else abs(raw_adj_amount)
+
+                # حساب المجموع الفرعي من البنود لحساب الخصم المئوي
+                subtotal_calc = Decimal('0')
+                product_ids = request.POST.getlist("product[]")
+                quantities = request.POST.getlist("quantity[]")
+                unit_prices = request.POST.getlist("unit_price[]")
+                discounts = request.POST.getlist("discount[]")
+                for i in range(len(product_ids)):
+                    if product_ids[i]:
+                        q = Decimal(quantities[i])
+                        p = Decimal(unit_prices[i].replace(',', ''))
+                        d = Decimal(discounts[i] if discounts[i] else '0')
+                        subtotal_calc += max(Decimal('0'), q * p - d)
+
+                if discount_type == "percentage":
+                    if discount_input > Decimal("100"):
+                        discount_input = Decimal("100")
+                    discount_amount = (subtotal_calc * discount_input) / Decimal("100")
+                else:
+                    discount_amount = discount_input
+
+                if discount_amount > subtotal_calc and subtotal_calc > 0:
+                    discount_amount = subtotal_calc
+
                 # تجهيز بيانات الفاتورة
                 sale_data = {
                     'date': form.cleaned_data['date'],
                     'customer_id': form.cleaned_data['customer'].id,
                     'warehouse_id': form.cleaned_data['warehouse'].id,
-                    'discount': Decimal(request.POST.get("discount", "0")),
+                    'discount': discount_amount,
+                    'discount_type': discount_type,
+                    'adjustment_name': adjustment_name,
+                    'adjustment_amount': adj_amount,
                     'tax': Decimal(request.POST.get("tax", "0")),
                     'notes': form.cleaned_data.get('notes', ''),
                     'work_order_id': form.cleaned_data['work_order'].id if form.cleaned_data.get('work_order') else None,
@@ -186,8 +271,14 @@ def sale_create(request, customer_id=None):
                 messages.error(request, f"حدث خطأ أثناء إنشاء الفاتورة: {str(e)}")
     else:
         # تهيئة بيانات افتراضية
+        default_sale_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
+        if not default_sale_notes:
+            default_sale_notes = SystemSetting.get_setting('invoice_notes', '')
+
         initial_data = {
             "date": timezone.now().date(),
+            "invoice_type": "credit_with_downpayment",
+            "notes": default_sale_notes,
         }
         if selected_customer:
             initial_data["customer"] = selected_customer
@@ -234,6 +325,7 @@ def sale_create(request, customer_id=None):
         
     product_categories = Category.objects.filter(category_filter).distinct().order_by("name")
 
+    import json
     context = {
         "products": products,
         "product_categories": product_categories,
@@ -244,6 +336,7 @@ def sale_create(request, customer_id=None):
         "warehouses": warehouses,
         "selected_customer": selected_customer,
         "default_warehouse": warehouses.first() if warehouses.exists() else None,
+        "posted_items_json": json.dumps(posted_items) if posted_items else "null",
         "page_title": "إضافة فاتورة مبيعات" + (f" - {selected_customer.name}" if selected_customer else ""),
         "page_subtitle": "إضافة فاتورة مبيعات جديدة إلى النظام",
         "page_icon": "fas fa-file-invoice-dollar",
@@ -293,8 +386,12 @@ def sale_delete(request, pk):
             return redirect("sale:sale_list")
             
         except Exception as e:
-            logger.error(f"❌ خطأ في حذف الفاتورة: {str(e)}")
-            messages.error(request, f"حدث خطأ أثناء حذف الفاتورة: {str(e)}")
+            from django.db.models import ProtectedError
+            if isinstance(e, ProtectedError) or 'PROTECT' in str(type(e)):
+                messages.error(request, "عفواً، لا يمكن حذف هذه الفاتورة لوجود مدفوعات أو سجلات مالية حساسة مرتبطة بها. يرجى إلغاء المدفوعات أولاً.")
+            else:
+                logger.error(f"❌ خطأ في حذف الفاتورة: {str(e)}")
+                messages.error(request, f"حدث خطأ أثناء حذف الفاتورة: {str(e)}")
             return redirect("sale:sale_detail", pk=pk)
 
     context = {
@@ -315,7 +412,7 @@ def add_payment(request, pk):
     sale = get_object_or_404(Sale, pk=pk)
 
     if request.method == "POST":
-        form = SalePaymentForm(request.POST)
+        form = SalePaymentForm(request.POST, sale=sale)
         if form.is_valid():
             try:
                 # تجهيز بيانات الدفعة
@@ -342,7 +439,7 @@ def add_payment(request, pk):
             'amount': sale.amount_due,
             'payment_date': timezone.now().date(),
         }
-        form = SalePaymentForm(initial=initial_data)
+        form = SalePaymentForm(initial=initial_data, sale=sale)
 
     context = {
         "invoice": sale,  # الـ template بيستخدم invoice مش sale
@@ -439,7 +536,14 @@ def sale_detail(request, pk):
     عرض تفاصيل فاتورة مبيعات
     ✅ محدث: يستخدم SaleService للإحصائيات
     """
-    sale = get_object_or_404(Sale, pk=pk)
+    sale_qs = Sale.objects.all()
+    if not request.user.is_superuser and not request.user.is_staff:
+        if hasattr(request.user, 'warehouse') and request.user.warehouse:
+            sale_qs = sale_qs.filter(warehouse=request.user.warehouse)
+        elif not request.user.has_perm('sale.view_sale'):
+            sale_qs = sale_qs.filter(created_by=request.user)
+
+    sale = get_object_or_404(sale_qs, pk=pk)
     
     # الحصول على الإحصائيات من SaleService
     statistics = SaleService.get_sale_statistics(sale)
@@ -463,6 +567,12 @@ def sale_detail(request, pk):
         "page_icon": "fas fa-file-invoice-dollar",
         "header_buttons": [
             *([{
+                "url": reverse("sale:sale_edit", kwargs={"pk": sale.pk}),
+                "icon": "fa-edit",
+                "text": "تعديل",
+                "class": "btn-outline-secondary",
+            }] if not sale.is_fully_paid and sale.status != 'cancelled' else []),
+            *([{
                 "url": reverse("sale:sale_add_payment", kwargs={"pk": sale.pk}),
                 "icon": "fa-money-bill-wave",
                 "text": "إضافة دفعة",
@@ -483,15 +593,15 @@ def sale_detail(request, pk):
             {
                 "url": reverse("sale:sale_print", kwargs={"pk": sale.pk}),
                 "icon": "fa-print",
-                "text": "طباعة (A4)",
+                "text": "طباعة",
                 "class": "btn-info",
             },
-            {
+            *([{
                 "url": reverse("sale:sale_print_thermal", kwargs={"pk": sale.pk}),
                 "icon": "fa-receipt",
                 "text": "طباعة حرارية",
-                "class": "btn-outline-info",
-            },
+                "class": "btn-outline-secondary",
+            }] if SystemSetting.get_setting('enable_thermal_printing', 'false') == 'true' else []),
         ],
         "breadcrumb_items": [
             {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fas fa-home"},
@@ -708,11 +818,20 @@ def sale_list(request):
 @login_required
 def sale_print(request, pk):
     """
-    طباعة فاتورة مبيعات
+    طباعة فاتورة مبيعات (عربي / إنجليزي)
     """
     sale = get_object_or_404(Sale, pk=pk)
     items = sale.items.all()
     from core.models import SystemSetting
+    
+    # تحديد لغة الطباعة الاتجاه
+    default_lang = SystemSetting.get_default_print_language()
+    print_lang = request.GET.get('lang', default_lang).lower()
+    if print_lang not in ['ar', 'en']:
+        print_lang = 'ar'
+    
+    is_english = (print_lang == 'en')
+    print_dir = 'ltr' if is_english else 'rtl'
     
     # جلب الإعدادات المحددة للشركة
     company_name = SystemSetting.objects.filter(key="company_name").values_list("value", flat=True).first() or "مؤسسة موهبة"
@@ -722,20 +841,57 @@ def sale_print(request, pk):
     company_logo = SystemSetting.objects.filter(key="company_logo").values_list("value", flat=True).first() or ""
     company_email = SystemSetting.objects.filter(key="company_email").values_list("value", flat=True).first() or ""
     company_website = SystemSetting.objects.filter(key="company_website").values_list("value", flat=True).first() or ""
+
+    if is_english:
+        company_name_active = SystemSetting.get_setting('company_name_en') or SystemSetting.get_setting('site_name_en') or company_name
+        company_address_active = SystemSetting.get_company_address_en() or company_address
+        invoice_title_active = SystemSetting.get_invoice_title_sale_en()
+        default_notes = SystemSetting.get_sale_invoice_notes_en()
+        sale_currency = getattr(sale, 'currency', None)
+        currency_symbol_active = sale_currency if (sale_currency and sale_currency != 'ج.م') else SystemSetting.get_currency_symbol_en()
+        status_map = {
+            'paid': 'PAID',
+            'unpaid': 'UNPAID',
+            'partial': 'PARTIALLY PAID',
+            'draft': 'DRAFT'
+        }
+    else:
+        company_name_active = company_name
+        company_address_active = company_address
+        invoice_title_active = "فاتورة مبيعات"
+        default_notes = SystemSetting.get_setting('default_sale_invoice_notes', '')
+        currency_symbol_active = getattr(sale, 'currency', None) or SystemSetting.get_currency_symbol()
+        status_map = {
+            'paid': 'مدفوع بالكامل',
+            'unpaid': 'غير مدفوع',
+            'partial': 'مدفوع جزئياً',
+            'draft': 'مسودة'
+        }
+
+    status_code = getattr(sale, 'payment_status', getattr(sale, 'status', 'unpaid'))
+    translated_status = status_map.get(str(status_code).lower(), str(status_code))
     
     is_service_invoice = all(item.product.is_service for item in items)
     context = {
         "sale": sale,
         "items": items,
-        "company_name": company_name,
-        "company_address": company_address,
+        "company_name": company_name_active,
+        "company_address": company_address_active,
         "company_phone": company_phone,
         "company_tax_number": company_tax_number,
         "company_logo": company_logo,
         "company_email": company_email,
         "company_website": company_website,
-        "title": f"فاتورة مبيعات - {sale.number}",
+        "title": f"{invoice_title_active} - {sale.number}",
+        "document_title": invoice_title_active,
+        "print_lang": print_lang,
+        "print_dir": print_dir,
+        "is_english": is_english,
+        "currency_symbol_active": currency_symbol_active,
+        "default_notes": default_notes,
+        "translated_status": translated_status,
         "is_service_invoice": is_service_invoice,
+        "has_item_discounts": sale.has_item_discounts,
     }
     
     return render(request, "sale/sale_print.html", context)
@@ -751,6 +907,11 @@ def sale_print_thermal(request, pk):
     import base64
     from core.models import SystemSetting
     
+    enable_thermal = SystemSetting.get_setting('enable_thermal_printing', 'false') == 'true'
+    if not enable_thermal:
+        messages.error(request, "الطباعة الحرارية غير مفعلة في إعدادات النظام")
+        return redirect("sale:sale_detail", pk=pk)
+
     sale = get_object_or_404(Sale, pk=pk)
     items = sale.items.all()
     
@@ -807,21 +968,125 @@ def sale_print_thermal(request, pk):
 @login_required
 def sale_edit(request, pk):
     """
-    تعديل فاتورة مبيعات
-    ملاحظة: التعديل محدود - لا يمكن تعديل فاتورة مدفوعة بالكامل
+    تعديل فاتورة مبيعات مع إعادة تسوية حركات المخزن والقيد المحاسبي بالحوكمة
     """
     sale = get_object_or_404(Sale, pk=pk)
     
-    # التحقق من إمكانية التعديل
+    # التحقق من شروط المنع
+    if sale.status == 'cancelled':
+        messages.error(request, "لا يمكن تعديل فاتورة ملغية")
+        return redirect("sale:sale_detail", pk=pk)
+
     if sale.is_fully_paid:
         messages.error(request, "لا يمكن تعديل فاتورة مدفوعة بالكامل")
         return redirect("sale:sale_detail", pk=pk)
-    
-    if sale.has_posted_payments:
-        messages.warning(request, "تحذير: هذه الفاتورة تحتوي على دفعات مرحلة. التعديل محدود.")
-    
-    messages.info(request, "تعديل الفواتير محدود حالياً. يُنصح بإنشاء فاتورة جديدة.")
-    return redirect("sale:sale_detail", pk=pk)
+        
+    if sale.returns.filter(status='confirmed').exists():
+        messages.error(request, "لا يمكن تعديل فاتورة تمت عليها عمليات مرتجع مؤكدة")
+        return redirect("sale:sale_detail", pk=pk)
+
+    import json
+    from sale.forms import SaleForm
+    from product.models import Product, Warehouse
+    from client.models import Customer
+
+    posted_items = []
+    if request.method == "POST":
+        posted_items = _extract_posted_items(request)
+        form = SaleForm(request.POST, instance=sale)
+        if form.is_valid():
+            try:
+                sale_data = {
+                    'date': form.cleaned_data.get('date', sale.date),
+                    'customer_id': form.cleaned_data['customer'].pk,
+                    'warehouse_id': form.cleaned_data['warehouse'].pk,
+                    'discount': form.cleaned_data.get('discount', 0) or Decimal('0'),
+                    'discount_type': form.cleaned_data.get('discount_type', 'fixed'),
+                    'adjustment_name': form.cleaned_data.get('adjustment_name'),
+                    'adjustment_amount': form.cleaned_data.get('adjustment_amount', 0) or Decimal('0'),
+                    'tax': form.cleaned_data.get('tax', 0) or Decimal('0'),
+                    'notes': form.cleaned_data.get('notes', ''),
+                    'items': [],
+                }
+                
+                financial_category = form.cleaned_data.get('financial_category')
+                if financial_category:
+                    sale_data['financial_category_id'] = financial_category.pk
+
+                product_ids = request.POST.getlist("product[]")
+                quantities = request.POST.getlist("quantity[]")
+                unit_prices = request.POST.getlist("unit_price[]")
+                discounts = request.POST.getlist("discount[]")
+
+                for i in range(len(product_ids)):
+                    if product_ids[i]:
+                        sale_data['items'].append({
+                            'product_id': int(product_ids[i]),
+                            'quantity': Decimal(quantities[i]),
+                            'unit_price': Decimal(unit_prices[i].replace(',', '')),
+                            'discount': Decimal(discounts[i] if discounts[i] else '0'),
+                        })
+
+                updated_sale = SaleService.update_sale(sale=sale, data=sale_data, user=request.user)
+                messages.success(request, f"تم تعديل فاتورة المبيعات رقم {updated_sale.number} بنجاح")
+                return redirect("sale:sale_detail", pk=updated_sale.pk)
+            except Exception as e:
+                logger.error(f"❌ خطأ أثناء تعديل الفاتورة: {str(e)}")
+                messages.error(request, f"حدث خطأ أثناء تعديل الفاتورة: {str(e)}")
+        else:
+            messages.error(request, "يرجى تصحيح الأخطاء في النموذج")
+    else:
+        form = SaleForm(instance=sale)
+
+    # تجهيز البنود الحالية كـ JSON للواجهة التفاعلية
+    duplicate_items = []
+    for item in sale.items.all():
+        product_code = getattr(item.product, 'code', None) or getattr(item.product, 'sku', '')
+        duplicate_items.append({
+            "id": item.product.id,
+            "code": product_code,
+            "name": item.product.name,
+            "quantity": float(item.quantity),
+            "price": float(item.unit_price),
+            "discount": float(item.discount or 0),
+            "is_service": item.product.is_service,
+            "unit": item.product.unit.name if item.product.unit else "",
+        })
+
+    products = Product.objects.filter(is_active=True).select_related("unit")
+    customers = Customer.objects.filter(is_active=True).order_by("name")
+    warehouses = Warehouse.objects.filter(is_active=True).order_by("name")
+
+    context = {
+        "sale": sale,
+        "form": form,
+        "is_edit": True,
+        "products": products,
+        "customers": customers,
+        "warehouses": warehouses,
+        "duplicate_items": json.dumps(duplicate_items),
+        "posted_items_json": json.dumps(posted_items) if posted_items else "null",
+        "duplicate_invoice_type": getattr(sale, 'payment_method', 'credit'),
+        "currency_symbol": "ج.م",
+        "page_title": f"تعديل فاتورة مبيعات {sale.number}",
+        "page_subtitle": f"العميل: {sale.customer.name}",
+        "page_icon": "fas fa-edit",
+        "header_buttons": [
+            {
+                "url": reverse("sale:sale_detail", kwargs={"pk": sale.pk}),
+                "icon": "fa-arrow-right",
+                "text": "العودة للتفاصيل",
+                "class": "btn-secondary",
+            }
+        ],
+        "breadcrumb_items": [
+            {"title": "الرئيسية", "url": reverse("core:dashboard"), "icon": "fa-home"},
+            {"title": "المبيعات", "url": reverse("sale:sale_list"), "icon": "fa-shopping-cart"},
+            {"title": f"فاتورة {sale.number}", "url": reverse("sale:sale_detail", kwargs={"pk": sale.pk})},
+            {"title": "تعديل", "active": True},
+        ],
+    }
+    return render(request, "sale/sale_form.html", context)
 
 
 # Import necessary for sale_list
@@ -846,9 +1111,13 @@ def payment_detail(request, pk):
     """
     payment = get_object_or_404(SalePayment, pk=pk)
     
+    from financial.services.payment_edit_service import PaymentEditService
+    financial_info = PaymentEditService.get_edit_permissions(request.user, payment)
+    
     context = {
         "payment": payment,
         "sale": payment.sale,
+        "financial_info": financial_info,
         "active_menu": "sales",
         "title": f"تفاصيل الدفعة #{payment.id}",
     }
@@ -867,11 +1136,18 @@ def post_payment(request, payment_id):
         messages.warning(request, "هذه الدفعة مرحلة بالفعل")
     else:
         try:
-            # TODO: Implement posting logic with SaleService
-            payment.is_posted = True
+            from sale.services.sale_service import SaleService
+            journal_entry = SaleService._create_payment_journal_entry(payment, request.user)
+            if journal_entry:
+                payment.financial_transaction = journal_entry
+            payment.status = "posted"
             payment.posted_at = timezone.now()
             payment.posted_by = request.user
             payment.save()
+            
+            if payment.sale:
+                payment.sale.update_payment_status()
+
             messages.success(request, "تم ترحيل الدفعة بنجاح")
         except Exception as e:
             messages.error(request, f"خطأ في ترحيل الدفعة: {str(e)}")
@@ -924,6 +1200,47 @@ def unpost_payment_only(request, payment_id):
 
 
 @login_required
+def delete_payment(request, payment_id):
+    """
+    حذف دفعة مبيعات - يُسمح بالحذف فقط للدفعات غير المرحلة (المسودة)
+    """
+    payment = get_object_or_404(SalePayment, pk=payment_id)
+    sale = payment.sale
+    
+    if not payment.can_delete:
+        messages.error(request, "لا يمكن حذف الدفعة المرحلة. يجب إلغاء الترحيل أولاً.")
+        return redirect("sale:payment_detail", pk=payment.id)
+    
+    if request.method == "POST":
+        try:
+            if hasattr(payment, 'log_payment_action'):
+                payment.log_payment_action(
+                    action="delete",
+                    user=request.user,
+                    description=f"حذف دفعة مبيعات - المبلغ: {payment.amount} - التاريخ: {payment.payment_date}",
+                    reason=request.POST.get("reason", "حذف الدفعة"),
+                    old_values={
+                        "amount": float(payment.amount),
+                        "payment_date": payment.payment_date.isoformat() if payment.payment_date else None,
+                        "payment_method": payment.payment_method,
+                        "notes": payment.notes,
+                        "status": payment.status,
+                    }
+                )
+            
+            payment.delete()
+            messages.success(request, "تم حذف الدفعة بنجاح")
+            return redirect("sale:sale_detail", pk=sale.pk)
+            
+        except Exception as e:
+            logger.error(f"خطأ في حذف الدفعة {payment_id}: {str(e)}")
+            messages.error(request, f"حدث خطأ أثناء حذف الدفعة: {str(e)}")
+            return redirect("sale:payment_detail", pk=payment.id)
+            
+    return redirect("sale:payment_detail", pk=payment.id)
+
+
+@login_required
 def edit_payment(request, payment_id):
     """
     تعديل دفعة
@@ -935,13 +1252,13 @@ def edit_payment(request, payment_id):
         return redirect("sale:payment_detail", pk=payment_id)
     
     if request.method == "POST":
-        form = SalePaymentForm(request.POST, instance=payment)
+        form = SalePaymentForm(request.POST, instance=payment, sale=payment.sale)
         if form.is_valid():
             form.save()
             messages.success(request, "تم تعديل الدفعة بنجاح")
             return redirect("sale:payment_detail", pk=payment_id)
     else:
-        form = SalePaymentForm(instance=payment)
+        form = SalePaymentForm(instance=payment, sale=payment.sale)
     
     context = {
         "form": form,
@@ -1052,8 +1369,10 @@ def sale_duplicate(request, pk):
     from core.models import SystemSetting
     allowed_item_types = SystemSetting.get_setting('sale_invoice_item_types', 'both')
 
-    # جلب المنتجات اللي ليها stock في مخزن الفاتورة الأصلية (الخدمات تظهر دائماً)
+    # جلب المنتجات المسجلة في الفاتورة الأصلية مضافاً إليها المنتجات ذات المخزون المتاح
     from django.db import models
+    original_item_product_ids = list(original.items.values_list("product_id", flat=True))
+
     products_filter = models.Q(is_active=True, is_bundle=False)
     if allowed_item_types == 'products':
         products_filter &= models.Q(is_service=False)
@@ -1067,11 +1386,11 @@ def sale_duplicate(request, pk):
     
     if allowed_item_types == 'both':
         products = Product.objects.filter(
-            products_filter & (models.Q(is_service=True) | models.Q(id__in=products_with_stock))
+            products_filter & (models.Q(is_service=True) | models.Q(id__in=products_with_stock) | models.Q(id__in=original_item_product_ids))
         ).order_by("name")
     elif allowed_item_types == 'products':
         products = Product.objects.filter(
-            products_filter & models.Q(id__in=products_with_stock)
+            products_filter & (models.Q(id__in=products_with_stock) | models.Q(id__in=original_item_product_ids))
         ).order_by("name")
     else:  # services
         products = Product.objects.filter(products_filter).order_by("name")
@@ -1109,21 +1428,45 @@ def sale_duplicate(request, pk):
     except Exception as e:
         logger.error(f"خطأ في الحصول على الرقم التالي: {str(e)}")
 
-    # تحديد نوع الفاتورة
+    # تحديد نوع الفاتورة وحساب الدفع والدفعة المقدمة
+    first_payment = original.payments.order_by("id").first()
+    payment_account_code = ""
+    if first_payment:
+        payment_account_code = first_payment.payment_method or (
+            first_payment.financial_account.code if first_payment.financial_account else ""
+        )
+
+    down_payment_amount = 0
+
     if original.payment_method == "credit":
         invoice_type = "credit"
     elif original.payment_method == "credit_with_downpayment":
         invoice_type = "credit_with_downpayment"
+        if first_payment:
+            down_payment_amount = float(first_payment.amount)
     else:
         invoice_type = "cash"
+        if not payment_account_code and original.payment_method not in ["cash", "bank_transfer", "check"]:
+            payment_account_code = original.payment_method
 
     # التصنيف المالي بصيغة cat_X
     financial_category_id = f"cat_{original.financial_category.id}" if original.financial_category else None
 
-    # بيانات البنود
+    # بيانات الخصم والتسوية
+    discount_val = float(original.discount) if original.discount else 0
+    discount_type = original.discount_type or "fixed"
+
+    adj_name = original.adjustment_name or ""
+    adj_amount = float(original.adjustment_amount) if original.adjustment_amount else 0
+    adj_type = "subtract" if adj_amount < 0 else "add"
+    abs_adj_amount = abs(adj_amount)
+
+    # بيانات البنود الكاملة (متضمنة الاسم والكود لضمان ظهورها فوراً)
     duplicate_items = json.dumps([
         {
             "product_id": item.product.id,
+            "code": getattr(item.product, 'code', None) or getattr(item.product, 'sku', '') or getattr(item.product, 'barcode', '') or "",
+            "name": item.product.name,
             "quantity": float(item.quantity),
             "unit_price": float(item.unit_price),
             "discount": float(item.discount),
@@ -1137,9 +1480,15 @@ def sale_duplicate(request, pk):
         "date": timezone.now().date(),
         "customer": original.customer,
         "warehouse": original.warehouse,
-        "discount": original.discount,
+        "discount": discount_val,
+        "discount_type": discount_type,
+        "adjustment_name": adj_name,
+        "adjustment_type": adj_type,
+        "adjustment_amount": abs_adj_amount,
         "notes": original.notes,
-        "payment_method": original.payment_method,
+        "payment_method": payment_account_code,
+        "invoice_type": invoice_type,
+        "down_payment_amount": down_payment_amount,
         "financial_category": financial_category_id,
     })
 
@@ -1158,8 +1507,14 @@ def sale_duplicate(request, pk):
         "duplicate_from": original.number,
         "duplicate_items": duplicate_items,
         "duplicate_invoice_type": invoice_type,
-        "duplicate_payment_method": original.payment_method,
+        "duplicate_payment_method": payment_account_code,
+        "duplicate_down_payment_amount": down_payment_amount,
         "duplicate_financial_category_id": financial_category_id,
+        "duplicate_discount": discount_val,
+        "duplicate_discount_type": discount_type,
+        "duplicate_adjustment_name": adj_name,
+        "duplicate_adjustment_type": adj_type,
+        "duplicate_adjustment_amount": abs_adj_amount,
         "page_title": f"نسخ فاتورة - {original.number}",
         "page_subtitle": f"نسخة من فاتورة {original.number} | {original.customer.name}",
         "page_icon": "fas fa-copy",
